@@ -831,9 +831,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // Extract CSS selector information for per-element scoping
         css::extract_css_selector_info(stylesheet, &mut analysis);
 
-        // Prune unused selectors
-        css::prune_css(stylesheet, &analysis);
-
         // Mark elements as scoped based on CSS selector matching.
         // Extract CSS selectors and match them against template elements,
         // properly considering combinators (>, space, +, ~).
@@ -1384,14 +1381,15 @@ fn collect_legacy_reactive_statement_metadata(
         }
 
         let body_node = arena.get_js_node(*body);
-        let mut facts = CycleFacts::default();
-        cycle_collect_assignments_and_deps(body_node, arena, &mut facts);
-        let CycleFacts {
-            mut assignments,
-            shadowed_assignments,
-            dependencies: mut cycle_dependencies,
-            ..
-        } = facts;
+        let mut assignments = Vec::new();
+        let mut cycle_dependencies = Vec::new();
+        cycle_collect_assignments_and_deps(
+            body_node,
+            arena,
+            &mut assignments,
+            &mut cycle_dependencies,
+            &mut Vec::new(),
+        );
 
         let instance_scope_idx = analysis.root.instance_scope_index;
         let is_instance_binding = |name: &str| {
@@ -1518,75 +1516,53 @@ impl CycleFacts {
 /// update targets into `assignments` and every other read identifier into
 /// `dependencies`. Recurses like a generic identifier collector for the read
 /// case, but recognises `AssignmentExpression` / `UpdateExpression` so targets
-/// nested in block / if / for / sequence bodies (`$: { a = b + 1; }`) are
-/// recorded as assignments rather than dependencies — otherwise such statements
-/// collect an empty assignment set and get dropped from the cycle graph
-/// entirely.
-///
-/// A function body is walked rather than skipped: upstream's `scope.reference`
-/// propagates out of a function scope for every name the function does not
-/// itself declare, so `$: a = (() => b)()` really does depend on `b`.
-fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: &mut CycleFacts) {
+/// nested in
+/// block / if / for / sequence bodies (`$: { a = b + 1; }`) are recorded as
+/// assignments rather than dependencies — otherwise such statements collect an
+/// empty assignment set and get dropped from the cycle graph entirely.
+fn cycle_collect_assignments_and_deps(
+    node: &JsNode,
+    arena: &ParseArena,
+    assignments: &mut Vec<String>,
+    dependencies: &mut Vec<String>,
+    locals: &mut Vec<String>,
+) {
     match node {
-        JsNode::Identifier { name, .. } => facts.push_dependency(name.as_str()),
-        JsNode::AssignmentExpression { left, right, .. } => {
-            // LHS targets are assignments; the RHS (and any nested
-            // assignments within it) is walked for dependencies.
-            facts.push_assignment_targets(arena.get_js_node(*left), arena);
-            cycle_collect_assignments_and_deps(arena.get_js_node(*right), arena, facts);
-        }
-        // `x++` / `--x` assigns its argument.
-        JsNode::UpdateExpression { argument, .. } => {
-            facts.push_assignment_targets(arena.get_js_node(*argument), arena);
-        }
-        JsNode::ArrowFunctionExpression { params, body, .. } => {
-            cycle_walk_function(*params, Some(*body), arena, facts);
-        }
-        JsNode::FunctionExpression { params, body, .. }
-        | JsNode::FunctionDeclaration { params, body, .. } => {
-            cycle_walk_function(*params, *body, arena, facts);
-        }
-        // A `catch` parameter is a declaration, not a reference, and it shadows
-        // the instance binding of the same name inside the handler.
-        JsNode::CatchClause { param, body, .. } => {
-            let mark = facts.locals.len();
-            if let Some(param) = param {
-                extract_param_names(arena.get_js_node(*param), arena, &mut facts.locals);
+        JsNode::Identifier { name, .. } => {
+            if !locals.iter().any(|l| l == name.as_str())
+                && !dependencies.iter().any(|s| s == name.as_str())
+            {
+                dependencies.push(name.to_string());
             }
-            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
-            facts.locals.truncate(mark);
         }
+        // A name declared inside the `$:` body is a different binding from the
+        // instance-level one that happens to share its spelling, so it is
+        // neither a dependency nor an assignment of the reactive statement.
+        // Upstream never has to say so: it resolves through the scope tree.
         JsNode::BlockStatement { body, .. } => {
-            let mark = facts.locals.len();
-            for stmt in arena.get_js_children(*body) {
-                collect_block_local_decls(stmt, arena, &mut facts.locals);
+            let mark = locals.len();
+            let stmts = arena.get_js_children(*body);
+            for stmt in stmts {
+                collect_block_local_decls(stmt, arena, locals);
             }
-            for stmt in arena.get_js_children(*body) {
-                cycle_collect_assignments_and_deps(stmt, arena, facts);
+            for stmt in stmts {
+                cycle_collect_assignments_and_deps(stmt, arena, assignments, dependencies, locals);
             }
-            facts.locals.truncate(mark);
+            locals.truncate(mark);
         }
-        // The cases share ONE block scope, so a `let` in the first case is
-        // declared for every later case too; the discriminant is outside it.
-        JsNode::SwitchStatement {
-            discriminant,
-            cases,
-            ..
-        } => {
-            cycle_collect_assignments_and_deps(arena.get_js_node(*discriminant), arena, facts);
-            let mark = facts.locals.len();
-            let cases = arena.get_js_children(*cases);
-            for case in cases {
-                if let JsNode::SwitchCase { consequent, .. } = case {
-                    for stmt in arena.get_js_children(*consequent) {
-                        collect_block_local_decls(stmt, arena, &mut facts.locals);
-                    }
-                }
+        JsNode::CatchClause { param, body, .. } => {
+            let mark = locals.len();
+            if let Some(param) = param {
+                extract_param_names(arena.get_js_node(*param), arena, locals);
             }
-            for case in cases {
-                cycle_collect_assignments_and_deps(case, arena, facts);
-            }
-            facts.locals.truncate(mark);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*body),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
+            locals.truncate(mark);
         }
         JsNode::ForStatement {
             init,
@@ -1595,16 +1571,27 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
             body,
             ..
         } => {
-            let mark = facts.locals.len();
+            let mark = locals.len();
             if let Some(init) = init {
-                collect_block_local_decls(arena.get_js_node(*init), arena, &mut facts.locals);
-                cycle_collect_assignments_and_deps(arena.get_js_node(*init), arena, facts);
+                collect_block_local_decls(arena.get_js_node(*init), arena, locals);
             }
-            for part in [test, update].into_iter().flatten() {
-                cycle_collect_assignments_and_deps(arena.get_js_node(*part), arena, facts);
+            for child in [init, test, update].into_iter().flatten() {
+                cycle_collect_assignments_and_deps(
+                    arena.get_js_node(*child),
+                    arena,
+                    assignments,
+                    dependencies,
+                    locals,
+                );
             }
-            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
-            facts.locals.truncate(mark);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*body),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
+            locals.truncate(mark);
         }
         JsNode::ForOfStatement {
             left, right, body, ..
@@ -1612,35 +1599,46 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
         | JsNode::ForInStatement {
             left, right, body, ..
         } => {
-            cycle_collect_assignments_and_deps(arena.get_js_node(*right), arena, facts);
-            let mark = facts.locals.len();
-            collect_block_local_decls(arena.get_js_node(*left), arena, &mut facts.locals);
-            cycle_collect_assignments_and_deps(arena.get_js_node(*left), arena, facts);
-            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
-            facts.locals.truncate(mark);
-        }
-        // The declared names are declarations, not references; only the
-        // initializers are read.
-        JsNode::VariableDeclaration { declarations, .. } => {
-            for decl in arena.get_js_children(*declarations) {
-                if let JsNode::VariableDeclarator {
-                    init: Some(init), ..
-                } = decl
-                {
-                    cycle_collect_assignments_and_deps(arena.get_js_node(*init), arena, facts);
-                }
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*right),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
+            let mark = locals.len();
+            collect_block_local_decls(arena.get_js_node(*left), arena, locals);
+            for child in [left, body] {
+                cycle_collect_assignments_and_deps(
+                    arena.get_js_node(*child),
+                    arena,
+                    assignments,
+                    dependencies,
+                    locals,
+                );
             }
+            locals.truncate(mark);
         }
-        JsNode::ClassDeclaration {
-            super_class, body, ..
+        JsNode::AssignmentExpression { left, right, .. } => {
+            // LHS targets are assignments; the RHS (and any nested
+            // assignments within it) is walked for dependencies.
+            cycle_extract_assignment_targets(arena.get_js_node(*left), arena, assignments, locals);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*right),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
         }
-        | JsNode::ClassExpression {
-            super_class, body, ..
-        } => {
-            if let Some(super_class) = super_class {
-                cycle_collect_assignments_and_deps(arena.get_js_node(*super_class), arena, facts);
-            }
-            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+        // `x++` / `--x` assigns its argument.
+        JsNode::UpdateExpression { argument, .. } => {
+            cycle_extract_assignment_targets(
+                arena.get_js_node(*argument),
+                arena,
+                assignments,
+                locals,
+            );
         }
         JsNode::MemberExpression {
             object,
@@ -1648,9 +1646,21 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
             computed,
             ..
         } => {
-            cycle_collect_assignments_and_deps(arena.get_js_node(*object), arena, facts);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*object),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
             if *computed {
-                cycle_collect_assignments_and_deps(arena.get_js_node(*property), arena, facts);
+                cycle_collect_assignments_and_deps(
+                    arena.get_js_node(*property),
+                    arena,
+                    assignments,
+                    dependencies,
+                    locals,
+                );
             }
         }
         JsNode::Property {
@@ -1660,9 +1670,21 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
             ..
         } => {
             if *computed {
-                cycle_collect_assignments_and_deps(arena.get_js_node(*key), arena, facts);
+                cycle_collect_assignments_and_deps(
+                    arena.get_js_node(*key),
+                    arena,
+                    assignments,
+                    dependencies,
+                    locals,
+                );
             }
-            cycle_collect_assignments_and_deps(arena.get_js_node(*value), arena, facts);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*value),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
         }
         // The annotation blob follows `properties` / `elements` in the JSON
         // field order, so its identifiers must be seen after theirs.
@@ -1672,7 +1694,7 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
             ..
         } => {
             for prop in arena.get_js_children(*properties) {
-                cycle_collect_assignments_and_deps(prop, arena, facts);
+                cycle_collect_assignments_and_deps(prop, arena, assignments, dependencies, locals);
             }
             if let Some(ta) = type_annotation {
                 let mut names = Vec::new();
@@ -1688,7 +1710,7 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
             ..
         } => {
             for elem in elements.iter().flatten() {
-                cycle_collect_assignments_and_deps(elem, arena, facts);
+                cycle_collect_assignments_and_deps(elem, arena, assignments, dependencies, locals);
             }
             if let Some(ta) = type_annotation {
                 let mut names = Vec::new();
@@ -1701,38 +1723,47 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
         // `for_each_js_child` skips `label` (it is not a rune reference); this
         // walker counted it as a dependency, so keep reading it here.
         JsNode::LabeledStatement { label, body, .. } => {
-            cycle_collect_assignments_and_deps(arena.get_js_node(*label), arena, facts);
-            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*label),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
+            cycle_collect_assignments_and_deps(
+                arena.get_js_node(*body),
+                arena,
+                assignments,
+                dependencies,
+                locals,
+            );
         }
         _ => {
             for_each_js_child(node, arena, &mut |child| {
-                cycle_collect_assignments_and_deps(child, arena, facts);
+                cycle_collect_assignments_and_deps(child, arena, assignments, dependencies, locals);
             });
         }
     }
 }
 
-/// Parameters shadow inside the body; their default-value expressions are
-/// evaluated before the shadowing takes effect.
-fn cycle_walk_function(
-    params: crate::ast::arena::IdRange,
-    body: Option<crate::ast::arena::JsNodeId>,
+/// `cycle_extract_pattern_ids`, minus the names a scope inside the `$:` body
+/// declares — writing to a block-local `e` is not writing to the instance `e`.
+fn cycle_extract_assignment_targets(
+    node: &JsNode,
     arena: &ParseArena,
-    facts: &mut CycleFacts,
+    assignments: &mut Vec<String>,
+    locals: &[String],
 ) {
-    for param in arena.get_js_children(params) {
-        collect_param_evaluations(param, arena, &mut |evaluated| {
-            cycle_collect_assignments_and_deps(evaluated, arena, facts);
-        });
+    let mark = assignments.len();
+    cycle_extract_pattern_ids(node, arena, assignments);
+    let mut i = mark;
+    while i < assignments.len() {
+        if locals.iter().any(|l| *l == assignments[i]) {
+            assignments.remove(i);
+        } else {
+            i += 1;
+        }
     }
-    let mark = facts.locals.len();
-    for param in arena.get_js_children(params) {
-        extract_param_names(param, arena, &mut facts.locals);
-    }
-    if let Some(body) = body {
-        cycle_collect_assignments_and_deps(arena.get_js_node(body), arena, facts);
-    }
-    facts.locals.truncate(mark);
 }
 
 /// Process legacy mode exports.
@@ -3657,6 +3688,25 @@ fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<S
     }
 }
 
+/// Collect the `$`-prefixed names a single block-level statement declares.
+/// Only the binding slot matters: the initializer is walked by the caller.
+fn collect_dollar_declared_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match node {
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for decl in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator { id, .. } = decl {
+                    collect_dollar_param_names(arena.get_js_node(*id), arena, out);
+                }
+            }
+        }
+        JsNode::FunctionDeclaration { id: Some(id), .. }
+        | JsNode::ClassDeclaration { id: Some(id), .. } => {
+            collect_dollar_param_names(arena.get_js_node(*id), arena, out);
+        }
+        _ => {}
+    }
+}
+
 /// Call `f` once for every direct child of `node`.
 ///
 /// This is the single place that knows what the children of each `JsNode`
@@ -4059,19 +4109,31 @@ fn js_node_check_features(
                 | JsNode::FunctionDeclaration { .. }
         );
 
-    // Shadow-aware rune detection: `$`-prefixed function parameters (e.g.
-    // `function bar($derived, $effect) {}`) shadow the rune names inside the
-    // function, mirroring upstream where such references resolve to the
-    // parameter binding and never reach `module.scope.references` (the set
-    // runes-mode detection is computed from).
+    // Shadow-aware rune detection: a `$`-prefixed name declared in an enclosing
+    // scope (a function parameter, a `catch` parameter, or a block-scoped
+    // declaration) shadows the rune inside it, mirroring upstream where such a
+    // reference resolves to that binding and stops bubbling before
+    // `module.scope.references` — the set runes-mode detection is computed from.
+    // Only nested scopes are collected: a script's own top level declares into
+    // the module/instance scope, which `validate_identifier_name` rejects first.
     let shadow_base = shadowed.len();
-    if let JsNode::FunctionDeclaration { params, .. }
-    | JsNode::FunctionExpression { params, .. }
-    | JsNode::ArrowFunctionExpression { params, .. } = node
-    {
-        for param in arena.get_js_children(*params) {
-            collect_dollar_param_names(param, arena, shadowed);
+    match node {
+        JsNode::FunctionDeclaration { params, .. }
+        | JsNode::FunctionExpression { params, .. }
+        | JsNode::ArrowFunctionExpression { params, .. } => {
+            for param in arena.get_js_children(*params) {
+                collect_dollar_param_names(param, arena, shadowed);
+            }
         }
+        JsNode::CatchClause {
+            param: Some(param), ..
+        } => collect_dollar_param_names(arena.get_js_node(*param), arena, shadowed),
+        JsNode::BlockStatement { body, .. } | JsNode::StaticBlock { body, .. } => {
+            for stmt in arena.get_js_children(*body) {
+                collect_dollar_declared_names(stmt, arena, shadowed);
+            }
+        }
+        _ => {}
     }
 
     for_each_js_reference_child(node, arena, &mut |child| {
@@ -4091,12 +4153,21 @@ fn js_node_check_features(
     shadowed.truncate(shadow_base);
 }
 
-/// Like [`for_each_js_child`], but skips a non-computed class member NAME.
-/// `for_each_js_child` walks it because the legacy JSON walker did; upstream's
-/// `scope.references` — the set runes-mode detection reads — never holds a
-/// declaration slot, so `class P { $inspect = 1 }` must not read as a rune.
+/// Like [`for_each_js_child`], but skips the slots that BIND or LABEL a name
+/// rather than reading one. `for_each_js_child` walks them because the legacy
+/// JSON walker did; upstream's `scope.references` — the set runes-mode
+/// detection reads — holds neither a declaration slot nor a label, so
+/// `class P { $inspect = 1 }`, `$state: for (;;) break $state;` and
+/// `catch ($state) {}` must none of them read as a rune.
 fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl FnMut(&JsNode)) {
     match node {
+        // A label lives in its own namespace: it is not an ESTree reference,
+        // and neither is the `break` / `continue` that names it.
+        JsNode::LabeledStatement { body, .. } => f(arena.get_js_node(*body)),
+        JsNode::BreakStatement { .. } | JsNode::ContinueStatement { .. } => {}
+        // The catch parameter is a declaration, and it shadows the name for the
+        // block — `js_node_check_features` pushes it onto `shadowed`.
+        JsNode::CatchClause { body, .. } => f(arena.get_js_node(*body)),
         JsNode::MethodDefinition {
             key,
             value,
@@ -4598,19 +4669,35 @@ fn mark_group_bindings_in_node(
                                 .entry(*start)
                                 .or_insert_with(|| group_name.clone());
                         }
+
+                        // Upstream keeps the name on the directive itself. An
+                        // each block holds only one, so two directives under it
+                        // that resolved to different groups need their own.
+                        if let Some(expr_start) = bind_node.start() {
+                            analysis.binding_group_names.insert(expr_start, group_name);
+                        }
                     }
 
                     // If no ancestor EachBlock declared any of the binding expression identifiers,
                     // this is a "standalone" bind:group (like bind:group={current} or bind:group={$order.scoops}).
                     // Register it in analysis.binding_groups using the keypath as key.
-                    if !any_each_block_matched && !analysis.binding_groups.contains_key(&keypath) {
-                        let group_count = analysis.binding_groups.len();
-                        let group_name = if group_count == 0 {
-                            "binding_group".to_string()
-                        } else {
-                            format!("binding_group_{}", group_count)
-                        };
-                        analysis.binding_groups.insert(keypath, group_name);
+                    if !any_each_block_matched {
+                        let group_name =
+                            if let Some(existing) = analysis.binding_groups.get(&keypath) {
+                                existing.clone()
+                            } else {
+                                let group_count = analysis.binding_groups.len();
+                                let name = if group_count == 0 {
+                                    "binding_group".to_string()
+                                } else {
+                                    format!("binding_group_{}", group_count)
+                                };
+                                analysis.binding_groups.insert(keypath, name.clone());
+                                name
+                            };
+                        if let Some(expr_start) = bind_node.start() {
+                            analysis.binding_group_names.insert(expr_start, group_name);
+                        }
                     }
                 }
             }
@@ -4666,6 +4753,13 @@ fn mark_group_bindings_in_node(
             );
         }
         TemplateNode::SvelteSelf(s) => {
+            for attr in &s.attributes {
+                if let Attribute::BindDirective(bind) = attr
+                    && bind.name == "group"
+                {
+                    register_standalone_bind_group(bind, analysis);
+                }
+            }
             mark_group_bindings_in_fragment(&mut s.fragment, ancestor_stack, assignments, analysis);
         }
         TemplateNode::IfBlock(if_block) => {
@@ -6303,12 +6397,10 @@ mod tests {
 
     #[test]
     fn directive_name_is_referenced_even_without_expression_loc() {
-        // Regression: the real `compile()` entry point (`parse_component` in
-        // compiler/mod.rs) always parses with `skip_expression_loc: true`, so
-        // directive-name reference tracking must not be gated on `name_loc`
-        // being `Some` — otherwise `use:`/`transition:`/`animate:`-only usages
-        // are invisible to `non_reactive_update` / unused-`export let` checks
-        // in production compiles.
+        // Regression: directive-name reference tracking must not be gated on
+        // `name_loc` being `Some` — otherwise `use:`/`transition:`/`animate:`-only
+        // usages are invisible to `non_reactive_update` / unused-`export let`
+        // checks under every entry point that sets `skip_expression_loc`.
         let source = r#"<script>
     let count = $state(0);
 </script>
