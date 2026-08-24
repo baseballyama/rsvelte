@@ -42,6 +42,11 @@ struct CssContext<'a> {
     /// Used to determine unused status of compound selectors containing &.
     /// Uses RefCell for interior mutability so we can push/pop while passing &CssContext.
     parent_preludes: std::cell::RefCell<Vec<&'a Value>>,
+    /// Start offsets of the `:is()` / `:where()` / `:has()` arguments that were
+    /// found unreachable — upstream's `metadata.used` on an argument
+    /// `ComplexSelector`. `None` until the marking walk has run; the printer then
+    /// reads the same decision the warning did, instead of recomputing it.
+    unused_branches: std::cell::RefCell<Option<FxHashSet<u32>>>,
     /// Whether we're in dev mode (affects empty rule handling)
     dev: bool,
     /// Whether to minify the output (for injected CSS in SSR)
@@ -87,6 +92,7 @@ pub fn collect_css_unused_warnings(
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
+        unused_branches: std::cell::RefCell::new(None),
         dev: false,
         minify: false,
     };
@@ -161,6 +167,33 @@ fn substitute_is_branch(
     synth
 }
 
+/// Record an argument `ComplexSelector` as unreachable, keyed by its start
+/// offset — upstream's `metadata.used = false` on that node.
+fn mark_branch_unused(inner_complex: &Value, ctx: &CssContext) {
+    let Some(start) = inner_complex.get("start").and_then(|s| s.as_u64()) else {
+        return;
+    };
+    ctx.unused_branches
+        .borrow_mut()
+        .get_or_insert_with(FxHashSet::default)
+        .insert(start as u32);
+}
+
+/// Run the unused walk purely for its marking side effect, so the printer and
+/// the warnings answer "is this argument used?" from one computation.
+fn mark_unused_functional_branches<'a>(
+    nodes: &'a [Value],
+    css_source: &str,
+    css_start: usize,
+    ctx: &CssContext<'a>,
+) {
+    ctx.unused_branches
+        .borrow_mut()
+        .get_or_insert_with(FxHashSet::default);
+    let mut discarded = Vec::new();
+    collect_unused_warnings_from_nodes(nodes, css_source, css_start, ctx, &mut discarded, false);
+}
+
 fn collect_is_where_unused_warnings(
     complex_selector: &Value,
     css_source: &str,
@@ -184,11 +217,26 @@ fn collect_is_where_unused_warnings(
             let sel_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
             if sel_type == "PseudoClassSelector"
-                && (sel_name == "is" || sel_name == "where")
+                && (sel_name == "is" || sel_name == "where" || sel_name == "has")
                 && let Some(args) = sel.get("args")
                 && !args.is_null()
                 && let Some(children) = args.get("children").and_then(|c| c.as_array())
             {
+                // A `:has()` argument is matched against the subject's subtree, not
+                // substituted into the enclosing chain, and upstream's `css-warn.js`
+                // never recurses into it — so it is marked but never reported.
+                if sel_name == "has" {
+                    let flags = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx);
+                    for (bi, inner_complex) in children.iter().enumerate() {
+                        let unused = flags.as_ref().is_some_and(|f| f.get(bi) == Some(&true))
+                            || is_functional_branch_unused(inner_complex, None, ctx);
+                        if unused {
+                            mark_branch_unused(inner_complex, ctx);
+                        }
+                    }
+                    continue;
+                }
+
                 for inner_complex in children {
                     // Skip multi-part selectors (with combinators like `html *`).
                     // These could reference elements outside the component and
@@ -231,6 +279,7 @@ fn collect_is_where_unused_warnings(
                     };
 
                     if unused {
+                        mark_branch_unused(inner_complex, ctx);
                         let start = inner_complex
                             .get("start")
                             .and_then(|s| s.as_u64())
@@ -446,6 +495,7 @@ fn render_stylesheet_internal(
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
+        unused_branches: std::cell::RefCell::new(None),
         dev: options.dev,
         minify,
     };
@@ -490,6 +540,8 @@ fn render_stylesheet_internal(
             }
         };
 
+        mark_unused_functional_branches(children, css_content, css_start, &ctx);
+
         // Collect keyframe names for animation value replacement
         let keyframes = collect_keyframe_names(children);
 
@@ -507,11 +559,12 @@ fn render_stylesheet_internal(
         }
 
         // Post-process: replace animation keyframe references. Upstream inserts
-        // the prefix through MagicString, so the mapping is only accurate while
-        // no keyframe reference moved the output.
+        // the prefix with `prependRight`, which splits the chunk it lands in and
+        // maps both halves, so the copies are shifted rather than dropped.
         if !keyframes.is_empty() {
-            writer.text = replace_animation_keyframes(&writer.text, hash, &keyframes);
-            writer.copies.clear();
+            let (text, insertions) = replace_animation_keyframes(&writer.text, hash, &keyframes);
+            writer.text = text;
+            writer.apply_insertions(&insertions);
         }
 
         // Generate CSS source map
@@ -696,9 +749,18 @@ fn is_css_name_boundary(c: char) -> bool {
 /// Replace animation keyframe name references in the CSS output
 /// This follows the official Svelte implementation approach: scan through animation property
 /// values and prefix any tokens that match defined keyframe names.
-fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<String>) -> String {
+/// Returns the rewritten text and, in ascending order, every `(offset in the
+/// input text, inserted byte length)` — upstream inserts the prefix with
+/// `prependRight`, so the rest of the stylesheet keeps its mapping.
+fn replace_animation_keyframes(
+    css: &str,
+    hash: &str,
+    keyframes: &FxHashSet<String>,
+) -> (String, Vec<(u32, u32)>) {
     let mut result = String::with_capacity(css.len() + keyframes.len() * hash.len() * 2);
     let chars: Vec<char> = css.chars().collect();
+    let mut insertions: Vec<(u32, u32)> = Vec::new();
+    let mut inserted = 0usize;
     let mut i = 0;
 
     while i < chars.len() {
@@ -775,6 +837,8 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
                         // Insert prefix before the name
                         let prefix = format!("{}-", hash);
                         result.insert_str(name_start, &prefix);
+                        insertions.push(((name_start - inserted) as u32, prefix.len() as u32));
+                        inserted += prefix.len();
                     }
                     name.clear();
 
@@ -799,6 +863,8 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
             if !name.is_empty() && keyframes.contains(&name) {
                 let prefix = format!("{}-", hash);
                 result.insert_str(name_start, &prefix);
+                insertions.push(((name_start - inserted) as u32, prefix.len() as u32));
+                inserted += prefix.len();
             }
         } else {
             result.push(chars[i]);
@@ -806,7 +872,7 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
         }
     }
 
-    result
+    (result, insertions)
 }
 
 /// Extract CSS content from source (finds the <style> block)
@@ -974,6 +1040,7 @@ fn emit_selector(
     let emitted = produced.as_bytes();
     let mut runs: Vec<(usize, usize, usize)> = Vec::new();
     let (mut i, mut j) = (0usize, 0usize);
+    let mut open_globals = 0usize;
     'emitted: while j < emitted.len() {
         // `prependRight` / `appendRight` / `appendLeft` insertions carry no
         // segment of their own, so they only move the generated cursor.
@@ -989,6 +1056,32 @@ fn emit_selector(
             {
                 j += inserted.len();
                 continue 'emitted;
+            }
+        }
+        // `:global(…)` and a bare `:global` are `remove`d from the source, so
+        // what follows them is still an unedited chunk and keeps its position.
+        {
+            let mut k = i;
+            if !emitted[j].is_ascii_whitespace() {
+                while k < src.len() && src[k].is_ascii_whitespace() {
+                    k += 1;
+                }
+            }
+            let global_open = b":global(".as_slice();
+            let global_bare = b":global".as_slice();
+            if src[k..].starts_with(global_open) && !emitted[j..].starts_with(global_open) {
+                i = k + global_open.len();
+                open_globals += 1;
+                continue;
+            }
+            if open_globals > 0 && src.get(k) == Some(&b')') && emitted[j] != b')' {
+                i = k + 1;
+                open_globals -= 1;
+                continue;
+            }
+            if src[k..].starts_with(global_bare) && !emitted[j..].starts_with(global_bare) {
+                i = k + global_bare.len();
+                continue;
             }
         }
         // The separator before a pruned selector goes through `overwrite`,
@@ -1043,13 +1136,29 @@ fn mark_tree(output: &mut CssWriter, node: &Value) {
         Value::Object(map) => {
             if map.contains_key("start") && map.contains_key("type") {
                 mark_node(output, node);
-                if map.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && !matches!(
-                        map.get("name").and_then(|n| n.as_str()),
-                        Some("is" | "where" | "has" | "not")
-                    )
-                {
-                    return;
+                let name = map.get("name").and_then(|n| n.as_str());
+                match map.get("type").and_then(|t| t.as_str()) {
+                    Some("PseudoClassSelector")
+                        if !matches!(name, Some("is" | "where" | "has" | "not")) =>
+                    {
+                        return;
+                    }
+                    // The Atrule visitor returns before `next()` for keyframes,
+                    // so nothing inside one is ever visited.
+                    Some("Atrule")
+                        if matches!(
+                            name,
+                            Some(
+                                "keyframes"
+                                    | "-webkit-keyframes"
+                                    | "-moz-keyframes"
+                                    | "-o-keyframes"
+                            )
+                        ) =>
+                    {
+                        return;
+                    }
+                    _ => {}
                 }
             }
             for value in map.values() {
@@ -1503,6 +1612,8 @@ fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
 /// Check if a complex selector is unused
 /// Returns UnusedStatus to distinguish between unused and no-match cases
 fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedStatus {
+    let reachable = reachable_complex_selector(complex);
+    let complex = reachable.as_ref().unwrap_or(complex);
     let unused = is_complex_selector_unused_impl(complex, ctx);
     if unused {
         // Check if it's a no-match case (sibling combinator that absolutely cannot match)
@@ -1519,8 +1630,50 @@ fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedSta
 
 /// Check if a complex selector is unused
 /// A complex selector is unused if it doesn't match any element in the template.
+/// Index of the leftmost relative selector upstream's backward walk reaches.
+///
+/// `apply_combinator`'s `default:` arm returns `true` *without* recursing, so a
+/// combinator it does not handle — `||`, and anything outside `' ' > + ~` —
+/// halts the walk: everything to its left is never visited, and so is neither
+/// marked `scoped` nor consulted for `used`.
+fn first_reachable_relative_selector(rel_selectors: &[Value]) -> usize {
+    truncate_trailing_globals(rel_selectors)
+        .iter()
+        .rposition(|rel| {
+            rel.get("combinator")
+                .and_then(|combinator| combinator.get("name"))
+                .and_then(|name| name.as_str())
+                .is_some_and(|name| !matches!(name, " " | ">" | "+" | "~"))
+        })
+        .unwrap_or(0)
+}
+
+/// The part of a complex selector upstream's backward walk actually visits, or
+/// `None` when that is the whole thing.
+fn reachable_complex_selector(complex: &Value) -> Option<Value> {
+    let children = complex.get("children").and_then(|c| c.as_array())?;
+    let from = first_reachable_relative_selector(children);
+    if from == 0 || from >= children.len() {
+        return None;
+    }
+    let mut visited: Vec<Value> = children[from..].to_vec();
+    // The halting combinator itself is never applied, so drop it rather than let
+    // a downstream check try to satisfy it.
+    if let Some(first) = visited.first_mut().and_then(|rel| rel.as_object_mut()) {
+        first.remove("combinator");
+    }
+    let mut reachable = complex.clone();
+    reachable
+        .as_object_mut()?
+        .insert("children".to_string(), Value::Array(visited));
+    Some(reachable)
+}
+
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
-    is_complex_selector_unused_impl(complex, ctx)
+    match reachable_complex_selector(complex) {
+        Some(reachable) => is_complex_selector_unused_impl(&reachable, ctx),
+        None => is_complex_selector_unused_impl(complex, ctx),
+    }
 }
 
 /// Implementation of complex selector unused check
@@ -4415,151 +4568,156 @@ fn decode_css_escape(name: &str) -> String {
 /// can match within the subject element's subtree.
 /// For example, `x:has(> z)` is unused if no `x` element has a direct child `z`.
 fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
-    if ctx.dom_structure.elements.is_empty() {
-        return false;
-    }
-
-    // Note: We no longer bail out entirely for opaque boundaries.
-    // Instead, individual checks below handle opaque boundaries appropriately.
-    // For descendant/child :has() arguments with opaque boundaries, we're conservative.
-    // For sibling :has() arguments, we use Phase 2 sibling data when available.
-
-    // Find relative selectors that contain :has()
-    for rel in rel_selectors.iter() {
-        if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-            for sel in selectors {
-                if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
-                    continue;
-                }
-                if sel.get("name").and_then(|n| n.as_str()) != Some("has") {
-                    continue;
-                }
-                let Some(args) = sel.get("args") else {
-                    continue;
-                };
-                let Some(has_children) = args.get("children").and_then(|c| c.as_array()) else {
-                    continue;
-                };
-
-                // If any :has() argument contains a NestingSelector (&), we can't resolve it
-                // through the DOM structure since & refers to the parent CSS rule, not an HTML element.
-                // Be conservative and treat such selectors as potentially used.
-                let has_nesting_in_args = has_children.iter().any(|complex| {
-                    if let Some(rels) = complex.get("children").and_then(|c| c.as_array()) {
-                        rels.iter().any(|rel| {
-                            if let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) {
-                                sels.iter().any(|s| {
-                                    s.get("type").and_then(|t| t.as_str())
-                                        == Some("NestingSelector")
-                                })
-                            } else {
-                                false
-                            }
-                        })
-                    } else {
-                        false
-                    }
-                });
-                if has_nesting_in_args {
-                    continue; // Can't determine unused status, skip
-                }
-
-                // Get the subject element info (selectors in this relative selector EXCLUDING :has)
-                let subject_info = extract_selector_info_from_selectors(selectors);
-
-                // Check if the subject is :root or :global(.foo) (no tag/class/id from DOM elements)
-                let subject_is_root = selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("root")
-                });
-                let subject_is_global = selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
-                        && s.get("args").is_some()
-                });
-
-                // For :root:has() or :global(.foo):has(), the subject is the document root
-                // or an external element. Check if :has() arguments exist anywhere
-                // in the template using simple element existence checks.
-                if subject_is_root || subject_is_global {
-                    let all_has_args_unused = has_children
-                        .iter()
-                        .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx));
-                    if all_has_args_unused && !has_children.is_empty() {
-                        return true;
-                    }
-                    continue;
-                }
-
-                let subject_elements: Vec<usize> = ctx
-                    .dom_structure
-                    .elements
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, el)| {
-                        // If no subject info (e.g., just :has()), match all elements
-                        if subject_info.tag_name.is_none()
-                            && subject_info.classes.is_empty()
-                            && subject_info.id.is_none()
-                            && !subject_info.is_universal
-                        {
-                            return false;
-                        }
-                        selector_matches_element(&subject_info, el)
-                    })
-                    .map(|(i, _)| i)
-                    .collect();
-
-                if subject_elements.is_empty()
-                    && (subject_info.tag_name.is_some()
-                        || !subject_info.classes.is_empty()
-                        || subject_info.id.is_some())
-                {
-                    // Subject element doesn't exist at all - already handled by other checks
-                    continue;
-                }
-
-                // A subject-less `:has(...)` is `*:has(...)`: upstream still
-                // requires the argument to match INSIDE some element's subtree,
-                // so an existence check over the whole component is too weak —
-                // unless the subject may be an element outside this component,
-                // which is upstream's `include_self`.
-                if subject_elements.is_empty()
-                    && subject_info.tag_name.is_none()
-                    && subject_info.classes.is_empty()
-                    && subject_info.id.is_none()
-                    && !subject_info.is_universal
-                {
-                    let all_has_args_unused = if enclosing_rule_is_global_or_root(ctx) {
-                        has_children
-                            .iter()
-                            .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
-                    } else {
-                        let every_element: Vec<usize> =
-                            (0..ctx.dom_structure.elements.len()).collect();
-                        has_children.iter().all(|has_complex| {
-                            is_has_argument_unused(has_complex, &every_element, ctx)
-                        })
-                    };
-                    if all_has_args_unused && !has_children.is_empty() {
-                        return true;
-                    }
-                    continue;
-                }
-
-                // Check if ANY :has() argument can match within any subject element's subtree
-                let all_has_args_unused = has_children
-                    .iter()
-                    .all(|has_complex| is_has_argument_unused(has_complex, &subject_elements, ctx));
-
-                if all_has_args_unused && !has_children.is_empty() {
-                    return true;
-                }
+    for (ri, rel) in rel_selectors.iter().enumerate() {
+        let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+            continue;
+        };
+        for sel in selectors {
+            if !is_has_pseudo(sel) {
+                continue;
+            }
+            if let Some(flags) = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx)
+                && flags.iter().all(|&unused| unused)
+            {
+                return true;
             }
         }
     }
 
     false
+}
+
+fn is_has_pseudo(sel: &Value) -> bool {
+    sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+        && sel.get("name").and_then(|n| n.as_str()) == Some("has")
+}
+
+/// Whether each argument of one `:has()` can match inside the subtree of an
+/// element the enclosing compound could apply to — upstream marks exactly those
+/// arguments' `metadata.used`. `None` when the subject cannot be resolved, in
+/// which case nothing may be concluded about any argument.
+///
+/// `ri` is the index of the `:has()`'s relative selector in `rel_selectors`, so
+/// the candidates can be narrowed by the combinators that precede it: `.a :has(.b)`
+/// asks for a `.b` under an element that is itself under an `.a`, not for a `.b`
+/// anywhere.
+fn has_argument_unused_flags(
+    rel_selectors: &[Value],
+    ri: usize,
+    selectors: &[Value],
+    sel: &Value,
+    ctx: &CssContext,
+) -> Option<Vec<bool>> {
+    if ctx.dom_structure.elements.is_empty() {
+        return None;
+    }
+
+    let has_children = sel
+        .get("args")?
+        .get("children")
+        .and_then(|c| c.as_array())
+        .filter(|c| !c.is_empty())?;
+
+    // `&` inside the argument refers to the parent CSS rule, not to an element,
+    // so it cannot be resolved through the DOM structure.
+    let has_nesting_in_args = has_children.iter().any(|complex| {
+        complex
+            .get("children")
+            .and_then(|c| c.as_array())
+            .is_some_and(|rels| {
+                rels.iter().any(|rel| {
+                    rel.get("selectors")
+                        .and_then(|s| s.as_array())
+                        .is_some_and(|sels| {
+                            sels.iter().any(|s| {
+                                s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                            })
+                        })
+                })
+            })
+    });
+    if has_nesting_in_args {
+        return None;
+    }
+
+    // The subject is the compound the `:has()` sits in, `:has()` itself excluded.
+    let subject_info = extract_selector_info_from_selectors(selectors);
+
+    let subject_is_root = selectors.iter().any(|s| {
+        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.get("name").and_then(|n| n.as_str()) == Some("root")
+    });
+    let subject_is_global = selectors.iter().any(|s| {
+        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+            && s.get("args").is_some()
+    });
+
+    // For `:root:has()` / `:global(.foo):has()` the subject is the document root
+    // or an element outside the component, so the argument is only required to
+    // exist somewhere.
+    if subject_is_root || subject_is_global {
+        return Some(
+            has_children
+                .iter()
+                .map(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
+                .collect(),
+        );
+    }
+
+    let subject_less = subject_info.tag_name.is_none()
+        && subject_info.classes.is_empty()
+        && subject_info.id.is_none()
+        && !subject_info.is_universal;
+
+    if subject_less {
+        // A subject-less `:has(...)` is `*:has(...)`: upstream still requires the
+        // argument to match INSIDE some element's subtree, so an existence check
+        // over the whole component is too weak — unless the subject may be an
+        // element outside this component, which is upstream's `include_self`.
+        if enclosing_rule_is_global_or_root(ctx) {
+            return Some(
+                has_children
+                    .iter()
+                    .map(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
+                    .collect(),
+            );
+        }
+        let candidates: Vec<usize> = (0..ctx.dom_structure.elements.len())
+            .filter(|&i| structural_ancestors_satisfy_links(rel_selectors, ri, i, ctx))
+            .collect();
+        return Some(
+            has_children
+                .iter()
+                .map(|has_complex| is_has_argument_unused(has_complex, &candidates, ctx))
+                .collect(),
+        );
+    }
+
+    let subject_elements: Vec<usize> = ctx
+        .dom_structure
+        .elements
+        .iter()
+        .enumerate()
+        .filter(|(i, el)| {
+            selector_matches_element(&subject_info, el)
+                && structural_ancestors_satisfy_links(rel_selectors, ri, *i, ctx)
+        })
+        .map(|(i, _)| i)
+        .collect();
+
+    if subject_elements.is_empty() {
+        // The subject itself never applies; that verdict belongs to the ordinary
+        // compound checks, not to this one.
+        return None;
+    }
+
+    Some(
+        has_children
+            .iter()
+            .map(|has_complex| is_has_argument_unused(has_complex, &subject_elements, ctx))
+            .collect(),
+    )
 }
 
 /// Upstream `include_self`: the subject of a `:has(...)` may be an element
@@ -5402,58 +5560,67 @@ fn test_attribute_value(
     }
 }
 
-/// Check if a selector inside :is()/:not()/:has() is definitely unused.
-/// This is more conservative than is_complex_selector_unused - we only
-/// return true if the selector is a simple class/id selector that definitely
-/// doesn't exist in the template.
-fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
-    // Get the relative selectors
-    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
-        // Only check single relative selectors (simple selectors)
-        // Complex selectors with combinators are harder to analyze
-        if rel_selectors.len() != 1 {
-            return false;
-        }
+/// Where a functional pseudo-class sits inside the complex selector that
+/// encloses it, so one of its arguments can be checked for reachability with the
+/// surrounding combinators rather than in isolation.
+#[derive(Clone, Copy)]
+struct BranchHost<'a> {
+    complex: &'a Value,
+    ri: usize,
+    si: usize,
+}
 
-        if let Some(rel) = rel_selectors.first()
-            && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
-        {
-            // Check if all simple selectors in this relative selector are unused
-            // Be conservative - only mark as unused if we're sure
-            for sel in selectors {
-                let sel_type = sel.get("type").and_then(|t| t.as_str());
-                match sel_type {
-                    Some("ClassSelector") => {
-                        if ctx.has_dynamic_classes {
-                            return false;
-                        }
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                            let decoded = decode_css_escape(name);
-                            if !ctx.used_classes.contains(&decoded) {
-                                return true;
-                            }
-                        }
-                    }
-                    Some("IdSelector") => {
-                        if ctx.has_dynamic_ids {
-                            return false;
-                        }
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                            let decoded = decode_css_escape(name);
-                            if !ctx.used_ids.contains(&decoded) {
-                                return true;
-                            }
-                        }
-                    }
-                    // Type selectors, pseudo selectors, etc. - be conservative
-                    _ => {
-                        return false;
-                    }
-                }
-            }
-        }
+/// Whether one argument of an `:is()` / `:where()` / `:has()` is unused, which is
+/// what upstream records as the argument `ComplexSelector`'s `metadata.used`.
+///
+/// A multi-part argument (`:is(a b)`) is assumed to match: it can reach outside
+/// the component, which upstream's matcher cannot rule out either.
+fn is_functional_branch_unused(
+    complex: &Value,
+    host: Option<BranchHost>,
+    ctx: &CssContext,
+) -> bool {
+    let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) else {
+        return false;
+    };
+    if rel_selectors.len() != 1 {
+        return false;
     }
-    false
+    let Some(rel) = rel_selectors.first() else {
+        return false;
+    };
+    // A leading combinator (`:has(> .b)`) is relative to the subject, not to the
+    // enclosing chain, so neither check below models it.
+    if rel.get("combinator").is_some_and(|c| !c.is_null()) {
+        return false;
+    }
+
+    match host {
+        Some(host) => {
+            let Some(branch) = rel.get("selectors").and_then(|s| s.as_array()) else {
+                return false;
+            };
+            let synth = substitute_is_branch(host.complex, host.ri, host.si, branch);
+            is_complex_selector_unused(&synth, ctx)
+        }
+        None => is_complex_selector_unused(complex, ctx),
+    }
+}
+
+/// Check if a selector inside `:is()`/`:where()`/`:has()` is definitely unused,
+/// judged on its own (no enclosing-chain context).
+fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
+    is_functional_branch_unused(complex, None, ctx)
+}
+
+/// Read the marking walk's verdict for one argument. Falls back to the isolated
+/// check only when the walk has not run (the printer always runs it first).
+fn branch_is_marked_unused(complex: &Value, ctx: &CssContext) -> bool {
+    match (&*ctx.unused_branches.borrow(), complex.get("start")) {
+        (Some(marked), Some(start)) => start.as_u64().is_some_and(|s| marked.contains(&(s as u32))),
+        (Some(_), None) => false,
+        (None, _) => is_is_inner_selector_unused(complex, ctx),
+    }
 }
 
 /// Transform a CSS rule while preserving whitespace from source
@@ -5690,10 +5857,9 @@ fn transform_block_with_nested_rules<'a>(
     let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-    // Upstream edits a copy of the source, so every byte this function emits
-    // that the source already holds is a mapped chunk, not an insertion.
+    // Output the opening brace
     mark_node(output, block);
-    output.copy(block_start, "{");
+    output.copy_verbatim(css_source, css_start, block_start, "{");
 
     let mut last_end = block_start + 1; // After the '{'
 
@@ -5800,7 +5966,7 @@ fn transform_block_with_nested_rules<'a>(
         output.trim_preceding_whitespace();
     }
 
-    output.copy(block_end.saturating_sub(1), "}");
+    output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
 }
 
 /// Transform an at-rule that is nested inside a rule's block (e.g. `@media`
@@ -5825,6 +5991,8 @@ fn transform_nested_atrule<'a>(
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    mark_node(output, node);
 
     let src = |from: usize, to: usize| -> &str {
         let s = from.saturating_sub(css_start);
@@ -5853,7 +6021,6 @@ fn transform_nested_atrule<'a>(
             p_start += 1;
         }
 
-        mark_node(output, node);
         output.copy(node_start, src(node_start, p_start));
 
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
@@ -5873,7 +6040,7 @@ fn transform_nested_atrule<'a>(
     // Blockless at-rules (e.g. @import) — copy verbatim.
     let block = node.get("block").filter(|b| !b.is_null());
     let Some(block) = block else {
-        mark_node(output, node);
+        mark_tree(output, node);
         output.copy(node_start, src(node_start, node_end));
         return;
     };
@@ -5882,7 +6049,6 @@ fn transform_nested_atrule<'a>(
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // `@media (...) {` — copied verbatim from source.
-    mark_node(output, node);
     mark_node(output, block);
     output.copy(node_start, src(node_start, block_start + 1));
 
@@ -5973,7 +6139,7 @@ fn transform_nested_atrule<'a>(
         output.push_str(src(last_end, block_end - 1));
     }
 
-    output.copy(block_end.saturating_sub(1), "}");
+    output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
 }
 
 /// Transform a :global { ... } block by commenting out the :global wrapper
@@ -5997,12 +6163,18 @@ fn transform_global_block<'a>(
         let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         if !_ctx.minify {
-            // Comment out `:global {`
+            // Comment out `:global {`. Upstream brackets it with `prependRight`
+            // / `appendLeft`, so the wrapper text itself stays a mapped chunk.
             output.push_str("/* ");
             let selector_start = prelude_start.saturating_sub(css_start);
             let open_brace_end = (block_start + 1).saturating_sub(css_start); // Include the '{'
             if open_brace_end <= css_source.len() && selector_start < open_brace_end {
-                output.push_str(&css_source[selector_start..open_brace_end]);
+                // Upstream returns after `visit(node.block)` without calling
+                // `next()`, so the prelude's own nodes are never visited and
+                // carry no `addSourcemapLocation`.
+                mark_node(output, node);
+                mark_node(output, block);
+                output.copy(prelude_start, &css_source[selector_start..open_brace_end]);
             }
             output.push_str("*/");
         }
@@ -6021,7 +6193,7 @@ fn transform_global_block<'a>(
                     let ws_start = last_end.saturating_sub(css_start);
                     let ws_end = child_start.saturating_sub(css_start);
                     if ws_end <= css_source.len() && ws_start < ws_end {
-                        output.push_str(&css_source[ws_start..ws_end]);
+                        output.copy(last_end, &css_source[ws_start..ws_end]);
                     }
                 }
 
@@ -6088,12 +6260,13 @@ fn transform_global_block<'a>(
                     collect_global_keyframe_prefixes(child, css_source, css_start, &mut cuts);
                     cuts.retain(|&c| c >= child_start_idx && c + 8 <= child_end_idx);
                     cuts.sort_unstable();
+                    mark_tree(output, child);
                     let mut from = child_start_idx;
                     for cut in cuts {
-                        output.push_str(&css_source[from..cut]);
+                        output.copy(from + css_start, &css_source[from..cut]);
                         from = cut + 8;
                     }
-                    output.push_str(&css_source[from..child_end_idx]);
+                    output.copy(from + css_start, &css_source[from..child_end_idx]);
                 }
 
                 last_end = child_end;
@@ -6105,7 +6278,7 @@ fn transform_global_block<'a>(
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = (block_end - 1).saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.push_str(&css_source[ws_start..ws_end]);
+                    output.copy(last_end, &css_source[ws_start..ws_end]);
                 }
             }
             if _ctx.minify {
@@ -6115,7 +6288,9 @@ fn transform_global_block<'a>(
 
         if !_ctx.minify {
             // Comment out `}`
-            output.push_str("/*}*/");
+            output.push_str("/*");
+            output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
+            output.push_str("*/");
         }
         // In minify mode, skip the closing } wrapper
     }
@@ -6183,25 +6358,68 @@ fn transform_atrule_preserving<'a>(
         let ws_start = (*last_end).saturating_sub(css_start);
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.copy(*last_end, &css_source[ws_start..ws_end]);
+            output.copy_verbatim(
+                css_source,
+                css_start,
+                *last_end,
+                &css_source[ws_start..ws_end],
+            );
         }
     }
 
-    // Depth changes nothing about how an at-rule is rendered — upstream runs one
-    // set of visitors at every level — so a top-level one goes through the same
-    // code as a nested one.
-    transform_nested_atrule(
-        node,
-        selector,
-        hash,
-        css_source,
-        css_start,
-        output,
-        specificity_bumped,
-        ctx,
-        false, // a top-level at-rule is not inside a global block
-        false, // rules inside an at-rule start fresh
-        false,
+    mark_node(output, node);
+    let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    // Handle keyframes - need special handling for name prefixing
+    if name == "keyframes"
+        || name == "-webkit-keyframes"
+        || name == "-moz-keyframes"
+        || name == "-o-keyframes"
+    {
+        let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
+
+        // Mirror the official Atrule visitor: the prelude starts after `@name`
+        // plus any spaces, and the hash goes in as a `prependRight` insertion so
+        // everything around it stays a mapped chunk.
+        let mut p_start = node_start + name.len() + 1;
+        while p_start
+            .checked_sub(css_start)
+            .is_some_and(|off| css_source.as_bytes().get(off) == Some(&b' '))
+        {
+            p_start += 1;
+        }
+        // Everything but the inserted hash is copied through: the official
+        // Atrule visitor returns before `next()`, so nothing inside a keyframes
+        // block is transformed or gets an `addSourcemapLocation`.
+        let src = |from: usize, to: usize| -> &str {
+            let s = from.saturating_sub(css_start);
+            let e = to.saturating_sub(css_start);
+            if e <= css_source.len() && s < e {
+                &css_source[s..e]
+            } else {
+                ""
+            }
+        };
+        output.copy(node_start, src(node_start, p_start));
+        if prelude.starts_with("-global-") {
+            output.copy(p_start + 8, src(p_start + 8, node_end));
+        } else {
+            let _ = write!(output, "{}-", hash);
+            output.copy(p_start, src(p_start, node_end));
+        }
+
+        *last_end = node_end;
+        return;
+    }
+
+    // Check if block exists and is not null
+    let block = node.get("block").filter(|b| !b.is_null());
+
+    // For at-rules without nested selectors (font-face, charset, import, page, namespace),
+    // copy the entire rule from source
+    let is_passthrough = matches!(
+        name,
+        "font-face" | "charset" | "import" | "page" | "namespace"
     );
 
     if is_passthrough {
@@ -6228,27 +6446,30 @@ fn transform_atrule_preserving<'a>(
         let src_start = node_start.saturating_sub(css_start);
         let src_end = node_end.saturating_sub(css_start);
         if src_end <= css_source.len() && src_start < src_end {
-            output.push_str(&css_source[src_start..src_end]);
+            mark_tree(output, node);
+            output.copy(node_start, &css_source[src_start..src_end]);
         }
         *last_end = node_end;
         return;
     }
 
     // Handle media, supports, layer, etc. - need to transform nested rules
-    output.push('@');
-    output.push_str(name);
+    let mut header = String::from("@");
+    header.push_str(name);
 
     if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
         && !prelude.is_empty()
     {
-        output.push(' ');
-        output.push_str(prelude);
+        header.push(' ');
+        header.push_str(prelude);
     }
 
     if let Some(block) = block {
         let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
-        output.push_str(" {");
+        header.push_str(" {");
+        mark_node(output, block);
+        output.copy_verbatim(css_source, css_start, node_start, &header);
 
         if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
             let mut inner_last_end = block_start + 1; // after '{'
@@ -6278,8 +6499,10 @@ fn transform_atrule_preserving<'a>(
             }
         }
 
-        output.push('}');
+        let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
     } else {
+        output.push_str(&header);
         output.push(';');
     }
 
@@ -6776,33 +6999,39 @@ fn transform_complex_selector(
                 }
             });
 
-        let complex_bumps_specificity = children.iter().any(|relative_selector| {
-            if is_global_like(relative_selector) {
-                return false;
-            }
-            let scoped = relative_selector
-                .get("metadata")
-                .and_then(|metadata| metadata.get("scoped"))
-                .and_then(|scoped| scoped.as_bool())
-                .unwrap_or(true);
-            scoped
-                && relative_selector
-                    .get("selectors")
-                    .and_then(|selectors| selectors.as_array())
-                    .is_some_and(|selectors| {
-                        selectors.iter().any(|selector| {
-                            let ty = selector.get("type").and_then(|ty| ty.as_str());
-                            !matches!(
-                                ty,
-                                Some(
-                                    "PseudoClassSelector"
-                                        | "PseudoElementSelector"
-                                        | "NestingSelector"
-                                )
-                            )
-                        })
-                    })
-        });
+        let first_reachable = first_reachable_relative_selector(children);
+
+        let complex_bumps_specificity =
+            children
+                .iter()
+                .skip(first_reachable)
+                .any(|relative_selector| {
+                    if is_global_like(relative_selector) {
+                        return false;
+                    }
+                    let scoped = relative_selector
+                        .get("metadata")
+                        .and_then(|metadata| metadata.get("scoped"))
+                        .and_then(|scoped| scoped.as_bool())
+                        .unwrap_or(true);
+                    scoped
+                        && relative_selector
+                            .get("selectors")
+                            .and_then(|selectors| selectors.as_array())
+                            .is_some_and(|selectors| {
+                                selectors.iter().any(|selector| {
+                                    let ty = selector.get("type").and_then(|ty| ty.as_str());
+                                    !matches!(
+                                        ty,
+                                        Some(
+                                            "PseudoClassSelector"
+                                                | "PseudoElementSelector"
+                                                | "NestingSelector"
+                                        )
+                                    )
+                                })
+                            })
+                });
 
         // Track if the next relative selector should be treated as global
         // (after a bare :global modifier)
@@ -6811,7 +7040,9 @@ fn transform_complex_selector(
         // the combinator gap can be copied verbatim from the stylesheet.
         let mut prev_rel_span: Option<(usize, usize)> = None;
 
-        for relative_selector in children {
+        for (rel_index, relative_selector) in children.iter().enumerate() {
+            // Left of a combinator upstream cannot apply, nothing is scoped.
+            let is_reachable = rel_index >= first_reachable;
             // Check if this relative selector starts with bare :global (no args)
             let starts_with_bare_global = relative_selector
                 .get("selectors")
@@ -6966,7 +7197,18 @@ fn transform_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start (e.g., "> nav" as a nested selector)
                     // Don't add leading space
-                    let _ = write!(result, "{} ", name);
+                    match leading_combinator_text(
+                        node,
+                        relative_selector,
+                        name,
+                        css_source,
+                        css_start,
+                    ) {
+                        Some(text) => result.push_str(&text),
+                        None => {
+                            let _ = write!(result, "{} ", name);
+                        }
+                    }
                 } else {
                     let _ = write!(result, " {} ", name);
                 }
@@ -7058,11 +7300,12 @@ fn transform_complex_selector(
                     _previous_was_scoped = false;
                 } else if has_partial_global {
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
-                    let needs_scoping = relative_selector
-                        .get("metadata")
-                        .and_then(|m| m.get("scoped"))
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(true);
+                    let needs_scoping = is_reachable
+                        && relative_selector
+                            .get("metadata")
+                            .and_then(|m| m.get("scoped"))
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(true);
 
                     // Check if this contains a NestingSelector - if so, skip scoping
                     // (the & inherits scoping from parent rule)
@@ -7129,11 +7372,12 @@ fn transform_complex_selector(
                     _previous_was_scoped = needs_scoping && !has_nesting;
                 } else {
                     // Regular scoped selector
-                    let needs_scoping = relative_selector
-                        .get("metadata")
-                        .and_then(|m| m.get("scoped"))
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(true); // Default to scoping
+                    let needs_scoping = is_reachable
+                        && relative_selector
+                            .get("metadata")
+                            .and_then(|m| m.get("scoped"))
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(true); // Default to scoping
 
                     // Check if this relative selector contains a NestingSelector (&)
                     // If so, skip adding scoping - the & refers to the parent rule which already has scoping
@@ -7302,6 +7546,37 @@ fn compound_start(relative_selector: &Value) -> Option<usize> {
         .map(|s| s as usize)
 }
 
+/// The source text between a complex selector's start and its first compound —
+/// a nested rule's leading combinator, which the in-place rewrite leaves alone.
+fn leading_combinator_text(
+    node: &Value,
+    relative_selector: &Value,
+    name: &str,
+    css_source: &str,
+    css_start: usize,
+) -> Option<String> {
+    let from = (node.get("start").and_then(|s| s.as_u64())? as usize).checked_sub(css_start)?;
+    let to = compound_start(relative_selector)?.checked_sub(css_start)?;
+    if to <= from || to > css_source.len() {
+        return None;
+    }
+    let text = css_source.get(from..to)?;
+    if !is_combinator_run(text.trim(), name) {
+        return None;
+    }
+    Some(text.to_string())
+}
+
+/// A gap that is nothing but combinator tokens ending in the one the AST kept.
+/// `>>` / `>>>` are read one token at a time upstream, keeping only the last.
+fn is_combinator_run(trimmed: &str, name: &str) -> bool {
+    !trimmed.is_empty()
+        && trimmed
+            .bytes()
+            .all(|b| matches!(b, b'>' | b'+' | b'~' | b'|'))
+        && trimmed.ends_with(name.trim())
+}
+
 /// Upstream rewrites the stylesheet in place, so the author's whitespace between
 /// two compounds — including line breaks — survives into the output.
 fn source_combinator_text(
@@ -7327,8 +7602,11 @@ fn source_combinator_text(
     }
     let text = css_source.get(from..to)?;
     // A gap holding anything but the combinator (a comment, a synthesized node's
-    // stale span) falls back to the canonical spelling.
-    if text.is_empty() || text.trim() != name.trim() {
+    // stale span) falls back to the canonical spelling. `>>` / `>>>` are a run of
+    // combinator tokens that upstream's regex reads one at a time, keeping only
+    // the last — but its in-place rewrite leaves the whole run in the output.
+    let trimmed = text.trim();
+    if text.is_empty() || (trimmed != name.trim() && !is_combinator_run(trimmed, name)) {
         return None;
     }
     Some(text.to_string())
@@ -7520,6 +7798,24 @@ fn format_simple_selector_with_scope(
             )
         }
         "AttributeSelector" => {
+            // Upstream never rewrites the brackets, so the author's spacing
+            // (`[ data-k ]`) survives; `name`/`matcher`/`value` cannot carry it.
+            if let (Some(start), Some(end), Some(css_start)) = (
+                sel.get("start").and_then(|s| s.as_u64()),
+                sel.get("end").and_then(|e| e.as_u64()),
+                css_start,
+            ) {
+                let src_start = (start as usize).saturating_sub(css_start);
+                let src_end = (end as usize).saturating_sub(css_start);
+                if src_end <= css_source.len()
+                    && src_start < src_end
+                    && css_source[src_start..src_end].starts_with('[')
+                    && css_source[src_start..src_end].ends_with(']')
+                {
+                    return css_source[src_start..src_end].to_string();
+                }
+            }
+
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
             let matcher = sel.get("matcher").and_then(|m| m.as_str());
             let value = sel.get("value").and_then(|v| v.as_str());
@@ -7555,8 +7851,10 @@ fn format_simple_selector_with_scope(
                     // should use :where() for scoping.
                     let inner = transform_is_not_args(
                         args,
+                        sel,
                         selector,
                         css_source,
+                        css_start,
                         name,
                         ctx,
                         use_direct_class,
@@ -7653,76 +7951,190 @@ fn format_simple_selector_with_scope(
 ///
 /// Note: For :not(), we never mark inner selectors as unused because :not(X) means
 /// "everything that is NOT X", which is always potentially matching something.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "mirrors the upstream visitor's state"
+)]
 fn transform_is_not_args(
     args: &Value,
+    pseudo: &Value,
     selector: &str,
     css_source: &str,
+    css_start: Option<usize>,
     pseudo_name: &str,
     ctx: Option<&CssContext>,
     use_direct_class: bool,
     outer_specificity_bumped: bool,
 ) -> String {
-    let mut result = String::new();
-
     // args should be a SelectorList
-    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
-        let mut selectors = Vec::new();
-
-        for complex_selector in children.iter() {
-            // For :not(), never mark inner selectors as unused
-            // :not(X) means "everything except X", so even if X doesn't exist,
-            // the selector still matches all elements
-            let is_unused = if pseudo_name == "not" {
-                false
-            } else {
-                // Check if this selector is unused (only if we have context)
-                // Use the conservative check for inner selectors - only mark as unused
-                // if it's a simple class/id that definitely doesn't exist
-                ctx.map(|c| is_is_inner_selector_unused(complex_selector, c))
-                    .unwrap_or(false)
-            };
-
-            if is_unused {
-                selectors.push((true, get_selector_text(complex_selector)));
-            } else {
-                selectors.push((
-                    false,
-                    transform_is_not_complex_selector(
-                        complex_selector,
-                        selector,
-                        css_source,
-                        pseudo_name,
-                        ctx,
-                        use_direct_class,
-                        outer_specificity_bumped,
-                    ),
-                ));
-            }
-        }
-
-        for (i, (is_unused, selector)) in selectors.iter().enumerate() {
-            if i > 0 {
-                result.push(' ');
-            }
-            if *is_unused {
-                result.push_str("/* (unused) ");
-                result.push_str(selector);
-                if i + 1 < selectors.len() {
-                    result.push(',');
-                }
-                result.push_str("*/");
-            } else {
-                result.push_str(selector);
-                if i + 1 < selectors.len() && !selectors[i + 1].0 {
-                    result.push(',');
-                }
-            }
-        }
-    } else {
-        // Fallback to raw text
-        result = get_selector_text(args);
+    let Some(children) = args.get("children").and_then(|c| c.as_array()) else {
+        return get_selector_text(args);
+    };
+    if children.is_empty() {
+        return get_selector_text(args);
     }
 
+    let mut used = Vec::with_capacity(children.len());
+    let mut texts = Vec::with_capacity(children.len());
+
+    for complex_selector in children.iter() {
+        // :not(X) means "everything except X", so even when X matches nothing the
+        // selector still applies; upstream marks every `:not` argument used.
+        let is_unused = if pseudo_name == "not" {
+            false
+        } else {
+            ctx.is_some_and(|c| branch_is_marked_unused(complex_selector, c))
+        };
+
+        used.push(!is_unused);
+        texts.push(if is_unused {
+            css_start
+                .map(|cs| get_complex_selector_text(complex_selector, css_source, cs))
+                .unwrap_or_else(|| get_selector_text(complex_selector))
+        } else {
+            transform_is_not_complex_selector(
+                complex_selector,
+                selector,
+                css_source,
+                pseudo_name,
+                ctx,
+                use_direct_class,
+                outer_specificity_bumped,
+            )
+        });
+    }
+
+    match arg_list_source_spans(pseudo, children, css_source, css_start) {
+        Some(spans) => splice_arg_list(css_source, &spans, &used, &texts),
+        None => join_arg_list(&used, &texts),
+    }
+}
+
+/// Source byte offsets of an argument list: `(open_paren + 1, close_paren)` plus
+/// one `(start, end)` per argument. `None` when the recorded spans do not line up
+/// with `css_source`, in which case the caller rebuilds the list from the AST.
+fn arg_list_source_spans(
+    pseudo: &Value,
+    children: &[Value],
+    css_source: &str,
+    css_start: Option<usize>,
+) -> Option<(usize, usize, Vec<(usize, usize)>)> {
+    let css_start = css_start?;
+    let rel = |v: &Value, key: &str| -> Option<usize> {
+        let abs = v.get(key).and_then(serde_json::Value::as_u64)? as usize;
+        abs.checked_sub(css_start)
+    };
+
+    let p_start = rel(pseudo, "start")?;
+    let p_end = rel(pseudo, "end")?;
+    if p_end > css_source.len() || p_start >= p_end {
+        return None;
+    }
+    if !css_source.is_char_boundary(p_start) || !css_source.is_char_boundary(p_end) {
+        return None;
+    }
+    let open = css_source[p_start..p_end].find('(')? + p_start;
+    let close = p_end - 1;
+    if css_source.as_bytes().get(close) != Some(&b')') || open + 1 > close {
+        return None;
+    }
+
+    let mut spans = Vec::with_capacity(children.len());
+    let mut cursor = open + 1;
+    for child in children {
+        let start = rel(child, "start")?;
+        let end = rel(child, "end")?;
+        if start < cursor || end < start || end > close {
+            return None;
+        }
+        if !css_source.is_char_boundary(start) || !css_source.is_char_boundary(end) {
+            return None;
+        }
+        spans.push((start, end));
+        cursor = end;
+    }
+
+    Some((open + 1, close, spans))
+}
+
+/// Port of upstream's `SelectorList` visitor (`3-transform/css/index.js`), which
+/// edits a copy of the source rather than rebuilding the list — so whatever the
+/// source had between arguments (comments included) survives.
+fn splice_arg_list(
+    css_source: &str,
+    spans: &(usize, usize, Vec<(usize, usize)>),
+    used: &[bool],
+    texts: &[String],
+) -> String {
+    let (region_start, region_end, children) = spans;
+    let mut out = String::new();
+    out.push_str(&css_source[*region_start..children[0].0]);
+
+    let mut pruning = false;
+    let mut has_previous_used = false;
+
+    for i in 0..children.len() {
+        if i > 0 {
+            let gap = &css_source[children[i - 1].1..children[i].0];
+            if used[i] == pruning {
+                if pruning {
+                    // Upstream scans back from the argument's start for the `,`
+                    // and closes the comment on the side the previous run needs.
+                    let comma = gap
+                        .rfind(',')
+                        .map_or(0, |c| c + usize::from(!has_previous_used));
+                    out.push_str(&gap[..comma]);
+                    out.push_str("*/");
+                    out.push_str(&gap[comma..]);
+                } else {
+                    // `overwrite(last, selector.start, ' /* (unused) ')`
+                    out.push_str(" /* (unused) ");
+                }
+            } else {
+                out.push_str(gap);
+            }
+        } else if !used[0] {
+            out.push_str("/* (unused) ");
+        }
+
+        if used[i] == pruning {
+            pruning = !pruning;
+        }
+        out.push_str(&texts[i]);
+        if !pruning && used[i] {
+            has_previous_used = true;
+        }
+    }
+
+    if pruning {
+        out.push_str("*/");
+    }
+    out.push_str(&css_source[children[children.len() - 1].1..*region_end]);
+    out
+}
+
+/// Rebuild an argument list from the AST, for the rare case where the recorded
+/// spans cannot be resolved against `css_source`.
+fn join_arg_list(used: &[bool], texts: &[String]) -> String {
+    let mut result = String::new();
+    for i in 0..texts.len() {
+        if i > 0 {
+            result.push(' ');
+        }
+        if used[i] {
+            result.push_str(&texts[i]);
+            if i + 1 < texts.len() && used[i + 1] {
+                result.push(',');
+            }
+        } else {
+            result.push_str("/* (unused) ");
+            result.push_str(&texts[i]);
+            if i + 1 < texts.len() {
+                result.push(',');
+            }
+            result.push_str("*/");
+        }
+    }
     result
 }
 
