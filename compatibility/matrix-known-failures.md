@@ -28,10 +28,13 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-The **verdict is part of the key**, and three of them can appear: `js-mismatch` (the
+The **verdict is part of the key**, and these can appear: `js-mismatch` (the
 difference survives comment + whitespace normalization), `comment-mismatch` (it does not),
-and `output-unparseable` (acorn rejects what rsvelte emitted, whatever the bytes say).
-None of the three is more tolerated than another — every one is ratcheted two-sided. The
+`output-unparseable` (acorn rejects what rsvelte emitted, whatever the bytes say),
+`warning-missing:<code>` / `warning-extra:<code>`, `over-accept` (rsvelte compiles a
+program official rejects) and `over-reject` (the reverse), and
+`error-code-mismatch:<official>-vs-<rsvelte>` (both reject, with different codes).
+None of them is more tolerated than another — every one is ratcheted two-sided. The
 split exists because a listed entry suppresses everything its key cannot tell apart: under
 one flat `js-mismatch`, an id whose comments already diverge absorbs a later code
 regression on that id for free. That is not hypothetical — when the split was added, every
@@ -318,54 +321,45 @@ separately, which is why this section names the merge-order rule at the top of t
 The whole family (5 bindings × 6 hosts × 11 write shapes × 4 targets) now passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
 but bakes one host into each binding's `wrap`, so binding × host has no cell there.
 
-### `compiler-option` — 0 entries
+### `class-modifier` — 36 entries
 
-The family that closes #3384's axis: 17 `compilerOptions` variants × 8 components × 4 targets (544 comparisons).
-Everything it lists is a **known defect of another subsystem** that this family is simply the
-first gate to reach; nothing here is an option-handling divergence.
+The family (33 members × 7 hosts × 4 targets) is what #3100 and #3203 needed: its subject is
+what a **plain** `<script>` may contain, and upstream answers that with a different *parser*
+(stock acorn) rather than with a flag, while rsvelte answers it by switching OXC's
+`SourceType`. Every TypeScript-only class modifier, and the stage-3 `accessor`, therefore
+compiled here and was a `js_parse_error` there — an over-acceptance, which no collected corpus
+can hold because published code compiles. All of those rows pass now, on all three JS entry
+points (instance script, `<script module>`, `compileModule`), and so do the two rules
+acorn-typescript enforces in the parser that OXC leaves to a checker (`abstract` outside an
+`abstract class`, `override` with no superclass).
 
-**`css-injected__style-nested` (client, client-dev, server, server-dev) — #3226.** rsvelte's CSS
-minifier appends ` ;` to a declaration that had no trailing semicolon, and doubles the opening
-brace of a rule that nests:
+What remains is one cause, and it is upstream's: **OXC's class-modifier table and
+acorn-typescript's are not the same table**, so on the three `lang="ts"` hosts three members
+are refused by both compilers under a different code.
 
-```
-sv  .a.svelte-1lj1c2j {color:red;&:hover {color:blue}}
-rs  .a.svelte-1lj1c2j {{color:red;;&:hover {color:blue ;}}
-```
+| member | official | rsvelte |
+|---|---|---|
+| `static accessor a = 1;` (`accessor-static`) | `js_parse_error` — `'accessor' modifier cannot be used with 'static' modifier.` | `typescript_invalid_feature` (accessor fields) |
+| `accessor static a = 1;` (`accessor-first`) | `typescript_invalid_feature` (accessor fields) | `js_parse_error` — `'static' modifier must precede 'accessor' modifier.` |
+| `declare accessor a;` (`accessor-declare`) | `typescript_invalid_feature` (accessor fields) | `js_parse_error` — `'accessor' modifier cannot be used with 'declare' modifier.` |
 
-The rsvelte string is not valid CSS — measured, not asserted: **3 opening braces to 2 closing**,
-against official's balanced 2/2. It is reachable only under `css: 'injected'` (or a custom
-element), because that is the only mode in which the minified string lands in `js.code` — under
-the default `external` it goes to `css.code`, which this gate does not read (gate-coverage 5r) and
-`targets.mjs` never leaves `external`. So #3226 had no gate at all before this family.
+Partition of `matrix-known-failures.json` entries under `class-modifier/` by cause:
+`error-code-mismatch, acorn-typescript modifier table: 36`
 
-Reachability is a separate question from correctness, and worth stating because the answer is not
-"exotic": `@rsvelte/vite-plugin-svelte` sets `css` from one flag —
-`const css = preResolveOptions.emitCss ? 'external' : 'injected'` (`utils/options.js:198`) — so
-`emitCss: false` puts every component in a project on this path.
+The first row is the one that names the cause. `static accessor x` is **legal TypeScript** —
+`tsc` accepts it — and acorn-typescript refuses it from
+`incompatible(startLoc, modifier, 'accessor', 'static')`, at `loc.column` passed to a `raise`
+that takes a *position*, so upstream reports the error at offset 9 of the document, inside the
+`<script lang="ts">` tag. The second row is the same member with the modifiers transposed:
+`incompatible` only fires when the other modifier has already been seen, so upstream accepts
+that spelling and OXC — whose table has the order rule instead — rejects it. Reported in
+[`upstream_issues/3203-acorn-typescript-accessor-modifier-table.md`](../upstream_issues/3203-acorn-typescript-accessor-modifier-table.md).
 
-The component exists for that reason. `state-style` ends its declaration with a `;`, which is the
-one spelling the minifier already agrees on — a `css-injected` row against it is green and means
-nothing about the option. Which is the same trap #3384's own grid fell into on `fragments: 'tree'`
-(#3459): the axis value was reached every time and no source discriminated at it.
-
-**`custom-element__style-nested` (client, client-dev) — #3226 again**, since `inject_styles` is
-`css === 'injected' || is_custom_element`.
-
-**`custom-element__state-style` (client, client-dev) — #3448.** A `$state` that is never written
-stays a signal in rsvelte, so `{n}` compiles to `$.child` + `$.template_effect(… $.set_text …)`
-where official folds it to a single `b.textContent = $.get(n)`. Pre-existing and not
-custom-element-specific — it reproduces on the `<svelte:options customElement="x-a" />` path that
-already worked, with three controls agreeing — so the option is only what makes the cell exist.
-It is #3448 **and nothing else** here, precisely because `state-style` writes the trailing `;`
-that keeps #3226 quiet: an earlier read of this row attributed the whole `custom-element` variant
-to #3448 by counting the variant's total instead of diffing each cell, and one of those cells was
-#3226 alone. Attribute a ratchet entry from its own diff, never from its variant's count.
-
-**Not listed, and worth stating:** `runes-true__legacy-export` is an **error-parity** cell in all
-four targets. Official rejects it with `legacy_export_invalid` and so does rsvelte, so the family
-compares error codes there rather than output. That is a comparison, not a hole; declining to
-generate the combination would report coverage the family does not have.
+These are left listed rather than fixed because both compilers *do* refuse all three, the
+divergence is the code and the position only, and matching would mean either reproducing a
+wrong rule at a wrong offset (row 1) or hand-porting acorn-typescript's whole modifier table
+in place of OXC's — which would have to carry its bugs to be worth anything. The rows are
+generated rather than skipped so that the day upstream fixes its table, this gate says so.
 
 ## Burn-down
 

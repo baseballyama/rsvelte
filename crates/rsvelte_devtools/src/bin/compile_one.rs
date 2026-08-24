@@ -4,6 +4,8 @@
 //! Usage:
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
 //!     [--runes-false | --runes-true]
+//!
+//! A path that does not end in `.svelte` is compiled as a `.svelte.js` module.
 
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 

@@ -27,7 +27,7 @@
  * 5244 accepted (case, target) pairs, so on those the comparison runs on an
  * empty population. Positions are deliberately left to the collected gate.
  *
- * Two comparisons here are about the ratchet KEY rather than about tolerance,
+ * Four comparisons here are about the ratchet KEY rather than about tolerance,
  * because a listed entry suppresses everything its key cannot tell apart:
  *
  *   - the acorn parse oracle runs on both sides of every accepted pair, so
@@ -38,6 +38,15 @@
  *     `comment-mismatch`. Both verdicts stay ratcheted two-sided; the split
  *     stops a comment-fidelity entry from covering a later code regression on
  *     the same id, which is what would have happened to `opaque-keyword`.
+ *   - exactly one side rejecting is `over-accept` (rsvelte compiles what
+ *     official refuses) or `over-reject` (the reverse), never one flat
+ *     `error-mismatch`. They are the two opposite failures of one check, and
+ *     `invalid-bind` / `param-default` carry invalid AND valid rows precisely
+ *     so both are reachable — under one key a listed over-rejection covers a
+ *     later over-acceptance on the same (id, target) for free.
+ *   - both sides rejecting with different codes carries the code PAIR, so a
+ *     regression from a ported diagnostic to a lucky parse error is a new key
+ *     rather than the same one.
  *
  * Ratchet: compatibility/matrix-known-failures.json, shrink-only and two-sided
  * (a new failure AND a listed entry that already passes both fail), justified
@@ -141,7 +150,8 @@ const counts = {
 	'error-parity': 0,
 	'js-mismatch': 0,
 	'comment-mismatch': 0,
-	'error-mismatch': 0,
+	'over-accept': 0,
+	'over-reject': 0,
 	'error-code-mismatch': 0,
 	'warning-mismatch': 0,
 	'output-unparseable': 0,
@@ -214,12 +224,17 @@ for (const testCase of cases) {
 			// …and rejecting for a DIFFERENT reason is the second sharpest:
 			// "both threw" cannot separate a ported diagnostic from a lucky
 			// parse error, which is what an invalid-input family needs it to do.
+			// The code PAIR is in the verdict for the same reason the direction is,
+			// one line down: an entry keyed on `error-code-mismatch` alone covers
+			// every future pairing on that case, including a regression from a
+			// ported diagnostic to a lucky parse error.
 			if (expectedError.code !== actualError.code) {
+				const verdict = `error-code-mismatch:${expectedError.code ?? '(none)'}-vs-${actualError.code ?? '(none)'}`;
 				counts['error-code-mismatch'] += 1;
 				failures.push({
 					id: testCase.id,
 					target: target.key,
-					verdict: 'error-code-mismatch',
+					verdict,
 					detail: `official ${expectedError.code ?? '(none)'}, rsvelte ${actualError.code ?? '(none)'}: ${actualError.message}`,
 				});
 				continue;
@@ -228,11 +243,18 @@ for (const testCase of cases) {
 			continue;
 		}
 		if (expectedError || actualError) {
-			counts['error-mismatch'] += 1;
+			// The DIRECTION is the verdict, not a `detail` string. These two are
+			// opposite failures of one check — `invalid-bind` and `param-default`
+			// carry invalid and valid rows precisely so both can be seen — and
+			// under one flat `error-mismatch` key a listed over-rejection
+			// suppresses a later over-acceptance on the same (id, target), which
+			// is the class those families exist to find.
+			const verdict = expectedError ? 'over-accept' : 'over-reject';
+			counts[verdict] += 1;
 			failures.push({
 				id: testCase.id,
 				target: target.key,
-				verdict: 'error-mismatch',
+				verdict,
 				detail: expectedError
 					? `rsvelte accepts, official rejects: ${expectedError.message}`
 					: `rsvelte rejects, official accepts: ${actualError.message}`,

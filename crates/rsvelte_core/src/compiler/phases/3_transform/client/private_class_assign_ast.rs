@@ -403,6 +403,7 @@ fn single_pass(
             function_depth: 0,
             var_proxy: &binding_info.var_proxy,
             reassigned: &binding_info.reassigned,
+            tight_parents: HashSet::default(),
             replacements: Vec::new(),
         };
         collector.visit_program(program_ref);
@@ -432,6 +433,10 @@ struct PrivateClassAssignCollector<'a> {
     function_depth: u32,
     var_proxy: &'a HashMap<String, bool>,
     reassigned: &'a HashSet<String>,
+    /// Spans of expressions whose parent binds tighter than a logical operator,
+    /// so the logical form a short-circuiting assignment expands into has to be
+    /// parenthesised there. The in-place path gets this from its printer.
+    tight_parents: HashSet<(u32, u32)>,
     replacements: Vec<Edit>,
 }
 
@@ -451,6 +456,13 @@ fn reads_dot_v(qualified: &str, v_read_qualified: &[String], function_depth: u32
     function_depth == 0 && v_read_qualified.iter().any(|q| q.as_str() == qualified)
 }
 
+impl PrivateClassAssignCollector<'_> {
+    fn mark_tight(&mut self, expr: &Expression<'_>) {
+        let span = expr.span();
+        self.tight_parents.insert((span.start, span.end));
+    }
+}
+
 impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
     fn visit_function(&mut self, func: &Function<'ast>, flags: oxc_syntax::scope::ScopeFlags) {
         self.function_depth += 1;
@@ -462,6 +474,63 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         self.function_depth += 1;
         walk::walk_arrow_function_expression(self, expr);
         self.function_depth -= 1;
+    }
+
+    fn visit_unary_expression(&mut self, expr: &UnaryExpression<'ast>) {
+        self.mark_tight(&expr.argument);
+        walk::walk_unary_expression(self, expr);
+    }
+
+    fn visit_await_expression(&mut self, expr: &AwaitExpression<'ast>) {
+        self.mark_tight(&expr.argument);
+        walk::walk_await_expression(self, expr);
+    }
+
+    fn visit_binary_expression(&mut self, expr: &BinaryExpression<'ast>) {
+        self.mark_tight(&expr.left);
+        self.mark_tight(&expr.right);
+        walk::walk_binary_expression(self, expr);
+    }
+
+    fn visit_logical_expression(&mut self, expr: &LogicalExpression<'ast>) {
+        self.mark_tight(&expr.left);
+        self.mark_tight(&expr.right);
+        walk::walk_logical_expression(self, expr);
+    }
+
+    fn visit_conditional_expression(&mut self, expr: &ConditionalExpression<'ast>) {
+        self.mark_tight(&expr.test);
+        walk::walk_conditional_expression(self, expr);
+    }
+
+    fn visit_static_member_expression(&mut self, expr: &StaticMemberExpression<'ast>) {
+        self.mark_tight(&expr.object);
+        walk::walk_static_member_expression(self, expr);
+    }
+
+    fn visit_computed_member_expression(&mut self, expr: &ComputedMemberExpression<'ast>) {
+        self.mark_tight(&expr.object);
+        walk::walk_computed_member_expression(self, expr);
+    }
+
+    fn visit_private_field_expression(&mut self, expr: &PrivateFieldExpression<'ast>) {
+        self.mark_tight(&expr.object);
+        walk::walk_private_field_expression(self, expr);
+    }
+
+    fn visit_call_expression(&mut self, expr: &CallExpression<'ast>) {
+        self.mark_tight(&expr.callee);
+        walk::walk_call_expression(self, expr);
+    }
+
+    fn visit_new_expression(&mut self, expr: &NewExpression<'ast>) {
+        self.mark_tight(&expr.callee);
+        walk::walk_new_expression(self, expr);
+    }
+
+    fn visit_tagged_template_expression(&mut self, expr: &TaggedTemplateExpression<'ast>) {
+        self.mark_tight(&expr.tag);
+        walk::walk_tagged_template_expression(self, expr);
     }
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
@@ -501,6 +570,21 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         let rewrite = match compound {
             Some(Compound::Logical(op)) => format!("{} {} {}", read(), op.as_str(), set),
             _ => set,
+        };
+
+        let rewrite = match short_circuit {
+            None => set_call,
+            Some(op) => {
+                let logical = format!("{} {} {}", read(), op.as_str(), set_call);
+                if self
+                    .tight_parents
+                    .contains(&(expr.span.start, expr.span.end))
+                {
+                    format!("({})", logical)
+                } else {
+                    logical
+                }
+            }
         };
 
         self.replacements
@@ -735,10 +819,10 @@ mod tests {
 
     #[test]
     fn nullish_assign_state_proxies() {
-        // `??=` is non-coercive and the built value is a LogicalExpression,
-        // so a `$state` field always proxies (`, true`). Regression test for
-        // issue #1438 (`??=` was previously left un-rewritten, producing the
-        // invalid `$.get(this.#promise) ??= run()`).
+        // The setter is only reached on the assigning branch; `run()` is proxyable,
+        // so the `$state` field gets `, true`. Regression test for issue #1438
+        // (`??=` was previously left un-rewritten, producing the invalid
+        // `$.get(this.#promise) ??= run()`).
         let out = method_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
         assert_eq!(
             out,

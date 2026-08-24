@@ -1458,8 +1458,13 @@ fn test_wrap_prop_source_reads_block_comment_before_property_key() {
     // is_property_key check to fail, wrapping `value` as `value()` in object literal.
     let prop_vars = vec!["value".to_string()];
     let input = r#"{ key: 1, /* comment */ value: 2 }"#;
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value: 2"),
         "value after block comment should NOT be wrapped as value(): {}",
@@ -1476,8 +1481,13 @@ fn test_wrap_prop_source_reads_block_comment_before_property_key() {
 fn test_wrap_prop_source_reads_block_comment_multiline() {
     let prop_vars = vec!["value".to_string()];
     let input = "{ key: 1,\n\t/* multi\n\t   line\n\t   comment */\n\tvalue: 2 }";
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value: 2"),
         "value after multiline block comment should NOT be wrapped: {}",
@@ -1490,8 +1500,13 @@ fn test_wrap_prop_source_reads_value_in_expression() {
     // When `value` is used as an expression (not a property key), it SHOULD be wrapped
     let prop_vars = vec!["value".to_string()];
     let input = "let x = value + 1;";
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value() + 1"),
         "value in expression should be wrapped as value(): {}",
@@ -1505,8 +1520,13 @@ fn test_wrap_prop_source_reads_skips_nullish_assign() {
     // is_on_left_side_of_assignment didn't detect ??=
     let prop_vars = vec!["value".to_string()];
     let input = "value ??= 100;";
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         !result.contains("value() ??= 100"),
         "value on LHS of ??= should NOT be wrapped: {}",
@@ -2526,6 +2546,7 @@ fn a_private_state_read_stops_at_a_non_ascii_identifier_character() {
         constructor_declared: false,
         had_class_body_decl: false,
         trailing_comment: None,
+        init_prefix: String::new(),
     };
 
     for rune in ["$state", "$derived"] {

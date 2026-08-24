@@ -540,27 +540,26 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // expression reading `$$props.class` omits the
     // `$.deep_read_state($$sanitized_props)` dependency in `build_expression`.
     //
-    // (`$$restProps` is intentionally NOT declared here: it is already handled by
-    // the existing rest-props path, and binding it would re-route a plain
-    // `$$restProps.x` read through the `$$sanitized_props` rewrite.)
+    // `$$restProps` gets the same synthetic binding, which is what makes a call
+    // that reads it `has_call` (upstream's `dependencies.size > 0`) and so
+    // memoized into `$.template_effect`'s dependency-array form.
     if !analysis.runes {
         use crate::compiler::phases::phase2_analyze::scope::{
             Binding, BindingKind, DeclarationKind,
         };
         let instance_scope = analysis.root.instance_scope_index;
-        if analysis
-            .root
-            .get_binding("$$props", instance_scope)
-            .is_none()
-        {
+        for name in ["$$props", "$$restProps"] {
+            if analysis.root.get_binding(name, instance_scope).is_some() {
+                continue;
+            }
             let idx = analysis.root.push_binding(Binding::with_declaration_kind(
-                "$$props".to_string(),
+                name.to_string(),
                 BindingKind::RestProp,
                 DeclarationKind::Synthetic,
                 instance_scope,
             ));
             if let Some(scope) = analysis.root.all_scopes.get_mut(instance_scope) {
-                scope.declarations.insert("$$props".to_string(), idx);
+                scope.declarations.insert(name.to_string(), idx);
             }
         }
     }
@@ -1407,7 +1406,7 @@ fn collect_legacy_reactive_statement_metadata(
                 .is_some()
                 || analysis.root.scope.declarations.contains_key(name)
         };
-        assignments.retain(|name| is_instance_binding(name));
+        assignments.retain(|name| is_instance_binding(name) || shadowed_assignments.contains(name));
         cycle_dependencies.retain(|name| is_instance_binding(name));
         cycle_dependencies.retain(|dep| !assignments.contains(dep));
 
@@ -1475,6 +1474,48 @@ fn cycle_extract_pattern_ids(node: &JsNode, arena: &ParseArena, out: &mut Vec<St
             cycle_extract_pattern_ids(arena.get_js_node(*argument), arena, out);
         }
         _ => {}
+    }
+}
+
+/// Scope-resolved facts about one reactive `$:` statement, as
+/// `order_reactive_statements` consumes them.
+#[derive(Default)]
+struct CycleFacts {
+    /// Names declared INSIDE the statement, innermost last — upstream resolves
+    /// every name through the scope chain, so a `catch` parameter, a block
+    /// `let`, or a function parameter shadows the instance binding of the same
+    /// name.
+    locals: Vec<String>,
+    assignments: Vec<String>,
+    /// Assignment targets that resolved to one of `locals`. Upstream keys the
+    /// graph on `binding.node.name` whatever scope the binding lives in, so
+    /// these are edges too and must survive the instance-binding filter.
+    shadowed_assignments: Vec<String>,
+    dependencies: Vec<String>,
+}
+
+impl CycleFacts {
+    fn is_local(&self, name: &str) -> bool {
+        self.locals.iter().any(|l| l == name)
+    }
+
+    fn push_dependency(&mut self, name: &str) {
+        if !self.is_local(name) && !self.dependencies.iter().any(|s| s == name) {
+            self.dependencies.push(name.to_string());
+        }
+    }
+
+    fn push_assignment_targets(&mut self, node: &JsNode, arena: &ParseArena) {
+        let mut names = Vec::new();
+        cycle_extract_pattern_ids(node, arena, &mut names);
+        for name in names {
+            if self.is_local(&name) && !self.shadowed_assignments.contains(&name) {
+                self.shadowed_assignments.push(name.clone());
+            }
+            if !self.assignments.contains(&name) {
+                self.assignments.push(name);
+            }
+        }
     }
 }
 
@@ -1606,10 +1647,6 @@ fn cycle_collect_assignments_and_deps(
                 locals,
             );
         }
-        // Function bodies create their own scope.
-        JsNode::FunctionExpression { .. }
-        | JsNode::ArrowFunctionExpression { .. }
-        | JsNode::FunctionDeclaration { .. } => {}
         JsNode::MemberExpression {
             object,
             property,
@@ -1667,11 +1704,11 @@ fn cycle_collect_assignments_and_deps(
                 cycle_collect_assignments_and_deps(prop, arena, assignments, dependencies, locals);
             }
             if let Some(ta) = type_annotation {
-                for_each_blob_identifier(ta, &mut |name, _| {
-                    if !dependencies.iter().any(|s| s == name) {
-                        dependencies.push(name.to_string());
-                    }
-                });
+                let mut names = Vec::new();
+                for_each_blob_identifier(ta, &mut |name, _| names.push(name.to_string()));
+                for name in names {
+                    facts.push_dependency(&name);
+                }
             }
         }
         JsNode::ArrayPattern {
@@ -1683,11 +1720,11 @@ fn cycle_collect_assignments_and_deps(
                 cycle_collect_assignments_and_deps(elem, arena, assignments, dependencies, locals);
             }
             if let Some(ta) = type_annotation {
-                for_each_blob_identifier(ta, &mut |name, _| {
-                    if !dependencies.iter().any(|s| s == name) {
-                        dependencies.push(name.to_string());
-                    }
-                });
+                let mut names = Vec::new();
+                for_each_blob_identifier(ta, &mut |name, _| names.push(name.to_string()));
+                for name in names {
+                    facts.push_dependency(&name);
+                }
             }
         }
         // `for_each_js_child` skips `label` (it is not a rune reference); this
@@ -2457,6 +2494,25 @@ fn collect_reactive_refs(
             path.pop();
             locals.truncate(locals_mark);
         }
+        // A `catch` parameter is a declaration, not a reference; it shadows the
+        // instance binding of the same name inside the handler.
+        JsNode::CatchClause { param, body, .. } => {
+            let locals_mark = locals.len();
+            if let Some(param) = param {
+                extract_param_names(arena.get_js_node(*param), arena, locals);
+            }
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*body),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
+            path.pop();
+            locals.truncate(locals_mark);
+        }
         JsNode::BlockStatement { body, .. } => {
             let locals_mark = locals.len();
             let stmts = arena.get_js_children(*body);
@@ -2613,14 +2669,22 @@ fn collect_reactive_refs(
 }
 
 /// Add `let/const/var` (and `for`-binding) identifiers from a statement to
-/// `locals` so they shadow outer reactive bindings within their block.
+/// `locals` so they shadow outer reactive bindings within their block. A
+/// `function` / `class` declaration binds its name in the same block scope.
 fn collect_block_local_decls(node: &JsNode, arena: &ParseArena, locals: &mut Vec<String>) {
-    if let JsNode::VariableDeclaration { declarations, .. } = node {
-        for d in arena.get_js_children(*declarations) {
-            if let JsNode::VariableDeclarator { id, .. } = d {
-                extract_param_names(arena.get_js_node(*id), arena, locals);
+    match node {
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for d in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator { id, .. } = d {
+                    extract_param_names(arena.get_js_node(*id), arena, locals);
+                }
             }
         }
+        JsNode::FunctionDeclaration { id: Some(id), .. }
+        | JsNode::ClassDeclaration { id: Some(id), .. } => {
+            extract_param_names(arena.get_js_node(*id), arena, locals);
+        }
+        _ => {}
     }
 }
 
@@ -3589,14 +3653,14 @@ mod feature_walk_gate_tests {
     }
 }
 
-/// Collect `$`-prefixed identifier names from a function-parameter *pattern*
+/// Collect `$`-prefixed identifier names DECLARED by a binding *pattern*
 /// (typed `JsNode` form) into `out`. Default values (`AssignmentPattern.right`)
 /// are expressions, not declarations, so they are not collected.
 ///
 /// Used for shadow-aware rune detection: upstream determines runes mode from
-/// `module.scope.references` — a reference that resolves to a function
-/// parameter (e.g. `function bar($derived) { $derived(...) }`) never reaches
-/// the module scope and therefore never flips runes mode on.
+/// `module.scope.references` — a reference that resolves to a local binding
+/// (e.g. `function bar($derived) { $derived(...) }`) never reaches the module
+/// scope and therefore never flips runes mode on.
 fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } if name.starts_with('$') => {
@@ -4135,7 +4199,105 @@ fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl F
                 f(arena.get_js_node(*value));
             }
         }
+        // A `break`/`continue` target names a statement label, not a binding.
+        JsNode::BreakStatement { .. } | JsNode::ContinueStatement { .. } => {}
+        JsNode::VariableDeclarator { id, init, .. } => {
+            for_each_pattern_reference_child(arena.get_js_node(*id), arena, f);
+            if let Some(init) = init {
+                f(arena.get_js_node(*init));
+            }
+        }
+        JsNode::FunctionDeclaration { params, body, .. }
+        | JsNode::FunctionExpression { params, body, .. } => {
+            for param in arena.get_js_children(*params) {
+                for_each_pattern_reference_child(param, arena, f);
+            }
+            if let Some(body) = body {
+                f(arena.get_js_node(*body));
+            }
+        }
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
+            for param in arena.get_js_children(*params) {
+                for_each_pattern_reference_child(param, arena, f);
+            }
+            f(arena.get_js_node(*body));
+        }
+        JsNode::ClassDeclaration {
+            super_class,
+            body,
+            decorators,
+            ..
+        } => {
+            if let Some(super_class) = super_class {
+                f(arena.get_js_node(*super_class));
+            }
+            for decorator in arena.get_js_children(*decorators) {
+                f(decorator);
+            }
+            f(arena.get_js_node(*body));
+        }
+        JsNode::ClassExpression {
+            super_class, body, ..
+        } => {
+            if let Some(super_class) = super_class {
+                f(arena.get_js_node(*super_class));
+            }
+            f(arena.get_js_node(*body));
+        }
+        JsNode::CatchClause { body, .. } => f(arena.get_js_node(*body)),
+        // Every identifier an import or an export specifier carries is a
+        // declared or an exported name; the rest of the node is literals.
+        JsNode::ImportDeclaration { .. } | JsNode::ExportSpecifier { .. } => {}
         _ => for_each_js_child(node, arena, f),
+    }
+}
+
+/// Call `f` for the *expression* children of a binding pattern — a default
+/// value and a computed key. The names the pattern declares are bindings, not
+/// references, so they are not passed on.
+fn for_each_pattern_reference_child(
+    node: &JsNode,
+    arena: &ParseArena,
+    f: &mut impl FnMut(&JsNode),
+) {
+    match node {
+        JsNode::Identifier { .. } => {}
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property {
+                        key,
+                        value,
+                        computed,
+                        ..
+                    } => {
+                        if *computed {
+                            f(arena.get_js_node(*key));
+                        }
+                        for_each_pattern_reference_child(arena.get_js_node(*value), arena, f);
+                    }
+                    JsNode::RestElement { argument, .. }
+                    | JsNode::SpreadElement { argument, .. } => {
+                        for_each_pattern_reference_child(arena.get_js_node(*argument), arena, f);
+                    }
+                    other => f(other),
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                for_each_pattern_reference_child(elem, arena, f);
+            }
+        }
+        JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+            for_each_pattern_reference_child(arena.get_js_node(*argument), arena, f);
+        }
+        JsNode::AssignmentPattern { left, right, .. } => {
+            for_each_pattern_reference_child(arena.get_js_node(*left), arena, f);
+            f(arena.get_js_node(*right));
+        }
+        // A member expression as a destructuring target (`[o.x] = …`) reads `o`.
+        other => f(other),
     }
 }
 
@@ -6509,6 +6671,53 @@ $: { b++; console.log(a); }
         assert_eq!(second.source_ordinal, 1);
         assert_eq!(second.assignments, ["b"]);
         assert_eq!(second.dependencies, ["b", "console", "a"]);
+    }
+
+    /// A name declared INSIDE a `$:` statement shadows the instance binding it
+    /// collides with, so it is neither a dependency nor an assignment of the
+    /// outer name. Compared against the official compiler, which resolves both
+    /// sets through `scope.get(name)`.
+    #[test]
+    fn reactive_cycle_graph_resolves_names_through_the_statement_scope() {
+        let try_analyze = |source: &str| -> Result<ComponentAnalysis, AnalysisError> {
+            let mut ast = parse(
+                source,
+                &oxc_allocator::Allocator::default(),
+                ParseOptions {
+                    defer_script_parse: true,
+                    ..ParseOptions::default()
+                },
+            )
+            .unwrap();
+            // SAFETY: `ast` outlives the guard and analysis call.
+            let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+            analyze_component(&mut ast, source, &CompileOptions::default())
+        };
+
+        // Official compiles all four: the inner `e` is a different binding.
+        for shadow in [
+            "$: try { d = a; } catch (e) { d = 0; }",
+            "$: { let e = a; d = e; }",
+            "$: { function e() { return a; } d = e(); }",
+            "$: { for (const e of [a]) d = e; }",
+        ] {
+            let source = format!(
+                "<script>\nexport let a = 1;\nlet d = 0;\nlet e = 0;\n{shadow}\n$: e = d + 1;\n</script>\n<b>{{d}}{{e}}</b>"
+            );
+            assert!(
+                try_analyze(&source).is_ok(),
+                "expected no cycle for `{shadow}`"
+            );
+        }
+
+        // A read inside a function body still propagates out of the function
+        // scope, so this IS a cycle — as it is upstream.
+        let cyclic = "<script>\nlet a = 0;\nlet b = 0;\n$: a = (() => b)();\n$: b = a + 1;\n</script>\n<b>{a}{b}</b>";
+        let err = try_analyze(cyclic).expect_err("expected a reactive_declaration_cycle");
+        assert!(
+            matches!(&err, AnalysisError::ValidationWithCode { code, .. } if code == "reactive_declaration_cycle"),
+            "got {err:?}"
+        );
     }
 
     #[test]

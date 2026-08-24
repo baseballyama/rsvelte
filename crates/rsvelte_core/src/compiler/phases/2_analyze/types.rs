@@ -1164,7 +1164,13 @@ mod ts_removals {
         }
 
         fn visit_method_definition(&mut self, it: &MethodDefinition<'a>) {
-            if it.r#type == MethodDefinitionType::TSAbstractMethodDefinition {
+            // A bodiless member is an overload signature (or an abstract method):
+            // type-only, with no runtime representation, and leaving it in emits a
+            // class member no JS parser accepts. See
+            // `upstream_issues/3421-svelte-overload-signature-not-erased.md`.
+            if it.r#type == MethodDefinitionType::TSAbstractMethodDefinition
+                || it.value.body.is_none()
+            {
                 self.remove(it.span);
                 return;
             }
