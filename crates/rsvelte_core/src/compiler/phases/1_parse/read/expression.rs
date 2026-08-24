@@ -1676,7 +1676,8 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
@@ -1855,7 +1856,8 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
@@ -1979,7 +1981,8 @@ fn parse_expression_with_typescript<'a>(
         let mut wrapped = String::with_capacity(content.len() + 2);
         wrapped.push('(');
         wrapped.push_str(content);
-        wrapped.push(')');
+        // a trailing `//` comment would swallow a same-line `)`
+        wrapped.push_str("\n)");
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
