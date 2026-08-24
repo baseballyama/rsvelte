@@ -357,7 +357,7 @@ fn template_node_has_rune_global(
             expression_references_rune_global(&tag.expression, source, arena)
         }
         // AttachTag ({@attach expr}) — the expression may contain nested
-        // rune calls, e.g. `{@attach $effect(() => { ... })}`.
+        // rune references, e.g. `{@attach $effect(() => { ... })}`.
         // Reference: official svelte2tsx collects `@attach` expression globals
         // via `implicitStoreValues` just like any other template expression.
         TemplateNode::AttachTag(tag) => {
@@ -477,7 +477,7 @@ fn attr_has_rune_global(
             .as_ref()
             .is_some_and(|e| expression_references_rune_global(e, source, arena)),
 
-        // let:item — rarely carries a rune call, but check for completeness.
+        // let:item — rarely carries a rune reference, but check for completeness.
         Attribute::LetDirective(l) => l
             .expression
             .as_ref()
@@ -513,14 +513,6 @@ fn is_rune_global_name(name: &str) -> bool {
 /// For `Lazy` expressions (raw source spans), scans the source text.
 /// For `Value` (JSON) expressions, inspects the JSON AST.
 ///
-/// The walk is deliberately shallow-but-sufficient: it recurses into the callee
-/// of a `CallExpression` and the object of a `MemberExpression` (the two patterns
-/// that can reference a rune global — `$state(x)` and `$state.eager(x)`) but
-/// does NOT recurse into every sub-expression.  Template expressions that use
-/// rune globals almost always have the global as the outermost callee or
-/// member-expression object, so this covers all real-world cases while keeping
-/// the implementation simple and fast.
-///
 /// Reference: ExportedNames.ts `checkGlobalsForRunes` which sets
 ///   `hasRunesGlobals` when any of `$state`/`$derived`/`$effect` appear as an
 ///   undeclared identifier anywhere in the component globals set.
@@ -550,51 +542,47 @@ fn expression_references_rune_global(
     }
 }
 
-/// Check whether a callee `JsNode` directly IS a rune-global call target.
+/// Check whether a `JsNode` in head position IS a rune-global reference.
 ///
-/// A callee is a rune-global target when it is:
-///   - An `Identifier` named `$state`/`$derived`/`$effect`  (direct call: `$state(x)`)
-///   - A `MemberExpression` whose object is such an identifier  (`$state.eager(x)`)
+/// A node is a rune-global reference when it is:
+///   - An `Identifier` named `$state`/`$derived`/`$effect`  (`{$state}`, `$state(x)`)
+///   - A `MemberExpression` whose object is such a reference  (`$state.eager`)
 ///
-/// This intentionally does NOT recurse further — if the callee is something more
-/// complex, it is not a rune call pattern.
-#[inline]
-fn js_callee_is_rune_global(
-    callee: &crate::ast::typed_expr::JsNode,
+/// This intentionally does NOT look at the member *property*: upstream skips a
+/// `$`-identifier that is the property half of a property access.
+fn js_head_is_rune_global(
+    node: &crate::ast::typed_expr::JsNode,
     arena: &crate::ast::arena::ParseArena,
 ) -> bool {
     use crate::ast::typed_expr::JsNode;
-    match callee {
+    match node {
         JsNode::Identifier { name, .. } => is_rune_global_name(name.as_str()),
         JsNode::MemberExpression { object, .. } => {
-            let obj = arena.get_js_node(*object);
-            matches!(obj, JsNode::Identifier { name, .. } if is_rune_global_name(name.as_str()))
+            js_head_is_rune_global(arena.get_js_node(*object), arena)
         }
         _ => false,
     }
 }
 
 /// Walk a `JsNode` (typed AST node stored in the parse arena) looking for a
-/// `$state`/`$derived`/`$effect` rune call anywhere in the expression tree.
+/// `$state`/`$derived`/`$effect` rune-global REFERENCE anywhere in the tree.
 ///
-/// A RUNE CALL means the global is used as a call callee or as the object of a
-/// member-expression that is itself used as a call callee.  A bare `$state`
-/// identifier that is just a store auto-subscription (`{$state}`) does NOT match.
+/// Upstream needs only a reference: `getGlobals()` collects every unshadowed
+/// `$`-prefixed identifier and `checkGlobalsForRunes` tests that set for
+/// membership of the three rune names. A call is not required, so `{$state}`,
+/// `{$state.x}` and `{#each $state as …}` all count.
 ///
 /// Handles patterns like:
-///   - `$state(x)`                     → `CallExpression` callee = Identifier "$state"
+///   - `{$state}`                      → bare `Identifier`
 ///   - `$state.eager(x)`               → `CallExpression` callee = `MemberExpression` { object = Identifier "$state" }
-///   - `$effect.pre(() => …)`          → same
-///   - `foo($state(x))`                → arguments contain a rune `CallExpression`
+///   - `foo($state)`                   → arguments contain the reference
 ///   - `a === '/' ? $state(x) : null`  → `ConditionalExpression` branches
 ///   - `() => $effect(() => {})`       → `ArrowFunctionExpression` body
-///   - `{@attach $effect(() => {})}`   → `ArrowFunctionExpression` body in `AttachTag`
-///   - `[..., $state(x)]`              → `ArrayExpression` element
-///   - `{ k: $derived(v) }`            → `ObjectExpression` property value
+///   - `[..., $state]`                 → `ArrayExpression` element
+///   - `{ k: $derived }`               → `ObjectExpression` property value
 ///
-/// Does NOT match:
-///   - `{$state}` (bare store auto-subscription; no call)
-///   - `$state + 1` (store ref in arithmetic; no call)
+/// Does NOT match `obj.$state` — upstream skips a `$`-identifier in the property
+/// half of a property access.
 ///
 /// Reference: official `implicitStoreValues` collects ALL undeclared globals,
 /// including those inside nested function bodies passed to directives.
@@ -603,18 +591,20 @@ fn js_node_references_rune_global(
     arena: &crate::ast::arena::ParseArena,
 ) -> bool {
     use crate::ast::typed_expr::JsNode;
+    if js_head_is_rune_global(node, arena) {
+        return true;
+    }
     match node {
-        // CallExpression: the callee must be a rune-global target (direct call
-        // `$state(...)` or member-call `$state.eager(...)`).  Also recurse into
-        // arguments so nested rune calls like `foo($state(x))` are caught.
+        // CallExpression: the callee may be the rune global (direct call
+        // `$state(...)` or member-call `$state.eager(...)`), handled by the head
+        // check above. Recurse into arguments to catch `foo($state)`.
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
             let callee_node = arena.get_js_node(*callee);
-            if js_callee_is_rune_global(callee_node, arena) {
+            if js_node_references_rune_global(callee_node, arena) {
                 return true;
             }
-            // Recurse into arguments to catch `foo($state(x))`.
             let args = arena.get_js_children(*arguments);
             args.iter()
                 .any(|arg| js_node_references_rune_global(arg, arena))
@@ -730,25 +720,38 @@ fn js_node_references_rune_global(
             init.is_some_and(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
         }
 
-        // ReturnStatement / IfStatement bodies can also host rune calls.
+        // ReturnStatement / IfStatement bodies can also host a rune reference.
         JsNode::ReturnStatement { argument, .. } => {
             argument.is_some_and(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
         }
 
-        // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
-        // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.
-        // These are legitimate store/object references, not rune invocations.
+        // A computed member (`a[$state]`) still reaches the reference through
+        // its property expression; the static form is covered by the head check.
+        JsNode::MemberExpression {
+            object,
+            property,
+            computed,
+            ..
+        } => {
+            js_node_references_rune_global(arena.get_js_node(*object), arena)
+                || (*computed
+                    && js_node_references_rune_global(arena.get_js_node(*property), arena))
+        }
         _ => false,
     }
 }
 
-/// Scan a raw source slice (from a `Lazy` expression) for a rune-global CALL.
+/// Scan a raw source slice (from a `Lazy` expression) for a rune-global
+/// REFERENCE.
 ///
-/// Only triggers when `$state`/`$derived`/`$effect` is immediately followed by
-/// `(` (direct call) or `.` (member call like `$state.eager(…)`).  A bare
-/// `$state` with no following `(` or `.` is a store auto-subscription reference
-/// and must NOT trigger runes mode.
+/// Upstream needs only a reference, so a bare `$state` counts; the match must
+/// still be a whole identifier (not `$state_machine`, not `obj.$state`).
 fn lazy_slice_references_rune_global(slice: &str) -> bool {
+    const fn is_ident_byte(b: u8) -> bool {
+        b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80
+    }
+
+    let bytes = slice.as_bytes();
     for candidate in &["$state", "$derived", "$effect"] {
         // A rune whose base is shadowed by a declared instance var is a store
         // sub, not a rune (see SHADOWED_RUNE_BASES).
@@ -759,14 +762,14 @@ fn lazy_slice_references_rune_global(slice: &str) -> bool {
         while let Some(rel) = slice[search_from..].find(candidate) {
             let idx = search_from + rel;
             let after = idx + candidate.len();
-            if after < slice.len() {
-                let next = slice.as_bytes()[after];
-                // Require `(` (direct call) or `.` (member call).
-                // Also ensure the match is not inside a longer identifier
-                // (e.g. `$state_machine` — `$` is a valid JS identifier char).
-                if next == b'(' || next == b'.' {
-                    return true;
-                }
+            // `$` is a valid identifier byte, so the preceding byte alone
+            // separates a reference from the tail of a longer name; a `.`
+            // before it makes this the property half of a property access.
+            let boundary_before =
+                idx == 0 || !(is_ident_byte(bytes[idx - 1]) || bytes[idx - 1] == b'.');
+            let boundary_after = after >= bytes.len() || !is_ident_byte(bytes[after]);
+            if boundary_before && boundary_after {
+                return true;
             }
             search_from = idx + 1;
         }

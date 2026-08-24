@@ -394,14 +394,17 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Consume </style followed by optional whitespace and >
         if self.match_str("</style") {
             self.advance_by(7); // consume '</style'
-            // Skip whitespace before >
-            while !self.is_eof() && self.current_char() != '>' {
+            // Upstream reads `/\s*>/y`, so the run is consumed only when a `>`
+            // really follows: `</style x>` leaves ` x>` as template text.
+            let after_name = self.index;
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
-            self.eat_optional(">"); // consume '>'
+            if !self.eat_optional(">") {
+                self.index = after_name;
+            }
         } else if self.is_eof() {
             // Style tag was not closed - check if there was invalid '<' in content
             if let Some(lt_pos) = first_invalid_lt {
@@ -700,6 +703,7 @@ impl<'a> CssParser<'a> {
             if self.is_eof() || self.current_char() == '}' {
                 break;
             }
+            let index_before = self.index;
 
             // Skip comments so they don't get folded into the next child's
             // span (they're preserved via source gap copying in the printer).
@@ -726,6 +730,11 @@ impl<'a> CssParser<'a> {
                 children.push(decl);
             } else {
                 // Couldn't make progress — bail to avoid infinite loop.
+                self.advance();
+            }
+            // `parse_rule` consumes nothing when the selector is empty (a block
+            // item starting at `{`), which upstream rejects outright.
+            if self.index == index_before {
                 self.advance();
             }
             self.skip_whitespace();
@@ -1476,8 +1485,13 @@ impl<'a> CssParser<'a> {
             // Check if this looks like a nested rule (selector followed by {)
             // Look ahead to see if { comes before : or ;
             if self.is_nested_rule() {
+                let index_before = self.index;
                 if let Some(rule) = self.parse_rule() {
                     declarations.push(rule);
+                } else if self.index == index_before {
+                    // Empty selector (`{` at a block-item position): `parse_rule`
+                    // records the error and consumes nothing.
+                    self.advance();
                 }
                 self.skip_whitespace();
                 continue;

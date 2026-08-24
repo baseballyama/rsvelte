@@ -2495,9 +2495,12 @@ name = "rsvelte_ast_equiv"
 version = "0.0.0"
 dependencies = [
  "oxc_allocator",
+ "oxc_ast",
+ "oxc_ast_visit",
  "oxc_codegen",
  "oxc_parser",
  "oxc_span",
+ "oxc_syntax",
 ]
 
 [[package]]
@@ -2642,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.10.34"
+version = "0.10.35"
 dependencies = [
  "compact_str 0.10.0",
  "memchr",
