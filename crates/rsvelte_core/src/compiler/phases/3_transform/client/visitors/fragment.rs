@@ -169,6 +169,7 @@ pub fn fragment(
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: fragment_transform,
         transform_deep_read: fragment_transform_deep_read,
+        each_shadowing_names: context.state.each_shadowing_names.clone(),
         events: indexmap::IndexSet::default(), // Start empty, merge back later
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
@@ -285,7 +286,7 @@ pub fn fragment(
                     &context.arena,
                     &id_name,
                     Some(b::call(&context.arena, template_id_expr, vec![])),
-                    Some(name_start),
+                    Some((name_start, name_end)),
                 ),
             );
 

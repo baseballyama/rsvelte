@@ -53,7 +53,10 @@ pub fn visit<'a, 'b: 'a>(
     // Reference: SnippetBlock.js L28 — `is_top_level` is `path.length === 1`, so a
     // boundary counts as a parent for both snippet hoisting and `<svelte:*>` placement.
     context.element_depth += 1;
+    let was_direct_child = context.direct_component_parent;
+    context.direct_component_parent = super::DirectComponentParent::None;
     let result = fragment::analyze(&mut boundary.fragment, context);
+    context.direct_component_parent = was_direct_child;
     context.element_depth -= 1;
     result?;
 

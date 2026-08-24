@@ -1711,6 +1711,12 @@ pub struct ComponentAnalysis {
     /// Maps from (key, bindings) to the generated identifier
     pub binding_groups: FxHashMap<String, String>,
 
+    /// The group name upstream keeps on each `bind:group` directive's own
+    /// metadata, keyed by the directive expression's start. `binding_groups`
+    /// above is keyed by the GROUP, so it cannot say which group one directive
+    /// belongs to when two directives in the same each block differ.
+    pub binding_group_names: FxHashMap<u32, String>,
+
     /// Slot names mapped to their `<slot>` element's span
     pub slot_names: indexmap::IndexMap<String, (u32, u32), rustc_hash::FxBuildHasher>,
 
@@ -1841,6 +1847,7 @@ impl ComponentAnalysis {
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),
             binding_groups: FxHashMap::default(),
+            binding_group_names: FxHashMap::default(),
             slot_names: indexmap::IndexMap::default(),
             snippet_renderers: FxHashMap::default(),
             instance_body: InstanceBody::default(),

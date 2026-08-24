@@ -65,10 +65,7 @@ use rsvelte_core::compiler::{
     compile_module as rust_compile_module,
     compile_with_external_sourcemap_content as rust_compile_with_external_sourcemap_content,
 };
-use rsvelte_projection::svelte2tsx::{
-    Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
-    svelte2tsx as rust_svelte2tsx,
-};
+use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
 #[napi(object)]
 pub struct NapiBuildInfo {
@@ -130,6 +127,13 @@ fn warnings_to_json(warnings: &[rsvelte_core::compiler::Warning]) -> Vec<Value> 
 /// Parse options surfaced to the NAPI bindings.
 #[napi(object)]
 pub struct NapiParseOptions {
+    /// Return the modern AST. Upstream's `parse()` defaults this to `false` in
+    /// Svelte 5, so an omitted `modern` returns the **legacy** AST.
+    pub modern: Option<LenientScalar>,
+    /// Keep parsing past a recoverable error and return an AST anyway. Mirrors
+    /// upstream's `loose`, which an editor integration uses to parse a document
+    /// mid-keystroke.
+    pub loose: Option<LenientScalar>,
     /// Skip emitting nested `loc:{ start, end }` blocks on Expression
     /// sub-trees. The top-level `start`/`end` byte offsets are still
     /// present. Callers that re-parse expression ranges with their own
@@ -153,9 +157,8 @@ impl NapiParseOptions {
     /// rejecting a non-boolean with the same message shape as the compile
     /// options.
     fn flag(field: Option<&LenientScalar>, keypath: &str) -> napi::Result<bool> {
-        // These are rsvelte-only `parse()` flags — upstream's `parse()` validates
-        // nothing — so there is no upstream code to carry and the message alone
-        // is the whole diagnostic.
+        // Upstream's `parse()` validates none of its options, so there is no
+        // upstream diagnostic to carry and the message alone is the whole one.
         field
             .map_or_else(|| Ok(false), |value| coerce_bool(keypath, value))
             .map_err(|e| napi::Error::from_reason(e.message))
@@ -192,7 +195,13 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         ));
     }
 
+    // Upstream's `parse()` reads exactly these two (`compiler/index.js`):
+    // `loose` goes to the parser, `modern` selects the output shape afterwards,
+    // which is why it is not a `ParseOptions` field here either.
+    let modern =
+        NapiParseOptions::flag(options.as_ref().and_then(|o| o.modern.as_ref()), "modern")?;
     let parse_options = ParseOptions {
+        loose: NapiParseOptions::flag(options.as_ref().and_then(|o| o.loose.as_ref()), "loose")?,
         skip_expression_loc: NapiParseOptions::flag(
             options
                 .as_ref()
@@ -205,7 +214,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         ..ParseOptions::default()
     };
     match rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options) {
-        Ok(ast) => {
+        Ok(ast) if modern => {
             // Serialize within the AST's arena so `JsNodeId`s in the
             // Serialize impls resolve (mirrors `wasm::parse_svelte`).
             rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
@@ -223,6 +232,10 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             })
         }
+        // `convert_to_legacy` installs the serialize arena itself and has
+        // already remapped its spans to UTF-16.
+        Ok(ast) => serde_json::to_string(&rsvelte_core::convert_to_legacy(&source, ast))
+            .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}"))),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
 }
@@ -1691,49 +1704,7 @@ pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
 
 /// Parse JS options object into `Svelte2TsxOptions`.
 fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
-    let mut opts = Svelte2TsxOptions::default();
-
-    let Some(obj) = options.as_object() else {
-        return opts;
-    };
-
-    if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-        opts.filename = v.to_string();
-    }
-
-    if let Some(v) = obj.get("isTsFile").and_then(serde_json::Value::as_bool) {
-        opts.is_ts_file = v;
-    }
-
-    if let Some(v) = obj.get("mode").and_then(|v| v.as_str()) {
-        opts.mode = match v {
-            "dts" => Svelte2TsxMode::Dts,
-            _ => Svelte2TsxMode::Ts,
-        };
-    }
-
-    if let Some(v) = obj.get("accessors").and_then(serde_json::Value::as_bool) {
-        opts.accessors = v;
-    }
-
-    if let Some(v) = obj.get("namespace").and_then(|v| v.as_str()) {
-        opts.namespace = match v {
-            "svg" => Svelte2TsxNamespace::Svg,
-            "mathml" => Svelte2TsxNamespace::Mathml,
-            "foreign" => Svelte2TsxNamespace::Foreign,
-            _ => Svelte2TsxNamespace::Html,
-        };
-    }
-
-    if let Some(v) = obj.get("version").and_then(|v| v.as_str()) {
-        opts.version = if v.starts_with('5') {
-            SvelteVersion::V5
-        } else {
-            SvelteVersion::V4
-        };
-    }
-
-    opts
+    Svelte2TsxOptions::from_json(options)
 }
 
 // =============================================================================
@@ -1865,11 +1836,10 @@ mod preprocess_bridge {
     use napi::threadsafe_function::ThreadsafeFunction;
     use rsvelte_core::compiler::preprocess::encode_sourcemap::decoded_to_v3_json;
     use rsvelte_core::compiler::preprocess::types::{
-        AttributeValue as RsAttrValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
-        PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
-        PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
+        AttributeMap as RsAttrMap, AttributeValue as RsAttrValue, MarkupPreprocessorFn,
+        MarkupPreprocessorOptions, PreprocessError, PreprocessorFn, PreprocessorGroup,
+        PreprocessorOptions, PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
     };
-    use rustc_hash::FxHashMap;
     use serde_json::Value;
 
     // Either a Promise<T> or a plain T from a threadsafe_function return.
@@ -1976,7 +1946,7 @@ mod preprocess_bridge {
                         "content": opts.content,
                         "filename": opts.filename,
                     });
-                    await_tsfn(&tsfn, arg).await
+                    await_tsfn(&tsfn, arg, Callsite::Markup).await
                 })
             },
         )
@@ -1992,12 +1962,35 @@ mod preprocess_bridge {
                     "markup": opts.markup,
                     "filename": opts.filename,
                 });
-                await_tsfn(&tsfn, arg).await
+                await_tsfn(&tsfn, arg, Callsite::Tag).await
             })
         })
     }
 
-    async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Option<Processed>, PreprocessError> {
+    /// Upstream reads `processed.code` differently either side of the markup
+    /// boundary, and a result without one therefore diverges: markup treats it
+    /// as no change, a `<script>` / `<style>` result throws.
+    #[derive(Clone, Copy)]
+    enum Callsite {
+        Markup,
+        Tag,
+    }
+
+    /// A JS error carries its own message; `Display` on `napi::Error` prefixes
+    /// the status, which would replace the user's text with `GenericFailure, …`.
+    fn js_reason(error: &napi::Error) -> String {
+        if error.reason.is_empty() {
+            error.status.to_string()
+        } else {
+            error.reason.clone()
+        }
+    }
+
+    async fn await_tsfn(
+        tsfn: &Tsfn,
+        arg: Value,
+        callsite: Callsite,
+    ) -> Result<Option<Processed>, PreprocessError> {
         // The upstream Svelte preprocessor contract allows the callback to
         // return `Processed | Promise<Processed> | undefined | null`,
         // sync or async. `MaybePromise<Option<Value>>` probes `napi_is_promise`
@@ -2006,35 +1999,81 @@ mod preprocess_bridge {
         // `napi_fatal_error`, surfacing as `threadsafe_function.rs:749 Failed
         // to convert return value … Failed to call then method`). The outer
         // `Option` collapses `undefined`/`null` to `None` on both paths.
-        match tsfn.call_async(arg).await {
-            Ok(MaybePromise::Promise(promise)) => match promise.await {
-                Ok(Some(v)) => Ok(Some(v.into_processed())),
-                Ok(None) => Ok(None),
-                Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+        //
+        // `call_async` routes a thrown JS error through `napi_fatal_exception`,
+        // which kills the host process: the caller's `try`/`catch` never runs and
+        // a dev server dies on any preprocessor failure. `call_async_catch`
+        // returns it as `Err` instead.
+        let resolved = match tsfn.call_async_catch(arg).await {
+            Ok(MaybePromise::Promise(promise)) => promise.await,
+            Ok(MaybePromise::Value(value)) => Ok(value),
+            Err(e) => return Err(PreprocessError::JsCallback(js_reason(&e))),
+        };
+        match resolved {
+            Ok(Some(v)) => match v.into_processed() {
+                Ok(processed) => Ok(processed),
+                // These read as V8 messages because they are: upstream reaches
+                // each one by operating on the value it was handed, and matching
+                // it is what makes rsvelte substitutable here.
+                // Upstream's markup path only reads `code` when it rebuilds the
+                // document, so a result without one changes nothing — and on the
+                // tag path the message names which of the two absent values it
+                // was, so they cannot share an arm.
+                Err(slot @ (CodeSlot::Missing | CodeSlot::Null)) => match callsite {
+                    Callsite::Markup => Ok(None),
+                    Callsite::Tag => Err(PreprocessError::JsCallback(format!(
+                        "Cannot read properties of {} (reading 'replace')",
+                        if matches!(slot, CodeSlot::Null) {
+                            "null"
+                        } else {
+                            "undefined"
+                        }
+                    ))),
+                },
+                Err(CodeSlot::NotAString) => Err(PreprocessError::JsCallback(
+                    match callsite {
+                        Callsite::Markup => "source.split is not a function",
+                        Callsite::Tag => "processed.code.replace is not a function",
+                    }
+                    .into(),
+                )),
+                Err(CodeSlot::Text(_)) => unreachable!("Text is the Ok arm"),
             },
-            Ok(MaybePromise::Value(Some(v))) => Ok(Some(v.into_processed())),
-            Ok(MaybePromise::Value(None)) => Ok(None),
-            Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+            Ok(None) => Ok(None),
+            Err(e) => Err(PreprocessError::JsCallback(js_reason(&e))),
         }
     }
 
     /// The JS contract permits source-map objects such as Sass's `SourceMapGenerator`,
     /// whose `toString` is a function. Decode only the fields we consume instead of
     /// asking napi-rs to JSON-serialize the entire user-controlled return object.
+    /// What the preprocessor put in `code`. Upstream reaches its error through
+    /// whichever operation it tries on the value, so the three cases are three
+    /// different messages rather than one "invalid result".
+    pub enum CodeSlot {
+        Missing,
+        Null,
+        NotAString,
+        Text(String),
+    }
+
     pub struct JsProcessed {
-        code: String,
+        code: CodeSlot,
         map: Option<SourceMapInput>,
         dependencies: Vec<String>,
-        attributes: Option<FxHashMap<String, RsAttrValue>>,
+        attributes: Option<RsAttrMap>,
     }
 
     impl JsProcessed {
-        fn into_processed(self) -> Processed {
-            Processed {
-                code: self.code,
-                map: self.map,
-                dependencies: self.dependencies,
-                attributes: self.attributes,
+        fn into_processed(self) -> Result<Option<Processed>, CodeSlot> {
+            match self.code {
+                CodeSlot::Text(code) => Ok(Some(Processed {
+                    code,
+                    map: self.map,
+                    dependencies: self.dependencies,
+                    attributes: self.attributes,
+                })),
+                other => Err(other),
             }
         }
     }
@@ -2045,9 +2084,18 @@ mod preprocess_bridge {
             napi_val: napi::sys::napi_value,
         ) -> napi::Result<Self> {
             let obj = Object::from_raw(env, napi_val);
-            let code = obj.get::<String>("code")?.ok_or_else(|| {
-                napi::Error::from_reason("preprocessor result is missing string `code`")
-            })?;
+            let code = match obj
+                .get::<napi::bindgen_prelude::Unknown>("code")?
+                .map(|value| value.get_type())
+                .transpose()?
+            {
+                None | Some(napi::ValueType::Undefined) => CodeSlot::Missing,
+                Some(napi::ValueType::Null) => CodeSlot::Null,
+                Some(napi::ValueType::String) => obj
+                    .get::<String>("code")?
+                    .map_or(CodeSlot::Missing, CodeSlot::Text),
+                Some(_) => CodeSlot::NotAString,
+            };
             let map = obj
                 .get::<JsSourceMap>("map")?
                 .and_then(JsSourceMap::into_input);
@@ -2101,7 +2149,7 @@ mod preprocess_bridge {
         }
     }
 
-    fn attrs_to_json(attrs: &FxHashMap<String, RsAttrValue>) -> Value {
+    fn attrs_to_json(attrs: &RsAttrMap) -> Value {
         let mut map = serde_json::Map::new();
         for (k, v) in attrs {
             map.insert(
@@ -2132,9 +2180,9 @@ mod preprocess_bridge {
         }
     }
 
-    fn json_to_attributes(val: &Value) -> Option<FxHashMap<String, RsAttrValue>> {
+    fn json_to_attributes(val: &Value) -> Option<RsAttrMap> {
         let obj = val.as_object()?;
-        let mut out = FxHashMap::default();
+        let mut out = RsAttrMap::default();
         for (k, v) in obj {
             let av = match v {
                 Value::Bool(b) => RsAttrValue::Boolean(*b),

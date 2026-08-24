@@ -6,7 +6,10 @@ use std::collections::HashSet;
 use oxc_ast::ast as oxc;
 
 use super::ExportedNames;
-use super::ast_utils::{collect_binding_names, extract_all_names_from_binding_pattern};
+use super::ast_utils::{
+    collect_binding_names, extract_all_names_from_binding_pattern,
+    extract_names_from_assignment_target,
+};
 
 /// The official svelte2tsx `is_rune` quirk: a `$state(...)`/`$derived(...)`/
 /// `$props(...)` call that is the *direct* initializer of a variable
@@ -71,103 +74,86 @@ fn detect_rune_in_call_args(call: &oxc::CallExpression, declared_names: &HashSet
     })
 }
 
-pub(super) fn detect_runes_call(
-    declarator: &oxc::VariableDeclarator,
+/// Run the whole-program rune-globals scan over the instance script body.
+///
+/// Upstream does this in ONE pass: every `$`-prefixed identifier *reference*
+/// becomes a global, and `checkGlobalsForRunes` then tests that set for
+/// membership of `['$state', '$derived', '$effect']` — there is no notion of a
+/// call anywhere in it.
+///
+/// Reference: `ExportedNames.ts` `checkGlobalsForRunes` fed by
+/// `ImplicitStoreValues.getGlobals()`.
+pub(super) fn detect_runes_in_program(
+    body: &[oxc::Statement],
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
-    if let Some(ref init) = declarator.init {
-        // Apply the official `is_rune` exclusion: the canonical
-        // `let stateX = $state(...)` form does not, by itself, trigger runes
-        // mode — but nested runes in the arguments still do.
-        if let Some(call) = excluded_rune_init(init, &declarator.id) {
-            if detect_rune_in_call_args(call, declared_names) {
-                exported_names.set_uses_runes(true);
-            }
-            return;
+    // Reactive assignments introduce implicit top-level bindings for rune/store
+    // disambiguation, but they must not be added to the declaration set used by
+    // the later reactive-statement rewrite: that pass needs to know that they
+    // are new so it can turn `$: state = ...` into `let state = ...`.
+    let mut rune_scope = declared_names.clone();
+    for stmt in body {
+        let oxc::Statement::LabeledStatement(labeled) = stmt else {
+            continue;
+        };
+        if labeled.label.name != "$" {
+            continue;
         }
-        // `detect_rune_in_expr` subsumes `detect_rune_global_call_expr`: it
-        // fast-paths to the top-level check first, then recurses into nested
-        // function/arrow bodies. This catches patterns like:
-        //   `const action = (node) => { $effect(() => { … }); }`
-        // which the original top-level-only check missed.
-        // Reference: ExportedNames.ts `checkGlobalsForRunes` which walks the
-        // entire TS AST (not just top-level statements).
-        if detect_rune_in_expr(init, declared_names) {
-            exported_names.set_uses_runes(true);
+        let oxc::Statement::ExpressionStatement(expr_stmt) = &labeled.body else {
+            continue;
+        };
+        let expr = match &expr_stmt.expression {
+            oxc::Expression::ParenthesizedExpression(paren) => &paren.expression,
+            other => other,
+        };
+        if let oxc::Expression::AssignmentExpression(assign) = expr {
+            rune_scope.extend(extract_names_from_assignment_target(&assign.left));
         }
+    }
+
+    if detect_rune_in_nested_body(body, &rune_scope) {
+        exported_names.set_uses_runes(true);
     }
 }
 
-/// Detect `$state(...)`, `$derived(...)`, `$effect(...)` — including member-call
-/// variants such as `$state.raw(...)`, `$effect.pre(...)` — anywhere as an
-/// expression (not just as a `VariableDeclarator` init).
+/// True when `name` is one of the three rune globals and is not shadowed.
 ///
-/// Mirrors the official `isRunesMode` `hasRunesGlobals` check which looks for
-/// undeclared `$state`/`$derived`/`$effect` identifiers in the instance scope.
-/// We check both direct calls (`$state(v)`) and member calls (`$state.raw(v)`)
-/// since both reference the `$state` global.
+/// Upstream's `getGlobals()` deletes the names bound by top-level variable
+/// declarations, reactive declarations and imports (`state` shadows `$state`),
+/// while `resolveStore` drops a reference whose literal `$state` spelling is
+/// declared in an enclosing scope (a parameter named `$state`). Both are
+/// carried in `declared_names`.
+fn is_rune_global_ident(name: &str, declared_names: &HashSet<String>) -> bool {
+    matches!(name, "$state" | "$derived" | "$effect")
+        && !declared_names.contains(&name[1..])
+        && !declared_names.contains(name)
+}
+
+/// Detect a reference to the `$state` / `$derived` / `$effect` globals in the
+/// head position of an expression: the bare identifier itself, the object of a
+/// member expression (`$state.raw`), or either of those as a call callee.
 ///
 /// Reference: language-tools/packages/svelte2tsx/src/svelte2tsx/nodes/ExportedNames.ts
 ///   `hasRunesGlobals = isSvelte5Plus && globals.some(g => ['$state','$derived','$effect'].includes(g))`
-fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
+fn detect_rune_global_ref_expr(expr: &oxc::Expression, declared_names: &HashSet<String>) -> bool {
     match expr {
-        // Direct call: $state(...), $derived(...), $effect(...)
+        // Bare reference: `void $state`, `const a = $derived`, `{ k: $effect }`.
+        oxc::Expression::Identifier(id) => is_rune_global_ident(id.name.as_str(), declared_names),
+        // Member read: `$state.raw`, `$effect.pre` — called or not.
+        oxc::Expression::StaticMemberExpression(mem) => {
+            detect_rune_global_ref_expr(&mem.object, declared_names)
+        }
         oxc::Expression::CallExpression(call) => {
-            match &call.callee {
-                // $state(...), $derived(...), $effect(...)
-                oxc::Expression::Identifier(id)
-                    if matches!(id.name.as_str(), "$state" | "$derived" | "$effect") =>
-                {
-                    // Not a rune if either the store base (`$state` is a
-                    // store-sub of a declared `state`) OR the full `$state`
-                    // identifier itself is declared (e.g. shadowed by a param
-                    // named `$derived`).
-                    let base = &id.name[1..]; // "$state" -> "state"
-                    !declared_names.contains(base) && !declared_names.contains(id.name.as_str())
-                }
-                // Member call: $state.raw(...), $effect.pre(...), etc.
-                // The object identifier must be $state/$derived/$effect.
-                oxc::Expression::StaticMemberExpression(mem) => {
-                    if let oxc::Expression::Identifier(obj) = &mem.object
-                        && matches!(obj.name.as_str(), "$state" | "$derived" | "$effect")
-                    {
-                        let base = &obj.name[1..];
-                        !declared_names.contains(base)
-                            && !declared_names.contains(obj.name.as_str())
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            }
+            detect_rune_global_ref_expr(&call.callee, declared_names)
         }
         _ => false,
     }
 }
 
-/// Detect rune globals used as top-level `ExpressionStatements` in the instance
-/// script, e.g. `$effect(() => { ... })`.
-///
-/// These don't have a `VariableDeclarator` so `detect_runes_call` misses them.
-/// Reference: official svelte2tsx `hasRunesGlobals` which checks ALL undeclared
-/// `$state`/`$derived`/`$effect` references in the instance script scope.
-pub(super) fn detect_runes_expr_stmt(
-    expr_stmt: &oxc::ExpressionStatement,
-    exported_names: &mut ExportedNames,
-    declared_names: &HashSet<String>,
-) {
-    // Use the recursive walker so runes nested in arrow/function bodies are also
-    // detected (e.g. `setTimeout(() => { $effect(() => {}) })`).
-    // `detect_rune_in_expr` fast-paths to `detect_rune_global_call_expr` first.
-    if detect_rune_in_expr(&expr_stmt.expression, declared_names) {
-        exported_names.set_uses_runes(true);
-    }
-}
-
-/// Detect whether any rune global call (`$state`, `$derived`, `$effect` including
-/// member variants such as `$state.raw`, `$effect.pre`) appears anywhere inside
-/// a function, class, or arrow-function body — even when not at the top level.
+/// Detect whether a rune global (`$state`, `$derived`, `$effect`, including
+/// member reads such as `$state.raw`) is referenced anywhere in these
+/// statements or in any nested function, class or arrow body.
 ///
 /// The official svelte2tsx `checkGlobalsForRunes` works by collecting every
 /// undeclared identifier referenced anywhere in the script (via the TypeScript
@@ -189,6 +175,23 @@ pub(super) fn detect_rune_in_nested_body(
     false
 }
 
+/// Walk a `VariableDeclaration`, applying the official `is_rune` exclusion: the
+/// canonical `let stateX = $state(...)` form is not a runes-globals trigger, but
+/// nested runes in the arguments still are.
+fn detect_rune_in_variable_declaration(
+    var_decl: &oxc::VariableDeclaration,
+    declared_names: &HashSet<String>,
+) -> bool {
+    var_decl.declarations.iter().any(|d| {
+        d.init.as_ref().is_some_and(|e| {
+            excluded_rune_init(e, &d.id).map_or_else(
+                || detect_rune_in_expr(e, declared_names),
+                |call| detect_rune_in_call_args(call, declared_names),
+            )
+        })
+    })
+}
+
 /// Walk a single statement (and any nested sub-statements / expressions)
 /// looking for an undeclared `$state`/`$derived`/`$effect` reference.
 pub(super) fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) -> bool {
@@ -196,17 +199,9 @@ pub(super) fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSe
         oxc::Statement::ExpressionStatement(es) => {
             detect_rune_in_expr(&es.expression, declared_names)
         }
-        oxc::Statement::VariableDeclaration(var_decl) => var_decl.declarations.iter().any(|d| {
-            d.init.as_ref().is_some_and(|e| {
-                // Same `is_rune` exclusion as the top-level pass: the canonical
-                // `let stateX = $state(...)` form is not a runes-globals trigger,
-                // but nested runes in the arguments still are.
-                excluded_rune_init(e, &d.id).map_or_else(
-                    || detect_rune_in_expr(e, declared_names),
-                    |call| detect_rune_in_call_args(call, declared_names),
-                )
-            })
-        }),
+        oxc::Statement::VariableDeclaration(var_decl) => {
+            detect_rune_in_variable_declaration(var_decl, declared_names)
+        }
         oxc::Statement::ReturnStatement(ret) => ret
             .argument
             .as_ref()
@@ -265,13 +260,34 @@ pub(super) fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSe
         }
         oxc::Statement::TryStatement(t) => {
             detect_rune_in_nested_body(&t.block.body, declared_names)
-                || t.handler
-                    .as_ref()
-                    .is_some_and(|h| detect_rune_in_nested_body(&h.body.body, declared_names))
+                || t.handler.as_ref().is_some_and(|h| {
+                    // A catch parameter named `$state` shadows the global, the
+                    // same way a function parameter does.
+                    let scope = h.param.as_ref().map_or_else(
+                        || declared_names.clone(),
+                        |p| scope_with_binding(declared_names, &p.pattern),
+                    );
+                    detect_rune_in_nested_body(&h.body.body, &scope)
+                })
                 || t.finalizer
                     .as_ref()
                     .is_some_and(|f| detect_rune_in_nested_body(&f.body, declared_names))
         }
+        // `export let p = $state` / `export function f() { $effect(…) }` — the
+        // `export` modifier is transparent to upstream's identifier walk.
+        oxc::Statement::ExportDeclaration(export) => match &export.declaration {
+            oxc::Declaration::VariableDeclaration(vd) => {
+                detect_rune_in_variable_declaration(vd, declared_names)
+            }
+            oxc::Declaration::FunctionDeclaration(func) => func.body.as_ref().is_some_and(|body| {
+                let scope = scope_with_params(declared_names, &func.params);
+                detect_rune_in_nested_body(&body.statements, &scope)
+            }),
+            oxc::Declaration::ClassDeclaration(class) => {
+                detect_rune_in_class_body(class, declared_names)
+            }
+            _ => false,
+        },
         oxc::Statement::SwitchStatement(s) => s.cases.iter().any(|c| {
             c.test
                 .as_ref()
@@ -313,12 +329,20 @@ pub(super) fn detect_rune_in_class_body(
     })
 }
 
-/// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
-/// (including member variants) anywhere inside the given expression tree.
+/// Clone `base` and add the names a binding pattern introduces, so a rune name
+/// shadowed by a catch parameter is treated as that binding, not as a rune.
+fn scope_with_binding(base: &HashSet<String>, pattern: &oxc::BindingPattern) -> HashSet<String> {
+    let mut s = base.clone();
+    let mut tmp: Vec<String> = Vec::new();
+    collect_binding_names(pattern, &mut tmp);
+    s.extend(tmp);
+    s
+}
+
 /// Clone `base` and add a function's parameter names, so a `$state`/`$derived`/
-/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived(x) }`)
-/// is treated as a store-sub / call of the param, not a rune. Mirrors official's
-/// scope-aware global resolution.
+/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived }`)
+/// resolves to the param, not to the rune. Mirrors official's scope-aware
+/// global resolution.
 pub(super) fn scope_with_params(
     base: &HashSet<String>,
     params: &oxc::FormalParameters,
@@ -337,26 +361,33 @@ pub(super) fn scope_with_params(
     s
 }
 
+/// Recursively detect an unshadowed `$state`/`$derived`/`$effect` reference
+/// anywhere inside the given expression tree.
 pub(super) fn detect_rune_in_expr(
     expr: &oxc::Expression,
     declared_names: &HashSet<String>,
 ) -> bool {
-    // Fast-path: check if this expression itself is a rune call.
-    if detect_rune_global_call_expr(expr, declared_names) {
+    // Fast-path: check if this expression itself references a rune global.
+    if detect_rune_global_ref_expr(expr, declared_names) {
         return true;
     }
     match expr {
         oxc::Expression::CallExpression(call) => {
-            // The callee might not be a rune but the arguments could contain rune calls.
+            // The callee might not be a rune but the arguments could reference one.
             detect_rune_in_expr(&call.callee, declared_names)
                 || detect_rune_in_arguments(&call.arguments, declared_names)
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
             let scope = scope_with_params(declared_names, &arrow.params);
-            arrow
-                .body
-                .as_function_body()
-                .is_some_and(|block| detect_rune_in_nested_body(&block.statements, &scope))
+            match &arrow.body {
+                oxc::ArrowFunctionBody::FunctionBody(block) => {
+                    detect_rune_in_nested_body(&block.statements, &scope)
+                }
+                // Concise body: `() => $state`.
+                body => body
+                    .as_expression()
+                    .is_some_and(|e| detect_rune_in_expr(e, &scope)),
+            }
         }
         oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
             let scope = scope_with_params(declared_names, &func.params);
