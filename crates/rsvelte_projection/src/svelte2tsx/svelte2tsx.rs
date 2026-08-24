@@ -490,8 +490,11 @@ pub fn svelte2tsx(
         validate_meta_element_placement(&ast, source)?;
     }
 
-    // Step 2: Determine component name from filename
-    let component_name = derive_component_name(&options.filename);
+    // Step 2: Determine component name from filename. Upstream guards with
+    // `fileName && classNameFromFilename(...)`, so no filename means no class
+    // name at all and the export falls back to `$$Component`.
+    let component_name =
+        (!options.filename.is_empty()).then(|| derive_component_name(&options.filename));
 
     // Step 3: Detect runes mode (preliminary check from svelte:options)
     let explicit_runes = options.runes.unwrap_or_else(|| detect_runes_mode(&ast));
@@ -501,6 +504,7 @@ pub fn svelte2tsx(
 
     // Step 5: Initialize tracking structures
     let mut exported_names = ExportedNames::new();
+    exported_names.set_svelte5_plus(matches!(options.version, SvelteVersion::V5));
     let mut events = ComponentEvents::new();
     let module_script_span =
         ast.module
@@ -526,7 +530,7 @@ pub fn svelte2tsx(
     );
 
     if explicit_runes {
-        exported_names.set_uses_runes(true);
+        exported_names.set_template_runes(true);
     }
 
     // Step 6: Process module script (<script context="module">)
@@ -546,7 +550,7 @@ pub fn svelte2tsx(
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string();
-    let script_generic_names: std::collections::HashSet<String> = ast
+    let script_generics_attr: Option<String> = ast
         .instance
         .as_ref()
         .map(|instance| {
@@ -558,8 +562,12 @@ pub fn svelte2tsx(
             extract_generics_from_script_tag(tag_text)
         })
         .unwrap_or_default()
+        .filter(|raw| !raw.is_empty());
+    let has_generics_attr = script_generics_attr.is_some();
+    let script_generic_names: std::collections::HashSet<String> = script_generics_attr
+        .as_deref()
         .map(|raw| {
-            split_generic_param_names(&raw)
+            split_generic_param_names(raw)
                 .into_iter()
                 .collect::<std::collections::HashSet<String>>()
         })
@@ -583,7 +591,11 @@ pub fn svelte2tsx(
             options.emit_jsdoc,
             matches!(options.mode, Svelte2TsxMode::Dts),
             &script_generic_names,
+            has_generics_attr,
         );
+        if let Some(message) = exported_names.dollar_generic_error.take() {
+            return Err(super::utils::error::Svelte2TsxError::Script(message));
+        }
     }
 
     // Step 7.48: Find and remove embedded `<script>` tags (those NOT matching
@@ -623,7 +635,7 @@ pub fn svelte2tsx(
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
     // so we need to handle it separately.
-    emit_svelte_options_element(&ast, source, &mut str);
+    emit_svelte_options_element(&ast, source, &options.typings_namespace, &mut str);
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
     blank_style_tags(&ast, source, &mut str);
@@ -678,7 +690,9 @@ pub fn svelte2tsx(
         &exported_names.instance_value_names,
     );
     let has_slot_elements = !template_info.slots.is_empty();
-    if template_info.uses_runes {
+    if template_info.uses_template_await {
+        exported_names.set_template_runes(true);
+    } else if template_info.uses_runes {
         exported_names.set_uses_runes(true);
     }
 
@@ -843,7 +857,7 @@ pub fn svelte2tsx(
             ast: &ast,
             source,
             options: &options,
-            component_name: &component_name,
+            component_name: component_name.as_deref(),
             template_info: &template_info,
             exported_names: &exported_names,
             events: &mut events,

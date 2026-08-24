@@ -1,8 +1,10 @@
 # Output-parseability ratchet
 
 Gate: the "output parseability" section of `scripts/compat-corpus/verify.mjs`.
-Ratchet: `parse-known-failures.<target>.json`, currently **0 entries** for each of the four
-targets.
+Ratchet: `parse-known-failures.client.json` holds **10 entries**,
+`parse-known-failures.client-dev.json` holds **11 entries**,
+`parse-known-failures.server.json` holds **0 entries** and
+`parse-known-failures.server-dev.json` holds **1 entry**.
 
 ## The question it asks
 
@@ -14,9 +16,40 @@ the module rsvelte emitted parse?**
 A compiler may emit output we would call wrong. It may never emit output that is not
 JavaScript, so this ratchet has no tolerance to spend beyond what is listed here.
 
-## Why the baseline is 0 and what that is worth
+## The baseline was 0 because the inputs were absent, and the enrolment proved it
 
-An empty ratchet is the weakest kind of evidence, so here is what stands behind it.
+Everything below the next two paragraphs was written while this ratchet was empty, and it
+said so in as many words: *"the 30 defects above are in repositories that are not corpus
+sources … an empty baseline here is therefore the expected result, not a measurement that
+was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
+carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
+ratchet went to **12 entries across two targets on the first run**. The current tree holds
+**12 entries across three targets** after adding one `server-dev` entry and retiring one client-only entry. That is the
+prediction being paid out, and it is the reason blind spot 19c in
+[`gate-coverage.md`](gate-coverage.md) is now closed for these inputs and for no others.
+
+The 13, by cause — four classes, none of them a formatting difference:
+
+| id | acorn says | cause |
+|---|---|---|
+| `svelte-bits/…/CircularGallery.svelte` | `Unexpected token (7:19)` | a TypeScript `this` parameter is dropped and its comma left behind: `function (, ...args)` |
+| `svelte-tweakpane-ui/…/HomeDemo.svelte`, `…/TweakpaneDemo.svelte` | `Assigning to rvalue` | a store write whose **assignment target** was rewritten to a getter call: `$point4() = […]` |
+| `sveltekit/…/query/instance.svelte.js` | `Assigning to rvalue` | the same class, on `$.get(this.#promise) ??= …` |
+| `adventurelog/…/CollectionMap.svelte`, `…/CollectionStats.svelte`, `huly/…/FilePreviewPopup.svelte`, `huly/…/ModernEditbox.svelte`, `huly/…/NavigatorCardsSection.svelte`, `photon/…/Commands.svelte`, `threlte/…/Sequence.svelte` | `Unexpected token` | **not yet diagnosed** — seven separate spots, recorded here as data rather than as a guess |
+| `threlte/…/SoftShadows.svelte` (`server-dev`) | ``Expected `,` or `)` but found `Identifier` `` | comments attached to later `$effect` statements are emitted inside the preceding derived template literal; a backtick in one comment closes the literal before `sampler2D` |
+
+Ten entries appear on `client` and `client-dev` both; `huly/…/FilePreviewPopup.svelte`
+is `client-dev` only, which is the per-target split earning its keep. `server` remains at 0;
+`server-dev` has the one comment-placement
+failure above. The target split prevents that dev-only failure from suppressing the production SSR
+output.
+
+These entries are listed, not fixed, only because the enrolment PR's job was to enrol; every
+one of them breaks its consumer unconditionally and none should survive a burn-down.
+
+## What the empty baseline was worth, as argued at the time
+
+An empty ratchet is the weakest kind of evidence, so here is what stood behind it.
 
 **The oracle is calibrated.** `parseable.mjs` uses acorn, deliberately not OXC: rsvelte parses
 JavaScript with OXC, and both existing "does it parse" checks in the repo
@@ -38,20 +71,18 @@ that a plausible-but-wrong implementation would break: an entry already listed i
 *official* compiler rejected must still be parsed. Both were confirmed by running the test
 against a mutated `verify.mjs`; both flipped.
 
-**So why is the ratchet empty?** Because the 30 defects above are in repositories that are not
-corpus sources. `scripts/compat-corpus/corpus-sources.json` lists sveltejs/svelte,
-svelte.dev and 33 shipped libraries; huly, open-webui, carbon and SMUI are none of them. The
-corpus's own output ratchets (`known-failures.{client,server,client-dev}.json`) are all at 0,
-and an unparseable rsvelte output is necessarily byte-different from official's parseable one —
-so it would already have surfaced as `js-unparseable` and been listed there. An empty baseline
-here is therefore the expected result, not a measurement that was skipped.
+**So why was the ratchet empty?** Because the 30 defects above were in repositories that were
+not corpus sources. `corpus-sources.json` listed sveltejs/svelte, svelte.dev and 33 shipped
+libraries; huly, open-webui, carbon and SMUI were none of them. An empty baseline was
+therefore the expected result, not a measurement that was skipped — and #3130 enrolled all
+four, which is what the table at the top of this file is.
 
-What that means honestly: **this gate is a regression gate, not a burn-down.** It closes the
-hole where a future defect of this class rides in under an existing ratchet entry, and it
-closes the two structural blind spots recorded for gate 15 in `gate-coverage.md` (wrong
-population, oracle shares rsvelte's parser). It does not, by itself, find the 30 known
-defects — only enrolling those repositories would, and corpus size is the saturated axis
-(`AGENTS.md` § "Generated shape matrix").
+What that meant honestly, then: **this gate was a regression gate, not a burn-down.** It
+closed the hole where a future defect of this class rides in under an existing ratchet entry,
+and it closed one of the two structural blind spots recorded for gate 15 in
+`gate-coverage.md` (oracle shares rsvelte's parser). It could not, by itself, find the 30
+known defects — only enrolling those repositories would. It is now both: a regression gate
+and a 13-entry burn-down.
 
 ## Adding an entry
 

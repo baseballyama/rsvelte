@@ -242,61 +242,25 @@ pub fn detect_store_subscriptions(
                 // is non-null — i.e. for ANY rune-call initializer, not only the
                 // $state/$derived family the binding KIND records. `const host =
                 // $host()` leaves a Normal binding, but `$host` is still the
-                // rune. `$props` inits are excluded here: the
-                // `is_props_rune_init` special case below owns that rule
-                // (`let state = $props()` must still make `$state` a store sub).
+                // rune. The one exception is its own name: `let state =
+                // $props()` still makes `$state` a store subscription, while
+                // `let { props } = $props()` keeps `$props` a rune.
                 if binding
                     .init_rune
                     .as_deref()
-                    .is_some_and(|r| r != "$props" && r != "$props.id")
+                    .is_some_and(|r| r != "$props" || store_name == "props")
                 {
                     continue;
                 }
 
-                // Special case from official compiler (2-analyze/index.js L366-368):
-                // "rune-like names received as props are valid too (but we have to protect
-                //  against $props as store)"
-                //
-                // When `let props = $props()` is used (Identifier pattern), the `props`
-                // binding has kind RestProp. In this case `$props` must NOT be treated as
-                // a store subscription - it is still the $props rune.
-                //
-                // However, if someone writes `let state = $props()`, the `state` binding
-                // also has kind Prop/RestProp, but `$state` references elsewhere SHOULD
-                // still be treated as store subscriptions (per official compiler logic):
-                //   get_rune(init) === '$props' && store_name === 'props'  -> skip (rune)
-                //   get_rune(init) === '$props' && store_name !== 'props'  -> create store
-                //
-                // We replicate this by checking binding kind is Prop/RestProp/BindableProp
-                // (i.e., init was $props()) AND store_name == "props".
-                // Also detect the `let { props } = $props()` case. Prop binding kinds are
-                // assigned during the later visitor walk, which runs AFTER store subscription
-                // detection, so at this point the binding kind may still be the default
-                // (Normal). As a fallback, scan the instance script source for any
-                // `= $props(` initializer — if one exists and `store_name == "props"`, then
-                // `$props` refers to the rune (not a store subscription).
-                let instance_has_props_rune_init = ast
-                    .instance
-                    .as_ref()
-                    .and_then(|inst| {
-                        let s = inst.content.start().unwrap_or(0) as usize;
-                        let e = inst.content.end().unwrap_or(0) as usize;
-                        if e > s && e <= analysis.source.len() {
-                            Some(&analysis.source[s..e])
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|src| src.contains("$props(") || src.contains("$props.bindable("))
-                    .unwrap_or(false);
-                let is_props_rune_init = (matches!(
+                // A `$props()` destructuring assigns its binding kinds in the
+                // later visitor walk, which runs after this pass, so the kind is
+                // still the default here even though `init_rune` is already set.
+                if matches!(
                     binding.kind,
                     BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-                ) || instance_has_props_rune_init)
-                    && store_name == "props";
-
-                if is_props_rune_init {
-                    // The binding is `let props = $props()` - $props is the rune, not a store
+                ) && store_name == "props"
+                {
                     continue;
                 }
 
@@ -684,6 +648,77 @@ fn dollar_param_body_range(
         }
     }
     None
+}
+
+/// The `catch (…)` parameter binding, and the range of the block it scopes.
+///
+/// A catch parameter is a declaration slot, so upstream's `scope.references` —
+/// which this scan stands in for — never holds it, and a `$name` read inside the
+/// block resolves to it rather than to a store. `dollar_param_body_range` cannot
+/// answer this because it requires the parenthesised list to be followed by
+/// `=>`, and a catch clause is followed by `{`.
+fn dollar_catch_param_body_range(
+    chars: &[char],
+    ident_start: usize,
+    ident_end: usize,
+) -> Option<(usize, usize)> {
+    let len = chars.len();
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    if k < 0 || chars[k as usize] != '(' {
+        return None;
+    }
+    let mut j = k - 1;
+    while j >= 0 && is_js_whitespace(chars[j as usize]) {
+        j -= 1;
+    }
+    if !keyword_ends_at(chars, j, "catch") {
+        return None;
+    }
+    let mut m = ident_end;
+    while m < len && is_js_whitespace(chars[m]) {
+        m += 1;
+    }
+    if m >= len || chars[m] != ')' {
+        return None;
+    }
+    let mut b = m + 1;
+    while b < len && is_js_whitespace(chars[b]) {
+        b += 1;
+    }
+    if b >= len || chars[b] != '{' {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut e = b;
+    while e < len {
+        match chars[e] {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((b, e + 1));
+                }
+            }
+            _ => {}
+        }
+        e += 1;
+    }
+    Some((b, len))
+}
+
+/// The target of a `break` / `continue`, which names a LABEL rather than a
+/// binding. ESTree keeps labels out of the reference set, so upstream never sees
+/// one; counting it made `break $state;` read as a rune use and flipped the
+/// component into runes mode.
+fn is_dollar_ident_jump_label(chars: &[char], ident_start: usize) -> bool {
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    keyword_ends_at(chars, k, "break") || keyword_ends_at(chars, k, "continue")
 }
 
 /// Check if a `$xxx` identifier at `ident_end` is being used as an object property key.
@@ -1172,7 +1207,8 @@ fn collect_dollar_identifiers_pass(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    let param_range = dollar_param_body_range(chars, ident_start, i);
+                    let param_range = dollar_param_body_range(chars, ident_start, i)
+                        .or_else(|| dollar_catch_param_body_range(chars, ident_start, i));
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
                         || is_dollar_ident_destructuring_declaration(chars, ident_start);
                     let is_class_member_name = class_bodies.last() == Some(&brace_depth)
@@ -1197,6 +1233,7 @@ fn collect_dollar_identifiers_pass(
                             .iter()
                             .any(|(n, s, e)| n == &ident && ident_start >= *s && ident_start < *e)
                         && !is_dollar_ident_object_property_key(chars, ident_start, i)
+                        && !is_dollar_ident_jump_label(chars, ident_start)
                         && !is_dollar_ident_type_declaration(chars, ident_start)
                     {
                         let byte_offset = match &char_byte_offsets {

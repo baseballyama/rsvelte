@@ -6,7 +6,9 @@ use std::fmt::Write as _;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    after_keywords, code_bytes, skip_opaque,
+};
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
 };
@@ -1066,10 +1068,13 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     // Pattern: `export let name = value;` / `export var name = value;` / `export let name;`
     // Upstream keeps the source declaration keyword (`export var` → `var`),
     // rewriting only the initializer to `$.prop(...)`.
-    let kw = if trimmed.starts_with("export let ") {
-        "let"
-    } else if trimmed.starts_with("export var ") {
-        "var"
+    // The separator between `export` and the declaration keyword is any run of
+    // JS whitespace, not the single ASCII space a literal needle bakes in
+    // (#3470).
+    let (kw, declarator_at) = if let Some(at) = after_keywords(trimmed, &["export", "let"]) {
+        ("let", at)
+    } else if let Some(at) = after_keywords(trimmed, &["export", "var"]) {
+        ("var", at)
     } else {
         return line.to_string();
     };
@@ -1113,7 +1118,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
     // Extract the declaration body after `export let ` / `export var `.
     // `trimmed` already points past any leading block comment.
-    let rest_raw = trimmed[11..].trim(); // After "export let " / "export var "
+    let rest_raw = trimmed[declarator_at..].trim();
 
     // Strip trailing `// line comment` and `/* block comment */` from the declaration
     // text BEFORE splitting declarators.  Without this, a declaration like:
@@ -1952,6 +1957,42 @@ pub(super) fn calculate_prop_flags(
     }
 
     flags
+}
+
+/// The `$.prop($$props, <key>, …)` key exactly as upstream prints it. Upstream
+/// passes `b.literal(key.value)`, so a numeric destructuring key stays a
+/// **number** (and carries its value, not its spelling: `0x10` → `16`).
+pub(super) fn prop_key_js_literal(raw_key: &str, prop_name: &str) -> String {
+    if let Some(n) = numeric_key_value(raw_key) {
+        return crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n);
+    }
+    format!("'{}'", prop_name)
+}
+
+/// `Some(value)` when the raw key text is a numeric literal, parsed rather than
+/// pattern-matched so `1e3` / `0x10` / `1_000` carry their value.
+fn numeric_key_value(raw_key: &str) -> Option<f64> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{Expression, Statement};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let trimmed = raw_key.trim();
+    if !trimmed.starts_with(|c: char| c.is_ascii_digit() || c == '.') {
+        return None;
+    }
+    let alloc = Allocator::default();
+    let parsed = Parser::new(&alloc, trimmed, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    match &stmt.expression {
+        Expression::NumericLiteral(lit) => Some(lit.value),
+        _ => None,
+    }
 }
 
 /// Check if a string is a valid JavaScript identifier.
@@ -2796,13 +2837,15 @@ pub(super) fn transform_props_destructuring(
     // Track "seen" prop names for $.rest_props() exclusion list.
     // Reference: VariableDeclaration.js lines 45-46
     // Starts with internal prop names that should always be excluded.
+    // Holds each entry's JS literal spelling, because a numeric key is excluded
+    // as a number upstream (`b.literal(key.value)`), not as a string.
     let mut seen: Vec<String> = vec![
-        "$$slots".to_string(),
-        "$$events".to_string(),
-        "$$legacy".to_string(),
+        "'$$slots'".to_string(),
+        "'$$events'".to_string(),
+        "'$$legacy'".to_string(),
     ];
     if analysis.custom_element.is_some() {
-        seen.push("$$host".to_string());
+        seen.push("'$$host'".to_string());
     }
 
     // Comments that bracket a declarator ride the esrap comment cursor
@@ -2873,7 +2916,7 @@ pub(super) fn transform_props_destructuring(
         if let Some(rest_name) = prop_part.strip_prefix("...") {
             let rest_name = rest_name.trim();
             // Generate: rest_name = $.rest_props($$props, ['$$slots', '$$events', '$$legacy', ...seen_props])
-            let seen_literals: Vec<String> = seen.iter().map(|s| format!("'{}'", s)).collect();
+            let seen_literals: Vec<String> = seen.clone();
             let dev_name = if dev {
                 format!(", '{}'", rest_name)
             } else {
@@ -2897,19 +2940,20 @@ pub(super) fn transform_props_destructuring(
             // In destructuring, `disabled: disabledProp = false` means:
             //   prop_name = "disabled" (the actual prop)
             //   local_name = "disabledProp" (the local variable)
-            let (prop_name, local_name) = if let Some(colon_pos) = name_part.find(':') {
-                let pn = name_part[..colon_pos].trim();
+            let (prop_key, local_name) = if let Some(colon_pos) = name_part.find(':') {
+                let raw_key = name_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name (e.g., 'weird-name': localVar)
-                let pn = pn
+                let pn = raw_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                    .unwrap_or(pn);
+                    .or_else(|| raw_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(raw_key);
                 let ln = name_part[colon_pos + 1..].trim();
-                (pn, ln)
+                (prop_key_js_literal(raw_key, pn), ln)
             } else {
-                (name_part, name_part)
+                (format!("'{}'", name_part), name_part)
             };
+            let prop_key = prop_key.as_str();
 
             // Strip $bindable() wrapper: $bindable(value) -> value
             // Reference: VariableDeclaration.js - unwrap_bindable()
@@ -2958,12 +3002,12 @@ pub(super) fn transform_props_destructuring(
                         // In legacy mode, all props are sources
                         true
                     };
-                    seen.push(prop_name.to_string());
+                    seen.push(prop_key.to_string());
                     if is_source {
                         let flags = calculate_prop_flags(local_name, analysis, false);
                         declarators.push(format!(
-                            "{} = $.prop($$props, '{}', {})",
-                            local_name, prop_name, flags
+                            "{} = $.prop($$props, {}, {})",
+                            local_name, prop_key, flags
                         ));
                     }
                     return false;
@@ -2974,7 +3018,7 @@ pub(super) fn transform_props_destructuring(
             };
 
             // Add this prop name to the "seen" list for rest_props exclusion
-            seen.push(prop_name.to_string());
+            seen.push(prop_key.to_string());
 
             // Transform default value: apply read-only prop substitutions
             let default_value = {
@@ -3032,8 +3076,8 @@ pub(super) fn transform_props_destructuring(
 
             if is_simple {
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {}, {})",
-                    local_name, prop_name, flags, proxy_wrapped
+                    "{} = $.prop($$props, {}, {}, {})",
+                    local_name, prop_key, flags, proxy_wrapped
                 ));
             } else {
                 // Wrap non-simple values in a thunk: () => value
@@ -3041,29 +3085,30 @@ pub(super) fn transform_props_destructuring(
                 // OXC from parsing `() => {...}` as arrow with block body
                 let lazy_arg = make_lazy_prop_arg(&proxy_wrapped);
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {}, {})",
-                    local_name, prop_name, flags, lazy_arg
+                    "{} = $.prop($$props, {}, {}, {})",
+                    local_name, prop_key, flags, lazy_arg
                 ));
             }
             true
         } else {
             // No default value - handle rename pattern: `originalProp: localVar`
-            let (prop_name, local_name) = if let Some(colon_pos) = prop_part.find(':') {
-                let pn = prop_part[..colon_pos].trim();
+            let (prop_key, local_name) = if let Some(colon_pos) = prop_part.find(':') {
+                let raw_key = prop_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name
-                let pn = pn
+                let pn = raw_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                    .unwrap_or(pn);
+                    .or_else(|| raw_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(raw_key);
                 let ln = prop_part[colon_pos + 1..].trim();
-                (pn, ln)
+                (prop_key_js_literal(raw_key, pn), ln)
             } else {
-                (prop_part, prop_part)
+                (format!("'{}'", prop_part), prop_part)
             };
+            let prop_key = prop_key.as_str();
 
             // Add to seen list for rest_props exclusion
-            seen.push(prop_name.to_string());
+            seen.push(prop_key.to_string());
 
             // Only generate $.prop() if this is a source prop or exported
             let is_exported = exported_names.contains(&local_name.to_string());
@@ -3072,8 +3117,8 @@ pub(super) fn transform_props_destructuring(
                 let flags = calculate_prop_flags(local_name, analysis, false);
 
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {})",
-                    local_name, prop_name, flags
+                    "{} = $.prop($$props, {}, {})",
+                    local_name, prop_key, flags
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName
@@ -4382,14 +4427,19 @@ pub(super) fn find_prop_mutation_location(source: &str, var_name: &str) -> (usiz
 /// The transformation is:
 ///   `console.log(x, y)` -> `console.log(...$.log_if_contains_state("log", x, y))`
 ///
-/// This is only applied when at least one argument could potentially reference
-/// reactive state (i.e., not all arguments are simple literals).
+/// Applied when some argument can evaluate to `UNKNOWN`, which is upstream's
+/// rule; the literal test below is reached only for an argument list that does
+/// not parse on its own.
 ///
 /// Console calls inside `$.inspect()` callbacks are excluded, as those are
 /// already handled by the inspect infrastructure.
 ///
 /// Reference: CallExpression.js in the official Svelte compiler
-pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
+pub(super) fn transform_console_calls_dev(
+    stmt: &str,
+    is_ts: bool,
+    analysis: Option<&crate::compiler::phases::phase2_analyze::ComponentAnalysis>,
+) -> String {
     const CONSOLE_METHODS: &[&str] = &[
         "debug",
         "dir",
@@ -4433,9 +4483,14 @@ pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
             if let Some(args_end) = find_matching_paren(&result[args_start..]) {
                 let args_content = &result[args_start..args_start + args_end];
 
-                // Only wrap if arguments could contain reactive state.
-                // Skip if all arguments are simple literals (strings, numbers, booleans).
-                if !args_content.is_empty() && !all_args_are_literals(args_content) {
+                // Upstream's rule is `scope.evaluate(arg).has_unknown`, not "is a
+                // literal": a binary expression, an arrow, a `!x` and a folded
+                // binding are all known. Ask the shared predicate whenever the
+                // argument list parses on its own.
+                let needs_wrap =
+                    super::console_wrap::args_text_need_wrap(args_content, is_ts, analysis)
+                        .unwrap_or_else(|| !all_args_are_literals(args_content));
+                if !args_content.is_empty() && needs_wrap {
                     // Transform: console.METHOD(args) -> console.METHOD(...$.log_if_contains_state("METHOD", args))
                     let new_call = format!(
                         "console.{}(...$.log_if_contains_state('{}', {}))",

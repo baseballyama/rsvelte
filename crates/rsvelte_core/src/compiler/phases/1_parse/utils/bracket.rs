@@ -24,10 +24,14 @@ fn find_string_end(string: &str, search_start_index: usize, string_start_char: u
         string
     } else {
         // we could slice at the search start index, but this way the index remains valid
-        // For single/double quotes, search only until the end of the current line
-        let newline_pos = memchr(b'\n', &string.as_bytes()[search_start_index..])
-            .map(|p| search_start_index + p)
-            .unwrap_or(string.len()); // If no newline, use the whole string
+        // A quoted string ends at the line's end — unless the newline is itself
+        // escaped, which is a LINE CONTINUATION and part of the string.
+        let newline_pos = find_unescaped_char(string, search_start_index, b'\n');
+        let newline_pos = if newline_pos == usize::MAX {
+            string.len()
+        } else {
+            newline_pos
+        };
         &string[0..newline_pos]
     };
 
