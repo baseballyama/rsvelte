@@ -5,6 +5,7 @@
 //! to keep the visitor files focused on their specific AST node handling.
 
 use crate::ast::template::Script;
+use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
     code_bytes, code_bytes_from, skip_opaque,
 };
@@ -17,7 +18,7 @@ use std::fmt::Write as _;
 /// their literal value) and the top-level async blocker map (`use_async`).
 /// Extracted from the now-removed text `ServerCodeGenerator::new`.
 pub(crate) struct EvalInputsRaw {
-    pub(crate) constant_vars: FxHashMap<String, String>,
+    pub(crate) constant_vars: FxHashMap<String, EvalValue>,
     pub(crate) top_level_blocker_map: FxHashMap<String, usize>,
 }
 
@@ -97,32 +98,8 @@ pub(crate) fn compute_eval_inputs(
             {
                 let trimmed = init.trim();
                 // Parse the initial value as a constant
-                if is_whole_string_literal(trimmed) {
-                    // A folded constant holds the COOKED value (upstream's
-                    // `scope.evaluate`); the emitter re-escapes it for the quasi.
-                    // Raw quote-stripping double-escaped `'\\\''` (#3055).
-                    constant_vars.insert(
-                        binding.name.clone(),
-                        crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(
-                            &trimmed[1..trimmed.len() - 1],
-                        ),
-                    );
-                } else if let Ok(n) = trimmed.parse::<i64>() {
-                    constant_vars.insert(binding.name.clone(), n.to_string());
-                } else if let Ok(n) = trimmed.parse::<f64>() {
-                    if n.is_finite() {
-                        constant_vars.insert(
-                            binding.name.clone(),
-                            crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n),
-                        );
-                    }
-                } else {
-                    match trimmed {
-                        "true" | "false" | "null" | "undefined" => {
-                            constant_vars.insert(binding.name.clone(), trimmed.to_string());
-                        }
-                        _ => {}
-                    }
+                if let Some(value) = literal_eval_value(trimmed) {
+                    constant_vars.insert(binding.name.clone(), value);
                 }
             }
         }
@@ -1082,36 +1059,47 @@ fn is_whole_string_literal(value: &str) -> bool {
     false
 }
 
+/// A literal's source text as the JS VALUE it denotes. `'1'` and `1` are two
+/// different values that render as the same text, and `+` is the operator that
+/// can tell them apart.
+fn literal_eval_value(value: &str) -> Option<EvalValue> {
+    if is_whole_string_literal(value) {
+        // The cooked string, matching upstream's `scope.evaluate`; the emitter
+        // re-escapes it for the quasi.
+        let content = &value[1..value.len() - 1];
+        return Some(EvalValue::Str(
+            crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(content),
+        ));
+    }
+    match value {
+        "true" => return Some(EvalValue::Bool(true)),
+        "false" => return Some(EvalValue::Bool(false)),
+        "null" => return Some(EvalValue::Null),
+        "undefined" => return Some(EvalValue::Undefined),
+        _ => {}
+    }
+    if let Ok(n) = value.parse::<i64>() {
+        return Some(EvalValue::Num(n as f64));
+    }
+    if let Ok(n) = value.parse::<f64>()
+        && n.is_finite()
+    {
+        return Some(EvalValue::Num(n));
+    }
+    None
+}
+
 fn try_insert_constant_value(
     value: &str,
     name: &str,
-    constants: &mut FxHashMap<String, String>,
+    constants: &mut FxHashMap<String, EvalValue>,
 ) -> bool {
-    if is_whole_string_literal(value) {
-        // A folded constant is a value, so it holds the cooked string (matching
-        // upstream's `scope.evaluate`); the emitter re-escapes it for the quasi.
-        let content = &value[1..value.len() - 1];
-        let decoded = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(content);
-        constants.insert(name.to_string(), decoded);
-        true
-    } else if value == "true" || value == "false" || value == "null" || value == "undefined" {
-        constants.insert(name.to_string(), value.to_string());
-        true
-    } else if let Ok(n) = value.parse::<i64>() {
-        constants.insert(name.to_string(), n.to_string());
-        true
-    } else if let Ok(n) = value.parse::<f64>() {
-        if n.is_finite() {
-            constants.insert(
-                name.to_string(),
-                crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n),
-            );
+    match literal_eval_value(value) {
+        Some(v) => {
+            constants.insert(name.to_string(), v);
             true
-        } else {
-            false
         }
-    } else {
-        false
+        None => false,
     }
 }
 
@@ -1119,167 +1107,74 @@ fn try_insert_constant_value(
 /// Returns Some(value) if the expression can be fully evaluated.
 pub(crate) fn try_evaluate_with_constants(
     expr: &str,
-    constants: &FxHashMap<String, String>,
-) -> Option<String> {
+    constants: &FxHashMap<String, EvalValue>,
+) -> Option<EvalValue> {
     let trimmed = expr.trim();
 
-    // Simple variable lookup
     if let Some(value) = constants.get(trimmed) {
         return Some(value.clone());
     }
-
-    // Literal values
-    if let Ok(n) = trimmed.parse::<i64>() {
-        return Some(n.to_string());
-    }
-    if let Ok(n) = trimmed.parse::<f64>()
-        && n.is_finite()
+    if !trimmed.starts_with('`')
+        && let Some(value) = literal_eval_value(trimmed)
     {
-        return Some(
-            crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n),
-        );
-    }
-    if !trimmed.starts_with('`') && is_whole_string_literal(trimmed) {
-        return Some(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(
-            &trimmed[1..trimmed.len() - 1],
-        ));
+        return Some(value);
     }
 
-    // Handle binary operators: *, +, -
-    // Try * first (higher precedence)
-    if let Some(idx) = memchr::memmem::find(trimmed.as_bytes(), b" * ") {
-        let left = trimmed[..idx].trim();
-        let right = trimmed[idx + 3..].trim();
-        if let (Some(l), Some(r)) = (
-            try_evaluate_with_constants(left, constants),
-            try_evaluate_with_constants(right, constants),
-        ) {
-            if let (Ok(ln), Ok(rn)) = (l.parse::<i64>(), r.parse::<i64>()) {
-                return Some((ln * rn).to_string());
-            }
-            if let (Ok(ln), Ok(rn)) = (l.parse::<f64>(), r.parse::<f64>())
-                && (ln * rn).is_finite()
-            {
-                let result = ln * rn;
-                if result == (result as i64) as f64 {
-                    return Some((result as i64).to_string());
-                }
-                return Some(
-                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(result),
-                );
-            }
-        }
+    // Each operand is a VALUE, and `eval_binary` is the one place that knows JS
+    // coercion — the same function the template-expression evaluator folds
+    // through.
+    let (idx, op) = find_binary_split(trimmed)?;
+    let l = try_evaluate_with_constants(trimmed[..idx].trim(), constants)?;
+    let r = try_evaluate_with_constants(trimmed[idx + 1..].trim(), constants)?;
+    let folded =
+        crate::compiler::phases::phase3_transform::server::evaluate::eval_binary(op, &l, &r);
+    if folded.is_marker() {
+        return None;
     }
-
-    // Handle + (addition or string concatenation)
-    // Find the + that's not inside quotes
-    if let Some(idx) = find_binary_plus(trimmed) {
-        let left = trimmed[..idx].trim();
-        let right = trimmed[idx + 1..].trim();
-        if let (Some(l), Some(r)) = (
-            try_evaluate_with_constants(left, constants),
-            try_evaluate_with_constants(right, constants),
-        ) {
-            // Try numeric addition first
-            if let (Ok(ln), Ok(rn)) = (l.parse::<i64>(), r.parse::<i64>()) {
-                return Some((ln + rn).to_string());
-            }
-            if let (Ok(ln), Ok(rn)) = (l.parse::<f64>(), r.parse::<f64>())
-                && (ln + rn).is_finite()
-            {
-                let result = ln + rn;
-                if result == (result as i64) as f64 {
-                    return Some((result as i64).to_string());
-                }
-                return Some(
-                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(result),
-                );
-            }
-            // String concatenation
-            return Some(format!("{}{}", l, r));
-        }
-    }
-
-    // Handle - (subtraction)
-    // Find - that's a binary operator (not unary minus)
-    if let Some(idx) = find_binary_minus(trimmed) {
-        let left = trimmed[..idx].trim();
-        let right = trimmed[idx + 1..].trim();
-        if let (Some(l), Some(r)) = (
-            try_evaluate_with_constants(left, constants),
-            try_evaluate_with_constants(right, constants),
-        ) && let (Ok(ln), Ok(rn)) = (l.parse::<i64>(), r.parse::<i64>())
-        {
-            return Some((ln - rn).to_string());
-        }
-    }
-
-    None
+    Some(folded)
 }
 
-/// Find the index of a binary + operator (not inside quotes or after another operator).
-fn find_binary_plus(expr: &str) -> Option<usize> {
+/// The split point of a foldable binary expression: the RIGHTMOST operator of
+/// the LOWEST precedence present. That operator binds last, so it is the tree's
+/// root — splitting on `*` first made `1 + 2 * 3` nine, and splitting on the
+/// leftmost `-` made `10 - 3 - 2` nine.
+fn find_binary_split(expr: &str) -> Option<(usize, &'static str)> {
     let bytes = expr.as_bytes();
-    let mut paren_depth = 0;
+    let mut depth: i32 = 0;
+    let mut additive: Option<(usize, &'static str)> = None;
+    let mut multiplicative: Option<usize> = None;
 
     for (i, c) in code_bytes(bytes) {
         match c {
-            b'(' => paren_depth += 1,
-            b')' => paren_depth -= 1,
-            b'+' if paren_depth == 0 => {
-                // Make sure it's a binary +, not unary
-                // Check that there's a non-whitespace token before it
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            b'+' | b'-' | b'*' if depth == 0 => {
+                // A binary operator has an operand before it, and is not the
+                // second character of `++` / `--` / `**` / `+=`.
                 let before = expr[..i].trim_end();
-                if !before.is_empty()
-                    && !before.ends_with('+')
-                    && !before.ends_with('-')
-                    && !before.ends_with('*')
-                    && !before.ends_with('/')
-                    && !before.ends_with('=')
-                    && !before.ends_with('(')
+                if before.is_empty()
+                    || before.ends_with(['+', '-', '*', '/', '=', '('])
+                    || (i + 1 < bytes.len() && (bytes[i + 1] == c || bytes[i + 1] == b'='))
                 {
-                    // Make sure it's not ++ or +=
-                    if i + 1 < bytes.len() && (bytes[i + 1] == b'+' || bytes[i + 1] == b'=') {
-                        continue;
+                    continue;
+                }
+                match c {
+                    // An unspaced `*` was never a split point here, and widening
+                    // that is a separate question from precedence.
+                    b'*' => {
+                        if i > 0 && bytes[i - 1] == b' ' && bytes.get(i + 1) == Some(&b' ') {
+                            multiplicative = Some(i);
+                        }
                     }
-                    return Some(i);
+                    b'+' => additive = Some((i, "+")),
+                    _ => additive = Some((i, "-")),
                 }
             }
             _ => {}
         }
     }
-    None
-}
 
-/// Find the index of a binary - operator (not unary minus).
-fn find_binary_minus(expr: &str) -> Option<usize> {
-    let bytes = expr.as_bytes();
-    let mut paren_depth = 0;
-
-    for (i, c) in code_bytes(bytes) {
-        match c {
-            b'(' => paren_depth += 1,
-            b')' => paren_depth -= 1,
-            b'-' if paren_depth == 0 => {
-                let before = expr[..i].trim_end();
-                if !before.is_empty()
-                    && !before.ends_with('+')
-                    && !before.ends_with('-')
-                    && !before.ends_with('*')
-                    && !before.ends_with('/')
-                    && !before.ends_with('=')
-                    && !before.ends_with('(')
-                {
-                    if i + 1 < bytes.len() && (bytes[i + 1] == b'-' || bytes[i + 1] == b'=') {
-                        continue;
-                    }
-                    return Some(i);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
+    additive.or_else(|| multiplicative.map(|i| (i, "*")))
 }
 
 /// Strip TypeScript syntax from a $derived inner expression for constant folding.
@@ -1338,7 +1233,7 @@ pub(crate) fn extract_constant_vars(
     script: &str,
     full_source: &str,
     excluded: &rustc_hash::FxHashSet<String>,
-) -> FxHashMap<String, String> {
+) -> FxHashMap<String, EvalValue> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
     // Collect unresolved expressions for a second pass

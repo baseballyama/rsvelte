@@ -731,6 +731,10 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         .slot_let_shadows
                         .iter()
                         .any(|f| f.contains(src.trim()))
+                    // …unless a `{@const}` on the render position's own scope
+                    // chain shadows it first. The veto is keyed by NAME, and
+                    // `scope.get` stops at the nearest declaration.
+                    && !state.nearest_declaration_is_template_const(src.trim())
                 {
                     let visited = state.visit_expr(expr);
                     let escaped = state.b.call("$.escape", vec![visited]);
@@ -755,9 +759,13 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     && is_plain_identifier(src.trim())
                     && let Some(value) = state.eval_inputs.constant_vars.get(src.trim())
                 {
-                    if value != "null" && value != "undefined" {
+                    use crate::compiler::phases::phase3_transform::server::evaluate::{
+                        EvalValue, js_display_string,
+                    };
+                    if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                        let rendered = js_display_string(value);
                         let last = quasis.last_mut().unwrap();
-                        last.push_str(&escape_html(value));
+                        last.push_str(&escape_html(&rendered));
                     }
                     continue;
                 }

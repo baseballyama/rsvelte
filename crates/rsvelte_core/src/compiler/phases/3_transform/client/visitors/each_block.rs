@@ -175,6 +175,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // sibling each blocks. Reference: EachBlock.js lines 129-133
     let saved_transform = context.state.transform.clone();
     let saved_transform_deep_read = context.state.transform_deep_read.clone();
+    let saved_each_shadowing_names = context.state.each_shadowing_names.clone();
 
     // Build declarations for the render function body
     // This will insert transforms for the item and index into context.state.transform
@@ -501,6 +502,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Restore the original transform map to prevent leaking to sibling blocks
     context.state.transform = saved_transform;
     context.state.transform_deep_read = saved_transform_deep_read;
+    context.state.each_shadowing_names = saved_each_shadowing_names;
 
     // Build the key function
     let key_function = build_key_function(node, context, key_uses_index, &index);
@@ -1061,6 +1063,10 @@ fn build_declarations(
                 .transform_deep_read
                 .remove(&index_name.to_string());
         }
+        context
+            .state
+            .each_shadowing_names
+            .remove(&index_name.to_string());
     }
 
     // Handle simple identifier context
@@ -1099,6 +1105,7 @@ fn build_declarations(
         // Each item is not a template-kind binding in legacy reactivity;
         // ensure any outer same-named deep_read marker is shadowed.
         context.state.transform_deep_read.remove(name);
+        context.state.each_shadowing_names.remove(name);
 
         if node.index.is_some()
             && node.metadata.contains_group_binding

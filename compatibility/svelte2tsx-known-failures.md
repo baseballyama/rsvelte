@@ -4,21 +4,19 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 140 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 139 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `135 + 5`
+Partition of `svelte2tsx-known-failures.json` by verdict: `134 + 5`
 
-- **135 — the emitted TSX differs** (`ts-mismatch`).
+- **134 — the emitted TSX differs** (`ts-mismatch`).
 - **5 — one side rejects and the other compiles** (`error-mismatch`): 3 where
   official compiles and rsvelte errors, 2 the other way round.
 
 ## Wave-2 enrolment (#3130)
 
-The list was **0** before the enrolment and 139 of the 140 come from one of the
-67 new repositories. The single exception is
-`pattern/issues/3200-asi-reactive-block.svelte`, a repro `main` added to
-`compatibility/pattern-corpus`; the 37 pre-existing *real-world* sources still
-contribute zero, which is the same positive control the compiler ratchets report.
+The list was **0** before the enrolment and all 139 entries come from one of the
+67 new repositories. The 37 pre-existing *real-world* sources still contribute
+zero, which is the same positive control the compiler ratchets report.
 27 repositories contribute at least one; svelte-lexical (42),
 svelte-tweakpane-ui (16) and svelte-gantt (10) are half of the `ts-mismatch`
 half between them.
@@ -33,8 +31,9 @@ the file here is the Linux set and not a local one. Read it as the same caveat
 `fmt-known-failures.md` states for its own gate: **shrink this ratchet from a
 Linux `corpus-compat.yml` run, not locally.**
 
-The drop from 158 to 140 is the rebase onto `main`, less the one entry `main`
-added: re-measuring removed **19 entries that already passed and added none**.
+The drop from 158 to 139 is the rebase onto `main` plus the fix for
+`pattern/issues/3200-asi-reactive-block.svelte`: re-measuring removed **19
+entries that already passed**, and the fix removed one more.
 
 The `ts-mismatch` clusters, keyed mechanically by the first differing line
 (the classifier is the one in this file's history, not a hand review — it asks
@@ -56,18 +55,10 @@ carries those, and it is a pass, not a ratchet entry.
 
 
 
-- `pattern/issues/3200-asi-reactive-block.svelte` — **rsvelte is the worse side
-  here, and the entry says so.** The file is a deliberately-unparseable repro
-  (its point is the compiler's `js_parse_error` position inside a `$:` block),
-  and when the instance script does not parse rsvelte's svelte2tsx skips every
-  script transform: `export` is not blanked, the prop is missing from `props` /
-  `bindings` / `__sveltets_2_partial`, and the `$:` block is not wrapped in
-  `;() => { … }`. Official's transform is TypeScript-based and error-tolerant, so
-  it still applies them. Tracked as
-  [#3232](https://github.com/baseballyama/rsvelte/issues/3232); the entry exists
-  because the two gates share one population — the repro has to be in the corpus
-  for the compiler gate, and it cannot pass the svelte2tsx gate until #3232 is
-  fixed.
+The former `pattern/issues/3200-asi-reactive-block.svelte` entry was removed when
+[#3232](https://github.com/baseballyama/rsvelte/issues/3232) was fixed. The file is
+a deliberately-unparseable compiler repro, but svelte2tsx now repairs its missing
+ASI before re-parsing and applies the same script transforms as official.
 
 The usual justified reason to add an entry is that **official svelte2tsx is buggy
 and rsvelte is more correct** — matching the oracle would require reproducing a

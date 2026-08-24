@@ -231,6 +231,16 @@ jobs:
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs
 
+      # The public `parse()` AST — a different export from `compile()`, and the
+      # one svelte2tsx / eslint-plugin-svelte / an editor integration reads. It
+      # runs as a step in this job rather than as its own because it needs
+      # exactly what this job has already paid for (the staged binding, the
+      # official compiler, `sources/`) and nothing else; the sweep is ~50s over
+      # 28k compared pairs, against ~59 minutes for one shard of the job that
+      # currently costs the most.
+      - name: Verify public parse() AST parity (ratchet)
+        run: node scripts/compat-corpus/parse-ast-verify.mjs
+
       # Asserts a PROPERTY of the transform rather than comparing its output, so
       # it sees the #3026 class on inputs whose output is byte-perfect: un-seal
       # `b::getter_call` and 7,888 of 27,566 corpus units violate it while the

@@ -123,7 +123,8 @@ pub fn visit<'a, 'b: 'a>(
 
     // Upstream reaches this node through `visit_component`, so a child carrying
     // `slot="…"` has a component owner here exactly as it does under
-    // `<svelte:component>`.
+    // `<svelte:component>`; its `<svelte:fragment>` rule does not widen, so
+    // only the slot half is set.
     let was_direct_child = context.direct_component_parent;
     let was_direct_snippet = context.is_direct_child_of_snippet;
     context.direct_component_parent = super::DirectComponentParent::SlotOwnerOnly;

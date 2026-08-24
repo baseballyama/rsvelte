@@ -1221,21 +1221,71 @@ fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-/// Words the fast path may spell but strict mode does not allow as an
-/// identifier, plus the two whose legality depends on how they are used.
-const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
-    "let",
-    "yield",
-    "static",
-    "implements",
-    "interface",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "eval",
-    "arguments",
-];
+/// Every word the fast path would spell as an ordinary identifier and the real
+/// parser would not: the reserved words, the strict-mode ones, and the two
+/// (`eval`, `arguments`) whose legality depends on how they are used.
+///
+/// The set has to be the closed one rather than the shapes anybody has hit.
+/// `import` and `new` head a construct whose node type the fast path cannot
+/// produce (`MetaProperty`, `ImportExpression`), and spelling `import.meta.url`
+/// as a member chain makes its leftmost object an unbound global — which every
+/// `is_pure` port then reads as static; `this` is the same shape one node type
+/// over (`ThisExpression`); and every remaining keyword is a program the real
+/// parser rejects and the fast path silently accepts.
+///
+/// `true` / `false` / `null` are absent on purpose: the fast path builds them as
+/// literals, which is what they are.
+#[inline]
+fn is_fast_path_suspect_word(word: &[u8]) -> bool {
+    matches!(
+        word,
+        b"await"
+            | b"break"
+            | b"case"
+            | b"catch"
+            | b"class"
+            | b"const"
+            | b"continue"
+            | b"debugger"
+            | b"default"
+            | b"delete"
+            | b"do"
+            | b"else"
+            | b"enum"
+            | b"export"
+            | b"extends"
+            | b"finally"
+            | b"for"
+            | b"function"
+            | b"if"
+            | b"import"
+            | b"in"
+            | b"instanceof"
+            | b"new"
+            | b"return"
+            | b"super"
+            | b"switch"
+            | b"this"
+            | b"throw"
+            | b"try"
+            | b"typeof"
+            | b"var"
+            | b"void"
+            | b"while"
+            | b"with"
+            | b"yield"
+            | b"let"
+            | b"static"
+            | b"implements"
+            | b"interface"
+            | b"package"
+            | b"private"
+            | b"protected"
+            | b"public"
+            | b"eval"
+            | b"arguments"
+    )
+}
 
 /// Whether `bytes` could hold something the fast path would accept and acorn
 /// would not — a legacy octal literal, an escape inside a string literal, or one
@@ -1243,6 +1293,10 @@ const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
 /// only costs a real parse.
 fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
     let mut i = 0;
+    // A word after `.` is a PROPERTY name, where every reserved word is legal —
+    // and `props.class` is ordinary Svelte, so exempting it is what keeps the
+    // widened list off the common path.
+    let mut after_dot = false;
     while i < bytes.len() {
         let b = bytes[i];
         if b == b'\\' {
@@ -1254,11 +1308,10 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
                 i += 1;
             }
             let word = &bytes[start..i];
-            // A member/property name is not a binding, but the fast path does
-            // not distinguish them and a real parse is cheap enough.
-            if FAST_PATH_SUSPECT_WORDS.iter().any(|w| w.as_bytes() == word) {
+            if !after_dot && is_fast_path_suspect_word(word) {
                 return true;
             }
+            after_dot = false;
             continue;
         }
         if b.is_ascii_digit() {
@@ -1269,7 +1322,11 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
             if bytes[start] == b'0' && bytes.get(start + 1).is_some_and(u8::is_ascii_digit) {
                 return true;
             }
+            after_dot = false;
             continue;
+        }
+        if !b.is_ascii_whitespace() {
+            after_dot = b == b'.';
         }
         i += 1;
     }
@@ -1531,6 +1588,20 @@ pub fn parse_expression<'a>(
     ))
 }
 
+/// Wrap a source slice for OXC, keeping the suffix off the slice's last line —
+/// a trailing `//` comment would otherwise swallow it.
+///
+/// The newline sits between `content` and `suffix`, so every offset inside
+/// `content` keeps its position and an arrow's `)` stays adjacent to its `=>`.
+fn wrap_for_parse(prefix: &str, content: &str, suffix: &str) -> String {
+    let mut wrapped = String::with_capacity(prefix.len() + content.len() + suffix.len() + 1);
+    wrapped.push_str(prefix);
+    wrapped.push_str(content);
+    wrapped.push('\n');
+    wrapped.push_str(suffix);
+    wrapped
+}
+
 /// Parse a destructuring pattern (for `{@const}` tags).
 ///
 /// Destructuring patterns like `{x = 1, y}` or `[a, b, ...rest]` cannot be parsed
@@ -1559,10 +1630,7 @@ pub fn parse_destructuring_pattern<'a>(
                 SourceType::mjs()
             };
 
-            let mut wrapped = String::with_capacity(content.len() + 12);
-            wrapped.push_str("let ");
-            wrapped.push_str(content);
-            wrapped.push_str(" = null");
+            let wrapped = wrap_for_parse("let ", content, "= null");
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
 
@@ -1686,7 +1754,8 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
@@ -1699,11 +1768,22 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                     first_error.message.as_ref(),
                     "Cannot assign to this expression" | "Invalid left-hand side in assignment"
                 );
+                // The default reads the label's END because acorn reports where
+                // it stopped consuming — true when the label is what it consumed,
+                // false when the label IS the offending token, which acorn then
+                // reports at its start. `Expected X but found Y` labels the found
+                // token, so it belongs to the second group too.
+                let report_at_label_start = at_label_start
+                    || matches!(
+                        first_error.message.as_ref(),
+                        "Unexpected token" | "Unexpected new.target expression"
+                    )
+                    || first_error.message.starts_with("Expected ");
                 let pos = first_error
                     .labels
                     .first()
                     .map(|label| {
-                        if at_label_start {
+                        if report_at_label_start {
                             label.offset() as usize
                         } else {
                             label.offset() as usize + label.len() as usize
@@ -1788,10 +1868,7 @@ fn is_code_empty(content: &str) -> bool {
 ///
 /// Returns `Some((message, pos_in_params))` when parsing fails.
 pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize)> {
-    let mut wrapped = String::with_capacity(params.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(params);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", params, ") => {}");
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
@@ -1865,7 +1942,8 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
@@ -1986,12 +2064,7 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 3);
-        wrapped.push('(');
-        wrapped.push_str(content);
-        // Keep the synthetic closer outside a trailing line comment.
-        wrapped.push('\n');
-        wrapped.push(')');
+        let wrapped = wrap_for_parse("(", content, ")");
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
@@ -2435,10 +2508,7 @@ pub fn parse_typescript_params<'a>(
     let source_type = SourceType::ts();
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
-    let mut wrapped = String::with_capacity(content.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", content, ") => {}");
     let mut params = Vec::new();
 
     enum ParseOutcome<'a> {
@@ -2488,10 +2558,7 @@ pub fn parse_typescript_params<'a>(
 
     // OXC TS parser failed - try stripping optional markers and re-parsing
     let stripped = strip_optional_markers(content);
-    let mut cleaned_wrapped = String::with_capacity(stripped.content.len() + 9);
-    cleaned_wrapped.push('(');
-    cleaned_wrapped.push_str(&stripped.content);
-    cleaned_wrapped.push_str(") => {}");
+    let cleaned_wrapped = wrap_for_parse("(", &stripped.content, ") => {}");
 
     let cleaned_ok = with_oxc_allocator(|allocator| {
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
@@ -2542,10 +2609,7 @@ pub fn parse_typescript_params<'a>(
                 .map(|p| search_from + p)
                 .unwrap_or(search_from);
             search_from = part_offset_in_content + part.len();
-            let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
-            single_wrapped.push('(');
-            single_wrapped.push_str(&stripped_part.content);
-            single_wrapped.push_str(") => {}");
+            let single_wrapped = wrap_for_parse("(", &stripped_part.content, ") => {}");
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();
@@ -6896,7 +6960,7 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 /// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
 /// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
 /// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
-const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
     "1015", // A parameter cannot have a question mark and an initializer
     "1016", // A required parameter cannot follow an optional parameter
     "1021", // An index signature must have a type annotation
@@ -6906,6 +6970,8 @@ const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
     "1093", // Type annotation cannot appear on a constructor declaration
     "1094", // An accessor cannot have type parameters
     "1095", // A 'set' accessor cannot have a return type annotation
+    "1147", // Import declarations in a namespace cannot reference a module
+    "1194", // Export declarations are not permitted in a namespace
     "1221", // Generators are not allowed in an ambient context
     "1222", // An overload signature cannot be declared as a generator
     "1263", // Declarations with initializers cannot also have definite assignment assertions
@@ -7039,6 +7105,7 @@ fn acorn_only_violation(
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        export_declare_global_at: Option<u32>,
         check_ts_modifier: bool,
         content: &'c str,
         ts_modifier_at: Option<u32>,
@@ -7066,6 +7133,16 @@ fn acorn_only_violation(
                 self.with_at = Some(stmt.span.start);
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
+        }
+        // `export declare global { … }`: acorn wants an ambient declaration after
+        // `export declare`, and a global augmentation is not one.
+        fn visit_export_declaration(&mut self, export: &oxc_ast::ast::ExportDeclaration<'a>) {
+            if let oxc_ast::ast::Declaration::TSGlobalDeclaration(global) = &export.declaration
+                && self.export_declare_global_at.is_none()
+            {
+                self.export_declare_global_at = Some(global.span.start);
+            }
+            oxc_ast_visit::walk::walk_export_declaration(self, export);
         }
         fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
             self.record_ts_modifier(
@@ -7102,11 +7179,15 @@ fn acorn_only_violation(
         check_decorator,
         decorator_at: None,
         with_at: None,
+        export_declare_global_at: None,
         check_ts_modifier,
         content,
         ts_modifier_at: None,
     };
-    if check_decorator || check_with || check_ts_modifier {
+    // The TypeScript-only rule below needs a token that is cheap to rule out, so
+    // a plain-JS script keeps the walk it had.
+    let check_ts_acorn = is_typescript && content.contains("global");
+    if check_decorator || check_with || check_ts_modifier || check_ts_acorn {
         finder.visit_program(program);
     }
 
@@ -7118,6 +7199,12 @@ fn acorn_only_violation(
             (
                 at,
                 "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error".to_string(),
+            )
+        }),
+        finder.export_declare_global_at.map(|at| {
+            (
+                at,
+                "'export declare' must be followed by an ambient declaration.".to_string(),
             )
         }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
@@ -8481,15 +8568,9 @@ fn convert_statement_for_program(
                 line_offsets,
             ))
         }
-        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => {
-            Some(convert_ts_module_declaration_as_node(
-                arena,
-                module_decl.span,
-                ts_namespace_block(&module_decl.body),
-                offset,
-                line_offsets,
-            ))
-        }
+        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => Some(
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets),
+        ),
         oxc_ast::ast::Statement::TSGlobalDeclaration(module_decl) => {
             Some(convert_ts_module_declaration_as_node(
                 arena,
@@ -8505,14 +8586,48 @@ fn convert_statement_for_program(
     }
 }
 
-/// The `TSModuleBlock` a namespace body carries, or `None` for the dotted form
-/// (`namespace N.M {}`), which nests another declaration instead of a block.
-fn ts_namespace_block<'a>(
-    body: &'a oxc_ast::ast::TSNamespaceDeclarationBody<'a>,
-) -> Option<&'a oxc_ast::ast::TSModuleBlock<'a>> {
-    match body {
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(block),
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+/// Build the node for a `namespace N { … }` / `module N { … }`.
+///
+/// A dotted name is the source spelling of `namespace N { namespace M { … } }`,
+/// so it is nested here and the strip reaches the innermost body through the
+/// same recursion. Official crashes on the dotted form instead
+/// (`upstream_issues/3568-svelte-dotted-namespace-crash.md`); this is rsvelte's
+/// deliberate reading, pinned by `tests/ts_export_type_only_declaration.rs`.
+fn convert_ts_namespace_as_node(
+    arena: &ParseArena,
+    module_decl: &oxc_ast::ast::TSNamespaceDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    match &module_decl.body {
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(block),
+                offset,
+                line_offsets,
+            )
+        }
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let inner_start = offset + inner.span.start as usize;
+            let inner_end = offset + inner.span.end as usize;
+            let inner_node = convert_ts_namespace_as_node(arena, inner, offset, line_offsets);
+            let body = arena.alloc_js_node(JsNode::BlockStatement {
+                start: inner_start as u32,
+                end: inner_end as u32,
+                loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                body: arena.alloc_js_children(vec![inner_node]),
+            });
+            JsNode::TSModuleDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                body: Some(body),
+            }
+        }
     }
 }
 
@@ -8534,7 +8649,31 @@ fn convert_ts_module_declaration_as_node(
         let block_body: Vec<JsNode> = block
             .body
             .iter()
-            .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+            .filter_map(|stmt| {
+                if let Some(node) = convert_statement_for_program(arena, stmt, offset, line_offsets)
+                {
+                    return Some(node);
+                }
+                // The typed program has no variant for these two (issue #3681), so
+                // `convert_statement_for_program` drops them — but upstream's visitor
+                // leaves both in place, which makes the namespace non-type. Only
+                // these two stand in: most of what it drops (a type alias, say) IS
+                // type-only and must keep stripping to empty.
+                if !matches!(
+                    stmt,
+                    oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)
+                        | oxc_ast::ast::Statement::ExportAllDeclaration(_)
+                ) {
+                    return None;
+                }
+                let start = offset + stmt.span().start as usize;
+                let end = offset + stmt.span().end as usize;
+                Some(JsNode::DebuggerStatement {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                })
+            })
             .collect();
         arena.alloc_js_node(JsNode::BlockStatement {
             start: start as u32,
@@ -8756,13 +8895,9 @@ fn convert_declaration_for_program_as_node(
                 line_offsets,
             )
         }
-        Declaration::TSNamespaceDeclaration(module_decl) => convert_ts_module_declaration_as_node(
-            arena,
-            module_decl.span,
-            ts_namespace_block(&module_decl.body),
-            offset,
-            line_offsets,
-        ),
+        Declaration::TSNamespaceDeclaration(module_decl) => {
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets)
+        }
         Declaration::TSGlobalDeclaration(module_decl) => convert_ts_module_declaration_as_node(
             arena,
             module_decl.span,

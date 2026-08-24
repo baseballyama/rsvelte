@@ -1,5 +1,0 @@
----
-"@rsvelte/compiler": patch
----
-
-End a tag where the official compiler ends it. A closing tag now requires its `>` after the name and optional whitespace, so `</div x>` is `expected_token` instead of compiling with the junk silently dropped — `<textarea>` keeps taking everything up to the `>`, because upstream's closer for it really is `/<\/textarea(\s[^>]*)?>/i`. What sits between `</style` and the `>` is template text again (`<style>…</style x>` renders `x>`), since upstream reads `/\s*>/y` and consumes nothing when no `>` follows. A root `<script>` is no longer closed by `</script x>`, matching upstream's `/<\/script\s*>/`, and the resulting `element_unclosed` is reported at the end of the right-trimmed template. And a new tag now closes exactly one element: `<optgroup>` after a nested `<option>` popped the whole ancestor chain, so the new group became a sibling of the old one instead of its child. `p`'s auto-closing table also loses `details`, `figcaption` and `figure`, which upstream's `autoclosing_children` does not list.

@@ -75,13 +75,12 @@ impl<'a> Parser<'a> {
             if self.match_str("-->") {
                 self.advance_by(3); // consume '-->'
             } else if self.is_eof() {
-                // Upstream reads a right-trimmed template, so it runs out of
-                // input at the last non-whitespace byte, not at the file's end.
-                let at = self.source[..self.index].trim_end().len();
-                return Err(crate::error::ParseError::svelte(
-                    "expected_token",
-                    "Expected token -->",
-                    (at, at),
+                // Comment was not closed. Upstream's `read_until` stops at the
+                // end of the right-trimmed template, so the demand for `-->`
+                // lands there rather than after the file's trailing whitespace.
+                return Err(crate::error::ParseError::expected_token(
+                    "-->",
+                    self.content_end,
                 ));
             }
 
@@ -287,11 +286,10 @@ impl<'a> Parser<'a> {
         //   `parser.eat('>', true, false)` throws `expected_token`, e.g.
         //   `<Comp foo={bar}\n</div>` or a top-level `<script …/>`.
         if !has_closing_bracket && !self.options.loose {
-            self.skip_whitespace();
-            if self.is_eof() {
+            if self.index >= self.content_end {
                 // Upstream throws from `read_until`, which has not consumed the
                 // trailing whitespace, so the point is the last token's end.
-                let at = self.source[..self.index].trim_end().len();
+                let at = self.content_end;
                 // Consuming the `/` got past `read_attribute`, so what runs out
                 // is `eat('>', true)` rather than the attribute reader.
                 if self_closing {
@@ -303,6 +301,8 @@ impl<'a> Parser<'a> {
                     (at, at),
                 ));
             }
+            // Upstream's `eat('>', true, false)` runs immediately after the
+            // optional `/`, so whitespace between them is not consumed first.
             return Err(crate::error::ParseError::expected_token(">", self.index));
         }
         // In loose mode, treat as an unclosed element and continue
@@ -378,6 +378,19 @@ impl<'a> Parser<'a> {
                         (self.content_end, self.content_end),
                     ));
                 }
+                // A nested `<script>` / `<style>` is read by upstream with a
+                // plain `indexOf('</name>')` and then `eat('</name>', true)`,
+                // so running out of input demands the tag at the trimmed end
+                // instead of leaving the element open.
+                if !self.options.loose
+                    && (name == "script" || name == "style")
+                    && self.index >= self.content_end
+                {
+                    return Err(crate::error::ParseError::expected_token(
+                        &format!("</{name}>"),
+                        self.content_end,
+                    ));
+                }
             } else {
                 fragment = self.parse_fragment()?;
             }
@@ -390,6 +403,17 @@ impl<'a> Parser<'a> {
                 self.read_tag_name();
                 let cn_end = self.index;
                 self.skip_whitespace();
+
+                // Upstream demands the `>` before it compares the name, so a
+                // closing tag that runs out of input is `expected_token` rather
+                // than a silently dropped element. (Raw-text elements keep
+                // rsvelte's forgiving scan for a later `>`.)
+                if !self.options.loose && !is_raw_text_element && !self.match_byte(b'>') {
+                    return Err(crate::error::ParseError::expected_token(
+                        ">",
+                        self.index.min(self.content_end),
+                    ));
+                }
 
                 // Verify matching tag
                 let closing_name = &self.source[cn_start..cn_end];
@@ -1230,6 +1254,18 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a single attribute.
+    /// The `}` that closes a `{…}` attribute opened at `open`, found with the
+    /// lexically-aware scan rather than a bare depth counter. Falls back to the
+    /// end of input so an unterminated attribute keeps reporting as before.
+    fn find_attribute_close(&self, open: usize) -> usize {
+        crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            self.source,
+            open + 1,
+            '{',
+        )
+        .unwrap_or(self.bytes.len())
+    }
+
     pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Capture JS-style comments (// and /* */) before attribute parsing
         // and record them in `root.comments`. Corresponds to `read_comment()`
@@ -1254,24 +1290,9 @@ impl<'a> Parser<'a> {
             // Check for spread attribute {...expr}
             if self.eat_optional("...") {
                 let expr_start = self.index;
-                let mut depth: u32 = 1;
-                // Fast byte-level brace scanning
-                while self.index < self.bytes.len() && depth > 0 {
-                    match self.bytes[self.index] {
-                        b'{' => {
-                            depth += 1;
-                            self.index += 1;
-                        }
-                        b'}' => {
-                            depth -= 1;
-                            if depth > 0 {
-                                self.index += 1;
-                            }
-                        }
-                        b if b < 0x80 => self.index += 1,
-                        _ => self.advance(),
-                    }
-                }
+                // A depth counter alone reads a `}` inside a string, a regex, a
+                // template literal or a comment as the attribute's own.
+                self.index = self.find_attribute_close(start);
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 let expression =
@@ -1287,24 +1308,7 @@ impl<'a> Parser<'a> {
 
             // Expression shorthand {expr} or empty {} in loose mode
             let expr_start = self.index;
-            let mut depth: u32 = 1;
-            // Fast byte-level brace scanning
-            while self.index < self.bytes.len() && depth > 0 {
-                match self.bytes[self.index] {
-                    b'{' => {
-                        depth += 1;
-                        self.index += 1;
-                    }
-                    b'}' => {
-                        depth -= 1;
-                        if depth > 0 {
-                            self.index += 1;
-                        }
-                    }
-                    b if b < 0x80 => self.index += 1,
-                    _ => self.advance(),
-                }
-            }
+            self.index = self.find_attribute_close(start);
             let expr_end = self.index;
             let expr_content = &self.source[expr_start..expr_end];
             self.advance(); // consume '}'

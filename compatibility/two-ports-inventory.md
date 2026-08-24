@@ -87,6 +87,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [11](#11-does-this-expression-contain-a-call--s) | Does this expression contain a call? | 4 | **[S]** | #3569 open |
 | [12](#12-selector-unused-and-element-scoped-are-two-engines-over-two-element-models--s) | "Selector unused" vs "element scoped" | 2 engines, 2 element models | **[S]** | no |
 | [13](#13-what-does-a-call-to-one-of-upstreams-globals-keypaths-evaluate-to--d-closed-by-degree-1) | What does a call to one of upstream's `globals` keypaths evaluate to? | 2 tables | **[D]** | closed by #3471 (degree 1) |
+| [14](#14-what-options-does-the-public-parse-run-with--d) | What options does the public `parse()` run with? | 2 bindings | **[D]** | #3688 open |
 
 ---
 
@@ -438,6 +439,32 @@ was also *small*, so `String(n)`, `Number(n)`, `Math.sign(n)` and 30 more names 
 `eval_known_global_call`. There is no second answer left to compare, which is why this row is
 recorded rather than tracked. What it does **not** buy: the surrounding predicates in row 9 are
 untouched, and nothing new compares any two of *them*.
+
+### 14. What options does the public `parse()` run with? — [D]
+
+Filed as **#3688**; the divergence is one field today and the shape is why it is here.
+
+**Upstream:** one answer, in `compiler/index.js` — `parse(source, { modern, loose } = {})` calls
+`_parse(source, loose)` and `to_public_ast(source, ast, modern)`. There is no second construction
+of the parse configuration anywhere in `svelte/compiler`.
+
+**Ports.** rsvelte builds it independently in each binding:
+
+- `crates/rsvelte_napi/src/lib.rs:201-217` sets `capture_comments: true`, with a comment
+  asserting fidelity — *"The public AST API mirrors svelte/compiler `parse()`, which keeps
+  `leadingComments`/`trailingComments` on nodes."*
+- `crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs:87-89` takes `ParseOptions::default()`,
+  which leaves `capture_comments` **false**, and accepts no options from its caller at all.
+
+**The named input** is any component with a comment inside `<script>`: the NAPI AST carries the
+node comments and the wasm AST does not. Graded **[D] from code** rather than **[M]** — the wasm
+build was not executed, and a local `cargo` never builds the wasm features, which is part of why
+this went unobserved.
+
+**Nothing compares them.** The `parse()` AST parity gate (#3389) drives the NAPI port only; that
+is gate-coverage **39g**. Corpus growth cannot reach the wasm port, because it is in no gate's
+population. And the wasm build is what `@rsvelte/compiler` and the playground ship, so the port a
+user installs is the unmeasured one.
 
 ## Adding a row, and closing one
 

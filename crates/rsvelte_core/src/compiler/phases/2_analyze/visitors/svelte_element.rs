@@ -242,7 +242,7 @@ pub fn visit<'a, 'b: 'a>(
     context.is_direct_child_of_snippet = false;
     context
         .slot_owner_ancestors
-        .push(super::SlotOwnerType::Component);
+        .push(super::SlotOwnerType::CustomElement);
     context
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteElement);

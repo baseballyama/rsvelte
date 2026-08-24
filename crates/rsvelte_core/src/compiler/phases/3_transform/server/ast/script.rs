@@ -269,15 +269,85 @@ fn inspect_kind(expr: &OxcExpression, rune_store_subs: bool) -> Option<InspectKi
     }
 }
 
-/// Verbatim source text of a call's argument list (each argument joined with
-/// `, `), sliced straight from `src` so operators / whitespace survive exactly.
-fn call_args_src(call: &oxc_ast::ast::CallExpression, src: &str) -> String {
-    call.arguments
-        .iter()
-        .filter_map(|a| a.as_expression())
-        .map(|e| &src[e.span().start as usize..e.span().end as usize])
-        .collect::<Vec<_>>()
-        .join(", ")
+/// The dev lowering of `expr` when it is an `$inspect(...)` /
+/// `$inspect(...).with(...)` call. `text` renders one argument expression: the
+/// top-level caller slices the component source, so operators and whitespace
+/// survive verbatim, while a NESTED call has already been re-homed by
+/// `reparse_statement` and its spans index the re-parsed slice, not `src`.
+fn dev_inspect_statement<'a>(
+    expr: &OxcExpression,
+    rune_store_subs: bool,
+    wrap_reads: bool,
+    state: &ServerTransformState<'a>,
+    text: &dyn Fn(&OxcExpression) -> String,
+) -> Option<Statement<'a>> {
+    let kind = inspect_kind(expr, rune_store_subs)?;
+    let OxcExpression::CallExpression(call) = expr else {
+        unreachable!("inspect_kind matched a CallExpression");
+    };
+    let args = |call: &oxc_ast::ast::CallExpression| {
+        call.arguments
+            .iter()
+            .filter_map(|a| a.as_expression())
+            .map(text)
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let (args_src, with_fn_src) = match kind {
+        InspectKind::Plain => (args(call), None),
+        InspectKind::With => {
+            // For `<inner>.with(fn)`, the args belong to the INNER `$inspect(...)`
+            // call, and `fn` is this outer call's first argument.
+            let inner_args = match &call.callee {
+                OxcExpression::StaticMemberExpression(m) => match &m.object {
+                    OxcExpression::CallExpression(inner) => args(inner),
+                    _ => String::new(),
+                },
+                _ => String::new(),
+            };
+            let fn_src = call
+                .arguments
+                .first()
+                .and_then(|a| a.as_expression())
+                .map(text);
+            (inner_args, fn_src)
+        }
+    };
+    build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), wrap_reads, state)
+}
+
+/// Replace every NESTED `$inspect(...)` expression statement in `stmt` with its
+/// dev lowering. Any inspect reaching here is already below the script top
+/// level: the emit loop handles a top-level one and breaks before this runs.
+fn lower_nested_dev_inspect<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState<'a>) {
+    struct V<'s, 'a> {
+        state: &'s ServerTransformState<'a>,
+        rune_store_subs: bool,
+    }
+    impl<'s, 'a> VisitMut<'a> for V<'s, 'a> {
+        fn visit_statement(&mut self, stmt: &mut Statement<'a>) {
+            if let Statement::ExpressionStatement(es) = stmt
+                && let Some(lowered) = dev_inspect_statement(
+                    &es.expression,
+                    self.rune_store_subs,
+                    // The enclosing statement was re-homed and read-wrapped
+                    // whole, so a derived argument already reads as `d()`.
+                    false,
+                    self.state,
+                    &|e| self.state.expr_to_string(e),
+                )
+            {
+                *stmt = lowered;
+                return;
+            }
+            oxc_ast_visit::walk_mut::walk_statement(self, stmt);
+        }
+    }
+    let mut v = V {
+        state,
+        rune_store_subs: rune_names_are_store_subs(state.analysis),
+    };
+    v.visit_statement(stmt);
 }
 
 /// Build the dev-mode lowering of a `$inspect(...)` / `$inspect(...).with(...)`
@@ -296,6 +366,7 @@ fn build_dev_inspect<'a>(
     kind: &InspectKind,
     args_src: &str,
     with_fn_src: Option<&str>,
+    wrap_reads: bool,
     state: &ServerTransformState<'a>,
 ) -> Option<Statement<'a>> {
     let text = match kind {
@@ -311,12 +382,14 @@ fn build_dev_inspect<'a>(
         }
     };
     let mut rehomed = state.reparse_statement(&text)?;
-    super::read_wrap::wrap_reads_in_statement(
-        &mut rehomed,
-        state.b,
-        state.analysis,
-        state.analysis.root.instance_scope_index,
-    );
+    if wrap_reads {
+        super::read_wrap::wrap_reads_in_statement(
+            &mut rehomed,
+            state.b,
+            state.analysis,
+            state.analysis.root.instance_scope_index,
+        );
+    }
     Some(rehomed)
 }
 
@@ -720,46 +793,15 @@ fn transform_script<'a>(
                     // call (`$inspect.trace` is still removed in dev). Detect it before
                     // the generic effect/inspect removal so we keep the call.
                     let rune_store_subs = rune_names_are_store_subs(state.analysis);
-                    if state.options.dev
-                        && let Some(kind) = inspect_kind(&es.expression, rune_store_subs)
+                    if state.options.dev && inspect_kind(&es.expression, rune_store_subs).is_some()
                     {
-                        // Pull the verbatim argument / `.with` callback source straight
-                        // from the call spans — preserving operators/whitespace exactly
-                        // like the text oracle's slice-based extraction.
-                        let OxcExpression::CallExpression(call) = &es.expression else {
-                            unreachable!("inspect_kind matched a CallExpression");
-                        };
-                        let (args_src, with_fn_src) = match kind {
-                            InspectKind::Plain => {
-                                let s = call_args_src(call, src);
-                                (s, None)
-                            }
-                            InspectKind::With => {
-                                // For `<inner>.with(fn)`, the args belong to the INNER
-                                // `$inspect(...)` call, and `fn` is this outer call's
-                                // first argument.
-                                let inner_args = match &call.callee {
-                                    OxcExpression::StaticMemberExpression(m) => match &m.object {
-                                        OxcExpression::CallExpression(inner) => {
-                                            call_args_src(inner, src)
-                                        }
-                                        _ => String::new(),
-                                    },
-                                    _ => String::new(),
-                                };
-                                let fn_src =
-                                    call.arguments.first().and_then(|a| a.as_expression()).map(
-                                        |e| {
-                                            src[e.span().start as usize..e.span().end as usize]
-                                                .to_string()
-                                        },
-                                    );
-                                (inner_args, fn_src)
-                            }
-                        };
-                        if let Some(stmt) =
-                            build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
-                        {
+                        if let Some(stmt) = dev_inspect_statement(
+                            &es.expression,
+                            rune_store_subs,
+                            true,
+                            state,
+                            &|e| src[e.span().start as usize..e.span().end as usize].to_string(),
+                        ) {
                             out.push(stmt);
                         }
                         break 'emit;
@@ -916,6 +958,15 @@ fn transform_script<'a>(
     // statement — class DECLARATIONS, class EXPRESSIONS (`const C = class {…}`)
     // and NESTED classes alike (写经 `PropertyDefinition.js`, a tree-wide
     // visitor). Cheap: the walk only descends, firing on `PropertyDefinition`s.
+    // In dev an `$inspect(…)` is LOWERED, not removed, and upstream's
+    // `CallExpression` visitor is tree-wide — so a call in a function body, a
+    // bare block or a class method reaches it too. Both removals below walk
+    // nested statement lists, so the lowering has to run before either.
+    if state.options.dev {
+        for stmt in out.iter_mut() {
+            lower_nested_dev_inspect(stmt, state);
+        }
+    }
     for stmt in out.iter_mut() {
         lower_class_field_runes(stmt, state);
     }
@@ -1778,12 +1829,34 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a> {
     /// `ExpressionStatement` visitor (`return b.empty`). `ClassFieldRuneLower`
     /// only runs over class statements, so this scope is the class subtree.
     fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
-        stmts.retain(|stmt| {
-            let Statement::ExpressionStatement(es) = stmt else {
-                return true;
-            };
-            !is_removed_effect_stmt(&es.expression, self.rune_store_subs)
-        });
+        if stmts.iter().any(|stmt| {
+            matches!(stmt, Statement::ExpressionStatement(es)
+                if is_removed_effect_stmt(&es.expression, self.rune_store_subs))
+        }) {
+            let taken: std::vec::Vec<Statement<'a>> = stmts.drain(..).collect();
+            let mut kept: std::vec::Vec<Statement<'a>> =
+                std::vec::Vec::with_capacity(taken.len() + 1);
+            for stmt in taken {
+                let Statement::ExpressionStatement(es) = &stmt else {
+                    kept.push(stmt);
+                    continue;
+                };
+                if !is_removed_effect_stmt(&es.expression, self.rune_store_subs) {
+                    kept.push(stmt);
+                    continue;
+                }
+                // A removed `$inspect(…)` leaves the SAME `;;` a top-level one
+                // does: upstream's `ExpressionStatement` visitor keeps the
+                // statement and replaces its expression with `b.empty`, at every
+                // nesting depth. `$effect*` / `$inspect.trace` print nothing.
+                if inspect_kind(&es.expression, self.rune_store_subs).is_some() {
+                    let start = es.span.start;
+                    kept.push(self.b.empty_kept(start));
+                    kept.push(self.b.empty_kept(start + 1));
+                }
+            }
+            stmts.extend(kept);
+        }
         oxc_ast_visit::walk_mut::walk_statements(self, stmts);
     }
 
