@@ -48,6 +48,7 @@ import {
 	PARAM_PATTERN_PREAMBLE,
 	PARAM_PATTERN_MARKUP_PREAMBLE,
 	DIRECTIVE_KINDS,
+	DIRECTIVE_MODIFIERS,
 	DIRECTIVE_HOSTS,
 	DIRECTIVE_MODES,
 	BIND_SETTER_SHAPES,
@@ -391,6 +392,21 @@ function directiveElementCases() {
 	return cases;
 }
 
+function directiveModifierCases() {
+	const cases = [];
+	for (const [modeName, preamble] of Object.entries(DIRECTIVE_MODES)) {
+		for (const [spellingName, directive] of Object.entries(DIRECTIVE_MODIFIERS)) {
+			for (const [hostName, markup] of Object.entries(DIRECTIVE_HOSTS)) {
+				cases.push({
+					id: `directive-modifier/${modeName}__${spellingName}__${hostName}.svelte`,
+					source: preamble.replaceAll('%s', markup.replaceAll('%s', directive)),
+				});
+			}
+		}
+	}
+	return cases;
+}
+
 function removedStatementCommentCases() {
 	const cases = [];
 	const indent = (text, pad) =>
@@ -616,6 +632,7 @@ export const FAMILIES = {
 	'keyword-regex': keywordRegexCases,
 	'param-pattern': paramPatternCases,
 	'directive-element': directiveElementCases,
+	'directive-modifier': directiveModifierCases,
 	'bind-setter': bindSetterShapeCases,
 	'removed-statement-comment': removedStatementCommentCases,
 	'private-field': privateFieldCases,

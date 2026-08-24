@@ -213,8 +213,38 @@ assert('parseEnvelope() is re-exported', typeof r.parseEnvelope === 'function');
 assert('decodeParseEnvelope() is re-exported', typeof r.decodeParseEnvelope === 'function');
 
 const parseSrc = '<script lang="ts">let x = 1;</script><h1>{x}</h1>';
-const parsedAst = JSON.parse(r.parse(parseSrc));
-assert('parse() returns a Root AST as JSON', parsedAst?.type === 'Root', parsedAst?.type);
+const parsedAst = JSON.parse(r.parse(parseSrc, { modern: true }));
+assert(
+	'parse({ modern: true }) returns a Root AST as JSON',
+	parsedAst?.type === 'Root',
+	parsedAst?.type,
+);
+
+// `modern` defaults to false in `svelte/compiler`, so the DEFAULT return is the
+// legacy AST — a different shape, not a different spelling of the same one.
+const legacyAst = JSON.parse(r.parse(parseSrc));
+assert(
+	'parse() defaults to the legacy AST, as svelte/compiler does',
+	legacyAst?.html?.type === 'Fragment' && legacyAst?.type === undefined,
+	JSON.stringify(Object.keys(legacyAst ?? {})),
+);
+
+// `loose` recovers from a parse error instead of throwing.
+assert(
+	'parse() without loose rejects an unclosed element',
+	(() => {
+		try {
+			r.parse('<div><b>x');
+			return false;
+		} catch {
+			return true;
+		}
+	})(),
+);
+assert(
+	'parse({ loose: true }) returns an AST for an unclosed element',
+	JSON.parse(r.parse('<div><b>x', { modern: true, loose: true }))?.type === 'Root',
+);
 
 const envBuf = r.parseEnvelope(parseSrc);
 assert('parseEnvelope() returns a Buffer', Buffer.isBuffer(envBuf));

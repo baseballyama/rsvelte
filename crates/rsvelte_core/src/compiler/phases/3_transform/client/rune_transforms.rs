@@ -73,6 +73,9 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     let derived_is_func_param = !derived_is_store_sub
         && memmem::find(line.as_bytes(), b"$derived").is_some()
         && is_function_parameter_in_statement(line, "$derived");
+    let inspect_is_func_param = !inspect_is_store_sub
+        && memmem::find(line.as_bytes(), b"$inspect").is_some()
+        && is_function_parameter_in_statement(line, "$inspect");
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {
