@@ -6,6 +6,8 @@
 //! spliced an injected `)` into the comment body (#907, #2253). Every such
 //! scanner steps over opaque runs with `skip_opaque` first.
 
+use crate::compiler::phases::phase1_parse::utils::TrimWs;
+
 /// Iterator over the *code* bytes of `bytes`: every byte that is not inside a
 /// string, template literal, regex literal or comment, as `(byte index, byte)`.
 ///
@@ -106,6 +108,32 @@ const KEYWORDS_BEFORE_REGEX: &[&[u8]] = &[
 
 pub(crate) fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$') || b >= 0x80
+}
+
+/// Byte offset just past the standalone keyword `kw` at the start of `s` and
+/// the JS whitespace separating it from whatever follows, or `None` when `s`
+/// does not begin with that keyword.
+///
+/// A literal `"export "` / `"class "` needle bakes in exactly one ASCII space,
+/// which the source is not obliged to honour (#3470); the separator between two
+/// JS tokens is any run of JS whitespace. The predicate must be
+/// JS whitespace and not Unicode `White_Space`, which excludes `U+FEFF`.
+pub(crate) fn after_keyword(s: &str, kw: &str) -> Option<usize> {
+    let rest = s.strip_prefix(kw)?;
+    if rest.starts_with(crate::compiler::utils::is_js_ident_continue) {
+        return None;
+    }
+    Some(s.len() - rest.trim_start_ws().len())
+}
+
+/// `after_keyword` for a keyword sequence: `["export", "let"]` matches
+/// `export let`, `export\tlet`, `export\u{feff}let`.
+pub(crate) fn after_keywords(s: &str, keywords: &[&str]) -> Option<usize> {
+    let mut at = 0;
+    for kw in keywords {
+        at += after_keyword(&s[at..], kw)?;
+    }
+    Some(at)
 }
 
 /// `slash_starts_regex`, but reading the preceding *token* rather than the
@@ -341,6 +369,51 @@ pub(crate) fn contains_identifier(source: &str, name: &str) -> bool {
 
 fn is_ident_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Byte ranges of every comment in `bytes`, ascending and disjoint.
+///
+/// A scanner walking BACKWARDS cannot classify a `*/` or a `//` on its own —
+/// the same bytes sit inside strings and regex literals — so the ranges come
+/// from one forward pass and the backwards walk consults them.
+pub(crate) fn comment_ranges(bytes: &[u8]) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if is_comment {
+                ranges.push((i, next));
+            } else {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    ranges
+}
+
+/// Walk left from `pos` over whitespace and comments, with `comments` from
+/// [`comment_ranges`] over the same `bytes`.
+pub(crate) fn skip_ws_and_comments_back(
+    bytes: &[u8],
+    comments: &[(usize, usize)],
+    mut pos: usize,
+) -> usize {
+    loop {
+        while pos > 0 && bytes[pos - 1].is_ascii_whitespace() {
+            pos -= 1;
+        }
+        match comments[..comments.partition_point(|(_, end)| *end <= pos)].last() {
+            Some(&(start, end)) if end == pos => pos = start,
+            _ => return pos,
+        }
+    }
 }
 
 /// The first occurrence of `needle` in `bytes` that is code — outside every

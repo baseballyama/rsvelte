@@ -9,7 +9,9 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_rune_code, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    find_code, find_rune_code, skip_opaque,
+};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Does the code preceding a removed call demand an operand — i.e. was the call
@@ -235,68 +237,75 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // emits the `/* $$async_hole:... */` async-mode marker or just
     // strips the call) is statement-shaped rather than expression-shaped
     // and is awkward to do at the AST level.
-    if !dev
-        && !inspect_is_store_sub
-        && let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(")
-    {
-        {
+    // The loop matters: a nested body can hold more than one, and a single
+    // pass left the second `$inspect(...)` verbatim in the output.
+    if !dev && !inspect_is_store_sub {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
             let inspect_start = pos + 9; // after "$inspect("
-            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
-                // Check for .with() chaining
-                let after_inspect = &result[inspect_start + content_end + 1..];
-                let total_end = if after_inspect.trim_start().starts_with(".with(") {
-                    let with_start_offset =
-                        memmem::find(after_inspect.as_bytes(), b".with(").unwrap();
-                    let with_content_start =
-                        inspect_start + content_end + 1 + with_start_offset + 6;
-                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
-                        with_content_start + with_end + 1 - pos
-                    } else {
-                        inspect_start + content_end + 1 - pos
-                    }
+            let Some(content_end) = find_matching_paren(&result[inspect_start..]) else {
+                break;
+            };
+            // Check for .with() chaining
+            let after_inspect = &result[inspect_start + content_end + 1..];
+            let total_end = if after_inspect.trim_start().starts_with(".with(") {
+                let with_start_offset = memmem::find(after_inspect.as_bytes(), b".with(").unwrap();
+                let with_content_start = inspect_start + content_end + 1 + with_start_offset + 6;
+                if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
+                    with_content_start + with_end + 1 - pos
                 } else {
                     inspect_start + content_end + 1 - pos
-                };
-
-                // Check if the $inspect call is a statement on its own
-                let before = result[..pos].trim();
-                let after = result[pos + total_end..].trim();
-
-                // If the line is just the $inspect call, output:
-                // - In async mode: a `/* $$async_hole:... */` marker that the async
-                //   body transform uses for position tracking
-                // - Otherwise: `;;` (two empty statements) matching the official compiler
-                if before.is_empty() && (after.is_empty() || after == ";") {
-                    let args = &result[inspect_start..inspect_start + content_end];
-                    // Use $$INSPECT_EMPTY$$ marker that survives wrap_state_vars_in_expr
-                    // and later transforms, then gets converted to ;; before OXC processing
-                    return Cow::Owned(format!("/* $$async_hole:{} */", args));
-                } else {
-                    let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
-                    let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
-                        // The trailing `;` of the removed call is one of the
-                        // `;;` upstream prints for the empty-as-expression.
-                        "/* $$inspect_removed$$ */;"
-                    } else if operand_expected_before(before) {
-                        // Upstream drops in an `EmptyStatement` wherever the call
-                        // was; in an operand slot that prints as a bare `;`, which
-                        // no parser accepts. Keep the slot filled with the value
-                        // `$inspect` evaluates to (see
-                        // `upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
-                        "undefined"
-                    } else {
-                        ""
-                    };
-                    // Remove just the $inspect(...) part but keep other code on the line
-                    result = Cow::Owned(format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        marker,
-                        &result[pos + total_end..]
-                    ));
                 }
+            } else {
+                inspect_start + content_end + 1 - pos
+            };
+
+            // Check if the $inspect call is a statement on its own
+            let before = result[..pos].trim();
+            let after = result[pos + total_end..].trim();
+
+            // If the line is just the $inspect call, output:
+            // - In async mode: a `/* $$async_hole:... */` marker that the async
+            //   body transform uses for position tracking
+            // - Otherwise: `;;` (two empty statements) matching the official compiler
+            if before.is_empty() && (after.is_empty() || after == ";") {
+                let args = &result[inspect_start..inspect_start + content_end];
+                // Use $$INSPECT_EMPTY$$ marker that survives wrap_state_vars_in_expr
+                // and later transforms, then gets converted to ;; before OXC processing
+                return Cow::Owned(format!("/* $$async_hole:{} */", args));
+            } else {
+                let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
+                let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
+                    // The trailing `;` of the removed call is one of the
+                    // `;;` upstream prints for the empty-as-expression.
+                    "/* $$inspect_removed$$ */;"
+                } else if after.starts_with(';')
+                    && matches!(before.as_bytes().last(), Some(b'{' | b'}' | b';'))
+                {
+                    // A NESTED statement-position call prints the same `;;` a
+                    // top-level one does: upstream keeps the
+                    // `ExpressionStatement` and replaces its expression with
+                    // `b.empty` at every depth. The call's own `;` is the
+                    // second one.
+                    ";"
+                } else if operand_expected_before(before) {
+                    // Upstream drops in an `EmptyStatement` wherever the call
+                    // was; in an operand slot that prints as a bare `;`, which
+                    // no parser accepts. Keep the slot filled with the value
+                    // `$inspect` evaluates to (see
+                    // `upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                    "undefined"
+                } else {
+                    ""
+                };
+                // Remove just the $inspect(...) part but keep other code on the line
+                result = Cow::Owned(format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    marker,
+                    &result[pos + total_end..]
+                ));
             }
         }
     }

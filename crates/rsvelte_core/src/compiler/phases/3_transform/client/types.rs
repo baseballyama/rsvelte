@@ -275,6 +275,12 @@ impl<'a> ComponentContext<'a> {
         let anchor_id_name = "$$anchor".to_string();
         let element_id = b::id(&element_id_name);
 
+        // Upstream's inner context carries `memoizer: new Memoizer()`, so a
+        // memoized `$0` an attribute produces is bound by THIS element's
+        // `$.template_effect` rather than by an enclosing one.
+        let child_memoizer = Memoizer::with_parent_conflicts(&self.state.memoizer);
+        let saved_memoizer = std::mem::replace(&mut self.state.memoizer, child_memoizer);
+
         // Store the current node and create inner state vectors
         let mut inner_init: Vec<JsStatement> = Vec::new();
         let mut inner_update: Vec<JsStatement> = Vec::new();
@@ -476,29 +482,24 @@ impl<'a> ComponentContext<'a> {
         let mut callback_body: Vec<JsStatement> = Vec::new();
         callback_body.extend(inner_init);
 
+        // Drained before the parent memoizer is restored: `inner_update` already
+        // references these parameters.
+        let memo_params = self.state.memoizer.get_params();
+        let memo_sync = self.state.memoizer.sync_values(&self.arena);
+        let memo_async = self.state.memoizer.async_values(&self.arena);
+        self.state.memoizer = saved_memoizer;
+
         // Add template_effect if there are update statements from attributes/directives
         if !inner_update.is_empty() {
-            // Use expression body form when there's exactly one expression statement
-            // (matches official compiler's `() => expr` vs `() => { stmts }`)
-            let callback = if inner_update.len() == 1 {
-                if let JsStatement::Expression(ref expr_stmt) = inner_update[0] {
-                    b::arrow(
-                        &self.arena,
-                        vec![],
-                        self.arena.get_expr(expr_stmt.expression).clone(),
-                    )
-                } else {
-                    b::arrow_block(vec![], inner_update)
-                }
-            } else {
-                b::arrow_block(vec![], inner_update)
-            };
             callback_body.push(b::stmt(
                 &self.arena,
-                b::call(
+                crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement_with_memoizer(
                     &self.arena,
-                    b::member_path(&self.arena, "$.template_effect"),
-                    vec![callback],
+                    inner_update,
+                    memo_params,
+                    memo_sync,
+                    memo_async,
+                    None,
                 ),
             ));
         }
@@ -1677,6 +1678,12 @@ pub struct ComponentClientTransformState<'a> {
     /// inside a sibling `{#if}`).
     pub transform_deep_read: ImHashMap<String, ()>,
 
+    /// Names a nested template construct (`{@const}`, a snippet parameter) binds
+    /// in the block being visited, shadowing an enclosing `{#each}`'s item or
+    /// index of the same name. The reactivity probe and the index-usage tracker
+    /// both key on the name alone, so the shadow has to be spelled out for them.
+    pub each_shadowing_names: ImHashMap<String, ()>,
+
     /// Delegated events (insertion-ordered to match official compiler's `Set<string>`)
     pub events: indexmap::IndexSet<String>,
 
@@ -2022,6 +2029,7 @@ impl<'a> ComponentClientTransformState<'a> {
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
             transform_deep_read: ImHashMap::new(),
+            each_shadowing_names: ImHashMap::new(),
             events: indexmap::IndexSet::default(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
@@ -2851,6 +2859,8 @@ impl Memoizer {
         // success.
         {
             let mut conflicts = self.conflicts.borrow_mut();
+            // `Scope.unique` rejects a reserved word here too, so `<var>` takes
+            // the suffix path and becomes `var_1` rather than `var var = …`.
             if !conflicts.contains(sanitized) && !is_reserved(sanitized) {
                 conflicts.insert(sanitized.to_string());
                 return sanitized.to_string();

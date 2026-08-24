@@ -4604,19 +4604,35 @@ fn mark_group_bindings_in_node(
                                 .entry(*start)
                                 .or_insert_with(|| group_name.clone());
                         }
+
+                        // Upstream keeps the name on the directive itself. An
+                        // each block holds only one, so two directives under it
+                        // that resolved to different groups need their own.
+                        if let Some(expr_start) = bind_node.start() {
+                            analysis.binding_group_names.insert(expr_start, group_name);
+                        }
                     }
 
                     // If no ancestor EachBlock declared any of the binding expression identifiers,
                     // this is a "standalone" bind:group (like bind:group={current} or bind:group={$order.scoops}).
                     // Register it in analysis.binding_groups using the keypath as key.
-                    if !any_each_block_matched && !analysis.binding_groups.contains_key(&keypath) {
-                        let group_count = analysis.binding_groups.len();
-                        let group_name = if group_count == 0 {
-                            "binding_group".to_string()
-                        } else {
-                            format!("binding_group_{}", group_count)
-                        };
-                        analysis.binding_groups.insert(keypath, group_name);
+                    if !any_each_block_matched {
+                        let group_name =
+                            if let Some(existing) = analysis.binding_groups.get(&keypath) {
+                                existing.clone()
+                            } else {
+                                let group_count = analysis.binding_groups.len();
+                                let name = if group_count == 0 {
+                                    "binding_group".to_string()
+                                } else {
+                                    format!("binding_group_{}", group_count)
+                                };
+                                analysis.binding_groups.insert(keypath, name.clone());
+                                name
+                            };
+                        if let Some(expr_start) = bind_node.start() {
+                            analysis.binding_group_names.insert(expr_start, group_name);
+                        }
                     }
                 }
             }

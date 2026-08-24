@@ -1221,21 +1221,71 @@ fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-/// Words the fast path may spell but strict mode does not allow as an
-/// identifier, plus the two whose legality depends on how they are used.
-const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
-    "let",
-    "yield",
-    "static",
-    "implements",
-    "interface",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "eval",
-    "arguments",
-];
+/// Every word the fast path would spell as an ordinary identifier and the real
+/// parser would not: the reserved words, the strict-mode ones, and the two
+/// (`eval`, `arguments`) whose legality depends on how they are used.
+///
+/// The set has to be the closed one rather than the shapes anybody has hit.
+/// `import` and `new` head a construct whose node type the fast path cannot
+/// produce (`MetaProperty`, `ImportExpression`), and spelling `import.meta.url`
+/// as a member chain makes its leftmost object an unbound global — which every
+/// `is_pure` port then reads as static; `this` is the same shape one node type
+/// over (`ThisExpression`); and every remaining keyword is a program the real
+/// parser rejects and the fast path silently accepts.
+///
+/// `true` / `false` / `null` are absent on purpose: the fast path builds them as
+/// literals, which is what they are.
+#[inline]
+fn is_fast_path_suspect_word(word: &[u8]) -> bool {
+    matches!(
+        word,
+        b"await"
+            | b"break"
+            | b"case"
+            | b"catch"
+            | b"class"
+            | b"const"
+            | b"continue"
+            | b"debugger"
+            | b"default"
+            | b"delete"
+            | b"do"
+            | b"else"
+            | b"enum"
+            | b"export"
+            | b"extends"
+            | b"finally"
+            | b"for"
+            | b"function"
+            | b"if"
+            | b"import"
+            | b"in"
+            | b"instanceof"
+            | b"new"
+            | b"return"
+            | b"super"
+            | b"switch"
+            | b"this"
+            | b"throw"
+            | b"try"
+            | b"typeof"
+            | b"var"
+            | b"void"
+            | b"while"
+            | b"with"
+            | b"yield"
+            | b"let"
+            | b"static"
+            | b"implements"
+            | b"interface"
+            | b"package"
+            | b"private"
+            | b"protected"
+            | b"public"
+            | b"eval"
+            | b"arguments"
+    )
+}
 
 /// Whether `bytes` could hold something the fast path would accept and acorn
 /// would not — a legacy octal literal, an escape inside a string literal, or one
@@ -1243,6 +1293,10 @@ const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
 /// only costs a real parse.
 fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
     let mut i = 0;
+    // A word after `.` is a PROPERTY name, where every reserved word is legal —
+    // and `props.class` is ordinary Svelte, so exempting it is what keeps the
+    // widened list off the common path.
+    let mut after_dot = false;
     while i < bytes.len() {
         let b = bytes[i];
         if b == b'\\' {
@@ -1254,11 +1308,10 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
                 i += 1;
             }
             let word = &bytes[start..i];
-            // A member/property name is not a binding, but the fast path does
-            // not distinguish them and a real parse is cheap enough.
-            if FAST_PATH_SUSPECT_WORDS.iter().any(|w| w.as_bytes() == word) {
+            if !after_dot && is_fast_path_suspect_word(word) {
                 return true;
             }
+            after_dot = false;
             continue;
         }
         if b.is_ascii_digit() {
@@ -1269,7 +1322,11 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
             if bytes[start] == b'0' && bytes.get(start + 1).is_some_and(u8::is_ascii_digit) {
                 return true;
             }
+            after_dot = false;
             continue;
+        }
+        if !b.is_ascii_whitespace() {
+            after_dot = b == b'.';
         }
         i += 1;
     }
@@ -1531,6 +1588,20 @@ pub fn parse_expression<'a>(
     ))
 }
 
+/// Wrap a source slice for OXC, keeping the suffix off the slice's last line —
+/// a trailing `//` comment would otherwise swallow it.
+///
+/// The newline sits between `content` and `suffix`, so every offset inside
+/// `content` keeps its position and an arrow's `)` stays adjacent to its `=>`.
+fn wrap_for_parse(prefix: &str, content: &str, suffix: &str) -> String {
+    let mut wrapped = String::with_capacity(prefix.len() + content.len() + suffix.len() + 1);
+    wrapped.push_str(prefix);
+    wrapped.push_str(content);
+    wrapped.push('\n');
+    wrapped.push_str(suffix);
+    wrapped
+}
+
 /// Parse a destructuring pattern (for `{@const}` tags).
 ///
 /// Destructuring patterns like `{x = 1, y}` or `[a, b, ...rest]` cannot be parsed
@@ -1559,10 +1630,7 @@ pub fn parse_destructuring_pattern<'a>(
                 SourceType::mjs()
             };
 
-            let mut wrapped = String::with_capacity(content.len() + 12);
-            wrapped.push_str("let ");
-            wrapped.push_str(content);
-            wrapped.push_str(" = null");
+            let wrapped = wrap_for_parse("let ", content, "= null");
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
 
@@ -1690,11 +1758,22 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                     first_error.message.as_ref(),
                     "Cannot assign to this expression" | "Invalid left-hand side in assignment"
                 );
+                // The default reads the label's END because acorn reports where
+                // it stopped consuming — true when the label is what it consumed,
+                // false when the label IS the offending token, which acorn then
+                // reports at its start. `Expected X but found Y` labels the found
+                // token, so it belongs to the second group too.
+                let report_at_label_start = at_label_start
+                    || matches!(
+                        first_error.message.as_ref(),
+                        "Unexpected token" | "Unexpected new.target expression"
+                    )
+                    || first_error.message.starts_with("Expected ");
                 let pos = first_error
                     .labels
                     .first()
                     .map(|label| {
-                        if at_label_start {
+                        if report_at_label_start {
                             label.offset() as usize
                         } else {
                             label.offset() as usize + label.len() as usize
@@ -1779,10 +1858,7 @@ fn is_code_empty(content: &str) -> bool {
 ///
 /// Returns `Some((message, pos_in_params))` when parsing fails.
 pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize)> {
-    let mut wrapped = String::with_capacity(params.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(params);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", params, ") => {}");
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
@@ -1978,12 +2054,7 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 3);
-        wrapped.push('(');
-        wrapped.push_str(content);
-        // Keep the synthetic closer outside a trailing line comment.
-        wrapped.push('\n');
-        wrapped.push(')');
+        let wrapped = wrap_for_parse("(", content, ")");
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
@@ -2427,10 +2498,7 @@ pub fn parse_typescript_params<'a>(
     let source_type = SourceType::ts();
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
-    let mut wrapped = String::with_capacity(content.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", content, ") => {}");
     let mut params = Vec::new();
 
     enum ParseOutcome<'a> {
@@ -2480,10 +2548,7 @@ pub fn parse_typescript_params<'a>(
 
     // OXC TS parser failed - try stripping optional markers and re-parsing
     let stripped = strip_optional_markers(content);
-    let mut cleaned_wrapped = String::with_capacity(stripped.content.len() + 9);
-    cleaned_wrapped.push('(');
-    cleaned_wrapped.push_str(&stripped.content);
-    cleaned_wrapped.push_str(") => {}");
+    let cleaned_wrapped = wrap_for_parse("(", &stripped.content, ") => {}");
 
     let cleaned_ok = with_oxc_allocator(|allocator| {
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
@@ -2534,10 +2599,7 @@ pub fn parse_typescript_params<'a>(
                 .map(|p| search_from + p)
                 .unwrap_or(search_from);
             search_from = part_offset_in_content + part.len();
-            let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
-            single_wrapped.push('(');
-            single_wrapped.push_str(&stripped_part.content);
-            single_wrapped.push_str(") => {}");
+            let single_wrapped = wrap_for_parse("(", &stripped_part.content, ") => {}");
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();

@@ -202,6 +202,11 @@ impl<'a> Parser<'a> {
         let mut quote: Option<u8> = None;
         let mut in_url = false;
         let mut escaped = false;
+        // Upstream tests `</style` only between rules, so a `<` inside a block or
+        // a parenthesised value is CSS text: `.a { color: red; </style> }` is a
+        // `css_empty_declaration` and `calc(</style>)` a declaration value.
+        let mut brace_depth = 0usize;
+        let mut paren_depth = 0usize;
         let mut i = self.index;
 
         if !tokenise {
@@ -231,12 +236,22 @@ impl<'a> Parser<'a> {
                 quote = None;
             } else if ch == b')' {
                 in_url = false;
+                if quote.is_none() {
+                    paren_depth = paren_depth.saturating_sub(1);
+                }
             } else if quote.is_none() && (ch == b'"' || ch == b'\'') {
                 quote = Some(ch);
             } else if ch == b'(' && i >= content_start + 3 && &bytes[i - 3..i] == b"url" {
                 in_url = true;
+                paren_depth += 1;
             } else if quote.is_none() && !in_url {
-                if ch == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                if ch == b'(' {
+                    paren_depth += 1;
+                } else if ch == b'{' {
+                    brace_depth += 1;
+                } else if ch == b'}' {
+                    brace_depth = brace_depth.saturating_sub(1);
+                } else if ch == b'/' && bytes.get(i + 1) == Some(&b'*') {
                     // An unterminated comment keeps the old behaviour: fall
                     // through so the CSS parse reports it.
                     if let Some(off) = memchr::memmem::find(&bytes[i + 2..], b"*/") {
@@ -250,12 +265,14 @@ impl<'a> Parser<'a> {
                         i += 4 + off + 3;
                         continue;
                     }
-                    self.index = i;
-                    if self.is_valid_closing_tag("</style") {
-                        return (first_invalid_lt, false);
-                    }
-                    if first_invalid_lt.is_none() {
-                        first_invalid_lt = Some(i);
+                    if brace_depth == 0 && paren_depth == 0 {
+                        self.index = i;
+                        if self.is_valid_closing_tag("</style") {
+                            return (first_invalid_lt, false);
+                        }
+                        if first_invalid_lt.is_none() {
+                            first_invalid_lt = Some(i);
+                        }
                     }
                 }
             }

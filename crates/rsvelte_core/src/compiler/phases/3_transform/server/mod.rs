@@ -147,6 +147,15 @@ pub fn transform_server_module(
     )
     .unwrap_or(source_without_effects);
 
+    // The client module transform below runs with `dev: false`, so it would
+    // DROP a `$inspect(…)` the server is supposed to lower. Do the lowering
+    // first; what it leaves behind holds no code-position `$inspect(`.
+    let source_without_effects = if _options.dev {
+        lower_module_dev_inspect(&source_without_effects)
+    } else {
+        source_without_effects
+    };
+
     // Transform rune calls using the same infrastructure as client modules.
     let transformed = super::client::transform_module_source_for_module(
         &source_without_effects,
@@ -407,6 +416,49 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
         out.push_str(indent);
     }
     out
+}
+
+/// Dev lowering for a module's `$inspect(...)`, matching the server
+/// `CallExpression` visitor at every expression depth.
+fn lower_module_dev_inspect(source: &str) -> String {
+    use super::client::find_matching_paren;
+    use super::shared::js_scan::find_code;
+
+    let mut result = source.to_string();
+    while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+        let args_start = pos + b"$inspect(".len();
+        let Some(args_len) = find_matching_paren(&result[args_start..]) else {
+            break;
+        };
+        let args = result[args_start..args_start + args_len].to_string();
+        let after_call = args_start + args_len + 1;
+        let (end, replacement) = if result[after_call..].trim_start().starts_with(".with(") {
+            let with_offset = memmem::find(&result.as_bytes()[after_call..], b".with(").unwrap();
+            let fn_start = after_call + with_offset + b".with(".len();
+            let Some(fn_len) = find_matching_paren(&result[fn_start..]) else {
+                break;
+            };
+            let inspector = &result[fn_start..fn_start + fn_len];
+            let tail = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!(", {args}")
+            };
+            (
+                fn_start + fn_len + 1,
+                format!("({inspector})('init'{tail})"),
+            )
+        } else {
+            let head = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{args}, ")
+            };
+            (after_call, format!("console.log('$inspect(', {head}')')"))
+        };
+        result = format!("{}{}{}", &result[..pos], replacement, &result[end..]);
+    }
+    result
 }
 
 /// Strip $effect and $effect.root blocks from source code.
@@ -836,6 +888,8 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
     let mut names: FxHashSet<String> = FxHashSet::default();
     let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal(", b"$.async_derived("];
     let bytes = source.as_bytes();
+    let comments =
+        crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(bytes);
     for pat in patterns {
         let finder = memmem::Finder::new(*pat);
         for pos in finder.find_iter(bytes) {
@@ -845,9 +899,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // `$.tag`, but be permissive in case future builds do.
             let mut left = pos;
             if *pat == b"$.async_derived(" {
-                while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                    left -= 1;
-                }
+                left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
                 if left >= 5 && &bytes[left - 5..left] == b"await" {
                     left -= 5;
                 }
@@ -859,16 +911,12 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
                 left -= TAG.len();
             }
             // Skip whitespace + `=`.
-            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                left -= 1;
-            }
+            left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
             if left == 0 || bytes[left - 1] != b'=' {
                 continue;
             }
             left -= 1;
-            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                left -= 1;
-            }
+            left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
             // Read identifier backwards.
             let id_end = left;
             while left > 0 {
@@ -886,9 +934,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // whitespace separator). Otherwise this is a reassignment or
             // a class field, which we don't track here.
             let mut kw_end = left;
-            while kw_end > 0 && bytes[kw_end - 1].is_ascii_whitespace() {
-                kw_end -= 1;
-            }
+            kw_end = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, kw_end);
             let keyword_decl = (kw_end >= 3
                 && (&bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var"))
                 || (kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const");

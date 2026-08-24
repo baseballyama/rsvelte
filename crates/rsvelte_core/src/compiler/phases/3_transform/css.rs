@@ -5221,11 +5221,9 @@ fn is_attribute_selector_unused_parsed(
                     } else {
                         return false;
                     }
-                } else if let Some(ref expected) = expected_value
-                    && test_attribute_value(operator, expected, "", case_insensitive)
-                {
-                    return false;
                 }
+                // Upstream: `if (attribute.value === true) return operator === null`
+                // — a valueless attribute is `true`, not `""`, so no operator matches it.
             }
         }
     }
@@ -5322,12 +5320,9 @@ fn is_attribute_selector_unused(raw: &str, ctx: &CssContext) -> bool {
                         // No expected value but has operator - shouldn't happen, be safe
                         return false;
                     }
-                } else if let Some(ref expected) = expected_value {
-                    // Boolean attribute (no value) - with operator, treat value as ""
-                    if test_attribute_value(&operator, expected, "", case_insensitive) {
-                        return false;
-                    }
                 }
+                // Upstream: `if (attribute.value === true) return operator === null`
+                // — a valueless attribute is `true`, not `""`, so no operator matches it.
             }
         }
     }
@@ -5397,7 +5392,8 @@ fn test_attribute_value(
 
     match operator {
         "=" => actual == expected,
-        "~=" => actual.split_whitespace().any(|w| w == expected),
+        // JS `"".split(/\s/)` is `[""]`, so `[a~=""]` matches an empty value.
+        "~=" => actual.split(char::is_whitespace).any(|w| w == expected),
         "|=" => actual == expected || actual.starts_with(&format!("{}-", expected)),
         "^=" => actual.starts_with(&expected),
         "$=" => actual.ends_with(&expected),

@@ -1888,6 +1888,65 @@ export const WRITE_PREAMBLE = `<script>
 `;
 
 /**
+ * Axis T1 — the element's TAG NAME, against the JS reserved-word list.
+ *
+ * A tag name becomes a generated variable name, and `Scope.unique`
+ * (`phases/scope.js:728-734`) refuses a reserved word for one. rsvelte's
+ * `Memoizer::generate_id` had the three membership tests and not that fourth
+ * one, so `<var>x</var>` emitted `var var = root();` — output no JS parser
+ * accepts, from a `compile()` that returned successfully (#3582).
+ *
+ * The list is upstream's `is_reserved` verbatim. Two of these are standard
+ * elements that appear in real documents (HTML's `<var>`, SVG's `<switch>`);
+ * the rest are unknown elements, which Svelte compiles happily — being
+ * unknown is not what makes the output invalid, being a reserved word is.
+ *
+ * The controls matter as much as the rows. `async`, `of`, `get` and `set` LOOK
+ * like keywords and are not reserved, so they must keep the bare name; `div`
+ * and `template` are ordinary tags; and `my-tag` reaches the sanitizer instead
+ * of the fast path, which is the second allocator the same omission sat in.
+ */
+export const RESERVED_TAG_NAMES = [
+	'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+	'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
+	'extends', 'false', 'finally', 'for', 'function', 'if', 'implements',
+	'import', 'in', 'instanceof', 'interface', 'let', 'new', 'null', 'package',
+	'private', 'protected', 'public', 'return', 'static', 'super', 'switch',
+	'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with',
+	'yield',
+];
+
+/** The near-miss and ordinary names that must keep the bare identifier. */
+export const UNRESERVED_TAG_NAMES = ['async', 'of', 'get', 'set', 'div', 'template', 'my-tag'];
+
+/**
+ * Axis T2 — where the element sits, because each host reaches the name
+ * allocator by a different route. `%t` is the tag name.
+ *
+ * `svelte-element` is the row that was already correct — its variable is named
+ * from a different path — so it separates "the tag name is not sanitized" from
+ * "any element with this name breaks".
+ */
+export const TAG_NAME_HOSTS = {
+	plain: '<%t>x</%t>',
+	expression: '<%t>{v}</%t>',
+	nested: '<%t><b>{v}</b></%t>',
+	'bind-this': '<%t bind:this={el}>x</%t>',
+	siblings: '<%t>x</%t>\n<%t>y</%t>',
+	attribute: '<%t title={v}>x</%t>',
+	each: '{#each [1, 2] as i}\n\t<%t>{i}</%t>\n{/each}',
+	'svelte-element': '<svelte:element this="%t">{v}</svelte:element>',
+};
+
+export const TAG_NAME_PREAMBLE = `<script>
+	let v = $state(1);
+	let el;
+</script>
+
+%m
+`;
+
+/**
  * Axis family — an async attribute VALUE × the attribute SLOT it sits in × the
  * ELEMENT hosting the slot. Its subject is which lowering a value reaches, not
  * what the value is.

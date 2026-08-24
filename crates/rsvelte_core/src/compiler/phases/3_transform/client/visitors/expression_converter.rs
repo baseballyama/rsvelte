@@ -1333,12 +1333,12 @@ fn convert_property_key_from_node(
         JsNode::Identifier { name, .. } => JsPropertyKey::Identifier(name.to_string().into()),
         JsNode::Literal { value, raw, .. } => {
             let lit = match value {
-                LiteralValue::String(s) => {
-                    if raw.starts_with('"') {
-                        return JsPropertyKey::Literal(JsLiteral::String(s.to_string().into()));
-                    }
-                    JsLiteral::String(s.to_string().into())
-                }
+                // esrap prints a literal from its `raw`, so the key's quote
+                // spelling is part of the output; `JsLiteral::String` carries none.
+                LiteralValue::String(s) => JsLiteral::RawString {
+                    value: s.to_string().into(),
+                    raw: raw.clone(),
+                },
                 LiteralValue::Number(n) => JsLiteral::Number(*n),
                 LiteralValue::BigInt(d) => JsLiteral::BigInt(if raw.is_empty() {
                     format!("{d}n").into()
@@ -5160,12 +5160,13 @@ fn is_known_primitive_json(value: Option<&Value>) -> bool {
                     args.iter()
                         .all(|a| a.get("type").and_then(|t| t.as_str()) != Some("SpreadElement"))
                 });
-            no_spread
-                && value
-                    .get("callee")
-                    .and_then(super::shared::utils::json_keypath)
-                    .as_deref()
-                    .is_some_and(super::shared::utils::is_known_defined_global_call)
+            value
+                .get("callee")
+                .and_then(super::shared::utils::json_keypath)
+                .as_deref()
+                .is_some_and(|keypath| {
+                    super::shared::utils::is_known_defined_global_call(keypath, !no_spread)
+                })
         }
         "MemberExpression" => super::shared::utils::json_keypath(value)
             .as_deref()
@@ -5219,12 +5220,15 @@ fn is_known_primitive_jsnode(node: &JsNode, pa: &ParseArena) -> bool {
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            pa.get_js_children(*arguments)
+            let has_spread = pa
+                .get_js_children(*arguments)
                 .iter()
-                .all(|a| !matches!(a, JsNode::SpreadElement { .. }))
-                && jsnode_keypath(pa.get_js_node(*callee), pa)
-                    .as_deref()
-                    .is_some_and(super::shared::utils::is_known_defined_global_call)
+                .any(|a| matches!(a, JsNode::SpreadElement { .. }));
+            jsnode_keypath(pa.get_js_node(*callee), pa)
+                .as_deref()
+                .is_some_and(|keypath| {
+                    super::shared::utils::is_known_defined_global_call(keypath, has_spread)
+                })
         }
         JsNode::MemberExpression { .. } => jsnode_keypath(node, pa)
             .as_deref()

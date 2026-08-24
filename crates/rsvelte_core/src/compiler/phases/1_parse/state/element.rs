@@ -1254,6 +1254,18 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a single attribute.
+    /// The `}` that closes a `{…}` attribute opened at `open`, found with the
+    /// lexically-aware scan rather than a bare depth counter. Falls back to the
+    /// end of input so an unterminated attribute keeps reporting as before.
+    fn find_attribute_close(&self, open: usize) -> usize {
+        crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            self.source,
+            open + 1,
+            '{',
+        )
+        .unwrap_or(self.bytes.len())
+    }
+
     pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Capture JS-style comments (// and /* */) before attribute parsing
         // and record them in `root.comments`. Corresponds to `read_comment()`
@@ -1278,24 +1290,9 @@ impl<'a> Parser<'a> {
             // Check for spread attribute {...expr}
             if self.eat_optional("...") {
                 let expr_start = self.index;
-                let mut depth: u32 = 1;
-                // Fast byte-level brace scanning
-                while self.index < self.bytes.len() && depth > 0 {
-                    match self.bytes[self.index] {
-                        b'{' => {
-                            depth += 1;
-                            self.index += 1;
-                        }
-                        b'}' => {
-                            depth -= 1;
-                            if depth > 0 {
-                                self.index += 1;
-                            }
-                        }
-                        b if b < 0x80 => self.index += 1,
-                        _ => self.advance(),
-                    }
-                }
+                // A depth counter alone reads a `}` inside a string, a regex, a
+                // template literal or a comment as the attribute's own.
+                self.index = self.find_attribute_close(start);
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 let expression =
@@ -1311,24 +1308,7 @@ impl<'a> Parser<'a> {
 
             // Expression shorthand {expr} or empty {} in loose mode
             let expr_start = self.index;
-            let mut depth: u32 = 1;
-            // Fast byte-level brace scanning
-            while self.index < self.bytes.len() && depth > 0 {
-                match self.bytes[self.index] {
-                    b'{' => {
-                        depth += 1;
-                        self.index += 1;
-                    }
-                    b'}' => {
-                        depth -= 1;
-                        if depth > 0 {
-                            self.index += 1;
-                        }
-                    }
-                    b if b < 0x80 => self.index += 1,
-                    _ => self.advance(),
-                }
-            }
+            self.index = self.find_attribute_close(start);
             let expr_end = self.index;
             let expr_content = &self.source[expr_start..expr_end];
             self.advance(); // consume '}'

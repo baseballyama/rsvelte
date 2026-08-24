@@ -403,8 +403,9 @@ string-literal escape × template expression slot, `await`/`yield` in a formal p
 × function form × entry point, `{#each}` collection expression × item use, the token a `/`
 follows × host, a name's slot in a binding pattern × statement context, directive kind ×
 element kind × mode, `bind:` setter shape × element kind, a raw-scanned keyword × the opaque
-region carrying it × host × entry point, and a reactive binding × the host the write to it sits
-in × the shape of that write — expanded into ~20,000 comparisons
+region carrying it × host × entry point, a reactive binding × the host the write to it sits
+in × the shape of that write, and the JS whitespace separating two keywords × the construct they
+open × entry point — expanded into ~20,000 comparisons
 in well under a minute of CPU, needing
 only `submodules/svelte` plus the NAPI binding, so it gates every PR.
 

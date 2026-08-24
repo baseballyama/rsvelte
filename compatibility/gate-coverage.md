@@ -1253,6 +1253,34 @@ hardcoded `has_await: false`) clears 28; the remaining 282 are three named cause
 last-evaluated expression is not pickled through `$.save`, and `<svelte:element class:x={f()}>`
 emits an unbound `$0` **with no `await` anywhere in the input**. That last one is the host axis
 paying for itself, the way `write-host`'s did. **[D]**
+### Blind spot 5s — CLOSED: no family varied the TAG NAME, so a generated identifier could be a keyword
+
+Every family before this one fixed the element (`<button>`, `<div>`, `<b>`) and varied what was
+*inside* it. A tag name is not decoration: it becomes a generated variable name, and
+`Scope.unique` (`phases/scope.js:728-734`) refuses a reserved word for one — a fourth membership
+test rsvelte's `Memoizer::generate_id` did not have.
+
+**[D]** #3582: `<var>x</var>` — no runes, no expression, a standard HTML element — emitted
+`var var = root();`, which no JS parser accepts, from a `compile()` that returned successfully.
+SVG's `<switch>` is the second standard element in the list; the other 46 names are unknown
+elements, which Svelte compiles happily, so being unknown is not what breaks it. Neither the
+corpus (`<var>` is absent from the 12,523 collected components) nor the parse oracle
+(which only runs on inputs someone supplied) could see it: the population had to be generated.
+
+Family `tag-name` (`generate.mjs`, 48 reserved names + 7 controls × 8 hosts, 440 cases / 1,760
+comparisons) declares the name and the host independently. The tree before the fix diverges on
+**576** comparisons, **all 576 of them `output-unparseable`**; the tree after, on 0. Its
+controls carry the two directions a name-only fix would get wrong: `async` / `of` / `get` /
+`set` look like keywords and are not reserved, so they must keep the bare identifier, and
+`my-tag` reaches `generate_id_slow`'s sanitizer instead of the fast path — the second allocator
+the same omission sat in. The `svelte-element` host was already correct (its variable is named
+from a different path), which is what separates "the tag name is not sanitized" from "any
+element with this name breaks".
+
+What it does not vary: the element's *content* is one of eight fixed shapes, so a name
+interacting with a directive kind, a `{#snippet}` or a component slot is unreached; and the
+axis is the reserved-word list alone — a tag name that is merely not a valid identifier
+(`my-tag`) is one control row rather than an axis. **[S]**
 
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the

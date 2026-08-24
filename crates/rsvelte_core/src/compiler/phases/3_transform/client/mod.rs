@@ -96,7 +96,8 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    find_rune_code, is_ident_byte, skip_opaque,
+    after_keyword, after_keywords, contains_identifier, find_code, find_rune_code, is_ident_byte,
+    skip_opaque,
 };
 use compact_str::CompactString;
 use memchr::memmem;
@@ -343,7 +344,7 @@ pub fn transform_client_module(
     let has_effect_rune =
         class_transformed.contains("$effect") || class_transformed.contains("$inspect");
     let transformed =
-        transform_module_script_runes(&class_transformed, source, analysis, options.dev);
+        transform_module_script_runes(&class_transformed, source, analysis, options.dev, true);
 
     // Upstream `client_module` concatenates the generated `$` import with the
     // module body untouched, so an `import` keeps its place among the other
@@ -366,6 +367,27 @@ pub fn transform_client_module(
 /// `server_module` do: a builder-made `Program` with no `loc`, which parks
 /// esrap's comment cursor past the end so only comments inside a located nested
 /// body survive.
+/// Stands in for upstream's `b.empty` while a module's text is still parsed as
+/// JavaScript: `const t = ;;` is what upstream prints and what no parser reads.
+pub(crate) const MODULE_INSPECT_HOLE: &str = "$$inspect_empty";
+
+/// Expand [`MODULE_INSPECT_HOLE`] back to the `;` esrap prints for `b.empty`.
+/// Code positions only — a module may hold the same text in a string literal.
+fn expand_module_inspect_holes(code: String) -> String {
+    if memmem::find(code.as_bytes(), MODULE_INSPECT_HOLE.as_bytes()).is_none() {
+        return code;
+    }
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code.as_str();
+    while let Some(pos) = find_code(rest.as_bytes(), MODULE_INSPECT_HOLE.as_bytes()) {
+        out.push_str(&rest[..pos]);
+        out.push(';');
+        rest = &rest[pos + MODULE_INSPECT_HOLE.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
 pub(crate) fn print_module_program(
     body: Vec<JsStatement>,
     header: &str,
@@ -399,10 +421,15 @@ pub(crate) fn print_module_program(
             }
         })
     {
-        return Ok(format!("{header}\n{}", rehome_derived_jsdoc(&code)));
+        return Ok(expand_module_inspect_holes(format!(
+            "{header}\n{}",
+            rehome_derived_jsdoc(&code)
+        )));
     }
     generate(&program, &arena)
-        .map(|code| format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        .map(|code| {
+            expand_module_inspect_holes(format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        })
         .map_err(TransformError::CodeGen)
 }
 
@@ -438,7 +465,14 @@ pub(crate) fn transform_module_source_for_module(
     server: bool,
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
-    transform_module_script_runes_with_target(&class_transformed, source, analysis, dev, server)
+    transform_module_script_runes_with_target(
+        &class_transformed,
+        source,
+        analysis,
+        dev,
+        server,
+        true,
+    )
 }
 
 /// Transform a component analysis into client-side JavaScript.
@@ -1723,8 +1757,32 @@ pub(crate) fn transform_client(
                     // In runes mode with an initial value, turn `set foo($$value)`
                     // into `set foo($$value = <initial>)`.
                     // Reference: transform-client.js lines 315-323
-                    if analysis.runes && binding.initial.is_some() {
-                        let initial = binding.initial.clone().unwrap();
+                    if analysis.runes
+                        && binding.initial.is_some()
+                        && let Some(initial) = binding
+                            .initial_span
+                            .and_then(|(s, e)| source.get(s as usize..e as usize))
+                            // The slice is raw source, so a type argument or an
+                            // annotation NESTED in the default is still in it —
+                            // upstream prints a node the TS erasure already
+                            // walked.
+                            .map(|text| {
+                                super::server::helpers::strip_ts_from_derived_inner(
+                                    text,
+                                    analysis.is_typescript,
+                                )
+                            })
+                            .or_else(|| {
+                                // `initial` is the literal's raw text only for the
+                                // shapes `extract_literal_string_typed` handles;
+                                // for the rest it is a JSON dump of the node, so
+                                // it can stand in only when a span is missing AND
+                                // the node was a literal.
+                                (binding.initial_node_type.as_deref() == Some("Literal"))
+                                    .then(|| binding.initial.clone())
+                                    .flatten()
+                            })
+                    {
                         exports_members.push(b::setter_with_default(
                             &context.arena,
                             alias,
@@ -2174,8 +2232,13 @@ pub(crate) fn transform_client(
         let class_transformed = transform_module_class_fields_client(&non_imports);
         let has_effect_rune =
             class_transformed.contains("$effect") || class_transformed.contains("$inspect");
-        let transformed =
-            transform_module_script_runes(&class_transformed, &non_imports, analysis, options.dev);
+        let transformed = transform_module_script_runes(
+            &class_transformed,
+            &non_imports,
+            analysis,
+            options.dev,
+            false,
+        );
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
@@ -4591,8 +4654,16 @@ pub(crate) fn transform_module_script_runes(
     pre_class_script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
+    module_entry: bool,
 ) -> String {
-    transform_module_script_runes_with_target(script, pre_class_script, analysis, dev, false)
+    transform_module_script_runes_with_target(
+        script,
+        pre_class_script,
+        analysis,
+        dev,
+        false,
+        module_entry,
+    )
 }
 
 /// `pre_class_script` is the script before the class-field lowering — the dev
@@ -4603,6 +4674,9 @@ fn transform_module_script_runes_with_target(
     analysis: &ComponentAnalysis,
     dev: bool,
     server: bool,
+    // `compileModule` only: a component's `<script module>` is printed by the
+    // component pipeline, whose text survives to the output as written.
+    module_entry: bool,
 ) -> String {
     let mut result = script.to_string();
 
@@ -4706,7 +4780,16 @@ fn transform_module_script_runes_with_target(
                 while end < result.len() && result.as_bytes()[end] == b';' {
                     end += 1;
                 }
-                result = format!("{};;{}", &result[..pos], &result[end..]);
+                result = if module_entry {
+                    // `compileModule` re-parses this text before printing and a
+                    // re-parse drops an `EmptyStatement`, so there the hole
+                    // travels as a sentinel esrap prints as a statement. Its
+                    // `;` is for the next iteration's position test, which
+                    // reads an identifier as an operand slot.
+                    format!("{}{MODULE_INSPECT_HOLE};{}", &result[..pos], &result[end..])
+                } else {
+                    format!("{};;{}", &result[..pos], &result[end..])
+                };
             } else {
                 break;
             }
@@ -5165,12 +5248,21 @@ fn transform_module_script_runes_with_target(
     // the dev-only collectors exactly as the sequential call sites did.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        // `compileModule` only: a component's `<script module>` reaches here with
+        // an already-processed `pre_class_script`, so its positions are not the
+        // source's (#3543).
+        let trace_thunks = if dev && !server && module_entry {
+            inspect_rune_ast::collect_trace_thunks(pre_class_script, is_ts, &analysis.filename)
+        } else {
+            Vec::new()
+        };
         if let Some(rewritten) = module_dev_tail_ast::transform_module_dev_tail_ast(
             &result,
             dev,
             is_ts,
             analysis.runes,
             Some(analysis),
+            &trace_thunks,
         ) {
             result = rewritten;
         }
@@ -5827,7 +5919,7 @@ fn transform_instance_script_for_visitors(
 
     // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
-    let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
+    let has_export = contains_identifier(script, "export");
     let has_comma_decl = split_top_level_declarations;
     if !has_dollar
         && !has_export
@@ -5906,7 +5998,7 @@ fn transform_instance_script_for_visitors(
     };
 
     // Transform class fields only if the script contains class definitions with runes
-    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b"class ").is_some()
+    let script: std::borrow::Cow<str> = if contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
@@ -5923,7 +6015,7 @@ fn transform_instance_script_for_visitors(
     };
 
     // Split comma-separated variable declarations only if needed
-    let class_transform_can_add_declarations = memmem::find(script.as_bytes(), b"class ").is_some()
+    let class_transform_can_add_declarations = contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some());
     let split = if split_top_level_declarations
@@ -6297,18 +6389,16 @@ fn transform_instance_script_for_visitors(
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
     // The per-line walk can only succeed where the substring exists.
-    let has_legacy_export_let =
-        (memmem::find(script_rest.as_bytes(), b"export let").is_some() && {
-            super::profile::record_st_collect_scan(script_rest.len() as u64);
-            script_rest.lines().any(|line| {
-                let trimmed = line.trim();
-                trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-            })
-        }) || analysis
-            .root
-            .bindings
-            .iter()
-            .any(|b| matches!(b.kind, BindingKind::BindableProp));
+    let has_legacy_export_let = (memmem::find(script_rest.as_bytes(), b"export").is_some() && {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+        script_rest
+            .lines()
+            .any(|line| after_keywords(line.trim(), &["export", "let"]).is_some())
+    }) || analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| matches!(b.kind, BindingKind::BindableProp));
 
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
@@ -6875,36 +6965,27 @@ fn transform_instance_script_for_visitors(
                 super::profile::PA_EXPORT_KW_PROBE,
                 statement.len() as u64,
             );
-            let mut s = first_line_trimmed;
+            // The keyword and the declaration it exports need not share a
+            // physical line, so this reads the joined statement.
+            let mut s: &str = statement.trim();
             while s.starts_with("/*") {
                 if let Some(end) = s.find("*/") {
                     s = s[end + 2..].trim_start();
                 } else {
-                    // Unclosed block comment — scan across accumulated lines
-                    let full = statement.as_str();
-                    let mut t: &str = full.trim();
-                    while t.starts_with("/*") {
-                        if let Some(e) = t.find("*/") {
-                            t = t[e + 2..].trim_start();
-                        } else {
-                            t = "";
-                            break;
-                        }
-                    }
-                    s = t;
+                    s = "";
                     break;
                 }
             }
             s
         };
-        if has_legacy_export_let
-            && (effective_export_kw_line.starts_with("export let ")
-                || effective_export_kw_line.starts_with("export var "))
-        {
+        let export_prop_declarator_at =
+            after_keywords(effective_export_kw_line, &["export", "let"])
+                .or_else(|| after_keywords(effective_export_kw_line, &["export", "var"]));
+        if has_legacy_export_let && let Some(declarator_at) = export_prop_declarator_at {
             let _pa =
                 super::profile::pa_guard(super::profile::PA_EXPORT_LET, statement.len() as u64);
             // Check if this is a destructured export let pattern
-            let after_export_let = effective_export_kw_line[11..].trim();
+            let after_export_let = effective_export_kw_line[declarator_at..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
                 let _pa_sub = super::profile::pa_guard(
                     super::profile::PA_EL_DESTRUCTURED,
@@ -7042,21 +7123,25 @@ fn transform_instance_script_for_visitors(
         let statement = {
             let _pa =
                 super::profile::pa_guard(super::profile::PA_EXPORT_STRIP, statement.len() as u64);
-            if first_line_trimmed.starts_with("export function ")
-                || first_line_trimmed.starts_with("export const ")
-                || first_line_trimmed.starts_with("export class ")
-                || first_line_trimmed.starts_with("export var ")
-                || first_line_trimmed.starts_with("export async function ")
-            {
-                // Remove the "export " prefix from the first line
-                if let Some(pos) = memmem::find(statement.as_bytes(), b"export ") {
-                    let mut s = String::with_capacity(statement.len() - 7);
-                    s.push_str(&statement[..pos]);
-                    s.push_str(&statement[pos + 7..]);
-                    s
-                } else {
-                    statement
-                }
+            // The separator between `export` and what it declares is any run of
+            // JS whitespace, not the single ASCII space a literal needle bakes
+            // in (#3470); an unstripped `export` lands inside the component
+            // function, where no parser accepts it.
+            let head = statement.trim_start();
+            let head_at = statement.len() - head.len();
+            let exported = after_keyword(head, "export").filter(|&at| {
+                let rest = &head[at..];
+                ["function", "const", "class", "var"]
+                    .iter()
+                    .any(|kw| after_keyword(rest, kw).is_some())
+                    || after_keyword(rest, "async")
+                        .is_some_and(|a| after_keyword(&rest[a..], "function").is_some())
+            });
+            if let Some(at) = exported {
+                let mut s = String::with_capacity(statement.len() - at);
+                s.push_str(&statement[..head_at]);
+                s.push_str(&head[at..]);
+                s
             } else {
                 statement
             }

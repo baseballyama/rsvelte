@@ -152,9 +152,15 @@ impl<'src> TraceCollector<'src> {
                     Some(filename) => {
                         let (line, col) = self.locate(fn_start);
                         let filename = filename.replace('/', "/\u{200b}");
+                        // esrap prints a string literal from its `raw`, and an
+                        // IIFE's label is its whole source text — newlines and all.
+                        let label = super::inspect_rune_ast::escape_single_quoted(&label);
                         format!("() => '{label} ({filename}:{line}:{col})'")
                     }
-                    None => format!("() => '{label}'"),
+                    None => format!(
+                        "() => '{}'",
+                        super::inspect_rune_ast::escape_single_quoted(&label)
+                    ),
                 }
             }
         };
@@ -211,9 +217,17 @@ impl<'a, 'src> Visit<'a> for TraceCollector<'src> {
     }
 
     fn visit_call_expression(&mut self, it: &CallExpression<'a>) {
-        self.parent_label = None;
+        // oxc keeps a `ParenthesizedExpression` that acorn — and so upstream's
+        // `get_function_label` — never sees, and an IIFE's callee always has one.
+        let callee = super::inspect_rune_ast::unparen(&it.callee);
+        let label = format!("{}(...)", self.text(callee.span()));
+        // An IIFE lends the label to the callee itself, not only to arguments.
+        self.parent_label = matches!(
+            callee,
+            Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_)
+        )
+        .then(|| label.clone());
         self.visit_expression(&it.callee);
-        let label = format!("{}(...)", self.text(it.callee.span()));
         for argument in &it.arguments {
             self.parent_label = Some(label.clone());
             self.visit_argument(argument);

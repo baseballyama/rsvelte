@@ -18,6 +18,7 @@ use crate::ast::template::{
 };
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
 
@@ -45,26 +46,33 @@ impl<'a> Parser<'a> {
         // accidentally swallow `{letter}` or `{constant}` expressions.
         let decl_start = self.index;
 
-        // The keyword must be followed by whitespace to open a declaration tag
-        // (`{let ` / `{const ` / `{type `), so `{letter}` / `{constant}` /
-        // `{type}` stay expression tags and contrived calls like `{let(x)}`
-        // remain expressions rather than malformed declarations. (Upstream uses
-        // a `\b` word boundary and then parses to disambiguate; requiring
-        // whitespace reaches the same result for every real-world tag without a
-        // statement parse.)
-        let kw_terminated_at = |off: usize| {
+        // Upstream keys this on `\b`, whose word class is `[A-Za-z0-9_]`. `$` is
+        // outside it, so `{var$x}` reaches the unsupported-keyword throw before
+        // anything is parsed even though `var$x` is a legal identifier — an
+        // upstream defect (`upstream_issues/svelte-declaration-tag-dollar-identifier.md`)
+        // that byte parity means reproducing rather than picking a side.
+        let word_boundary_at = |off: usize| {
             self.bytes
                 .get(self.index + off)
                 .copied()
-                .is_some_and(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+                .is_none_or(|b| !b.is_ascii_alphanumeric() && b != b'_')
+        };
+        // The other two regexes are CONFIRMED by parsing, and the parse reads
+        // `let$x` as one identifier — so their boundary is the identifier class,
+        // which is where the upstream defect above stops.
+        let ident_boundary_at = |off: usize| {
+            self.bytes
+                .get(self.index + off)
+                .copied()
+                .is_none_or(|b| !b.is_ascii_alphanumeric() && !matches!(b, b'_' | b'$') && b < 0x80)
         };
 
         // `var` / `interface` / `enum` are reserved words that can never be a
         // valid declaration tag — error immediately with the keyword span
         // (mirrors upstream `regex_unsupported_declaration`).
-        if (self.match_str("var") && kw_terminated_at(3))
-            || (self.match_str("interface") && kw_terminated_at(9))
-            || (self.match_str("enum") && kw_terminated_at(4))
+        if (self.match_str("var") && word_boundary_at(3))
+            || (self.match_str("interface") && word_boundary_at(9))
+            || (self.match_str("enum") && word_boundary_at(4))
         {
             let kw_len = if self.match_str("var") {
                 3
@@ -84,9 +92,9 @@ impl<'a> Parser<'a> {
         // *might* be a TS type-alias declaration (confirmed below from the
         // body). Anything else is not a declaration tag — return `Ok(None)`
         // with `self.index` untouched so the expression-tag parser re-reads it.
-        let is_const = self.match_str("const") && kw_terminated_at(5);
-        let is_let = self.match_str("let") && kw_terminated_at(3);
-        let is_maybe_type = self.match_str("type") && kw_terminated_at(4);
+        let is_const = self.match_str("const") && ident_boundary_at(5);
+        let is_let = self.match_str("let") && ident_boundary_at(3);
+        let is_maybe_type = self.match_str("type") && ident_boundary_at(4);
         if !is_let && !is_const && !is_maybe_type {
             return Ok(None);
         }
@@ -138,11 +146,30 @@ impl<'a> Parser<'a> {
             if !(ident_next && has_assignment) {
                 return Ok(None);
             }
+            // Upstream reaches its `declaration_tag_invalid_type` only through
+            // the parse, so a type alias in a plain `<script>` is a JavaScript
+            // parse error rather than a Svelte one — and a shape that parses as
+            // JS is an `ExpressionStatement`, which upstream hands back to the
+            // expression-tag reader.
+            let stmt_text = self.source[decl_start..body_end].trim_end_ws();
+            if let Some((msg, pos)) =
+                super::super::read::expression::check_js_statement_parse_error(stmt_text, self.ts)
+            {
+                let abs = decl_start + pos.min(stmt_text.len());
+                return Err(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    msg,
+                    (abs, abs),
+                ));
+            }
+            if !self.ts {
+                return Ok(None);
+            }
             // Genuine `type Foo = …` alias → invalid declaration tag. The span
             // covers the whole declaration (trailing whitespace trimmed),
             // mirroring upstream's `{ start: declaration.start, end:
             // declaration.end }`.
-            let decl_text_end = decl_start + self.source[decl_start..body_end].trim_end_ws().len();
+            let decl_text_end = decl_start + stmt_text.len();
             return Err(crate::error::ParseError::svelte(
                 "declaration_tag_invalid_type",
                 "Declaration tags must be `let` or `const` declarations",
@@ -195,7 +222,15 @@ impl<'a> Parser<'a> {
                             stmt_text, self.ts,
                         )
                     {
-                        let abs = decl_start + pos.min(stmt_text.len());
+                        // `let` is not a reserved word in sloppy mode, so acorn
+                        // rejects a bare `{let}` only for being a declaration it
+                        // cannot finish, and reports that AT the keyword. `const`
+                        // is reserved, consumed, and fails at the token after.
+                        let abs = if kind == "let" && body_text.is_empty() {
+                            decl_start
+                        } else {
+                            decl_start + pos.min(stmt_text.len())
+                        };
                         return Err(crate::error::ParseError::svelte(
                             "js_parse_error",
                             msg,
@@ -811,6 +846,38 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// Step over a regex literal from its opening `/`. A `/` inside a character
+    /// class does not close it, which is the one rule a quote scan does not have.
+    fn skip_header_regex(&mut self) {
+        self.index += 1; // consume the opening `/`
+        let mut in_class = false;
+        while self.index < self.bytes.len() {
+            match self.bytes[self.index] {
+                b'\\' => {
+                    self.index += 2;
+                    continue;
+                }
+                b'[' => in_class = true,
+                b']' => in_class = false,
+                b'/' if !in_class => {
+                    self.index += 1;
+                    // the flags
+                    while self.index < self.bytes.len()
+                        && self.bytes[self.index].is_ascii_alphabetic()
+                    {
+                        self.index += 1;
+                    }
+                    return;
+                }
+                // A regex literal cannot span a line; an unterminated one is a
+                // parse error the expression reader reports, not this scan.
+                b'\n' => return,
+                _ => {}
+            }
+            self.index += 1;
+        }
+    }
+
     fn skip_header_string(&mut self, quote: u8) {
         self.index += 1; // consume the opening quote
         while self.index < self.bytes.len() {
@@ -870,6 +937,10 @@ impl<'a> Parser<'a> {
         // the first ` as ` and the codegen emits `let const as item = …`.
         let mut last_as: Option<usize> = None;
         let mut depth: i32 = 0;
+        // The previous significant CODE byte. Only it separates `/re/` from a
+        // division, and it must be recorded by the scan rather than read back
+        // off the source, so bytes inside a literal never count as the token.
+        let mut prev: Option<u8> = None;
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
 
@@ -879,6 +950,15 @@ impl<'a> Parser<'a> {
             match b {
                 b'\'' | b'"' | b'`' => {
                     self.skip_header_string(b);
+                    prev = Some(b);
+                    continue;
+                }
+                b'/' if self.bytes.get(self.index + 1) != Some(&b'/')
+                    && self.bytes.get(self.index + 1) != Some(&b'*')
+                    && slash_starts_regex_at(self.bytes, self.index, prev) =>
+                {
+                    self.skip_header_regex();
+                    prev = Some(b'/');
                     continue;
                 }
                 b'/' if self.bytes.get(self.index + 1) == Some(&b'/') => {
@@ -929,6 +1009,9 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
 
+            if !b.is_ascii_whitespace() {
+                prev = Some(b);
+            }
             if b < 0x80 {
                 self.index += 1;
             } else {
@@ -1402,6 +1485,10 @@ impl<'a> Parser<'a> {
             Back,
         }
         let mut str_mode = StrMode::None;
+        // The previous significant code byte — the only thing that separates a
+        // regex literal from a division, and it has to be recorded by the scan
+        // so bytes inside a literal or a comment never count as the token.
+        let mut prev: Option<u8> = None;
         while !self.is_eof() {
             let c = self.current_char();
             // Handle strings and template literals
@@ -1416,6 +1503,7 @@ impl<'a> Parser<'a> {
                     }
                     if c == '\'' {
                         str_mode = StrMode::None;
+                        prev = Some(b'\'');
                     }
                     self.advance();
                     continue;
@@ -1430,6 +1518,7 @@ impl<'a> Parser<'a> {
                     }
                     if c == '"' {
                         str_mode = StrMode::None;
+                        prev = Some(b'"');
                     }
                     self.advance();
                     continue;
@@ -1444,6 +1533,7 @@ impl<'a> Parser<'a> {
                     }
                     if c == '`' {
                         str_mode = StrMode::None;
+                        prev = Some(b'`');
                     }
                     self.advance();
                     continue;
@@ -1465,28 +1555,58 @@ impl<'a> Parser<'a> {
                 self.advance();
                 continue;
             }
+            // This scan had no arm for either, so a `}` in a comment or a regex
+            // literal ended the head.
+            if c == '/' {
+                if self.bytes.get(self.index + 1) == Some(&b'/') {
+                    while !self.is_eof() && self.bytes[self.index] != b'\n' {
+                        self.index += 1;
+                    }
+                    continue;
+                }
+                if self.bytes.get(self.index + 1) == Some(&b'*') {
+                    self.index += 2;
+                    while self.index + 1 < self.bytes.len()
+                        && !(self.bytes[self.index] == b'*' && self.bytes[self.index + 1] == b'/')
+                    {
+                        self.index += 1;
+                    }
+                    self.index = (self.index + 2).min(self.bytes.len());
+                    continue;
+                }
+                if slash_starts_regex_at(self.bytes, self.index, prev) {
+                    self.skip_header_regex();
+                    prev = Some(b'/');
+                    continue;
+                }
+            }
             if c == '(' {
                 paren_depth += 1;
+                prev = Some(b'(');
                 self.advance();
                 continue;
             }
             if c == ')' {
                 paren_depth -= 1;
+                prev = Some(b')');
                 self.advance();
                 continue;
             }
             if c == '[' {
                 bracket_depth += 1;
+                prev = Some(b'[');
                 self.advance();
                 continue;
             }
             if c == ']' {
                 bracket_depth -= 1;
+                prev = Some(b']');
                 self.advance();
                 continue;
             }
             if c == '{' {
                 brace_depth += 1;
+                prev = Some(b'{');
                 self.advance();
                 continue;
             }
@@ -1530,6 +1650,9 @@ impl<'a> Parser<'a> {
                         break;
                     }
                 }
+            }
+            if !c.is_whitespace() {
+                prev = Some(self.bytes[self.index]);
             }
             self.advance();
         }
@@ -2177,7 +2300,7 @@ impl<'a> Parser<'a> {
                             )
                             .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, expr_start))
                         } else {
-                            self.parse_js_expression(&pattern_clean, expr_start)
+                            self.parse_js_expression_eager_strict(&pattern_clean, expr_start)?
                         };
 
                     // Calculate the offset for the init expression in the
@@ -2444,6 +2567,18 @@ impl<'a> Parser<'a> {
             }
         }
 
+        self.parse_js_expression_eager_strict(content, offset)
+    }
+
+    /// `parse_js_expression_strict` without the deferral. `{@const}` inspects
+    /// its parsed declaration during the parse, so it cannot hold a `Lazy` — but
+    /// it must still report a `js_parse_error` rather than swallow one into an
+    /// empty identifier the way `parse_js_expression_internal` does.
+    pub fn parse_js_expression_eager_strict(
+        &self,
+        content: &str,
+        offset: usize,
+    ) -> crate::error::ParseResult<Expression<'a>> {
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();

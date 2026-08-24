@@ -529,9 +529,11 @@ impl DirectComponentParent {
 /// Type of ancestor that can "own" a slot attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotOwnerType {
-    /// A component (Component, SvelteComponent, SvelteSelf, SvelteElement)
+    /// A component (Component, SvelteComponent, SvelteSelf)
     Component,
-    /// A custom element (RegularElement with hyphen in name)
+    /// An owner a `slot` attribute may sit under at any depth — a custom
+    /// element, or `<svelte:element>`, which upstream finds as the owner but
+    /// then does not test against its component list.
     CustomElement,
 }
 

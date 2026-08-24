@@ -2251,7 +2251,12 @@ fn is_value_known_defined(
         }
         JsExpr::Call(call) => js_expr_keypath(arena.get_expr(call.callee), arena)
             .as_deref()
-            .is_some_and(is_known_defined_global_call),
+            .is_some_and(|keypath| {
+                is_known_defined_global_call(
+                    keypath,
+                    super::shared::utils::js_call_has_spread(call),
+                )
+            }),
         // For identifiers: look up the binding to check if the initial value is defined.
         // This mirrors the official compiler's scope.evaluate() which, for identifiers,
         // checks if the binding is not updated, has an initial value, and is not a prop,
