@@ -31,7 +31,7 @@ use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_span::SPAN;
+use oxc_span::{SPAN, Span};
 use visitors::shared::TemplateEntry;
 
 /// Mutable state threaded through the AST-based server transform.
@@ -268,6 +268,15 @@ pub struct PendingTailComment {
     replay_at_tail: bool,
 }
 
+/// Comments from template expressions that emitted no node, waiting for one
+/// that does. `start` is where their region begins in the ORIGINAL source, so
+/// the replayed buffer keeps the line structure the printer needs to decide
+/// whether a comment sits above its node or beside it.
+struct PendingTemplateComments {
+    start: u32,
+    comments: Vec<Comment>,
+}
+
 /// The precomputed inputs to the SSR constant-folding evaluator
 /// (`server::evaluate::EvalCtx`). Mirrors exactly the fields the legacy
 /// `ServerCodeGenerator` carries for `scope.evaluate`, so the two pipelines
@@ -327,7 +336,7 @@ impl<'a> ServerTransformState<'a> {
             attr_optimiser: None,
             shadowed_names: Vec::new(),
             slot_let_shadows: Vec::new(),
-            current_scope_index: analysis.root.instance_scope_index,
+            current_scope_index: analysis.root.root_fragment_scope_index,
             comments: comments::ChunkRegistry::default(),
             pending_tail_comments: Vec::new(),
             reparse_failure: std::cell::RefCell::new(None),
@@ -402,7 +411,9 @@ impl<'a> ServerTransformState<'a> {
         if let Some(base) = self.comments.register_expression(&text, &comments) {
             let mut place = comments::Place::At(base + text.len() as u32);
             place.visit_expression(expression);
+            return true;
         }
+        false
     }
 
     /// A script successor receives the first copy; the cursor then replays the

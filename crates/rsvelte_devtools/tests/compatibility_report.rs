@@ -69,15 +69,10 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         FixtureCoverage::new(svelte_dir, svelte_samples_dir(svelte_dir), samples.len());
 
     // Tests to skip for parser-legacy and parser-modern.
-    //
-    // `javascript-comments` is a long-standing acorn-vs-OXC comment-attachment
-    // mismatch that has never been worth fixing — OXC drops standalone
-    // comment statements that acorn surfaces via `leadingComments` /
-    // `trailingComments` attachment.
     let skip_tests: &[&str] = if modern {
         &[]
     } else {
-        &["javascript-comments", "implicitly-closed-li-block"]
+        &["implicitly-closed-li-block"]
     };
 
     for sample_dir in &samples {
@@ -89,9 +84,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
 
         // Check if should skip
         if skip_tests.contains(&name.as_str()) {
-            let reason = if name == "javascript-comments" {
-                "Known incompatibility with OXC parser"
-            } else if name == "implicitly-closed-li-block" {
+            let reason = if name == "implicitly-closed-li-block" {
                 "Upstream skips it (skip: true) — the official compiler errors block_unexpected_close; output.json is stale"
             } else {
                 "Comments-in-tags (Svelte 5.53.0) not yet ported"
@@ -109,8 +102,11 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let input_path = sample_dir.join("input.svelte");
         let output_path = sample_dir.join("output.json");
 
+        // Trailing whitespace is trimmed the way upstream's
+        // `parser-{modern,legacy}/test.ts` trims it, because every `output.json`
+        // was snapshotted from a trimmed source (`Root.end` spans to EOF).
         let input = if let Some(s) = read_fixture_file(&input_path) {
-            s
+            s.trim_end().to_string()
         } else {
             coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
             continue;

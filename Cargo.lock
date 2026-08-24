@@ -2548,6 +2548,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsvelte_content_mapper"
+version = "0.1.0"
+dependencies = [
+ "rayon",
+ "rsvelte_projection",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rsvelte_core"
 version = "0.10.19"
 dependencies = [
