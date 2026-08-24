@@ -1,5 +1,14 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.9
+
+### Patch Changes
+
+- 640ff54: Reject the compile options upstream rejects. `compile()` and `compileModule()` now raise `options_unrecognised` for a key `validate-options.js` does not declare — so a typo in `svelte.config.js`'s `compilerOptions` is an error instead of a silently-ignored default — and `compile()` raises `options_removed` for the six Svelte-4 options upstream declares only in order to reject (`legacy`, `format`, `tag`, `sveltePath`, `errorMode`, `varsReport`). `warningFilter` is now declared and type-checked like upstream's `fun()`, `css: 'none'` carries upstream's own message rather than the generic one, and when two options are bad the one reported is the one upstream reports: the unrecognised-key scan runs before every validator, the rest run in upstream's key-declaration order, and `customElement`/`css` come last because their `parametric()` normalizer runs on first call rather than during validation. `compileModule` follows upstream in accepting every component-only key as a no-op, so a removed option is an error there only on `compile`.
+- 051e9a6: Raise option-validation failures in upstream's `CompileError` shape. `compile()` and `compileModule()` now throw an error carrying `code: 'options_invalid_value'`, `name: 'CompileError'`, the `filename` that was passed in, and the `https://svelte.dev/e/options_invalid_value` message tail — previously the thrown value was a plain `Error` whose `code` was napi's `"GenericFailure"`, so a consumer branching on `err.code` could not tell an invalid option from any other failure. `customElement`'s message also loses the `, if specified` tail it never had upstream (it is validated by `parametric`, not `boolean`).
+
+  The change is in `crates/rsvelte_napi`, which ships only in the `@rsvelte/vite-plugin-svelte-native-*` binaries; the wasm `@rsvelte/compiler` carries its own port of `validate-options.js` and is unaffected (#3664).
+
 ## 0.3.8
 
 ### Patch Changes
