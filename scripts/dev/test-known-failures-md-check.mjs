@@ -181,10 +181,19 @@ withCorpus(
 	(r) => check('unmutated corpus copy passes', r.code, 0),
 );
 
-withCorpus(
-	(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
-	(r) => check('a stale cluster count fails', [r.code, /sums to 19 \(/.test(r.out)], [1, true]),
-);
+// Derived, not a literal: the expected sum is the ratchet's own size less the
+// one this mutation removes, so the assertion survives the ratchet moving.
+{
+	const fmtEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'fmt-known-failures.json'), 'utf8')).length;
+	withCorpus(
+		(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
+		(r) => check(
+			'a stale cluster count fails',
+			[r.code, new RegExp(`sums to ${fmtEntries - 1} \\(`).test(r.out)],
+			[1, true],
+		),
+	);
+}
 
 // The shape #2500 is about: an entry cited under two clusters, with the cluster
 // totals adjusted so the doc still reads as if it summed. One addend moves up,
@@ -201,16 +210,16 @@ withCorpus(
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 172 is not the matrix ratchet's 388.
+// against the whole ratchet — `comment-slot`'s 116 is not the whole matrix ratchet.
 withCorpus(
 	(d) =>
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'by seed: `32 + 16 + 16 + 16 + 36 + 40 + 16`',
-			'by seed: `32 + 18 + 16 + 16 + 36 + 40 + 16`',
+			'by seed: `32 + 8 + 8 + 8 + 20 + 24 + 16`',
+			'by seed: `32 + 10 + 8 + 8 + 20 + 24 + 16`',
 		),
-	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 172 entries/.test(r.out)], [1, true]),
+	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 116 entries/.test(r.out)], [1, true]),
 );
 
 withCorpus(

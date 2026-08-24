@@ -39,10 +39,17 @@ fn load_fixture(sample_dir: &Path) -> Result<(String, String, String), SkipReaso
 
     // Normalize CRLF to LF so AST byte offsets line up regardless of how the
     // submodule was checked out (Windows runners default to autocrlf=true,
-    // which would otherwise shift every span by one byte per line).
+    // which would otherwise shift every span by one byte per line), then strip
+    // trailing whitespace exactly as upstream's own harness does
+    // (`tests/parser-{modern,legacy}/test.ts`: `.replace(/\s+$/, '')`). Every
+    // checked-in `output.json` records the spans of the TRIMMED input, so a
+    // harness that passes the untrimmed file compares two different documents —
+    // which is how `Root.end` agreed here while being wrong (#3386).
     let input = fs::read_to_string(&input_path)
         .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?
-        .replace("\r\n", "\n");
+        .replace("\r\n", "\n")
+        .trim_end_matches(rsvelte_core::is_js_whitespace)
+        .to_string();
     let expected_output = fs::read_to_string(&output_path)
         .map_err(|_| SkipReason::MissingInput("readable output.json"))?
         .replace("\r\n", "\n");

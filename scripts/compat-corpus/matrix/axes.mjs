@@ -1888,144 +1888,154 @@ export const WRITE_PREAMBLE = `<script>
 `;
 
 /**
- * Axis U1 — what follows `data-x=` in an UNQUOTED attribute value.
+ * Axis T1 — the element's TAG NAME, against the JS reserved-word list.
  *
- * The unquoted value state terminates on `/>`, whitespace, `"`, `'`, `` ` ``,
- * `<`, `=` and `>` (upstream's `regex_invalid_unquoted_attribute_value`), and
- * #3332 was every terminator except whitespace and `>` missing: rsvelte read one
- * run of characters and swallowed the rest, so `<div data-x=a<b>` became a single
- * attribute whose value is `a<b` where upstream has `data-x="a"` plus an
- * attribute named `<b`, and `<div data-x=a=b>` compiled at all.
+ * A tag name becomes a generated variable name, and `Scope.unique`
+ * (`phases/scope.js:728-734`) refuses a reserved word for one. rsvelte's
+ * `Memoizer::generate_id` had the three membership tests and not that fourth
+ * one, so `<var>x</var>` emitted `var var = root();` — output no JS parser
+ * accepts, from a `compile()` that returned successfully (#3582).
  *
- * The axis is the terminating CHARACTER, not "an unquoted value": `>` already
- * worked, `&` and an entity already decoded, and a trailing `/` was already
- * handled — those five rows are the controls that keep a fix from simply ending
- * the value earlier and everywhere. The rows official REJECTS are the reason the
- * family exists at all; an over-acceptance leaves no trace in published code, so
- * no collected corpus can hold one.
+ * The list is upstream's `is_reserved` verbatim. Two of these are standard
+ * elements that appear in real documents (HTML's `<var>`, SVG's `<switch>`);
+ * the rest are unknown elements, which Svelte compiles happily — being
+ * unknown is not what makes the output invalid, being a reserved word is.
  *
- * `a{b` is deliberately absent — `{` opens an expression rather than ending the
- * value, and where THAT mustache ends is #3333.
+ * The controls matter as much as the rows. `async`, `of`, `get` and `set` LOOK
+ * like keywords and are not reserved, so they must keep the bare name; `div`
+ * and `template` are ordinary tags; and `my-tag` reaches the sanitizer instead
+ * of the fast path, which is the second allocator the same omission sat in.
  */
-export const UNQUOTED_ATTRIBUTE_VALUES = {
-	plain: 'abc',
-	'gt-inside': 'a>b',
-	'amp-inside': 'a&b',
-	entity: '&amp;',
-	'trailing-slash': 'abc/',
-	'lt-inside': 'a<b',
-	'backtick-inside': 'a`b',
-	'lt-slash': 'a</b',
-	'lt-script-close': 'a</script>b',
-	'eq-inside': 'a=b',
-	'double-quote-inside': 'a"b',
-	'single-quote-inside': "a'b",
-	'html-comment-open': 'a<!--b',
-	cdata: 'a<![CDATA[x]]>b',
-	empty: '',
-};
+export const RESERVED_TAG_NAMES = [
+	'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+	'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
+	'extends', 'false', 'finally', 'for', 'function', 'if', 'implements',
+	'import', 'in', 'instanceof', 'interface', 'let', 'new', 'null', 'package',
+	'private', 'protected', 'public', 'return', 'static', 'super', 'switch',
+	'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with',
+	'yield',
+];
+
+/** The near-miss and ordinary names that must keep the bare identifier. */
+export const UNRESERVED_TAG_NAMES = ['async', 'of', 'get', 'set', 'div', 'template', 'my-tag'];
 
 /**
- * Axis U2 — the start tag carrying the attribute. The first five share one lexer,
- * so a divergence that moves with the host is an element-path bug rather than an
- * attribute-value one; the component and `<svelte:element>` rows are also where
- * an attribute SET difference is visible in the output as a prop object.
+ * Axis T2 — where the element sits, because each host reaches the name
+ * allocator by a different route. `%t` is the tag name.
  *
- * `style-top-level` is the row that does NOT share that lexer: upstream reads a
- * top-level `<script>` / `<style>`'s attributes with `read_attribute` under
- * `parse_static`, whose terminator set does not grow the six characters this
- * family is about — so `<style a=b=c>` compiles where `<div a=b=c>` does not.
- * Without it, a fix that ends the value earlier *everywhere* passes all 75 cells
- * and turns a top-level style block into a parse error.
+ * `svelte-element` is the row that was already correct — its variable is named
+ * from a different path — so it separates "the tag name is not sanitized" from
+ * "any element with this name breaks".
  */
-export const UNQUOTED_ATTRIBUTE_HOSTS = {
-	div: '<div data-x=%s></div>',
-	'div-next-attr': '<div data-x=%s data-y="1"></div>',
-	'input-self-closing': '<input data-x=%s />',
-	component: '<Comp data-x=%s />',
-	'svelte-element': '<svelte:element this="div" data-x=%s></svelte:element>',
-	'style-top-level': '<style data-x=%s>\n\tp {\n\t\tcolor: red;\n\t}\n</style>',
+export const TAG_NAME_HOSTS = {
+	plain: '<%t>x</%t>',
+	expression: '<%t>{v}</%t>',
+	nested: '<%t><b>{v}</b></%t>',
+	'bind-this': '<%t bind:this={el}>x</%t>',
+	siblings: '<%t>x</%t>\n<%t>y</%t>',
+	attribute: '<%t title={v}>x</%t>',
+	each: '{#each [1, 2] as i}\n\t<%t>{i}</%t>\n{/each}',
+	'svelte-element': '<svelte:element this="%t">{v}</svelte:element>',
 };
 
-export const UNQUOTED_ATTRIBUTE_PREAMBLE = `<script>
-	import Comp from './Comp.svelte';
+export const TAG_NAME_PREAMBLE = `<script>
+	let v = $state(1);
+	let el;
 </script>
 
-%s
+%m
 `;
 
 /**
- * Axis C1 — the character reference spelling.
+ * Axis family — an async attribute VALUE × the attribute SLOT it sits in × the
+ * ELEMENT hosting the slot. Its subject is which lowering a value reaches, not
+ * what the value is.
  *
- * Two decoders answer this question — the named table and the numeric
- * `validate_code` ladder — and #3337 found three disagreements in one sweep that
- * a single spelling could not have separated: an uppercase `&#X41;` (upstream's
- * pattern spells the marker lowercase, so it is not a reference at all), a
- * surrogate half or an out-of-range code point (upstream emits a literal NUL,
- * rsvelte left it undecoded), and the semicolon-less legacy set.
+ * Upstream routes every attribute-ish slot through `Memoizer`, which hoists a
+ * call or an `await` out of the `template_effect` arrow into its `sync`/`async`
+ * argument and passes the top-level-await `blockers` as the fourth — except
+ * `build_custom_element_attribute_update_assignment` (`RegularElement.js`),
+ * which builds its own one-argument `$.template_effect(b.thunk(call))`. The same
+ * value is therefore lowered two different ways depending only on whether the
+ * tag name has a dash. The host axis is what makes that observable: every value
+ * and slot is generated on `<div>` too, where the memoized lowering is the right
+ * answer, so "memoize everywhere" and "memoize nowhere" are distinguishable.
  *
- * The controls carry the load here. `&#x80;` (the Windows-1252 remap), `&#xFFFE;`
- * (a noncharacter), `&#0;` and the three astral rows all agree on both sides, so
- * a fix that treats "anything unusual" as undecodable — or as U+FFFD, which is
- * what HTML actually says and neither compiler does — fails them.
+ * `experimental.async` is set for the same reason `async-derived` sets it — no
+ * other harness does, so this is a population the collected corpus cannot hold
+ * at any size.
+ *
+ * The four `custom-element` × `attribute` cells whose value carries a literal
+ * `await` are compared on the SERVER targets only: the pinned oracle compiles
+ * them to `await` inside a non-async arrow, which is not JavaScript, so there is
+ * no client oracle to compare against. Their server lowering is unaffected.
  */
-export const CHARACTER_REFERENCES = {
-	'named-amp': '&amp;',
-	'named-lt': '&lt;',
-	'named-gt': '&gt;',
-	'named-quot': '&quot;',
-	'named-apos': '&apos;',
-	'named-nbsp': '&nbsp;',
-	'legacy-copy': '&copy',
-	'legacy-not': '&not',
-	'legacy-not-word': '&notit',
-	'legacy-not-eq': '&not=x',
-	'unknown-with-legacy-prefix': '&notanentity;',
-	'decimal-no-semicolon': '&#65',
-	decimal: '&#65;',
-	hex: '&#x41;',
-	'hex-uppercase-marker': '&#X41;',
-	zero: '&#0;',
-	'carriage-return': '&#13;',
-	'windows-1252': '&#x80;',
-	'surrogate-low-bound': '&#xD800;',
-	'surrogate-high-bound': '&#xDFFF;',
-	'above-unicode': '&#x110000;',
-	'unicode-max': '&#x10FFFF;',
-	replacement: '&#xFFFD;',
-	noncharacter: '&#xFFFE;',
-	'astral-hex': '&#x1F600;',
-	'astral-decimal': '&#128512;',
-	'plane-1-start': '&#x10000;',
-	'astral-musical': '&#x1D11E;',
+export const ASYNC_ATTRIBUTE_VALUES = {
+	// Controls. None of these may gain a memoized slot under a correct fix: a
+	// static value needs no effect at all, a bare state read is passed through,
+	// and an `await` already inside an async function is the shape an over-broad
+	// "hoist anything containing await" rule breaks.
+	static: `'v'`,
+	state: 'foo',
+	'async-iife': '(async () => await p)()',
+	// Memoized as a SYNC value — the row that shows the custom-element slot is
+	// not only an `await` problem.
+	call: 'f()',
+	// Memoized as an ASYNC value.
+	await: 'await p',
+	'await-literal': `await 'v'`,
+	'await-in-call': 'String(await p)',
+	'await-plus-state': '(await p) + foo',
+	// No literal `await` in the value, but the binding it reads is written by
+	// one, so the effect must carry a blocker. A rule keyed on the token
+	// `await` inside the attribute passes every row above and fails these two.
+	'derived-await-read': 'd',
+	'script-await-read': 't',
+};
+
+/** Which attribute-ish slot carries the value. `%A` is the host's attribute name. */
+export const ASYNC_ATTRIBUTE_SLOTS = {
+	attribute: '%A={%s}',
+	class: 'class={%s}',
+	style: 'style={%s}',
+	'style-directive': 'style:color={%s}',
+	'class-directive': 'class:x={%s}',
+	spread: `{...{ 'data-x': %s }}`,
 };
 
 /**
- * Axis C2 — the host the reference sits in. Three decode rules exist, keyed on
- * where the text came from: markup text decodes with the legacy set enabled, an
- * attribute value without it, and `<textarea>` goes through `read_sequence` —
- * which is the ATTRIBUTE rule, not the text one. That last row is the whole
- * finding for the legacy set: the identical text in `<p>` or `<title>` matched
- * on both sides, so only the host axis could name it.
+ * The element the slot hangs off. `custom-element` is the subject; the other
+ * three reach the same slot through three different visitors, so a divergence
+ * is attributable to the host rather than to the value.
  */
-export const CHARACTER_REFERENCE_HOSTS = {
-	text: '<p>%s</p>',
-	'attr-double-quoted': '<p title="%s">x</p>',
-	'attr-single-quoted': "<p title='%s'>x</p>",
-	'attr-unquoted': '<p title=%s>x</p>',
-	textarea: '<textarea>%s</textarea>',
-	title: '<title>%s</title>',
-	'component-child': '<Comp>%s</Comp>',
-	'component-attr': '<Comp title="%s" />',
-	'beside-style': '<p>%s</p>\n\n<style>\n\tp {\n\t\tcolor: red;\n\t}\n</style>',
-	'beside-mustache': '<p>%s{v}</p>',
+export const ASYNC_ATTRIBUTE_HOSTS = {
+	div: { markup: '<div %s></div>', attr: 'data-x' },
+	'custom-element': { markup: '<my-element %s></my-element>', attr: 'bar' },
+	'svelte-element': {
+		markup: `<svelte:element this={'span'} %s></svelte:element>`,
+		attr: 'data-x',
+	},
+	// A component takes props; `class`/`style`/directives are not its slots.
+	component: { markup: '<Comp %s />', attr: 'x', import: true, slots: ['attribute', 'spread'] },
 };
 
-export const CHARACTER_REFERENCE_PREAMBLE = `<script>
-	import Comp from './Comp.svelte';
-
-	let v = 1;
+/**
+ * The declarations every async-attribute case shares. `t` and `d` are the two
+ * blocker sources (a top-level `await` and a `$derived(await …)`); declaring
+ * both in every file keeps the value axis the only thing that varies.
+ */
+export const ASYNC_ATTRIBUTE_PREAMBLE = `<script>
+%i	let foo = $state('foo');
+	const p = Promise.resolve('v');
+	const t = await 'v';
+	const d = $derived(await 'v');
+	function f() {
+		return 'v';
+	}
+	function bump() {
+		foo += '!';
+	}
 </script>
 
-%s
+%m
 `;
