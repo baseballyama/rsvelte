@@ -9,6 +9,6 @@
     "svelte": "5.56.10",
     "svelte-eslint-parser": "1.8.1",
     "typescript": "6.0.3",
-    "@typescript-eslint/parser": "8.67.0"
+    "@typescript-eslint/parser": "8.68.0"
   }
 }
