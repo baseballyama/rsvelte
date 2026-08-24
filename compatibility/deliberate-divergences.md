@@ -195,59 +195,92 @@ measurement rather than being folded into a fix for the two rows above.
 
 ---
 
-## `abstract` on a class property is erased (every target)
+## TypeScript class index signature
 
-**Pinned by** `crates/rsvelte_core/tests/abstract_property_erasure_3082.rs`. Reported at
-`upstream_issues/3082-svelte-abstract-property-not-erased.md`.
+**Pinned by** `crates/rsvelte_core/tests/ts_index_signature_3422.rs`.
+**Reported upstream** in `upstream_issues/3422-svelte-class-index-signature-crash.md`.
 
-### Input
+`class K { [k: string]: unknown }` makes the official compiler throw a bare
+`TypeError: Cannot read properties of undefined (reading 'type')` — no `code`, no position, no
+frame — from esrap's `TSIndexSignature` printer, because `remove_typescript_nodes.js` deletes the
+signature's `typeAnnotation` while `ClassBody` keeps the node itself. rsvelte erases the member,
+so rsvelte compiles what upstream cannot.
 
-```svelte
-<script lang="ts">
-	abstract class B {
-		abstract kind: string;
-	}
-	const b = 1;
-</script>
+**This entry exists because the previous behaviour was a deliberate parity choice, and it shipped
+two defects.** `2_analyze/types.rs` carried the comment *"Upstream passes these through verbatim
+(a class index signature even makes it throw), so they are left exactly as written"* — locally
+reasonable, and wrong, because "upstream throws" is not an output to be equal to.
 
-<p>{b}</p>
-```
+### What leaving it in cost, measured
 
-### Both outputs, measured against `submodules/svelte` 5.56.9
+A grid of 8 index-signature spellings + 11 TypeScript-only control members × 3 class hosts
+(declaration, expression, one carrying a `$state` field) × 2 entry points (instance script,
+`<script module>`) × 3 targets = **342 cells**:
 
-| member | official emits | parses | rsvelte emits | parses |
-|---|---|---|---|---|
-| `abstract kind: string;` | `abstract kind;` | **no** | *(dropped)* | yes |
-| `protected abstract kind: string;` | `abstract kind;` | **no** | *(dropped)* | yes |
-| `abstract m(): void;` | *(dropped)* | yes | *(dropped)* | yes |
-| `declare size: number;` | *(dropped)* | yes | *(dropped)* | yes |
-| `protected kind: string = 'k';` | `kind = 'k';` | yes | `kind = 'k';` | yes |
+| | before | after |
+|---|---|---|
+| rsvelte output rejected by acorn | 96 | **0** |
+| TypeScript left in the `.js` output | 96 | **0** |
+| instance/module script silently dropped (`server`) | 48 | **0** |
+| control cells clean | 198 | 198 |
 
-`acorn.parse` rejects official's output with `Unexpected token (5:11)` — `abstract kind` is two
-adjacent identifiers. The target makes no difference: the eraser runs once in
-`phases/1-parse/remove_typescript_nodes.js`, before either transform.
-
-### Why upstream produces it
-
-The eraser strips a property's `accessibility` and `typeAnnotation` and drops an abstract
-**method** outright, but has no arm that drops an abstract **property** — so the `abstract`
-keyword survives into the emitted class body. TypeScript's own emit drops both, since an
-abstract member has no runtime representation at all.
-
-### What would make this entry disappear
-
-Upstream dropping an abstract property the way it already drops an abstract method. Delete the
-entry and its test when `submodules/svelte` is bumped past that fix — at which point byte parity
-and valid JavaScript stop disagreeing.
+The 96 client/client-dev cells emitted `class K { [k: string]: unknown }` into a `.js` artifact.
+The 48 `server` cells are the more dangerous half and are **not** what the report described: the
+erased script is re-parsed to classify it, that parse rejected the surviving TypeScript, and the
+whole instance script was discarded — output that parses and does nothing. (#3421 made that
+failure loud; this change removes its cause.)
 
 ### Why no gate sees it
 
-- **Corpus gate**: no collected entry carries the shape; `known-failures.*` are unaffected, and
-  the pattern corpus deliberately writes an abstract **method** for this reason
-  (`compatibility/pattern-corpus/README.md`, `typescript/`).
-- **Generated matrix**: it *cannot* carry the shape. `run.mjs` fails the run outright when the
-  **official** output does not parse, on the grounds that a generated case is authored and the
-  fix is the case — so adding an abstract-property cell would turn a recorded divergence into a
-  hard failure rather than a ratchet entry. The `class-modifier` family therefore declares its
-  class without `abstract`, and this entry plus its test is the whole record.
-- **Parse-output gate**: it parses rsvelte's side only, so it is green either way.
+- **Output-equality gates**: there is no official output at all for these inputs, so nothing to
+  compare; a crash is not a `code` the error ratchets can key on either.
+- **Output-parseability gate**: parses rsvelte's side only, and the `server` half parses fine
+  while being empty.
+- **Collected corpus**: a component with a class index signature cannot be built with the official
+  compiler, so no published source can carry the shape.
+
+---
+
+## Dotted TypeScript namespace (`namespace N.M { … }`)
+
+**Pinned by** `crates/rsvelte_core/tests/ts_export_type_only_declaration.rs`.
+**Reported upstream** in `upstream_issues/3568-svelte-dotted-namespace-crash.md`.
+
+A namespace whose name is dotted makes the official compiler throw a bare
+`TypeError: node.body.body.map is not a function` — no `code`, no position, no frame — because
+`remove_typescript_nodes.js` assumes a `TSModuleDeclaration`'s `body` is a `TSModuleBlock`, while
+for the dotted spelling it is another `TSModuleDeclaration`. rsvelte compiles it.
+
+### What rsvelte does instead, and why that particular behaviour
+
+`namespace N.M { … }` is the source spelling of `namespace N { namespace M { … } }`, and upstream
+compiles the nested spelling correctly: the type-only body is stripped, and a value in it raises a
+coded `typescript_invalid_feature` positioned on the inner `namespace M { … }`. rsvelte therefore
+treats the dotted form **as its desugaring**, so both halves of upstream's own behaviour on the
+nested form carry over:
+
+| source (instance script or `<script module>`, `lang="ts"`) | official | rsvelte |
+|---|---|---|
+| `namespace N.M { type T = 1; }` | `TypeError` | stripped |
+| `namespace N.M.O { type T = 1; }` | `TypeError` | stripped |
+| `namespace N.M { }` | `TypeError` | stripped |
+| `namespace N.M { let x = 1; }` | `TypeError` | `typescript_invalid_feature` |
+| `namespace N { namespace M { let x = 1; } }` | `typescript_invalid_feature` | same |
+
+Before this entry, the parse conversion dropped the dotted body without looking at it (the nested
+declaration is not a `TSModuleBlock`), so the value case was accepted too — rsvelte was silently
+more permissive than the desugaring it now follows.
+
+The alternative — reproduce the crash — is available and was rejected: a raw exception carries no
+code and no span, so there is nothing for the error ratchets to be equal to, and every consumer
+that embeds the compiler (the language server, `rsvelte-check`, the Vite plugin) would surface an
+uncoded panic instead of a diagnostic.
+
+### Why no gate sees it
+
+- **Output-equality and error gates**: official produces neither output nor a coded error, so the
+  comparison key is empty on one side.
+- **Collected corpus**: a component with a dotted namespace cannot be built with the official
+  compiler at all, so no published source carries the shape.
+- **Output-parseability gate**: rsvelte's output is valid JavaScript either way — the divergence is
+  whether the input is accepted, which that gate does not ask.

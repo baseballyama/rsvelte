@@ -1888,113 +1888,154 @@ export const WRITE_PREAMBLE = `<script>
 `;
 
 /**
- * Axis M1 — one class member, spelled with the modifiers under test.
+ * Axis T1 — the element's TAG NAME, against the JS reserved-word list.
  *
- * The subject is what a PLAIN `<script>` is allowed to contain. Upstream parses
- * one with stock acorn and a `lang="ts"` one with `@sveltejs/acorn-typescript`
- * (`1-parse/acorn.js:9-10`); rsvelte parses both with OXC and only switches
- * `SourceType`, which leaves every TypeScript-only class modifier — and the
- * stage-3 `accessor`, which OXC implements and the pinned acorn does not —
- * accepted in a JS script that official rejects (#3100, #3203).
+ * A tag name becomes a generated variable name, and `Scope.unique`
+ * (`phases/scope.js:728-734`) refuses a reserved word for one. rsvelte's
+ * `Memoizer::generate_id` had the three membership tests and not that fourth
+ * one, so `<var>x</var>` emitted `var var = root();` — output no JS parser
+ * accepts, from a `compile()` that returned successfully (#3582).
  *
- * The rows are not "one per modifier": acorn stops at the token FOLLOWING the
- * first modifier it cannot read, so `private static a` and `static private a`
- * report at different places and `private get a()` at a third. Those orderings
- * are the axis, not decoration.
+ * The list is upstream's `is_reserved` verbatim. Two of these are standard
+ * elements that appear in real documents (HTML's `<var>`, SVG's `<switch>`);
+ * the rest are unknown elements, which Svelte compiles happily — being
+ * unknown is not what makes the output invalid, being a reserved word is.
  *
- * The `ok-` rows are the controls, and they carry the whole weight of the
- * over-rejection direction: `accessor = 1` is a field NAMED accessor,
- * `accessor\na = 1` is two fields (the proposal forbids a line break there),
- * and `static readonly = 1` / `private() {}` / `get private() {}` each spell a
- * modifier keyword in a position where it is an ordinary name. A check that
- * keys on the keyword's text rather than on the parsed member fails these.
+ * The controls matter as much as the rows. `async`, `of`, `get` and `set` LOOK
+ * like keywords and are not reserved, so they must keep the bare name; `div`
+ * and `template` are ordinary tags; and `my-tag` reaches the sanitizer instead
+ * of the fast path, which is the second allocator the same omission sat in.
  */
-export const CLASS_MODIFIER_MEMBERS = {
-	accessor: 'accessor a = 1;',
-	'accessor-static': 'static accessor a = 1;',
-	'accessor-first': 'accessor static a = 1;',
-	'accessor-hash': 'accessor #a = 1;',
-	'accessor-computed': 'accessor [1] = 1;',
-	'accessor-declare': 'declare accessor a;',
-	private: 'private a = 1;',
-	public: 'public a = 1;',
-	protected: 'protected a = 1;',
-	readonly: 'readonly a = 1;',
-	declare: 'declare a;',
-	abstract: 'abstract a;',
-	'private-method': 'private m() {}',
-	'override-method': 'override m() {}',
-	'override-static': 'static override m() {}',
-	'private-getter': 'private get a() {\n\t\t\treturn 1;\n\t\t}',
-	'private-static': 'private static a = 1;',
-	'static-private': 'static private a = 1;',
-	'public-static-readonly': 'public static readonly a = 1;',
-	'private-computed': "private ['a'] = 1;",
-	'private-hash': 'private #a = 1;',
-	'private-generator': 'private *g() {}',
-	'private-async': 'private async m() {}',
-	'private-comment': 'private /* c */ a = 1;',
-	'ok-plain': 'a = 1;',
-	'ok-static': 'static a = 1;',
-	'ok-hash': '#a = 1;',
-	'ok-static-block': 'static {\n\t\t\tthis.a = 1;\n\t\t}',
-	'ok-named-accessor': 'accessor = 1;',
-	'ok-accessor-newline': 'accessor\n\t\ta = 1;',
-	'ok-named-private-method': 'private() {}',
-	'ok-getter-named-private': 'get private() {\n\t\t\treturn 1;\n\t\t}',
-	'ok-static-named-readonly': 'static readonly = 1;',
+export const RESERVED_TAG_NAMES = [
+	'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+	'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
+	'extends', 'false', 'finally', 'for', 'function', 'if', 'implements',
+	'import', 'in', 'instanceof', 'interface', 'let', 'new', 'null', 'package',
+	'private', 'protected', 'public', 'return', 'static', 'super', 'switch',
+	'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with',
+	'yield',
+];
+
+/** The near-miss and ordinary names that must keep the bare identifier. */
+export const UNRESERVED_TAG_NAMES = ['async', 'of', 'get', 'set', 'div', 'template', 'my-tag'];
+
+/**
+ * Axis T2 — where the element sits, because each host reaches the name
+ * allocator by a different route. `%t` is the tag name.
+ *
+ * `svelte-element` is the row that was already correct — its variable is named
+ * from a different path — so it separates "the tag name is not sanitized" from
+ * "any element with this name breaks".
+ */
+export const TAG_NAME_HOSTS = {
+	plain: '<%t>x</%t>',
+	expression: '<%t>{v}</%t>',
+	nested: '<%t><b>{v}</b></%t>',
+	'bind-this': '<%t bind:this={el}>x</%t>',
+	siblings: '<%t>x</%t>\n<%t>y</%t>',
+	attribute: '<%t title={v}>x</%t>',
+	each: '{#each [1, 2] as i}\n\t<%t>{i}</%t>\n{/each}',
+	'svelte-element': '<svelte:element this="%t">{v}</svelte:element>',
+};
+
+export const TAG_NAME_PREAMBLE = `<script>
+	let v = $state(1);
+	let el;
+</script>
+
+%m
+`;
+
+/**
+ * Axis family — an async attribute VALUE × the attribute SLOT it sits in × the
+ * ELEMENT hosting the slot. Its subject is which lowering a value reaches, not
+ * what the value is.
+ *
+ * Upstream routes every attribute-ish slot through `Memoizer`, which hoists a
+ * call or an `await` out of the `template_effect` arrow into its `sync`/`async`
+ * argument and passes the top-level-await `blockers` as the fourth — except
+ * `build_custom_element_attribute_update_assignment` (`RegularElement.js`),
+ * which builds its own one-argument `$.template_effect(b.thunk(call))`. The same
+ * value is therefore lowered two different ways depending only on whether the
+ * tag name has a dash. The host axis is what makes that observable: every value
+ * and slot is generated on `<div>` too, where the memoized lowering is the right
+ * answer, so "memoize everywhere" and "memoize nowhere" are distinguishable.
+ *
+ * `experimental.async` is set for the same reason `async-derived` sets it — no
+ * other harness does, so this is a population the collected corpus cannot hold
+ * at any size.
+ *
+ * The four `custom-element` × `attribute` cells whose value carries a literal
+ * `await` are compared on the SERVER targets only: the pinned oracle compiles
+ * them to `await` inside a non-async arrow, which is not JavaScript, so there is
+ * no client oracle to compare against. Their server lowering is unaffected.
+ */
+export const ASYNC_ATTRIBUTE_VALUES = {
+	// Controls. None of these may gain a memoized slot under a correct fix: a
+	// static value needs no effect at all, a bare state read is passed through,
+	// and an `await` already inside an async function is the shape an over-broad
+	// "hoist anything containing await" rule breaks.
+	static: `'v'`,
+	state: 'foo',
+	'async-iife': '(async () => await p)()',
+	// Memoized as a SYNC value — the row that shows the custom-element slot is
+	// not only an `await` problem.
+	call: 'f()',
+	// Memoized as an ASYNC value.
+	await: 'await p',
+	'await-literal': `await 'v'`,
+	'await-in-call': 'String(await p)',
+	'await-plus-state': '(await p) + foo',
+	// No literal `await` in the value, but the binding it reads is written by
+	// one, so the effect must carry a blocker. A rule keyed on the token
+	// `await` inside the attribute passes every row above and fails these two.
+	'derived-await-read': 'd',
+	'script-await-read': 't',
+};
+
+/** Which attribute-ish slot carries the value. `%A` is the host's attribute name. */
+export const ASYNC_ATTRIBUTE_SLOTS = {
+	attribute: '%A={%s}',
+	class: 'class={%s}',
+	style: 'style={%s}',
+	'style-directive': 'style:color={%s}',
+	'class-directive': 'class:x={%s}',
+	spread: `{...{ 'data-x': %s }}`,
 };
 
 /**
- * Axis M2 — the script the class is declared in.
- *
- * `js-*` is the population the defect lives in and `ts-*` the control: a
- * `lang="ts"` script measured 0 divergences over 360 cells while the plain one
- * carried every single one, so a family without both halves cannot say whether
- * a fix narrowed the JS grammar or broke TypeScript support.
- *
- * `js-with-ts-module` is the interaction the other two cannot express: upstream
- * derives ONE document-wide `parser.ts` from the first `<script lang>` in the
- * file (`1-parse/index.js:101-108`) and hands it to every script, so a plain
- * instance script in a component whose module script is TypeScript is parsed by
- * acorn-typescript. `module-ts` is its mirror image — `analyze_module` calls
- * `parse(source, comments, false, false)` unconditionally, so a `.svelte.ts`
- * extension enables nothing.
+ * The element the slot hangs off. `custom-element` is the subject; the other
+ * three reach the same slot through three different visitors, so a divergence
+ * is attributable to the host rather than to the value.
  */
-export const CLASS_MODIFIER_HOSTS = {
-	'js-instance': {
-		ext: '.svelte',
-		wrap: (member) =>
-			`<script>\n\tclass C {\n\t\t${member}\n\t}\n\tconst s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
+export const ASYNC_ATTRIBUTE_HOSTS = {
+	div: { markup: '<div %s></div>', attr: 'data-x' },
+	'custom-element': { markup: '<my-element %s></my-element>', attr: 'bar' },
+	'svelte-element': {
+		markup: `<svelte:element this={'span'} %s></svelte:element>`,
+		attr: 'data-x',
 	},
-	'js-module': {
-		ext: '.svelte',
-		wrap: (member) =>
-			`<script module>\n\tclass C {\n\t\t${member}\n\t}\n\texport const s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
-	},
-	'js-with-ts-module': {
-		ext: '.svelte',
-		wrap: (member) =>
-			`<script module lang="ts">\n\texport const t: number = 1;\n</script>\n\n<script>\n\tclass C {\n\t\t${member}\n\t}\n\tconst s = C;\n</script>\n\n<p>{s && t ? 'ok' : ''}</p>\n`,
-	},
-	'ts-instance': {
-		ext: '.svelte',
-		wrap: (member) =>
-			`<script lang="ts">\n\tclass C {\n\t\t${member}\n\t}\n\tconst s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
-	},
-	'ts-module': {
-		ext: '.svelte',
-		wrap: (member) =>
-			`<script module lang="ts">\n\tclass C {\n\t\t${member}\n\t}\n\texport const s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
-	},
-	'module-js': {
-		ext: '.svelte.js',
-		kind: 'module',
-		wrap: (member) => `class C {\n\t${member}\n}\n\nexport const s = C;\n`,
-	},
-	'module-ts': {
-		ext: '.svelte.ts',
-		kind: 'module',
-		wrap: (member) => `class C {\n\t${member}\n}\n\nexport const s = C;\n`,
-	},
+	// A component takes props; `class`/`style`/directives are not its slots.
+	component: { markup: '<Comp %s />', attr: 'x', import: true, slots: ['attribute', 'spread'] },
 };
+
+/**
+ * The declarations every async-attribute case shares. `t` and `d` are the two
+ * blocker sources (a top-level `await` and a `$derived(await …)`); declaring
+ * both in every file keeps the value axis the only thing that varies.
+ */
+export const ASYNC_ATTRIBUTE_PREAMBLE = `<script>
+%i	let foo = $state('foo');
+	const p = Promise.resolve('v');
+	const t = await 'v';
+	const d = $derived(await 'v');
+	function f() {
+		return 'v';
+	}
+	function bump() {
+		foo += '!';
+	}
+</script>
+
+%m
+`;

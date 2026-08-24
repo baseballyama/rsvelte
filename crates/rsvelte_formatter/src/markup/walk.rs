@@ -85,6 +85,7 @@ fn collect_svelte_window_open_tag_edits(
             None,
             &window.fragment,
             depth,
+            false,
             options,
             edits,
         );
@@ -97,6 +98,7 @@ fn collect_svelte_window_open_tag_edits(
         None,
         depth,
         true,
+        false,
         false,
         options,
         edits,
@@ -118,11 +120,22 @@ fn collect_element_open_tag_edits(
     expression: Option<&Expression>,
     fragment: &Fragment,
     depth: usize,
+    regular_element: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     handle_element(
-        source, start, end, name, attributes, expression, fragment, depth, options, edits,
+        source,
+        start,
+        end,
+        name,
+        attributes,
+        expression,
+        fragment,
+        depth,
+        regular_element,
+        options,
+        edits,
     )
 }
 
@@ -144,6 +157,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                true,
                 options,
                 edits,
             )?;
@@ -159,6 +173,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -174,6 +189,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -189,6 +205,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -210,6 +227,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -265,6 +283,7 @@ pub fn collect_options_open_tag_edit(
         &attrs,
         None,
         0,
+        false,
         false,
         false,
         options,
@@ -325,11 +344,20 @@ fn handle_element(
     this_expression: Option<&Expression>,
     fragment: &Fragment,
     depth: usize,
+    regular_element: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     let is_empty = is_empty_fragment(fragment);
     let empty_nonhug = is_empty_nonhug_element(name, fragment);
+    let last_child_ends_here = fragment
+        .nodes
+        .iter()
+        .rev()
+        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
+        .is_some_and(|n| {
+            !matches!(n, TemplateNode::Text(_)) && crate::collapse::template_node_span(n).1 == end
+        });
     let wrapped = push_open_tag(
         source,
         start,
@@ -339,9 +367,14 @@ fn handle_element(
         depth,
         is_empty,
         empty_nonhug,
+        regular_element,
         options,
         edits,
     )?;
+    // Children first: an element and its last descendant can both close
+    // implicitly at the same offset (`<tr><td>a<td>b</tr>`), and coincident
+    // inserts emit in push order, so the inner close tag has to be pushed first.
+    collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
     push_close_tag(
         source,
         end,
@@ -350,10 +383,10 @@ fn handle_element(
         depth,
         is_empty,
         empty_nonhug,
+        last_child_ends_here,
         options,
         edits,
     );
-    collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
     Ok(())
 }
 
@@ -380,6 +413,7 @@ fn collect_node_open_tag_edits(
             Some(&c.expression),
             &c.fragment,
             depth,
+            false,
             options,
             edits,
         )?,
@@ -392,6 +426,7 @@ fn collect_node_open_tag_edits(
             Some(&e.tag),
             &e.fragment,
             depth,
+            false,
             options,
             edits,
         )?,

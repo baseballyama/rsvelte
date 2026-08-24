@@ -1,7 +1,7 @@
 # Development environment for rsvelte_core
 # Pinned Rust toolchain — keep in sync with the CI pin (dtolnay `toolchain:`
 # input in .github/workflows/*.yml). Both are Renovate-managed.
-FROM rust:1.97.1-bookworm
+FROM rust:1.98.0-bookworm
 
 # Install Node.js 22.x and pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
