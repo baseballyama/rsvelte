@@ -10,17 +10,7 @@ use super::VisitorContext;
 use super::shared::utils;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::BindingKind;
-/// The global functions whose return value is always a defined number/string —
-/// mirrors `is_known_defined_global_call` in the client transform.
-fn is_known_defined_global_call(keypath: &str) -> bool {
-    keypath.starts_with("Math.")
-        || keypath == "Number"
-        || keypath.starts_with("Number.")
-        || keypath == "String"
-        || keypath == "String.fromCharCode"
-        || keypath == "String.fromCodePoint"
-        || keypath == "BigInt"
-}
+use crate::compiler::phases::phase2_analyze::scope::is_known_defined_global_call;
 /// Collect svelte-ignore codes from the parent VariableDeclaration's or
 /// ExportNamedDeclaration's leading comments.
 fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
@@ -228,6 +218,11 @@ fn extract_paths_typed_recursive(
 fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Literal { raw, value, .. } => {
+            // A regex has no representation in the `initial` source-text model,
+            // and a `Some` here closes the AST-JSON path that can evaluate it.
+            if matches!(value, crate::ast::typed_expr::LiteralValue::Regex(_)) {
+                return None;
+            }
             if !raw.is_empty() {
                 return Some(raw.to_string());
             }
@@ -338,9 +333,15 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
         // binding is `is_defined` and a template `${x}` reads bare (no `?? ''`).
         // Without this arm the typed path falls through to `_ => false`, which
         // spuriously adds `?? ''` for TS scripts now walked typed.
-        JsNode::CallExpression { callee, .. } => {
+        JsNode::CallExpression {
+            callee, arguments, ..
+        } => {
+            let has_spread = arena
+                .get_js_children(*arguments)
+                .iter()
+                .any(|arg| matches!(arg, JsNode::SpreadElement { .. }));
             js_node_member_keypath(arena.get_js_node(*callee), arena)
-                .map(|kp| is_known_defined_global_call(&kp))
+                .map(|kp| is_known_defined_global_call(&kp, has_spread))
                 .unwrap_or(false)
         }
         _ => false,
@@ -796,7 +797,11 @@ fn process_props_object_pattern_typed(
             JsNode::Identifier { name, .. } => Some(name.to_string()),
             JsNode::Literal { value, .. } => match value {
                 crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
-                crate::ast::typed_expr::LiteralValue::Number(n) => Some((*n as i64).to_string()),
+                crate::ast::typed_expr::LiteralValue::Number(n) => Some(
+                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(
+                        *n,
+                    ),
+                ),
                 _ => None,
             },
             _ => None,
@@ -846,6 +851,8 @@ fn process_props_object_pattern_typed(
                         let bindable_arg = args.first();
 
                         binding.initial = bindable_arg.map(|arg| format!("{:?}", arg.to_value()));
+                        binding.initial_span =
+                            bindable_arg.and_then(|arg| arg.start().zip(arg.end()));
                         binding.initial_node_type =
                             bindable_arg.map(|arg| arg.type_str().to_string());
                         if binding.initial_node_type.as_deref() == Some("Identifier") {
@@ -861,6 +868,7 @@ fn process_props_object_pattern_typed(
                     } else {
                         binding.initial = extract_literal_string_typed(init)
                             .or_else(|| Some(init.to_json_string()));
+                        binding.initial_span = init.start().zip(init.end());
                         binding.initial_node_type = Some(init.type_str().to_string());
                         if binding.initial_node_type.as_deref() == Some("Identifier")
                             && let JsNode::Identifier { name, .. } = init
@@ -871,6 +879,7 @@ fn process_props_object_pattern_typed(
                 } else {
                     binding.initial =
                         extract_literal_string_typed(init).or_else(|| Some(init.to_json_string()));
+                    binding.initial_span = init.start().zip(init.end());
                     binding.initial_node_type = Some(init.type_str().to_string());
                     if binding.initial_node_type.as_deref() == Some("Identifier")
                         && let JsNode::Identifier { name, .. } = init
@@ -1041,7 +1050,13 @@ fn visit_non_runes_mode_typed(
 fn init_needs_expr_json(init: &JsNode) -> bool {
     match init {
         JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
+        // A regex is the one literal `Binding::initial` cannot carry, so its
+        // node is what the evaluators have to read.
+        JsNode::Literal { value, .. } => {
+            matches!(value, crate::ast::typed_expr::LiteralValue::Regex(_))
+        }
         JsNode::BinaryExpression { .. }
+        | JsNode::LogicalExpression { .. }
         | JsNode::UnaryExpression { .. }
         | JsNode::ConditionalExpression { .. }
         | JsNode::CallExpression { .. } => true,
