@@ -1334,7 +1334,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if let Some(end) = node_meta.end {
                 self.flush_trailing_comments(parent, end, until);
             }
-            let length = parent.measure();
+            let length = parent.measure_with_layout_spaces(&scope);
             // Same width rule as the multi-item branches, whose accumulator
             // (`-1`, then `+= measure + 1` per item) equals `measure` at n == 1.
             let multiline = parent.end_scope(scope) || usize_to_i64(length) > 60;
@@ -1402,7 +1402,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     self.flush_trailing_comments(parent, end, next);
                 }
 
-                length += usize_to_i64(parent.measure()) + 1;
+                length += usize_to_i64(parent.measure_with_layout_spaces(&scope)) + 1;
                 multiline |= parent.end_scope(scope);
                 *item = Some(SeqLayout {
                     mark,
@@ -1496,7 +1496,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.flush_trailing_comments(parent, end, next);
             }
 
-            length += usize_to_i64(parent.measure()) + 1;
+            length += usize_to_i64(parent.measure_with_layout_spaces(&scope)) + 1;
             multiline |= parent.end_scope(scope);
             items.push(SeqLayout {
                 mark,
@@ -1506,6 +1506,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             });
         }
 
+        // esrap writes a nested sequence's own inter-item space as a string, so
+        // its `measure` counts it; here that space is a layout event `measure`
+        // subtracts, and a child measured short flips this 60-column test.
         multiline |= length > 60;
 
         for i in (0..items.len()).rev() {
