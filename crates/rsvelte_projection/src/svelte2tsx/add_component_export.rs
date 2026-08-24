@@ -5,11 +5,11 @@ use std::fmt::Write as _;
 
 use crate::ast::template::Root;
 
-use super::interfaces::{Svelte2TsxOptions, SvelteVersion};
+use super::interfaces::{Svelte2TsxMode, Svelte2TsxOptions, SvelteVersion};
 use super::magic_string::MagicString;
 use super::nodes::component_documentation::extract_component_documentation;
 use super::nodes::component_events::build_events_str;
-use super::nodes::generics::{compact_generic_params, split_generic_param_names};
+use super::nodes::generics::parse_generics_attr;
 use super::nodes::slot::build_slots_str;
 use super::script::{ComponentEvents, ExportedNames};
 use super::template;
@@ -20,7 +20,7 @@ pub struct ComponentExportParams<'a> {
     pub ast: &'a Root<'a>,
     pub source: &'a str,
     pub options: &'a Svelte2TsxOptions,
-    pub component_name: &'a str,
+    pub component_name: Option<&'a str>,
     pub template_info: &'a template::TemplateInfo<'a>,
     pub exported_names: &'a ExportedNames,
     pub events: &'a mut ComponentEvents,
@@ -113,9 +113,22 @@ pub fn add_component_export(
         options.is_ts_file,
     );
     let bindings_str = exported_names.create_bindings_str(is_svelte5);
-    let mut safe_name = String::with_capacity(component_name.len() + "__SvelteComponent_".len());
-    safe_name.push_str(component_name);
-    safe_name.push_str("__SvelteComponent_");
+    // Upstream `classNameFromFilename(fileName, mode !== 'dts')`: the
+    // `__SvelteComponent_` clash suffix is dropped in dts output, and an absent
+    // filename yields no class name, so the export is named `$$Component`.
+    let class_name = component_name.map(|name| {
+        if matches!(options.mode, Svelte2TsxMode::Dts) {
+            name.to_string()
+        } else {
+            let mut safe = String::with_capacity(name.len() + "__SvelteComponent_".len());
+            safe.push_str(name);
+            safe.push_str("__SvelteComponent_");
+            safe
+        }
+    });
+    let safe_name = class_name
+        .clone()
+        .unwrap_or_else(|| "$$Component".to_string());
 
     // Extract @component documentation from HTML comments
     let component_doc = extract_component_documentation(&ast.fragment);
@@ -199,8 +212,12 @@ pub fn add_component_export(
         ""
     };
 
-    // Determine if this component has generics (either from generics= attribute or $$Generic)
-    let has_generics = !exported_names.dollar_generics.is_empty() || generics_attribute.is_some();
+    // Upstream keys the component export on `Generics.has()`, i.e. the attribute
+    // parsed as a type parameter list — not on the attribute merely being there.
+    let attribute_generics = generics_attribute
+        .map(parse_generics_attr)
+        .unwrap_or_default();
+    let has_generics = !exported_names.dollar_generics.is_empty() || attribute_generics.has();
 
     // Build generics strings for component export
     let (generics_params, generics_names) = if !exported_names.dollar_generics.is_empty() {
@@ -220,37 +237,161 @@ pub fn add_component_export(
             .map(|(name, _)| name.clone())
             .collect();
         (params.join(","), names.join(","))
-    } else if let Some(g) = generics_attribute {
-        // Create compact params string (strip leading spaces from each param)
-        let params_str = compact_generic_params(g);
-        // Split generic params at top-level commas (not inside angle brackets)
-        let names = split_generic_param_names(g);
-        (params_str, names.join(","))
+    } else if attribute_generics.has() {
+        (
+            attribute_generics.definitions_str(),
+            attribute_generics.references_str(),
+        )
     } else {
         (String::new(), String::new())
     };
 
     match options.version {
         SvelteVersion::V4 => {
-            if let Some(ref doc) = component_doc {
-                closing.push_str(doc);
-                closing.push('\n');
-            }
-            let _ = write!(
-                closing,
-                "\nexport default class {safe_name} extends __sveltets_2_createSvelte2TsxComponent("
-            );
+            let is_dts = matches!(options.mode, Svelte2TsxMode::Dts);
+            let mut prop_def = String::new();
             write_prop_def(
-                &mut closing,
+                &mut prop_def,
                 exported_names,
                 options.is_ts_file,
                 can_have_any_prop,
                 render_call,
             );
-            closing.push_str(") {\n}");
+            // `class X` vs an anonymous `export default class` — upstream's
+            // `className ? ` ${className}` : ''`.
+            let named = class_name
+                .as_deref()
+                .map_or_else(String::new, |name| format!(" {name}"));
+            let doc = component_doc
+                .as_deref()
+                .map_or_else(String::new, |doc| format!("{doc}\n"));
+            let getters = exported_names.create_class_getters("");
+            let accessors = if effective_accessors {
+                exported_names.create_class_accessors()
+            } else {
+                String::new()
+            };
+            if has_generics {
+                // Svelte-4 generic component: the `__sveltets_Render<T>` class
+                // threads `T` through the class-component type parameters.
+                // Mirrors `addGenericsComponentExport` with `isSvelte5 === false`.
+                let gp = &generics_params;
+                let gn = &generics_names;
+                let props_render = if can_have_any_prop {
+                    format!("__sveltets_2_with_any($$render<{gn}>())")
+                } else {
+                    format!("$$render<{gn}>()")
+                };
+                let events_render =
+                    if exported_names.has_events_type() || exported_names.is_runes_mode() {
+                        format!("$$render<{gn}>()")
+                    } else {
+                        format!("__sveltets_2_with_any_event($$render<{gn}>())")
+                    };
+                let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
+                let _ = writeln!(
+                    closing,
+                    "    props() {{\n        return {props_render}.props;\n    }}"
+                );
+                let _ = writeln!(
+                    closing,
+                    "    events() {{\n        return {events_render}.events;\n    }}"
+                );
+                let _ = writeln!(
+                    closing,
+                    "    slots() {{\n        return $$render<{gn}>().slots;\n    }}"
+                );
+                closing.push_str("}\n");
+                let ret = |part: &str| format!("ReturnType<__sveltets_Render<{gn}>['{part}']>");
+                if is_dts {
+                    let svelte_component_class = if options.no_svelte_component_typed {
+                        "SvelteComponent"
+                    } else {
+                        "SvelteComponentTyped"
+                    };
+                    let props = add_type_export(source, class_name.as_deref(), "Props");
+                    let events = add_type_export(source, class_name.as_deref(), "Events");
+                    let slots = add_type_export(source, class_name.as_deref(), "Slots");
+                    let _ = writeln!(closing, "export type {}<{gp}> = {};", props.0, ret("props"));
+                    let _ = writeln!(
+                        closing,
+                        "export type {}<{gp}> = {};",
+                        events.0,
+                        ret("events")
+                    );
+                    let _ = writeln!(closing, "export type {}<{gp}> = {};", slots.0, ret("slots"));
+                    let _ = write!(
+                        closing,
+                        "\n{doc}export default class{named}<{gp}> extends {svelte_component_class}<{}<{gn}>, {}<{gn}>, {}<{gn}>> {{{getters}{accessors}\n}}",
+                        props.0, events.0, slots.0
+                    );
+                } else {
+                    let svelte_component_class = if options.no_svelte_component_typed {
+                        "SvelteComponent"
+                    } else {
+                        "SvelteComponentTyped"
+                    };
+                    let _ = write!(
+                        closing,
+                        "\n\nimport {{ {svelte_component_class} as __SvelteComponentTyped__ }} from \"svelte\" \n"
+                    );
+                    let _ = write!(
+                        closing,
+                        "{doc}export default class{named}<{gp}> extends __SvelteComponentTyped__<{}, {}, {}> {{{getters}{accessors}\n}}",
+                        ret("props"),
+                        ret("events"),
+                        ret("slots")
+                    );
+                }
+            } else if is_dts && options.is_ts_file {
+                let svelte_component_class = if options.no_svelte_component_typed {
+                    "SvelteComponent"
+                } else {
+                    "SvelteComponentTyped"
+                };
+                let _ = writeln!(closing, "const __propDef = {prop_def};");
+                let props = add_type_export(source, class_name.as_deref(), "Props");
+                let events = add_type_export(source, class_name.as_deref(), "Events");
+                let slots = add_type_export(source, class_name.as_deref(), "Slots");
+                closing.push_str(&props.1);
+                closing.push_str(&events.1);
+                closing.push_str(&slots.1);
+                let _ = write!(
+                    closing,
+                    "\n{doc}export default class{named} extends {svelte_component_class}<{}, {}, {}> {{{getters}{accessors}\n}}",
+                    props.0, events.0, slots.0
+                );
+            } else if is_dts {
+                let name = class_name.as_deref().unwrap_or_default();
+                let _ = writeln!(closing, "const __propDef = {prop_def};");
+                let _ = writeln!(
+                    closing,
+                    "/** @typedef {{typeof __propDef.props}}  {name}Props */"
+                );
+                let _ = writeln!(
+                    closing,
+                    "/** @typedef {{typeof __propDef.events}}  {name}Events */"
+                );
+                let _ = writeln!(
+                    closing,
+                    "/** @typedef {{typeof __propDef.slots}}  {name}Slots */"
+                );
+                let _ = write!(
+                    closing,
+                    "\n{doc}export default class{named} extends __sveltets_2_createSvelte2TsxComponent({prop_def}) {{{getters}{accessors}\n}}"
+                );
+            } else {
+                let _ = write!(
+                    closing,
+                    "\n{doc}export default class{named} extends __sveltets_2_createSvelte2TsxComponent({prop_def}) {{{getters}{accessors}\n}}"
+                );
+            }
         }
         SvelteVersion::V5 => {
-            let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
+            // dts output is always TypeScript syntax — upstream's `mode === 'dts'`
+            // branches never consult `emitJsDoc`.
+            let is_dts = matches!(options.mode, Svelte2TsxMode::Dts);
+            let use_ts_syntax = is_dts || options.is_ts_file || !options.emit_jsdoc;
             // `__sveltets_2_fn_component` is only used for a runes component with
             // NO slots and NO events; a runes component that forwards events
             // (`on:click`) or has slots falls through to the isomorphic-component
@@ -348,12 +489,18 @@ pub fn add_component_export(
                     closing.push_str(" = __sveltets_2_fn_component(");
                     closing.push_str(render_call);
                     closing.push_str(");\n");
-                    closing.push_str("/*\u{03A9}ignore_start\u{03A9}*/type ");
+                    if !is_dts {
+                        closing.push_str("/*\u{03A9}ignore_start\u{03A9}*/");
+                    }
+                    closing.push_str("type ");
                     closing.push_str(&safe_name);
                     closing.push_str(" = ReturnType<typeof ");
                     closing.push_str(&safe_name);
                     closing.push_str(">;\n");
-                    closing.push_str("/*\u{03A9}ignore_end\u{03A9}*/export default ");
+                    if !is_dts {
+                        closing.push_str("/*\u{03A9}ignore_end\u{03A9}*/");
+                    }
+                    closing.push_str("export default ");
                     closing.push_str(&safe_name);
                     closing.push(';');
                 }
@@ -483,9 +630,24 @@ pub fn add_component_export(
                 // isSvelte5 + !isRunesMode + !has_generics branch.
                 // `awaitDeclaration` is emitted first; `render_call` is threaded
                 // through `write_prop_def` → `__sveltets_2_with_any_event(renderCall)`.
-                closing.push_str(await_declaration);
                 let has_non_empty_slots = !template_info.slots.is_empty();
-                let component_fn = if has_non_empty_slots {
+                if is_dts {
+                    // A .d.ts cannot reference the ambient svelte-shims globals,
+                    // so upstream inlines the two declarations it needs.
+                    write_dts_isomorphic_shims(
+                        &mut closing,
+                        has_non_empty_slots,
+                        !can_have_any_prop && exported_names.has_no_props(),
+                    );
+                }
+                closing.push_str(await_declaration);
+                let component_fn = if is_dts {
+                    if has_non_empty_slots {
+                        "$$__sveltets_2_isomorphic_component_slots"
+                    } else {
+                        "$$__sveltets_2_isomorphic_component"
+                    }
+                } else if has_non_empty_slots {
                     "__sveltets_2_isomorphic_component_slots"
                 } else {
                     "__sveltets_2_isomorphic_component"
@@ -532,6 +694,128 @@ pub fn add_component_export(
     }
 
     closing
+}
+
+/// Inline the `$$__sveltets_2_IsomorphicComponent` interface and the
+/// `$$__sveltets_2_isomorphic_component[_slots]` declaration a `.d.ts` needs,
+/// because a declaration file cannot reach the ambient svelte-shims globals.
+/// Mirrors the `mode === 'dts'` + `isSvelte5` branch of `addSimpleComponentExport`.
+fn write_dts_isomorphic_shims(out: &mut String, uses_slots: bool, has_no_props: bool) {
+    let props_arg = if has_no_props {
+        "{$$events?: Events, $$slots?: Slots}"
+    } else {
+        "Props & {$$events?: Events, $$slots?: Slots}"
+    };
+    out.push_str(DTS_ISOMORPHIC_INTERFACE_HEAD);
+    out.push_str(props_arg);
+    out.push_str(DTS_ISOMORPHIC_INTERFACE_TAIL);
+    out.push_str(if uses_slots {
+        DTS_ISOMORPHIC_SLOTS_DECL
+    } else {
+        DTS_ISOMORPHIC_DECL
+    });
+}
+
+const DTS_ISOMORPHIC_INTERFACE_HEAD: &str = "interface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {
+    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;
+    (internal: unknown, props: ";
+
+const DTS_ISOMORPHIC_INTERFACE_TAIL: &str = "): Exports & { $set?: any, $on?: any };
+    z_$$bindings?: Bindings;
+}
+";
+
+const DTS_ISOMORPHIC_SLOTS_DECL: &str = "type $$__sveltets_2_PropsWithChildren<Props, Slots> = Props &
+    (Slots extends { default: any }
+        ? Props extends Record<string, never>
+        ? any
+        : { children?: any }
+        : {});
+        declare function $$__sveltets_2_isomorphic_component_slots<
+            Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string
+        >(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<$$__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;
+";
+
+const DTS_ISOMORPHIC_DECL: &str = "
+declare function $$__sveltets_2_isomorphic_component<
+    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string
+>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;
+";
+
+/// Port of upstream `addTypeExport`: name the exported `Props`/`Events`/`Slots`
+/// alias, renaming it out of the way when the source already uses that
+/// identifier, and dropping the `export` when the author exported it themselves.
+fn add_type_export(source: &str, class_name: Option<&str>, kind: &str) -> (String, String) {
+    let export_name = format!("{}{kind}", class_name.unwrap_or_default());
+    let lower = kind.to_lowercase();
+    if !contains_as_word(source, &export_name) {
+        return (
+            export_name.clone(),
+            format!("export type {export_name} = typeof __propDef.{lower};\n"),
+        );
+    }
+    let mut replacement = format!("{export_name}_");
+    while source.contains(&replacement) {
+        replacement.push('_');
+    }
+    if source_exports_name(source, &export_name) {
+        // The author explicitly named the type the same; don't export ours,
+        // whose name is unstable.
+        (
+            replacement.clone(),
+            format!("type {replacement} = typeof __propDef.{lower};\n"),
+        )
+    } else {
+        (
+            replacement.clone(),
+            format!(
+                "type {replacement} = typeof __propDef.{lower};\nexport {{ {replacement} as {export_name} }};\n"
+            ),
+        )
+    }
+}
+
+/// Upstream tests `new RegExp(`\\W${name}\\W`)` — the identifier surrounded by
+/// non-word characters anywhere in the original source.
+fn contains_as_word(source: &str, name: &str) -> bool {
+    let is_word = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
+    let bytes = source.as_bytes();
+    let mut from = 0;
+    while let Some(offset) = source[from..].find(name) {
+        let start = from + offset;
+        let end = start + name.len();
+        if start > 0 && end < bytes.len() && !is_word(bytes[start - 1]) && !is_word(bytes[end]) {
+            return true;
+        }
+        from = start + 1;
+    }
+    false
+}
+
+/// Upstream's second regex: an existing `export const|let|var|class|interface|type NAME`
+/// or an `export { … NAME … }` in the original source.
+fn source_exports_name(source: &str, name: &str) -> bool {
+    for keyword in ["const", "let", "var", "class", "interface", "type"] {
+        let needle = format!("export {keyword} {name}");
+        if let Some(pos) = source.find(&needle) {
+            let after = pos + needle.len();
+            let next = source.as_bytes().get(after).copied().unwrap_or(b' ');
+            if !(next.is_ascii_alphanumeric() || next == b'_') {
+                return true;
+            }
+        }
+    }
+    let mut from = 0;
+    while let Some(offset) = source[from..].find("export {") {
+        let start = from + offset;
+        if let Some(close) = source[start..].find('}')
+            && contains_as_word(&source[start..start + close + 1], name)
+        {
+            return true;
+        }
+        from = start + 1;
+    }
+    false
 }
 
 fn write_prop_def(

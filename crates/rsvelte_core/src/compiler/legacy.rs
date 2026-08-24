@@ -225,18 +225,22 @@ pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
 
 /// Convert a modern AST to legacy AST format.
 pub fn convert_to_legacy(source: &str, ast: Root) -> Value {
+    convert_to_legacy_ref(source, &ast)
+}
+
+/// Convert a borrowed modern AST to legacy AST format. `compile()` needs this
+/// form: it still owns the `Root` when it fills the public `ast` field.
+pub fn convert_to_legacy_ref(source: &str, ast: &Root) -> Value {
     // RAII install of the serialize arena so as_json() calls can resolve
     // JsNodeIds. The guard restores the prior pointer on drop, preserving
     // any outer scope (e.g. when this is invoked from inside `compile()`).
     //
-    // SAFETY: `ast.arena` lives until `ast` is dropped at the end of
-    // `convert_to_legacy_inner`, which runs *before* the guard is
-    // dropped because `_guard` is declared first.
+    // SAFETY: `ast` outlives this call, so `ast.arena` outlives the guard.
     let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
     convert_to_legacy_inner(source, ast)
 }
 
-fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
+fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
     let mut result = Map::new();
 
     // Calculate html fragment start/end
@@ -304,24 +308,24 @@ fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
     estree_fields!(result, "html" => html);
 
     // Convert instance script
-    if let Some(instance) = ast.instance {
-        let mut script = convert_script(&instance);
+    if let Some(instance) = &ast.instance {
+        let mut script = convert_script(instance);
         // Remove attributes field from instance
         script.remove("attributes");
         result.insert("instance".to_string(), Value::Object(script));
     }
 
     // Convert module script
-    if let Some(module) = ast.module {
-        let mut script = convert_script(&module);
+    if let Some(module) = &ast.module {
+        let mut script = convert_script(module);
         // Remove attributes field from module
         script.remove("attributes");
         result.insert("module".to_string(), Value::Object(script));
     }
 
     // Convert CSS
-    if let Some(css) = ast.css {
-        result.insert("css".to_string(), convert_css(&css));
+    if let Some(css) = &ast.css {
+        result.insert("css".to_string(), convert_css(css));
     }
 
     // Emit `_comments` mirroring upstream `legacy.js`. The legacy AST uses

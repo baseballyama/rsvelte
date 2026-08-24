@@ -22,7 +22,7 @@ use rsvelte_esrap::{PrintOptions, print_split};
 
 /// Region of one chunk in the unified buffer, plus the map-space offset it
 /// resolves to (`None` = unmapped).
-type LocMapEntry = (u32, u32, Option<u32>);
+type LocMapEntry = rsvelte_esrap::LocRange;
 
 fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("test source exceeds the u32 AST coordinate range")
@@ -92,8 +92,12 @@ impl<'a> Assembler<'a> {
         self.source.push_str(text);
         self.source.push('\n');
         self.comments.extend(program.comments.iter().copied());
-        self.loc_map
-            .push((base, base + source_offset(text.len()), maps_to));
+        self.loc_map.push(LocMapEntry {
+            start: base,
+            end: base + source_offset(text.len()),
+            source: maps_to,
+            linear: false,
+        });
         self.body.extend(program.body);
     }
 

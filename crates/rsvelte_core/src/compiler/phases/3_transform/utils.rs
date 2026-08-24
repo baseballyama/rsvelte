@@ -627,6 +627,7 @@ pub fn clean_nodes<'a>(
     analysis: &ComponentAnalysis,
     preserve_whitespace: bool,
     preserve_comments: bool,
+    hmr: bool,
 ) -> CleanedNodes<'a> {
     clean_node_list(
         parent,
@@ -638,6 +639,7 @@ pub fn clean_nodes<'a>(
         analysis,
         preserve_whitespace,
         preserve_comments,
+        hmr,
     )
 }
 
@@ -654,6 +656,7 @@ pub fn clean_nodes_refs<'a>(
     analysis: &ComponentAnalysis,
     preserve_whitespace: bool,
     preserve_comments: bool,
+    hmr: bool,
 ) -> CleanedNodes<'a> {
     clean_node_list(
         parent,
@@ -665,6 +668,7 @@ pub fn clean_nodes_refs<'a>(
         analysis,
         preserve_whitespace,
         preserve_comments,
+        hmr,
     )
 }
 
@@ -678,6 +682,7 @@ fn clean_node_list<'a, L: NodeList<'a>>(
     analysis: &ComponentAnalysis,
     preserve_whitespace: bool,
     preserve_comments: bool,
+    hmr: bool,
 ) -> CleanedNodes<'a> {
     // Sort const tags topologically in legacy (non-runes) mode
     // This matches the official compiler's behavior in clean_nodes (utils.js line 138-139)
@@ -783,9 +788,11 @@ fn clean_node_list<'a, L: NodeList<'a>>(
             TemplateNode::RenderTag(render_tag) => !render_tag.metadata.dynamic,
             TemplateNode::Component(comp) => {
                 // Not standalone if:
+                // - HMR is on (upstream gates only this arm on `state.options.hmr`,
+                //   so a root `{@render}` stays anchor-free while a component does not)
                 // - Component is dynamic (uses $derived or similar)
                 // - Component has CSS custom properties (--var attributes)
-                !comp.metadata.dynamic
+                !hmr && !comp.metadata.dynamic
                     && !comp.attributes.iter().any(
                         |attr| matches!(attr, Attribute::Attribute(a) if a.name.starts_with("--")),
                     )
@@ -1370,6 +1377,7 @@ mod tests {
             &analysis,
             false,
             false,
+            false,
         );
 
         assert!(cleaned.hoisted.is_empty());
@@ -1426,6 +1434,7 @@ mod tests {
             &analysis,
             false,
             false,
+            false,
         );
 
         // Whitespace-only text node should be removed
@@ -1464,6 +1473,7 @@ mod tests {
             "html",
             &scope,
             &analysis,
+            false,
             false,
             false,
         );
@@ -1508,6 +1518,7 @@ mod tests {
             "html",
             &scope,
             &analysis,
+            false,
             false,
             false,
         );
