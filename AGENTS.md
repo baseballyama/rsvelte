@@ -150,6 +150,7 @@ one is the same shape: a scanner assuming input it did not get.
 | `\` before a quote means it is escaped | `'\\'` — the backslash was itself escaped |
 | a `$: if (…)` header ends its statement | `else` on the following line |
 | the setter call is rendered on one line | the printer breaking it across lines |
+| a backtick opens a template literal | a ```` ```svelte ```` fence inside a JSDoc comment |
 
 Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
 profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
@@ -161,10 +162,13 @@ loud half, and **how loud a given defect is depends on the input, not on the def
 one mis-splice made 9 files unparseable and 6 files parseable-and-wrong (one assigns a boolean
 instead of a ternary's result), and #2598 emitted a bare `$:` labelled statement that every
 parser accepts. Sizing a text-scanning defect by its parse-gate count therefore understates it —
-see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that produced every one of
-these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
-so the gate baselines at 0 while the instances live outside the population it inspects; that is
-why each fix lands a `compatibility/pattern-corpus` repro.
+see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that
+produced every one of these defects — huly, open-webui, carbon-components-svelte, SMUI — **were
+not corpus sources at the time**, so the gate baselined at 0 while the instances lived outside the
+population it inspected; that is why each fix lands a `compatibility/pattern-corpus` repro. All
+four are corpus sources now (#3130 took the corpus to 103 repositories), which closes the
+population hole for these particular four and for nothing else — the lesson is that the gate's
+population is a choice, not a given.
 
 **A folded constant is a JS value, and a rendered string is not one.** `scope.evaluate` is
 ported twice: the server has a typed `EvalValue` (`3_transform/server/evaluate.rs`), and the
@@ -318,13 +322,11 @@ indistinguishable in the branch header.**
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
-source repository — sveltejs/svelte, sveltejs/svelte.dev, and the real-world projects bits-ui /
-flowbite-svelte / melt-ui / shadcn-svelte, all pinned as submodules and listed in
-`scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
-rsvelte for CSR, SSR, dev-mode CSR **and dev-mode SSR** — read the target list off
-`scripts/compat-corpus/targets.mjs` (`TARGETS`, i.e. every non-`reportOnly` descriptor) rather than
-off this sentence: verifying a new pattern file against three of the four is a green local check and
-a red CI run. Outputs must be byte-identical after comparison-side normalization
+source repository — sveltejs/svelte, sveltejs/svelte.dev and **101** real-world projects (huly,
+immich, open-webui, carbon-components-svelte, SMUI, threlte, bits-ui, … ), all pinned as
+submodules and listed in `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
+rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
+`scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
@@ -558,23 +560,40 @@ a necessary condition, never as parity.
 
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
-The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,138 corpus
-entries stop being the test set and become a **seed set**. One semantics-preserving comment is
-inserted at a line boundary inside a `<script>` region and parity is required on the mutant.
-PRs get a deterministic sample; main gets the full sweep (which is what the two-sided ratchet
-needs). It found **#2351** (a comment containing `}`/`)`/`;` in a `$:` block body **aborts the
-client compiler with SIGSEGV**) and **#2347** (a `//` comment before a `$props()` pattern's
-closing brace swallows the `$.rest_props` initializer — output parses, attributes silently
-vanish) in its first run.
+The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the corpus entries
+stop being the test set and become a **seed set** (33,406 eligible after the wave-2 enrolment).
+One semantics-preserving comment is inserted at a line boundary inside a `<script>` region and
+parity is required on the mutant. PRs get a deterministic sample; main gets the full sweep
+(which is what the two-sided ratchet needs). It found **#2351** (a comment containing `}`/`)`/`;`
+in a `$:` block body **aborts the client compiler with SIGSEGV**) and **#2347** (a `//` comment
+before a `$props()` pattern's closing brace swallows the `$.rest_props` initializer — output
+parses, attributes silently vanish) in its first run.
 
 **Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
 survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
-otherwise. The full sweep yields **36** of the former and 12,910 of the latter; ratcheting per id
-without that split would be a 13,000-entry file that churns on every submodule bump. Comment
+otherwise. The full sweep yields **160** of the former and 41,802 of the latter; ratcheting per
+id without that split would be a 40,000-entry file that churns on every submodule bump. Comment
 fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
-submodule bumps. The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30×
-(0.62) and **1.66×** (0.62, post-burndown): it tracks the normalizer and the current residue,
-not the mechanism's importance, so do not cite it as a constant.
+submodule bumps.
+
+**Two things this gate taught, and both were taught by adding inputs rather than by a fix.**
+The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66×
+(post-burndown), **0.92×** (enrolled corpus) and **1.13×** (the same corpus after a rebase onto
+`main`, with no change to this gate): it tracks the normalizer and the current residue, not the
+mechanism's importance, so do not cite it as a constant — and it has now crossed 1.0 in both
+directions without the mechanism moving, with `svelte-ignore`
+(no delimiter at all) accounting for two of the four units whose output does not parse. And
+**#2347's shape came back**: `cnblocks/src/lib/svgs/vercel` drops the `$.rest_props`
+initializer under a mutant, on a seed the corpus did not hold when #2347 was fixed. A closed
+defect class reappearing on new seeds is evidence about coverage, not about the fix.
+
+**This gate's population is the complement of another gate's ratchet**, which is worth knowing
+before reading a `NEW` here as a regression: `eligible` is `manifest ∖ (union of the four output
+ratchets)`, because a seed that diverges *unmutated* cannot attribute a mutant. Shrinking the
+output ratchets therefore *adds* inputs here — a rebase that took them from 759 ids to 601 put
+158 seeds into this gate for the first time and two of them diverged. The set difference "was
+this id in an output ratchet immediately before?" is what separates a newly reachable seed from
+a regression; the count cannot.
 
 Compilation runs in child processes (mirroring `compile.mjs`): a panic aborts the process, so a
 single-process sweep loses the whole run to one bad mutant — which is what happened first. The
@@ -590,7 +609,7 @@ does `--keep-artifacts`. `compile.mjs` aborts up front when free disk is below
 this checkout and every `.claude/worktrees/*` sibling — never the checked-in `*known-failures*`
 ratchets. Because a verify against an absent tree would score every entry `match`, `verify.mjs`
 asserts ≥99% of manifest entries have compiled output before comparing, and refuses
-`--update-baseline` below 12000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
+`--update-baseline` below 30000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
 every baseline id it did not measure) — `--update-warning-baseline` is held to the same floor.
 `--update-baseline` additionally refuses `--no-fmt`, which counts formatting-only differences as
 failures; `--update-warning-baseline` does not, because warning comparison never normalizes.
@@ -817,7 +836,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (Svelte **v5.56.8**). Re-run `pnpm run test-and-update`
+<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.56.10**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
 to refresh. The runtime skip lists and the fixture-generation compile options are shared
 constants in `crates/rsvelte_core/tests/common/mod.rs`, so the report and the gates
 (`tests/runtime.rs`, `tests/ssr.rs`) always measure the same thing;
@@ -912,6 +931,46 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
   delegated to `vscode-{html,css}-languageservice`.
 - Ships its own TextMate grammar / language definition and accepts upstream `svelte.*`
   settings, so users replace the official extension rather than running both.
+
+### Where `rsvelte-check` time goes (`RSVELTE_CHECK_TIMING=1`)
+
+`runner::run` prints a walk / compile / overlay / typecheck / post split to stderr under
+`RSVELTE_CHECK_TIMING`. Measured on synthetic 100- and 500-component projects (TS 7.1 `tsc`,
+`skipLibCheck`, idle machine, 3 runs each): **typecheck is 66-89% of the run**, overlay
+materialization 8-29%, walk + post under 2% together.
+
+**The overlay is not the lever, and a diskless overlay is not available anyway.** A batch
+`tsc -p` reads its program from disk, so the LSP's in-memory projection has no counterpart
+here — and even a free overlay caps the whole run at 1.1-1.4x. It does have a shape worth
+knowing: 500 components materialize **2,005 files** (`.svelte.tsx`, `.svelte.tsx.map`, and two
+byte-identical `.d.ts` bridges each), ~310 ms to rewrite.
+
+**`--incremental` is the largest measured lever and it is off by default.** On the
+500-component project a warm run drops from 1693-2147 ms to 254-319 ms — **5.4-6.7x** — because
+the overlay tsconfig already carries `incremental` + `tsBuildInfoFile`, so tsgo reuses its
+program graph instead of re-checking ~2k files. The default stays off on purpose: official
+svelte-check's flag is opt-in too, and its README states the mode "might result in slightly
+different type check outcomes". Flipping it trades goal #3 for speed on a mode upstream itself
+calls lossy.
+
+### Type-aware lint opens one worker, not one per component
+
+`CorsaTypeBackend::new` used to spawn a `tsgo` API worker, write a virtual `.tsx` plus a
+tsconfig, and build a program **per component**. Measured over the 76 upstream
+`no-unused-props` fixtures (one test binary, both arms, ABBA-ordered, 5 pairs): 6.62-11.02 s
+per-spawn against 1.23-2.94 s on one warm `CorsaTypeSession` — **≥4.3x**, a lower bound because
+the Rust side is a debug build in both arms. `lint_components_types` batches a project.
+
+**One program for all components is NOT the win; the warm process is.** 62 fixtures in a single
+program measured 26-39 ms/component against 23-58 ms/component for a project-per-component on
+the same worker — no separable difference. Those fixtures are independent files, so a shared
+program shares no module graph; whether a real project (whose components import each other)
+profits is **unmeasured**.
+
+The refactor also surfaced a harness defect worth remembering: `invalid/` and `valid/` hold
+same-named fixtures while the temp dir was keyed on the stem alone, so the second one was served
+from the first one's cached project. **Reversing the iteration order moved the failures to the
+other directory** — with a cold worker per fixture the collision was invisible.
 
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,

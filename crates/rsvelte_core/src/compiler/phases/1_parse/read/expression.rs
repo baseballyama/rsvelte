@@ -1744,7 +1744,28 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     // No JS errors means valid
     js_result.as_ref()?;
 
-    js_result.or(ts_result)
+    let result = js_result.or(ts_result);
+
+    // A body with no code in it has nothing of its own to fail on, so whatever
+    // OXC reported describes the `(…)` this probe wrapped it in. Acorn is given
+    // the unwrapped text and says `Unexpected token` at the delimiter.
+    if is_code_empty(content) {
+        return result.map(|(_, pos)| ("Unexpected token".to_string(), pos));
+    }
+    result
+}
+
+/// Whether `content` carries no JavaScript at all — only whitespace and
+/// comments. Answered by the parser rather than by a scan so that a `//` or
+/// `/*` inside a string cannot be mistaken for one.
+fn is_code_empty(content: &str) -> bool {
+    if content.is_empty() {
+        return true;
+    }
+    with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, content, SourceType::mjs()).parse();
+        result.program.body.is_empty() && result.diagnostics.is_empty()
+    })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
@@ -1858,6 +1879,41 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
 }
 
+/// Classify a failed `read_expression` for a construct terminated by
+/// `close_char`, the way upstream's caller does: acorn parses ONE maximal
+/// expression and the caller then `eat(close_char, true)`, so leftover input
+/// after a *complete* expression is a missing close token while a malformed
+/// expression is a `js_parse_error` at the byte where the parse stopped.
+///
+/// The prefix re-parse is what separates the two: OXC labels an invalid
+/// assignment target at the target's start, which the leftover-input probe
+/// would otherwise read as "the expression ended here".
+pub fn close_token_or_parse_error(
+    msg: String,
+    trimmed: &str,
+    trimmed_offset: usize,
+    close_char: char,
+) -> crate::error::ParseError {
+    let trailing = trailing_token_offset(trimmed).filter(|&off| {
+        off > 0
+            && trimmed
+                .get(..off)
+                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix).is_none())
+    });
+    if let Some(off) = trailing {
+        let mut buf = [0u8; 4];
+        return crate::error::ParseError::expected_token(
+            close_char.encode_utf8(&mut buf),
+            trimmed_offset + off,
+        );
+    }
+    let at = check_js_parse_error_with_pos(trimmed)
+        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
+            trimmed_offset + pos
+        });
+    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
+}
+
 /// Create an identifier for invalid expressions
 fn create_invalid_identifier<'a>(
     start: usize,
@@ -1920,9 +1976,11 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
+        let mut wrapped = String::with_capacity(content.len() + 3);
         wrapped.push('(');
         wrapped.push_str(content);
+        // Keep the synthetic closer outside a trailing line comment.
+        wrapped.push('\n');
         wrapped.push(')');
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
@@ -6793,7 +6851,13 @@ pub fn parse_program_with_error<'a>(
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, params.content, source_type).parse();
-        convert_parsed_program(arena, &result.program, &result.diagnostics, params)
+        convert_parsed_program(
+            arena,
+            &result.program,
+            &result.diagnostics,
+            &result.irregular_whitespaces,
+            params,
+        )
     })
 }
 
@@ -6807,8 +6871,13 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 ) {
     let retained =
         crate::ast::oxc_program::RetainedProgram::parse(params.content, params.is_typescript);
-    let (program, parse_error) =
-        convert_parsed_program(arena, retained.program(), retained.diagnostics(), params);
+    let (program, parse_error) = convert_parsed_program(
+        arena,
+        retained.program(),
+        retained.diagnostics(),
+        retained.irregular_whitespaces(),
+        params,
+    );
     (program, parse_error, retained)
 }
 
@@ -6956,12 +7025,27 @@ fn acorn_only_violation(
     is_typescript: bool,
 ) -> Option<(u32, String)> {
     use oxc_ast_visit::Visit;
-    struct Scan {
+    struct Scan<'c> {
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        check_ts_modifier: bool,
+        content: &'c str,
+        ts_modifier_at: Option<u32>,
     }
-    impl<'a> Visit<'a> for Scan {
+    impl Scan<'_> {
+        fn record_ts_modifier(&mut self, carries_modifier: bool, span: oxc_span::Span) {
+            if !self.check_ts_modifier || !carries_modifier {
+                return;
+            }
+            if let Some(at) = ts_class_modifier_stop(self.content, span.start)
+                && self.ts_modifier_at.is_none_or(|seen| at < seen)
+            {
+                self.ts_modifier_at = Some(at);
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Scan<'_> {
         fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
             if self.check_decorator && self.decorator_at.is_none() {
                 self.decorator_at = Some(dec.span.start);
@@ -6973,16 +7057,46 @@ fn acorn_only_violation(
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
         }
+        fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition,
+                def.span,
+            );
+            oxc_ast_visit::walk::walk_method_definition(self, def);
+        }
+        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.readonly
+                    || def.declare
+                    || def.r#type
+                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
+                def.span,
+            );
+            oxc_ast_visit::walk::walk_property_definition(self, def);
+        }
+        fn visit_accessor_property(&mut self, def: &oxc_ast::ast::AccessorProperty<'a>) {
+            // acorn has no auto-accessor plugin, so `accessor` itself is the violation.
+            self.record_ts_modifier(true, def.span);
+            oxc_ast_visit::walk::walk_accessor_property(self, def);
+        }
     }
 
     let check_decorator = !is_typescript && content.contains('@');
     let check_with = content.contains("with");
+    let check_ts_modifier = !is_typescript && content.contains("class");
     let mut finder = Scan {
         check_decorator,
         decorator_at: None,
         with_at: None,
+        check_ts_modifier,
+        content,
+        ts_modifier_at: None,
     };
-    if check_decorator || check_with {
+    if check_decorator || check_with || check_ts_modifier {
         finder.visit_program(program);
     }
 
@@ -6998,10 +7112,67 @@ fn acorn_only_violation(
         }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
         super::strict_mode::find_violation(program, content, is_typescript),
+        finder
+            .ts_modifier_at
+            .map(|at| (at, "Unexpected token".to_string())),
     ]
     .into_iter()
     .flatten()
     .min_by_key(|(at, _)| *at)
+}
+
+/// TypeScript-only class-member modifiers. OXC parses these in a plain-JS
+/// source too and reports nothing, so every acorn boundary has to ask.
+const TS_ONLY_CLASS_MODIFIERS: [&str; 8] = [
+    "public",
+    "private",
+    "protected",
+    "readonly",
+    "override",
+    "declare",
+    "abstract",
+    "accessor",
+];
+
+/// Where acorn stops on such a member: it reads the modifier as the member's
+/// *name*, so the error lands on the token that could not follow it.
+///
+/// Only reached once OXC has already flagged the member, so the bytes from
+/// `from` are modifier keywords, whitespace and comments — never a string or a
+/// regex literal.
+fn ts_class_modifier_stop(content: &str, from: u32) -> Option<u32> {
+    let mut i = from as usize;
+    let mut seen_modifier = false;
+    loop {
+        loop {
+            i += content[i..]
+                .find(|c: char| !c.is_whitespace())
+                .unwrap_or(content.len() - i);
+            let rest = &content[i..];
+            if let Some(body) = rest.strip_prefix("//") {
+                i += 2 + body.find('\n')?;
+            } else if let Some(body) = rest.strip_prefix("/*") {
+                i += 2 + body.find("*/")? + 2;
+            } else {
+                break;
+            }
+        }
+        if i >= content.len() {
+            return None;
+        }
+        if seen_modifier {
+            return Some(i as u32);
+        }
+        let word = content[i..]
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+            .unwrap_or(content.len() - i);
+        if word == 0 {
+            // A decorator's `@`, reported by the decorator arm instead.
+            return None;
+        }
+        seen_modifier = TS_ONLY_CLASS_MODIFIERS.contains(&&content[i..i + word]);
+        i += word;
+    }
 }
 
 /// OXC reports a missing semicolon at the INSERTION POINT — the end of the
@@ -7036,10 +7207,29 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
     (i, "Unexpected token".to_string())
 }
 
+/// The first offset oxc classified as irregular whitespace that ECMAScript does
+/// not admit as whitespace at all. oxc's `is_irregular_whitespace` spans
+/// `U+2000..=U+200B` and includes `U+0085`, while `WhiteSpace` is `Zs` plus the
+/// four fixed code points — so `U+200B` and `U+0085` parse here and are
+/// `Unexpected character` for acorn, and so for upstream. Keying on the spans
+/// the parser itself reports is what keeps a string literal or a comment
+/// containing one of them accepted, as upstream accepts it.
+fn first_non_ecmascript_whitespace(content: &str, irregular: &[oxc_span::Span]) -> Option<usize> {
+    irregular
+        .iter()
+        .filter_map(|span| {
+            let at = span.start as usize;
+            let ch = content.get(at..)?.chars().next()?;
+            (!super::super::parser::is_js_whitespace(ch)).then_some(at)
+        })
+        .min()
+}
+
 fn convert_parsed_program<'ast>(
     arena: &ParseArena,
     program: &OxcProgram<'_>,
     diagnostics: &[OxcDiagnostic],
+    irregular_whitespaces: &[oxc_span::Span],
     params: ProgramParseParams<'_, '_>,
 ) -> (Expression<'ast>, Option<crate::error::ParseError>) {
     let ProgramParseParams {
@@ -7055,7 +7245,7 @@ fn convert_parsed_program<'ast>(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let mut parse_error = diagnostics
+        let reported_at = diagnostics
             .iter()
             .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
             .map(|first_error| {
@@ -7064,18 +7254,38 @@ fn convert_parsed_program<'ast>(
                     .first()
                     .map(|label| (label.offset() as usize).min(content.len()))
                     .unwrap_or(0);
-                let (at, message) = realign_missing_semicolon(content, at, &first_error.message);
-                let pos = at + offset;
-                crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
+                realign_missing_semicolon(content, at, &first_error.message)
             });
+        let mut reported_at = reported_at;
+        let mut parse_error = reported_at.as_ref().map(|(at, message)| {
+            let pos = at + offset;
+            crate::error::ParseError::svelte("js_parse_error", message.clone(), (pos, pos))
+        });
 
         if parse_error.is_none()
             && let Some((at, message)) = acorn_only_violation(program, content, is_typescript)
         {
             let pos = at as usize + offset;
+            reported_at = Some((at as usize, message.clone()));
             parse_error = Some(crate::error::ParseError::svelte(
                 "js_parse_error",
                 message,
+                (pos, pos),
+            ));
+        }
+
+        // acorn stops at the first thing it cannot read, so a character it does
+        // not accept as whitespace outranks any error further along the source.
+        if let Some(at) = first_non_ecmascript_whitespace(content, irregular_whitespaces)
+            && reported_at
+                .as_ref()
+                .is_none_or(|(reported, _)| at < *reported)
+        {
+            let ch = content[at..].chars().next().unwrap_or('\u{fffd}');
+            let pos = at + offset;
+            parse_error = Some(crate::error::ParseError::svelte(
+                "js_parse_error",
+                format!("Unexpected character '{ch}'"),
                 (pos, pos),
             ));
         }
@@ -11204,9 +11414,17 @@ fn convert_property_key(
             ))
         }
         _ => {
-            // For computed keys, try to get the expression
+            // A computed key is program-path like its siblings above: reaching for
+            // `convert_expression` would subtract the paren a template expression
+            // is wrapped in but a script is not, putting the whole subtree one
+            // byte early.
             if let Some(expr) = key.as_expression() {
-                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
+                expr_to_node(convert_expression_for_program(
+                    arena,
+                    expr,
+                    offset,
+                    line_offsets,
+                ))
             } else {
                 JsNode::Null
             }

@@ -2841,6 +2841,25 @@ fn pure_global_call_over_known_arguments_keeps_the_text_content_fast_path() {
     );
 }
 
+#[test]
+fn expression_blocked_after_await_skips_the_text_content_fast_path() {
+    let code = crate::compiler::compile(
+        "<script>\nawait 0;\nlet message = $derived('hello');\n</script>\n<p>{message}</p>\n",
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("async-static-derived-after-await.svelte".to_string()),
+            experimental: crate::compiler::ExperimentalOptions { r#async: true },
+            ..Default::default()
+        },
+    )
+    .expect("compiles")
+    .js
+    .code;
+
+    assert!(!code.contains(".textContent = "), "{code}");
+    assert!(code.contains("[$$promises[1]]"), "{code}");
+}
+
 /// The folded VALUE comes from the server's table rather than a second
 /// implementation of it: JS `Math.round` is half-UP (`Math.round(-0.5)` is
 /// `-0`), which Rust's `f64::round` (half away from zero) gets wrong.
