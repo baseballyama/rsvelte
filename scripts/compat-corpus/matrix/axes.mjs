@@ -1891,3 +1891,156 @@ export const WRITE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis T1 — the element's TAG NAME, against the JS reserved-word list.
+ *
+ * A tag name becomes a generated variable name, and `Scope.unique`
+ * (`phases/scope.js:728-734`) refuses a reserved word for one. rsvelte's
+ * `Memoizer::generate_id` had the three membership tests and not that fourth
+ * one, so `<var>x</var>` emitted `var var = root();` — output no JS parser
+ * accepts, from a `compile()` that returned successfully (#3582).
+ *
+ * The list is upstream's `is_reserved` verbatim. Two of these are standard
+ * elements that appear in real documents (HTML's `<var>`, SVG's `<switch>`);
+ * the rest are unknown elements, which Svelte compiles happily — being
+ * unknown is not what makes the output invalid, being a reserved word is.
+ *
+ * The controls matter as much as the rows. `async`, `of`, `get` and `set` LOOK
+ * like keywords and are not reserved, so they must keep the bare name; `div`
+ * and `template` are ordinary tags; and `my-tag` reaches the sanitizer instead
+ * of the fast path, which is the second allocator the same omission sat in.
+ */
+export const RESERVED_TAG_NAMES = [
+	'arguments', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
+	'debugger', 'default', 'delete', 'do', 'else', 'enum', 'eval', 'export',
+	'extends', 'false', 'finally', 'for', 'function', 'if', 'implements',
+	'import', 'in', 'instanceof', 'interface', 'let', 'new', 'null', 'package',
+	'private', 'protected', 'public', 'return', 'static', 'super', 'switch',
+	'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with',
+	'yield',
+];
+
+/** The near-miss and ordinary names that must keep the bare identifier. */
+export const UNRESERVED_TAG_NAMES = ['async', 'of', 'get', 'set', 'div', 'template', 'my-tag'];
+
+/**
+ * Axis T2 — where the element sits, because each host reaches the name
+ * allocator by a different route. `%t` is the tag name.
+ *
+ * `svelte-element` is the row that was already correct — its variable is named
+ * from a different path — so it separates "the tag name is not sanitized" from
+ * "any element with this name breaks".
+ */
+export const TAG_NAME_HOSTS = {
+	plain: '<%t>x</%t>',
+	expression: '<%t>{v}</%t>',
+	nested: '<%t><b>{v}</b></%t>',
+	'bind-this': '<%t bind:this={el}>x</%t>',
+	siblings: '<%t>x</%t>\n<%t>y</%t>',
+	attribute: '<%t title={v}>x</%t>',
+	each: '{#each [1, 2] as i}\n\t<%t>{i}</%t>\n{/each}',
+	'svelte-element': '<svelte:element this="%t">{v}</svelte:element>',
+};
+
+export const TAG_NAME_PREAMBLE = `<script>
+	let v = $state(1);
+	let el;
+</script>
+
+%m
+`;
+
+/**
+ * Axis family — an async attribute VALUE × the attribute SLOT it sits in × the
+ * ELEMENT hosting the slot. Its subject is which lowering a value reaches, not
+ * what the value is.
+ *
+ * Upstream routes every attribute-ish slot through `Memoizer`, which hoists a
+ * call or an `await` out of the `template_effect` arrow into its `sync`/`async`
+ * argument and passes the top-level-await `blockers` as the fourth — except
+ * `build_custom_element_attribute_update_assignment` (`RegularElement.js`),
+ * which builds its own one-argument `$.template_effect(b.thunk(call))`. The same
+ * value is therefore lowered two different ways depending only on whether the
+ * tag name has a dash. The host axis is what makes that observable: every value
+ * and slot is generated on `<div>` too, where the memoized lowering is the right
+ * answer, so "memoize everywhere" and "memoize nowhere" are distinguishable.
+ *
+ * `experimental.async` is set for the same reason `async-derived` sets it — no
+ * other harness does, so this is a population the collected corpus cannot hold
+ * at any size.
+ *
+ * The four `custom-element` × `attribute` cells whose value carries a literal
+ * `await` are compared on the SERVER targets only: the pinned oracle compiles
+ * them to `await` inside a non-async arrow, which is not JavaScript, so there is
+ * no client oracle to compare against. Their server lowering is unaffected.
+ */
+export const ASYNC_ATTRIBUTE_VALUES = {
+	// Controls. None of these may gain a memoized slot under a correct fix: a
+	// static value needs no effect at all, a bare state read is passed through,
+	// and an `await` already inside an async function is the shape an over-broad
+	// "hoist anything containing await" rule breaks.
+	static: `'v'`,
+	state: 'foo',
+	'async-iife': '(async () => await p)()',
+	// Memoized as a SYNC value — the row that shows the custom-element slot is
+	// not only an `await` problem.
+	call: 'f()',
+	// Memoized as an ASYNC value.
+	await: 'await p',
+	'await-literal': `await 'v'`,
+	'await-in-call': 'String(await p)',
+	'await-plus-state': '(await p) + foo',
+	// No literal `await` in the value, but the binding it reads is written by
+	// one, so the effect must carry a blocker. A rule keyed on the token
+	// `await` inside the attribute passes every row above and fails these two.
+	'derived-await-read': 'd',
+	'script-await-read': 't',
+};
+
+/** Which attribute-ish slot carries the value. `%A` is the host's attribute name. */
+export const ASYNC_ATTRIBUTE_SLOTS = {
+	attribute: '%A={%s}',
+	class: 'class={%s}',
+	style: 'style={%s}',
+	'style-directive': 'style:color={%s}',
+	'class-directive': 'class:x={%s}',
+	spread: `{...{ 'data-x': %s }}`,
+};
+
+/**
+ * The element the slot hangs off. `custom-element` is the subject; the other
+ * three reach the same slot through three different visitors, so a divergence
+ * is attributable to the host rather than to the value.
+ */
+export const ASYNC_ATTRIBUTE_HOSTS = {
+	div: { markup: '<div %s></div>', attr: 'data-x' },
+	'custom-element': { markup: '<my-element %s></my-element>', attr: 'bar' },
+	'svelte-element': {
+		markup: `<svelte:element this={'span'} %s></svelte:element>`,
+		attr: 'data-x',
+	},
+	// A component takes props; `class`/`style`/directives are not its slots.
+	component: { markup: '<Comp %s />', attr: 'x', import: true, slots: ['attribute', 'spread'] },
+};
+
+/**
+ * The declarations every async-attribute case shares. `t` and `d` are the two
+ * blocker sources (a top-level `await` and a `$derived(await …)`); declaring
+ * both in every file keeps the value axis the only thing that varies.
+ */
+export const ASYNC_ATTRIBUTE_PREAMBLE = `<script>
+%i	let foo = $state('foo');
+	const p = Promise.resolve('v');
+	const t = await 'v';
+	const d = $derived(await 'v');
+	function f() {
+		return 'v';
+	}
+	function bump() {
+		foo += '!';
+	}
+</script>
+
+%m
+`;
