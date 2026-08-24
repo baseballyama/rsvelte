@@ -1774,6 +1774,14 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
     if head.trim_end_ws().is_empty() || head.starts_with("...") {
         return Some(("Unexpected token".to_string(), leading_ws));
     }
+    // Acorn's `parseExpressionAt` consumes a dangling optional-chain marker
+    // and reports the delimiter after it. OXC labels the `?` token instead.
+    // The template delimiter is outside `content`, so its relative position is
+    // the trimmed expression's end.
+    let trimmed_end = content.trim_end_ws().len();
+    if content[..trimmed_end].ends_with("?.") {
+        return Some(("Unexpected token".to_string(), trimmed_end));
+    }
 
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');

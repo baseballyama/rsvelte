@@ -2677,7 +2677,9 @@ impl<'a> Parser<'a> {
             // The deferred twin of this arm (`LazyKind::Mustache`) classifies
             // leftover input as a missing `}`; without the same test here the
             // two disagree whenever the parse is not deferred.
-            if let Some(pos) = leftover_token_offset(trimmed, self.ts) {
+            if !trimmed.ends_with("?.")
+                && let Some(pos) = leftover_token_offset(trimmed, self.ts)
+            {
                 return crate::error::ParseError::expected_token("}", trimmed_offset + pos);
             }
             // Recover the precise failure position from OXC's labeled span,

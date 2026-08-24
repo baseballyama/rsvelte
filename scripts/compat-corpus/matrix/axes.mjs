@@ -2107,3 +2107,154 @@ export const ASYNC_ATTRIBUTE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis — a `compilerOptions` field, the one axis no gate varies.
+ *
+ * `baseline` must stay first: every cell is compared with the unperturbed
+ * compilation, so that compilation has to be part of the matrix.
+ */
+export const COMPILER_OPTIONS = {
+	baseline: {},
+	'runes-true': { runes: true },
+	accessors: { accessors: true },
+	immutable: { immutable: true },
+	'custom-element': { customElement: true },
+	'css-external': { css: 'external' },
+	'namespace-svg': { namespace: 'svg' },
+	'namespace-mathml': { namespace: 'mathml' },
+	'preserve-comments': { preserveComments: true },
+	'preserve-whitespace': { preserveWhitespace: true },
+	'preserve-both': { preserveComments: true, preserveWhitespace: true },
+	'no-disclose-version': { discloseVersion: false },
+	'fragments-tree': { fragments: 'tree' },
+	name: { name: 'Renamed' },
+	'no-filename': { filename: undefined },
+};
+
+/**
+ * Axis — the component the option acts on. Each representative shape is
+ * crossed with every option so option-dependent behavior remains comparable.
+ */
+export const COMPILER_OPTION_COMPONENTS = {
+	'state-style': `<script>
+	let n = $state(1);
+</script>
+
+<b class="a">{n}</b>
+
+<style>
+	.a {
+		color: red;
+	}
+</style>
+`,
+	'legacy-export': `<script>
+	export let a = 1;
+	$: doubled = a * 2;
+</script>
+
+<b>{doubled}</b>
+`,
+	'mathml-fragment': `<math><mi>x</mi></math>
+`,
+	'svg-fragment': `<svg><circle r="1" /></svg>
+`,
+	'comment-whitespace': `<!-- kept? -->
+<b>   a   b   </b>
+`,
+	'snippet-render': `{#snippet row(x)}
+	<b>{x}</b>
+{/snippet}
+
+{@render row(1)}
+`,
+	'props-and-slot': `<script>
+	let { children, value = 1 } = $props();
+</script>
+
+<b>{value}{@render children?.()}</b>
+`,
+};
+
+/** The ECMAScript token separators crossed with raw keyword scans. */
+export const KEYWORD_SEPARATORS = {
+	space: ' ',
+	'two-spaces': '  ',
+	tab: '\t',
+	newline: '\n\t',
+	'vertical-tab': '\u000b',
+	'form-feed': '\u000c',
+	nbsp: '\u00a0',
+	bom: '\ufeff',
+	ideographic: '\u3000',
+};
+
+/** Source constructs whose keyword boundaries phase 3 must locate. */
+export const KEYWORD_CONSTRUCTS = {
+	'export-let': { module: true, body: 'export%slet a = 1;', markup: '<b>{a}</b>' },
+	'export-var': { module: true, body: 'export%svar a = 1;', markup: '<b>{a}</b>' },
+	'export-const': { module: true, body: 'export%sconst a = 1;', markup: '<b>{a}</b>' },
+	'export-function': {
+		module: true,
+		body: 'export%sfunction f() {\n\treturn 1;\n}',
+		markup: '<b>{f()}</b>',
+	},
+	'export-async-function': {
+		module: true,
+		body: 'export%sasync function f() {\n\treturn 1;\n}',
+		markup: '<b>{typeof f}</b>',
+	},
+	'export-class': {
+		module: true,
+		body: 'export%sclass K {\n\tv = $state(1);\n}\n\nconst k = new K();',
+		markup: '<b>{k.v}</b>',
+	},
+	'class-declaration': {
+		module: true,
+		body: 'class%sK {\n\tv = $state(1);\n}\n\nexport const k = new K();',
+		markup: '<b>{k.v}</b>',
+	},
+	'class-extends': {
+		module: true,
+		body: 'class B {}\n\nclass K extends%sB {\n\tv = $state(1);\n}\n\nexport const k = new K();',
+		markup: '<b>{k.v}</b>',
+	},
+	'function-declaration': {
+		module: true,
+		body: 'function%sf() {\n\treturn 1;\n}\n\nexport const n = f();',
+		markup: '<b>{n}</b>',
+	},
+	'async-function': {
+		module: true,
+		body: 'async%sfunction f() {\n\treturn 1;\n}\n\nexport const n = f();',
+		markup: '<b>{n}</b>',
+	},
+	'new-expression': {
+		module: true,
+		body: 'class K {\n\tv = $state(1);\n}\n\nexport const k = new%sK();',
+		markup: '<b>{k.v}</b>',
+	},
+	'import-from': { module: false, body: "import C%sfrom './C.svelte';", markup: '<C />' },
+	'reactive-label': {
+		module: false,
+		body: 'let a = 1;\n$:%sb = a * 2;',
+		markup: '<b>{b}</b>',
+	},
+};
+
+export const KEYWORD_SEPARATOR_ENTRIES = {
+	instance: {
+		ext: '.svelte',
+		wrap: (construct, body) =>
+			`<script>\n${body
+				.split('\n')
+				.map((line) => (line ? `\t${line}` : line))
+				.join('\n')}\n</script>\n\n${construct.markup}\n`,
+	},
+	module: {
+		ext: '.svelte.js',
+		kind: 'module',
+		wrap: (_construct, body) => `${body}\n`,
+	},
+};

@@ -677,12 +677,7 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     }
     if let Some(v) = raw.accessors {
         opts.accessors = v;
-        // Upstream's `deprecate()` warns on the option being SUPPLIED, once per
-        // process — the same `warn_once` the removed options get.
-        static WARNED_ACCESSORS: std::sync::atomic::AtomicBool =
-            std::sync::atomic::AtomicBool::new(false);
-        opts.legacy_options.accessors =
-            !WARNED_ACCESSORS.swap(true, std::sync::atomic::Ordering::Relaxed);
+        opts.legacy_options.accessors = true;
     }
     if let Some(v) = raw.namespace.as_deref() {
         opts.namespace = match v {
@@ -694,10 +689,7 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     }
     if let Some(v) = raw.immutable {
         opts.immutable = v;
-        static WARNED_IMMUTABLE: std::sync::atomic::AtomicBool =
-            std::sync::atomic::AtomicBool::new(false);
-        opts.legacy_options.immutable =
-            !WARNED_IMMUTABLE.swap(true, std::sync::atomic::Ordering::Relaxed);
+        opts.legacy_options.immutable = true;
     }
     if let Some(v) = raw.css.as_deref() {
         opts.css = match v {

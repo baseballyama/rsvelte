@@ -47,6 +47,30 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
     None
 }
 
+fn is_tag_boundary(byte: Option<u8>) -> bool {
+    matches!(
+        byte,
+        Some(b'>' | b' ' | b'\t' | b'\n' | b'\r' | b'/') | None
+    )
+}
+
+fn find_tag(haystack: &[u8], from: usize, name: &[u8]) -> Option<usize> {
+    let mut search = from;
+    while let Some(start) = find_ci(haystack, search, name) {
+        if is_tag_boundary(haystack.get(start + name.len()).copied()) {
+            return Some(start);
+        }
+        search = start + name.len();
+    }
+    None
+}
+
+fn close_tag_end(haystack: &[u8], from: usize, name: &[u8]) -> Option<(usize, usize)> {
+    let start = find_tag(haystack, from, name)?;
+    let gt = find_ci(haystack, start + name.len(), b">")?;
+    Some((start, gt + 1))
+}
+
 /// Replace the content of every `<style …>…</style>` with spaces (newlines and
 /// carriage returns preserved) so the parser never CSS-parses it. Works at the
 /// BYTE level so the result is exactly the same length as `source` — every AST
@@ -55,44 +79,104 @@ pub fn blank_style_content(source: &str) -> Cow<'_, str> {
     let mut blanked = None;
     let sb = source.as_bytes();
     let mut search = 0usize;
-    while let Some(tag_start) = find_ci(sb, search, b"<style") {
-        // Must be the `<style` element, not e.g. `<styled`.
-        let after = sb.get(tag_start + 6).copied();
-        if !matches!(
-            after,
-            Some(b'>' | b' ' | b'\t' | b'\n' | b'\r' | b'/') | None
-        ) {
-            search = tag_start + 6;
+    loop {
+        let comment = find_ci(sb, search, b"<!--");
+        let script = find_tag(sb, search, b"<script");
+        let style = find_tag(sb, search, b"<style");
+        let Some((tag_start, kind)) = [
+            comment.map(|start| (start, 0u8)),
+            script.map(|start| (start, 1u8)),
+            style.map(|start| (start, 2u8)),
+        ]
+        .into_iter()
+        .flatten()
+        .min_by_key(|&(start, _)| start) else {
+            break;
+        };
+
+        if kind == 0 {
+            search = find_ci(sb, tag_start + 4, b"-->").map_or(sb.len(), |end| end + 3);
+            continue;
+        }
+
+        let Some(gt) = find_ci(sb, tag_start, b">") else {
+            break;
+        };
+        let content_start = gt + 1;
+        // Self-closing verbatim element → no content to skip or blank.
+        if content_start >= 2 && sb[content_start - 2] == b'/' {
+            search = content_start;
+            continue;
+        }
+
+        let close_name: &[u8] = if kind == 1 { b"</script" } else { b"</style" };
+        let Some((content_end, element_end)) = close_tag_end(sb, content_start, close_name) else {
+            break;
+        };
+
+        if kind == 2 {
+            if sb[content_start..content_end]
+                .iter()
+                .any(|byte| !matches!(byte, b'\n' | b'\r'))
+            {
+                let bytes = blanked.get_or_insert_with(|| sb.to_vec());
+                for b in &mut bytes[content_start..content_end] {
+                    if *b != b'\n' && *b != b'\r' {
+                        *b = b' ';
+                    }
+                }
+            }
+        }
+        search = element_end;
+    }
+    blanked.map_or(Cow::Borrowed(source), |bytes| {
+        Cow::Owned(String::from_utf8(bytes).expect("blanking style content preserves UTF-8"))
+    })
+}
+
+/// Full source ranges of real top-level style elements. The ordered scan is
+/// important: tag-looking text inside comments and script bodies is opaque.
+fn verbatim_style_ranges(source: &str) -> Vec<(u32, u32)> {
+    let sb = source.as_bytes();
+    let mut ranges = Vec::new();
+    let mut search = 0usize;
+    loop {
+        let comment = find_ci(sb, search, b"<!--");
+        let script = find_tag(sb, search, b"<script");
+        let style = find_tag(sb, search, b"<style");
+        let Some((tag_start, kind)) = [
+            comment.map(|start| (start, 0u8)),
+            script.map(|start| (start, 1u8)),
+            style.map(|start| (start, 2u8)),
+        ]
+        .into_iter()
+        .flatten()
+        .min_by_key(|&(start, _)| start) else {
+            break;
+        };
+
+        if kind == 0 {
+            search = find_ci(sb, tag_start + 4, b"-->").map_or(sb.len(), |end| end + 3);
             continue;
         }
         let Some(gt) = find_ci(sb, tag_start, b">") else {
             break;
         };
         let content_start = gt + 1;
-        // Self-closing `<style/>` → no content to blank.
         if content_start >= 2 && sb[content_start - 2] == b'/' {
             search = content_start;
             continue;
         }
-        let Some(content_end) = find_ci(sb, content_start, b"</style") else {
+        let close_name: &[u8] = if kind == 1 { b"</script" } else { b"</style" };
+        let Some((_, element_end)) = close_tag_end(sb, content_start, close_name) else {
             break;
         };
-        if sb[content_start..content_end]
-            .iter()
-            .any(|byte| !matches!(byte, b'\n' | b'\r'))
-        {
-            let bytes = blanked.get_or_insert_with(|| sb.to_vec());
-            for b in &mut bytes[content_start..content_end] {
-                if *b != b'\n' && *b != b'\r' {
-                    *b = b' ';
-                }
-            }
+        if kind == 2 {
+            ranges.push((source_offset(tag_start), source_offset(element_end)));
         }
-        search = content_end;
+        search = element_end;
     }
-    blanked.map_or(Cow::Borrowed(source), |bytes| {
-        Cow::Owned(String::from_utf8(bytes).expect("blanking style content preserves UTF-8"))
-    })
+    ranges
 }
 
 /// Remove embedded `<script>` tags that are NOT the top-level instance / module
@@ -348,6 +432,7 @@ fn only_has_script_candidates_in_ranges(
     module: Option<(u32, u32)>,
 ) -> bool {
     let bytes = source.as_bytes();
+    let style_ranges = verbatim_style_ranges(source);
     let mut search = 0;
 
     while search < bytes.len() {
@@ -376,6 +461,7 @@ fn only_has_script_candidates_in_ranges(
         if ![instance, module]
             .into_iter()
             .flatten()
+            .chain(style_ranges.iter().copied())
             .any(|(start, end)| tag_start == start || (tag_start > start && tag_start < end))
         {
             return false;
@@ -403,6 +489,7 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
         known_starts.insert(module.start);
         known_ranges.push((module.start, module.end));
     }
+    known_ranges.extend(verbatim_style_ranges(source));
     collect_script_element_starts(&ast.fragment, &mut known_starts);
 
     // 2. Collect HtmlTag ranges — a <script> inside {@html …} is not orphan.
@@ -570,6 +657,27 @@ mod tests {
             blank_style_content("<style>content</style>"),
             Cow::Owned(_)
         ));
+    }
+
+    #[test]
+    fn style_blanking_ignores_style_tags_inside_scripts() {
+        let source =
+            "<script>/* <style>not css</style> */</script><style>.real { color: red }</style>";
+        let blanked = blank_style_content(source);
+
+        assert!(blanked.contains("/* <style>not css</style> */"));
+        assert!(!blanked.contains("color: red"));
+        assert_eq!(blanked.len(), source.len());
+    }
+
+    #[test]
+    fn style_blanking_ignores_script_tags_inside_styles() {
+        let source = "<style>/* <script>not js</script> */ .real { color: red }</style><script>let x = 1;</script>";
+        let blanked = blank_style_content(source);
+
+        assert!(!blanked.contains("not js"));
+        assert!(blanked.contains("<script>let x = 1;</script>"));
+        assert_eq!(blanked.len(), source.len());
     }
 
     #[test]

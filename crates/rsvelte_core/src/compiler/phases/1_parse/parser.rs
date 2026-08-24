@@ -1128,6 +1128,21 @@ impl<'a> Parser<'a> {
         if rest.trim_matches(is_js_whitespace).is_empty() {
             return Err(ParseError::expected_token("}", self.content_end));
         }
+        // A dangling optional-chain marker makes the structural bracket scan
+        // fail before `read_expression` gets its normal slice. Acorn consumes
+        // the marker and points at the closing mustache delimiter.
+        if let Some(close) = memchr::memchr(b'}', rest.as_bytes())
+            && rest[..close]
+                .trim_end_matches(is_js_whitespace)
+                .ends_with("?.")
+        {
+            let at = from + close;
+            return Err(ParseError::svelte(
+                "js_parse_error",
+                "Unexpected token".to_string(),
+                (at, at),
+            ));
+        }
         // A complete leading expression leaves the brace demanded at the first
         // token acorn did not consume.
         if let Some(offset) = trailing_token_offset(rest, self.ts)
