@@ -8,6 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value; the client fold must agree with it.
@@ -1039,6 +1040,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     );
 
                 return assign_fn(
+                    transform,
                     &context.arena,
                     JsExpr::Identifier(name.clone()),
                     final_value,
@@ -1298,7 +1300,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    let mutated = mutate_fn(&context.arena, mutate_target, full_assignment);
+                    let mutated =
+                        mutate_fn(transform, &context.arena, mutate_target, full_assignment);
 
                     // For store subscriptions, the store *source* (first arg of
                     // `$.store_mutate`) is read through its own binding's transform —
@@ -1419,6 +1422,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 && let Some(update_fn) = transform.update
             {
                 return update_fn(
+                    transform,
                     &context.arena,
                     update.operator,
                     JsExpr::Identifier(name.clone()),
@@ -1553,7 +1557,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    return mutate_fn(&context.arena, mutate_target, full_update);
+                    return mutate_fn(transform, &context.arena, mutate_target, full_update);
                 }
             }
 
@@ -3399,23 +3403,6 @@ pub fn parse_directive_name(
     expression
 }
 
-/// Check if a string is a valid JavaScript identifier.
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-
-    // First character must be a letter, underscore, or dollar sign
-    let first_char = s.chars().next().unwrap();
-    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
-        return false;
-    }
-
-    // Remaining characters must be alphanumeric, underscore, or dollar sign
-    s.chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-}
-
 /// Result of building a template chunk.
 pub struct TemplateChunkResult {
     /// The generated expression (template literal or string)
@@ -3647,7 +3634,9 @@ pub fn build_template_chunk(
 
 /// Collect identifiers from an AST Expression for blocker map checking.
 /// This walks the JSON AST to find all Identifier nodes.
-fn collect_expression_identifiers_for_blockers(expr: &crate::ast::js::Expression) -> Vec<String> {
+pub(crate) fn collect_expression_identifiers_for_blockers(
+    expr: &crate::ast::js::Expression,
+) -> Vec<String> {
     let mut names = Vec::new();
     let val = expr.as_json();
     collect_expr_ids_recursive(val, &mut names);

@@ -28,7 +28,8 @@ pub(super) fn format_const_declaration(
         SourceType::default()
     };
 
-    let wrapped = format!("const {decl_source};");
+    // Keep the synthetic terminator outside a trailing line comment.
+    let wrapped = format!("const {decl_source}\n;");
     let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();

@@ -2956,9 +2956,9 @@ impl<'a> ScopeBuilder<'a> {
     /// (`state.scope.reference(b.id(node.name.split('.')[0]), path)`), which
     /// runs unconditionally — the reference must be recorded even when we
     /// can't compute an exact source span for it (`name_loc` is `None` under
-    /// `skip_expression_loc`, the mode the real `compile()` entry point always
-    /// uses), otherwise `non_reactive_update` / unused-`export let` detection
-    /// silently stop seeing directive-only usages in production compiles.
+    /// `skip_expression_loc`, which the formatter, svelte2tsx and the language
+    /// server all parse with), otherwise `non_reactive_update` /
+    /// unused-`export let` detection silently stop seeing directive-only usages.
     ///
     /// `prefix_len` is the byte length of the directive keyword the parser
     /// stripped before `name` (`"use:"` / `"in:"` / `"out:"` / `"transition:"` /

@@ -831,9 +831,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // Extract CSS selector information for per-element scoping
         css::extract_css_selector_info(stylesheet, &mut analysis);
 
-        // Prune unused selectors
-        css::prune_css(stylesheet, &analysis);
-
         // Mark elements as scoped based on CSS selector matching.
         // Extract CSS selectors and match them against template elements,
         // properly considering combinators (>, space, +, ~).
@@ -6319,12 +6316,10 @@ mod tests {
 
     #[test]
     fn directive_name_is_referenced_even_without_expression_loc() {
-        // Regression: the real `compile()` entry point (`parse_component` in
-        // compiler/mod.rs) always parses with `skip_expression_loc: true`, so
-        // directive-name reference tracking must not be gated on `name_loc`
-        // being `Some` — otherwise `use:`/`transition:`/`animate:`-only usages
-        // are invisible to `non_reactive_update` / unused-`export let` checks
-        // in production compiles.
+        // Regression: directive-name reference tracking must not be gated on
+        // `name_loc` being `Some` — otherwise `use:`/`transition:`/`animate:`-only
+        // usages are invisible to `non_reactive_update` / unused-`export let`
+        // checks under every entry point that sets `skip_expression_loc`.
         let source = r#"<script>
     let count = $state(0);
 </script>

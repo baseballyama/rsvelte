@@ -104,14 +104,13 @@ fn an_overload_set_still_compiles() {
 /// a body — so every one of these is a second implementation.
 #[test]
 fn the_javascript_side_is_rejected_too() {
-    for body in ["function f() {} function f() {}"] {
-        let err = compile_script(body, false)
-            .expect_err("two implementations must not compile without lang=\"ts\" either");
-        assert!(
-            err.contains("Identifier 'f' has already been declared"),
-            "expected acorn's wording for {body:?}, got: {err}"
-        );
-    }
+    let body = "function f() {} function f() {}";
+    let err = compile_script(body, false)
+        .expect_err("two implementations must not compile without lang=\"ts\" either");
+    assert!(
+        err.contains("Identifier 'f' has already been declared"),
+        "expected acorn's wording for {body:?}, got: {err}"
+    );
     for body in ["function f() {} { function f() {} }", "function f() {}"] {
         assert!(
             compile_script(body, false).is_ok(),

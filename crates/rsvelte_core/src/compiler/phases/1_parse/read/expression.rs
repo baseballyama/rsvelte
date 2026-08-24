@@ -1976,9 +1976,11 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
+        let mut wrapped = String::with_capacity(content.len() + 3);
         wrapped.push('(');
         wrapped.push_str(content);
+        // Keep the synthetic closer outside a trailing line comment.
+        wrapped.push('\n');
         wrapped.push(')');
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
@@ -11388,9 +11390,17 @@ fn convert_property_key(
             ))
         }
         _ => {
-            // For computed keys, try to get the expression
+            // A computed key is program-path like its siblings above: reaching for
+            // `convert_expression` would subtract the paren a template expression
+            // is wrapped in but a script is not, putting the whole subtree one
+            // byte early.
             if let Some(expr) = key.as_expression() {
-                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
+                expr_to_node(convert_expression_for_program(
+                    arena,
+                    expr,
+                    offset,
+                    line_offsets,
+                ))
             } else {
                 JsNode::Null
             }
