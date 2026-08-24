@@ -4,7 +4,7 @@ Gate: the "output parseability" section of `scripts/compat-corpus/verify.mjs`.
 Ratchet: `parse-known-failures.client.json` holds **11 entries**,
 `parse-known-failures.client-dev.json` holds **11 entries**,
 `parse-known-failures.server.json` holds **0 entries** and
-`parse-known-failures.server-dev.json` holds **0 entries**.
+`parse-known-failures.server-dev.json` holds **1 entry**.
 
 ## The question it asks
 
@@ -23,11 +23,12 @@ said so in as many words: *"the 30 defects above are in repositories that are no
 sources … an empty baseline here is therefore the expected result, not a measurement that
 was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
 carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
-ratchet went to **12 entries across two targets on the first run**. That is the prediction
-being paid out, and it is the reason blind spot 19c in
+ratchet went to **12 entries across two targets on the first run**. The current tree adds one
+`server-dev` entry, bringing the ratchet to **13 entries across three targets**. That is the
+prediction being paid out, and it is the reason blind spot 19c in
 [`gate-coverage.md`](gate-coverage.md) is now closed for these inputs and for no others.
 
-The 12, by cause — three classes, none of them a formatting difference:
+The 13, by cause — four classes, none of them a formatting difference:
 
 | id | acorn says | cause |
 |---|---|---|
@@ -35,11 +36,13 @@ The 12, by cause — three classes, none of them a formatting difference:
 | `svelte-tweakpane-ui/…/HomeDemo.svelte`, `…/TweakpaneDemo.svelte` | `Assigning to rvalue` | a store write whose **assignment target** was rewritten to a getter call: `$point4() = […]` |
 | `sveltekit/…/query/instance.svelte.js` | `Assigning to rvalue` | the same class, on `$.get(this.#promise) ??= …` |
 | `adventurelog/…/CollectionMap.svelte`, `…/CollectionStats.svelte`, `huly/…/FilePreviewPopup.svelte`, `huly/…/ModernEditbox.svelte`, `huly/…/NavigatorCardsSection.svelte`, `photon/…/Commands.svelte`, `svelte-material-ui/…/Kitchen.svelte`, `threlte/…/Sequence.svelte` | `Unexpected token` | **not yet diagnosed** — eight separate spots, recorded here as data rather than as a guess |
+| `threlte/…/SoftShadows.svelte` (`server-dev`) | ``Expected `,` or `)` but found `Identifier` `` | comments attached to later `$effect` statements are emitted inside the preceding derived template literal; a backtick in one comment closes the literal before `sampler2D` |
 
-Nine of the twelve appear on `client` and `client-dev` both; `huly/…/FilePreviewPopup.svelte`
+Nine of the original twelve appear on `client` and `client-dev` both; `huly/…/FilePreviewPopup.svelte`
 is `client-dev` only and `svelte-material-ui/…/Kitchen.svelte` is `client` only, which is the
-per-target split earning its keep. **`server` and `server-dev` are still at 0** — the SSR
-pipeline is pure AST, and this is the sharpest available statement of what that bought.
+per-target split earning its keep. `server` remains at 0; `server-dev` has the one comment-placement
+failure above. The target split prevents that dev-only failure from suppressing the production SSR
+output.
 
 These entries are listed, not fixed, only because the enrolment PR's job was to enrol; every
 one of them breaks its consumer unconditionally and none should survive a burn-down.
@@ -79,7 +82,7 @@ closed the hole where a future defect of this class rides in under an existing r
 and it closed one of the two structural blind spots recorded for gate 15 in
 `gate-coverage.md` (oracle shares rsvelte's parser). It could not, by itself, find the 30
 known defects — only enrolling those repositories would. It is now both: a regression gate
-and a 12-entry burn-down.
+and a 13-entry burn-down.
 
 ## Adding an entry
 

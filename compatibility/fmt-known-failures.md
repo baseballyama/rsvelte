@@ -5,18 +5,18 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 802 entries** — 20 from before the
-wave-2 corpus enrolment and 782 the enrolment added (#3130).
+**Current baseline: `fmt-known-failures.json`, 786 entries** — 22 from before the
+wave-2 corpus enrolment and 764 the enrolment added (#3130).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`).
 
 **The two halves are justified to different standards, and the difference is the
-point.** Each of the original **20** was individually diffed against its oracle
+point.** Each of the original **22** was individually diffed against its oracle
 to confirm the cluster it belongs to; none is a guess from file-name
 pattern-matching. The 17 `skeleton/…` entries are the seed set from enrolling
 `submodules/skeleton` in the corpus (#1924); each was reduced to a standalone
 minimal repro before being filed into a cluster (9 into the new Cluster 9, 2 into
-the new Cluster 10, the other 6 into existing Clusters 1/2/3). The **782** from
+the new Cluster 10, the other 6 into existing Clusters 1/2/3). The **764** from
 the wave-2 enrolment are clustered **mechanically**, by a rule over the report's
 own `expected`/`actual` strings (Clusters 20-27 below) — *not* individually
 diffed. Do not read a wave-2 cluster as a reviewed diagnosis: it is a bucket, and
@@ -26,16 +26,16 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 6 + 1 + 1 + 1 + 327 + 232 + 111 + 92 + 13 + 3 + 3 + 1`
+Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 6 + 1 + 1 + 1 + 2 + 388 + 235 + 81 + 44 + 13 + 0 + 2 + 1`
 
 ## Wave-2 enrolment (#3130) — Clusters 20-27
 
 The corpus went from 37 to 104 corpus sources, and the formatter-parity set
-with it: **32,949 included components, 32,119 matched, 802 failing** (28 excluded,
-227 skipped). Every one of the 782 new entries comes from one of the 67 new
+with it: **32,994 included components, 32,182 matched, 786 failing** (26 excluded,
+228 skipped). Every one of the 764 new entries comes from one of the 67 new
 repositories — the 37 pre-existing sources add zero, the same positive control the
-compiler ratchets report. 53 repositories contribute at least one; sparrow-app
-(112), open-webui (94), carbon-components-svelte (80) and svelte-commerce (74) are
+compiler ratchets report. 51 repositories contribute at least one; sparrow-app
+(104), open-webui (93), carbon-components-svelte (80) and svelte-commerce (73) are
 46% of the new half between them.
 
 **This baseline is a Linux CI run** (`corpus-compat.yml`, the `corpus-fmt-report`
@@ -54,11 +54,10 @@ BOM-prefixed components in the corpus now match the oracle byte-for-byte; withou
 that fix they would all have landed in `indent-only` below.
 
 **The cluster table was re-derived after this branch was rebased onto `main`.**
-Three stale ids left the ratchet and `svelte-bits/.../TextTypeDemo.svelte` joined — but `main`
-carries six `rsvelte_formatter` commits, so the *first differing line* of an entry
-that still fails is often a different line than before, and the buckets move with
-it: `indent-only` 43 → 111 and `breaks-earlier` 299 → 232 on the current 782
-entries. Read that as the property of this table it has always
+Eighteen stale ids left the ratchet after the branch was rebased onto `main`.
+Because the *first differing line* of an entry that still fails can move whenever
+the formatter changes, the buckets moved with them: the current 764 wave-2
+entries classify as shown below. Read that as the property of this table it has always
 had — **it is keyed on the first differing line, so it re-partitions whenever the
 formatter changes, with or without a change in what fails.** The counts below are
 the rule below applied to the current Linux report; the previous ones were the
@@ -73,16 +72,16 @@ whitespace → **intra-line-ws**; anything else → **other**.
 
 | n | cluster | what the first differing line looks like |
 |---|---|---|
-| 327 | **20 — breaks-later** | rsvelte keeps on one line what the oracle has already broken (`{#each …sort( (a,b) => {` vs a wrapped form) |
-| 232 | **21 — breaks-earlier** | the mirror image: rsvelte breaks where the oracle keeps going (`selected_category.id ===` vs `… === category.id}`) |
-| 111 | **23 — indent-only** | same trimmed text at a different indent, typically a member-chain continuation inside `<script>` or a nested element's body; `svelte-bits/.../TextTypeDemo.svelte` differs only in the indentation of `variableSpeedEnabled` |
-| 92 | **22 — intra-line-ws** | same tokens, different interior spacing — most of it a sole arrow argument the oracle hugs (`sort((a, b) =>`) and rsvelte pads (`sort( (a, b) =>`) |
+| 388 | **20 — breaks-later** | rsvelte keeps on one line what the oracle has already broken (`{#each …sort( (a,b) => {` vs a wrapped form) |
+| 235 | **21 — breaks-earlier** | the mirror image: rsvelte breaks where the oracle keeps going (`selected_category.id ===` vs `… === category.id}`) |
+| 44 | **23 — indent-only** | same trimmed text at a different indent, typically a member-chain continuation inside `<script>` or a nested element's body |
+| 81 | **22 — intra-line-ws** | same tokens, different interior spacing — most of it a sole arrow argument the oracle hugs (`sort((a, b) =>`) and rsvelte pads (`sort( (a, b) =>`) |
 | 13 | **24 — other** | no rule matches; includes a SCSS `,`/`;` terminator on a declaration list whose last entry is followed by `//` comments, a lowercased invalid hex colour (`#E7E7E7l`), a tab-vs-space indent on a wrapped text run, and a doubled space inside a `class` attribute |
-| 3 | **25 — extra-line** | rsvelte emits a line where the oracle has none |
-| 3 | **26 — missing-line** | the reverse; all three are CRLF sources where rsvelte leaves a bare `\r` |
+| 0 | **25 — extra-line** | rsvelte emits a line where the oracle has none |
+| 2 | **26 — missing-line** | the reverse; both are CRLF sources where rsvelte leaves a bare `\r` |
 | 1 | **27 — quote-style** | an import specifier printed with single quotes where the oracle uses double |
 
-**632 of 782 (81%) are cluster 20 or 21 — one question, where a line breaks** —
+**623 of 764 (82%) are cluster 20 or 21 — one question, where a line breaks** —
 and that is the burndown target, not the tail. Nothing here is an oracle bug: the
 `oracle-invalid` classification already carries those and is a pass, not a ratchet
 entry.
@@ -299,8 +298,30 @@ and normalizes the arguments to one canonical level. The comment-line
 whitespace mix is a secondary rsvelte dedent artifact, but fixing it alone
 cannot clear the entry while the mode difference remains. Unfixable in-repo;
 a root fix would need oxfmt's standalone path to preserve multi-line
-function-value interiors verbatim (high blast radius upstream). This is the
-one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
+function-value interiors verbatim (high blast radius upstream). Cluster 11
+is the same oxfmt mode difference reached through a different construct.
+
+## Cluster 11 — CSS selector source spelling, native engine (2)
+
+Two `submodules/svelte` fixtures that arrived with the 5.56.10 bump. Both are
+selectors the CSS printer re-emits from the AST rather than from the source:
+
+- `css-nth-of-minified/input.svelte` — `li:nth-child(2n of.important)`. A
+  minifier may drop the space after `of` because the `.`/`#`/`[`/`*`/`&` that
+  follows already ends the `of` identifier. The oracle keeps the input
+  spelling; rsvelte prints `of .important`.
+- `css-escape-sequences/input.svelte` — `#\31\32\33 { … }`. The space after
+  `\33` is the escape's terminator and belongs to the selector token, so
+  re-emitting the token and then adding the separator before `{` yields two
+  spaces where the oracle has one.
+
+Same root cause as Cluster 8, reached from the selector side rather than the
+declaration side: **oxfmt's svelte-embedded mode preserves selector source
+text, its standalone CSS mode re-prints selectors from the parsed AST**, and
+the standalone path is the only one rsvelte's in-process `oxc_formatter_css`
+wrapper has. Running oxfmt over the same two selectors as standalone CSS
+reproduces rsvelte's output byte for byte. Neither spelling changes what the
+selector matches. Unfixable in-repo for the same reason as Cluster 8.
 
 ## Resolved
 
