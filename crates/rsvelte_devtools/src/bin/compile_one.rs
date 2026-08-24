@@ -5,8 +5,7 @@
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
 //!     [--runes-false | --runes-true]
 //!
-//! A `.svelte.js` / `.svelte.ts` path goes through `compile_module`, which is a
-//! different entry point with its own defects — see #2986 / #3071.
+//! A path that does not end in `.svelte` is compiled as a `.svelte.js` module.
 
 use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 

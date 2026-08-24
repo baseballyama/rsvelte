@@ -32,8 +32,16 @@ pub fn visit<'a, 'b: 'a>(
         return Err(errors::svelte_meta_invalid_placement("svelte:head").at(head.start, head.start));
     }
 
-    // Analyze children
-    fragment::analyze(&mut head.fragment, context)?;
+    // Analyze children in the head's own fragment scope, or a `{#snippet}`
+    // declared here reads as declared in a non-ancestor scope and every
+    // `{@render}` of it lowers to the dynamic form.
+    let old_scope = context.scope;
+    if let Some(&head_scope) = context.analysis.root.template_scope_map.get(&head.start) {
+        context.scope = head_scope;
+    }
+    let result = fragment::analyze(&mut head.fragment, context);
+    context.scope = old_scope;
+    result?;
 
     Ok(())
 }

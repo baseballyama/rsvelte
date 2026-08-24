@@ -359,11 +359,28 @@ export interface ParseOptions {
 	 * JSON-parse step.
 	 */
 	skipCssAst?: boolean;
+	/**
+	 * `modern` from `svelte/compiler`'s `parse()`. **Defaults to `false`**,
+	 * which returns the LEGACY AST (`{ html, instance, module, css }`); pass
+	 * `true` for the modern `Root` shape. The modern AST stays opt-in until
+	 * Svelte 6, and this binding defaults the same way official does.
+	 */
+	modern?: boolean;
+	/**
+	 * `loose` from `svelte/compiler`'s `parse()`. Recover from a parse error
+	 * and return an AST anyway — what an editor integration needs to parse a
+	 * document mid-keystroke. Not blanket recovery: a source official still
+	 * rejects under `loose` (e.g. a stray `</div>`) throws here too.
+	 */
+	loose?: boolean;
 }
 
 /**
  * Parse a Svelte component and return the AST as a JSON string. The
  * caller is responsible for `JSON.parse` on the returned value.
+ *
+ * Without `{ modern: true }` this returns the LEGACY AST, matching
+ * `svelte/compiler`'s default.
  *
  * For the fastest path skip JSON entirely: use {@link parseEnvelope}
  * with `decodeParseEnvelope` from
