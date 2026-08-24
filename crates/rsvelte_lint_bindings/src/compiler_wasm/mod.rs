@@ -13,10 +13,7 @@ use crate::compiler::{
     CompileOptions, CompileResult, CssHashFn, CssHashInput, CssMode, GenerateMode, Namespace,
     Warning, WarningFilterFn, compile,
 };
-use crate::svelte2tsx::{
-    Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
-    svelte2tsx as rust_svelte2tsx,
-};
+use crate::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
 /// Initialize panic hook for better error messages in the browser console.
 #[wasm_bindgen(start)]
@@ -223,44 +220,10 @@ pub fn svelte2tsx(source: &str, options_json: &str) -> String {
 }
 
 fn parse_svelte2tsx_options(options_json: &str) -> Svelte2TsxOptions {
-    let mut opts = Svelte2TsxOptions::default();
     let Ok(value) = serde_json::from_str::<serde_json::Value>(options_json) else {
-        return opts;
+        return Svelte2TsxOptions::default();
     };
-    let Some(obj) = value.as_object() else {
-        return opts;
-    };
-    if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-        opts.filename = v.to_string();
-    }
-    if let Some(v) = obj.get("isTsFile").and_then(|v| v.as_bool()) {
-        opts.is_ts_file = v;
-    }
-    if let Some(v) = obj.get("mode").and_then(|v| v.as_str()) {
-        opts.mode = match v {
-            "dts" => Svelte2TsxMode::Dts,
-            _ => Svelte2TsxMode::Ts,
-        };
-    }
-    if let Some(v) = obj.get("accessors").and_then(|v| v.as_bool()) {
-        opts.accessors = v;
-    }
-    if let Some(v) = obj.get("namespace").and_then(|v| v.as_str()) {
-        opts.namespace = match v {
-            "svg" => Svelte2TsxNamespace::Svg,
-            "mathml" => Svelte2TsxNamespace::Mathml,
-            "foreign" => Svelte2TsxNamespace::Foreign,
-            _ => Svelte2TsxNamespace::Html,
-        };
-    }
-    if let Some(v) = obj.get("version").and_then(|v| v.as_str()) {
-        opts.version = if v.starts_with('5') {
-            SvelteVersion::V5
-        } else {
-            SvelteVersion::V4
-        };
-    }
-    opts
+    Svelte2TsxOptions::from_json(&value)
 }
 
 // === Function-form compile options (issue #1680) ===

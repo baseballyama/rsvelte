@@ -455,10 +455,10 @@ pub struct VisitorContext<'a> {
     /// it checks if its direct parent is an EachBlock by checking the top of this stack.
     /// When entering an element, we push None to indicate we're no longer directly in the EachBlock.
     pub each_block_stack: Vec<Option<EachBlockContext>>,
-    /// Tracks if we're directly inside a component (for svelte:fragment validation).
-    /// This is set to true when entering a Component/SvelteComponent, and reset to false
-    /// when entering any other element type.
-    pub is_direct_child_of_component: bool,
+    /// Which component-like node is the immediate parent, if any. Set when
+    /// entering a Component / `<svelte:component>` / `<svelte:self>`, and reset
+    /// when entering any other element or block.
+    pub direct_component_parent: DirectComponentParent,
     /// True while analyzing the *direct* children of a `{#snippet}` body. Mirrors
     /// upstream's `context.path.at(-2)?.type === 'SnippetBlock'` check in
     /// `validate_slot_attribute`: a `slot="…"` text attribute on an element whose
@@ -494,6 +494,36 @@ pub struct VisitorContext<'a> {
     /// on exit, pops entries back to that marker in LIFO order to reverse exactly the
     /// declarations added during that scope — replacing a full clone/restore of the map.
     pub decl_undo_log: Vec<(String, Option<usize>)>,
+}
+
+/// Which component-like node, if any, is the immediate parent of the node being
+/// visited. Upstream reads two different sets off this position and they are not
+/// the same: `<svelte:fragment>` is legal only under `Component` /
+/// `SvelteComponent` (`SvelteFragment.js`), while `validate_slot_attribute`'s
+/// owner set also holds `SvelteSelf` and `SvelteElement`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DirectComponentParent {
+    /// Anything that owns no slots — a plain element, a block, the root.
+    #[default]
+    None,
+    /// `<Foo>` or `<svelte:component>` — also the only legal `<svelte:fragment>`
+    /// parents.
+    Component,
+    /// `<svelte:self>` or `<svelte:element>`: a slot owner that `SvelteFragment.js`
+    /// does not name.
+    SlotOwnerOnly,
+}
+
+impl DirectComponentParent {
+    /// Whether a `slot="…"` on a direct child has a component owner here.
+    pub fn owns_slots(self) -> bool {
+        self != DirectComponentParent::None
+    }
+
+    /// Whether a `<svelte:fragment>` may sit directly inside.
+    pub fn hosts_svelte_fragment(self) -> bool {
+        self == DirectComponentParent::Component
+    }
 }
 
 /// Type of ancestor that can "own" a slot attribute.
@@ -600,7 +630,7 @@ impl<'a> VisitorContext<'a> {
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),
             each_block_stack: Vec::new(),
-            is_direct_child_of_component: false,
+            direct_component_parent: DirectComponentParent::None,
             is_direct_child_of_snippet: false,
             slot_owner_ancestors: Vec::new(),
             fragment_owner_stack: vec![FragmentOwnerType::Root],
