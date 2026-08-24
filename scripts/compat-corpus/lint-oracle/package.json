@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Isolated environment running the real eslint-plugin-svelte as the lint-compat oracle. Pinned to the same version as submodules/eslint-plugin-svelte. Every version is EXACT: the ratchet stores one entry per (rule, line, column, message), so a floating range lets an npm-side minor move the baseline with no rsvelte change. eslint is held at 9 because eslint-plugin-svelte 3.23.0's no-reactive-functions suggestion calls sourceCode.isSpaceBetweenTokens, removed in ESLint 10 — under 10 every positive report for that rule throws and the file is scored unparseable instead of compared.",
   "dependencies": {
-    "eslint": "10.9.0",
+    "eslint": "10.9.1",
     "eslint-plugin-svelte": "3.23.0",
     "svelte": "5.56.10",
     "svelte-eslint-parser": "1.8.1",
