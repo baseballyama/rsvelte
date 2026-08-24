@@ -1754,11 +1754,22 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                     first_error.message.as_ref(),
                     "Cannot assign to this expression" | "Invalid left-hand side in assignment"
                 );
+                // The default reads the label's END because acorn reports where
+                // it stopped consuming — true when the label is what it consumed,
+                // false when the label IS the offending token, which acorn then
+                // reports at its start. `Expected X but found Y` labels the found
+                // token, so it belongs to the second group too.
+                let report_at_label_start = at_label_start
+                    || matches!(
+                        first_error.message.as_ref(),
+                        "Unexpected token" | "Unexpected new.target expression"
+                    )
+                    || first_error.message.starts_with("Expected ");
                 let pos = first_error
                     .labels
                     .first()
                     .map(|label| {
-                        if at_label_start {
+                        if report_at_label_start {
                             label.offset() as usize
                         } else {
                             label.offset() as usize + label.len() as usize
