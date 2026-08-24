@@ -1,5 +1,78 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.19
+
+### Patch Changes
+
+- 741e878: Raise the three `$$Generic` errors upstream raises — in the module script, alongside a `generics` attribute, and with more than one type argument — and recognise the declaration when it carries an `export` modifier, which upstream models as one type alias with a modifier so its matcher reaches it. The `$$Generic` reference is now matched on the AST rather than on the annotation's source text, so `type T = $$Generic < string >` is recognised too.
+- 7544d11: Read the `<script generics="…">` attribute with a TypeScript parse instead of a comma scan. The scan knew only about `<…>`, so a comma at the top level of an object type, a tuple, a parameter list or a string literal split the type parameter and the fragments were emitted as _type arguments_ — `<T,b:>` is not a type argument list, so the whole component's TSX stopped parsing. Whether a component has generics at all now comes from the same parse (upstream's `Generics.has()`), so an attribute that is not a type parameter list keeps the non-generic component export while still reaching `function $$render<…>` verbatim.
+- e6a1252: Stop blanking the whitespace around a module-only component's template. Upstream has no such step — it leaves the template text alone — so a component whose only script is `<script module>` and whose template is whitespace lost the newline inside the generated arrow, and lost one of the two runs entirely when whitespace sat on both sides of the script.
+- 993471d: Two svelte2tsx projections. Runes mode is now entered on a _reference_ to `$state` / `$derived` / `$effect`, matching upstream's membership test over the `$`-prefixed globals set, instead of only on a rune _call_ — so `{$state}`, `void $derived` and `{#each $effect as …}` no longer type the component as a legacy class component. And the instance-script export walk mirrors upstream's: `export namespace` / `export enum` / `export import` keep the `export` keyword upstream never strips, an `export` nested in a `namespace` / `declare module` / `declare global` body is lifted into the component's prop and export surface, and an export with no initializer is a required prop regardless of `let` / `const` / `var`.
+- 6576cf0: Count the padding in front of a standalone `{#snippet}`'s `const` from the gaps between the source ranges upstream's `transform()` keeps, instead of measuring the region after the last one. A header with anything between the name and the first parameter — a space, a tab, a type parameter list, or a formatted multi-line parameter list — was one space short, and svelte2tsx is one MagicString, so the shortfall shifted every mapping after it.
+- Updated dependencies [6feed09]
+- Updated dependencies [96c37b6]
+- Updated dependencies [258b4c4]
+- Updated dependencies [174115e]
+- Updated dependencies [4cb8a06]
+- Updated dependencies [81008be]
+- Updated dependencies [762a8a5]
+- Updated dependencies [fce6655]
+- Updated dependencies [9dc0d67]
+- Updated dependencies [139a74b]
+- Updated dependencies [762a8a5]
+- Updated dependencies [0284e4e]
+- Updated dependencies [0ebfcfe]
+- Updated dependencies [9c1f202]
+- Updated dependencies [a4e1547]
+- Updated dependencies [46c5ce1]
+- Updated dependencies [1fa209f]
+- Updated dependencies [762a8a5]
+- Updated dependencies [c875a19]
+- Updated dependencies [6800a72]
+- Updated dependencies [b5e8e2d]
+- Updated dependencies [f22ea71]
+- Updated dependencies [0f1631b]
+- Updated dependencies [5c320ff]
+- Updated dependencies [ce7fedd]
+- Updated dependencies [2c272d2]
+- Updated dependencies [6017851]
+- Updated dependencies [f1e57b2]
+- Updated dependencies [7e500f3]
+- Updated dependencies [2bf8d8b]
+- Updated dependencies [a2d5ee3]
+- Updated dependencies [35eba10]
+- Updated dependencies [8aa0109]
+- Updated dependencies [2bf8d8b]
+- Updated dependencies [a9f8614]
+- Updated dependencies [ad47006]
+- Updated dependencies [02d4b41]
+- Updated dependencies [0284e4e]
+- Updated dependencies [18e1858]
+- Updated dependencies [273ed67]
+- Updated dependencies [6b30925]
+- Updated dependencies [83c6044]
+- Updated dependencies [60961e8]
+- Updated dependencies [5c72df2]
+- Updated dependencies [5c72df2]
+- Updated dependencies [fc19aa6]
+- Updated dependencies [6800a72]
+- Updated dependencies [0873955]
+- Updated dependencies [e6a1202]
+- Updated dependencies [18e1858]
+- Updated dependencies [2614b64]
+- Updated dependencies [8ab5bbc]
+- Updated dependencies [2564278]
+- Updated dependencies [b72ecc3]
+- Updated dependencies [55606ec]
+- Updated dependencies [1bbbb31]
+- Updated dependencies [5dec259]
+- Updated dependencies [2bf8d8b]
+- Updated dependencies [5e5fe6b]
+- Updated dependencies [ffe1c3e]
+- Updated dependencies [5c72df2]
+- Updated dependencies [513c080]
+  - @rsvelte/compiler@0.10.19
+
 ## 0.2.18
 
 ### Patch Changes

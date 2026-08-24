@@ -96,7 +96,7 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    find_code, is_ident_byte, skip_opaque,
+    find_rune_code, is_ident_byte, skip_opaque,
 };
 use compact_str::CompactString;
 use memchr::memmem;
@@ -288,6 +288,11 @@ pub fn transform_client_module(
     let dead_comments_stripped =
         dead_comments::strip_dead_comments(source, dead_comments::Rules::ACCESSORS);
     let source = dead_comments_stripped.as_deref().unwrap_or(source);
+
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
 
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_module_class_fields_client(source);
@@ -585,12 +590,20 @@ pub(crate) fn transform_client(
                 }
             })
             .flatten();
-        let instance_raw = dead_comments_stripped
+        // Every lowering below decides what a rune call is from this text, so the
+        // grouping parens around one have to be gone before the first of them runs.
+        let paren_stripped = super::shared::rune_parens::strip_rune_parens(
+            dead_comments_stripped
+                .as_deref()
+                .unwrap_or(&instance_script.raw),
+        );
+        let instance_raw = paren_stripped
             .as_deref()
+            .or(dead_comments_stripped.as_deref())
             .unwrap_or(&instance_script.raw);
         let retained_instance = retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
-            .filter(|_| dead_comments_stripped.is_none());
+            .filter(|_| dead_comments_stripped.is_none() && paren_stripped.is_none());
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
@@ -2066,6 +2079,9 @@ pub(crate) fn transform_client(
                 .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
+            // Every lowering below decides what a rune call is from this text, so
+            // the grouping parens around one have to be gone before the first runs.
+            let raw = super::shared::rune_parens::strip_rune_parens(&raw).unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
             let retained_comment_stripped = if !analysis.is_typescript {
                 retained_scripts
@@ -4629,7 +4645,7 @@ fn transform_module_script_runes_with_target(
     // intact, so the non-dev removal stays. `find_code` rather than a plain
     // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
             let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
@@ -4653,7 +4669,7 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
@@ -4669,20 +4685,28 @@ fn transform_module_script_runes_with_target(
                 } else {
                     inspect_start + content_end + 1 - pos
                 };
-                // Remove leading whitespace on the same line
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
+                // In an operand slot upstream's `EmptyStatement` prints as a bare
+                // `;`, which no parser accepts; keep the slot filled with the
+                // value `$inspect` evaluates to, rather than deleting the line
+                // and leaving the initializer dangling
+                // (`upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                if rune_transforms::operand_expected_before(&result[..pos]) {
+                    result = format!(
+                        "{}undefined{}",
+                        &result[..pos],
+                        &result[pos + total_call_len..]
+                    );
+                    continue;
                 }
-                // Consume optional trailing semicolon then newline
+                // Statement position: upstream substitutes an `EmptyStatement`
+                // for the call and keeps the statement's own `;`, which esrap
+                // prints as `;;` where the call stood — at whatever nesting it
+                // had. Deleting the line instead loses both.
                 let mut end = pos + total_call_len;
                 while end < result.len() && result.as_bytes()[end] == b';' {
                     end += 1;
                 }
-                if end < result.len() && result.as_bytes()[end] == b'\n' {
-                    end += 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
+                result = format!("{};;{}", &result[..pos], &result[end..]);
             } else {
                 break;
             }
@@ -4837,7 +4861,7 @@ fn transform_module_script_runes_with_target(
     // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
     // that sits in a string / template / regex / comment untouched, and this
     // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -4966,7 +4990,7 @@ fn transform_module_script_runes_with_target(
     // / regex / comment is text. Matching it either rewrote the literal (#2988)
     // or aborted the loop on its unbalanced parens, leaving the real rune call
     // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;

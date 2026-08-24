@@ -143,13 +143,23 @@ impl<'a> Parser<'a> {
         // block. `parse_fragment` stops on `{/...}` without consuming it, so any
         // leftover close marker here is an error in strict mode. (Comments
         // `{/*`, `{//` are not close markers.)
-        if !self.options.loose && self.match_block_close_marker().is_some() {
+        if !self.options.loose
+            && let Some(slash_pos) = self.match_block_close_marker()
+        {
+            // Upstream `close()` reports at `parser.index - 1` — the `/` it just
+            // ate, not the `{`.
             return Err(crate::error::ParseError::svelte(
                 "block_unexpected_close",
                 "Unexpected block closing tag",
-                (self.index, self.index + 1),
+                (slash_pos, slash_pos),
             ));
         }
+
+        // Upstream validates `<svelte:options>` here, once the whole template
+        // has been parsed (`1-parse/index.js` L164-166), so a duplicate or a
+        // misplaced meta tag anywhere in the file outranks an attribute-value
+        // error and an attribute-value error outranks the element's children.
+        self.read_svelte_options()?;
 
         // Determine the end position of script/style tags
         let script_end = self
@@ -412,7 +422,9 @@ impl<'a> Parser<'a> {
                 // Block continuation tags like {:else}, {:then}, {:catch} are only valid
                 // within IfBlock, EachBlock, or AwaitBlock contexts
                 if is_block_continuation {
-                    let cont_start = self.index;
+                    // Upstream `next()` reports at `parser.index - 1` — the `:`
+                    // it just ate, not the `{`.
+                    let cont_start = self.match_block_continuation_marker().unwrap_or(self.index);
                     // Get the current context from the stack
                     let current_context = self.stack.last();
                     let is_valid_continuation_context = matches!(

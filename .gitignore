@@ -145,6 +145,7 @@ compatibility/manifest.json
 compatibility/.corpus-generation
 compatibility/report.json
 compatibility/report-s2t.json
+compatibility/esrap-report.json
 compatibility/cluster.txt
 compatibility/matrix-artifacts/
 compatibility/mutant-artifacts/

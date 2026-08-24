@@ -104,6 +104,10 @@ assert(
 // ---------------------------------------------------------------------------
 
 const libSource = readFileSync(resolve(repoRoot, 'crates/rsvelte_napi/src/lib.rs'), 'utf8');
+const projectionInterfacesSource = readFileSync(
+	resolve(repoRoot, 'crates/rsvelte_projection/src/svelte2tsx/interfaces.rs'),
+	'utf8'
+);
 
 const camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
@@ -118,11 +122,11 @@ function napiObjectStructs(src) {
 	return out;
 }
 
-/** The hand-rolled svelte2tsx option reader is not a struct — read its keys. */
+/** The shared svelte2tsx option reader is not a N-API struct — read its keys. */
 function svelte2tsxKeys(src) {
-	const body = src.match(/fn parse_svelte2tsx_options\([\s\S]*?\n\}/);
+	const body = src.match(/pub fn from_json\([\s\S]*?\n    \}\n\}/);
 	if (!body) return null;
-	return [...body[0].matchAll(/obj\.get\("(\w+)"\)/g)].map((m) => m[1]);
+	return [...body[0].matchAll(/obj\s*\.get\("(\w+)"\)/g)].map((m) => m[1]);
 }
 
 const structs = napiObjectStructs(libSource);
@@ -160,8 +164,8 @@ assert(
 	unclassified.join(', ')
 );
 
-const s2tKeys = svelte2tsxKeys(libSource);
-assert('parse_svelte2tsx_options still reads its keys by name', s2tKeys != null && s2tKeys.length > 0);
+const s2tKeys = svelte2tsxKeys(projectionInterfacesSource);
+assert('Svelte2TsxOptions::from_json still reads its keys by name', s2tKeys != null && s2tKeys.length > 0);
 
 /** `surface -> [key]`, keyed the way the assertions below name them. */
 const DECLARED = new Map([
@@ -551,9 +555,20 @@ assert(
 		),
 	'modern AST differs from svelte/compiler'
 );
+// Upstream fills `ast` either way — the modern tree under `modernAst`, the
+// Svelte-4 legacy tree otherwise. Key sets are compared rather than whole trees
+// because the legacy tree still diverges inside (#3295), and official is
+// round-tripped first: it sets absent blocks to `undefined`, which `Object.keys`
+// reports and no serialization boundary carries.
+const defaultAst = napi.compile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast;
+const officialDefaultKeys = Object.keys(
+	JSON.parse(JSON.stringify(officialCompile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast))
+).sort();
 assert(
-	'compile.modernAst: default remains null',
-	napi.compile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast === null
+	'compile.modernAst: the default is the legacy AST, keyed as official',
+	defaultAst !== null &&
+		JSON.stringify(Object.keys(defaultAst).sort()) === JSON.stringify(officialDefaultKeys),
+	`default ast keys ${JSON.stringify(defaultAst && Object.keys(defaultAst).sort())} vs official ${JSON.stringify(officialDefaultKeys)}`
 );
 let modernAstEnvelopeError;
 try {
@@ -745,6 +760,34 @@ const S2T_CASES = [
 		src: S2T_SRC,
 		base: { filename: 'A.svelte', version: '5' },
 		variant: { filename: 'A.svelte', version: '4' },
+	},
+	{
+		key: 'emitJsDoc',
+		src: '<script>export let a = 1;</script>',
+		base: { filename: 'A.svelte' },
+		variant: { filename: 'A.svelte', emitJsDoc: true },
+		marker: (r) => r.code.includes('/** @typedef'),
+	},
+	{
+		key: 'typingsNamespace',
+		src: '<div />',
+		base: { filename: 'A.svelte' },
+		variant: { filename: 'A.svelte', typingsNamespace: 'customHTML' },
+		marker: (r) => r.code.includes('customHTML'),
+	},
+	{
+		key: 'noSvelteComponentTyped',
+		src: S2T_SRC,
+		base: { filename: 'A.svelte', version: '4', mode: 'dts', isTsFile: true },
+		variant: {
+			filename: 'A.svelte',
+			version: '4',
+			mode: 'dts',
+			isTsFile: true,
+			noSvelteComponentTyped: true,
+		},
+		marker: (r) =>
+			r.code.includes('SvelteComponent') && !r.code.includes('SvelteComponentTyped'),
 	},
 ];
 
