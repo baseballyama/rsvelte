@@ -98,10 +98,10 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 13 entries;
-`error-message-known-failures.client-dev.json` holds 13 entries;
-`error-message-known-failures.server.json` holds 12 entries; and
-`error-message-known-failures.server-dev.json` holds 12 entries. All four of
+`error-message-known-failures.client.json` holds 11 entries;
+`error-message-known-failures.client-dev.json` holds 11 entries;
+`error-message-known-failures.server.json` holds 10 entries; and
+`error-message-known-failures.server-dev.json` holds 10 entries. All four of
 `error-position-known-failures.<target>.json` hold 78 entries, all four of
 `error-end-known-failures.<target>.json` hold 98 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
@@ -129,9 +129,9 @@ things on a minor bump": both compilers run on the same source, in the same
 process, at the pinned version, so a difference here is rsvelte's — the argument
 settled for warning text in #2403.
 
-Clustered by code (client target, 13 entries):
+Clustered by code (client target, 11 entries):
 
-- **`js_parse_error` — 11, the whole majority.** The Svelte code is right, but the
+- **`js_parse_error` — 9, the whole majority.** The Svelte code is right, but the
   text is oxc's parser message (`Expected `,` or `}` but found `+`) where upstream
   forwards acorn's (`Unexpected token`). This is the one cluster whose fix is not a
   string edit: the two parsers phrase their own diagnostics, and rsvelte's text is
