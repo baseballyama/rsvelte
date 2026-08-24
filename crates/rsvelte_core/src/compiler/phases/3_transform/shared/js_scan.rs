@@ -348,7 +348,64 @@ fn is_ident_char(c: char) -> bool {
 ///
 /// `needle` must contain no byte that can open an opaque run (`'`, `"`,
 /// `` ` ``, `/`), so testing its first byte settles the whole match.
+/// Every production caller is a rune scan and so wants [`find_rune_code`]; this
+/// stays as the negative control the rune tests contrast against.
+#[cfg(test)]
 pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+    find_code_filtered(bytes, needle, |_, _| true)
+}
+
+/// [`find_code`], but only for a match that can head a rune keypath.
+///
+/// Upstream reaches the same answer structurally: `get_global_keypath`
+/// (`phases/scope.js`) walks *down* a member chain to its base identifier, so a
+/// rune name sitting in the property slot of `o.$state(1)` is never that base
+/// and the call is an ordinary method call. A byte search cannot see the `.`,
+/// which is how `o.$effect(() => {})` came out as `o.` — text no JS parser
+/// accepts. The identifier-character test is the same rule one byte over:
+/// `a$state(` is a single identifier that merely ends in the rune's spelling.
+pub(crate) fn find_rune_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+    find_code_filtered(bytes, needle, |at, significant| {
+        // `.` / `?.` — a member property. Read off the last SIGNIFICANT byte so
+        // `o\n\t.$state(` and `o /*c*/ . $state(` answer the same as `o.$state(`.
+        if significant == Some(b'.') {
+            return false;
+        }
+        // A longer identifier ending in the rune's spelling. This one reads the
+        // IMMEDIATE predecessor: the significant byte skips whitespace, and
+        // `return $state(1)` would otherwise be rejected on the `n` of `return`.
+        if at > 0 && is_ident_byte(bytes[at - 1]) {
+            return false;
+        }
+        // `function $inspect(v) {}` declares the name; the `(` belongs to the
+        // parameter list, not to a call. Left un-tested, the `$inspect(` removal
+        // deleted the name and emitted `function  {` — text no parser accepts.
+        preceding_word(bytes, at) != Some(b"function")
+    })
+}
+
+/// The identifier token ending immediately before `at`, skipping ASCII
+/// whitespace. Reads bytes only: a comment between the keyword and the name
+/// makes this `None`, which leaves the caller's answer where it already was.
+fn preceding_word(bytes: &[u8], at: usize) -> Option<&[u8]> {
+    let mut end = at;
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    let mut start = end;
+    while start > 0 && is_ident_byte(bytes[start - 1]) {
+        start -= 1;
+    }
+    (start < end).then(|| &bytes[start..end])
+}
+
+/// `accept(match_start, last_significant_code_byte_before_it)` decides whether a
+/// code match counts; a rejected one is skipped and scanning continues.
+fn find_code_filtered(
+    bytes: &[u8],
+    needle: &[u8],
+    accept: impl Fn(usize, Option<u8>) -> bool,
+) -> Option<usize> {
     debug_assert!(
         !needle
             .iter()
@@ -371,7 +428,10 @@ pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
             continue;
         }
         if i == candidate {
-            return Some(candidate);
+            if accept(candidate, prev) {
+                return Some(candidate);
+            }
+            candidate = candidates.next()?;
         }
         if !bytes[i].is_ascii_whitespace() {
             prev = Some(bytes[i]);
@@ -384,8 +444,87 @@ pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::{
-        KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, skip_opaque, slash_starts_regex_at,
+        KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_rune_code, skip_opaque,
+        slash_starts_regex_at,
     };
+
+    #[test]
+    fn a_rune_name_in_member_position_is_not_a_rune() {
+        for src in [
+            "const a = o.$state(1);",
+            "const a = o?.$state(1);",
+            "const a = o.p.$state(1);",
+            "const a = o\n\t.$state(1);",
+            "const a = o . $state(1);",
+            "const a = o /*c*/ . $state(1);",
+            "const a = this.$state(1);",
+        ] {
+            assert!(
+                find_rune_code(src.as_bytes(), b"$state(").is_none(),
+                "matched a property in {src:?}"
+            );
+            // The un-filtered finder is what shipped the defect; keep the
+            // contrast explicit so the two are never conflated again.
+            assert!(find_code(src.as_bytes(), b"$state(").is_some());
+        }
+    }
+
+    #[test]
+    fn a_rune_name_declared_as_a_function_is_not_a_call() {
+        for src in [
+            "function $inspect(v) { return v; }",
+            "async function $inspect(v) { return v; }",
+            "export function $inspect(v) { return v; }",
+        ] {
+            assert!(
+                find_rune_code(src.as_bytes(), b"$inspect(").is_none(),
+                "matched a declaration in {src:?}"
+            );
+        }
+        // The call one line down is still found.
+        let src = "function $inspect(v) { return v; }\n$inspect(1);";
+        assert_eq!(find_rune_code(src.as_bytes(), b"$inspect(").unwrap(), 35);
+    }
+
+    #[test]
+    fn a_longer_identifier_ending_in_a_rune_name_is_not_a_rune() {
+        assert!(find_rune_code(b"let v = my$state(1);", b"$state(").is_none());
+        assert!(find_rune_code("let v = \u{3042}$state(1);".as_bytes(), b"$state(").is_none());
+    }
+
+    #[test]
+    fn a_real_rune_call_still_matches_after_a_keyword_or_a_property() {
+        // `prev` skips whitespace, so a keyword's last byte must not read as an
+        // identifier continuation.
+        for src in [
+            "return $state(1);",
+            "let v = $state(1);",
+            "const a = o.x;\nlet v = $state(1);",
+            "f(o.$state(1));\nlet v = $state(1);",
+        ] {
+            let at = find_rune_code(src.as_bytes(), b"$state(").expect("the real call");
+            assert_eq!(&src[at..at + 7], "$state(", "{src:?}");
+            assert!(
+                src[..at].ends_with("= ") || src[..at].ends_with("n "),
+                "{src:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_rune_finder_still_skips_every_opaque_carrier() {
+        for carrier in [
+            "// $state(",
+            "/* $state( */",
+            "const c = '$state(';",
+            "const c = `$state(`;",
+            "const c = /$state(x)/;",
+        ] {
+            let src = format!("{carrier}\nlet x = $state(1);\n");
+            let at = find_rune_code(src.as_bytes(), b"$state(").expect("the real call");
+            assert!(at > carrier.len(), "{carrier}: matched inside the carrier");
+        }
+    }
 
     /// Decide the LAST `/` in `src`, with `prev` tracked exactly as `code_bytes`
     /// tracks it — a comment leaves it alone, a literal collapses to a sentinel.

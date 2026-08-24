@@ -26,6 +26,7 @@ use super::js_ast::nodes::{JsImportDeclaration, JsImportSpecifier, JsStatement};
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::js_scan::is_ident_byte;
 use memchr::memmem;
 use std::cell::RefCell;
 
@@ -242,11 +243,30 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
             _ => {}
         }
         if i + needle.len() <= n && &bytes[i..i + needle.len()] == needle {
-            out.push(i);
+            // A rune name in the property slot of `o.$effect(cb)` is a method
+            // call, not a rune — upstream's `get_global_keypath` walks a member
+            // chain down to its BASE identifier, which this one never is. Same
+            // rule one byte over for `a$effect(`, a single longer identifier.
+            let is_rune_head = needle.first() != Some(&b'$')
+                || (!last_significant_is_dot(bytes, i) && (i == 0 || !is_ident_byte(bytes[i - 1])));
+            if is_rune_head {
+                out.push(i);
+            }
         }
         i += 1;
     }
     out
+}
+
+/// Is the last significant byte before `at` a `.` (so `at` starts a member
+/// property)? Whitespace is skipped, which is what makes `o\n\t.$effect(` and
+/// `o.$effect(` answer the same.
+fn last_significant_is_dot(bytes: &[u8], at: usize) -> bool {
+    let mut j = at;
+    while j > 0 && bytes[j - 1].is_ascii_whitespace() {
+        j -= 1;
+    }
+    j > 0 && bytes[j - 1] == b'.'
 }
 
 /// One collect-and-splice pass over `source` for a paren-call rewrite. For every

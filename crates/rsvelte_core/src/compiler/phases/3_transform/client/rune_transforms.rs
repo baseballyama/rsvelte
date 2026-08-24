@@ -9,7 +9,7 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_rune_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Does the code preceding a removed call demand an operand — i.e. was the call
@@ -201,7 +201,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
     if !dev && !inspect_is_store_sub {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
                 let mut end = trace_start + content_end + 1;
@@ -237,7 +237,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // and is awkward to do at the AST level.
     if !dev
         && !inspect_is_store_sub
-        && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(")
+        && let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(")
     {
         {
             // In non-dev mode, remove the entire $inspect(...) call
