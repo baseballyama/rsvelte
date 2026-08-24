@@ -1418,22 +1418,20 @@ pub fn var_decl_anchored(
     arena: &JsArena,
     name: impl Into<CompactString>,
     init: Option<JsExpr>,
-    comment_anchor: Option<u32>,
+    // The span is the *source* name's, which the generated identifier does not
+    // reproduce byte for byte once the source name is non-ASCII.
+    anchor: Option<(u32, u32)>,
 ) -> JsStatement {
     let name = name.into();
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Var,
         declarations: vec![JsVariableDeclarator {
-            id: match comment_anchor {
-                Some(start) => JsPattern::SpannedIdentifier {
-                    end: start.saturating_add(name.len() as u32),
-                    name,
-                    start,
-                },
+            id: match anchor {
+                Some((start, end)) => JsPattern::SpannedIdentifier { name, start, end },
                 None => id_pattern(name),
             },
             init: init.map(|e| arena.alloc_expr(e)),
-            comment_anchor,
+            comment_anchor: anchor.map(|(start, _)| start),
         }],
     })
 }

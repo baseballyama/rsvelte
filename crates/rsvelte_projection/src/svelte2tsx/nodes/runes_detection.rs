@@ -99,6 +99,13 @@ impl TemplateRunesDetector {
         self.flags
             .contains(DetectionFlags::HAS_AWAIT | DetectionFlags::HAS_RUNE_GLOBAL)
     }
+
+    /// A top-level `await` in a template expression. Upstream sets its
+    /// `isRunes` from this WITHOUT the Svelte-5 gate that covers rune globals,
+    /// so the two halves have to stay separable.
+    pub(crate) const fn has_template_await(&self) -> bool {
+        self.flags.contains(DetectionFlags::HAS_AWAIT)
+    }
 }
 
 impl Drop for TemplateRunesDetector {

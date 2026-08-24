@@ -18,7 +18,6 @@
 	"svelte/documentation/docs/02-runes/07-$inspect.md/2__m0__line-with-semi.svelte [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-multiple/main__m0__line-with-semi.svelte [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-with-untracked/main__m0__line-with-paren.svelte [code-mismatch] (client)",
-	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input__m0__line-with-brace.svelte.js [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input__m0__line-with-semi.svelte [code-mismatch] (client)",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input__m0__line-with-semi.svelte [code-mismatch] (client-dev)"
 ]

@@ -98,13 +98,10 @@ pub fn visit<'a, 'b: 'a>(
     }
 
     // Analyze fallback children
-    let was_direct_child = context.is_direct_child_of_component;
-    let was_slot_host = context.is_direct_child_of_slot_host;
-    context.is_direct_child_of_component = false;
-    context.is_direct_child_of_slot_host = false;
+    let was_direct_child = context.direct_component_parent;
+    context.direct_component_parent = super::DirectComponentParent::None;
     let result = fragment::analyze(&mut slot.fragment, context);
-    context.is_direct_child_of_component = was_direct_child;
-    context.is_direct_child_of_slot_host = was_slot_host;
+    context.direct_component_parent = was_direct_child;
     result?;
 
     Ok(())

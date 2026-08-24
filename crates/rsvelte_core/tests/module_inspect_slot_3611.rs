@@ -11,6 +11,15 @@
 //! the module printer fell back to raw source and everything after the splice
 //! came out untransformed too.
 //!
+//! The two halves are matched separately, because only one of them can be.
+//! Measured over the eight slots below × 2 targets with an acorn oracle: in the
+//! three **statement** slots both compilers print `;;` and both parse, and
+//! rsvelte matches official byte for byte. In the five **value** slots official
+//! produces text no JS parser accepts — 10 of 10 cells — so there is nothing to
+//! match; rsvelte fills the slot with `undefined`, the value `$inspect` returns
+//! (`upstream_issues/3213-svelte-inspect-in-a-value-position.md`). That
+//! deviation is deliberate and is asserted here so it cannot drift silently.
+//!
 //! The second half is the server: `transform_server_module` runs the shared
 //! module transform with `dev: false` unconditionally, so the dev lowering
 //! (`console.log('$inspect(', args, ')')`, `(fn)('init', args)`) never ran for
@@ -45,32 +54,62 @@ fn compile_mod(body: &str, generate: GenerateMode, dev: bool) -> String {
 /// The defect: the next statement was spliced onto the declarator, and with it
 /// the rest of the module stopped being transformed at all.
 #[test]
-fn a_declarator_initializer_keeps_the_hole_and_the_next_statement() {
+fn a_declarator_initializer_keeps_its_slot_and_the_next_statement() {
     for generate in [GenerateMode::Client, GenerateMode::Server] {
         let code = compile_mod("const t = $inspect(a);", generate, false);
-        assert!(code.contains("const t = ;;"), "in:\n{code}");
+        assert!(code.contains("const t = undefined;"), "in:\n{code}");
         assert!(code.contains("export const z = 1;"), "in:\n{code}");
         // The tail is still transformed — the fallback used to emit it verbatim.
         assert!(!code.contains("return a + d;"), "in:\n{code}");
     }
 }
 
-/// Every operand slot upstream's expression replacement reaches.
+/// A statement slot is matched byte for byte; a value slot is where official's
+/// own output does not parse, so it is filled instead. Both are asserted from
+/// one table so neither can be changed without the other being read.
 #[test]
-fn the_hole_survives_in_every_operand_slot() {
+fn the_slot_survives_wherever_the_call_stood() {
     for (body, expected) in [
         ("$inspect(a);", ";;"),
-        ("const o = [$inspect(a)];", "const o = [;];"),
-        ("const o = { k: $inspect(a) };", "const o = { k: ; };"),
-        ("const b = 1 + $inspect(a);", "const b = 1 + ;;"),
-        ("const c = a ? $inspect(a) : 0;", "const c = a ? ; : 0;"),
         ("function f() {\n\t$inspect(a);\n}", "\t;;"),
         ("class C {\n\tm() {\n\t\t$inspect(a);\n\t}\n}", "\t\t;;"),
+        ("const t = $inspect(a);", "const t = undefined;"),
+        ("const o = [$inspect(a)];", "const o = [undefined];"),
+        (
+            "const o = { k: $inspect(a) };",
+            "const o = { k: undefined };",
+        ),
+        ("const b = 1 + $inspect(a);", "const b = 1 + undefined;"),
+        (
+            "const c = a ? $inspect(a) : 0;",
+            "const c = a ? undefined : 0;",
+        ),
     ] {
         for generate in [GenerateMode::Client, GenerateMode::Server] {
             let code = compile_mod(body, generate, false);
             assert!(code.contains(expected), "for {body:?} in:\n{code}");
+            // The sentinel is internal; every printer path must expand it.
+            assert!(
+                !code.contains("$$inspect_empty"),
+                "for {body:?} in:\n{code}"
+            );
         }
+    }
+}
+
+/// The hole must survive a `compileModule` re-parse, which drops an
+/// `EmptyStatement` — so it travels as a sentinel and is expanded when printed.
+/// Five holes in one module is the discriminating count: the sentinel carries no
+/// `;` of its own, and without one the *next* call's position test reads the
+/// identifier before it as an operand slot and fills that hole with `undefined`.
+#[test]
+fn consecutive_holes_all_survive_the_module_reprint() {
+    let body = "$inspect(a);\n$inspect(a, a + 1);\n$inspect(a).with(console.log);\nfunction f() {\n\t$inspect(a);\n}\nclass C {\n\tm() {\n\t\t$inspect(d);\n\t}\n}";
+    for generate in [GenerateMode::Client, GenerateMode::Server] {
+        let code = compile_mod(body, generate, false);
+        let holes = code.lines().filter(|l| l.trim() == ";;").count();
+        assert_eq!(holes, 5, "({generate:?}) in:\n{code}");
+        assert!(!code.contains("undefined"), "({generate:?}) in:\n{code}");
     }
 }
 
@@ -145,12 +184,13 @@ fn a_needle_in_a_string_is_not_the_rune() {
     }
 }
 
-/// The hole is a placeholder that only [`print_module_program`] expands, and a
+/// The sentinel is expanded only by the `compileModule` printer, and a
 /// component's `<script module>` goes through the SAME shared transform while
-/// being printed by the component pipeline. The first version of this fix left
-/// `$$inspect_empty;` in 12 cells of real output; the marker is now
-/// `compileModule`-only and `<script module>` keeps deleting until that entry
-/// point grows an expansion (#3543).
+/// being printed by the component pipeline — which emits this text as written.
+/// The first version of this fix left `$$inspect_empty;` in 12 cells of real
+/// output, so the sentinel is `compileModule`-only and the component path writes
+/// the `;;` directly. (The server still leaks the rune itself in a value slot,
+/// from either script kind; that predates this test and is tracked as #3726.)
 #[test]
 fn a_component_script_module_never_sees_the_placeholder() {
     let src = "<script module>\n\tlet a = $state(1);\n\t$inspect(a);\n\tconst t = $inspect(a);\n\texport const z = 1;\n</script>\n<b>ok</b>\n";

@@ -131,6 +131,20 @@ fn the_effect_runes_are_still_removed_when_nested() {
     }
 }
 
+/// The two `;` a removed statement leaves, counted rather than matched as text:
+/// the server prints them as official does, on one line, and the client prints
+/// them on two lines at the same indentation (#3724). Counting keeps both a
+/// vanished hole and a run of three failing while that split stands.
+fn empty_statement_semicolons(code: &str) -> usize {
+    code.lines()
+        .map(|l| match l.trim() {
+            ";;" => 2,
+            ";" => 1,
+            _ => 0,
+        })
+        .sum()
+}
+
 /// Prod keeps the statement with an empty expression, which prints as `;;` —
 /// the same two the top-level path already emitted, on both targets.
 #[test]
@@ -138,10 +152,17 @@ fn a_removed_nested_inspect_leaves_two_empty_statements() {
     for host in NESTED_HOSTS {
         for generate in [GenerateMode::Server, GenerateMode::Client] {
             let code = compile_host(host, "$inspect(a);", generate, false);
-            assert!(
-                code.contains(";;"),
+            assert_eq!(
+                empty_statement_semicolons(&code),
+                2,
                 "for host {host:?} ({generate:?}) in:\n{code}"
             );
+            if generate == GenerateMode::Server {
+                assert!(
+                    code.contains(";;"),
+                    "for host {host:?} ({generate:?}) in:\n{code}"
+                );
+            }
         }
     }
 }
@@ -176,8 +197,9 @@ fn several_calls_in_one_body_are_each_their_own_hole() {
             !code.contains("$inspect("),
             "a call survived ({generate:?}) in:\n{code}"
         );
-        assert!(
-            code.contains(";;\n\t\t;;") || code.contains(";;\n\t\t\t;;"),
+        assert_eq!(
+            empty_statement_semicolons(&code),
+            4,
             "expected two separate holes ({generate:?}) in:\n{code}"
         );
         assert!(

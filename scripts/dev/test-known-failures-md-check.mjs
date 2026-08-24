@@ -183,7 +183,7 @@ withCorpus(
 
 withCorpus(
 	(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
-	(r) => check('a stale cluster count fails', [r.code, /sums to 19 \(/.test(r.out)], [1, true]),
+	(r) => check('a stale cluster count fails', [r.code, /sums to 21 \(/.test(r.out)], [1, true]),
 );
 
 // The shape #2500 is about: an entry cited under two clusters, with the cluster
@@ -201,16 +201,16 @@ withCorpus(
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 172 is not the matrix ratchet's 388.
+// against the whole ratchet — `comment-slot`'s 116 is not the whole matrix ratchet.
 withCorpus(
 	(d) =>
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'by seed: `32 + 16 + 16 + 16 + 36 + 40 + 16`',
-			'by seed: `32 + 18 + 16 + 16 + 36 + 40 + 16`',
+			'by seed: `32 + 8 + 8 + 8 + 20 + 24 + 16`',
+			'by seed: `32 + 10 + 8 + 8 + 20 + 24 + 16`',
 		),
-	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 172 entries/.test(r.out)], [1, true]),
+	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 116 entries/.test(r.out)], [1, true]),
 );
 
 withCorpus(

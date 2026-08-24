@@ -328,7 +328,7 @@ impl<'src> TraceLabelCollector<'src> {
 
 /// esrap prints a string literal from its `raw`, so the label has to arrive
 /// spelled the way upstream's builder would print it.
-fn escape_single_quoted(s: &str) -> String {
+pub(super) fn escape_single_quoted(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
@@ -344,7 +344,7 @@ fn escape_single_quoted(s: &str) -> String {
 
 /// oxc keeps `ParenthesizedExpression` nodes that acorn — and so upstream's
 /// `get_function_label` — never sees, and an IIFE's callee is always wrapped.
-fn unparen<'a>(mut expr: &'a Expression<'a>) -> &'a Expression<'a> {
+pub(super) fn unparen<'a>(mut expr: &'a Expression<'a>) -> &'a Expression<'a> {
     while let Expression::ParenthesizedExpression(inner) = expr {
         expr = &inner.expression;
     }

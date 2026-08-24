@@ -289,6 +289,11 @@ pub fn transform_client_module(
         dead_comments::strip_dead_comments(source, dead_comments::Rules::ACCESSORS);
     let source = dead_comments_stripped.as_deref().unwrap_or(source);
 
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
+
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_module_class_fields_client(source);
 
@@ -618,12 +623,20 @@ pub(crate) fn transform_client(
                 }
             })
             .flatten();
-        let instance_raw = dead_comments_stripped
+        // Every lowering below decides what a rune call is from this text, so the
+        // grouping parens around one have to be gone before the first of them runs.
+        let paren_stripped = super::shared::rune_parens::strip_rune_parens(
+            dead_comments_stripped
+                .as_deref()
+                .unwrap_or(&instance_script.raw),
+        );
+        let instance_raw = paren_stripped
             .as_deref()
+            .or(dead_comments_stripped.as_deref())
             .unwrap_or(&instance_script.raw);
         let retained_instance = retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
-            .filter(|_| dead_comments_stripped.is_none());
+            .filter(|_| dead_comments_stripped.is_none() && paren_stripped.is_none());
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
@@ -2123,6 +2136,9 @@ pub(crate) fn transform_client(
                 .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
+            // Every lowering below decides what a rune call is from this text, so
+            // the grouping parens around one have to be gone before the first runs.
+            let raw = super::shared::rune_parens::strip_rune_parens(&raw).unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
             let retained_comment_stripped = if !analysis.is_typescript {
                 retained_scripts
@@ -4658,7 +4674,7 @@ fn transform_module_script_runes_with_target(
     dev: bool,
     server: bool,
     // `compileModule` only: a component's `<script module>` is printed by the
-    // component pipeline, which has no hole expansion, so it keeps deleting.
+    // component pipeline, whose text survives to the output as written.
     module_entry: bool,
 ) -> String {
     let mut result = script.to_string();
@@ -4742,30 +4758,37 @@ fn transform_module_script_runes_with_target(
                 } else {
                     inspect_start + content_end + 1 - pos
                 };
-                // Upstream replaces the EXPRESSION with `b.empty`, which esrap
-                // prints as `;`, so the call's slot survives: a statement becomes
-                // `;;` and `const t = $inspect(a)` becomes `const t = ;;`. Deleting
-                // the line instead spliced the next statement onto the assignment.
-                if module_entry {
+                // In an operand slot upstream's `EmptyStatement` prints as a bare
+                // `;`, which no parser accepts; keep the slot filled with the
+                // value `$inspect` evaluates to, rather than deleting the line
+                // and leaving the initializer dangling
+                // (`upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                if rune_transforms::operand_expected_before(&result[..pos]) {
                     result = format!(
-                        "{}{MODULE_INSPECT_HOLE}{}",
+                        "{}undefined{}",
                         &result[..pos],
                         &result[pos + total_call_len..]
                     );
-                } else {
-                    let mut start = pos;
-                    while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                        start -= 1;
-                    }
-                    let mut end = pos + total_call_len;
-                    while end < result.len() && result.as_bytes()[end] == b';' {
-                        end += 1;
-                    }
-                    if end < result.len() && result.as_bytes()[end] == b'\n' {
-                        end += 1;
-                    }
-                    result = format!("{}{}", &result[..start], &result[end..]);
+                    continue;
                 }
+                // Statement position: upstream substitutes an `EmptyStatement`
+                // for the call and keeps the statement's own `;`, which esrap
+                // prints as `;;` where the call stood — at whatever nesting it
+                // had. Deleting the line instead loses both.
+                let mut end = pos + total_call_len;
+                while end < result.len() && result.as_bytes()[end] == b';' {
+                    end += 1;
+                }
+                result = if module_entry {
+                    // `compileModule` re-parses this text before printing and a
+                    // re-parse drops an `EmptyStatement`, so there the hole
+                    // travels as a sentinel esrap prints as a statement. Its
+                    // `;` is for the next iteration's position test, which
+                    // reads an identifier as an operand slot.
+                    format!("{}{MODULE_INSPECT_HOLE};{}", &result[..pos], &result[end..])
+                } else {
+                    format!("{};;{}", &result[..pos], &result[end..])
+                };
             } else {
                 break;
             }

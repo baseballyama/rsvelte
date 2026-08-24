@@ -553,7 +553,7 @@ pub(crate) fn parse_component(
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
-        skip_expression_loc: !modern_ast,
+        skip_expression_loc: false,
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,

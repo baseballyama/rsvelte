@@ -286,7 +286,7 @@ pub fn fragment(
                     &context.arena,
                     &id_name,
                     Some(b::call(&context.arena, template_id_expr, vec![])),
-                    Some(name_start),
+                    Some((name_start, name_end)),
                 ),
             );
 

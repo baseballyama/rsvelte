@@ -12,6 +12,21 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
+/// Does the code preceding a removed call demand an operand — i.e. was the call
+/// in a value position rather than a statement of its own? The last significant
+/// character answers it: only a terminator, a block delimiter or the `)` of a
+/// bodyless `if`/`for`/`while` head can be followed by a fresh statement.
+pub(super) fn operand_expected_before(before: &str) -> bool {
+    let before = before.trim_end();
+    if before.ends_with("*/") {
+        return false;
+    }
+    !matches!(
+        before.as_bytes().last(),
+        None | Some(b';' | b'{' | b'}' | b')')
+    )
+}
+
 /// Transform runes for client-side usage with skip and state variable handling.
 pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     line: &'a str,
@@ -269,12 +284,19 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                     } else if after.starts_with(';')
                         && matches!(before.as_bytes().last(), Some(b'{' | b'}' | b';'))
                     {
-                        // A NESTED statement-position call prints the same `;;`
-                        // a top-level one does: upstream keeps the
+                        // A NESTED statement-position call prints the same `;;` a
+                        // top-level one does: upstream keeps the
                         // `ExpressionStatement` and replaces its expression with
                         // `b.empty` at every depth. The call's own `;` is the
                         // second one.
                         ";"
+                    } else if operand_expected_before(before) {
+                        // Upstream drops in an `EmptyStatement` wherever the call
+                        // was; in an operand slot that prints as a bare `;`, which
+                        // no parser accepts. Keep the slot filled with the value
+                        // `$inspect` evaluates to (see
+                        // `upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                        "undefined"
                     } else {
                         ""
                     };
