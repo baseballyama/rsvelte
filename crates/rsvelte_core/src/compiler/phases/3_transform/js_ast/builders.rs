@@ -116,6 +116,12 @@ pub fn array(elements: Vec<JsExpr>) -> JsExpr {
     })
 }
 
+/// Create an array whose `None` elements print as holes (`[a,,b]`), which is
+/// how upstream's `b.array` renders the `null` its `objectify` returns.
+pub fn array_with_holes(elements: Vec<Option<JsExpr>>) -> JsExpr {
+    JsExpr::Array(JsArrayExpression { elements })
+}
+
 /// Create an empty array.
 pub fn empty_array() -> JsExpr {
     array(vec![])

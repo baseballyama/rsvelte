@@ -24,6 +24,7 @@ use std::cell::{Cell, RefCell, UnsafeCell};
 use std::mem::MaybeUninit;
 
 use bumpalo::Bump;
+use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 
 use super::typed_expr::JsNode;
@@ -264,14 +265,14 @@ pub struct ParseArena {
     /// Phase 1+ have a place to allocate from.
     bump: Bump,
     /// Side table of `leadingComments`/`trailingComments` keyed by a node's
-    /// `(start, end)` span. Populated by `JsNode::from_value` when comment
-    /// capture is active (see [`comment_capture_active`] — the `parse()` path),
-    /// and read back by `JsNode`'s `Serialize` impl so AST output stays
-    /// comment-lossless without storing comments on every node. The key includes
-    /// `end` because a node and its first child can share a `start` (e.g. a
-    /// `SequenceExpression` and its first element) — keying on `start` alone
-    /// would leak the comment onto the inner node too.
-    node_comments: RefCell<FxHashMap<(u32, u32), NodeComments>>,
+    /// ESTree `type` plus its `(start, end)` span. Populated by
+    /// `JsNode::from_value` when comment capture is active (see
+    /// [`comment_capture_active`] — the `parse()` path), and read back by
+    /// `JsNode`'s `Serialize` impl so AST output stays comment-lossless without
+    /// storing comments on every node. A span alone does not identify a node:
+    /// an `ExpressionStatement` in semicolon-free source has exactly its
+    /// expression's, so the comment leaked onto the inner node as well.
+    node_comments: RefCell<FxHashMap<(u32, u32), (CompactString, NodeComments)>>,
 }
 
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
@@ -307,6 +308,7 @@ impl ParseArena {
     #[inline]
     pub fn record_node_comments(
         &self,
+        node_type: &str,
         start: u32,
         end: u32,
         leading: Option<Vec<serde_json::Value>>,
@@ -315,9 +317,10 @@ impl ParseArena {
         if leading.is_none() && trailing.is_none() {
             return;
         }
-        self.node_comments
-            .borrow_mut()
-            .insert((start, end), (leading, trailing));
+        self.node_comments.borrow_mut().insert(
+            (start, end),
+            (CompactString::from(node_type), (leading, trailing)),
+        );
     }
 
     /// Whether any node comments have been recorded (cheap guard for the
@@ -327,10 +330,15 @@ impl ParseArena {
         !self.node_comments.borrow().is_empty()
     }
 
-    /// Look up the comments recorded for the node spanning `(start, end)`, if any.
+    /// Look up the comments recorded for the `node_type` node spanning
+    /// `(start, end)`, if any.
     #[inline]
-    pub fn node_comments(&self, start: u32, end: u32) -> Option<NodeComments> {
-        self.node_comments.borrow().get(&(start, end)).cloned()
+    pub fn node_comments(&self, node_type: &str, start: u32, end: u32) -> Option<NodeComments> {
+        self.node_comments
+            .borrow()
+            .get(&(start, end))
+            .filter(|(recorded, _)| recorded == node_type)
+            .map(|(_, comments)| comments.clone())
     }
 
     /// Access the bump allocator used by Phase 1+ of the bumpalo migration.
@@ -494,7 +502,6 @@ impl std::fmt::Debug for ParseArena {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use compact_str::CompactString;
 
     fn ident(name: &str) -> JsNode {
         JsNode::Identifier {

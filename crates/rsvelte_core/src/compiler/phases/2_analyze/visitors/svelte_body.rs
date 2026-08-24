@@ -65,6 +65,9 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
                 bind_directive::visit_with_svelte_element(bind, context)?;
             }
             Attribute::OnDirective(on) => on_directive::visit(on, context)?,
+            Attribute::StyleDirective(style_dir) => {
+                super::style_directive::visit(style_dir, context)?;
+            }
             Attribute::LetDirective(let_dir) => {
                 return Err(
                     errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)

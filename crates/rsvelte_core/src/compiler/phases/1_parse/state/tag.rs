@@ -25,6 +25,68 @@ use crate::error::ParseResult;
 use super::super::parser::{Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
 
+/// A `{:…}` continuation clause.
+///
+/// Whether a *second* one is legal is decided per block type, and the two
+/// directions are easy to drift apart: upstream's `next()`
+/// (`1-parse/state/tag.js:527-635`) re-creates `block.alternate` for `{#if}` and
+/// `block.fallback` for `{#each}` unconditionally — a repeat is **accepted** and
+/// replaces the earlier branch — while `{#await}` guards both of its clauses
+/// with `block_duplicate_clause` and **rejects** it. Two issues found the two
+/// directions separately (#3284 accepted-but-rejected, #3349
+/// rejected-but-accepted), so the decision lives here rather than at each site.
+///
+/// The `match` is the invariant: a new clause cannot be added without answering
+/// the question for it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Clause {
+    Else,
+    // `expect` rather than `allow`: the `{#await}` clause loop reads these arms
+    // as soon as its duplicate check lands, and an unfulfilled `expect` is a
+    // compile error — so the placeholder cannot outlive its reason.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the {#await} clause loop constructs these")
+    )]
+    Then,
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the {#await} clause loop constructs these")
+    )]
+    Catch,
+}
+
+impl Clause {
+    /// The spelling upstream puts in `block_duplicate_clause`'s message.
+    const fn tag(self) -> &'static str {
+        match self {
+            Self::Else => "{:else}",
+            Self::Then => "{:then}",
+            Self::Catch => "{:catch}",
+        }
+    }
+
+    /// Whether a second occurrence of this clause in one block is an error.
+    const fn duplicate_is_error(self) -> bool {
+        match self {
+            Self::Else => false,
+            Self::Then | Self::Catch => true,
+        }
+    }
+
+    /// Upstream positions every clause diagnostic at the `:`.
+    fn duplicate_error(self, at: usize) -> crate::error::ParseError {
+        crate::error::ParseError::svelte(
+            "block_duplicate_clause",
+            format!(
+                "{} cannot appear more than once within a block\nhttps://svelte.dev/e/block_duplicate_clause",
+                self.tag()
+            ),
+            (at, at),
+        )
+    }
+}
+
 impl<'a> Parser<'a> {
     /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
     /// Svelte 5.56.0 #18282). Returns `Ok(None)` when the source at
@@ -795,7 +857,13 @@ impl<'a> Parser<'a> {
             // after `{:else` (e.g. `{:else +++if cond}`) is an
             // `expected_token` error, in loose mode too.
             self.eat("}", true, true)?;
-            let alt_fragment = self.parse_fragment()?;
+            let mut alt_fragment = self.parse_fragment()?;
+
+            while !Clause::Else.duplicate_is_error()
+                && let Some(replacement) = self.parse_if_alternate()?
+            {
+                alt_fragment = replacement;
+            }
 
             // Don't consume {/if} here - let parse_if_block handle it
 
@@ -1412,7 +1480,6 @@ impl<'a> Parser<'a> {
         // Parse body
         let body = self.parse_fragment()?;
 
-        // Check for {:else}
         let mut fallback = None;
         if let Some(colon_pos) = self.match_block_continuation_marker() {
             self.index = colon_pos + 1;
@@ -2114,28 +2181,34 @@ impl<'a> Parser<'a> {
 
         // Try to match known keywords using first-byte dispatch
         let keyword_start = self.index;
-        let keyword: CompactString = if self.index < self.bytes.len() {
-            let matched_kw = match self.bytes[self.index] {
+        let matched_kw = if self.index < self.bytes.len() {
+            match self.bytes[self.index] {
                 b'h' if self.match_str("html") => Some(("html", 4)),
                 b'r' if self.match_str("render") => Some(("render", 6)),
                 b'c' if self.match_str("const") => Some(("const", 5)),
                 b'd' if self.match_str("debug") => Some(("debug", 5)),
                 _ => None,
-            };
-            if let Some((kw, len)) = matched_kw {
-                self.index += len;
-                // `{@debug}` is upstream's one argument-less special tag, so it
-                // is the only keyword that does not require a separator.
-                if kw != "debug" {
-                    self.require_whitespace()?;
-                }
-                CompactString::from(kw)
-            } else {
-                self.read_identifier()
             }
         } else {
-            self.read_identifier()
+            None
         };
+        // Upstream's `special()` knows four tags. `{@attach}` is an *attribute*
+        // form, parsed by `parse_attach_attribute`, so reaching it here — or any
+        // other name — is `expected_tag`, raised at the index after the `@`.
+        let Some((kw, len)) = matched_kw else {
+            return Err(crate::error::ParseError::svelte(
+                "expected_tag",
+                "Expected 'html', 'render', 'attach', 'const', or 'debug'\nhttps://svelte.dev/e/expected_tag",
+                (keyword_start, keyword_start),
+            ));
+        };
+        self.index += len;
+        // `{@debug}` is upstream's one argument-less special tag, so it
+        // is the only keyword that does not require a separator.
+        if kw != "debug" {
+            self.require_whitespace()?;
+        }
+        let keyword = CompactString::from(kw);
 
         self.skip_whitespace();
 
@@ -2381,6 +2454,7 @@ impl<'a> Parser<'a> {
                 // {@debug x, y, z} debugs specific identifiers
                 self.skip_whitespace();
 
+                let mut leftover = None;
                 let identifiers: Vec<Expression> = if self.current_char() == '}' {
                     // {@debug} - no identifiers (debug all)
                     Vec::new()
@@ -2393,18 +2467,28 @@ impl<'a> Parser<'a> {
                     let expr_start = self.index;
                     let end = self.find_mustache_close(expr_start)?;
                     self.index = end;
-                    let expr_content = self.source[expr_start..end].trim_ws();
+                    let expr_content = &self.source[expr_start..end];
 
-                    if expr_content.is_empty() {
+                    if expr_content.trim_ws().is_empty() {
                         Vec::new()
                     } else {
-                        // Parse as expression
-                        let expression =
-                            self.parse_head_expression_eager(expr_content, expr_start, '}')?;
+                        // Upstream hands the argument list to the same
+                        // `read_expression` every other tag body goes through, so
+                        // a malformed list (`s,`, `, s`, `...arr`) is that
+                        // parser's `js_parse_error` rather than a dropped
+                        // argument. The identifier check below then runs before
+                        // the leftover `expected_token`, as it does upstream.
+                        let (expression, trailing) = self.parse_head_expression_split(
+                            expr_content,
+                            expr_start,
+                            false,
+                            '}',
+                            false,
+                        )?;
+                        leftover = trailing;
 
-                        // Extract identifiers from the expression
-                        // If it's a SequenceExpression (comma-separated), extract each one
-                        // Otherwise treat as single identifier
+                        // A comma-separated list parses as a SequenceExpression;
+                        // anything else is one argument.
                         let value = expression.as_json();
                         let expr_type = value.get("type").and_then(|t| t.as_str());
 
@@ -2439,6 +2523,10 @@ impl<'a> Parser<'a> {
                     }
                 }
 
+                if let Some(err) = leftover {
+                    return Err(err);
+                }
+
                 self.advance(); // consume '}'
 
                 Ok(Some(TemplateNode::DebugTag(Box::new(DebugTag {
@@ -2448,12 +2536,8 @@ impl<'a> Parser<'a> {
                     metadata: Default::default(),
                 }))))
             }
-            // `{@attach}` is an attribute, not a tag, so it lands here too.
-            _ => Err(crate::error::ParseError::svelte(
-                "expected_tag",
-                "Expected 'html', 'render', 'attach', 'const', or 'debug'\nhttps://svelte.dev/e/expected_tag",
-                (keyword_start, keyword_start),
-            )),
+            // Unreachable: the keyword dispatch above rejects everything else.
+            _ => Ok(None),
         }
     }
 
@@ -2714,29 +2798,30 @@ impl<'a> Parser<'a> {
         disallow_loose: bool,
         close_char: char,
     ) -> crate::error::ParseResult<Expression<'a>> {
-        self.parse_head_expression_impl(content, offset, disallow_loose, close_char, true)
+        let (expression, leftover) =
+            self.parse_head_expression_split(content, offset, disallow_loose, close_char, true)?;
+        match leftover {
+            Some(err) => Err(err),
+            None => Ok(expression),
+        }
     }
 
-    /// [`Self::parse_head_expression`] without deferral, for callers that read
-    /// the parsed node during the parse itself (`{@const}` inspects it for a
-    /// bare `SequenceExpression`).
-    pub fn parse_head_expression_eager(
-        &self,
-        content: &str,
-        offset: usize,
-        close_char: char,
-    ) -> crate::error::ParseResult<Expression<'a>> {
-        self.parse_head_expression_impl(content, offset, false, close_char, false)
-    }
-
-    fn parse_head_expression_impl(
+    /// [`Self::parse_head_expression`], but with the leading expression and the
+    /// `expected_token` its leftover input would raise handed back separately.
+    ///
+    /// Upstream runs `read_expression` first and `eat(close, true)` last, so a
+    /// caller that validates the expression in between (`{@debug o.k n}` is
+    /// `debug_tag_invalid_arguments`, not `expected_token`) needs both halves.
+    /// `allow_defer` is false for such a caller, which has to inspect the node
+    /// during the parse and so cannot take a `Lazy`.
+    fn parse_head_expression_split(
         &self,
         content: &str,
         offset: usize,
         disallow_loose: bool,
         close_char: char,
         allow_defer: bool,
-    ) -> crate::error::ParseResult<Expression<'a>> {
+    ) -> crate::error::ParseResult<(Expression<'a>, Option<crate::error::ParseError>)> {
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
@@ -2747,32 +2832,37 @@ impl<'a> Parser<'a> {
         } else {
             LazyKind::HeadBrace
         };
-        if allow_defer
-            && let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, kind)
-        {
-            return Ok(lazy);
+        if allow_defer && let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, kind) {
+            return Ok((lazy, None));
         }
 
-        match super::super::read::expression::parse_expression(
-            &self.arena,
-            trimmed,
-            trimmed_offset,
-            self.expression_line_offsets(),
-            self.source,
-            self.options.loose,
-            disallow_loose,
-            opening_token,
-            self.ts,
-        ) {
-            Ok(expr) => Ok(expr),
+        let parse = |source: &str, at: usize| {
+            super::super::read::expression::parse_expression(
+                &self.arena,
+                source,
+                at,
+                self.expression_line_offsets(),
+                self.source,
+                self.options.loose,
+                disallow_loose,
+                opening_token,
+                self.ts,
+            )
+        };
+
+        match parse(trimmed, trimmed_offset) {
+            Ok(expr) => Ok((expr, None)),
             Err((msg, _)) => {
                 // Loose / editor mode: stay lenient with a placeholder, matching
                 // the previous `unwrap_or_else` swallow.
                 if self.options.loose {
-                    return Ok(super::super::read::expression::create_empty_identifier(
-                        "",
-                        trimmed_offset,
-                        trimmed_offset + trimmed.len(),
+                    return Ok((
+                        super::super::read::expression::create_empty_identifier(
+                            "",
+                            trimmed_offset,
+                            trimmed_offset + trimmed.len(),
+                        ),
+                        None,
                     ));
                 }
                 // Strict mode: classify the failure the way upstream does. A
@@ -3170,5 +3260,41 @@ fn expression_into_node(expr: Expression<'_>) -> JsNode {
         Expression::Lazy { .. } => {
             panic!("Expression::Lazy must be resolved before building a declaration")
         }
+    }
+}
+
+#[cfg(test)]
+mod duplicate_clause_table {
+    use super::Clause;
+
+    /// Pins the table against upstream's `next()`. `{#if}` / `{#each}` re-create
+    /// their fragment on every `{:else}`; `{#await}` guards `block.then` and
+    /// `block.catch`. The `{#await}` call sites read these arms.
+    #[test]
+    fn matches_upstream() {
+        assert!(!Clause::Else.duplicate_is_error());
+        assert!(Clause::Then.duplicate_is_error());
+        assert!(Clause::Catch.duplicate_is_error());
+    }
+
+    #[test]
+    fn tags_are_the_spellings_upstream_reports() {
+        assert_eq!(Clause::Else.tag(), "{:else}");
+        assert_eq!(Clause::Then.tag(), "{:then}");
+        assert_eq!(Clause::Catch.tag(), "{:catch}");
+    }
+
+    /// The diagnostic is a point span on the `:`, which is upstream's
+    /// `start = parser.index - 1` in `next()`.
+    #[test]
+    fn the_error_is_a_point_span_on_the_colon() {
+        let error = Clause::Catch.duplicate_error(33);
+        let text = format!("{error:?}");
+        assert!(text.contains("block_duplicate_clause"), "{text}");
+        assert!(
+            text.contains("{:catch} cannot appear more than once within a block"),
+            "{text}"
+        );
+        assert!(text.contains("(33, 33)"), "{text}");
     }
 }

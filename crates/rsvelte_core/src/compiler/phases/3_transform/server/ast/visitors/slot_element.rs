@@ -167,12 +167,12 @@ fn slot_attribute_value<'a>(
 ) -> OxcExpression<'a> {
     match value {
         AttributeValue::True(_) => state.b.bool(true),
-        AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
+        AttributeValue::Expression(tag) => state.visit_expression_tag(tag),
         AttributeValue::Sequence(parts) => {
             if parts.len() == 1 {
                 return match &parts[0] {
                     AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
-                    AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
+                    AttributeValuePart::ExpressionTag(tag) => state.visit_expression_tag(tag),
                 };
             }
             // Mixed run → template literal with `scope.evaluate` constant-folding

@@ -145,7 +145,11 @@ Clustered by code (client target, 11 entries):
   entries retired from this cluster at once: four were the semicolon-free and
   end-of-input shapes #3200/#3206 aligned, and `illegal-expression` was #3220 —
   acorn's `Assigning to rvalue`, which OXC's own `invalid_assignment` diagnostic
-  had been pre-empting.
+  had been pre-empting. Two more retired in #3317/#3319: the `(…)` this port
+  wraps a template expression in to hand it to OXC has diagnostics of its own
+  (`()`, a trailing comma, an arrow parameter list) that acorn — parsing the body
+  unwrapped — never sees, and the body is now re-probed unwrapped when one of
+  them fires.
 - **`expected_token` — 1.** `svelte/…/compiler-errors/samples/malformed-snippet-2`
   names the closing token it wanted: rsvelte says `}` where upstream says `)`. The
   two parsers recover from the malformed snippet header at different points, so

@@ -131,6 +131,9 @@ fn brace_opens_constructor_body(prefix: &str) -> bool {
 pub(crate) struct ClassHeader {
     pub(crate) keyword: usize,
     pub(crate) body_brace: usize,
+    /// Offset just past the `extends` keyword, when the header has one. The
+    /// superclass expression runs from there to `body_brace`.
+    pub(crate) heritage_start: Option<usize>,
 }
 
 /// Locate the first `class` declaration or expression in `source`.
@@ -179,14 +182,21 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
             && (i != prev_end || is_whitespace || !js_scan::is_ident_byte(byte))
         {
             run_start = None;
-            if keyword.is_none()
-                && &bytes[start..prev_end] == b"class"
-                && !matches!(run_prev, Some(b'.') | Some(b'#'))
-            {
+            let word = &bytes[start..prev_end];
+            let is_property = matches!(run_prev, Some(b'.') | Some(b'#'));
+            if keyword.is_none() && word == b"class" && !is_property {
                 keyword = Some(start);
                 seen_after_keyword = false;
                 nesting = 0;
                 angle = 0;
+                heritage_start = None;
+                nested_classes = 0;
+            } else if keyword.is_some() && nesting == 0 && angle == 0 && !is_property {
+                if word == b"class" {
+                    nested_classes += 1;
+                } else if word == b"extends" && heritage_start.is_none() {
+                    heritage_start = Some(prev_end);
+                }
             }
         }
         prev_end = i + 1;
@@ -215,6 +225,7 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
                 return Some(ClassHeader {
                     keyword: start,
                     body_brace: i,
+                    heritage_start: None,
                 });
             }
             keyword = None;
@@ -227,13 +238,23 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
             b'<' if nesting == 0 => angle += 1,
             b'>' if nesting == 0 && angle > 0 => angle -= 1,
             b'{' if nesting == 0 && angle == 0 => {
-                return Some(ClassHeader {
-                    keyword: start,
-                    body_brace: i,
-                });
+                if nested_classes > 0 {
+                    nested_classes -= 1;
+                    skip_depth = 1;
+                } else {
+                    return Some(ClassHeader {
+                        keyword: start,
+                        body_brace: i,
+                        heritage_start,
+                    });
+                }
             }
             // No class header contains a statement terminator.
-            b';' if nesting == 0 => keyword = None,
+            b';' if nesting == 0 => {
+                keyword = None;
+                heritage_start = None;
+                nested_classes = 0;
+            }
             _ => {}
         }
     }

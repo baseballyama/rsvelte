@@ -796,12 +796,14 @@ macro_rules! ser_children {
 /// from the arena's comment side table (populated by `from_value` on the
 /// `parse()` path). A no-op on the compile path (the table is empty), so it must
 /// be the LAST thing written before `map.end()` to match the `ESTree` field order.
+/// `$type` is part of the key because a span does not identify a node: an
+/// `ExpressionStatement` in semicolon-free source has exactly its expression's.
 macro_rules! ser_comments {
-    ($map:ident, $start:expr, $end:expr) => {
+    ($map:ident, $type:expr, $start:expr, $end:expr) => {
         if let Some((leading, trailing)) =
             crate::ast::arena::try_with_current_serialize_arena(|arena| {
                 if arena.has_node_comments() {
-                    arena.node_comments($start, $end)
+                    arena.node_comments($type, $start, $end)
                 } else {
                     None
                 }
@@ -844,7 +846,7 @@ impl Serialize for JsNode {
                 if let Some(ta) = type_annotation {
                     map.serialize_entry("typeAnnotation", ta.as_ref())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "Identifier", *start, *end);
                 map.end()
             }
             Self::PrivateIdentifier {
@@ -859,7 +861,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 map.serialize_entry("name", name.as_str())?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "PrivateIdentifier", *start, *end);
                 map.end()
             }
             Self::Literal {
@@ -889,7 +891,7 @@ impl Serialize for JsNode {
                     regex_map.insert("flags".to_string(), Value::String(regex.flags.to_string()));
                     map.serialize_entry("regex", &Value::Object(regex_map))?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "Literal", *start, *end);
                 map.end()
             }
             Self::BinaryExpression {
@@ -908,7 +910,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "left", left);
                 map.serialize_entry("operator", operator.as_str())?;
                 ser_node!(map, "right", right);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "BinaryExpression", *start, *end);
                 map.end()
             }
             Self::LogicalExpression {
@@ -927,7 +929,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "left", left);
                 map.serialize_entry("operator", operator.as_str())?;
                 ser_node!(map, "right", right);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "LogicalExpression", *start, *end);
                 map.end()
             }
             Self::UnaryExpression {
@@ -946,7 +948,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("operator", operator.as_str())?;
                 map.serialize_entry("prefix", prefix)?;
                 ser_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "UnaryExpression", *start, *end);
                 map.end()
             }
             Self::ConditionalExpression {
@@ -965,7 +967,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "test", test);
                 ser_node!(map, "consequent", consequent);
                 ser_node!(map, "alternate", alternate);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ConditionalExpression", *start, *end);
                 map.end()
             }
             Self::CallExpression {
@@ -984,7 +986,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "callee", callee);
                 ser_children!(map, "arguments", arguments);
                 map.serialize_entry("optional", optional)?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "CallExpression", *start, *end);
                 map.end()
             }
             Self::MemberExpression {
@@ -1005,7 +1007,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "property", property);
                 map.serialize_entry("computed", computed)?;
                 map.serialize_entry("optional", optional)?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "MemberExpression", *start, *end);
                 map.end()
             }
             Self::NewExpression {
@@ -1022,7 +1024,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "callee", callee);
                 ser_children!(map, "arguments", arguments);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "NewExpression", *start, *end);
                 map.end()
             }
             Self::FunctionExpression {
@@ -1059,7 +1061,7 @@ impl Serialize for JsNode {
                 {
                     map.serialize_entry("typeParameters", tp.as_ref())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "FunctionExpression", *start, *end);
                 map.end()
             }
             Self::ClassExpression {
@@ -1078,7 +1080,7 @@ impl Serialize for JsNode {
                 ser_opt_node!(map, "id", id);
                 ser_opt_node!(map, "superClass", super_class);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ClassExpression", *start, *end);
                 map.end()
             }
             Self::ArrowFunctionExpression {
@@ -1108,7 +1110,7 @@ impl Serialize for JsNode {
                 if let Some(tp) = type_parameters {
                     map.serialize_entry("typeParameters", tp.as_ref())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ArrowFunctionExpression", *start, *end);
                 map.end()
             }
             Self::AssignmentExpression {
@@ -1127,7 +1129,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("operator", operator.as_str())?;
                 ser_node!(map, "left", left);
                 ser_node!(map, "right", right);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "AssignmentExpression", *start, *end);
                 map.end()
             }
             Self::UpdateExpression {
@@ -1146,7 +1148,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("operator", operator.as_str())?;
                 map.serialize_entry("prefix", prefix)?;
                 ser_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "UpdateExpression", *start, *end);
                 map.end()
             }
             Self::SequenceExpression {
@@ -1161,7 +1163,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_children!(map, "expressions", expressions);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "SequenceExpression", *start, *end);
                 map.end()
             }
             Self::ArrayExpression {
@@ -1177,7 +1179,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 // Elements can be null (elision) - serialize as array of Option<JsNode>
                 map.serialize_entry("elements", elements)?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ArrayExpression", *start, *end);
                 map.end()
             }
             Self::ObjectExpression {
@@ -1192,7 +1194,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_children!(map, "properties", properties);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ObjectExpression", *start, *end);
                 map.end()
             }
             Self::TemplateLiteral {
@@ -1209,7 +1211,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_children!(map, "quasis", quasis);
                 ser_children!(map, "expressions", expressions);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TemplateLiteral", *start, *end);
                 map.end()
             }
             Self::TaggedTemplateExpression {
@@ -1226,7 +1228,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "tag", tag);
                 ser_node!(map, "quasi", quasi);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TaggedTemplateExpression", *start, *end);
                 map.end()
             }
             Self::TemplateElement {
@@ -1252,7 +1254,7 @@ impl Serialize for JsNode {
                         .map_or_else(|| Value::Null, |s| Value::String(s.to_string())),
                 );
                 map.serialize_entry("value", &Value::Object(val_map))?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TemplateElement", *start, *end);
                 map.end()
             }
             Self::ThisExpression { start, end, loc } => {
@@ -1261,7 +1263,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ThisExpression", *start, *end);
                 map.end()
             }
             Self::Super { start, end, loc } => {
@@ -1270,7 +1272,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "Super", *start, *end);
                 map.end()
             }
             Self::ImportExpression {
@@ -1286,7 +1288,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "source", source);
                 map.serialize_entry("options", &None::<()>)?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ImportExpression", *start, *end);
                 map.end()
             }
             Self::AwaitExpression {
@@ -1301,7 +1303,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "AwaitExpression", *start, *end);
                 map.end()
             }
             Self::YieldExpression {
@@ -1318,7 +1320,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("delegate", delegate)?;
                 ser_opt_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "YieldExpression", *start, *end);
                 map.end()
             }
             Self::ChainExpression {
@@ -1333,7 +1335,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ChainExpression", *start, *end);
                 map.end()
             }
             Self::MetaProperty {
@@ -1350,7 +1352,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "meta", meta);
                 ser_node!(map, "property", property);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "MetaProperty", *start, *end);
                 map.end()
             }
             Self::SpreadElement {
@@ -1365,7 +1367,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "SpreadElement", *start, *end);
                 map.end()
             }
             Self::ObjectPattern {
@@ -1384,7 +1386,7 @@ impl Serialize for JsNode {
                 if let Some(ta) = type_annotation {
                     map.serialize_entry("typeAnnotation", ta.as_ref())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ObjectPattern", *start, *end);
                 map.end()
             }
             Self::ArrayPattern {
@@ -1403,7 +1405,7 @@ impl Serialize for JsNode {
                 if let Some(ta) = type_annotation {
                     map.serialize_entry("typeAnnotation", ta.as_ref())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ArrayPattern", *start, *end);
                 map.end()
             }
             Self::AssignmentPattern {
@@ -1420,7 +1422,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "left", left);
                 ser_node!(map, "right", right);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "AssignmentPattern", *start, *end);
                 map.end()
             }
             Self::RestElement {
@@ -1435,7 +1437,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "RestElement", *start, *end);
                 map.end()
             }
             Self::Property {
@@ -1460,7 +1462,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "key", key);
                 ser_node!(map, "value", value);
                 map.serialize_entry("kind", kind.as_str())?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "Property", *start, *end);
                 map.end()
             }
             Self::Program {
@@ -1498,7 +1500,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ExpressionStatement", *start, *end);
                 map.end()
             }
             Self::BlockStatement {
@@ -1513,7 +1515,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_children!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "BlockStatement", *start, *end);
                 map.end()
             }
             Self::VariableDeclaration {
@@ -1534,7 +1536,7 @@ impl Serialize for JsNode {
                 if *declare {
                     map.serialize_entry("declare", &true)?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "VariableDeclaration", *start, *end);
                 map.end()
             }
             Self::VariableDeclarator {
@@ -1551,7 +1553,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "id", id);
                 ser_opt_node!(map, "init", init);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "VariableDeclarator", *start, *end);
                 map.end()
             }
             Self::FunctionDeclaration {
@@ -1580,7 +1582,7 @@ impl Serialize for JsNode {
                 }
                 ser_children!(map, "params", params);
                 ser_opt_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "FunctionDeclaration", *start, *end);
                 map.end()
             }
             Self::ClassDeclaration {
@@ -1615,7 +1617,7 @@ impl Serialize for JsNode {
                 if !decorators.is_empty() {
                     ser_children!(map, "decorators", decorators);
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ClassDeclaration", *start, *end);
                 map.end()
             }
             Self::ReturnStatement {
@@ -1630,7 +1632,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ReturnStatement", *start, *end);
                 map.end()
             }
             Self::ThrowStatement {
@@ -1645,7 +1647,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "argument", argument);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ThrowStatement", *start, *end);
                 map.end()
             }
             Self::IfStatement {
@@ -1664,7 +1666,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "test", test);
                 ser_node!(map, "consequent", consequent);
                 ser_opt_node!(map, "alternate", alternate);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "IfStatement", *start, *end);
                 map.end()
             }
             Self::ForStatement {
@@ -1685,7 +1687,7 @@ impl Serialize for JsNode {
                 ser_opt_node!(map, "test", test);
                 ser_opt_node!(map, "update", update);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ForStatement", *start, *end);
                 map.end()
             }
             Self::ForOfStatement {
@@ -1706,7 +1708,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "left", left);
                 ser_node!(map, "right", right);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ForOfStatement", *start, *end);
                 map.end()
             }
             Self::ForInStatement {
@@ -1725,7 +1727,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "left", left);
                 ser_node!(map, "right", right);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ForInStatement", *start, *end);
                 map.end()
             }
             Self::WhileStatement {
@@ -1742,7 +1744,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "test", test);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "WhileStatement", *start, *end);
                 map.end()
             }
             Self::DoWhileStatement {
@@ -1759,7 +1761,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "test", test);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "DoWhileStatement", *start, *end);
                 map.end()
             }
             Self::TryStatement {
@@ -1778,7 +1780,7 @@ impl Serialize for JsNode {
                 ser_node!(map, "block", block);
                 ser_opt_node!(map, "handler", handler);
                 ser_opt_node!(map, "finalizer", finalizer);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TryStatement", *start, *end);
                 map.end()
             }
             Self::CatchClause {
@@ -1795,7 +1797,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "param", param);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "CatchClause", *start, *end);
                 map.end()
             }
             Self::SwitchStatement {
@@ -1812,7 +1814,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "discriminant", discriminant);
                 ser_children!(map, "cases", cases);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "SwitchStatement", *start, *end);
                 map.end()
             }
             Self::SwitchCase {
@@ -1829,7 +1831,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "test", test);
                 ser_children!(map, "consequent", consequent);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "SwitchCase", *start, *end);
                 map.end()
             }
             Self::LabeledStatement {
@@ -1846,7 +1848,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "label", label);
                 ser_node!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "LabeledStatement", *start, *end);
                 map.end()
             }
             Self::BreakStatement {
@@ -1861,7 +1863,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "label", label);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "BreakStatement", *start, *end);
                 map.end()
             }
             Self::ContinueStatement {
@@ -1876,7 +1878,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "label", label);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ContinueStatement", *start, *end);
                 map.end()
             }
             Self::EmptyStatement { start, end, loc } => {
@@ -1885,7 +1887,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "EmptyStatement", *start, *end);
                 map.end()
             }
             Self::DebuggerStatement { start, end, loc } => {
@@ -1894,7 +1896,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "DebuggerStatement", *start, *end);
                 map.end()
             }
             Self::ImportDeclaration {
@@ -1917,7 +1919,7 @@ impl Serialize for JsNode {
                     map.serialize_entry("importKind", ik.as_str())?;
                 }
                 ser_children!(map, "attributes", attributes);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ImportDeclaration", *start, *end);
                 map.end()
             }
             Self::ImportSpecifier {
@@ -1938,7 +1940,7 @@ impl Serialize for JsNode {
                 if let Some(ik) = import_kind {
                     map.serialize_entry("importKind", ik.as_str())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ImportSpecifier", *start, *end);
                 map.end()
             }
             Self::ImportDefaultSpecifier {
@@ -1953,7 +1955,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "local", local);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ImportDefaultSpecifier", *start, *end);
                 map.end()
             }
             Self::ImportNamespaceSpecifier {
@@ -1968,7 +1970,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "local", local);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ImportNamespaceSpecifier", *start, *end);
                 map.end()
             }
             Self::ExportNamedDeclaration {
@@ -1993,7 +1995,7 @@ impl Serialize for JsNode {
                     map.serialize_entry("exportKind", ek.as_str())?;
                 }
                 ser_children!(map, "attributes", attributes);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ExportNamedDeclaration", *start, *end);
                 map.end()
             }
             Self::ExportDefaultDeclaration {
@@ -2008,7 +2010,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "declaration", declaration);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ExportDefaultDeclaration", *start, *end);
                 map.end()
             }
             Self::ExportSpecifier {
@@ -2029,7 +2031,7 @@ impl Serialize for JsNode {
                 if let Some(ek) = export_kind {
                     map.serialize_entry("exportKind", ek.as_str())?;
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ExportSpecifier", *start, *end);
                 map.end()
             }
             Self::ClassBody {
@@ -2044,7 +2046,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_children!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "ClassBody", *start, *end);
                 map.end()
             }
             Self::MethodDefinition {
@@ -2067,7 +2069,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("kind", kind.as_str())?;
                 ser_node!(map, "key", key);
                 ser_node!(map, "value", value);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "MethodDefinition", *start, *end);
                 map.end()
             }
             Self::PropertyDefinition {
@@ -2090,7 +2092,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("accessor", accessor)?;
                 ser_node!(map, "key", key);
                 ser_opt_node!(map, "value", value);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "PropertyDefinition", *start, *end);
                 map.end()
             }
             Self::StaticBlock {
@@ -2105,7 +2107,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_children!(map, "body", body);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "StaticBlock", *start, *end);
                 map.end()
             }
             Self::Decorator { start, end, loc } => {
@@ -2114,7 +2116,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "Decorator", *start, *end);
                 map.end()
             }
             Self::TSTypeAnnotation {
@@ -2129,7 +2131,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "typeAnnotation", type_annotation);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSTypeAnnotation", *start, *end);
                 map.end()
             }
             Self::TSParameterProperty { start, end, loc } => {
@@ -2138,7 +2140,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSParameterProperty", *start, *end);
                 map.end()
             }
             Self::TSEnumDeclaration { start, end, loc } => {
@@ -2147,7 +2149,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSEnumDeclaration", *start, *end);
                 map.end()
             }
             Self::TSModuleDeclaration {
@@ -2164,7 +2166,7 @@ impl Serialize for JsNode {
                 if let Some(b) = body {
                     ser_node!(map, "body", b);
                 }
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSModuleDeclaration", *start, *end);
                 map.end()
             }
             Self::TSAsExpression {
@@ -2181,7 +2183,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
                 map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSAsExpression", *start, *end);
                 map.end()
             }
             Self::TSSatisfiesExpression {
@@ -2198,7 +2200,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
                 map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSSatisfiesExpression", *start, *end);
                 map.end()
             }
             Self::TSNonNullExpression {
@@ -2213,7 +2215,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSNonNullExpression", *start, *end);
                 map.end()
             }
             Self::TSTypeAssertion {
@@ -2231,7 +2233,7 @@ impl Serialize for JsNode {
                 // svelte/compiler emits `typeAnnotation` before `expression` here.
                 map.serialize_entry("typeAnnotation", type_annotation.as_ref())?;
                 ser_node!(map, "expression", expression);
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSTypeAssertion", *start, *end);
                 map.end()
             }
             Self::TSInstantiationExpression {
@@ -2248,7 +2250,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "expression", expression);
                 map.serialize_entry("typeArguments", type_arguments.as_ref())?;
-                ser_comments!(map, *start, *end);
+                ser_comments!(map, "TSInstantiationExpression", *start, *end);
                 map.end()
             }
             Self::Comment {
@@ -2427,7 +2429,9 @@ impl JsNode {
                         .get("trailingComments")
                         .and_then(|v| v.as_array().cloned());
                     if leading.is_some() || trailing.is_some() {
-                        with_deser_arena(|a| a.record_node_comments(start, end, leading, trailing));
+                        with_deser_arena(|a| {
+                            a.record_node_comments(type_str, start, end, leading, trailing);
+                        });
                     }
                 }
 

@@ -4852,7 +4852,20 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let brace_pos = header.body_brace - class_pos;
 
     let after_class = &script[class_pos..];
-    let class_header = &after_class[..brace_pos + 1];
+    // A superclass can be an inline class expression, whose own body upstream
+    // reaches through the ordinary walk (#3072).
+    let heritage_header;
+    let class_header: &str = match header.heritage_start {
+        Some(hs) => {
+            heritage_header = format!(
+                "{}{}{{",
+                &script[class_pos..hs],
+                transform_class_fields_server(&script[hs..header.body_brace])
+            );
+            &heritage_header
+        }
+        None => &after_class[..brace_pos + 1],
+    };
 
     let class_body_start = header.body_brace + 1;
     // Lexically aware match: a `}` inside a comment, string, template or regex

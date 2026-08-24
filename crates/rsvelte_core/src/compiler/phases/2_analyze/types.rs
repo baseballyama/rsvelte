@@ -1770,8 +1770,7 @@ impl ComponentAnalysis {
         let name = options
             .name
             .clone()
-            .or_else(|| options.filename.as_ref().map(|f| derive_component_name(f)))
-            .unwrap_or_else(|| "Component".to_string());
+            .unwrap_or_else(|| derive_component_name(options.filename_or_unknown()));
 
         // If runes is explicitly set in options, use that; otherwise default to false
         // and let the analysis phase detect runes from source
@@ -2438,7 +2437,7 @@ pub struct Export {
 }
 
 /// Custom element configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomElementConfig {
     /// The custom element tag name
     pub tag: Option<String>,

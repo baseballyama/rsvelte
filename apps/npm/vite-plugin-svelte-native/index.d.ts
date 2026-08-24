@@ -193,6 +193,13 @@ export function compileModule(
  * {@link decodeEnvelope} to obtain
  * the legacy {@link CompileResult} shape; or pass the buffer through
  * worker `postMessage` (transferable) to avoid a copy.
+ *
+ * Unlike {@link compile}, this does NOT go through the wrapper that resolves
+ * upstream's function-valued options, so a `runes` / `css` / `customElement` /
+ * `warningFilter` callback is **rejected** here rather than honoured — evaluate
+ * it yourself and pass the plain value. `runes` and `warningFilter` used to be
+ * dropped in silence instead, which produced a successful compile with the
+ * wrong result; `css` and `customElement` already threw.
  */
 export function compileEnvelope(source: string, options?: CompileOptions): Buffer;
 export function compileModuleEnvelope(
@@ -328,6 +335,13 @@ export function compileModuleBuffers(
 /**
  * The legacy JSON-on-the-boundary path. Kept exported for parity tests
  * and as an escape hatch — production callers should use {@link compile}.
+ *
+ * Unlike {@link compile}, this does NOT go through the wrapper that resolves
+ * upstream's function-valued options, so a `runes` / `css` / `customElement` /
+ * `warningFilter` callback is **rejected** here rather than honoured — evaluate
+ * it yourself and pass the plain value. `runes` and `warningFilter` used to be
+ * dropped in silence instead, which produced a successful compile with the
+ * wrong result; `css` and `customElement` already threw.
  */
 export function compileLegacy(source: string, options?: CompileOptions): CompileResult;
 export function compileModuleLegacy(

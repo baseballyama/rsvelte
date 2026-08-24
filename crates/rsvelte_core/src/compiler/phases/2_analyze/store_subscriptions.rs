@@ -228,13 +228,23 @@ pub fn detect_store_subscriptions(
                 // with $state(), $state.raw(), or $derived() - so $name IS a rune, not a store.
                 // If the binding is an import or normal let/const without rune init,
                 // then $name should be a store subscription.
-                let is_rune_init = matches!(
-                    binding.kind,
-                    BindingKind::State | BindingKind::RawState | BindingKind::Derived
-                );
-
-                if is_rune_init {
-                    // The binding IS a rune initialization - skip, $name is a rune
+                // 写経 the `(get_rune(init, instance.scope) === null || (store_name
+                // !== 'props' && get_rune(init, instance.scope) === '$props'))`
+                // half of the condition: the store sub is skipped whenever the
+                // DECLARATION'S OWN initializer is a rune call — with the one
+                // exception that `$props()` only claims the name `$props`
+                // (`let state = $props()` still makes `$state` a store sub).
+                //
+                // `binding.kind` is the fallback for the rune families whose
+                // initializer the scope builder records as a kind rather than as
+                // `init_rune`.
+                let init_rune = binding.init_rune.as_deref();
+                let init_is_rune_call = init_rune.is_some()
+                    || matches!(
+                        binding.kind,
+                        BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                    );
+                if init_is_rune_call && (store_name == "props" || init_rune != Some("$props")) {
                     continue;
                 }
 

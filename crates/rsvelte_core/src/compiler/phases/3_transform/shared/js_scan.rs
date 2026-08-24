@@ -490,6 +490,7 @@ fn find_code_filtered(
     }
     let mut i = 0usize;
     let mut prev: Option<u8> = None;
+    let mut before = PrevChars::default();
     while i < bytes.len() {
         if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
             while candidate < next {
@@ -497,6 +498,7 @@ fn find_code_filtered(
             }
             if !is_comment {
                 prev = Some(b'x');
+                before.push_opaque();
             }
             i = next;
             continue;
@@ -513,6 +515,101 @@ fn find_code_filtered(
         i += 1;
     }
     None
+}
+
+/// The first code byte at or after `from`, skipping whitespace and comments.
+fn next_code_byte(bytes: &[u8], from: usize) -> Option<u8> {
+    let mut i = from;
+    let prev: Option<u8> = None;
+    while i < bytes.len() {
+        if let Some((next, _)) = skip_opaque(bytes, i, prev) {
+            // A string / regex here is not a `{`, which is all the caller asks.
+            if bytes[i] != b'/' {
+                return Some(bytes[i]);
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            return Some(bytes[i]);
+        }
+        i += 1;
+    }
+    None
+}
+
+/// A char that is neither an identifier char nor `.`, standing in for a
+/// completed string / template / regex literal.
+const OPAQUE_SENTINEL: char = '"';
+
+/// The last two significant characters of a left-to-right code scan.
+#[derive(Default)]
+pub(crate) struct PrevChars {
+    last: Option<char>,
+    before_last: Option<char>,
+}
+
+impl PrevChars {
+    /// Feed the character at `i` when it is a significant (non-whitespace) code
+    /// byte; continuation bytes and whitespace are ignored.
+    pub(crate) fn push_code_byte(&mut self, bytes: &[u8], i: usize) {
+        if let Some(c) = char_at(bytes, i)
+            && !is_js_whitespace(c)
+        {
+            self.push(c);
+        }
+    }
+
+    /// Feed a completed string / template / regex literal.
+    pub(crate) fn push_opaque(&mut self) {
+        self.push(OPAQUE_SENTINEL);
+    }
+
+    fn push(&mut self, c: char) {
+        self.before_last = self.last;
+        self.last = Some(c);
+    }
+
+    /// Can a rune name start here? Not when the previous character continues an
+    /// identifier, and not after the `.` of a member access — but `...` is a
+    /// spread, whose operand may well be a rune call.
+    pub(crate) fn starts_a_rune(&self) -> bool {
+        match self.last {
+            None => true,
+            Some(c) if is_ident_char(c) => false,
+            Some('.') => self.before_last == Some('.'),
+            Some(_) => true,
+        }
+    }
+
+    /// Could a class / object member start here? `get`, `set`, `async` and
+    /// `static` end in identifier characters, so `starts_a_rune` has already
+    /// rejected those; what is left is the start of a body, the end of the
+    /// previous member, and the `*` of a generator.
+    fn could_start_a_member(&self) -> bool {
+        matches!(self.last, None | Some('{' | ';' | '}' | ',' | '*'))
+    }
+}
+
+/// The `char` starting at `i`, or `None` when `i` is a continuation byte.
+fn char_at(bytes: &[u8], i: usize) -> Option<char> {
+    let lead = bytes[i];
+    let len = match lead {
+        0x00..=0x7F => 1,
+        0xC0..=0xDF => 2,
+        0xE0..=0xEF => 3,
+        0xF0..=0xF7 => 4,
+        _ => return None,
+    };
+    std::str::from_utf8(bytes.get(i..i + len)?)
+        .ok()
+        .and_then(|s| s.chars().next())
+}
+
+/// JS whitespace: `char::is_whitespace` plus the zero-width no-break space,
+/// which the spec lists as whitespace and Unicode does not.
+fn is_js_whitespace(c: char) -> bool {
+    c.is_whitespace() || c == '\u{FEFF}'
 }
 
 #[cfg(test)]
@@ -731,7 +828,7 @@ mod tests {
     }
 
     #[test]
-    fn find_code_skips_every_opaque_carrier() {
+    fn find_rune_call_skips_every_opaque_carrier() {
         for carrier in [
             "// $derived(",
             "/* $derived( */",
@@ -818,9 +915,93 @@ mod tests {
     }
 
     #[test]
-    fn find_code_is_not_fooled_by_a_division_before_the_call() {
+    fn find_rune_call_is_not_fooled_by_a_division_before_the_call() {
         let src = "const r = a / b;\nlet x = $state(r);\n";
         let at = find_code_from(src.as_bytes(), b"$state(", 0).expect("the real call");
         assert_eq!(&src[at..at + 7], "$state(");
+    }
+
+    /// A rune name after a member access is a property, whatever precedes the
+    /// `.` — and a rune name after an identifier character is one identifier.
+    #[test]
+    fn a_property_or_an_identifier_tail_is_not_the_rune() {
+        for src in [
+            "const a = o.$derived(1);",
+            "const a = o?.$derived(1);",
+            "const a = o.p.$derived(1);",
+            "const a = o\n\t.$derived(1);",
+            "const a = o. /* c */ $derived(1);",
+            "const a = f().$derived(1);",
+            "const a = arr[0].$derived(1);",
+            "const a = x$derived(1);",
+            "const a = 日本$derived(1);",
+        ] {
+            assert!(
+                find_rune_call(src.as_bytes(), b"$derived(").is_none(),
+                "{src}: read a property / identifier tail as the rune"
+            );
+        }
+    }
+
+    /// The two shapes whose previous character is `.` or a non-ASCII space and
+    /// which ARE the rune.
+    #[test]
+    fn a_spread_operand_and_a_wide_space_still_find_the_rune() {
+        for src in [
+            "const a = [...$derived(1)];",
+            "const a =\u{3000}$derived(1);",
+            "const a = \u{feff}$derived(1);",
+        ] {
+            assert!(
+                find_rune_call(src.as_bytes(), b"$derived(").is_some(),
+                "{src}: lost the rune"
+            );
+        }
+    }
+
+    /// A member spelled like a rune call is a declaration, not a call.
+    #[test]
+    fn a_method_named_like_a_rune_is_not_the_rune() {
+        for src in [
+            "class C { $derived(v) { return v; } }",
+            "class C {\n\t$derived(v) {\n\t\treturn v;\n\t}\n}",
+            "class C { m() {} ; $derived(v) { return v; } }",
+            "const o = { a: 1, $derived(v) { return v; } };",
+            "class C { *$derived(v) { yield v; } }",
+        ] {
+            assert!(
+                find_rune_call(src.as_bytes(), b"$derived(").is_none(),
+                "{src}: read a method declaration as the rune"
+            );
+        }
+    }
+
+    /// …but a call in the same lexical neighbourhood still is one.
+    #[test]
+    fn a_statement_position_call_is_still_the_rune() {
+        for src in [
+            "let s = $state(1);\n$inspect(s);",
+            "{\n\t$inspect(s);\n}",
+            "let x = $derived(a);",
+            "f(1, $derived(a));",
+        ] {
+            let needle: &[u8] = if src.contains("$inspect(") {
+                b"$inspect("
+            } else {
+                b"$derived("
+            };
+            assert!(
+                find_rune_call(src.as_bytes(), needle).is_some(),
+                "{src}: lost the rune"
+            );
+        }
+    }
+
+    /// A property occurrence must not stop the scan before a later real call.
+    #[test]
+    fn a_property_before_the_real_call_is_skipped_not_fatal() {
+        let src = "const a = o.$state(1);\nlet b = $state(2);\n";
+        let at = find_rune_call(src.as_bytes(), b"$state(").expect("the real call");
+        assert_eq!(&src[at - 8..at + 7], "let b = $state(");
     }
 }

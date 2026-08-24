@@ -982,14 +982,14 @@ fn component_attribute_value<'a>(
 ) -> OxcExpression<'a> {
     match value {
         AttributeValue::True(_) => state.b.bool(true),
-        AttributeValue::Expression(tag) => component_value_expr(&tag.expression, optimiser, state),
+        AttributeValue::Expression(tag) => component_value_expr(tag, optimiser, state),
         AttributeValue::Sequence(parts) => {
             // Single-element sequence collapses to its lone part.
             if parts.len() == 1 {
                 return match &parts[0] {
                     AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
                     AttributeValuePart::ExpressionTag(tag) => {
-                        component_value_expr(&tag.expression, optimiser, state)
+                        component_value_expr(tag, optimiser, state)
                     }
                 };
             }
@@ -1022,6 +1022,7 @@ fn component_attribute_value<'a>(
                                 let content = js_display_string(value);
                                 quasis.last_mut().unwrap().push_str(&content);
                             }
+                            state.defer_template_expression_comments((tag.start + 1, tag.end - 1));
                             continue;
                         }
                         let visited = state.visit_expr(&tag.expression);
@@ -1051,10 +1052,11 @@ fn component_attribute_value<'a>(
 /// expression (the optimiser still records any top-level blocker so a blocked but
 /// non-await read drives the `async_block` wrap).
 fn component_value_expr<'a>(
-    expr: &crate::ast::js::Expression,
+    tag: &crate::ast::template::ExpressionTag,
     optimiser: &mut PromiseOptimiser<'a>,
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
+    let expr = &tag.expression;
     let text = state.expr_source(expr).map(|s| s.to_string());
     if let Some(t) = text.as_deref()
         && text_has_await(t)
@@ -1062,7 +1064,7 @@ fn component_value_expr<'a>(
         let saved = save_wrap_expr_text(state, t);
         return optimiser.transform(state, t, saved);
     }
-    let visited = state.visit_expr(expr);
+    let visited = state.visit_expression_tag(tag);
     if let Some(t) = text.as_deref() {
         return optimiser.transform(state, t, visited);
     }
