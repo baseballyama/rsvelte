@@ -8,21 +8,17 @@ use super::nodes::*;
 use compact_str::CompactString;
 use smallvec::smallvec;
 
-/// Check if a string is a valid JavaScript identifier.
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
+/// Upstream's `regex_is_valid_identifier` — `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`.
+/// Deliberately ASCII-only: a prop named with a non-ASCII letter is a legal JS
+/// identifier but upstream still emits it as a quoted key, and matching that is
+/// the point.
+pub fn is_valid_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c == '_' || c == '$' || c.is_ascii_alphabetic() => {}
+        _ => return false,
     }
-
-    // First character must be a letter, underscore, or dollar sign
-    let first_char = s.chars().next().unwrap();
-    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
-        return false;
-    }
-
-    // Remaining characters must be alphanumeric, underscore, or dollar sign
-    s.chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    chars.all(|c| c == '_' || c == '$' || c.is_ascii_alphanumeric())
 }
 
 // ============================================================================
@@ -1418,22 +1414,20 @@ pub fn var_decl_anchored(
     arena: &JsArena,
     name: impl Into<CompactString>,
     init: Option<JsExpr>,
-    comment_anchor: Option<u32>,
+    // The span is the *source* name's, which the generated identifier does not
+    // reproduce byte for byte once the source name is non-ASCII.
+    anchor: Option<(u32, u32)>,
 ) -> JsStatement {
     let name = name.into();
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Var,
         declarations: vec![JsVariableDeclarator {
-            id: match comment_anchor {
-                Some(start) => JsPattern::SpannedIdentifier {
-                    end: start.saturating_add(name.len() as u32),
-                    name,
-                    start,
-                },
+            id: match anchor {
+                Some((start, end)) => JsPattern::SpannedIdentifier { name, start, end },
                 None => id_pattern(name),
             },
             init: init.map(|e| arena.alloc_expr(e)),
-            comment_anchor,
+            comment_anchor: anchor.map(|(start, _)| start),
         }],
     })
 }

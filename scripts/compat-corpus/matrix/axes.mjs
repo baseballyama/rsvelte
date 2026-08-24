@@ -1888,150 +1888,95 @@ export const WRITE_PREAMBLE = `<script>
 `;
 
 /**
- * Axis K1 — the separator between two adjacent JS tokens.
+ * Axis family — an async attribute VALUE × the attribute SLOT it sits in × the
+ * ELEMENT hosting the slot. Its subject is which lowering a value reaches, not
+ * what the value is.
  *
- * Phase 3 locates keywords with literal needles (`memmem::find(b"class ")`,
- * `starts_with("export let ")`), and every one of those spellings bakes in
- * exactly ONE ASCII space. The source is not obliged to honour it: any run of
- * ECMAScript `WhiteSpace + LineTerminator` separates two tokens, so a second
- * space, a tab, a line break or a non-ASCII whitespace character makes the
- * construct invisible to the transform. #3470 is the loud half — an unstripped
- * `export` lands inside the component function and no JS parser accepts the
- * output — and `class\tK` the quiet one, where the class-field runes are never
- * lowered and `$state` survives as a free identifier at run time.
+ * Upstream routes every attribute-ish slot through `Memoizer`, which hoists a
+ * call or an `await` out of the `template_effect` arrow into its `sync`/`async`
+ * argument and passes the top-level-await `blockers` as the fourth — except
+ * `build_custom_element_attribute_update_assignment` (`RegularElement.js`),
+ * which builds its own one-argument `$.template_effect(b.thunk(call))`. The same
+ * value is therefore lowered two different ways depending only on whether the
+ * tag name has a dash. The host axis is what makes that observable: every value
+ * and slot is generated on `<div>` too, where the memoized lowering is the right
+ * answer, so "memoize everywhere" and "memoize nowhere" are distinguishable.
  *
- * The separator set is not "some whitespace": each member falsifies a DIFFERENT
- * plausible predicate. `\t` and `\n` fail a literal `" "`; U+000B additionally
- * fails Rust's `is_ascii_whitespace`, which excludes the vertical tab; U+00A0
- * and U+3000 fail every byte-oriented test, because their UTF-8 lead byte
- * reads as an identifier byte; and U+FEFF fails `char::is_whitespace` and
- * `regex`'s `\s` as well, both of which follow Unicode `White_Space`, which
- * excludes it while JS does not. A fix that switches one site to a Unicode-aware
- * test passes five of these and still fails the BOM.
+ * `experimental.async` is set for the same reason `async-derived` sets it — no
+ * other harness does, so this is a population the collected corpus cannot hold
+ * at any size.
  *
- * `space` is the control row: it is the spelling every needle already matches,
- * so a change that stops recognising the construct at all fails it rather than
- * turning the family green.
+ * The four `custom-element` × `attribute` cells whose value carries a literal
+ * `await` are compared on the SERVER targets only: the pinned oracle compiles
+ * them to `await` inside a non-async arrow, which is not JavaScript, so there is
+ * no client oracle to compare against. Their server lowering is unaffected.
  */
-export const KEYWORD_SEPARATORS = {
-	space: ' ',
-	'two-spaces': '  ',
-	tab: '\t',
-	newline: '\n\t',
-	'vertical-tab': '\u000b',
-	'form-feed': '\u000c',
-	nbsp: '\u00a0',
-	bom: '\ufeff',
-	ideographic: '\u3000',
+export const ASYNC_ATTRIBUTE_VALUES = {
+	// Controls. None of these may gain a memoized slot under a correct fix: a
+	// static value needs no effect at all, a bare state read is passed through,
+	// and an `await` already inside an async function is the shape an over-broad
+	// "hoist anything containing await" rule breaks.
+	static: `'v'`,
+	state: 'foo',
+	'async-iife': '(async () => await p)()',
+	// Memoized as a SYNC value — the row that shows the custom-element slot is
+	// not only an `await` problem.
+	call: 'f()',
+	// Memoized as an ASYNC value.
+	await: 'await p',
+	'await-literal': `await 'v'`,
+	'await-in-call': 'String(await p)',
+	'await-plus-state': '(await p) + foo',
+	// No literal `await` in the value, but the binding it reads is written by
+	// one, so the effect must carry a blocker. A rule keyed on the token
+	// `await` inside the attribute passes every row above and fails these two.
+	'derived-await-read': 'd',
+	'script-await-read': 't',
+};
+
+/** Which attribute-ish slot carries the value. `%A` is the host's attribute name. */
+export const ASYNC_ATTRIBUTE_SLOTS = {
+	attribute: '%A={%s}',
+	class: 'class={%s}',
+	style: 'style={%s}',
+	'style-directive': 'style:color={%s}',
+	'class-directive': 'class:x={%s}',
+	spread: `{...{ 'data-x': %s }}`,
 };
 
 /**
- * Axis K2 — the construct whose keyword the separator follows.
- *
- * Derived from the needles rather than invented: these are the source-level
- * keyword spellings `memmem::find` / `starts_with` / `strip_prefix` are called
- * with under `phases/3_transform` (`"export let"`, `"export "`, `"class "`,
- * `"function "`, `" from "`). `export-let` and `class-declaration` are the two
- * #3470 reports; the rest are the other members of the same grep, and they are
- * here because a needle that only gates an early bail-out is harmless while one
- * that returns an OFFSET is not — indistinguishable from the grep alone, so the
- * family carries both and lets the comparison sort them.
- *
- * `module` marks the constructs that are also valid input to `compileModule`.
+ * The element the slot hangs off. `custom-element` is the subject; the other
+ * three reach the same slot through three different visitors, so a divergence
+ * is attributable to the host rather than to the value.
  */
-export const KEYWORD_CONSTRUCTS = {
-	'export-let': {
-		module: true,
-		body: 'export%slet a = 1;',
-		markup: '<b>{a}</b>',
+export const ASYNC_ATTRIBUTE_HOSTS = {
+	div: { markup: '<div %s></div>', attr: 'data-x' },
+	'custom-element': { markup: '<my-element %s></my-element>', attr: 'bar' },
+	'svelte-element': {
+		markup: `<svelte:element this={'span'} %s></svelte:element>`,
+		attr: 'data-x',
 	},
-	'export-var': {
-		module: true,
-		body: 'export%svar a = 1;',
-		markup: '<b>{a}</b>',
-	},
-	// Two declarations sharing a physical line: the legacy per-line walk has to
-	// be told where the first one ends before either can be rewritten, and that
-	// pre-pass has a needle of its own.
-	'export-let-same-line': {
-		module: true,
-		body: 'export%slet a = 1; export%slet b = 2;',
-		markup: '<b>{a}{b}</b>',
-	},
-	'export-const': {
-		module: true,
-		body: 'export%sconst a = 1;',
-		markup: '<b>{a}</b>',
-	},
-	'export-function': {
-		module: true,
-		body: 'export%sfunction f() {\n\treturn 1;\n}',
-		markup: '<b>{f()}</b>',
-	},
-	'export-async-function': {
-		module: true,
-		body: 'export%sasync function f() {\n\treturn 1;\n}',
-		markup: '<b>{typeof f}</b>',
-	},
-	'export-class': {
-		module: true,
-		body: 'export%sclass K {\n\tv = $state(1);\n}\n\nconst k = new K();',
-		markup: '<b>{k.v}</b>',
-	},
-	'class-declaration': {
-		module: true,
-		body: 'class%sK {\n\tv = $state(1);\n}\n\nexport const k = new K();',
-		markup: '<b>{k.v}</b>',
-	},
-	'class-extends': {
-		module: true,
-		body: 'class B {}\n\nclass K extends%sB {\n\tv = $state(1);\n}\n\nexport const k = new K();',
-		markup: '<b>{k.v}</b>',
-	},
-	'function-declaration': {
-		module: true,
-		body: 'function%sf() {\n\treturn 1;\n}\n\nexport const n = f();',
-		markup: '<b>{n}</b>',
-	},
-	'async-function': {
-		module: true,
-		body: 'async%sfunction f() {\n\treturn 1;\n}\n\nexport const n = f();',
-		markup: '<b>{n}</b>',
-	},
-	'new-expression': {
-		module: true,
-		body: 'class K {\n\tv = $state(1);\n}\n\nexport const k = new%sK();',
-		markup: '<b>{k.v}</b>',
-	},
-	'import-from': {
-		module: false,
-		body: "import C%sfrom './C.svelte';",
-		markup: '<C />',
-	},
-	'reactive-label': {
-		module: false,
-		body: 'let a = 1;\n$:%sb = a * 2;',
-		markup: '<b>{b}</b>',
-	},
+	// A component takes props; `class`/`style`/directives are not its slots.
+	component: { markup: '<Comp %s />', attr: 'x', import: true, slots: ['attribute', 'spread'] },
 };
 
 /**
- * Axis K3 — the entry point. Mirrors `OPAQUE_ENTRIES`: the instance script and
- * `compileModule` are different transforms over the same source text, and a fix
- * complete on one has repeatedly been absent on the other (#2547).
+ * The declarations every async-attribute case shares. `t` and `d` are the two
+ * blocker sources (a top-level `await` and a `$derived(await …)`); declaring
+ * both in every file keeps the value axis the only thing that varies.
  */
-export const KEYWORD_SEPARATOR_ENTRIES = {
-	instance: {
-		ext: '.svelte',
-		wrap: (construct, body) =>
-			`<script>\n${body
-				.split('\n')
-				.map((line) => (line ? `\t${line}` : line))
-				.join('\n')}\n</script>\n\n${construct.markup}\n`,
-	},
-	module: {
-		ext: '.svelte.js',
-		kind: 'module',
-		wrap: (_construct, body) => `${body}\n`,
-	},
-};
+export const ASYNC_ATTRIBUTE_PREAMBLE = `<script>
+%i	let foo = $state('foo');
+	const p = Promise.resolve('v');
+	const t = await 'v';
+	const d = $derived(await 'v');
+	function f() {
+		return 'v';
+	}
+	function bump() {
+		foo += '!';
+	}
+</script>
+
+%m
+`;

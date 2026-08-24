@@ -194,6 +194,7 @@ pub fn print_split(
         print_split_impl::<false>(
             program,
             loc_base,
+            comment_source,
             map_source,
             loc_map,
             options,
@@ -205,6 +206,7 @@ pub fn print_split(
         print_split_impl::<true>(
             program,
             loc_base,
+            comment_source,
             map_source,
             loc_map,
             options,
@@ -219,6 +221,7 @@ pub fn print_split(
 fn print_split_impl<const HAS_COMMENTS: bool>(
     program: &Program<'_>,
     loc_base: u32,
+    comment_source: &str,
     map_source: Option<&str>,
     loc_map: &[LocRange],
     options: &PrintOptions,
@@ -229,6 +232,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     if !HAS_COMMENTS && map_source.is_none() {
         let mut printer =
             printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts)
+                .with_placement_source(comment_source)
                 .with_split_coordinates(map_line_starts, loc_base, loc_map, false);
         let mut ctx = context::Context::new_direct(&options.indent, program.source_text.len());
         printer.print_program(program, &mut ctx);
@@ -242,6 +246,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     }
     let mut printer =
         printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts)
+            .with_placement_source(comment_source)
             .with_split_coordinates(map_line_starts, loc_base, loc_map, map_source.is_some());
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
@@ -285,20 +290,22 @@ pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOption
     let line_starts = printer::line_starts(source);
     let comments = printer::build_comments(program, source, &line_starts);
     if comments.is_empty() {
-        print_with_map_impl::<false>(program, options, comments, line_starts)
+        print_with_map_impl::<false>(program, source, options, comments, line_starts)
     } else {
-        print_with_map_impl::<true>(program, options, comments, line_starts)
+        print_with_map_impl::<true>(program, source, options, comments, line_starts)
     }
 }
 
 fn print_with_map_impl<const HAS_COMMENTS: bool>(
     program: &Program<'_>,
+    source: &str,
     options: &PrintOptions,
     comments: Vec<printer::Cmt>,
     line_starts: Vec<u32>,
 ) -> PrintWithMap {
     let mut printer =
         printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts)
+            .with_placement_source(source)
             .with_source_map();
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);

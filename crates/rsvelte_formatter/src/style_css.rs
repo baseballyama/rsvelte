@@ -79,7 +79,9 @@ pub fn native_style_formatter(base: CssFormatOptions) -> StyleFormatter {
             let clamped = crate::formatter_width(width);
             opts.line_width = LineWidth::try_from(clamped).unwrap_or_default();
             format_css_source(body, css_variant_from_lang(lang), &opts)
-                .map_or_else(|_| Ok(body.to_string()), Ok)
+                // The caller splices `\n{output}\n{indent}`, so a fallback that kept the
+                // body's own leading newline would insert a blank line before the first rule.
+                .map_or_else(|_| Ok(body.trim_start_matches('\n').to_string()), Ok)
         },
     )
 }

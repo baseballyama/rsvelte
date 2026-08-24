@@ -75,9 +75,10 @@ import {
 	WRITE_HOSTS,
 	WRITE_SHAPES,
 	WRITE_PREAMBLE,
-	KEYWORD_SEPARATORS,
-	KEYWORD_CONSTRUCTS,
-	KEYWORD_SEPARATOR_ENTRIES,
+	ASYNC_ATTRIBUTE_VALUES,
+	ASYNC_ATTRIBUTE_SLOTS,
+	ASYNC_ATTRIBUTE_HOSTS,
+	ASYNC_ATTRIBUTE_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -454,6 +455,7 @@ function asyncDerivedCases() {
 }
 
 const CLIENT_ONLY = ['client', 'client-dev'];
+const SERVER_ONLY = ['server', 'server-dev'];
 
 function privateFieldCases() {
 	const cases = [];
@@ -535,17 +537,43 @@ function writeHostCases() {
 	return cases;
 }
 
-function keywordSeparatorCases() {
+/** The value shapes that put a literal `await` in the attribute expression. */
+const ASYNC_ATTRIBUTE_LITERAL_AWAIT = new Set([
+	'await',
+	'await-literal',
+	'await-in-call',
+	'await-plus-state',
+]);
+
+function asyncAttributeSlotCases() {
 	const cases = [];
-	for (const [constructName, construct] of Object.entries(KEYWORD_CONSTRUCTS)) {
-		for (const [separatorName, separator] of Object.entries(KEYWORD_SEPARATORS)) {
-			const body = construct.body.replaceAll('%s', () => separator);
-			for (const [entryName, entry] of Object.entries(KEYWORD_SEPARATOR_ENTRIES)) {
-				if (entry.kind === 'module' && !construct.module) continue;
+	for (const [hostName, host] of Object.entries(ASYNC_ATTRIBUTE_HOSTS)) {
+		for (const [slotName, slot] of Object.entries(ASYNC_ATTRIBUTE_SLOTS)) {
+			if (host.slots && !host.slots.includes(slotName)) continue;
+			for (const [valueName, value] of Object.entries(ASYNC_ATTRIBUTE_VALUES)) {
+				// `build_custom_element_attribute_update_assignment` is the one
+				// attribute slot upstream does not route through `Memoizer`, so on
+				// the pinned oracle it emits `await` inside a non-async arrow —
+				// there is no client oracle for these four cells to compare
+				// against. The server lowering is unaffected and still compared.
+				const noClientOracle =
+					hostName === 'custom-element' &&
+					slotName === 'attribute' &&
+					ASYNC_ATTRIBUTE_LITERAL_AWAIT.has(valueName);
+				const markup = host.markup.replaceAll('%s', () =>
+					slot.replaceAll('%A', () => host.attr).replaceAll('%s', () => value)
+				);
 				cases.push({
-					id: `keyword-separator/${constructName}__${separatorName}__${entryName}${entry.ext}`,
-					source: entry.wrap(construct, body),
-					...(entry.kind ? { kind: entry.kind } : {}),
+					id: `async-attribute-slot/${hostName}__${slotName}__${valueName}.svelte`,
+					source: ASYNC_ATTRIBUTE_PREAMBLE.replaceAll('%i', () =>
+						host.import ? "\timport Comp from './Comp.svelte';\n" : ''
+					).replaceAll('%m', () => markup),
+					// The one axis no other family but `async-derived` varies.
+					// Without it every case is an `experimental_async` compile
+					// error in both compilers — error-parity, which is agreement
+					// about nothing.
+					options: { experimental: { async: true } },
+					...(noClientOracle ? { targets: SERVER_ONLY } : {}),
 				});
 			}
 		}
@@ -556,6 +584,7 @@ function keywordSeparatorCases() {
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
+	'async-attribute-slot': asyncAttributeSlotCases,
 	'comment-slot': commentSlotCases,
 	'literal-escape': literalEscapeCases,
 	'constant-fold': constantFoldCases,

@@ -1,5 +1,11 @@
 # @rsvelte/language-server
 
+## 0.5.4
+
+### Patch Changes
+
+- 4840a2e: Stop queued analysis work when the language server shuts down.
+
 ## 0.5.3
 
 ### Patch Changes
