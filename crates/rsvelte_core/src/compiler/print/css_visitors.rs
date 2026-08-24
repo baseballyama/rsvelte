@@ -8,60 +8,7 @@
 
 use super::Context;
 use serde_json::Value;
-use std::fmt::Write;
-
-/// Re-escape a CSS identifier so that it prints as valid CSS. `parse` decodes
-/// escape sequences when it builds the AST, so anything illegal in a bare
-/// identifier — a leading digit, `-` before a digit, whitespace, controls — has
-/// to be written back as a hex escape.
-fn escape_identifier(name: &str) -> String {
-    let chars: Vec<char> = name.chars().collect();
-    let mut escaped = String::new();
-    let mut i = 0;
-
-    while i < chars.len() {
-        let c = chars[i];
-
-        if c == '\\' {
-            match chars.get(i + 1) {
-                // A literal backslash must itself be escaped: a backslash followed
-                // by a hex digit (or by nothing) would read back as a hex escape.
-                None => {
-                    escaped.push_str("\\5c ");
-                    i += 1;
-                }
-                Some(next) if next.is_ascii_hexdigit() => {
-                    escaped.push_str("\\5c ");
-                    i += 1;
-                }
-                Some(next) => {
-                    escaped.push('\\');
-                    escaped.push(*next);
-                    i += 2;
-                }
-            }
-            continue;
-        }
-
-        let code = c as u32;
-        let leading_digit = i == 0 && c.is_ascii_digit();
-        let leading_hyphen_digit =
-            i == 0 && c == '-' && chars.get(1).is_some_and(char::is_ascii_digit);
-
-        if leading_digit
-            || leading_hyphen_digit
-            || !(c.is_ascii_alphanumeric() || c == '_' || c == '-' || code >= 160)
-        {
-            let _ = write!(escaped, "\\{code:x} ");
-        } else {
-            escaped.push(c);
-        }
-
-        i += 1;
-    }
-
-    escaped
-}
+use std::fmt::Write as _;
 
 /// Visit a CSS node and generate appropriate code.
 ///
@@ -179,6 +126,64 @@ fn font_face_declarations(raw: &str) -> Vec<String> {
         .filter(|declaration| !declaration.is_empty())
         .map(str::to_string)
         .collect()
+}
+
+/// Re-escape a CSS identifier so that it prints as valid CSS.
+///
+/// `parse` DECODES escape sequences when building the AST — `\31` becomes `1`,
+/// `\a` becomes a newline — but leaves single-character escapes such as `\.`
+/// and escaped backslashes intact. Printing therefore has to put back only what
+/// would be illegal bare: a leading digit, `-` followed by a digit, whitespace
+/// and control characters, and anything else not already escaped.
+fn escape_identifier(name: &str) -> String {
+    let mut escaped = String::with_capacity(name.len());
+    let chars: Vec<char> = name.chars().collect();
+    let mut i = 0usize;
+
+    while i < chars.len() {
+        let char = chars[i];
+
+        if char == '\\' {
+            let next = chars.get(i + 1).copied();
+            // A literal backslash must itself be escaped as `\5c `: a backslash
+            // followed by a hex digit (or by nothing) would read back as a hex
+            // escape rather than as the backslash it stands for.
+            match next {
+                None => {
+                    escaped.push_str("\\5c ");
+                    i += 1;
+                    continue;
+                }
+                Some(n) if n.is_ascii_hexdigit() => {
+                    escaped.push_str("\\5c ");
+                    i += 1;
+                    continue;
+                }
+                Some(n) => {
+                    escaped.push('\\');
+                    escaped.push(n);
+                    i += 2;
+                    continue;
+                }
+            }
+        }
+
+        let is_leading_digit = i == 0 && char.is_ascii_digit();
+        let is_leading_hyphen_digit =
+            i == 0 && char == '-' && chars.get(1).is_some_and(char::is_ascii_digit);
+        let is_bare_ok =
+            char.is_ascii_alphanumeric() || char == '_' || char == '-' || (char as u32) >= 160;
+
+        if is_leading_digit || is_leading_hyphen_digit || !is_bare_ok {
+            let _ = write!(escaped, "\\{:x} ", char as u32);
+        } else {
+            escaped.push(char);
+        }
+
+        i += 1;
+    }
+
+    escaped
 }
 
 /// Visit an attribute selector (e.g., [name="value"]).
@@ -570,15 +575,15 @@ fn visit_selector_list(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The TypeSelector node
 fn visit_type_selector(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-        if let Some(namespace) = node.get("namespace").and_then(|n| n.as_str()) {
-            if namespace == "*" {
-                context.write(namespace);
-            } else {
-                context.write(&escape_identifier(namespace));
-            }
-            context.write("|");
+    if let Some(namespace) = node.get("namespace").and_then(|n| n.as_str()) {
+        if namespace == "*" {
+            context.write("*");
+        } else {
+            context.write(&escape_identifier(namespace));
         }
+        context.write("|");
+    }
+    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         if name == "*" {
             context.write(name);
         } else {

@@ -13,7 +13,7 @@
 	<p>{i}:{id}</p>
 {/each}
 
-{#each rows as [a = 1, ...rest], i}
+{#each rows as [a = 1, ...rest] , i}
 	<p>{a}{rest.length}{i}</p>
 {/each}
 

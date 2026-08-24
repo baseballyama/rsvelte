@@ -36,8 +36,8 @@
 //! | `q = expr`    | `$.set(q, expr, true)`                     | `$.set(q, expr)`                    |
 //! | `q += expr`   | `$.set(q, $.get(q) + expr)`                | `$.set(q, $.get(q) + expr)`         |
 //! | (incl. coercive `-= *= /= %= **= &= |= ^= <<= >>= >>>=` — never proxy)                             |
-//! | `q ??= expr`  | `$.get(q) ?? $.set(q, expr, true)`         | `$.get(q) ?? $.set(q, expr)`        |
-//! | (incl. logical `||= &&=`; the setter is only reached on the branch that assigns)                    |
+//! | `q ??= expr`  | `$.get(q) ?? $.set(q, expr)`               | `$.get(q) ?? $.set(q, expr)`        |
+//! | (incl. logical `||= &&=`; the built value is a LogicalExpression → always proxies for `$state`)   |
 //! | `q++`         | `$.update(q)`                              | `$.update(q)`                       |
 //! | `q--`         | `$.update(q, -1)`                          | `$.update(q, -1)`                   |
 //! | `++q`         | `$.update_pre(q)`                          | `$.update_pre(q)`                   |
@@ -243,8 +243,9 @@ fn compound_of(operator: AssignmentOperator) -> Option<Compound> {
 /// is_non_coercive_operator(operator) && should_proxy(value, scope)`, where
 /// `value` is the built assignment value. The non-coercive operators are
 /// `= || && ??`; arithmetic / bitwise / shift compounds are coercive and never
-/// proxy. For `=` and for the short-circuiting compounds the value is the RHS,
-/// so `should_proxy` traces it.
+/// proxy. Since #18594 the logical ops short-circuit around the `$.set` rather
+/// than folding the read into its argument, so their `value` is the bare RHS
+/// and `should_proxy` traces it exactly as it does for `=`.
 fn needs_proxy(
     kind: Match,
     compound: Option<Compound>,
@@ -549,30 +550,26 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
         let needs_proxy = needs_proxy(kind, compound, &expr.right, self.var_proxy, self.reassigned);
 
-        // A short-circuiting compound must not call the setter on the branch that
-        // does not assign, so it expands to a logical expression rather than to a
-        // setter over the built value.
-        let short_circuit = match compound {
-            Some(Compound::Logical(op)) => Some(op),
-            _ => None,
-        };
-
         let read = || {
             field_read_text(
                 qualified,
                 reads_dot_v(qualified, self.v_read_qualified, self.function_depth),
             )
         };
-
+        // A logical compound short-circuits around the whole `$.set`, so the
+        // setter only runs when the operator actually assigns.
         let value = match compound {
-            None => rhs_text.to_string(),
-            Some(_) if short_circuit.is_some() => rhs_text.to_string(),
-            Some(op) => format!("{} {} {}", read(), op.as_str(), rhs_text),
+            None | Some(Compound::Logical(_)) => rhs_text.to_string(),
+            Some(op @ Compound::Binary(_)) => format!("{} {} {}", read(), op.as_str(), rhs_text),
         };
-        let set_call = if needs_proxy {
+        let set = if needs_proxy {
             format!("$.set({}, {}, true)", qualified, value)
         } else {
             format!("$.set({}, {})", qualified, value)
+        };
+        let rewrite = match compound {
+            Some(Compound::Logical(op)) => format!("{} {} {}", read(), op.as_str(), set),
+            _ => set,
         };
 
         let rewrite = match short_circuit {
@@ -1067,13 +1064,12 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
             unreachable!("checked above")
         };
 
-        // A short-circuiting compound must not call the setter on the branch that
-        // does not assign, so it expands to a logical expression over the setter.
-        let short_circuit = match compound {
+        // A logical compound short-circuits around the whole `$.set`, so the
+        // setter only runs when the operator actually assigns.
+        let logical = match compound {
             Some(Compound::Logical(op)) => Some((op, self.field_read(&pf, dot_v))),
             _ => None,
         };
-
         let value = match compound {
             None | Some(Compound::Logical(_)) => assign.right,
             Some(Compound::Binary(op)) => {
@@ -1085,10 +1081,10 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         if needs_proxy {
             args.push(self.b.bool(true));
         }
-        let set_call = self.b.call("$.set", args);
-        *expr = match short_circuit {
-            None => set_call,
-            Some((op, read)) => self.b.logical(op, read, set_call),
+        let call = self.b.call("$.set", args);
+        *expr = match logical {
+            Some((op, read)) => self.b.logical(op, read, call),
+            None => call,
         };
         self.changed = true;
     }
