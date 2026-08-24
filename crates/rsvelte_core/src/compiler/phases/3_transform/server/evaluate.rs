@@ -707,7 +707,7 @@ fn push_code_point(n: f64, units: &mut Vec<u16>) -> Option<()> {
 
 /// Returns `Some((marker, computed))` where `computed` is `Some(value)` when
 /// all arguments are known and the function is computable.
-fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
+pub(crate) fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
     let nums = || -> Option<Vec<f64>> {
         args.iter()
             .map(|e| e.known_value().and_then(to_number))

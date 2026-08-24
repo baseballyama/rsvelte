@@ -91,6 +91,35 @@ impl LocalScope {
     }
 }
 
+/// Is `expr` a `$.state(…)` / `$.derived(…)` call — the two shapes a lowered
+/// rune declaration produces, and the only ones that make a local a signal?
+/// `$.tag(…)` wraps either of them in dev mode.
+fn is_signal_source_call(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
+    let JsExpr::Call(call) = expr else {
+        return false;
+    };
+    let JsExpr::Member(member) = arena.get_expr(call.callee) else {
+        return false;
+    };
+    if !matches!(arena.get_expr(member.object), JsExpr::Identifier(o) if o.as_str() == "$") {
+        return false;
+    }
+    let JsMemberProperty::Identifier(property) = &member.property else {
+        return false;
+    };
+    match property.as_str() {
+        "state" | "derived" => true,
+        "tag" => call
+            .arguments
+            .first()
+            .is_some_and(|arg| is_signal_source_call(arg, arena)),
+        _ => false,
+    }
+}
+
 /// Classify a JsExpr into a JsExprKind for proxy decisions.
 fn classify_expr(expr: &JsExpr) -> JsExprKind {
     match expr {
@@ -206,6 +235,18 @@ fn register_block_local_vars(
         if let JsStatement::VariableDeclaration(var_decl) = stmt {
             for decl in &var_decl.declarations {
                 if let JsPattern::Identifier(name) = &decl.id {
+                    // A local the converter just turned into a signal
+                    // (`let x = $.state(…)` / `$.derived(…)`, from a rune written
+                    // inside a template expression's function body) is not a plain
+                    // shadow: its reads still have to go through `$.get`. Only a
+                    // local that shadows an outer transform gets registered here.
+                    if decl
+                        .init
+                        .as_ref()
+                        .is_some_and(|init| is_signal_source_call(arena.get_expr(*init), arena))
+                    {
+                        continue;
+                    }
                     let init_kind = decl
                         .init
                         .as_ref()
@@ -4003,8 +4044,13 @@ fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) ->
                 }
 
                 // If there's a transform registered for this identifier (e.g., from let: directive),
-                // it's been overridden in the current scope and should not be folded as a literal
-                if context.state.transform.contains_key(name) {
+                // it's been overridden in the current scope and should not be folded as a literal.
+                // That is a fact about the TEMPLATE EXPRESSION, whose transformed form is
+                // `$.get(name)`; once the walk has descended into a binding's initializer
+                // upstream's `scope.evaluate` resolves the binding itself, transform or not.
+                if INITIAL_EVAL_DEPTH.with(|d| d.get()) == 0
+                    && context.state.transform.contains_key(name)
+                {
                     return None;
                 }
 
@@ -5358,7 +5404,10 @@ fn identifier_has_reactive_state(
     // EXCEPTION: Derived bindings always have transforms (for $.get() wrapping),
     // but their reactivity depends on whether their dependencies are known constants.
     // For Derived bindings, skip this early return and fall through to the
-    // detailed binding kind check below.
+    // detailed binding kind check below. State/RawState are excepted for the
+    // same reason: upstream decides the READ from `scope.evaluate`, never from
+    // the lowered declaration form, so `accessors` (which `customElement` turns
+    // on) must not make a never-written `$state(1)` read reactive.
     if let Some(transform) = context.state.transform.get(name) {
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
@@ -5368,12 +5417,8 @@ fn identifier_has_reactive_state(
         // outer binding instead of the `{@const}`.
         let resolved = by_position.or_else(|| context.state.get_binding(name));
 
-        // Check if this is a Derived binding - if so, skip the early return
-        // and fall through to the detailed binding kind check below.
-        // `accessors` (which `customElement` turns on) installs a transform for a
-        // plain `$state` too. Upstream decides the READ from `scope.evaluate`, never
-        // from the lowered declaration form, so these fall through to the
-        // binding-kind check below instead of answering `transform.is_reactive`.
+        // Check if this is a Derived/State binding - if so, skip the early
+        // return and fall through to the detailed binding kind check below.
         let is_derived = resolved.is_some_and(|b| {
             matches!(
                 b.kind,
@@ -5488,15 +5533,15 @@ fn identifier_has_reactive_state(
         // NOT when initial_is_defined is false. The latter can be false for
         // `$state(member.expr)` where the arg might evaluate to undefined at
         // runtime, but the binding is still reactive via $.proxy() wrapping.
-        // A bare `$state()` has no initializer, so upstream's `scope.evaluate`
-        // answers `undefined` — a known constant — and the READ is not reactive.
-        // This used to ask `is_state_source`, which also answers `accessors`
-        // (which `customElement` turns on); that term decides the lowered
-        // DECLARATION (`$.state(void 0)` is still emitted) and must not reach
-        // the read. `immutable` keeps legacy mode on its old answer.
+        // A `$state()` with no argument compiles to `void 0`, which
+        // `scope.evaluate` reports as a known value, so its read is not reactive
+        // state unless the binding is written. Reading `is_state_source` here
+        // instead makes the answer depend on how the DECLARATION was lowered,
+        // and `accessors` — which `customElement` forces on — sets it for every
+        // `$state`. Only `initial_node_type == None` qualifies, not
+        // `initial_is_defined == false`, which also holds for `$state(m.x)`.
         if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
             && binding.initial_node_type.is_none()
-            && context.state.analysis.immutable
             && !binding.reassigned
             && !binding.mutated
         {
@@ -6937,12 +6982,15 @@ struct ClientEvalScope<'a, 'b> {
                     }
 
                     // For State bindings, check if state source
+                    // `scope.evaluate` follows `binding.initial` and never asks
+                    // how the declaration was lowered, so `accessors` must not
+                    // make a never-written `$state(1)` unknown. `reassigned` /
+                    // `mutated` were already rejected above.
                     if matches!(binding.kind, BindingKind::State | BindingKind::RawState) {
-                        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-                        if is_state_source(binding, context.state.analysis) {
-                            return false;
+                        // A bare `$state()` carries no argument: `undefined`.
+                        if binding.initial_node_type.is_none() && binding.initial.is_none() {
+                            return true;
                         }
-                        // Non-state-source with known initial → known
                         return is_initial_value_literal_or_known(&binding.initial);
                     }
 

@@ -2091,10 +2091,8 @@ pub(crate) fn transform_client(
 
     // In dev mode, add ComponentName[$.FILENAME] = 'filename.svelte'
     // Reference: transform-client.js line 544-551
-    if options.dev
-        && let Some(ref filename) = options.filename
-    {
-        let fname = filename.replace('\\', "/");
+    if options.dev {
+        let fname = options.filename_or_unknown().replace('\\', "/");
         let relative_filename = if let Some(ref root_dir) = options.root_dir {
             let rd = root_dir.replace('\\', "/");
             if fname.starts_with(&rd) {
@@ -4090,6 +4088,32 @@ fn starts_export_specifier(trimmed: &str) -> bool {
         Some('{') => true,
         Some(c) if c.is_whitespace() => rest.trim_start().starts_with('{'),
         _ => false,
+    }
+}
+
+/// Everything after a leading `let|const|var <name> = $props.id();` declaration,
+/// or `None` when `trimmed` does not open one. The declaration is dropped here
+/// because the component body emits it as a hoisted `const`.
+///
+/// The initializer is a closed literal, so the declaration's end is read rather
+/// than inferred — nothing here has to answer where a general statement ends.
+fn props_id_declaration_tail(trimmed: &str) -> Option<&str> {
+    let head = trimmed.strip_prefix("export ").unwrap_or(trimmed);
+    if !(head.starts_with("let ") || head.starts_with("const ") || head.starts_with("var ")) {
+        return None;
+    }
+    let eq = trimmed.find('=')?;
+    let rhs = trimmed[eq + 1..].trim_start();
+    let mut rest = rhs
+        .strip_prefix("$props.id()")
+        .or_else(|| rhs.strip_prefix("$.props_id()"))?;
+    // Empty statements belong to the declaration's line, not to the tail.
+    loop {
+        rest = rest.trim_start();
+        match rest.strip_prefix(';') {
+            Some(after) => rest = after,
+            None => return Some(rest),
+        }
     }
 }
 
@@ -7767,8 +7791,8 @@ fn transform_instance_script_for_visitors(
     super::profile::record_st_loop_lines(script_lines.len() as u64);
 
     while line_idx < script_lines.len() {
-        let line = script_lines[line_idx];
-        let trimmed = line.trim();
+        let mut line = script_lines[line_idx];
+        let mut trimmed = line.trim();
 
         // Skip empty lines (but preserve them if we're accumulating)
         if trimmed.is_empty() {

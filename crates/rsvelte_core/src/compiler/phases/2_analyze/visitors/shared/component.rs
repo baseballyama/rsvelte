@@ -231,19 +231,16 @@ pub fn visit_component<'a, 'b: 'a>(
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                // Visit the spread expression
-                super::super::script::walk_expression(&spread.expression, context)?;
+                super::attribute::walk_template_expression(&spread.expression, context)?;
             }
             Attribute::AttachTag(attach) => {
-                // Visit the attach expression
-                super::super::script::walk_expression(&attach.expression, context)?;
+                super::attribute::walk_template_expression(&attach.expression, context)?;
             }
             Attribute::LetDirective(_) => {
                 // Let directives don't have expressions to visit for needs_context
             }
-            _ => {
-                // Other directives (StyleDirective, ClassDirective, etc.) are invalid
-                // on components and were already handled above
+            other => {
+                super::attribute::walk_remaining_attribute_expressions(other, context)?;
             }
         }
     }

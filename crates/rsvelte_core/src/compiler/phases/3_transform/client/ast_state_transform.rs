@@ -2052,13 +2052,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         if end < bytes.len() && bytes[end] == b';' {
             end += 1;
         }
-        // The helper's trailing `;\n` is now redundant — we consumed
-        // the source's `;` ourselves and the per-statement-loop
-        // appends a fresh `\n`. Strip them.
-        let mut stripped = transformed
-            .trim_end_matches('\n')
-            .trim_end_matches(';')
-            .to_string();
+        // The replacement has to terminate itself: the range above swallowed the
+        // source's `;`, and what follows is a line break only when the next
+        // statement is on the next line.
+        let mut stripped = transformed.trim_end_matches('\n').to_string();
 
         // When the helper returns an empty replacement (read-only
         // `{ name } = $props()` with no defaults), and the component

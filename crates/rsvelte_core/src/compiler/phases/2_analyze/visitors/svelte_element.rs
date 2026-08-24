@@ -284,7 +284,9 @@ pub fn visit<'a, 'b: 'a>(
             Attribute::OnDirective(on) => {
                 super::on_directive::visit(on, context)?;
             }
-            _ => {}
+            other => {
+                super::shared::attribute::walk_remaining_attribute_expressions(other, context)?;
+            }
         }
     }
 

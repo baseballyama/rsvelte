@@ -26,7 +26,9 @@ pub fn visit<'a, 'b: 'a>(
     // node type. Mirror upstream's `svelte_component_missing_this` instead of
     // silently accepting it. (issue #453, H-046)
     if component.expression.node_type().is_none() {
-        return Err(errors::svelte_component_missing_this().at(component.start, component.end));
+        // Upstream raises this from the parser with the element's start offset
+        // alone, so the range is zero-width rather than the whole element.
+        return Err(errors::svelte_component_missing_this().at(component.start, component.start));
     }
 
     // svelte:component requires a `this` expression
@@ -77,19 +79,21 @@ pub fn visit<'a, 'b: 'a>(
                 // in the CLIENT transform phase, not here. See OnDirective.js line 21.
                 // Walk event handler expression if present
                 if let Some(ref expr) = on.expression {
-                    super::script::walk_expression(expr, context)?;
+                    super::shared::attribute::walk_template_expression(expr, context)?;
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                // Walk the spread expression
-                super::script::walk_expression(&spread.expression, context)?;
+                super::shared::attribute::walk_template_expression(&spread.expression, context)?;
             }
             Attribute::Attribute(a) => {
                 super::shared::attribute::warn_attribute_quoted(context, a);
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
-            Attribute::AttachTag(_) | Attribute::LetDirective(_) => {
+            Attribute::AttachTag(attach) => {
+                super::shared::attribute::walk_template_expression(&attach.expression, context)?;
+            }
+            Attribute::LetDirective(_) => {
                 // Allowed on components (matches the shared component validator)
             }
             _ => {

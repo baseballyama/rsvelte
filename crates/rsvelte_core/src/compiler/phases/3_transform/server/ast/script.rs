@@ -198,9 +198,20 @@ fn inspect_hole_placeholder<'a>(state: &ServerTransformState<'a>) -> Option<Stat
 pub(super) fn rune_names_are_store_subs(
     analysis: &crate::compiler::phases::phase2_analyze::ComponentAnalysis,
 ) -> bool {
-    analysis.root.bindings.iter().any(|b| {
-        b.kind == BindingKind::StoreSub && matches!(b.name.as_str(), "$effect" | "$inspect")
-    })
+    rune_name_is_store_sub(analysis, "$effect") || rune_name_is_store_sub(analysis, "$inspect")
+}
+
+/// Whether `name` (a `$`-prefixed rune name) resolves to a store subscription
+/// binding — i.e. a local declaration shadows the rune.
+pub(super) fn rune_name_is_store_sub(
+    analysis: &crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+    name: &str,
+) -> bool {
+    analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| b.kind == BindingKind::StoreSub && b.name == name)
 }
 
 /// Whether an expression-statement expression is a top-level effect/inspect rune
@@ -717,7 +728,13 @@ fn place_on_region(
     } else {
         stmt.start
     };
-    let base = register_comment_region(registry, src, all, prev_end, region_end)?;
+    let Some(base) = register_comment_region(registry, src, all, prev_end, region_end) else {
+        // Upstream keeps every source node's `loc`, so a location-less body it
+        // prints before a later comment re-syncs esrap's cursor instead of
+        // killing it. A statement that owns no comment still has to hold that
+        // position for the template expressions printed after it.
+        return place_on_position(registry, src, prev_end, stmt, verbatim);
+    };
     Some(match verbatim {
         Some(v) => comments::Place::Shift(base + reparse_origin(src, v.start, v.end) - prev_end),
         None => comments::Place::At(base + stmt.start - prev_end),
@@ -3285,7 +3302,11 @@ fn strip_bindable_defaults<'a>(
 
 /// Returns the `$bindable` replacement expression if `expr` is a `$bindable(...)`
 /// call: its first argument, or `void 0` when called with no arguments.
-fn bindable_default<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) -> Option<OxcExpression<'a>> {
+fn bindable_default<'a>(
+    expr: &mut OxcExpression<'a>,
+    b: B<'a>,
+    analysis: &crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+) -> Option<OxcExpression<'a>> {
     let OxcExpression::CallExpression(call) = expr else {
         return None;
     };
@@ -3293,6 +3314,11 @@ fn bindable_default<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) -> Option<OxcExp
         return None;
     };
     if id.name.as_str() != "$bindable" {
+        return None;
+    }
+    // Upstream's `get_rune` returns null once the name resolves to a binding, so
+    // a `$bindable` store subscription is a plain call, not the rune.
+    if rune_name_is_store_sub(analysis, "$bindable") {
         return None;
     }
     let arg = call
@@ -3310,7 +3336,7 @@ struct BindableStrip<'a, 'b> {
 
 impl<'a, 'b> VisitMut<'a> for BindableStrip<'a, 'b> {
     fn visit_assignment_pattern(&mut self, it: &mut oxc_ast::ast::AssignmentPattern<'a>) {
-        if let Some(replacement) = bindable_default(&mut it.right, self.b) {
+        if let Some(replacement) = bindable_default(&mut it.right, self.b, self.analysis) {
             it.right = replacement;
         }
         // Read-wrap the default expression so reads inside it get the server
