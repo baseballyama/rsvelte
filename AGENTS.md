@@ -319,6 +319,15 @@ same string for every push to `main`, so at a high merge rate each merge cancell
 predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
 indistinguishable in the branch header.**
 
+**And a cancelled run also shows up RED, where it is indistinguishable from a real regression.**
+`Tests` is a rollup job that reads its shards' `result`s and exits 1 unless every one is
+`success` — so a cancellation makes the rollup `FAILURE` while every shard under it is
+`cancelled`. Measured on four PRs during a mass `gh run cancel`: each reported 1–2 `FAILURE`
+against 28–54 `CANCELLED`, and the failing job's log was `BULK: cancelled UNIT: cancelled …`
+with no test output at all. So the check name and the conclusion together are not enough —
+read the rollup's step env before concluding a branch is broken, and never re-baseline or
+"fix" anything off a red rollup whose shards never ran.
+
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
@@ -392,6 +401,37 @@ targets, permissive in both quantifiers. It is now asserted **per tree and per t
 compared-pair count is printed and stored in `report.json`, and `--update-error-baseline`
 refuses at zero. The warning half of the same hole, and `compile.mjs` fabricating a
 whole-corpus `rust_panic` when `sources/` is missing, are tracked in #2707.
+
+### `parse()` AST parity (`scripts/compat-corpus/parse-ast-verify.mjs`)
+
+The public `parse()` export had **no gate at all** until #3389 — the other ~38 compare compiled
+text, warnings, errors, TSX, lint findings and LSP responses, and svelte2tsx and `rsvelte_lint`
+consume rsvelte's AST without ever diffing it against official's. One unit is (source, mode):
+every `.svelte` file in `compatibility/pattern-corpus/` under `{modern: true}` and under the
+default legacy shape, diffed as JSON after a round-trip on **both** sides — official keeps
+`EachBlock.index`, `EachBlock.key` and `SnippetBlock.typeParams` as present-but-undefined keys,
+and rsvelte's binding returns a JSON *string*, so a naive comparison reports a catastrophe that is
+entirely the harness. It needs no corpus collect and no submodule but `svelte`, so it rides the
+shape-matrix job.
+
+Three defects were shipped behind that gap and are fixed with it: `modern`/`loose` ignored
+(#3385), `Root.end` short of EOF (#3386), and comments never attaching to statements (#3387).
+**#3386 could not be fixed alone** — the fixture runners read their input untrimmed while
+upstream's `test.ts` trims it, so a trailing-trimmed `Root.end` and an untrimmed input were two
+deviations cancelling on the 62 of 110 fixtures whose input ends in whitespace. And #3387 was in
+**three** places: the script walk, a separate ad-hoc implementation for template expressions with
+no last-in-body or separator rule, and the fact that upstream hands every script parse the *same*
+`parser.root.comments` array, so a `<script module>` comment binds to the instance script's first
+statement.
+
+The ratchet starts at 2721 entries over 494 diverging units, keyed `<id>::<mode>::<field-class>`
+and partitioned by cause in the paired `.md`. Read the composition, not the count: the top three
+causes are template-node field sets (1395), script-node field sets (681) and **`loc.character`
+attached in exactly the wrong direction** (392) — official's positions come from
+`locate-character` (which returns `character`) and from acorn (which does not), and rsvelte has
+the two swapped. `parser_fixtures.rs` strips `character` from every `loc` before comparing, which
+is why that suite reads 100% while the class exists. **A gate's first baseline measures how long
+the surface was ungated, not how much someone let rot.**
 
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 
@@ -546,6 +586,26 @@ so `p.a++` set neither `needs_context` (no `$.push`/`$.pop`) nor a reference to 
 `export_let_unused`), and a `$bindable()` prop member update rsvelte never wraps (#3048). Ask of
 any family whose rows share a wrapper: **is the thing I varied crossed with the thing I held
 fixed, or merely adjacent to it?**
+
+**The `class-modifier` family exists because upstream answers "what may a plain `<script>`
+contain" with a different PARSER, and rsvelte answered it with a flag.** `lang="ts"` selects
+`acorn.Parser.extend(tsPlugin())` upstream and `SourceType::ts()` here — but OXC's JS grammar is
+not acorn's, so every TypeScript-only class modifier and the stage-3 `accessor` compiled in a
+plain script that official rejects (#3100, #3203). That is the same over-acceptance shape as
+`param-default`, and no collected corpus can hold it: published code compiles. Three things it
+cost us. **The reported position is not the member's key** — acorn reads modifiers left to right,
+takes the first word it cannot read as the name, and throws on what cannot follow a name, so
+`private static a` reports at `static` and `private get a()` at `get`; a fix that reports at the
+key is right on 19 of 22 rows and wrong on the interesting ones. **The over-rejection half needs
+its own rows**: `accessor = 1`, `accessor⏎a = 1`, `static readonly = 1` and `get private() {}`
+each spell a modifier keyword where it is an ordinary name, which is what separates a check keyed
+on the parsed member from one keyed on the keyword's text. And **acorn-typescript is not a
+superset of OXC either** — it enforces two rules in the *parser* that TypeScript leaves to the
+checker (`abstract` outside an `abstract class`, `override` with no superclass), so the same
+family found rsvelte over-accepting on the `lang="ts"` side while it was fixing the JS side.
+Where the two modifier tables simply disagree (`static accessor` is legal TS and
+acorn-typescript refuses it, at a column it passes to a position parameter) the rows stay listed
+rather than ported: both compilers reject, and matching would mean reproducing the bug.
 
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
@@ -910,7 +970,7 @@ Svelte bump.
 | Suite | Pass/Total |
 |-------|------------|
 | Parser Modern | 27/27 |
-| Parser Legacy | 81/81 |
+| Parser Legacy | 82/82 |
 | Compiler Errors | 145/145 |
 | Compiler Snapshot | 30/30 |
 | CSS | 181/181 |

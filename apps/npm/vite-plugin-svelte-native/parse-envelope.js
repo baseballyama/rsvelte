@@ -19,7 +19,7 @@ const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 4;
+const VERSION = 5;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -1652,7 +1652,14 @@ function readJsComment(ctx, start, end) {
 	const kindByte = readU8(ctx);
 	const kind = kindByte === 1 ? 'Block' : 'Line';
 	const value = readStr(ctx);
+	// Only an in-tag comment's `loc` carries `character`; a script comment's
+	// comes from the JS parser, which does not produce one.
+	const hasCharacter = readU8(ctx) === 1;
 	const loc = readSourceLocation(ctx);
+	if (!hasCharacter) {
+		delete loc.start.character;
+		delete loc.end.character;
+	}
 	return { type: kind, start, end, value, loc };
 }
 
