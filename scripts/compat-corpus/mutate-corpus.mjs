@@ -513,7 +513,14 @@ if (pairs.length !== divergent) {
 }
 const differing = [];
 for (const expectedPath of pairs) {
-	const actualPath = expectedPath.replace(`${path.sep}expected${path.sep}`, `${path.sep}actual${path.sep}`);
+	// Built from the components, not by replacing "expected" in the string: a
+	// corpus id can itself contain an `expected/` segment (sveltekit's package
+	// fixtures do), and a string replace rewrites that one instead of the tree.
+	const actualPath = path.join(
+		path.dirname(path.dirname(expectedPath)),
+		'actual',
+		path.basename(expectedPath),
+	);
 	if (!fs.existsSync(actualPath)) {
 		console.error(`\n[mutate] missing rsvelte output for ${path.relative(TREE, expectedPath)} — a skipped pair would score as no divergence.`);
 		process.exit(2);

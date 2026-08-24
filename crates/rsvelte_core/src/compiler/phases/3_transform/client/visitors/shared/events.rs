@@ -67,11 +67,11 @@ pub fn build_event(
 pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> JsExpr {
     if let JsExpr::Arrow(arrow) = handler {
         let body = match arrow.body {
-            JsArrowBody::Expression(expr) => JsBlockStatement {
-                body: vec![JsStatement::Return(JsReturnStatement {
+            JsArrowBody::Expression(expr) => {
+                JsBlockStatement::with_body(vec![JsStatement::Return(JsReturnStatement {
                     argument: Some(expr),
-                })],
-            },
+                })])
+            }
             JsArrowBody::Block(block) => block,
         };
         JsExpr::Function(JsFunctionExpression {

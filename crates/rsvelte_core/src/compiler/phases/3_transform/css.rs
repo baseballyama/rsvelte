@@ -1330,27 +1330,21 @@ fn is_animation_declaration(property: &str) -> bool {
 /// Emit a declaration the way upstream's minifier does: the whitespace run that
 /// starts immediately after `property.length + 1` bytes is dropped, so
 /// `color : red` (space before the colon) is left alone and custom properties
-/// are skipped entirely. `src_start` is the declaration's source offset, so the
-/// two surviving runs stay mapped the way MagicString's `remove` leaves them.
-fn push_minified_declaration(
-    output: &mut CssWriter,
-    src_start: usize,
-    decl_text: &str,
-    property: &str,
-) {
+/// are skipped entirely.
+fn push_minified_declaration(output: &mut CssWriter, decl_text: &str, property: &str) {
     if property.starts_with("--") {
-        output.copy(src_start, decl_text);
+        output.push_str(decl_text);
         return;
     }
     let start = property.len() + 1;
     if start > decl_text.len() || !decl_text.is_char_boundary(start) {
-        output.copy(src_start, decl_text);
+        output.push_str(decl_text);
         return;
     }
     let rest = &decl_text[start..];
     let value = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
-    output.copy(src_start, &decl_text[..start]);
-    output.copy(src_start + decl_text.len() - value.len(), value);
+    output.push_str(&decl_text[..start]);
+    output.push_str(value);
 }
 
 fn has_nested_rules(block: &Value) -> bool {
@@ -2582,11 +2576,10 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
                         return false;
                     }
                     // Check if this element is a root child in the DOM structure
-                    let is_root_child = ctx
-                        .dom_structure
-                        .elements
-                        .iter()
-                        .any(|el| el.is_root_child && el.tag_name == tag_name);
+                    let is_root_child =
+                        ctx.dom_structure.elements.iter().any(|el| {
+                            el.is_root_child && el.tag_name.eq_ignore_ascii_case(tag_name)
+                        });
                     if !is_root_child {
                         return true;
                     }
@@ -3631,7 +3624,7 @@ fn selector_matches_element(
     // Check tag name (dynamic tags match any type selector)
     if let Some(ref tag) = info.tag_name
         && !el.is_dynamic_tag
-        && el.tag_name != *tag
+        && !el.tag_name.eq_ignore_ascii_case(tag)
     {
         return false;
     }
@@ -3801,7 +3794,7 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
             if first_universal {
                 true
             } else {
-                first_tag.is_some_and(|t| t == el.tag_name)
+                first_tag.is_some_and(|t| t.eq_ignore_ascii_case(&el.tag_name))
             }
         })
         .map(|(i, _)| i)
@@ -3890,7 +3883,7 @@ fn collect_chain_candidates(
             return;
         }
         let child = &ctx.dom_structure.elements[child_idx];
-        if universal || child.tag_name == tag {
+        if universal || child.tag_name.eq_ignore_ascii_case(tag) {
             out.push(child_idx);
         }
     };
@@ -5011,7 +5004,10 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                 }
                 // Decode CSS escape sequences for comparison
                 let decoded = decode_css_escape(name);
-                return !ctx.used_elements.contains(&decoded);
+                return !ctx
+                    .used_elements
+                    .iter()
+                    .any(|used| used.eq_ignore_ascii_case(&decoded));
             }
         }
         Some("ClassSelector") => {
@@ -5225,11 +5221,9 @@ fn is_attribute_selector_unused_parsed(
                     } else {
                         return false;
                     }
-                } else if let Some(ref expected) = expected_value
-                    && test_attribute_value(operator, expected, "", case_insensitive)
-                {
-                    return false;
                 }
+                // Upstream: `if (attribute.value === true) return operator === null`
+                // — a valueless attribute is `true`, not `""`, so no operator matches it.
             }
         }
     }
@@ -5326,12 +5320,9 @@ fn is_attribute_selector_unused(raw: &str, ctx: &CssContext) -> bool {
                         // No expected value but has operator - shouldn't happen, be safe
                         return false;
                     }
-                } else if let Some(ref expected) = expected_value {
-                    // Boolean attribute (no value) - with operator, treat value as ""
-                    if test_attribute_value(&operator, expected, "", case_insensitive) {
-                        return false;
-                    }
                 }
+                // Upstream: `if (attribute.value === true) return operator === null`
+                // — a valueless attribute is `true`, not `""`, so no operator matches it.
             }
         }
     }
@@ -5401,7 +5392,8 @@ fn test_attribute_value(
 
     match operator {
         "=" => actual == expected,
-        "~=" => actual.split_whitespace().any(|w| w == expected),
+        // JS `"".split(/\s/)` is `[""]`, so `[a~=""]` matches an empty value.
+        "~=" => actual.split(char::is_whitespace).any(|w| w == expected),
         "|=" => actual == expected || actual.starts_with(&format!("{}-", expected)),
         "^=" => actual.starts_with(&expected),
         "$=" => actual.ends_with(&expected),
@@ -5717,7 +5709,7 @@ fn transform_block_with_nested_rules<'a>(
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = child_start.saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.copy(last_end, &css_source[ws_start..ws_end]);
+                    output.push_str(&css_source[ws_start..ws_end]);
                 }
             }
 
@@ -5779,12 +5771,11 @@ fn transform_block_with_nested_rules<'a>(
                     if decl_end <= css_source.len() && decl_start < decl_end {
                         let decl_text = &css_source[decl_start..decl_end];
                         let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
-                        mark_node(output, child);
                         if ctx.minify && !is_animation_declaration(prop) {
                             output.trim_preceding_whitespace();
-                            push_minified_declaration(output, child_start, decl_text, prop);
+                            push_minified_declaration(output, decl_text, prop);
                         } else {
-                            output.copy(child_start, decl_text);
+                            output.push_str(decl_text);
                         }
                     }
                 }
@@ -5802,7 +5793,7 @@ fn transform_block_with_nested_rules<'a>(
         let ws_start = last_end.saturating_sub(css_start);
         let ws_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude the '}'
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.copy(last_end, &css_source[ws_start..ws_end]);
+            output.push_str(&css_source[ws_start..ws_end]);
         }
     }
     if ctx.minify {
@@ -5906,7 +5897,7 @@ fn transform_nested_atrule<'a>(
             // Copy content before this child; the whitespace run immediately
             // before it is dropped per child kind below, so comments survive.
             if child_start > last_end {
-                output.copy(last_end, src(last_end, child_start));
+                output.push_str(src(last_end, child_start));
             }
 
             match child_type {
@@ -5961,12 +5952,11 @@ fn transform_nested_atrule<'a>(
                 Some("Declaration") => {
                     let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
                     let decl_text = src(child_start, child_end);
-                    mark_node(output, child);
                     if ctx.minify && !is_animation_declaration(prop) {
                         output.trim_preceding_whitespace();
-                        push_minified_declaration(output, child_start, decl_text, prop);
+                        push_minified_declaration(output, decl_text, prop);
                     } else {
-                        output.copy(child_start, decl_text);
+                        output.push_str(decl_text);
                     }
                 }
                 _ => {}
@@ -5980,7 +5970,7 @@ fn transform_nested_atrule<'a>(
     // `remove_preceding_whitespace(node.block.end - 1)` lives in the Rule
     // visitor, so an at-rule's own closing brace keeps its whitespace.
     if block_end > last_end + 1 {
-        output.copy(last_end, src(last_end, block_end - 1));
+        output.push_str(src(last_end, block_end - 1));
     }
 
     output.copy(block_end.saturating_sub(1), "}");
@@ -6073,12 +6063,11 @@ fn transform_global_block<'a>(
                             let to = child_end.saturating_sub(css_start);
                             if to <= css_source.len() && from < to {
                                 let decl_text = &css_source[from..to];
-                                mark_node(output, child);
                                 if is_animation_declaration(prop) {
-                                    output.copy(child_start, decl_text);
+                                    output.push_str(decl_text);
                                 } else {
                                     output.trim_preceding_whitespace();
-                                    push_minified_declaration(output, child_start, decl_text, prop);
+                                    push_minified_declaration(output, decl_text, prop);
                                 }
                             }
                         }
@@ -6214,6 +6203,85 @@ fn transform_atrule_preserving<'a>(
         false, // rules inside an at-rule start fresh
         false,
     );
+
+    if is_passthrough {
+        // Upstream's Declaration visitor runs at every depth, so an `@font-face`
+        // body is minified like any other block.
+        if ctx.minify && block.is_some() {
+            transform_nested_atrule(
+                node,
+                selector,
+                hash,
+                css_source,
+                css_start,
+                output,
+                specificity_bumped,
+                ctx,
+                false,
+                false,
+                false,
+            );
+            *last_end = node_end;
+            return;
+        }
+        // Copy the entire at-rule from source
+        let src_start = node_start.saturating_sub(css_start);
+        let src_end = node_end.saturating_sub(css_start);
+        if src_end <= css_source.len() && src_start < src_end {
+            output.push_str(&css_source[src_start..src_end]);
+        }
+        *last_end = node_end;
+        return;
+    }
+
+    // Handle media, supports, layer, etc. - need to transform nested rules
+    output.push('@');
+    output.push_str(name);
+
+    if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        && !prelude.is_empty()
+    {
+        output.push(' ');
+        output.push_str(prelude);
+    }
+
+    if let Some(block) = block {
+        let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+
+        output.push_str(" {");
+
+        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+            let mut inner_last_end = block_start + 1; // after '{'
+            for child in children {
+                transform_node_preserving(
+                    child,
+                    selector,
+                    hash,
+                    css_source,
+                    css_start,
+                    output,
+                    specificity_bumped,
+                    &mut inner_last_end,
+                    ctx,
+                    false, // rules inside at-rules are not nested (they start fresh)
+                );
+            }
+            // Copy trailing content in block. An at-rule's closing brace keeps
+            // its whitespace: only the Rule visitor trims upstream.
+            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            if inner_last_end < block_end {
+                let trail_start = inner_last_end.saturating_sub(css_start);
+                let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
+                if trail_end <= css_source.len() && trail_start < trail_end {
+                    output.push_str(&css_source[trail_start..trail_end]);
+                }
+            }
+        }
+
+        output.push('}');
+    } else {
+        output.push(';');
+    }
 
     *last_end = node_end;
 }
@@ -7135,9 +7203,7 @@ fn transform_complex_selector(
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
                         // Handle universal selector
-                        if sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*")
-                        {
+                        if sel_type == "TypeSelector" && is_bare_universal(sel) {
                             if needs_scoping {
                                 // Replace * with the scoping selector
                                 let modifier = get_modifier(selector, &local_specificity_bumped);
@@ -7354,8 +7420,53 @@ fn append_modifier(target: &mut String, modifier: &str) {
 }
 
 /// Format a simple selector
+/// Whether a `TypeSelector` is the bare universal selector `*`.
+///
+/// A namespaced universal — `svg|*`, `*|*` — is not: the scoping class is
+/// appended to it rather than replacing it, or the `svg|` prefix would be lost.
+fn is_bare_universal(sel: &Value) -> bool {
+    sel.get("name").and_then(|n| n.as_str()) == Some("*")
+        && sel.get("namespace").is_none_or(Value::is_null)
+}
+
 fn format_simple_selector(sel: &Value) -> String {
     format_simple_selector_with_scope(sel, "", "", None, 0, None, false, false)
+}
+
+/// The source text of a pseudo-class selector, arguments included.
+///
+/// The parser ends the node after the name, so an argument list has to be
+/// scanned for — the same shape `PseudoElementSelector` already needed.
+fn pseudo_source_text(sel: &Value, css_source: &str, css_start: Option<usize>) -> Option<String> {
+    let css_start = css_start?;
+    let start = sel.get("start").and_then(|s| s.as_u64())? as usize;
+    let end = sel.get("end").and_then(|e| e.as_u64())? as usize;
+    let src_start = start.checked_sub(css_start)?;
+    let mut src_end = end.checked_sub(css_start)?;
+
+    if let Some(remaining) = css_source.get(src_end..)
+        && remaining.starts_with('(')
+    {
+        let mut depth = 0usize;
+        for (i, c) in remaining.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        src_end += i + 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    (src_start < src_end)
+        .then(|| css_source.get(src_start..src_end))??
+        .to_string()
+        .into()
 }
 
 /// Format a simple selector with optional scoping for inner selectors
@@ -7452,9 +7563,23 @@ fn format_simple_selector_with_scope(
                         outer_specificity_bumped,
                     );
                     format!(":{}({})", name, inner)
+                } else if let Some(text) = pseudo_source_text(sel, css_source, css_start) {
+                    // Upstream descends only into `is`/`where`/`has`/`not`; every
+                    // other pseudo-class is left exactly as written. Rebuilding it
+                    // from the AST loses whatever the source spelled: a selector
+                    // list inside `:nth-child(2n of .a, .b)` came back as `.a.b`,
+                    // because a `SelectorList`'s children concatenate without the
+                    // separator that only the source still carries.
+                    text
                 } else {
                     format!(":{}({})", name, get_selector_text(args))
                 }
+            } else if let Some(text) = pseudo_source_text(sel, css_source, css_start) {
+                // Same reason, for the argument-less form — plus the escapes. The
+                // parser decodes `\31 st-child` to `1st-child`, so reconstructing
+                // from `name` emits an identifier that no longer starts with an
+                // escape and no longer means what it did.
+                text
             } else {
                 format!(":{}", name)
             }
@@ -7770,8 +7895,7 @@ fn transform_is_not_complex_selector(
 
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                        let is_universal = sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*");
+                        let is_universal = sel_type == "TypeSelector" && is_bare_universal(sel);
 
                         // If this is a universal selector (*) that will be replaced by :where(),
                         // don't output the * - just output the :where() directly
@@ -7936,9 +8060,23 @@ fn get_selector_text(node: &Value) -> String {
 /// Generate a raw hash string (matches Svelte's hash() function in utils.js).
 /// This is the base hash without the "svelte-" prefix.
 pub fn generate_raw_hash(source: &str) -> String {
+    // UTF-16 code units, not code points: upstream walks the string with
+    // `charCodeAt(i)`, so an astral character contributes its two surrogates
+    // separately. Iterating Rust `char`s feeds one scalar instead and diverges
+    // on any CSS holding a non-BMP character — `.a🙂b` scoped to `svelte-liey9s`
+    // where upstream said `svelte-1pwkicr`, and the scoping class has to agree
+    // byte-for-byte or nothing the selector was rewritten for still matches.
+    let units: Vec<u16> = source
+        .chars()
+        .filter(|&c| c != '\r')
+        .flat_map(|c| {
+            let mut buf = [0u16; 2];
+            c.encode_utf16(&mut buf).to_vec()
+        })
+        .collect();
     let mut hash: i32 = 5381;
-    for c in source.chars().rev().filter(|&c| c != '\r') {
-        hash = ((hash << 5).wrapping_sub(hash)) ^ (c as i32);
+    for unit in units.into_iter().rev() {
+        hash = ((hash << 5).wrapping_sub(hash)) ^ i32::from(unit);
     }
 
     // Convert to unsigned and then to base-36
