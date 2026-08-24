@@ -10,7 +10,6 @@ use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
-use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:self.
@@ -58,10 +57,11 @@ pub fn visit<'a, 'b: 'a>(
                 }
             }
             Attribute::OnDirective(on) => {
-                if on
-                    .modifiers
-                    .iter()
-                    .any(|modifier| modifier.as_str() != "once")
+                if on.modifiers.len() > 1
+                    || on
+                        .modifiers
+                        .iter()
+                        .any(|modifier| modifier.as_str() != "once")
                 {
                     return Err(
                         errors::event_handler_invalid_component_modifier().at(on.start, on.end)

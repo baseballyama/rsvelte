@@ -918,7 +918,44 @@ impl<'a> Parser<'a> {
         let j = self.skip_js_whitespace_from(self.index);
         self.bytes.get(j) == Some(&b'a')
             && self.bytes.get(j + 1) == Some(&b's')
-            && self.is_js_whitespace_at(j + 2)
+            && (self.is_js_whitespace_at(j + 2)
+                || (!self.options.loose && self.bytes.get(j + 2) == Some(&b'}')))
+    }
+
+    fn identifier_end_at(&self, i: usize) -> usize {
+        let Some(first) = self.source.get(i..).and_then(|s| s.chars().next()) else {
+            return i;
+        };
+        if !(first.is_alphabetic() || first == '_' || first == '$') {
+            return i;
+        }
+        let mut j = i + first.len_utf8();
+        while let Some(c) = self.source.get(j..).and_then(|s| s.chars().next()) {
+            if c.is_alphanumeric() || c == '_' || c == '$' {
+                j += c.len_utf8();
+            } else {
+                break;
+            }
+        }
+        j
+    }
+
+    fn binding_pattern_end(&self, i: usize) -> ParseResult<usize> {
+        let ident_end = self.identifier_end_at(i);
+        if ident_end > i {
+            return Ok(ident_end);
+        }
+        match self.bytes.get(i) {
+            Some(&open @ (b'{' | b'[')) => {
+                Ok(find_matching_bracket(self.source, i + 1, open as char)
+                    .map_or(self.bytes.len(), |close| close + 1))
+            }
+            _ => Err(crate::error::ParseError::svelte(
+                "expected_pattern",
+                "Expected identifier or destructure pattern",
+                (i, i),
+            )),
+        }
     }
 
     pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
@@ -1144,7 +1181,6 @@ impl<'a> Parser<'a> {
             // Check for {:else}
             let mut fallback = None;
             if let Some(colon_pos) = self.match_block_continuation_marker() {
-                let continuation_start = self.index;
                 self.index = colon_pos + 1;
                 self.skip_whitespace();
                 if self.eat_optional("else") {
@@ -1155,7 +1191,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "expected_token",
                         "Expected token {:else}",
-                        (continuation_start, continuation_start),
+                        (colon_pos, colon_pos),
                     ));
                 }
             }
@@ -1188,7 +1224,7 @@ impl<'a> Parser<'a> {
         // (newline-split headers), so we can't assume a fixed-width ` as `.
         self.skip_whitespace();
         self.advance_by(2); // `as`
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Parse the context (binding pattern)
         let context_start = self.index;
@@ -1301,27 +1337,21 @@ impl<'a> Parser<'a> {
 
         let context_end = self.index;
         let raw_content = &self.source[context_start..context_end];
-        if !self.options.loose
-            && let Some((leading, pos)) = Self::each_segment_comment(raw_content, context_start)
-        {
-            return Err(crate::error::ParseError::svelte(
-                if leading {
-                    "expected_pattern"
-                } else {
-                    "expected_token"
-                },
-                if leading {
-                    "Expected identifier or destructure pattern"
-                } else {
-                    "Expected token }"
-                },
-                (pos, pos),
-            ));
-        }
-        let trimmed_content = raw_content.trim_ws();
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start_ws().len();
         let actual_context_start = context_start + leading_ws;
+        let mut content_end = context_end;
+        if !self.options.loose {
+            let pattern_end = self.binding_pattern_end(actual_context_start)?;
+            let after = self.skip_js_whitespace_from(pattern_end);
+            if self.bytes.get(after) != Some(&b':') {
+                if after < context_end {
+                    return Err(crate::error::ParseError::expected_token("}", after));
+                }
+                content_end = pattern_end;
+            }
+        }
+        let trimmed_content = self.source[actual_context_start..content_end].trim_ws();
         let context = self.parse_binding_pattern(trimmed_content, actual_context_start)?;
 
         // Check for index
@@ -1329,35 +1359,23 @@ impl<'a> Parser<'a> {
         if self.eat_optional(",") {
             self.skip_whitespace();
             let idx_start = self.index;
-            while !self.is_eof() {
-                let c = self.current_char();
-                if c == '}' || c == '(' {
-                    break;
+            let idx_end = self.identifier_end_at(idx_start);
+            if idx_end == idx_start {
+                if !self.options.loose {
+                    return Err(crate::error::ParseError::svelte(
+                        "expected_identifier",
+                        "Expected an identifier",
+                        (idx_start, idx_start),
+                    ));
                 }
-                self.advance();
+                while !self.is_eof() && !matches!(self.current_char(), '}' | '(') {
+                    self.advance();
+                }
+            } else {
+                index = Some(CompactString::from(&self.source[idx_start..idx_end]));
+                self.index = idx_end;
             }
-            let idx_segment = &self.source[idx_start..self.index];
-            if !self.options.loose
-                && let Some((leading, pos)) = Self::each_segment_comment(idx_segment, idx_start)
-            {
-                return Err(crate::error::ParseError::svelte(
-                    if leading {
-                        "expected_identifier"
-                    } else {
-                        "expected_token"
-                    },
-                    if leading {
-                        "Expected an identifier"
-                    } else {
-                        "Expected token }"
-                    },
-                    (pos, pos),
-                ));
-            }
-            let idx_name = idx_segment.trim_ws();
-            if !idx_name.is_empty() {
-                index = Some(CompactString::from(idx_name));
-            }
+            self.skip_whitespace();
         }
 
         // Check for key expression
@@ -1397,7 +1415,6 @@ impl<'a> Parser<'a> {
         // Check for {:else}
         let mut fallback = None;
         if let Some(colon_pos) = self.match_block_continuation_marker() {
-            let continuation_start = self.index;
             self.index = colon_pos + 1;
             self.skip_whitespace();
             if self.eat_optional("else") {
@@ -1409,7 +1426,7 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "expected_token",
                     "Expected token {:else}",
-                    (continuation_start, continuation_start),
+                    (colon_pos, colon_pos),
                 ));
             }
         }
@@ -1434,6 +1451,27 @@ impl<'a> Parser<'a> {
             key,
             metadata: Default::default(),
         }))))
+    }
+
+    fn read_block_pattern(&mut self) -> ParseResult<Option<Expression<'a>>> {
+        let start = self.index;
+        if !self.options.loose {
+            let pattern_end = self.binding_pattern_end(start)?;
+            let after = self.skip_js_whitespace_from(pattern_end);
+            self.index = pattern_end;
+            if self.bytes.get(after) == Some(&b':') {
+                self.skip_pattern_expression();
+            } else if self.bytes.get(after) != Some(&b'}') {
+                return Err(crate::error::ParseError::expected_token("}", after));
+            }
+        } else {
+            self.skip_pattern_expression();
+        }
+        let content = self.source[start..self.index].trim_ws();
+        if content.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(self.parse_binding_pattern(content, start)?))
     }
 
     /// Parse a binding pattern (for each block context).
@@ -1663,6 +1701,17 @@ impl<'a> Parser<'a> {
         let leading_ws = expr_content.len() - trimmed_content.len();
         let adjusted_start = expr_start + leading_ws;
         let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end_ws().len());
+        if !self.options.loose
+            && !has_then
+            && !has_catch
+            && trimmed_content.trim_end_ws().is_empty()
+        {
+            return Err(crate::error::ParseError::svelte(
+                "js_parse_error",
+                "Unexpected token",
+                (adjusted_start, adjusted_start),
+            ));
+        }
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
         let head = trimmed_content.trim_ws();
@@ -1707,19 +1756,9 @@ impl<'a> Parser<'a> {
             self.advance_by(4); // consume 'then'
             self.skip_whitespace();
 
-            // Check if there's a value identifier/pattern
+            // The opening tag permits an omitted binding after `then`.
             if self.current_char() != '}' {
-                let value_start = self.index;
-                // Parse pattern with brace/bracket matching for destructuring patterns
-                self.skip_pattern_expression();
-                let value_content = &self.source[value_start..self.index];
-                if !value_content.trim_ws().is_empty() {
-                    // Use parse_binding_pattern to properly parse destructuring patterns
-                    // (e.g., `{ width, height }` -> ObjectPattern) instead of creating
-                    // a simple identifier. This ensures phase 2 scope analysis correctly
-                    // declares individual bindings for destructured names.
-                    value = Some(self.parse_binding_pattern(value_content.trim_ws(), value_start)?);
-                }
+                value = self.read_block_pattern()?;
             }
         }
 
@@ -1728,17 +1767,8 @@ impl<'a> Parser<'a> {
             self.advance_by(5); // consume 'catch'
             self.skip_whitespace();
 
-            // Check if there's an error identifier/pattern
             if self.current_char() != '}' {
-                let error_start = self.index;
-                // Parse pattern with brace/bracket matching for destructuring patterns
-                self.skip_pattern_expression();
-                let error_content = &self.source[error_start..self.index];
-                if !error_content.trim_ws().is_empty() {
-                    // Use parse_binding_pattern to properly parse destructuring patterns
-                    // (same as for then values above).
-                    error = Some(self.parse_binding_pattern(error_content.trim_ws(), error_start)?);
-                }
+                error = self.read_block_pattern()?;
             }
         }
 
@@ -1775,52 +1805,26 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
 
             if self.eat_optional("then") {
-                if then_fragment.is_some() {
+                if !self.options.loose && then_fragment.is_some() {
                     return Err(Self::block_duplicate_clause(colon_pos, "{:then}"));
                 }
                 // Upstream eats `}` before requiring the separator, so `{:then}`
                 // stays legal while `{:thenv}` is not.
                 if !self.match_str("}") {
                     self.require_whitespace()?;
-                }
-                self.skip_whitespace();
-
-                // Check if there's a value identifier/pattern
-                if self.current_char() != '}' {
-                    let value_start = self.index;
-                    // Parse pattern with brace/bracket matching for destructuring patterns
-                    self.skip_pattern_expression();
-                    let value_content = &self.source[value_start..self.index];
-                    if !value_content.trim_ws().is_empty() {
-                        // Use parse_binding_pattern to properly parse destructuring patterns
-                        value =
-                            Some(self.parse_binding_pattern(value_content.trim_ws(), value_start)?);
-                    }
+                    value = self.read_block_pattern()?;
                 }
                 self.skip_whitespace();
                 self.eat_optional("}");
 
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
-                if catch_fragment.is_some() {
+                if !self.options.loose && catch_fragment.is_some() {
                     return Err(Self::block_duplicate_clause(colon_pos, "{:catch}"));
                 }
                 if !self.match_str("}") {
                     self.require_whitespace()?;
-                }
-                self.skip_whitespace();
-
-                // Check if there's an error identifier/pattern
-                if self.current_char() != '}' {
-                    let error_start = self.index;
-                    // Parse pattern with brace/bracket matching for destructuring patterns
-                    self.skip_pattern_expression();
-                    let error_content = &self.source[error_start..self.index];
-                    if !error_content.trim_ws().is_empty() {
-                        // Use parse_binding_pattern to properly parse destructuring patterns
-                        error =
-                            Some(self.parse_binding_pattern(error_content.trim_ws(), error_start)?);
-                    }
+                    error = self.read_block_pattern()?;
                 }
                 self.skip_whitespace();
                 self.eat_optional("}");
@@ -1831,7 +1835,7 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "expected_token",
                     "Expected token {:then ...} or {:catch ...}",
-                    (self.index - 2, self.index - 2),
+                    (colon_pos, colon_pos),
                 ));
             }
         }
@@ -2614,10 +2618,11 @@ impl<'a> Parser<'a> {
             // a *point* error at the byte where acorn stopped consuming
             // input. svelte2tsx's `expected.error.json` fixtures rely on
             // this character-accurate location.
-            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed)
-                .map_or(trimmed_offset, |(_, content_pos)| {
-                    trimmed_offset + content_pos
-                });
+            let abs_pos =
+                super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
+                    .map_or(trimmed_offset, |(_, content_pos)| {
+                        trimmed_offset + content_pos
+                    });
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         })
     }
@@ -2687,12 +2692,21 @@ impl<'a> Parser<'a> {
             self.ts,
         )
         .map_err(|(msg, _)| {
+            // `read_attribute_value` is `read_expression` + `eat('}', true)`, so
+            // leftover input after a complete expression is a missing close
+            // token, not a broken expression.
+            if let Some(pos) =
+                super::super::read::expression::trailing_token_offset(trimmed, self.ts)
+            {
+                return crate::error::ParseError::expected_token("}", trimmed_offset + pos);
+            }
             // Recover the precise failure position from OXC's labeled span,
             // mirroring upstream Svelte's `js_parse_error(err.pos, ...)`.
-            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed)
-                .map_or(trimmed_offset, |(_, content_pos)| {
-                    trimmed_offset + content_pos
-                });
+            let abs_pos =
+                super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
+                    .map_or(trimmed_offset, |(_, content_pos)| {
+                        trimmed_offset + content_pos
+                    });
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         })
     }

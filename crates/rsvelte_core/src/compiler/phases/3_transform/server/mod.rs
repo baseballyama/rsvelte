@@ -104,7 +104,14 @@ pub fn transform_server_module(
 
     // For server modules, strip $effect and $effect.root blocks from the source
     // before applying transforms, since effects don't run on the server.
-    let source_without_effects = strip_effects_from_source(source);
+    let source_without_effects = strip_effects_from_source(
+        source,
+        analysis
+            .root
+            .bindings
+            .iter()
+            .any(|b| rune_shadow::is_rune_name(&b.name)),
+    );
 
     // Lower `$state` / `$derived` CLASS fields with the SERVER transform FIRST.
     // The client module transform (below) privatizes a public `$state` field
@@ -324,15 +331,40 @@ fn rewrite_calls<F>(source: &str, needle: &[u8], lexical: bool, build: F) -> Str
 where
     F: Fn(&str, usize) -> Option<(usize, String)>,
 {
+    rewrite_calls_skipping(
+        source,
+        needle,
+        lexical,
+        &mut |_: &str, _: usize| false,
+        build,
+    )
+}
+
+/// [`rewrite_calls`], leaving every position `skip` accepts alone. Unlike a
+/// `build` that declines, a skipped position does not end the pass — the scans
+/// that need this drop occurrences the surrounding code has re-bound, and a real
+/// call can follow one.
+fn rewrite_calls_skipping<S, F>(
+    source: &str,
+    needle: &[u8],
+    lexical: bool,
+    skip: &mut S,
+    build: F,
+) -> String
+where
+    S: FnMut(&str, usize) -> bool,
+    F: Fn(&str, usize) -> Option<(usize, String)>,
+{
     let mut current = source.to_string();
     for _ in 0..REWRITE_MAX_ITERS {
-        let positions = if lexical {
+        let mut positions = if lexical {
             code_match_positions(&current, needle)
         } else {
             memmem::Finder::new(needle)
                 .find_iter(current.as_bytes())
                 .collect::<Vec<_>>()
         };
+        positions.retain(|&pos| !skip(&current, pos));
         if positions.is_empty() {
             break;
         }
@@ -531,6 +563,11 @@ fn previous_significant_code_byte(s: &str, pos: usize) -> Option<u8> {
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
 
+    // A `$effect` that resolves to a declaration (`function f($effect) { $effect(1) }`)
+    // is a plain call, not the rune — upstream's `get_rune` returns null for it.
+    let mut shadows = rune_shadow::RuneShadows::new(binds_rune_name, false);
+    let mut skip = move |script: &str, pos: usize| shadows.is_bound(script, pos);
+
     // Consume the trailing whitespace + optional `;` after a removed statement so
     // no stray fragment remains.
     let consume_statement_tail = |s: &str, expr_end: usize| -> usize {
@@ -553,7 +590,7 @@ fn strip_effects_from_source(source: &str) -> String {
     // `$effect.root(...)` has two upstream lowerings:
     //   - statement position  → removed entirely (ExpressionStatement.js → b.empty)
     //   - expression position  → `() => {}` no-op cleanup fn (CallExpression.js)
-    let result = rewrite_calls(source, b"$effect.root(", true, |s, pos| {
+    let result = rewrite_calls_skipping(source, b"$effect.root(", true, &mut skip, |s, pos| {
         let call_start = pos + 13; // after "$effect.root("
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1; // after closing paren
@@ -565,7 +602,7 @@ fn strip_effects_from_source(source: &str) -> String {
     });
 
     // Strip $effect.pre(() => { ... }) blocks
-    let result = rewrite_calls(&result, b"$effect.pre(", true, |s, pos| {
+    let result = rewrite_calls_skipping(&result, b"$effect.pre(", true, &mut skip, |s, pos| {
         let call_start = pos + 12;
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1;
@@ -575,7 +612,7 @@ fn strip_effects_from_source(source: &str) -> String {
     // Strip $effect(() => { ... }) blocks ($effect.root/$effect.pre are already
     // handled; the `(` in the needle can never precede a `.`, so those forms
     // never match here).
-    rewrite_calls(&result, b"$effect(", true, |s, pos| {
+    rewrite_calls_skipping(&result, b"$effect(", true, &mut skip, |s, pos| {
         let call_start = pos + 8; // after "$effect("
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1;

@@ -11,9 +11,7 @@ use super::super::super::errors;
 use super::super::VisitorContext;
 use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
-use super::utils::{
-    validate_assignment_node, validate_attribute_name as validate_attribute_name_colon,
-};
+use super::utils::validate_attribute_name as validate_attribute_name_colon;
 use crate::ast::template::{Attribute, Component};
 
 /// Visit a component and perform full analysis.
@@ -172,9 +170,8 @@ pub fn visit_component<'a, 'b: 'a>(
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers
-                // Only 'once' modifier is allowed on component events
-                let has_invalid_modifiers = on.modifiers.iter().any(|m| m.as_str() != "once");
-                if has_invalid_modifiers {
+                // `['once']` is the only accepted list — a repeat is not membership
+                if on.modifiers.len() > 1 || on.modifiers.iter().any(|m| m.as_str() != "once") {
                     return Err(
                         errors::event_handler_invalid_component_modifier().at(on.start, on.end)
                     );
