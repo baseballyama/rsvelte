@@ -414,11 +414,11 @@ impl<'a> Parser<'a> {
                     (lt_pos, lt_pos),
                 ));
             }
-            // Style tag was not closed
-            return Err(crate::error::ParseError::svelte(
-                "expected_token",
-                "Expected token </style",
-                (self.index, self.index),
+            // Style tag was not closed. Upstream's `eat('</style', true)` runs
+            // against the right-trimmed template, so the point is its end.
+            return Err(crate::error::ParseError::expected_token(
+                "</style",
+                self.content_end,
             ));
         }
 

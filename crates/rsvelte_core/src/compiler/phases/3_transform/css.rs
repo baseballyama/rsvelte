@@ -2576,11 +2576,10 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
                         return false;
                     }
                     // Check if this element is a root child in the DOM structure
-                    let is_root_child = ctx
-                        .dom_structure
-                        .elements
-                        .iter()
-                        .any(|el| el.is_root_child && el.tag_name == tag_name);
+                    let is_root_child =
+                        ctx.dom_structure.elements.iter().any(|el| {
+                            el.is_root_child && el.tag_name.eq_ignore_ascii_case(tag_name)
+                        });
                     if !is_root_child {
                         return true;
                     }
@@ -3625,7 +3624,7 @@ fn selector_matches_element(
     // Check tag name (dynamic tags match any type selector)
     if let Some(ref tag) = info.tag_name
         && !el.is_dynamic_tag
-        && el.tag_name != *tag
+        && !el.tag_name.eq_ignore_ascii_case(tag)
     {
         return false;
     }
@@ -3795,7 +3794,7 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
             if first_universal {
                 true
             } else {
-                first_tag.is_some_and(|t| t == el.tag_name)
+                first_tag.is_some_and(|t| t.eq_ignore_ascii_case(&el.tag_name))
             }
         })
         .map(|(i, _)| i)
@@ -3884,7 +3883,7 @@ fn collect_chain_candidates(
             return;
         }
         let child = &ctx.dom_structure.elements[child_idx];
-        if universal || child.tag_name == tag {
+        if universal || child.tag_name.eq_ignore_ascii_case(tag) {
             out.push(child_idx);
         }
     };
@@ -5005,7 +5004,10 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                 }
                 // Decode CSS escape sequences for comparison
                 let decoded = decode_css_escape(name);
-                return !ctx.used_elements.contains(&decoded);
+                return !ctx
+                    .used_elements
+                    .iter()
+                    .any(|used| used.eq_ignore_ascii_case(&decoded));
             }
         }
         Some("ClassSelector") => {

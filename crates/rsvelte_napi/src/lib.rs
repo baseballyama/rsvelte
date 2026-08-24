@@ -1820,11 +1820,10 @@ mod preprocess_bridge {
     use napi::threadsafe_function::ThreadsafeFunction;
     use rsvelte_core::compiler::preprocess::encode_sourcemap::decoded_to_v3_json;
     use rsvelte_core::compiler::preprocess::types::{
-        AttributeValue as RsAttrValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
-        PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
-        PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
+        AttributeMap as RsAttrMap, AttributeValue as RsAttrValue, MarkupPreprocessorFn,
+        MarkupPreprocessorOptions, PreprocessError, PreprocessorFn, PreprocessorGroup,
+        PreprocessorOptions, PreprocessorResult, Processed, SimpleDecodedMap, SourceMapInput,
     };
-    use rustc_hash::FxHashMap;
     use serde_json::Value;
 
     // Either a Promise<T> or a plain T from a threadsafe_function return.
@@ -2046,7 +2045,7 @@ mod preprocess_bridge {
         code: CodeSlot,
         map: Option<SourceMapInput>,
         dependencies: Vec<String>,
-        attributes: Option<FxHashMap<String, RsAttrValue>>,
+        attributes: Option<RsAttrMap>,
     }
 
     impl JsProcessed {
@@ -2134,7 +2133,7 @@ mod preprocess_bridge {
         }
     }
 
-    fn attrs_to_json(attrs: &FxHashMap<String, RsAttrValue>) -> Value {
+    fn attrs_to_json(attrs: &RsAttrMap) -> Value {
         let mut map = serde_json::Map::new();
         for (k, v) in attrs {
             map.insert(
@@ -2165,9 +2164,9 @@ mod preprocess_bridge {
         }
     }
 
-    fn json_to_attributes(val: &Value) -> Option<FxHashMap<String, RsAttrValue>> {
+    fn json_to_attributes(val: &Value) -> Option<RsAttrMap> {
         let obj = val.as_object()?;
-        let mut out = FxHashMap::default();
+        let mut out = RsAttrMap::default();
         for (k, v) in obj {
             let av = match v {
                 Value::Bool(b) => RsAttrValue::Boolean(*b),

@@ -22,7 +22,6 @@
 	"originui-svelte/src/lib/components/inputs/input-05.svelte",
 	"originui-svelte/src/lib/components/switches/switch-03.svelte",
 	"originui-svelte/src/lib/components/textareas/textarea-05.svelte",
-	"pattern/issues/3200-asi-reactive-block.svelte",
 	"photon/src/lib/ui/form/Switch.svelte",
 	"primo/src/lib/builder/components/ComponentPreview.svelte",
 	"primo/src/lib/builder/field-types/RepeaterFieldItem.svelte",

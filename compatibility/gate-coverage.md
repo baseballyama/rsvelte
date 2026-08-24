@@ -1308,13 +1308,17 @@ them (#3398, #3399). The remaining hole is the option values gate 39 does not en
 ### Blind spot 6f — when both sides error, nothing about the error is compared
 
 `svelte2tsx-verify.mjs:219-220`: `expErr && actErr` scores `error-parity` and returns; the
-message, the position and the error kind are all dropped. **[D]** rsvelte prefixes its
+message, the position and the error kind are all dropped. **[D]** rsvelte prefixed its
 message with the variant name where official does not — `<div><svelte:head>…</svelte:head></div>`
-gives official `` `<svelte:head>` tags cannot be inside elements or blocks `` and rsvelte
-`Template error: ` + the same sentence (`svelte2tsx/utils/error.rs:30`). 15 cells of a
-288-cell content × container grid reproduce it and the gate reports every one as parity.
-The population is not small: the corpus run that found this scored **155** entries
-`error-parity`.
+gave official `` `<svelte:head>` tags cannot be inside elements or blocks `` and rsvelte
+`Template error: ` + the same sentence, and *under* that a second prefix, the error code
+(`ParseError::SvelteError`'s `Display` is `"{code}: {message}"`), plus a missing docs link.
+15 cells of a 288-cell content × container grid reproduced it and the gate reported every
+one as parity. The population is not small: the corpus run that found this scored **155**
+entries `error-parity`. Fixed in #3135 — both prefixes are gone and the message is assembled
+the way the svelte compiler assembles it (`svelte2tsx/utils/error.rs`), pinned by
+`crates/rsvelte_projection/tests/svelte2tsx_error_message_3135.rs` because **the gate still
+compares nothing about an error but the fact that there is one**.
 
 ### Blind spot 6e — `oracle-invalid` accepts anything, unratcheted
 
