@@ -1230,6 +1230,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else if self.match_str("/*") {
@@ -1254,6 +1255,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else {
@@ -1383,8 +1385,12 @@ impl<'a> Parser<'a> {
                 })));
             }
 
-            // Create the expression
-            let expression = self.parse_js_expression(expr_content.trim_ws(), expr_start);
+            // Create the expression. Upstream reads the shorthand's name with
+            // `read_identifier`, so its `loc` is a `locate-character` one.
+            let expression = super::super::expression::with_read_identifier_loc(
+                self.parse_js_expression(expr_content.trim_ws(), expr_start),
+                self.expression_line_offsets(),
+            );
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim_ws().to_string();
@@ -1465,6 +1471,17 @@ impl<'a> Parser<'a> {
         // Directive detection using first-byte dispatch to avoid multiple starts_with scans
         if let Some(colon_pos) = memchr(b':', name.as_bytes()) {
             let prefix = &name.as_bytes()[..colon_pos];
+            // Upstream tests the name once, in `read_attribute`, for every kind
+            // `get_directive_type` recognises — and only after the value has been
+            // read, so a malformed value is what gets reported.
+            if is_directive_prefix(prefix) && directive_name_is_empty(&name, colon_pos) {
+                self.discard_attribute_value()?;
+                return Err(crate::error::ParseError::svelte(
+                    "directive_missing_name",
+                    format!("`{name}` name cannot be empty"),
+                    (start, start + colon_pos + 1),
+                ));
+            }
             match prefix {
                 b"on" => {
                     return self.parse_on_directive(start, &name, name_loc, name_end);
@@ -1724,16 +1741,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let action_name = &full_name[4..]; // Skip "use:"
-
-        // Check for empty directive name
-        if action_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`use:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
+        let (action_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1795,6 +1803,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(action_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -1808,16 +1817,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let class_name = &full_name[6..]; // Skip "class:"
-
-        // Check for empty directive name
-        if class_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`class:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
+        let (class_name, modifiers) = Self::extract_name_and_modifiers(&full_name[6..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -1872,6 +1872,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: Default::default(),
             },
         )))
@@ -2070,29 +2071,19 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
-        let (directive_label, transition_name, intro, outro, modifiers) =
+        let (transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("transition:", name, true, true, mods)
+                (name, true, true, mods)
             } else if let Some(stripped) = full_name.strip_prefix("in:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("in:", name, true, false, mods)
+                (name, true, false, mods)
             } else if let Some(stripped) = full_name.strip_prefix("out:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("out:", name, false, true, mods)
+                (name, false, true, mods)
             } else {
                 return Ok(None);
             };
-
-        // An empty name (`transition:`, `in:|global`, …) is a parse error —
-        // it would otherwise lower to an empty JS identifier. H-146 / M-040.
-        if transition_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                format!("`{directive_label}` name cannot be empty"),
-                (start, name_end),
-            ));
-        }
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -2178,7 +2169,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let animate_name = &full_name[8..]; // Skip "animate:"
+        let (animate_name, modifiers) = Self::extract_name_and_modifiers(&full_name[8..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2223,6 +2214,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: None, // Populated during Phase 2 analysis
             },
         )))
@@ -2236,7 +2228,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let let_name = &full_name[4..]; // Skip "let:"
+        let (let_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2279,6 +2271,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -2308,6 +2301,22 @@ impl<'a> Parser<'a> {
                 metadata: Default::default(),
             },
         )))
+    }
+
+    /// Run the value-reading half of upstream's `read_attribute` for its errors
+    /// alone; the value is discarded because the only caller is about to raise.
+    fn discard_attribute_value(&mut self) -> ParseResult<()> {
+        if self.eat_optional("=") {
+            self.skip_whitespace();
+            self.parse_attribute_value()?;
+        } else if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token =\nhttps://svelte.dev/e/expected_token",
+                (self.index, self.index),
+            ));
+        }
+        Ok(())
     }
 
     /// Parse attribute value.
@@ -2650,9 +2659,10 @@ impl<'a> Parser<'a> {
                         start: text_start as u32,
                         end: self.index as u32,
                         raw: Cow::Borrowed(text_content),
-                        // `textarea` decodes through `read_sequence`, which
-                        // always passes `is_attribute_value: true` — so the
-                        // semicolon-less legacy names do NOT apply here.
+                        // `textarea` content goes through upstream's `read_sequence`,
+                        // which decodes with `is_attribute_value = true` — so a
+                        // semicolon-less legacy name stays literal unless a word
+                        // boundary follows it.
                         data: Cow::Owned(decode_html_entities(text_content, true)),
                     }));
                 }

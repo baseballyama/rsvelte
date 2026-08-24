@@ -34,35 +34,37 @@ use super::html::validate_code;
 pub fn decode_numeric_entity(entity: &str) -> Option<char> {
     let entity = entity.strip_suffix(';').unwrap_or(entity);
 
-    // Upstream's `#(?:x[a-fA-F\d]+|\d+)(?:;)?` spells the marker lowercase, so
-    // `&#X41;` is not a character reference at all.
-    let code = match entity.strip_prefix('x') {
-        Some(hex) => parse_code_point(hex, 16),
-        None => parse_code_point(entity, 10),
-    }?;
+    // Upstream's pattern is `#(?:x[a-fA-F\d]+|\d+)(?:;)?` — the `x` is lowercase
+    // only, so `&#X41;` is not a character reference at all.
+    let num = if let Some(hex) = entity.strip_prefix('x') {
+        parse_saturating(hex, 16)
+    } else {
+        parse_saturating(entity, 10)
+    };
 
-    // `decode_character_references` bails on a falsy code (`&#0;`, `&#x0;`) and
-    // otherwise emits `String.fromCodePoint(validate_code(code))` — so a
-    // surrogate half or an out-of-range code point becomes a literal NUL rather
-    // than staying undecoded.
-    if code == 0 {
-        return None;
-    }
-    char::from_u32(validate_code(code))
+    num.and_then(|code| {
+        // Upstream bails on a falsy parse result (`&#0;`) *before* validating, so
+        // a code point that `validate_code` maps to NUL still yields a NUL char.
+        if code == 0 {
+            return None;
+        }
+        char::from_u32(validate_code(code))
+    })
 }
 
-/// `parseInt` over an unbounded digit run: JS widens past 2^32 into a float that
-/// `validate_code` rejects, so saturating at `u32::MAX` answers the same way.
-fn parse_code_point(digits: &str, radix: u32) -> Option<u32> {
-    if digits.is_empty() {
+/// Parse digits the way `parseInt` does for this pattern: every character must be
+/// a digit in `radix`, and a value too large for `u32` saturates (upstream keeps a
+/// float, and every value above the last valid plane is folded to NUL anyway).
+fn parse_saturating(s: &str, radix: u32) -> Option<u32> {
+    if s.is_empty() {
         return None;
     }
-    let mut acc: u64 = 0;
-    for c in digits.chars() {
+    let mut acc: u32 = 0;
+    for c in s.chars() {
         let d = c.to_digit(radix)?;
-        acc = (acc * u64::from(radix) + u64::from(d)).min(u64::from(u32::MAX));
+        acc = acc.saturating_mul(radix).saturating_add(d);
     }
-    Some(acc as u32)
+    Some(acc)
 }
 
 /// Decode all HTML entities in a string.
@@ -87,6 +89,13 @@ fn parse_code_point(digits: &str, radix: u32) -> Option<u32> {
 ///
 /// # Returns
 /// The decoded string with all entities replaced
+/// Whether `next` suppresses a semicolon-less entity under upstream's
+/// `${entity_name}\b(?!=)` guard. `\b` is JavaScript's, so `_` is a word
+/// character and closes the boundary just like a letter or a digit.
+fn breaks_legacy_entity(next: Option<u8>) -> bool {
+    next.is_some_and(|b| b == b'=' || b == b'_' || b.is_ascii_alphanumeric())
+}
+
 pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
     let mut result = String::with_capacity(s.len());
     let bytes = s.as_bytes();
@@ -108,23 +117,39 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
             if is_numeric {
                 // Collect '#' first
                 i += 1;
-                // `x` is spelled lowercase in upstream's pattern; `&#X41;` is
-                // therefore decimal-shaped, matches nothing, and stays literal.
+                // Check if hex (#x...) or decimal (#d...)
                 let is_hex = i < len && bytes[i] == b'x';
                 if is_hex {
-                    i += 1; // consume 'x'
-                }
-                while i < len {
-                    let b = bytes[i];
-                    if b == b';' {
-                        found_semicolon = true;
-                        i += 1;
-                        break;
+                    i += 1;
+                    // Upstream's `x[a-fA-F\d]+` is unbounded, so a digit cap here
+                    // splits one long reference into a decoded head and a literal tail.
+                    while i < len {
+                        let b = bytes[i];
+                        if b == b';' {
+                            found_semicolon = true;
+                            i += 1;
+                            break;
+                        }
+                        if b.is_ascii_hexdigit() {
+                            i += 1;
+                        } else {
+                            break;
+                        }
                     }
-                    if is_hex && b.is_ascii_hexdigit() || !is_hex && b.is_ascii_digit() {
-                        i += 1;
-                    } else {
-                        break;
+                } else {
+                    // Collect decimal digits only
+                    while i < len {
+                        let b = bytes[i];
+                        if b == b';' {
+                            found_semicolon = true;
+                            i += 1;
+                            break;
+                        }
+                        if b.is_ascii_digit() {
+                            i += 1;
+                        } else {
+                            break;
+                        }
                     }
                 }
             } else {
@@ -172,12 +197,9 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                     // prefix — upstream's ordered alternation matches it there
                     // (`&notanentity;` → `¬anentity;`). The attribute-value rule
                     // still applies: no decode when the next character is `=` or
-                    // alphanumeric (there always is one here — the unmatched rest).
+                    // a word character (there always is one here — the unmatched rest).
                     let next_byte = bytes.get(entity_start + matched_len).copied();
-                    let should_skip = is_attribute_value
-                        && next_byte
-                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
-                            .unwrap_or(false);
+                    let should_skip = is_attribute_value && breaks_legacy_entity(next_byte);
                     if should_skip {
                         result.push_str(&s[start..i]);
                     } else {
@@ -214,12 +236,10 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                         None
                     };
 
-                    // In attribute value mode, don't decode if followed by '=' or alphanumeric
-                    // (word boundary check from HTML spec)
-                    let should_skip = is_attribute_value
-                        && next_byte_after_match
-                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
-                            .unwrap_or(false);
+                    // In attribute value mode, don't decode if followed by '=' or a
+                    // word character (word boundary check from HTML spec)
+                    let should_skip =
+                        is_attribute_value && breaks_legacy_entity(next_byte_after_match);
 
                     if should_skip {
                         // Output as-is (including any chars collected but not consumed)
@@ -285,8 +305,7 @@ mod tests {
     #[test]
     fn test_decode_numeric_entity_hex() {
         assert_eq!(decode_numeric_entity("x41"), Some('A'));
-        // Upstream's pattern spells the marker lowercase, so `&#X41;` is not a
-        // character reference at all.
+        // Upstream's pattern only admits a lowercase `x`.
         assert_eq!(decode_numeric_entity("X41"), None);
         assert_eq!(decode_numeric_entity("x61"), Some('a'));
         assert_eq!(decode_numeric_entity("x20AC"), Some('\u{20AC}')); // Euro sign
@@ -294,14 +313,14 @@ mod tests {
 
     #[test]
     fn test_decode_numeric_entity_edge_cases() {
-        // A falsy code is `return match` upstream, so it stays undecoded
+        // NULL - upstream bails on a falsy parse result and keeps the source text
         assert_eq!(decode_numeric_entity("0"), None);
-        // A surrogate half validates to 0, which upstream emits as a NUL
+        // Surrogate / out of range - validate_code folds these to NUL, and upstream
+        // still emits `String.fromCodePoint(0)`
         assert_eq!(decode_numeric_entity("xD800"), Some('\0'));
-        // Out of range - beyond valid Unicode planes, likewise a NUL
+        assert_eq!(decode_numeric_entity("xDFFF"), Some('\0'));
         assert_eq!(decode_numeric_entity("x110000"), Some('\0'));
-        // A digit run past 2^32 saturates rather than failing to parse
-        assert_eq!(decode_numeric_entity("111111111111111111111"), Some('\0'));
+        assert_eq!(decode_numeric_entity("99999999999999999999"), Some('\0'));
         // Windows-1252 mapping
         assert_eq!(decode_numeric_entity("x80"), Some('\u{20AC}')); // Euro
         assert_eq!(decode_numeric_entity("x99"), Some('\u{2122}')); // Trademark
@@ -321,7 +340,13 @@ mod tests {
     fn test_decode_html_entities_numeric() {
         assert_eq!(decode_html_entities("&#65;", false), "A");
         assert_eq!(decode_html_entities("&#x41;", false), "A");
+        // Upstream's pattern only admits a lowercase `x`, so this is literal text.
         assert_eq!(decode_html_entities("&#X41;", false), "&#X41;");
+        // A surrogate half and an above-range value reach `String.fromCodePoint(0)`.
+        assert_eq!(decode_html_entities("&#xD800;", false), "\0");
+        assert_eq!(decode_html_entities("&#x110000;", false), "\0");
+        // A digit run longer than any cap must still be one reference.
+        assert_eq!(decode_html_entities("&#99999999999999999999;", false), "\0");
     }
 
     #[test]
@@ -377,6 +402,18 @@ mod tests {
 
         // With semicolon, always decode
         assert_eq!(decode_html_entities("&amp;=", true), "&=");
+
+        // `\b` is JavaScript's, so `_` is a word character and closes the boundary.
+        assert_eq!(decode_html_entities("&amp_b", true), "&amp_b");
+        assert_eq!(decode_html_entities("&not_x", true), "&not_x");
+        // Control: content mode has no boundary rule at all.
+        assert_eq!(decode_html_entities("&amp_b", false), "&_b");
+
+        // A semicolon-terminated name that is unknown still matches its longest
+        // legacy prefix, and the boundary rule applies to that prefix too.
+        assert_eq!(decode_html_entities("&notreal;", true), "&notreal;");
+        assert_eq!(decode_html_entities("&ampx;", true), "&ampx;");
+        assert_eq!(decode_html_entities("&not real;", true), "¬ real;");
     }
 
     #[test]

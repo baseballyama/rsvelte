@@ -98,6 +98,19 @@ impl StateCallCollector<'_, '_, '_> {
         }
         self.non_reactive_vars.iter().any(|v| v == name)
     }
+
+    /// True when the `$state` reference resolves to a declaration (a parameter,
+    /// a local), in which case the call is a plain call and not the rune —
+    /// upstream's `get_rune` returns null for exactly that case (#3237).
+    fn is_bound(&self, ident: &IdentifierReference) -> bool {
+        ident.reference_id.get().is_some_and(|reference_id| {
+            self.semantic
+                .scoping()
+                .get_reference(reference_id)
+                .symbol_id()
+                .is_some()
+        })
+    }
 }
 
 impl<'ast> Visit<'ast> for StateCallCollector<'_, '_, '_> {
@@ -117,7 +130,7 @@ impl<'ast> Visit<'ast> for StateCallCollector<'_, '_, '_> {
         let Expression::Identifier(id) = &call.callee else {
             return;
         };
-        if id.name != "$state" {
+        if id.name != "$state" || self.is_bound(id) {
             return;
         }
 
