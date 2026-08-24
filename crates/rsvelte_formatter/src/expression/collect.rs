@@ -1,5 +1,6 @@
 use rsvelte_core::ast::template::{Fragment, TemplateNode};
 
+use super::await_block;
 use super::call_args;
 use super::declaration::format_pattern_source;
 use super::splice::{
@@ -27,6 +28,44 @@ fn each_key_source<'a>(
         .get(open as usize + 1..close_excl as usize - 1)
         .map(str::trim)
         .filter(|inner| !inner.is_empty())
+}
+
+/// Collapse the whitespace around an each-block's `as` keyword to one space on
+/// each side, which is what the oracle's fixed `' as'` + `' <pattern>'` prints.
+fn normalize_each_as_keyword(
+    source: &str,
+    expr_end: u32,
+    ctx_start: u32,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    let Some(region) = source.get(expr_end as usize..ctx_start as usize) else {
+        return;
+    };
+    // Anything other than plain whitespace around `as` (a comment, say) is left
+    // alone rather than rewritten into something that may not parse.
+    if region.trim() != "as" || region == " as " {
+        return;
+    }
+    edits.push((expr_end, ctx_start, " as ".to_string()));
+}
+
+/// The `[ws] , [ws] <index>` run that follows an each-block's pattern, as
+/// `(start, end)`. The index name has no span in the AST, so it is located by
+/// matching the parsed name against the source.
+fn each_index_span(source: &str, ctx_end: u32, index: &str) -> Option<(u32, u32)> {
+    const WS: [char; 4] = [' ', '\t', '\n', '\r'];
+    let rest = source.get(ctx_end as usize..)?;
+    let after = rest
+        .trim_start_matches(WS)
+        .strip_prefix(',')?
+        .trim_start_matches(WS)
+        .strip_prefix(index)?;
+    // Guard against `i` matching the head of a longer name.
+    if after.starts_with(|c: char| c.is_alphanumeric() || c == '_' || c == '$') {
+        return None;
+    }
+    let end = ctx_end as usize + (rest.len() - after.len());
+    Some((ctx_end, crate::source_offset(end)))
 }
 
 /// The each-iterable source, used to measure how much it widens the header line.
@@ -254,9 +293,26 @@ fn collect_node_edits(
                 key_expansion,
                 edits,
             )?;
-            if let Some(ctx) = &blk.context {
+            // prettier-plugin-svelte re-prints the header's fixed parts, so the
+            // ` as ` keyword and the `, index` separator always come out
+            // canonically spaced no matter how the source wrote them.
+            let index_end = if let Some(ctx) = &blk.context {
+                if let (Some(expr_end), Some(ctx_start)) = (blk.expression.end(), ctx.start()) {
+                    normalize_each_as_keyword(source, expr_end, ctx_start, edits);
+                }
                 push_pattern_at_span(source, ctx, options, edits)?;
-            }
+                match (ctx.end(), blk.index.as_deref()) {
+                    (Some(ctx_end), Some(index)) => each_index_span(source, ctx_end, index)
+                        .map(|(start, end)| {
+                            edits.push((start, end, format!(", {index}")));
+                            end
+                        })
+                        .or(Some(ctx_end)),
+                    (ctx_end, _) => ctx_end,
+                }
+            } else {
+                None
+            };
             if let Some(key) = &blk.key {
                 // The each-key syntax is `(KEY)`. The Svelte AST stores only the
                 // inner KEY expression span; the delimiter parens — and any
@@ -363,12 +419,10 @@ fn collect_node_edits(
                         push_brace_wrapped_expression(source, key, options, edits)?;
                     }
                 }
-            } else if let Some(ctx) = &blk.context {
-                // No key — trim trailing whitespace between context and the
-                // header `}` (e.g. `{#each arr as x }` → `{#each arr as x}`).
-                if let Some(ctx_end) = ctx.end() {
-                    trim_trailing_ws_before_close_brace(source, ctx_end, edits);
-                }
+            } else if let Some(header_end) = index_end {
+                // No key — trim trailing whitespace between the last header part
+                // and the `}` (e.g. `{#each arr as x }` → `{#each arr as x}`).
+                trim_trailing_ws_before_close_brace(source, header_end, edits);
             }
             collect_template_edits(source, &blk.body, child_depth, options, edits)?;
             if let Some(fb) = &blk.fallback {
@@ -378,70 +432,22 @@ fn collect_node_edits(
         TemplateNode::AwaitBlock(blk) => {
             // Normalize extra whitespace between `{` and `#` in the opener.
             normalize_block_opener_ws(source, blk.start, edits);
-            // When the pending block is empty (whitespace-only) and there is a
-            // `{:then value}` or `{:catch error}` separator, prettier-plugin-svelte
-            // collapses the two headers into one:
-            //   `{#await expr}\n{:then value}` → `{#await expr then value}`
-            //   `{#await expr}\n{:catch error}` → `{#await expr catch error}`
-            // Emit a single rewrite spanning the entire collapsed region instead
-            // of the individual expression/pattern edits — those would conflict
-            // with the large rewrite if emitted separately.
-            let collapsed = if await_pending_is_empty(blk.pending.as_ref()) {
-                try_collapse_await_header(source, blk, options)?
-            } else {
-                None
-            };
-            // When the await block is already in shorthand form (`pending` is
-            // `None`) but the `then` body is empty, strip the `then value`
-            // clause entirely: `{#await expr then value}{/await}` →
-            // `{#await expr}{/await}`. This matches prettier-plugin-svelte's
-            // behaviour.
-            let stripped = if blk.pending.is_none()
-                && blk.value.is_some()
-                && blk.catch.is_none()
-                && blk.then.as_ref().is_some_and(is_empty_fragment_for_await)
+            // prettier-plugin-svelte prints only the clauses whose fragment holds
+            // something that is not blank text, and collapses the header when the
+            // pending clause is one of the dropped ones. `await_block::plan`
+            // reproduces that decision; everything below just applies it.
+            let plan = await_block::plan(source, blk);
+            for (del_start, del_end) in &plan.deletions {
+                edits.push((*del_start, *del_end, String::new()));
+            }
+            let mut rewritten = false;
+            if let Some(rewrite_end) = plan.rewrite_end
+                && let Some(header) = render_await_header(source, blk, plan.form, options)?
             {
-                try_strip_await_then_clause(source, blk, options)?
-            } else {
-                None
-            };
-            // When the block has a non-empty pending body but an empty `then` body
-            // (and no `catch`), strip the empty `{:then value}` separator entirely:
-            //   `{#await expr}\n  <input />\n{:then f}\n{/await}` →
-            //   `{#await expr}\n  <input />\n{/await}`
-            // This matches prettier-plugin-svelte's behaviour.
-            let separator_stripped = if collapsed.is_none()
-                && stripped.is_none()
-                && blk.pending.is_some()
-                && blk.value.is_some()
-                && blk.catch.is_none()
-                && blk.then.as_ref().is_some_and(is_empty_fragment_for_await)
-            {
-                try_strip_await_then_separator(source, blk)
-            } else {
-                None
-            };
-            // Remember whether the separator-stripped path fired before
-            // the ownership moves into `.or()`.
-            let separator_stripped_fired = separator_stripped.is_some();
-            if let Some((rewrite_start, rewrite_end, replacement)) =
-                collapsed.or(stripped).or(separator_stripped)
-            {
-                edits.push((rewrite_start, rewrite_end, replacement));
-                // When the separator-stripped path fires (pending has content,
-                // `{:then …}` and its empty body are erased), we still need to
-                // recurse into the pending fragment to format its children
-                // (e.g. `<input>` → `<input />`). For the `collapsed` and
-                // `stripped` paths the pending is either empty/whitespace-only
-                // or absent, so no recursion is needed there.
-                if separator_stripped_fired && let Some(frag) = &blk.pending {
-                    collect_template_edits(source, frag, child_depth, options, edits)?;
-                }
-                // Only recurse into the non-pending body fragments.
-                for frag in [&blk.then, &blk.catch].into_iter().flatten() {
-                    collect_template_edits(source, frag, child_depth, options, edits)?;
-                }
-            } else {
+                edits.push((blk.start, rewrite_end, header));
+                rewritten = true;
+            }
+            if !rewritten {
                 // Normalize leading whitespace: `{#await  expr}` → `{#await expr}`.
                 if let Some(start) = blk.expression.start() {
                     normalize_leading_ws_before_expr(source, start, edits);
@@ -476,7 +482,9 @@ fn collect_node_edits(
                     // 3-part form: header is `{#await expr}`, trim its trailing ws.
                     trim_trailing_ws_before_close_brace(source, expr_end, edits);
                     // The `:then binding` is handled below via `blk.value`.
-                    if let Some(v) = &blk.value {
+                    if plan.keep_then
+                        && let Some(v) = &blk.value
+                    {
                         // Normalize `{   :then i}` → `{:then i}`.
                         if let Some(v_start) = v.start() {
                             normalize_separator_opener_before(source, v_start, edits);
@@ -488,7 +496,9 @@ fn collect_node_edits(
                         }
                     }
                 }
-                if let Some(e) = &blk.error {
+                if plan.keep_catch
+                    && let Some(e) = &blk.error
+                {
                     // Normalize `{   :catch e}` → `{:catch e}`.
                     if let Some(e_start) = e.start() {
                         normalize_separator_opener_before(source, e_start, edits);
@@ -499,34 +509,23 @@ fn collect_node_edits(
                         trim_trailing_ws_before_close_brace(source, e_end, edits);
                     }
                 }
-                let pending_should_be_stripped = blk.then.is_none()
-                    && blk.catch.is_none()
-                    && await_pending_is_empty(blk.pending.as_ref());
-                if let Some(frag) = &blk.pending {
-                    // When the pending body is whitespace-only and there is no
-                    // `then` / `catch` separator to collapse into, strip the
-                    // whitespace so `{#await promise} {/await}` →
-                    // `{#await promise}{/await}`. We only do this when there is
-                    // nothing else in the block (no then, no catch), matching
-                    // prettier-plugin-svelte's behaviour.
-                    if pending_should_be_stripped {
-                        for node in &frag.nodes {
-                            if let TemplateNode::Text(t) = node
-                                && crate::is_blank_text(t.data.as_ref())
-                            {
-                                edits.push((t.start, t.end, String::new()));
-                            }
-                        }
-                    } else {
-                        collect_template_edits(source, frag, child_depth, options, edits)?;
-                    }
-                }
-                if let Some(frag) = &blk.then {
-                    collect_template_edits(source, frag, child_depth, options, edits)?;
-                }
-                if let Some(frag) = &blk.catch {
-                    collect_template_edits(source, frag, child_depth, options, edits)?;
-                }
+            }
+            // Only recurse into the fragments the plan keeps — a dropped clause's
+            // body is erased wholesale, so an edit inside it would collide.
+            if plan.keep_pending
+                && let Some(frag) = &blk.pending
+            {
+                collect_template_edits(source, frag, child_depth, options, edits)?;
+            }
+            if plan.keep_then
+                && let Some(frag) = &blk.then
+            {
+                collect_template_edits(source, frag, child_depth, options, edits)?;
+            }
+            if plan.keep_catch
+                && let Some(frag) = &blk.catch
+            {
+                collect_template_edits(source, frag, child_depth, options, edits)?;
             }
         }
         TemplateNode::KeyBlock(blk) => {
@@ -626,46 +625,16 @@ fn expand_inline_empty_block_body(
     }
 }
 
-/// Returns `true` when the pending fragment of an `{#await}` block is **present**
-/// but contains only whitespace — i.e., the block was written in the expanded form
-/// `{#await expr}\n{:then value}` with nothing between the headers.
+/// Render the collapsed `{#await …}` header the oracle prints for `form`.
 ///
-/// Returns `false` when `pending` is `None` (the source already uses the
-/// shorthand `{#await expr then value}` form and should not be re-collapsed).
-pub fn await_pending_is_empty(pending: Option<&rsvelte_core::ast::template::Fragment>) -> bool {
-    pending.is_some_and(|fragment| {
-        fragment.nodes.iter().all(|n| {
-            matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
-        })
-    })
-}
-
-/// Attempt to collapse an `{#await expr}` block with an empty pending body and a
-/// `{:then value}` or `{:catch error}` separator into a single header:
-///   `{#await expr}\n\n{:then value}` → `{#await expr then value}`
-///
-/// Returns `(edit_start, edit_end, replacement)` covering the entire region from
-/// `{#await` through the closing `}` of the separator header. When the block
-/// can't be collapsed (no value/error binding found, span out of range, etc.)
-/// returns `None` — the caller falls back to the individual-edit path.
-fn try_collapse_await_header(
+/// Returns `None` when the promise expression cannot be read back from the
+/// source, in which case the caller leaves the header untouched.
+fn render_await_header(
     source: &str,
     blk: &rsvelte_core::ast::template::AwaitBlock,
+    form: await_block::AwaitHeaderForm,
     options: &FormatOptions,
-) -> Result<Option<(u32, u32, String)>, FormatError> {
-    // Determine which separator we're collapsing and its keyword + binding.
-    let (keyword, binding) = if blk.then.is_some() && blk.value.is_some() {
-        ("then", blk.value.as_ref())
-    } else if blk.catch.is_some() && blk.error.is_some() {
-        ("catch", blk.error.as_ref())
-    } else {
-        // No collapsible binding — fall back.
-        return Ok(None);
-    };
-
-    let binding = binding.expect("checked above");
-
-    // Formatted expression (the promise / async value).
+) -> Result<Option<String>, FormatError> {
     let (Some(expr_start), Some(expr_end)) = (blk.expression.start(), blk.expression.end()) else {
         return Ok(None);
     };
@@ -677,164 +646,34 @@ fn try_collapse_await_header(
         return Ok(None);
     }
     let fmt_expr = format_inline_expression(expr_src, options)?;
-
-    // Formatted binding pattern (`value` / `error`).
-    let (Some(bind_start), Some(bind_end)) = (binding.start(), binding.end()) else {
-        return Ok(None);
-    };
-    let bind_src = source
-        .get(bind_start as usize..bind_end as usize)
-        .unwrap_or("")
-        .trim();
-    // If no binding source, skip collapse.
-    if bind_src.is_empty() {
-        return Ok(None);
-    }
-    let fmt_bind =
-        format_pattern_source(bind_src, options).unwrap_or_else(|_| bind_src.to_string());
-
-    // Find the `}` that closes the `{:then value}` / `{:catch error}` separator
-    // header — it comes immediately after the binding expression end.
-    let separator_close = source
-        .get(bind_end as usize..)
-        .and_then(|s| s.find('}'))
-        .map(|rel| bind_end as usize + rel + 1);
-    let Some(separator_close) = separator_close else {
-        return Ok(None);
-    };
-
-    let replacement = format!("{{#await {fmt_expr} {keyword} {fmt_bind}}}");
-    Ok(Some((
-        blk.start,
-        crate::source_offset(separator_close),
-        replacement,
-    )))
-}
-
-/// Returns `true` when a fragment contains only whitespace-only text nodes or
-/// is entirely empty — used to detect an empty `then` body in a shorthand
-/// `{#await expr then value}{/await}` block.
-fn is_empty_fragment_for_await(frag: &rsvelte_core::ast::template::Fragment) -> bool {
-    frag.nodes.iter().all(|n| {
-        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
-    })
-}
-
-/// Strip the `then value` clause from a shorthand await block that has an
-/// empty then body: `{#await expr then value}{/await}` → the rewrite span
-/// covers from `blk.start` to the `}` that closes the header (`{#await expr
-/// then value}`), replacing it with `{#await expr}`.
-///
-/// Returns `None` when the span cannot be determined from the source.
-fn try_strip_await_then_clause(
-    source: &str,
-    blk: &rsvelte_core::ast::template::AwaitBlock,
-    options: &FormatOptions,
-) -> Result<Option<(u32, u32, String)>, FormatError> {
-    let (Some(expr_start), Some(expr_end)) = (blk.expression.start(), blk.expression.end()) else {
-        return Ok(None);
-    };
-    let expr_src = source
-        .get(expr_start as usize..expr_end as usize)
-        .unwrap_or("")
-        .trim();
-    if expr_src.is_empty() {
-        return Ok(None);
-    }
-    let fmt_expr = format_inline_expression(expr_src, options)?;
-
-    // Find the `}` that closes the header after the `then value` portion.
-    // `blk.value` is the binding pattern (e.g. `counter`).
-    let Some(v) = &blk.value else {
-        return Ok(None);
-    };
-    let Some(v_end) = v.end() else {
-        return Ok(None);
-    };
-    let header_close = source
-        .get(v_end as usize..)
-        .and_then(|s| s.find('}'))
-        .map(|rel| v_end as usize + rel + 1);
-    let Some(header_close) = header_close else {
-        return Ok(None);
-    };
-
-    let replacement = format!("{{#await {fmt_expr}}}");
-    Ok(Some((
-        blk.start,
-        crate::source_offset(header_close),
-        replacement,
-    )))
-}
-
-/// Strip an empty `{:then value}` (or `{:catch error}`) separator from a
-/// 3-part await block whose `then` (or `catch`) body is empty:
-///   `{#await expr}\n  <child />\n{:then f}\n{/await}` →
-/// emits an edit removing the `{:then f}\n` region so the output becomes
-///   `{#await expr}\n  <child />\n{/await}`
-///
-/// The edit span runs from the opening `{` of `{:then …}` up to (but not
-/// including) the opening `{` of `{/await}`.
-///
-/// Returns `None` when the span cannot be determined from the source.
-fn try_strip_await_then_separator(
-    source: &str,
-    blk: &rsvelte_core::ast::template::AwaitBlock,
-) -> Option<(u32, u32, String)> {
-    // We need the binding position to locate `{:then …}` by scanning backward.
-    let binding = if blk.value.is_some() {
-        blk.value.as_ref()
-    } else if blk.error.is_some() {
-        blk.error.as_ref()
-    } else {
-        return None;
-    };
-    let binding = binding.expect("checked above");
-
-    let bind_start = binding.start()?;
-
-    let bytes = source.as_bytes();
-
-    // Scan backward from the binding start to find the `{` that opens the separator.
-    let mut i = bind_start as usize;
-    while i > 0 {
-        i -= 1;
-        match bytes[i] {
-            b' ' | b'\t' | b'\n' | b'\r' | b'n' | b'h' | b'c' | b'a' | b't' | b'e' | b':' => {}
-            // Skip past the keyword (`then` or `catch`) and the leading `:`
-            // that the separator opener contains.  We stop at `{`.
-            b'{' => break,
-            _ => return None,
+    let clause = match form {
+        await_block::AwaitHeaderForm::Bare => String::new(),
+        await_block::AwaitHeaderForm::Then => {
+            render_await_clause(source, "then", blk.value.as_ref(), options)
         }
-    }
-    if bytes.get(i) != Some(&b'{') {
-        return None;
-    }
-    let separator_open = crate::source_offset(i);
+        await_block::AwaitHeaderForm::Catch => {
+            render_await_clause(source, "catch", blk.error.as_ref(), options)
+        }
+    };
+    Ok(Some(format!("{{#await {fmt_expr}{clause}}}")))
+}
 
-    // Find the start of `{/await}` by scanning backward from `blk.end`.
-    // `blk.end` points just past `}` of `{/await}`, so the `{` is at
-    // `blk.end - 8` for the 8-byte literal `{/await}`.  We verify by
-    // searching backward for `{` while skipping only non-brace chars.
-    let close_tag = b"{/await}";
-    let end = blk.end as usize;
-    if end < close_tag.len() {
-        return None;
+/// ` then value` / ` catch error`, or the bare keyword when the clause has no
+/// binding (`{:then}` collapses to `{#await p then}`, as the oracle prints it).
+fn render_await_clause(
+    source: &str,
+    keyword: &str,
+    binding: Option<&rsvelte_core::ast::js::Expression>,
+    options: &FormatOptions,
+) -> String {
+    let rendered = binding
+        .and_then(|b| Some((b.start()?, b.end()?)))
+        .and_then(|(s, e)| source.get(s as usize..e as usize))
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| format_pattern_source(s, options).unwrap_or_else(|_| s.to_string()));
+    match rendered {
+        Some(b) => format!(" {keyword} {b}"),
+        None => format!(" {keyword}"),
     }
-    // Verify the close tag is present.
-    let close_tag_start = end - close_tag.len();
-    if source.as_bytes().get(close_tag_start..end) != Some(close_tag.as_ref()) {
-        // Try with a space: `{/ await}` — not standard but defensive.
-        return None;
-    }
-    let close_tag_pos = crate::source_offset(close_tag_start);
-
-    // The edit removes everything from `{` of `{:then …}` up to the `{` of
-    // `{/await}` (non-inclusive), which erases the separator header and its
-    // empty body (typically just a newline).
-    if separator_open >= close_tag_pos {
-        return None;
-    }
-
-    Some((separator_open, close_tag_pos, String::new()))
 }

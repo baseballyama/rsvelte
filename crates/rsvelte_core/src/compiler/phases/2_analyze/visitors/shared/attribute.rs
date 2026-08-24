@@ -115,7 +115,7 @@ pub fn validate_slot_attribute(
     attribute: &AttributeNode,
 ) -> Result<(), AnalysisError> {
     // Check if we're a direct child of a component
-    if context.is_direct_child_of_component {
+    if context.direct_component_parent.owns_slots() {
         return Ok(());
     }
 
