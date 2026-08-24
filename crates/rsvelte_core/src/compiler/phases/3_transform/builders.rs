@@ -1214,14 +1214,7 @@ fn sanitize_template_string(s: &str) -> String {
 
 /// Whether `name` is a valid JS identifier (so a property key can be emitted
 /// bare rather than as a string literal). Conservative ASCII check.
-fn is_valid_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-    match chars.next() {
-        Some(c) if c == '_' || c == '$' || c.is_ascii_alphabetic() => {}
-        _ => return false,
-    }
-    chars.all(|c| c == '_' || c == '$' || c.is_ascii_alphanumeric())
-}
+use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 
 #[cfg(test)]
 mod tests {

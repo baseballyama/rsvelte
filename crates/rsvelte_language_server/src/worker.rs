@@ -15,6 +15,7 @@ use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
@@ -210,6 +211,7 @@ pub struct FileReferenceSource {
 pub struct Worker {
     jobs: Option<Sender<Job>>,
     handle: Option<JoinHandle<()>>,
+    stopping: Arc<AtomicBool>,
 }
 
 impl Worker {
@@ -219,14 +221,17 @@ impl Worker {
     #[must_use]
     pub fn spawn(outcomes: Sender<Outcome>) -> Self {
         let (jobs, receiver) = unbounded();
+        let stopping = Arc::new(AtomicBool::new(false));
+        let worker_stopping = Arc::clone(&stopping);
         let handle = std::thread::Builder::new()
             .name("rsvelte-analysis".to_string())
             .stack_size(STACK_SIZE)
-            .spawn(move || run(&receiver, &outcomes))
+            .spawn(move || run(&receiver, &outcomes, &worker_stopping))
             .expect("spawn the analysis worker");
         Self {
             jobs: Some(jobs),
             handle: Some(handle),
+            stopping,
         }
     }
 
@@ -239,8 +244,7 @@ impl Worker {
 
 impl Drop for Worker {
     fn drop(&mut self) {
-        // Closing the queue is what ends the loop; only then can the thread be
-        // joined.
+        self.stopping.store(true, Ordering::Release);
         self.jobs.take();
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
@@ -248,11 +252,14 @@ impl Drop for Worker {
     }
 }
 
-fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
+fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>, stopping: &AtomicBool) {
     let mut lint_configs = LintConfigCache::default();
     let mut format_sessions = FormatSessions::default();
 
     for job in jobs {
+        if stopping.load(Ordering::Acquire) {
+            break;
+        }
         let outcome = match job {
             Job::ClearCaches => {
                 lint_configs.clear();

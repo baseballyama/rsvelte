@@ -659,7 +659,7 @@ enum SeqNode<'n> {
 /// — and the store arm builds the whole `$.store_get(...)` call fresh, so
 /// neither gives esrap's cursor a stop here. Every other read keeps the source
 /// expression's own `loc`.
-pub(crate) fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
+fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
     let name = source.trim();
     if !is_plain_identifier(name) {
         return false;
@@ -731,6 +731,10 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         .slot_let_shadows
                         .iter()
                         .any(|f| f.contains(src.trim()))
+                    // …unless a `{@const}` on the render position's own scope
+                    // chain shadows it first. The veto is keyed by NAME, and
+                    // `scope.get` stops at the nearest declaration.
+                    && !state.nearest_declaration_is_template_const(src.trim())
                 {
                     let visited = state.visit_expr(expr);
                     let escaped = state.b.call("$.escape", vec![visited]);
@@ -755,9 +759,13 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     && is_plain_identifier(src.trim())
                     && let Some(value) = state.eval_inputs.constant_vars.get(src.trim())
                 {
-                    if value != "null" && value != "undefined" {
+                    use crate::compiler::phases::phase3_transform::server::evaluate::{
+                        EvalValue, js_display_string,
+                    };
+                    if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                        let rendered = js_display_string(value);
                         let last = quasis.last_mut().unwrap();
-                        last.push_str(&escape_html(value));
+                        last.push_str(&escape_html(&rendered));
                     }
                     continue;
                 }
@@ -779,7 +787,13 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     continue;
                 }
 
-                let visited = state.visit_expr_claiming(expr);
+                let mut visited = state.visit_expr(expr);
+                if !state
+                    .expr_source(expr)
+                    .is_some_and(|src| read_loses_its_location(state, src))
+                {
+                    state.claim_deferred_tail_comment(&mut visited);
+                }
                 let escaped = state.b.call("$.escape", vec![visited]);
                 exprs.push(escaped);
                 quasis.push(String::new());
@@ -1088,8 +1102,11 @@ pub fn build_fragment_body<'a, N: AsRef<TemplateNode<'a>>>(
     // child. Recompute it here (save/restore) so every fragment block matches
     // upstream.
     let saved_standalone = state.is_standalone;
-    state.is_standalone =
-        ServerTransformState::is_standalone_fragment(nodes, state.preserve_whitespace);
+    state.is_standalone = ServerTransformState::is_standalone_fragment(
+        nodes,
+        state.preserve_whitespace,
+        state.options.hmr,
+    );
     // Track fragment nesting depth: the root component fragment is depth 1; any
     // nested block / boundary / snippet body is depth ≥ 2. The boundary visitor
     // reads this to decide `failed`-snippet hoist-vs-inline placement.

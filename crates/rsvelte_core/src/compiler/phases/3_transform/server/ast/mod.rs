@@ -27,6 +27,7 @@ use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
+use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
 use oxc_ast_visit::VisitMut;
@@ -107,7 +108,7 @@ pub struct ServerTransformState<'a> {
     /// once (via the proven legacy `ServerCodeGenerator::new` path) and reused
     /// by `Self::eval_ctx` when folding `{expr}` template chunks / dynamic
     /// attribute values. See `server::evaluate::EvalCtx`.
-    pub eval_inputs: EvalInputs,
+    pub(crate) eval_inputs: EvalInputs,
     /// Monotonic counter for the `$$body` temporary used by element CONTENT
     /// binds (`<textarea>` value, contenteditable `innerHTML`/`innerText`/
     /// `textContent`). The first one is bare `$$body`, subsequent ones append
@@ -230,9 +231,6 @@ pub struct ServerTransformState<'a> {
     /// rebuilds loc-less. Their final anchor is decided after the reordered
     /// script body is assembled.
     pub pending_tail_comments: Vec<PendingTailComment>,
-    /// Only the first template expression stands where esrap's cursor next finds
-    /// a location, so only it may flush the script's trailing run.
-    tail_anchor_claimed: bool,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -247,7 +245,7 @@ pub struct SavedScope {
     /// The entered scope, when the node owned one (`None` = nothing changed).
     entered: Option<usize>,
     /// `constant_vars` entries the entered scope redeclared, to put back.
-    shadowed_constants: Vec<(String, String)>,
+    shadowed_constants: Vec<(String, EvalValue)>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -275,8 +273,8 @@ pub struct PendingTailComment {
 /// `ServerCodeGenerator` carries for `scope.evaluate`, so the two pipelines
 /// fold identically.
 #[derive(Default)]
-pub struct EvalInputs {
-    pub constant_vars: rustc_hash::FxHashMap<String, String>,
+pub(crate) struct EvalInputs {
+    pub constant_vars: rustc_hash::FxHashMap<String, EvalValue>,
     pub use_async: bool,
     pub top_level_blocker_map: rustc_hash::FxHashMap<String, usize>,
     /// Lazily-built template-scope index set (see `evaluate_identifier`).
@@ -332,7 +330,6 @@ impl<'a> ServerTransformState<'a> {
             current_scope_index: analysis.root.instance_scope_index,
             comments: comments::ChunkRegistry::default(),
             pending_tail_comments: Vec::new(),
-            tail_anchor_claimed: false,
             reparse_failure: std::cell::RefCell::new(None),
         }
     }
@@ -374,25 +371,11 @@ impl<'a> ServerTransformState<'a> {
     /// esrap's cursor writes the whole run before the next node it finds a
     /// location on. A comment a script successor already took is not among them.
     pub fn claim_deferred_tail_comment(&mut self, expression: &mut OxcExpression<'a>) {
-        if std::mem::replace(&mut self.tail_anchor_claimed, true) {
-            return;
-        }
         if self
             .pending_tail_comments
             .iter()
             .all(|comment| comment.replay_at_tail)
         {
-            // Nothing deferred, but a reordered `$:` body sends esrap's cursor
-            // backwards over a comment a script successor already printed, which
-            // makes it pending again. Anchoring the expression past the whole
-            // buffer is what flushes it here rather than at the component's end.
-            self.pending_tail_comments.clear();
-            if !self.comments.is_empty()
-                && let Some(base) = self.comments.register_expression_position(" ")
-            {
-                let mut place = comments::Place::At(base);
-                place.visit_expression(expression);
-            }
             return;
         }
         let mut text = String::from("x");
@@ -561,6 +544,32 @@ impl<'a> ServerTransformState<'a> {
             .collect()
     }
 
+    /// `scope.get(name)`: whether the NEAREST declaration of `name` on the
+    /// render position's scope chain is a template `{@const}` / `{const}`.
+    ///
+    /// The `slot_let_shadows` veto is keyed by NAME alone, so it cannot tell a
+    /// read of an each item / snippet parameter from a read of a `{@const}`
+    /// that shadows one in an inner block — and upstream folds the latter,
+    /// because `scope.get` stops at the nearest declaration.
+    pub(super) fn nearest_declaration_is_template_const(&self, name: &str) -> bool {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let root = &self.analysis.root;
+        let mut current = Some(self.current_scope_index);
+        while let Some(idx) = current {
+            let Some(scope) = root.all_scopes.get(idx) else {
+                return false;
+            };
+            if let Some(&binding) = scope.declarations.get(name) {
+                return root
+                    .bindings
+                    .get(binding)
+                    .is_some_and(|b| matches!(b.kind, BindingKind::Template));
+            }
+            current = scope.parent;
+        }
+        false
+    }
+
     /// Collect all the names currently shadowed by enclosing snippet / slot
     /// parameters (flattened from [`Self::shadowed_names`]).
     pub(super) fn collect_shadowed(&self) -> rustc_hash::FxHashSet<String> {
@@ -675,6 +684,7 @@ impl<'a> ServerTransformState<'a> {
     pub fn is_standalone_fragment<'t, N: AsRef<TemplateNode<'t>>>(
         nodes: &[N],
         preserve_whitespace: bool,
+        hmr: bool,
     ) -> bool {
         use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
         let meaningful: Vec<&TemplateNode> = nodes
@@ -707,7 +717,11 @@ impl<'a> ServerTransformState<'a> {
         match meaningful[0] {
             TemplateNode::RenderTag(tag) => !tag.metadata.dynamic,
             TemplateNode::Component(comp) => {
-                !comp.metadata.dynamic
+                // Upstream gates only this arm on `state.options.hmr`
+                // (`3-transform/utils.js`), so under HMR a component keeps its
+                // trailing `<!---->` anchor while a `{@render}` still loses it.
+                !hmr
+                    && !comp.metadata.dynamic
                     && !comp.attributes.iter().any(|attr| {
                         matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name.starts_with("--"))
                     })
@@ -1244,6 +1258,7 @@ pub fn server_component_ast<'a>(
     state.is_standalone = ServerTransformState::is_standalone_fragment(
         &ast.fragment.nodes,
         state.preserve_whitespace,
+        state.options.hmr,
     );
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).
