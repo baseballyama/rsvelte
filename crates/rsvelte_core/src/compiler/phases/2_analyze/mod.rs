@@ -532,27 +532,26 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // expression reading `$$props.class` omits the
     // `$.deep_read_state($$sanitized_props)` dependency in `build_expression`.
     //
-    // (`$$restProps` is intentionally NOT declared here: it is already handled by
-    // the existing rest-props path, and binding it would re-route a plain
-    // `$$restProps.x` read through the `$$sanitized_props` rewrite.)
+    // `$$restProps` gets the same synthetic binding, which is what makes a call
+    // that reads it `has_call` (upstream's `dependencies.size > 0`) and so
+    // memoized into `$.template_effect`'s dependency-array form.
     if !analysis.runes {
         use crate::compiler::phases::phase2_analyze::scope::{
             Binding, BindingKind, DeclarationKind,
         };
         let instance_scope = analysis.root.instance_scope_index;
-        if analysis
-            .root
-            .get_binding("$$props", instance_scope)
-            .is_none()
-        {
+        for name in ["$$props", "$$restProps"] {
+            if analysis.root.get_binding(name, instance_scope).is_some() {
+                continue;
+            }
             let idx = analysis.root.push_binding(Binding::with_declaration_kind(
-                "$$props".to_string(),
+                name.to_string(),
                 BindingKind::RestProp,
                 DeclarationKind::Synthetic,
                 instance_scope,
             ));
             if let Some(scope) = analysis.root.all_scopes.get_mut(instance_scope) {
-                scope.declarations.insert("$$props".to_string(), idx);
+                scope.declarations.insert(name.to_string(), idx);
             }
         }
     }
@@ -1399,8 +1398,7 @@ fn collect_legacy_reactive_statement_metadata(
                 .is_some()
                 || analysis.root.scope.declarations.contains_key(name)
         };
-        assignments
-            .retain(|name| is_instance_binding(name) || shadowed_assignments.contains(name));
+        assignments.retain(|name| is_instance_binding(name) || shadowed_assignments.contains(name));
         cycle_dependencies.retain(|name| is_instance_binding(name));
         cycle_dependencies.retain(|dep| !assignments.contains(dep));
 
@@ -1470,7 +1468,6 @@ fn cycle_extract_pattern_ids(node: &JsNode, arena: &ParseArena, out: &mut Vec<St
         _ => {}
     }
 }
-
 
 /// Scope-resolved facts about one reactive `$:` statement, as
 /// `order_reactive_statements` consumes them.
@@ -3648,14 +3645,14 @@ mod feature_walk_gate_tests {
     }
 }
 
-/// Collect `$`-prefixed identifier names from a function-parameter *pattern*
+/// Collect `$`-prefixed identifier names DECLARED by a binding *pattern*
 /// (typed `JsNode` form) into `out`. Default values (`AssignmentPattern.right`)
 /// are expressions, not declarations, so they are not collected.
 ///
 /// Used for shadow-aware rune detection: upstream determines runes mode from
-/// `module.scope.references` — a reference that resolves to a function
-/// parameter (e.g. `function bar($derived) { $derived(...) }`) never reaches
-/// the module scope and therefore never flips runes mode on.
+/// `module.scope.references` — a reference that resolves to a local binding
+/// (e.g. `function bar($derived) { $derived(...) }`) never reaches the module
+/// scope and therefore never flips runes mode on.
 fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } if name.starts_with('$') => {
@@ -4194,7 +4191,105 @@ fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl F
                 f(arena.get_js_node(*value));
             }
         }
+        // A `break`/`continue` target names a statement label, not a binding.
+        JsNode::BreakStatement { .. } | JsNode::ContinueStatement { .. } => {}
+        JsNode::VariableDeclarator { id, init, .. } => {
+            for_each_pattern_reference_child(arena.get_js_node(*id), arena, f);
+            if let Some(init) = init {
+                f(arena.get_js_node(*init));
+            }
+        }
+        JsNode::FunctionDeclaration { params, body, .. }
+        | JsNode::FunctionExpression { params, body, .. } => {
+            for param in arena.get_js_children(*params) {
+                for_each_pattern_reference_child(param, arena, f);
+            }
+            if let Some(body) = body {
+                f(arena.get_js_node(*body));
+            }
+        }
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
+            for param in arena.get_js_children(*params) {
+                for_each_pattern_reference_child(param, arena, f);
+            }
+            f(arena.get_js_node(*body));
+        }
+        JsNode::ClassDeclaration {
+            super_class,
+            body,
+            decorators,
+            ..
+        } => {
+            if let Some(super_class) = super_class {
+                f(arena.get_js_node(*super_class));
+            }
+            for decorator in arena.get_js_children(*decorators) {
+                f(decorator);
+            }
+            f(arena.get_js_node(*body));
+        }
+        JsNode::ClassExpression {
+            super_class, body, ..
+        } => {
+            if let Some(super_class) = super_class {
+                f(arena.get_js_node(*super_class));
+            }
+            f(arena.get_js_node(*body));
+        }
+        JsNode::CatchClause { body, .. } => f(arena.get_js_node(*body)),
+        // Every identifier an import or an export specifier carries is a
+        // declared or an exported name; the rest of the node is literals.
+        JsNode::ImportDeclaration { .. } | JsNode::ExportSpecifier { .. } => {}
         _ => for_each_js_child(node, arena, f),
+    }
+}
+
+/// Call `f` for the *expression* children of a binding pattern — a default
+/// value and a computed key. The names the pattern declares are bindings, not
+/// references, so they are not passed on.
+fn for_each_pattern_reference_child(
+    node: &JsNode,
+    arena: &ParseArena,
+    f: &mut impl FnMut(&JsNode),
+) {
+    match node {
+        JsNode::Identifier { .. } => {}
+        JsNode::ObjectPattern { properties, .. } => {
+            for prop in arena.get_js_children(*properties) {
+                match prop {
+                    JsNode::Property {
+                        key,
+                        value,
+                        computed,
+                        ..
+                    } => {
+                        if *computed {
+                            f(arena.get_js_node(*key));
+                        }
+                        for_each_pattern_reference_child(arena.get_js_node(*value), arena, f);
+                    }
+                    JsNode::RestElement { argument, .. }
+                    | JsNode::SpreadElement { argument, .. } => {
+                        for_each_pattern_reference_child(arena.get_js_node(*argument), arena, f);
+                    }
+                    other => f(other),
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for elem in elements.iter().flatten() {
+                for_each_pattern_reference_child(elem, arena, f);
+            }
+        }
+        JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+            for_each_pattern_reference_child(arena.get_js_node(*argument), arena, f);
+        }
+        JsNode::AssignmentPattern { left, right, .. } => {
+            for_each_pattern_reference_child(arena.get_js_node(*left), arena, f);
+            f(arena.get_js_node(*right));
+        }
+        // A member expression as a destructuring target (`[o.x] = …`) reads `o`.
+        other => f(other),
     }
 }
 
@@ -6598,8 +6693,9 @@ $: { b++; console.log(a); }
             "$: { function e() { return a; } d = e(); }",
             "$: { for (const e of [a]) d = e; }",
         ] {
-            let source =
-                format!("<script>\nexport let a = 1;\nlet d = 0;\nlet e = 0;\n{shadow}\n$: e = d + 1;\n</script>\n<b>{{d}}{{e}}</b>");
+            let source = format!(
+                "<script>\nexport let a = 1;\nlet d = 0;\nlet e = 0;\n{shadow}\n$: e = d + 1;\n</script>\n<b>{{d}}{{e}}</b>"
+            );
             assert!(
                 try_analyze(&source).is_ok(),
                 "expected no cycle for `{shadow}`"

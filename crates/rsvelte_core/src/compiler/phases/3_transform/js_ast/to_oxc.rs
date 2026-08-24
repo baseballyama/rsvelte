@@ -1605,8 +1605,8 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// `pad + text` buffer so its spans land at the chunk's own region of the
     /// unified comment buffer, and its comments are collected there.
     fn parse_chunk(&self, text: &str) -> Option<Vec<Statement<'a>>> {
-        let removed_inspect = text.contains("/* $$inspect_removed$$ */");
-        let text = text.replace("/* $$inspect_removed$$ */", "");
+        let (text, sealed_at) = strip_removed_inspect_markers(text);
+        let removed_inspect = !sealed_at.is_empty();
         let owned = self.ab.allocator().alloc_str(&text);
         let ret = oxc_parser::Parser::new(self.ab.allocator(), owned, oxc_span::SourceType::mjs())
             .parse();
@@ -1618,14 +1618,18 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
             self.note_span(text.len() as u32);
-            return Some(ret.program.body.into_iter().collect());
+            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
+            return Some(stmts);
         }
         self.synth.borrow_mut().saw_comments = true;
         if !self.synth.borrow().enabled {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
             self.note_span(text.len() as u32);
-            return Some(ret.program.body.into_iter().collect());
+            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
+            return Some(stmts);
         }
 
         // `base` is at least `loc_base` (>= 2): this path only runs once
@@ -1652,6 +1656,9 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         for stmt in &mut stmts {
             shifter.visit_statement(stmt);
         }
+        // The padded re-parse put the chunk one byte in, so its spans sit at
+        // `shift + 1` relative to the stripped text.
+        seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, shift + 1);
         let mut synth = self.synth.borrow_mut();
         synth.source.push_str(&text);
         synth.source.push('\n');
@@ -2588,6 +2595,90 @@ fn unary_op(op: JsUnaryOp) -> UnaryOperator {
         JsUnaryOp::TypeOf => UnaryOperator::Typeof,
         JsUnaryOp::Void => UnaryOperator::Void,
         JsUnaryOp::Delete => UnaryOperator::Delete,
+    }
+}
+
+const REMOVED_INSPECT_MARKER: &str = "/* $$inspect_removed$$ */";
+
+/// Drop the marker the client's non-dev `$inspect` removal leaves behind, and
+/// report where each one stood in the STRIPPED text.
+fn strip_removed_inspect_markers(text: &str) -> (String, Vec<u32>) {
+    if !text.contains(REMOVED_INSPECT_MARKER) {
+        return (text.to_string(), Vec::new());
+    }
+    let mut stripped = String::with_capacity(text.len());
+    let mut at = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find(REMOVED_INSPECT_MARKER) {
+        stripped.push_str(&rest[..i]);
+        at.push(stripped.len() as u32);
+        rest = &rest[i + REMOVED_INSPECT_MARKER.len()..];
+    }
+    stripped.push_str(rest);
+    (stripped, at)
+}
+
+/// Seal the `;` run each stripped marker introduces with [`B::empty_kept`]'s
+/// sentinel span. Those semicolons stand in for upstream's `b.empty`, not for a
+/// source semicolon, so they have to outlive the printer's empty-statement
+/// filter — which is what lets a `;;` the USER wrote be dropped, as esrap's
+/// `body()` drops it.
+fn seal_removed_inspect_empties(stmts: &mut [Statement<'_>], text: &str, at: &[u32], shift: u32) {
+    if at.is_empty() {
+        return;
+    }
+    seal_in_list(stmts, text, at, shift);
+    let mut sealer = SealNestedEmpties { text, at, shift };
+    for stmt in stmts {
+        sealer.visit_statement(stmt);
+    }
+}
+
+/// A removed `$inspect(…)` can sit in any body, and `parse_chunk` only hands
+/// back the chunk's TOP-LEVEL statements.
+struct SealNestedEmpties<'t> {
+    text: &'t str,
+    at: &'t [u32],
+    shift: u32,
+}
+
+impl<'a> VisitMut<'a> for SealNestedEmpties<'_> {
+    fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
+        seal_in_list(stmts, self.text, self.at, self.shift);
+        oxc_ast_visit::walk_mut::walk_statements(self, stmts);
+    }
+}
+
+fn seal_in_list(stmts: &mut [Statement<'_>], text: &str, at: &[u32], shift: u32) {
+    for &marker in at {
+        let mut sealed = 0;
+        for stmt in stmts.iter_mut() {
+            let Statement::EmptyStatement(empty) = stmt else {
+                if sealed > 0 {
+                    break;
+                }
+                continue;
+            };
+            let start = empty.span.start.saturating_sub(shift);
+            if start < marker {
+                continue;
+            }
+            // Only the run the marker introduces: the earlier text pipeline may
+            // have re-indented it, but nothing else can stand in between.
+            if sealed == 0
+                && !text
+                    .get(marker as usize..start as usize)
+                    .is_some_and(|gap| gap.trim().is_empty())
+            {
+                break;
+            }
+            empty.span.end = u32::MAX;
+            sealed += 1;
+            // Upstream's residue is the expression's `;` plus the statement's.
+            if sealed == 2 {
+                break;
+            }
+        }
     }
 }
 

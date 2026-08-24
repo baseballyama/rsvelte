@@ -650,8 +650,10 @@ console.log('\n# parse options');
 const PARSE_SRC = '<script>let x = 1 + 2;</script>\n<h1>{x}</h1>\n<style>h1 { color: red }</style>';
 {
 	covered.add('parse.skipExpressionLoc');
-	const full = JSON.parse(napi.parse(PARSE_SRC, {}));
-	const skipped = JSON.parse(napi.parse(PARSE_SRC, { skipExpressionLoc: true }));
+	// Pinned to the modern shape: `modern` defaults to false (as it does in
+	// `svelte/compiler`), and this pair is about `skipExpressionLoc` alone.
+	const full = JSON.parse(napi.parse(PARSE_SRC, { modern: true }));
+	const skipped = JSON.parse(napi.parse(PARSE_SRC, { modern: true, skipExpressionLoc: true }));
 	const locCount = (v) => JSON.stringify(v).split('"loc"').length - 1;
 	assert(
 		'parse.skipExpressionLoc: the option changes the result',
@@ -686,6 +688,50 @@ const PARSE_SRC = '<script>let x = 1 + 2;</script>\n<h1>{x}</h1>\n<style>h1 { co
 		'parse.skipCssAst: the change is the expected one',
 		envSkipped.length < envFull.length,
 		`${envFull.length} -> ${envSkipped.length} bytes`
+	);
+
+	covered.add('parse.modern');
+	const legacyShape = JSON.parse(napi.parse(PARSE_SRC));
+	const modernShape = JSON.parse(napi.parse(PARSE_SRC, { modern: true }));
+	assert(
+		'parse.modern: the option changes the result',
+		JSON.stringify(legacyShape) !== JSON.stringify(modernShape)
+	);
+	// The two ASTs differ in SHAPE, not in a field's value, and the default is
+	// the legacy one — matching `svelte/compiler`, where `modern` is opt-in
+	// until Svelte 6.
+	assert(
+		'parse.modern: the change is the expected one',
+		legacyShape?.html?.type === 'Fragment' &&
+			legacyShape?.type === undefined &&
+			modernShape?.type === 'Root' &&
+			modernShape?.html === undefined,
+		`${Object.keys(legacyShape ?? {})} | ${Object.keys(modernShape ?? {})}`
+	);
+
+	covered.add('parse.loose');
+	// A source official also recovers from under `loose`. The strict arm is the
+	// control: without the option this must still throw, or "it parsed" would
+	// be true of a binding that ignores the option.
+	const LOOSE_SRC = '<div><b>x';
+	assert(
+		'parse.loose: the option changes the result',
+		(() => {
+			try {
+				napi.parse(LOOSE_SRC, { modern: true });
+				return false;
+			} catch {
+				return JSON.parse(napi.parse(LOOSE_SRC, { modern: true, loose: true }))?.type === 'Root';
+			}
+		})()
+	);
+	assert(
+		'parse.loose: the change is the expected one',
+		(() => {
+			const ast = JSON.parse(napi.parse(LOOSE_SRC, { modern: true, loose: true }));
+			// Recovery closes the unclosed elements rather than dropping them.
+			return ast?.fragment?.nodes?.[0]?.name === 'div';
+		})()
 	);
 }
 
