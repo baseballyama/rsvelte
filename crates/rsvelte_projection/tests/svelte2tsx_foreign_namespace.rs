@@ -19,6 +19,7 @@ fn opts(namespace: Svelte2TsxNamespace) -> Svelte2TsxOptions {
         runes: None,
         emit_jsdoc: false,
         rewrite_external_imports: None,
+        ..Svelte2TsxOptions::default()
     }
 }
 

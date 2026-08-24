@@ -26,7 +26,7 @@ use super::js_ast::nodes::{JsImportDeclaration, JsImportSpecifier, JsStatement};
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan;
+use crate::compiler::phases::phase3_transform::shared::js_scan::is_ident_byte;
 use memchr::memmem;
 use std::cell::RefCell;
 
@@ -95,6 +95,13 @@ pub fn transform_server_module(
         source: "svelte/internal/server".into(),
     }));
 
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs —
+    // `strip_effects_from_source` would otherwise cut the call out of its own
+    // parens and leave `();` behind.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
+
     // For server modules, strip $effect and $effect.root blocks from the source
     // before applying transforms, since effects don't run on the server.
     let source_without_effects = strip_effects_from_source(source);
@@ -140,6 +147,15 @@ pub fn transform_server_module(
     )
     .unwrap_or(source_without_effects);
 
+    // The client module transform below runs with `dev: false`, so it would
+    // DROP a `$inspect(…)` the server is supposed to lower. Do the lowering
+    // first; what it leaves behind holds no code-position `$inspect(`.
+    let source_without_effects = if _options.dev {
+        lower_module_dev_inspect(&source_without_effects)
+    } else {
+        source_without_effects
+    };
+
     // Transform rune calls using the same infrastructure as client modules.
     let transformed = super::client::transform_module_source_for_module(
         &source_without_effects,
@@ -176,18 +192,11 @@ pub fn transform_server_module(
             .unwrap_or(transformed)
     };
 
-    // Split imports from body
-    let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
-
-    for import_line in &script_imports {
-        let trimmed = import_line.trim();
-        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
-            body.push(JsStatement::Raw(trimmed.into()));
-        }
-    }
-
-    if let Some(rest) = script_rest {
-        let rest_trimmed = rest.trim();
+    // Upstream `server_module` concatenates the generated `$` import with the
+    // module body untouched, so an `import` keeps its place among the other
+    // statements — hoisting it would change module evaluation order.
+    {
+        let rest_trimmed = transformed.trim();
         if !rest_trimmed.is_empty() {
             body.push(JsStatement::Raw(rest_trimmed.into()));
         }
@@ -247,11 +256,16 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
             }
             _ => {}
         }
-        if i + needle.len() <= n
-            && &bytes[i..i + needle.len()] == needle
-            && (!rune_needle || js_scan::is_rune_call_at(bytes, i, needle, &before))
-        {
-            out.push(i);
+        if i + needle.len() <= n && &bytes[i..i + needle.len()] == needle {
+            // A rune name in the property slot of `o.$effect(cb)` is a method
+            // call, not a rune — upstream's `get_global_keypath` walks a member
+            // chain down to its BASE identifier, which this one never is. Same
+            // rule one byte over for `a$effect(`, a single longer identifier.
+            let is_rune_head = needle.first() != Some(&b'$')
+                || (!last_significant_is_dot(bytes, i) && (i == 0 || !is_ident_byte(bytes[i - 1])));
+            if is_rune_head {
+                out.push(i);
+            }
         }
         if !bytes[i].is_ascii_whitespace() {
             before.push_code_byte(bytes, i);
@@ -259,6 +273,17 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
         i += 1;
     }
     out
+}
+
+/// Is the last significant byte before `at` a `.` (so `at` starts a member
+/// property)? Whitespace is skipped, which is what makes `o\n\t.$effect(` and
+/// `o.$effect(` answer the same.
+fn last_significant_is_dot(bytes: &[u8], at: usize) -> bool {
+    let mut j = at;
+    while j > 0 && bytes[j - 1].is_ascii_whitespace() {
+        j -= 1;
+    }
+    j > 0 && bytes[j - 1] == b'.'
 }
 
 /// One collect-and-splice pass over `source` for a paren-call rewrite. For every
@@ -401,6 +426,49 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
     out
 }
 
+/// Dev lowering for a module's `$inspect(...)`, matching the server
+/// `CallExpression` visitor at every expression depth.
+fn lower_module_dev_inspect(source: &str) -> String {
+    use super::client::find_matching_paren;
+    use super::shared::js_scan::find_code;
+
+    let mut result = source.to_string();
+    while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+        let args_start = pos + b"$inspect(".len();
+        let Some(args_len) = find_matching_paren(&result[args_start..]) else {
+            break;
+        };
+        let args = result[args_start..args_start + args_len].to_string();
+        let after_call = args_start + args_len + 1;
+        let (end, replacement) = if result[after_call..].trim_start().starts_with(".with(") {
+            let with_offset = memmem::find(&result.as_bytes()[after_call..], b".with(").unwrap();
+            let fn_start = after_call + with_offset + b".with(".len();
+            let Some(fn_len) = find_matching_paren(&result[fn_start..]) else {
+                break;
+            };
+            let inspector = &result[fn_start..fn_start + fn_len];
+            let tail = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!(", {args}")
+            };
+            (
+                fn_start + fn_len + 1,
+                format!("({inspector})('init'{tail})"),
+            )
+        } else {
+            let head = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{args}, ")
+            };
+            (after_call, format!("console.log('$inspect(', {head}')')"))
+        };
+        result = format!("{}{}{}", &result[..pos], replacement, &result[end..]);
+    }
+    result
+}
+
 /// Strip $effect and $effect.root blocks from source code.
 /// In SSR, effects don't run, so they should be removed or replaced with no-ops.
 /// - `$effect.root(() => { ... })` -> `() => {}` (returns a no-op cleanup function)
@@ -409,6 +477,65 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
 ///
 /// Matching is JS-lexical-aware via [`code_match_positions`], so effect-call-shaped
 /// text inside string literals or comments is left untouched (issue #447, H-029).
+/// Does a call starting at `pos` stand where a STATEMENT stands?
+///
+/// Upstream reads this off the AST: an `ExpressionStatement` whose expression is
+/// the call is removed, and a call anywhere else becomes the `() => {}` no-op.
+/// Asking instead whether the call starts its own physical line answers a
+/// different question — `let m = 1; $effect.root(…)` is a statement that shares
+/// a line, and it came out as `() => {};` (issue #3343).
+///
+/// A statement can only begin where the previous statement ended, so the
+/// previous significant code character settles it: `;`, `{`, `}`, or nothing at
+/// all. The line test stays as the second sufficient condition, because
+/// semicolon-free source ends its previous statement with ASI and leaves an
+/// ordinary token there.
+fn is_statement_position(s: &str, pos: usize) -> bool {
+    match previous_significant_code_byte(s, pos) {
+        None | Some(b';' | b'{' | b'}') => true,
+        Some(_) => {
+            let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            s[line_start..pos].chars().all(char::is_whitespace)
+        }
+    }
+}
+
+/// The last non-whitespace byte of `s[..pos]` that is code — outside every
+/// string, template literal and comment.
+fn previous_significant_code_byte(s: &str, pos: usize) -> Option<u8> {
+    let bytes = s.as_bytes();
+    let n = pos.min(bytes.len());
+    let mut last = None;
+    let mut i = 0usize;
+    while i < n {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                i = skip_string_literal(bytes, i).min(n);
+                last = Some(b'"');
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(n);
+                continue;
+            }
+            b if !b.is_ascii_whitespace() => last = Some(b),
+            _ => {}
+        }
+        i += 1;
+    }
+    last
+}
+
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
 
@@ -438,11 +565,7 @@ fn strip_effects_from_source(source: &str) -> String {
         let call_start = pos + 13; // after "$effect.root("
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1; // after closing paren
-        // Statement position when everything from the line start to `pos` is
-        // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
-        let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
-        let is_statement = s[line_start..pos].chars().all(|c| c.is_whitespace());
-        if is_statement {
+        if is_statement_position(s, pos) {
             Some(remove_statement(s, pos, expr_end))
         } else {
             Some((expr_end, "() => {}".to_string()))
@@ -773,6 +896,8 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
     let mut names: FxHashSet<String> = FxHashSet::default();
     let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal(", b"$.async_derived("];
     let bytes = source.as_bytes();
+    let comments =
+        crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(bytes);
     for pat in patterns {
         let finder = memmem::Finder::new(*pat);
         for pos in finder.find_iter(bytes) {
@@ -782,9 +907,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // `$.tag`, but be permissive in case future builds do.
             let mut left = pos;
             if *pat == b"$.async_derived(" {
-                while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                    left -= 1;
-                }
+                left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
                 if left >= 5 && &bytes[left - 5..left] == b"await" {
                     left -= 5;
                 }
@@ -796,16 +919,12 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
                 left -= TAG.len();
             }
             // Skip whitespace + `=`.
-            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                left -= 1;
-            }
+            left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
             if left == 0 || bytes[left - 1] != b'=' {
                 continue;
             }
             left -= 1;
-            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                left -= 1;
-            }
+            left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
             // Read identifier backwards.
             let id_end = left;
             while left > 0 {
@@ -823,9 +942,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // whitespace separator). Otherwise this is a reassignment or
             // a class field, which we don't track here.
             let mut kw_end = left;
-            while kw_end > 0 && bytes[kw_end - 1].is_ascii_whitespace() {
-                kw_end -= 1;
-            }
+            kw_end = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, kw_end);
             let keyword_decl = (kw_end >= 3
                 && (&bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var"))
                 || (kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const");
