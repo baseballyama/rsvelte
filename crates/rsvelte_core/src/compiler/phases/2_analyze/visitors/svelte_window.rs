@@ -67,6 +67,9 @@ pub fn visit(
             Attribute::OnDirective(on) => {
                 on_directive::visit(on, context)?;
             }
+            Attribute::StyleDirective(style_dir) => {
+                super::style_directive::visit(style_dir, context)?;
+            }
             Attribute::LetDirective(let_dir) => {
                 // let: directives are NOT allowed on svelte:window
                 return Err(

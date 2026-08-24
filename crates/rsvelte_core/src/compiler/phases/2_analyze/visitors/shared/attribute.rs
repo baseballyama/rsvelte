@@ -7,10 +7,61 @@
 use super::super::super::AnalysisError;
 use super::super::super::errors;
 use super::super::VisitorContext;
-use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag};
+use crate::ast::template::{
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag,
+};
 
 /// Illegal characters in attribute names.
 const ILLEGAL_ATTRIBUTE_CHARS: &[char] = &['"', '\'', '>', '/', '='];
+
+/// Walk an attribute or directive expression as a template expression.
+///
+/// Upstream sets `state.expression = node.metadata.expression` in every
+/// attribute visitor and zimmerframe reaches those visitors from any parent, so
+/// the host a directive sits on never decides whether the template-expression
+/// rules apply to it. rsvelte's element visitors hand-roll that loop instead, so
+/// this is the one place the decision lives — `in_expression_tag` is read by
+/// exactly one thing, the `experimental_async` / `legacy_await_invalid` gate in
+/// `AwaitExpression`.
+pub fn walk_template_expression(
+    expression: &crate::ast::js::Expression,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let saved = context.in_expression_tag;
+    context.in_expression_tag = true;
+    let result = super::super::script::walk_expression(expression, context);
+    context.in_expression_tag = saved;
+    result
+}
+
+/// The attribute kinds whose expression no host-specific arm has already walked.
+///
+/// Element visitors end their attribute loop with this instead of a `_ => {}`
+/// that drops the expression on the floor — which is what made `{@attach await
+/// …}` legal on six hosts and `use:act={await …}` legal on every host.
+pub fn walk_remaining_attribute_expressions(
+    attr: &Attribute,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    match attr {
+        Attribute::AttachTag(t) => walk_template_expression(&t.expression, context),
+        Attribute::SpreadAttribute(s) => walk_template_expression(&s.expression, context),
+        Attribute::UseDirective(u) => match &u.expression {
+            Some(e) => walk_template_expression(e, context),
+            None => Ok(()),
+        },
+        Attribute::TransitionDirective(t) => match &t.expression {
+            Some(e) => walk_template_expression(e, context),
+            None => Ok(()),
+        },
+        Attribute::AnimateDirective(a) => match &a.expression {
+            Some(e) => walk_template_expression(e, context),
+            None => Ok(()),
+        },
+        Attribute::ClassDirective(c) => walk_template_expression(&c.expression, context),
+        _ => Ok(()),
+    }
+}
 
 /// Validate an attribute.
 ///

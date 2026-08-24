@@ -286,9 +286,9 @@ fn boundary_attribute_value<'a>(
 ) -> oxc_ast::ast::Expression<'a> {
     use crate::ast::template::{AttributeValue, AttributeValuePart};
     match value {
-        AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
+        AttributeValue::Expression(tag) => state.visit_expression_tag(tag),
         AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
-            AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
+            AttributeValuePart::ExpressionTag(tag) => state.visit_expression_tag(tag),
             AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
         },
         _ => state.b.bool(true),

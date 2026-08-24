@@ -392,3 +392,71 @@ fn fragments_tree_changes_codegen() {
     ));
     assert_ne!(html, tree, "fragments=tree must change codegen");
 }
+
+// ---------------------------------------------------------------------------
+// accessors / immutable — the deprecation, not the behaviour
+// ---------------------------------------------------------------------------
+
+fn warning_codes(envelope: &serde_json::Value) -> Vec<String> {
+    ok_result(envelope)["warnings"]
+        .as_array()
+        .map(|ws| {
+            ws.iter()
+                .filter_map(|w| w["code"].as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Upstream raises these from `deprecate()`, which is `warn_once` over a
+/// module-level `Set`: the diagnostic fires on the option being **supplied**
+/// (`accessors: false` warns too) and exactly **once per process**. No
+/// output-comparison gate can see either half — every corpus gate compiles a
+/// case once, so a rule about the second compile has no second compile to run
+/// — which is why the unit here is a process rather than a compile.
+///
+/// This must stay the only test in this binary that supplies either option:
+/// the latches are process-global and the test binary runs its tests in
+/// parallel threads.
+#[test]
+fn accessors_and_immutable_deprecations_warn_once_per_process() {
+    // First compile, with `false` values: presence alone must report, and both
+    // must report — a single shared latch would silence the second one.
+    assert_eq!(
+        warning_codes(&compile(
+            "<h1>x</h1>",
+            r#"{"filename":"App.svelte","accessors":false,"immutable":false}"#,
+        )),
+        vec![
+            "options_deprecated_accessors",
+            "options_deprecated_immutable"
+        ],
+    );
+
+    // Every later compile in this process is silent, whatever the value.
+    for _ in 0..2 {
+        assert_eq!(
+            warning_codes(&compile(
+                "<h1>x</h1>",
+                r#"{"filename":"App.svelte","accessors":true,"immutable":true}"#,
+            )),
+            Vec::<String>::new(),
+        );
+    }
+
+    // Negative control: the behavioural half is unaffected by the latch, so a
+    // fix that silenced the diagnostic by dropping the option would be caught
+    // here rather than passing as "warned once".
+    // `accessors` only has anything to act on when the component exports a
+    // prop, so the control source is a legacy `export let`, not `<h1>x</h1>`.
+    const EXPORTING: &str = "<script>export let a = 1;</script><b>{a}</b>";
+    let plain = js_code(&compile(EXPORTING, r#"{"filename":"App.svelte"}"#));
+    let accessed = js_code(&compile(
+        EXPORTING,
+        r#"{"filename":"App.svelte","accessors":true}"#,
+    ));
+    assert_ne!(
+        plain, accessed,
+        "accessors=true must still change codegen after the deprecation has been warned"
+    );
+}

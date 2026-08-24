@@ -192,18 +192,6 @@ pub fn visit<'a, 'b: 'a>(
     context.direct_component_parent = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;
 
-    // Visit the key expression if present
-    // IMPORTANT: Use a separate metadata for the key expression, NOT block.metadata.expression.
-    // In the official Svelte compiler, the key is visited without the expression metadata context,
-    // so its dependencies are NOT added to node.metadata.expression.dependencies.
-    // Adding key dependencies to expression metadata would incorrectly set EACH_ITEM_REACTIVE
-    // in cases where the iterable has no external dependencies but the key does.
-    if let Some(key) = &block.key {
-        let key_node = key.as_node();
-        let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
-        walk_js_expression_node(&key_node, context, &mut key_metadata)?;
-    }
-
     // Decrement block depth
     context.block_depth -= 1;
     context.svelte_self_parent_depth -= 1;
