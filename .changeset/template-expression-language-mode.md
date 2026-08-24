@@ -2,16 +2,4 @@
 '@rsvelte/compiler': patch
 ---
 
-parse: a template expression is TypeScript only when a script declares `lang="ts"`
-
-Template expressions were parsed as TypeScript whatever the component declared,
-so `{y as string}` compiled in a component with no `lang="ts"` where the official
-compiler raises `expected_token`. The mode is now threaded through every helper
-that decides it, including `check_js_parse_error_with_pos` — which is not a
-parser but the oracle that decides whether a failed parse is an error at all, and
-answered "valid" for TypeScript-only syntax.
-
-`{@const}`, `{@render}` and the `{#await}` head additionally replaced a parse
-failure with a placeholder identifier; upstream reads all three with
-`read_expression`, which throws. Every template-expression entry point now
-classifies a failure through one shared rule.
+Parse a template expression with the component's one language mode. Upstream picks the acorn variant once per component from `parser.ts` — set when any script declares `lang="ts"` — while rsvelte retried the *other* mode on failure, so TypeScript-only syntax (`as`, `satisfies`, `!`, `<T>x`, `f<T>()`, annotated arrow parameters) compiled in a component with no `lang="ts"` anywhere; a `{#snippet}` generic clause is likewise consumed only in TypeScript mode. A failure is also classified the way upstream classifies it: leftover input is `expected_token` only when what precedes it is itself a complete expression, so an error *inside* a nested expression (`{@html String(a b)}`) is `js_parse_error`, and an attribute value gets that classification too

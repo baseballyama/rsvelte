@@ -17,13 +17,14 @@ pub fn visit(
 ) -> Result<(), AnalysisError> {
     // style: directives set individual CSS properties
 
-    // Validate modifiers - only "important" is allowed
-    for modifier in &directive.modifiers {
-        if modifier.as_str() != "important" {
-            return Err(
-                errors::style_directive_invalid_modifier().at(directive.start, directive.end)
-            );
-        }
+    // Validate modifiers - a single "important" is the only accepted list
+    if directive.modifiers.len() > 1
+        || directive
+            .modifiers
+            .first()
+            .is_some_and(|m| m.as_str() != "important")
+    {
+        return Err(errors::style_directive_invalid_modifier().at(directive.start, directive.end));
     }
 
     // Analyze the expression value

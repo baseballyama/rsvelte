@@ -7,6 +7,7 @@ members = [
     "crates/rsvelte_bindings_support",
     "crates/rsvelte_bench",
     "crates/rsvelte_check",
+    "crates/rsvelte_content_mapper",
     "crates/rsvelte_core",
     "crates/rsvelte_devtools",
     "crates/rsvelte_diagnostics",
