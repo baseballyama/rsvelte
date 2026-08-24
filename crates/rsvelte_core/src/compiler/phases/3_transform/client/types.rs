@@ -948,6 +948,7 @@ impl<'a> ComponentContext<'a> {
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Let directive bindings are template-kind (BindingKind::Let) in
@@ -1292,6 +1293,7 @@ impl<'a> ComponentContext<'a> {
                             is_defined: false,
                             is_reactive: true,
                             replacement_id: None,
+                            store_source: None,
                         },
                     );
                     // Let directive bindings are template-kind.
@@ -1328,6 +1330,7 @@ impl<'a> ComponentContext<'a> {
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
                         self.state.transform_deep_read.insert(name, ());
@@ -2393,7 +2396,7 @@ pub struct IdentifierTransform {
     /// - identifier: The identifier being assigned to
     /// - value: The value being assigned
     /// - needs_proxy: Whether the value needs to be proxified
-    pub assign: Option<fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
+    pub assign: Option<fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
 
     /// How to handle mutations to the identifier
     ///
@@ -2401,7 +2404,7 @@ pub struct IdentifierTransform {
     /// - arena: The JS arena allocator
     /// - identifier: The identifier being mutated
     /// - mutation_expr: The mutation expression (e.g., `obj.prop = value`)
-    pub mutate: Option<fn(&JsArena, JsExpr, JsExpr) -> JsExpr>,
+    pub mutate: Option<fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr) -> JsExpr>,
 
     /// How to handle update expressions (++ or --)
     ///
@@ -2410,7 +2413,7 @@ pub struct IdentifierTransform {
     /// - operator: The update operator (++ or --)
     /// - argument: The identifier being updated
     /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
-    pub update: Option<fn(&JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
+    pub update: Option<fn(&IdentifierTransform, &JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
 
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
     /// When true, needs_proxy will always be false for assignments
@@ -2431,6 +2434,12 @@ pub struct IdentifierTransform {
     /// Used for legacy reactive imports where `numbers` becomes `$$_import_numbers()`.
     /// The read transform is then applied to the replacement identifier.
     pub replacement_id: Option<String>,
+
+    /// For a `$store` subscription, how the underlying store variable itself
+    /// reads — upstream's `get_store()`, i.e. `context.visit(b.id(name.slice(1)))`.
+    /// Resolved after every transform is registered, because the store variable's
+    /// own transform may be added later in the same pass.
+    pub store_source: Option<JsExpr>,
 }
 
 /// Component metadata.

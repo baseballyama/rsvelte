@@ -85,7 +85,7 @@ distinct warning codes seen         74   (of 89 in VALID_WARNING_CODES)
   — codes already agree by then. It is stripped so a code-level defect cannot leak into
   this ratchet, and so the two gates share one definition of "message".
 
-## Current baseline: `warning-message-known-failures.<target>.json`, 1 entry per target
+## Current baseline: `warning-message-known-failures.<target>.json`, 2 entries per target
 
 Empty because the corpus says so, not because the gate was scoped until it was. The
 first full run found **exactly one** message divergence in 14,131 entries, on all three
@@ -100,12 +100,20 @@ That is #2413, fixed by #2451, which lands before this. Re-measured against a bu
 carrying that fix, the count is **0** with the denominator unchanged at 592 — so the
 entry became a match rather than dropping out of comparison.
 
-The current entry is
+The first entry is
 `svelte/packages/svelte/tests/migrate/samples/self-closing-elements/input.svelte`.
-All three targets agree on the warning code and position, but rsvelte renders the
+All four targets agree on the warning code and position, but rsvelte renders the
 element name as `table` where upstream preserves the namespace form `f:table` in
 the self-closing-tag warning. This is a message-only compiler parity defect, so it
 belongs in this ratchet rather than in the code or position ones.
+
+The second arrived with the wave-2 enrolment (#3130):
+`open-webui/src/lib/components/common/Tags.svelte`. Upstream's
+`a11y_role_has_required_aria_props` lists **every** missing attribute for the role
+(`"aria-controls" and "aria-expanded"`); rsvelte lists only the first. The code and
+the position agree, so this ratchet is the only one that can see it — and the
+defect is in how the list is built, not in which attribute is detected, which makes
+it one fix for every role with more than one required prop.
 
 Every entry added later must carry a justification here naming the divergence and,
 where known, the issue tracking it.

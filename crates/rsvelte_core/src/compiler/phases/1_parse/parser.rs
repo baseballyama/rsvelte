@@ -147,6 +147,11 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
+    /// Offset of the `<` whose tag already closed an element implicitly.
+    /// Upstream pops exactly once per new tag; rsvelte re-enters the check from
+    /// each enclosing element's read loop, so without this one tag would walk
+    /// the whole ancestor chain.
+    pub(crate) implicit_close_at: Option<usize>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
     /// JS-style comments collected across the parse. Mirrors upstream
@@ -286,6 +291,7 @@ impl<'a> Parser<'a> {
             in_svelte_options: false,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
+            implicit_close_at: None,
             parse_warnings: Vec::new(),
             root_comments: std::cell::RefCell::new(Vec::new()),
             arena: ParseArena::new(),
@@ -330,6 +336,7 @@ impl<'a> Parser<'a> {
         self.pending_leading_comments.clear();
         self.meta_tags.clear();
         self.last_auto_closed_tag = None;
+        self.implicit_close_at = None;
         self.parse_warnings.clear();
         self.root_comments.borrow_mut().clear();
         self.depth = 0;

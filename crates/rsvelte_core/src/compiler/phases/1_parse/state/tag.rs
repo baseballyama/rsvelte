@@ -2239,8 +2239,10 @@ impl<'a> Parser<'a> {
                         declarator_end,
                     )
                 } else {
-                    // No `=` found – fall back to parsing as a single expression
-                    self.parse_js_expression(trimmed, expr_start)
+                    // Upstream reads a PATTERN and then `parser.eat('=', true)`,
+                    // so a const tag with no initializer is a missing `=` rather
+                    // than an expression to be parsed and dropped.
+                    return Err(self.const_tag_missing_equals(expr_content, expr_start));
                 };
 
                 Ok(Some(TemplateNode::ConstTag(Box::new(ConstTag {
@@ -2333,6 +2335,54 @@ impl<'a> Parser<'a> {
                 Ok(None)
             }
         }
+    }
+
+    /// The error upstream raises for a `{@const …}` body with no top-level `=`.
+    ///
+    /// `read_pattern` reads an identifier or a bracketed destructuring pattern
+    /// and stops, so the missing `=` is reported where that pattern ends, past
+    /// the whitespace `allow_whitespace` then skips — which is why `{@const c}`
+    /// and `{@const c }` report a byte apart.
+    fn const_tag_missing_equals(
+        &self,
+        expr_content: &str,
+        expr_start: usize,
+    ) -> crate::error::ParseError {
+        let pattern_end = match expr_content.chars().next() {
+            Some(open @ ('{' | '[')) => {
+                match find_matching_bracket(self.source, expr_start + 1, open) {
+                    Some(close) => close + 1 - expr_start,
+                    None => expr_content.len(),
+                }
+            }
+            Some(first) if first.is_alphabetic() || first == '_' || first == '$' => {
+                let len = expr_content
+                    .char_indices()
+                    .find(|(_, c)| !(c.is_alphanumeric() || *c == '_' || *c == '$'))
+                    .map_or(expr_content.len(), |(at, _)| at);
+                let name = &expr_content[..len];
+                if crate::compiler::phases::phase1_parse::utils::is_reserved(name) {
+                    return crate::error::ParseError::svelte(
+                        "unexpected_reserved_word",
+                        format!(
+                            "'{name}' is a reserved word in JavaScript and cannot be used here"
+                        ),
+                        (expr_start, expr_start),
+                    );
+                }
+                len
+            }
+            _ => {
+                return crate::error::ParseError::svelte(
+                    "expected_pattern",
+                    "Expected identifier or destructure pattern",
+                    (expr_start, expr_start),
+                );
+            }
+        };
+        let rest = &expr_content[pattern_end..];
+        let at = expr_start + pattern_end + (rest.len() - rest.trim_start_ws().len());
+        crate::error::ParseError::expected_token("=", at)
     }
 
     /// Parse a JavaScript expression and return as Expression (internal version).

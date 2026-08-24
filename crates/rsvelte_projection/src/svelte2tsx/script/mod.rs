@@ -56,10 +56,7 @@ use props_rune::{
     PropsRuneInfo, apply_props_typedef, collect_props_rune_info, detect_props_rune_oxc,
 };
 use reactive::handle_reactive_statement;
-use runes::{
-    detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body,
-    detect_rune_in_stmt, detect_runes_call, detect_runes_expr_stmt, scope_with_params,
-};
+use runes::detect_runes_in_program;
 use script_facts::ScriptFacts;
 use stores::{
     inject_store_subscriptions_vars_only_with_program, inject_store_subscriptions_with_program,
@@ -132,6 +129,10 @@ pub fn process_instance_script(
         // statement whose initializer we're checking. See
         // collect_top_level_declared_names.
         let declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
+        // Runes-globals detection is ONE walk over the whole instance script,
+        // mirroring upstream's single identifier pass — not a per-statement-kind
+        // dispatch, which structurally cannot see the kinds it has no arm for.
+        detect_runes_in_program(&program.body, exported_names, &declared_names);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -152,7 +153,6 @@ pub fn process_instance_script(
                     // into the `exports:` return, not `props:`).
                     let is_let = matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                     for declarator in &var_decl.declarations {
-                        detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Collect $props() info for typedef generation (one per
                         // `$props()` destructure).
@@ -241,40 +241,6 @@ pub fn process_instance_script(
                         }
                     }
                 }
-                oxc::Statement::FunctionDeclaration(func) => {
-                    // Detect rune calls nested inside the function body.
-                    // The official svelte2tsx `checkGlobalsForRunes` walks the
-                    // entire TypeScript AST (including function bodies) and flags
-                    // any undeclared `$state`/`$derived`/`$effect` reference.
-                    // Mirror that here by recursively scanning the body.
-                    // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                    if let Some(ref body) = func.body {
-                        // Add the function's params to the scope so a rune name
-                        // shadowed by a param (`function bar($derived){ … }`) is
-                        // treated as that param, not a rune.
-                        let scope = scope_with_params(&declared_names, &func.params);
-                        if detect_rune_in_nested_body(&body.statements, &scope) {
-                            exported_names.set_uses_runes(true);
-                        }
-                    }
-                }
-                // Detect rune calls nested inside class method bodies.
-                oxc::Statement::ClassDeclaration(class)
-                    if class.body.body.iter().any(|member| match member {
-                        oxc::ClassElement::MethodDefinition(method) => {
-                            method.value.body.as_ref().is_some_and(|body| {
-                                detect_rune_in_nested_body(&body.statements, &declared_names)
-                            })
-                        }
-                        oxc::ClassElement::PropertyDefinition(prop) => prop
-                            .value
-                            .as_ref()
-                            .is_some_and(|e| detect_rune_in_expr(e, &declared_names)),
-                        _ => false,
-                    }) =>
-                {
-                    exported_names.set_uses_runes(true);
-                }
                 oxc::Statement::ExportDeclaration(export) => {
                     // Also check exports for declared names
                     {
@@ -321,22 +287,6 @@ pub fn process_instance_script(
                                         );
                                     }
                                 }
-                            }
-                            oxc::Declaration::FunctionDeclaration(func) => {
-                                // Runes inside an exported function body still
-                                // put the component in runes mode.
-                                if let Some(ref body) = func.body {
-                                    let scope = scope_with_params(&declared_names, &func.params);
-                                    if detect_rune_in_nested_body(&body.statements, &scope) {
-                                        exported_names.set_uses_runes(true);
-                                    }
-                                }
-                            }
-                            // `export class C { x = $state(0) }` → runes mode.
-                            oxc::Declaration::ClassDeclaration(class)
-                                if detect_rune_in_class_body(class, &declared_names) =>
-                            {
-                                exported_names.set_uses_runes(true);
                             }
                             // `export type X = ...` / `export interface X { ... }`.
                             //
@@ -439,22 +389,7 @@ pub fn process_instance_script(
                         exported_names,
                     );
                 }
-                // Detect rune globals used as standalone expression statements,
-                // e.g. `$effect(() => { ... })` or `$effect.pre(() => { ... })`.
-                // These are missed by `detect_runes_call` which only visits
-                // VariableDeclarator inits.
-                // Reference: svelte2tsx ExportedNames.ts `hasRunesGlobals` check.
-                oxc::Statement::ExpressionStatement(es) => {
-                    detect_runes_expr_stmt(es, exported_names, &declared_names);
-                }
-                // Every other statement kind — a block, `if`, loop, `switch`,
-                // `try`, label — reaches the recursive walker, which official's
-                // whole-AST globals walk also sees below a statement.
-                other => {
-                    if detect_rune_in_stmt(other, &declared_names) {
-                        exported_names.set_uses_runes(true);
-                    }
-                }
+                _ => {}
             }
         }
 
@@ -472,70 +407,19 @@ pub fn process_instance_script(
         let mut reactive_declared_names: HashSet<String> = HashSet::new();
 
         // Pass 2: handle exports
-        for stmt in &program.body {
-            if let oxc::Statement::ExportDeclaration(export) = stmt {
-                handle_export_named_decl(
-                    export.span,
-                    Some(&export.declaration),
-                    &[],
-                    offset,
-                    str,
-                    exported_names,
-                    true,
-                    &possible_exports,
-                    raw_content,
-                    is_ts,
-                    basename,
-                    emit_jsdoc,
-                );
-            } else if let oxc::Statement::ExportNamedDeclaration(export) = stmt {
-                handle_export_named_decl(
-                    export.span,
-                    None,
-                    &export.specifiers,
-                    offset,
-                    str,
-                    exported_names,
-                    true,
-                    &possible_exports,
-                    raw_content,
-                    is_ts,
-                    basename,
-                    emit_jsdoc,
-                );
-            } else if let oxc::Statement::ExportFromDeclaration(export) = stmt {
-                handle_export_named_decl(
-                    export.span,
-                    None,
-                    &export.specifiers,
-                    offset,
-                    str,
-                    exported_names,
-                    true,
-                    &possible_exports,
-                    raw_content,
-                    is_ts,
-                    basename,
-                    emit_jsdoc,
-                );
-            } else if let oxc::Statement::ExportDefaultDeclaration(export) = stmt {
-                // Instance scripts can't have `export default` (svelte rejects
-                // it). Official svelte2tsx blanks just the `export` keyword for a
-                // default-exported FUNCTION or CLASS declaration, leaving
-                // `default function …`/`default class …` (invalid TSX → oxfmt
-                // skips → raw output). A default-exported EXPRESSION
-                // (`export default 42`) is kept verbatim. Mirror that.
-                let is_decl = matches!(
-                    export.declaration,
-                    oxc::ExportDefaultDeclarationKind::FunctionDeclaration(_)
-                        | oxc::ExportDefaultDeclarationKind::ClassDeclaration(_)
-                );
-                if is_decl {
-                    let start = export.span.start + offset;
-                    str.overwrite(start, start + 6, "");
-                }
-            }
-        }
+        handle_instance_export_statements(
+            &program.body,
+            &mut InstanceExportContext {
+                offset,
+                str,
+                exported_names,
+                possible_exports: &possible_exports,
+                raw_content,
+                is_ts,
+                basename,
+                emit_jsdoc,
+            },
+        );
 
         // Blank out $$Generic type alias declarations
         for &(start, end) in &exported_names.dollar_generic_positions {
@@ -906,6 +790,143 @@ fn collect_module_names(
         }
     }
     Ok(())
+}
+
+/// Everything `handle_export_named_decl` needs, bundled so the recursive
+/// instance-script export walk stays readable.
+struct InstanceExportContext<'a, 'b> {
+    offset: u32,
+    str: &'a mut MagicString<'b>,
+    exported_names: &'a mut ExportedNames,
+    possible_exports: &'a HashMap<String, PossibleExport>,
+    raw_content: &'a str,
+    is_ts: bool,
+    basename: &'a str,
+    emit_jsdoc: bool,
+}
+
+/// Lift every `export` in the instance script into the component's prop/export
+/// surface and strip the keyword.
+///
+/// Upstream's walk is `ts.forEachChild` over the WHOLE instance AST, and
+/// `handleVariableStatement` / `handleExportFunctionOrClass` /
+/// `handleExportDeclaration` fire wherever they match — the `export` branch of
+/// `handleVariableStatement` never checks that the parent is the source file. A
+/// `namespace` / `module` / `global` body is the only other place an `export`
+/// can legally sit, so recursing into those reproduces upstream's reach.
+fn handle_instance_export_statements(body: &[oxc::Statement], ctx: &mut InstanceExportContext) {
+    for stmt in body {
+        match stmt {
+            oxc::Statement::ExportDeclaration(export) => {
+                handle_export_named_decl(
+                    export.span,
+                    Some(&export.declaration),
+                    &[],
+                    ctx.offset,
+                    ctx.str,
+                    ctx.exported_names,
+                    true,
+                    ctx.possible_exports,
+                    ctx.raw_content,
+                    ctx.is_ts,
+                    ctx.basename,
+                    ctx.emit_jsdoc,
+                );
+                // `export namespace N { export const a = 1 }` — the outer
+                // `export` is left alone, but the body still gets walked.
+                match &export.declaration {
+                    oxc::Declaration::TSNamespaceDeclaration(ns) => {
+                        handle_namespace_body_exports(&ns.body, ctx);
+                    }
+                    oxc::Declaration::TSExternalModuleDeclaration(module_decl) => {
+                        if let Some(block) = &module_decl.body {
+                            handle_instance_export_statements(&block.body, ctx);
+                        }
+                    }
+                    oxc::Declaration::TSGlobalDeclaration(global) => {
+                        handle_instance_export_statements(&global.body.body, ctx);
+                    }
+                    _ => {}
+                }
+            }
+            oxc::Statement::ExportNamedDeclaration(export) => {
+                handle_export_named_decl(
+                    export.span,
+                    None,
+                    &export.specifiers,
+                    ctx.offset,
+                    ctx.str,
+                    ctx.exported_names,
+                    true,
+                    ctx.possible_exports,
+                    ctx.raw_content,
+                    ctx.is_ts,
+                    ctx.basename,
+                    ctx.emit_jsdoc,
+                );
+            }
+            oxc::Statement::ExportFromDeclaration(export) => {
+                handle_export_named_decl(
+                    export.span,
+                    None,
+                    &export.specifiers,
+                    ctx.offset,
+                    ctx.str,
+                    ctx.exported_names,
+                    true,
+                    ctx.possible_exports,
+                    ctx.raw_content,
+                    ctx.is_ts,
+                    ctx.basename,
+                    ctx.emit_jsdoc,
+                );
+            }
+            oxc::Statement::ExportDefaultDeclaration(export) => {
+                // Instance scripts can't have `export default` (svelte rejects
+                // it). Official svelte2tsx blanks just the `export` keyword for a
+                // default-exported FUNCTION or CLASS declaration, leaving
+                // `default function …`/`default class …` (invalid TSX → oxfmt
+                // skips → raw output). A default-exported EXPRESSION
+                // (`export default 42`) is kept verbatim. Mirror that.
+                let is_decl = matches!(
+                    export.declaration,
+                    oxc::ExportDefaultDeclarationKind::FunctionDeclaration(_)
+                        | oxc::ExportDefaultDeclarationKind::ClassDeclaration(_)
+                );
+                if is_decl {
+                    let start = export.span.start + ctx.offset;
+                    ctx.str.overwrite(start, start + 6, "");
+                }
+            }
+            oxc::Statement::TSNamespaceDeclaration(ns) => {
+                handle_namespace_body_exports(&ns.body, ctx);
+            }
+            oxc::Statement::TSExternalModuleDeclaration(module_decl) => {
+                if let Some(block) = &module_decl.body {
+                    handle_instance_export_statements(&block.body, ctx);
+                }
+            }
+            oxc::Statement::TSGlobalDeclaration(global) => {
+                handle_instance_export_statements(&global.body.body, ctx);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn handle_namespace_body_exports(
+    body: &oxc::TSNamespaceDeclarationBody<'_>,
+    ctx: &mut InstanceExportContext,
+) {
+    match body {
+        // `namespace A.B { … }` — the dotted form nests another namespace.
+        oxc::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            handle_namespace_body_exports(&inner.body, ctx);
+        }
+        oxc::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            handle_instance_export_statements(&block.body, ctx);
+        }
+    }
 }
 
 fn collect_exported_module_declaration(
