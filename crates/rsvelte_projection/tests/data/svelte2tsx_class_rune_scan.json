@@ -1,0 +1,618 @@
+[
+ {
+  "name": "decl-top__prop-init",
+  "filename": "decl-top__prop-init.svelte",
+  "source": "<script>\nclass K { a = $state(0); }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { a = $state(0); }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopPropInit__SvelteComponent_ = ReturnType<typeof DeclTopPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-exported__prop-init",
+  "filename": "decl-exported__prop-init.svelte",
+  "source": "<script>\nexport class K { a = $state(0); }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n class K { a = $state(0); }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: /** @type {{K: typeof K}} */ ({}), bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclExportedPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclExportedPropInit__SvelteComponent_ = ReturnType<typeof DeclExportedPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclExportedPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-fn__prop-init",
+  "filename": "decl-in-fn__prop-init.svelte",
+  "source": "<script>\nfunction f() { class K { a = $state(0); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { class K { a = $state(0); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclInFnPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclInFnPropInit__SvelteComponent_ = ReturnType<typeof DeclInFnPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInFnPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__prop-init",
+  "filename": "expr-const__prop-init.svelte",
+  "source": "<script>\nconst C = class { a = $state(0); };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { a = $state(0); };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstPropInit__SvelteComponent_ = ReturnType<typeof ExprConstPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-arg__prop-init",
+  "filename": "expr-arg__prop-init.svelte",
+  "source": "<script>\nuse(class { a = $state(0); });\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nuse(class { a = $state(0); });\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprArgPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprArgPropInit__SvelteComponent_ = ReturnType<typeof ExprArgPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprArgPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-fn__prop-init",
+  "filename": "expr-in-fn__prop-init.svelte",
+  "source": "<script>\nfunction f() { const C = class { a = $state(0); }; }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { const C = class { a = $state(0); }; }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprInFnPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprInFnPropInit__SvelteComponent_ = ReturnType<typeof ExprInFnPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInFnPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-class__prop-init",
+  "filename": "decl-in-class__prop-init.svelte",
+  "source": "<script>\nclass Outer { m() { class K { a = $state(0); } } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { class K { a = $state(0); } } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclInClassPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclInClassPropInit__SvelteComponent_ = ReturnType<typeof DeclInClassPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInClassPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-class__prop-init",
+  "filename": "expr-in-class__prop-init.svelte",
+  "source": "<script>\nclass Outer { m() { const C = class { a = $state(0); }; } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { const C = class { a = $state(0); }; } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprInClassPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprInClassPropInit__SvelteComponent_ = ReturnType<typeof ExprInClassPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInClassPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__prop-init",
+  "filename": "expr-extends__prop-init.svelte",
+  "source": "<script>\nclass Sub extends (class { a = $state(0); }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { a = $state(0); }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsPropInit__SvelteComponent_ = ReturnType<typeof ExprExtendsPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__method-body",
+  "filename": "decl-top__method-body.svelte",
+  "source": "<script>\nclass K { m() { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { m() { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopMethodBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopMethodBody__SvelteComponent_ = ReturnType<typeof DeclTopMethodBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopMethodBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__method-body",
+  "filename": "expr-const__method-body.svelte",
+  "source": "<script>\nconst C = class { m() { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { m() { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstMethodBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstMethodBody__SvelteComponent_ = ReturnType<typeof ExprConstMethodBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstMethodBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__method-body",
+  "filename": "expr-extends__method-body.svelte",
+  "source": "<script>\nclass Sub extends (class { m() { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { m() { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsMethodBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsMethodBody__SvelteComponent_ = ReturnType<typeof ExprExtendsMethodBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsMethodBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__static-block",
+  "filename": "decl-top__static-block.svelte",
+  "source": "<script>\nclass K { static { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { static { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopStaticBlock__SvelteComponent_ = ReturnType<typeof DeclTopStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-exported__static-block",
+  "filename": "decl-exported__static-block.svelte",
+  "source": "<script>\nexport class K { static { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n class K { static { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: /** @type {{K: typeof K}} */ ({}), bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclExportedStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclExportedStaticBlock__SvelteComponent_ = ReturnType<typeof DeclExportedStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclExportedStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-fn__static-block",
+  "filename": "decl-in-fn__static-block.svelte",
+  "source": "<script>\nfunction f() { class K { static { $effect(() => {}); } } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { class K { static { $effect(() => {}); } } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclInFnStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclInFnStaticBlock__SvelteComponent_ = ReturnType<typeof DeclInFnStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInFnStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__static-block",
+  "filename": "expr-const__static-block.svelte",
+  "source": "<script>\nconst C = class { static { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { static { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstStaticBlock__SvelteComponent_ = ReturnType<typeof ExprConstStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-arg__static-block",
+  "filename": "expr-arg__static-block.svelte",
+  "source": "<script>\nuse(class { static { $effect(() => {}); } });\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nuse(class { static { $effect(() => {}); } });\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprArgStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprArgStaticBlock__SvelteComponent_ = ReturnType<typeof ExprArgStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprArgStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-fn__static-block",
+  "filename": "expr-in-fn__static-block.svelte",
+  "source": "<script>\nfunction f() { const C = class { static { $effect(() => {}); } }; }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { const C = class { static { $effect(() => {}); } }; }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprInFnStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprInFnStaticBlock__SvelteComponent_ = ReturnType<typeof ExprInFnStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInFnStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-class__static-block",
+  "filename": "decl-in-class__static-block.svelte",
+  "source": "<script>\nclass Outer { m() { class K { static { $effect(() => {}); } } } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { class K { static { $effect(() => {}); } } } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclInClassStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclInClassStaticBlock__SvelteComponent_ = ReturnType<typeof DeclInClassStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInClassStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-class__static-block",
+  "filename": "expr-in-class__static-block.svelte",
+  "source": "<script>\nclass Outer { m() { const C = class { static { $effect(() => {}); } }; } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { const C = class { static { $effect(() => {}); } }; } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprInClassStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprInClassStaticBlock__SvelteComponent_ = ReturnType<typeof ExprInClassStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInClassStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__static-block",
+  "filename": "expr-extends__static-block.svelte",
+  "source": "<script>\nclass Sub extends (class { static { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { static { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsStaticBlock__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsStaticBlock__SvelteComponent_ = ReturnType<typeof ExprExtendsStaticBlock__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsStaticBlock__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__accessor-prop",
+  "filename": "decl-top__accessor-prop.svelte",
+  "source": "<script>\nclass K { accessor a = $state(0); }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { accessor a = $state(0); }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopAccessorProp__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopAccessorProp__SvelteComponent_ = ReturnType<typeof DeclTopAccessorProp__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopAccessorProp__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__accessor-prop",
+  "filename": "expr-const__accessor-prop.svelte",
+  "source": "<script>\nconst C = class { accessor a = $state(0); };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { accessor a = $state(0); };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstAccessorProp__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstAccessorProp__SvelteComponent_ = ReturnType<typeof ExprConstAccessorProp__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstAccessorProp__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__accessor-prop",
+  "filename": "expr-extends__accessor-prop.svelte",
+  "source": "<script>\nclass Sub extends (class { accessor a = $state(0); }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { accessor a = $state(0); }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsAccessorProp__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsAccessorProp__SvelteComponent_ = ReturnType<typeof ExprExtendsAccessorProp__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsAccessorProp__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__getter-body",
+  "filename": "decl-top__getter-body.svelte",
+  "source": "<script>\nclass K { get g() { return $derived(1); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { get g() { return $derived(1); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopGetterBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopGetterBody__SvelteComponent_ = ReturnType<typeof DeclTopGetterBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopGetterBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__getter-body",
+  "filename": "expr-const__getter-body.svelte",
+  "source": "<script>\nconst C = class { get g() { return $derived(1); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { get g() { return $derived(1); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstGetterBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstGetterBody__SvelteComponent_ = ReturnType<typeof ExprConstGetterBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstGetterBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__getter-body",
+  "filename": "expr-extends__getter-body.svelte",
+  "source": "<script>\nclass Sub extends (class { get g() { return $derived(1); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { get g() { return $derived(1); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsGetterBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsGetterBody__SvelteComponent_ = ReturnType<typeof ExprExtendsGetterBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsGetterBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__setter-body",
+  "filename": "decl-top__setter-body.svelte",
+  "source": "<script>\nclass K { set s(v) { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { set s(v) { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopSetterBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopSetterBody__SvelteComponent_ = ReturnType<typeof DeclTopSetterBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopSetterBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__setter-body",
+  "filename": "expr-const__setter-body.svelte",
+  "source": "<script>\nconst C = class { set s(v) { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { set s(v) { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstSetterBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstSetterBody__SvelteComponent_ = ReturnType<typeof ExprConstSetterBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstSetterBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__setter-body",
+  "filename": "expr-extends__setter-body.svelte",
+  "source": "<script>\nclass Sub extends (class { set s(v) { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { set s(v) { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsSetterBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsSetterBody__SvelteComponent_ = ReturnType<typeof ExprExtendsSetterBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsSetterBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__static-method",
+  "filename": "decl-top__static-method.svelte",
+  "source": "<script>\nclass K { static m() { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { static m() { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopStaticMethod__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopStaticMethod__SvelteComponent_ = ReturnType<typeof DeclTopStaticMethod__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopStaticMethod__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__static-method",
+  "filename": "expr-const__static-method.svelte",
+  "source": "<script>\nconst C = class { static m() { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { static m() { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstStaticMethod__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstStaticMethod__SvelteComponent_ = ReturnType<typeof ExprConstStaticMethod__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstStaticMethod__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__static-method",
+  "filename": "expr-extends__static-method.svelte",
+  "source": "<script>\nclass Sub extends (class { static m() { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { static m() { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsStaticMethod__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsStaticMethod__SvelteComponent_ = ReturnType<typeof ExprExtendsStaticMethod__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsStaticMethod__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__static-prop-init",
+  "filename": "decl-top__static-prop-init.svelte",
+  "source": "<script>\nclass K { static a = $state(0); }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { static a = $state(0); }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopStaticPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopStaticPropInit__SvelteComponent_ = ReturnType<typeof DeclTopStaticPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopStaticPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__static-prop-init",
+  "filename": "expr-const__static-prop-init.svelte",
+  "source": "<script>\nconst C = class { static a = $state(0); };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { static a = $state(0); };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstStaticPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstStaticPropInit__SvelteComponent_ = ReturnType<typeof ExprConstStaticPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstStaticPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__static-prop-init",
+  "filename": "expr-extends__static-prop-init.svelte",
+  "source": "<script>\nclass Sub extends (class { static a = $state(0); }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { static a = $state(0); }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsStaticPropInit__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsStaticPropInit__SvelteComponent_ = ReturnType<typeof ExprExtendsStaticPropInit__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsStaticPropInit__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__private-method",
+  "filename": "decl-top__private-method.svelte",
+  "source": "<script>\nclass K { #m() { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { #m() { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopPrivateMethod__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopPrivateMethod__SvelteComponent_ = ReturnType<typeof DeclTopPrivateMethod__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopPrivateMethod__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__private-method",
+  "filename": "expr-const__private-method.svelte",
+  "source": "<script>\nconst C = class { #m() { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { #m() { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstPrivateMethod__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstPrivateMethod__SvelteComponent_ = ReturnType<typeof ExprConstPrivateMethod__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstPrivateMethod__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__private-method",
+  "filename": "expr-extends__private-method.svelte",
+  "source": "<script>\nclass Sub extends (class { #m() { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { #m() { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsPrivateMethod__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsPrivateMethod__SvelteComponent_ = ReturnType<typeof ExprExtendsPrivateMethod__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsPrivateMethod__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__private-prop",
+  "filename": "decl-top__private-prop.svelte",
+  "source": "<script>\nclass K { #a = $state(0); }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { #a = $state(0); }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopPrivateProp__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopPrivateProp__SvelteComponent_ = ReturnType<typeof DeclTopPrivateProp__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopPrivateProp__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__private-prop",
+  "filename": "expr-const__private-prop.svelte",
+  "source": "<script>\nconst C = class { #a = $state(0); };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { #a = $state(0); };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstPrivateProp__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstPrivateProp__SvelteComponent_ = ReturnType<typeof ExprConstPrivateProp__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstPrivateProp__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__private-prop",
+  "filename": "expr-extends__private-prop.svelte",
+  "source": "<script>\nclass Sub extends (class { #a = $state(0); }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { #a = $state(0); }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsPrivateProp__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsPrivateProp__SvelteComponent_ = ReturnType<typeof ExprExtendsPrivateProp__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsPrivateProp__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__computed-key",
+  "filename": "decl-top__computed-key.svelte",
+  "source": "<script>\nclass K { [$state(0)] = 1; }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { [$state(0)] = 1; }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopComputedKey__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopComputedKey__SvelteComponent_ = ReturnType<typeof DeclTopComputedKey__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopComputedKey__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__computed-key",
+  "filename": "expr-const__computed-key.svelte",
+  "source": "<script>\nconst C = class { [$state(0)] = 1; };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { [$state(0)] = 1; };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstComputedKey__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstComputedKey__SvelteComponent_ = ReturnType<typeof ExprConstComputedKey__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstComputedKey__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__computed-key",
+  "filename": "expr-extends__computed-key.svelte",
+  "source": "<script>\nclass Sub extends (class { [$state(0)] = 1; }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { [$state(0)] = 1; }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsComputedKey__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsComputedKey__SvelteComponent_ = ReturnType<typeof ExprExtendsComputedKey__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsComputedKey__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__method-param-def",
+  "filename": "decl-top__method-param-def.svelte",
+  "source": "<script>\nclass K { m(p = $state(0)) {} }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { m(p = $state(0)) {} }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopMethodParamDef__SvelteComponent_ = ReturnType<typeof DeclTopMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-exported__method-param-def",
+  "filename": "decl-exported__method-param-def.svelte",
+  "source": "<script>\nexport class K { m(p = $state(0)) {} }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n class K { m(p = $state(0)) {} }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: /** @type {{K: typeof K}} */ ({}), bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclExportedMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclExportedMethodParamDef__SvelteComponent_ = ReturnType<typeof DeclExportedMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclExportedMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-fn__method-param-def",
+  "filename": "decl-in-fn__method-param-def.svelte",
+  "source": "<script>\nfunction f() { class K { m(p = $state(0)) {} } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { class K { m(p = $state(0)) {} } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclInFnMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclInFnMethodParamDef__SvelteComponent_ = ReturnType<typeof DeclInFnMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInFnMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__method-param-def",
+  "filename": "expr-const__method-param-def.svelte",
+  "source": "<script>\nconst C = class { m(p = $state(0)) {} };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { m(p = $state(0)) {} };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstMethodParamDef__SvelteComponent_ = ReturnType<typeof ExprConstMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-arg__method-param-def",
+  "filename": "expr-arg__method-param-def.svelte",
+  "source": "<script>\nuse(class { m(p = $state(0)) {} });\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nuse(class { m(p = $state(0)) {} });\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprArgMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprArgMethodParamDef__SvelteComponent_ = ReturnType<typeof ExprArgMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprArgMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-fn__method-param-def",
+  "filename": "expr-in-fn__method-param-def.svelte",
+  "source": "<script>\nfunction f() { const C = class { m(p = $state(0)) {} }; }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { const C = class { m(p = $state(0)) {} }; }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprInFnMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprInFnMethodParamDef__SvelteComponent_ = ReturnType<typeof ExprInFnMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInFnMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-class__method-param-def",
+  "filename": "decl-in-class__method-param-def.svelte",
+  "source": "<script>\nclass Outer { m() { class K { m(p = $state(0)) {} } } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { class K { m(p = $state(0)) {} } } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclInClassMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclInClassMethodParamDef__SvelteComponent_ = ReturnType<typeof DeclInClassMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInClassMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-class__method-param-def",
+  "filename": "expr-in-class__method-param-def.svelte",
+  "source": "<script>\nclass Outer { m() { const C = class { m(p = $state(0)) {} }; } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { const C = class { m(p = $state(0)) {} }; } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprInClassMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprInClassMethodParamDef__SvelteComponent_ = ReturnType<typeof ExprInClassMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInClassMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__method-param-def",
+  "filename": "expr-extends__method-param-def.svelte",
+  "source": "<script>\nclass Sub extends (class { m(p = $state(0)) {} }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { m(p = $state(0)) {} }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsMethodParamDef__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsMethodParamDef__SvelteComponent_ = ReturnType<typeof ExprExtendsMethodParamDef__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsMethodParamDef__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__ctor-body",
+  "filename": "decl-top__ctor-body.svelte",
+  "source": "<script>\nclass K { constructor() { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { constructor() { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst DeclTopCtorBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type DeclTopCtorBody__SvelteComponent_ = ReturnType<typeof DeclTopCtorBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopCtorBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__ctor-body",
+  "filename": "expr-const__ctor-body.svelte",
+  "source": "<script>\nconst C = class { constructor() { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { constructor() { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprConstCtorBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprConstCtorBody__SvelteComponent_ = ReturnType<typeof ExprConstCtorBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstCtorBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__ctor-body",
+  "filename": "expr-extends__ctor-body.svelte",
+  "source": "<script>\nclass Sub extends (class { constructor() { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { constructor() { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExprExtendsCtorBody__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExprExtendsCtorBody__SvelteComponent_ = ReturnType<typeof ExprExtendsCtorBody__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsCtorBody__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__method-param-shadow",
+  "filename": "decl-top__method-param-shadow.svelte",
+  "source": "<script>\nclass K { m($effect) { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { m($effect) { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst DeclTopMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclTopMethodParamShadow__SvelteComponent_ = InstanceType<typeof DeclTopMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-exported__method-param-shadow",
+  "filename": "decl-exported__method-param-shadow.svelte",
+  "source": "<script>\nexport class K { m($effect) { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n class K { m($effect) { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: {K: K}, exports: /** @type {{K: typeof K}} */ ({}), bindings: \"\", slots: {}, events: {} }}\nconst DeclExportedMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(['K'], __sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclExportedMethodParamShadow__SvelteComponent_ = InstanceType<typeof DeclExportedMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclExportedMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-fn__method-param-shadow",
+  "filename": "decl-in-fn__method-param-shadow.svelte",
+  "source": "<script>\nfunction f() { class K { m($effect) { $effect(() => {}); } } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { class K { m($effect) { $effect(() => {}); } } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst DeclInFnMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclInFnMethodParamShadow__SvelteComponent_ = InstanceType<typeof DeclInFnMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInFnMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__method-param-shadow",
+  "filename": "expr-const__method-param-shadow.svelte",
+  "source": "<script>\nconst C = class { m($effect) { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { m($effect) { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprConstMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprConstMethodParamShadow__SvelteComponent_ = InstanceType<typeof ExprConstMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-arg__method-param-shadow",
+  "filename": "expr-arg__method-param-shadow.svelte",
+  "source": "<script>\nuse(class { m($effect) { $effect(() => {}); } });\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nuse(class { m($effect) { $effect(() => {}); } });\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprArgMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprArgMethodParamShadow__SvelteComponent_ = InstanceType<typeof ExprArgMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprArgMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-fn__method-param-shadow",
+  "filename": "expr-in-fn__method-param-shadow.svelte",
+  "source": "<script>\nfunction f() { const C = class { m($effect) { $effect(() => {}); } }; }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f() { const C = class { m($effect) { $effect(() => {}); } }; }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprInFnMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprInFnMethodParamShadow__SvelteComponent_ = InstanceType<typeof ExprInFnMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInFnMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-in-class__method-param-shadow",
+  "filename": "decl-in-class__method-param-shadow.svelte",
+  "source": "<script>\nclass Outer { m() { class K { m($effect) { $effect(() => {}); } } } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { class K { m($effect) { $effect(() => {}); } } } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst DeclInClassMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclInClassMethodParamShadow__SvelteComponent_ = InstanceType<typeof DeclInClassMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclInClassMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-in-class__method-param-shadow",
+  "filename": "expr-in-class__method-param-shadow.svelte",
+  "source": "<script>\nclass Outer { m() { const C = class { m($effect) { $effect(() => {}); } }; } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Outer { m() { const C = class { m($effect) { $effect(() => {}); } }; } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprInClassMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprInClassMethodParamShadow__SvelteComponent_ = InstanceType<typeof ExprInClassMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprInClassMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__method-param-shadow",
+  "filename": "expr-extends__method-param-shadow.svelte",
+  "source": "<script>\nclass Sub extends (class { m($effect) { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { m($effect) { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprExtendsMethodParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprExtendsMethodParamShadow__SvelteComponent_ = InstanceType<typeof ExprExtendsMethodParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsMethodParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__ctor-param-shadow",
+  "filename": "decl-top__ctor-param-shadow.svelte",
+  "source": "<script>\nclass K { constructor($effect) { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { constructor($effect) { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst DeclTopCtorParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclTopCtorParamShadow__SvelteComponent_ = InstanceType<typeof DeclTopCtorParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopCtorParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__ctor-param-shadow",
+  "filename": "expr-const__ctor-param-shadow.svelte",
+  "source": "<script>\nconst C = class { constructor($effect) { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { constructor($effect) { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprConstCtorParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprConstCtorParamShadow__SvelteComponent_ = InstanceType<typeof ExprConstCtorParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstCtorParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__ctor-param-shadow",
+  "filename": "expr-extends__ctor-param-shadow.svelte",
+  "source": "<script>\nclass Sub extends (class { constructor($effect) { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { constructor($effect) { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprExtendsCtorParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprExtendsCtorParamShadow__SvelteComponent_ = InstanceType<typeof ExprExtendsCtorParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsCtorParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__setter-param-shadow",
+  "filename": "decl-top__setter-param-shadow.svelte",
+  "source": "<script>\nclass K { set s($effect) { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { set s($effect) { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst DeclTopSetterParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclTopSetterParamShadow__SvelteComponent_ = InstanceType<typeof DeclTopSetterParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopSetterParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__setter-param-shadow",
+  "filename": "expr-const__setter-param-shadow.svelte",
+  "source": "<script>\nconst C = class { set s($effect) { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { set s($effect) { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprConstSetterParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprConstSetterParamShadow__SvelteComponent_ = InstanceType<typeof ExprConstSetterParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstSetterParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__setter-param-shadow",
+  "filename": "expr-extends__setter-param-shadow.svelte",
+  "source": "<script>\nclass Sub extends (class { set s($effect) { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { set s($effect) { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprExtendsSetterParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprExtendsSetterParamShadow__SvelteComponent_ = InstanceType<typeof ExprExtendsSetterParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsSetterParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "decl-top__static-m-param-shadow",
+  "filename": "decl-top__static-m-param-shadow.svelte",
+  "source": "<script>\nclass K { static m($effect) { $effect(() => {}); } }\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { static m($effect) { $effect(() => {}); } }\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst DeclTopStaticMParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type DeclTopStaticMParamShadow__SvelteComponent_ = InstanceType<typeof DeclTopStaticMParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default DeclTopStaticMParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-const__static-m-param-shadow",
+  "filename": "expr-const__static-m-param-shadow.svelte",
+  "source": "<script>\nconst C = class { static m($effect) { $effect(() => {}); } };\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst C = class { static m($effect) { $effect(() => {}); } };\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprConstStaticMParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprConstStaticMParamShadow__SvelteComponent_ = InstanceType<typeof ExprConstStaticMParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprConstStaticMParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "expr-extends__static-m-param-shadow",
+  "filename": "expr-extends__static-m-param-shadow.svelte",
+  "source": "<script>\nclass Sub extends (class { static m($effect) { $effect(() => {}); } }) {}\n</script>\n\n<p>{typeof K}</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass Sub extends (class { static m($effect) { $effect(() => {}); } }) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});typeof K; }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ExprExtendsStaticMParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ExprExtendsStaticMParamShadow__SvelteComponent_ = InstanceType<typeof ExprExtendsStaticMParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExprExtendsStaticMParamShadow__SvelteComponent_;",
+  "group": "class-body"
+ },
+ {
+  "name": "fn-decl-param-default",
+  "filename": "fn-decl-param-default.svelte",
+  "source": "<script>\nfunction f(p = $state(0)) {} f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f(p = $state(0)) {} f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst FnDeclParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type FnDeclParamDefault__SvelteComponent_ = ReturnType<typeof FnDeclParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default FnDeclParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "fn-expr-param-default",
+  "filename": "fn-expr-param-default.svelte",
+  "source": "<script>\nconst f = function (p = $state(0)) {}; f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst f = function (p = $state(0)) {}; f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst FnExprParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type FnExprParamDefault__SvelteComponent_ = ReturnType<typeof FnExprParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default FnExprParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "arrow-param-default",
+  "filename": "arrow-param-default.svelte",
+  "source": "<script>\nconst f = (p = $state(0)) => {}; f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst f = (p = $state(0)) => {}; f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ArrowParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ArrowParamDefault__SvelteComponent_ = ReturnType<typeof ArrowParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ArrowParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "arrow-expr-body-rune",
+  "filename": "arrow-expr-body-rune.svelte",
+  "source": "<script>\nconst f = () => $state(0); f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst f = () => $state(0); f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ArrowExprBodyRune__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ArrowExprBodyRune__SvelteComponent_ = ReturnType<typeof ArrowExprBodyRune__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ArrowExprBodyRune__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "fn-decl-rest-obj-default",
+  "filename": "fn-decl-rest-obj-default.svelte",
+  "source": "<script>\nfunction f({ a = $state(0) } = {}) {} f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f({ a = $state(0) } = {}) {} f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst FnDeclRestObjDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type FnDeclRestObjDefault__SvelteComponent_ = ReturnType<typeof FnDeclRestObjDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default FnDeclRestObjDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "fn-decl-array-default",
+  "filename": "fn-decl-array-default.svelte",
+  "source": "<script>\nfunction f([a = $state(0)] = []) {} f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f([a = $state(0)] = []) {} f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst FnDeclArrayDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type FnDeclArrayDefault__SvelteComponent_ = ReturnType<typeof FnDeclArrayDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default FnDeclArrayDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "exported-fn-param-default",
+  "filename": "exported-fn-param-default.svelte",
+  "source": "<script>\nexport function f(p = $state(0)) {}\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n function f(p = $state(0)) {}\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: /** @type {{f: typeof f}} */ ({}), bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst ExportedFnParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type ExportedFnParamDefault__SvelteComponent_ = ReturnType<typeof ExportedFnParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ExportedFnParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "method-obj-param-default",
+  "filename": "method-obj-param-default.svelte",
+  "source": "<script>\nconst o = { m(p = $state(0)) {} }; o;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst o = { m(p = $state(0)) {} }; o;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst MethodObjParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type MethodObjParamDefault__SvelteComponent_ = ReturnType<typeof MethodObjParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default MethodObjParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "ctor-param-default",
+  "filename": "ctor-param-default.svelte",
+  "source": "<script>\nclass K { constructor(p = $state(0)) {} } K;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nclass K { constructor(p = $state(0)) {} } K;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst CtorParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type CtorParamDefault__SvelteComponent_ = ReturnType<typeof CtorParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default CtorParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "nested-fn-param-default",
+  "filename": "nested-fn-param-default.svelte",
+  "source": "<script>\nfunction g() { function f(p = $state(0)) {} f; } g;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction g() { function f(p = $state(0)) {} f; } g;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst NestedFnParamDefault__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type NestedFnParamDefault__SvelteComponent_ = ReturnType<typeof NestedFnParamDefault__SvelteComponent_>;\n/*Ωignore_endΩ*/export default NestedFnParamDefault__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "fn-decl-param-shadow",
+  "filename": "fn-decl-param-shadow.svelte",
+  "source": "<script>\nfunction f($state) { $state(0); } f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f($state) { $state(0); } f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst FnDeclParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type FnDeclParamShadow__SvelteComponent_ = InstanceType<typeof FnDeclParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default FnDeclParamShadow__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "arrow-param-shadow",
+  "filename": "arrow-param-shadow.svelte",
+  "source": "<script>\nconst f = ($state) => $state(0); f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nconst f = ($state) => $state(0); f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst ArrowParamShadow__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type ArrowParamShadow__SvelteComponent_ = InstanceType<typeof ArrowParamShadow__SvelteComponent_>;\n/*Ωignore_endΩ*/export default ArrowParamShadow__SvelteComponent_;",
+  "group": "function-params"
+ },
+ {
+  "name": "no-rune",
+  "filename": "no-rune.svelte",
+  "source": "<script>\nfunction f(p = 1) {} f;\n</script>\n\n<p>x</p>\n",
+  "expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\nfunction f(p = 1) {} f;\n;\nasync () => {\n\n { svelteHTML.createElement(\"p\", {});  }\n};\nreturn { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst NoRune__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type NoRune__SvelteComponent_ = InstanceType<typeof NoRune__SvelteComponent_>;\n/*Ωignore_endΩ*/export default NoRune__SvelteComponent_;",
+  "group": "function-params"
+ }
+]
