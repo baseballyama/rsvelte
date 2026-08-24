@@ -9,7 +9,8 @@
 //! 2. appends a universal probe anchor
 //!    (`ReturnType<typeof $$render>["props"]`) so the fully-resolved props type
 //!    can be queried without knowing the user's type name,
-//! 3. opens the generated TSX as the session's virtual document, and
+//! 3. opens the generated TSX as a virtual document in a [`CorsaTypeSession`]
+//!    (one worker process, reused across components), and
 //! 4. answers [`TypeBackend::probe_props`] / [`TypeBackend::probe_expr`] via
 //!    `get_type_at_position` probes (byte→UTF-16 converted).
 //!
@@ -18,8 +19,11 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
-use corsa_client::api::{ApiMode, ApiSpawnConfig, ProjectSession, TypeHandle, TypeProbeOptions};
+use corsa_client::api::{
+    ApiClient, ApiMode, ApiSpawnConfig, ProjectSession, TypeHandle, TypeProbeOptions,
+};
 use corsa_runtime::block_on;
 use rsvelte_lint::type_backend::{PropMeta, TypeBackend, TypeFacts, TypeId, TypeMeta};
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
@@ -58,6 +62,102 @@ pub fn lint_component_types(
         config,
         &mut backend,
     ));
+    Ok(out)
+}
+
+/// Lint several components with the **type-aware** rules on ONE warm worker.
+///
+/// The per-component entry point spawns a `tsgo` worker each time, which costs
+/// more than every probe it then answers; this opens the worker once.
+///
+/// # Errors
+///
+/// Returns an error when the worker cannot be started. A component whose own
+/// projection or project open fails is reported with no diagnostics rather
+/// than failing the batch.
+pub fn lint_components_types(
+    components: &[(PathBuf, String)],
+    config: &rsvelte_lint::config::LintConfig,
+    tsgo: &Path,
+    project_root: &Path,
+) -> Result<Vec<(PathBuf, Vec<Diagnostic>)>, String> {
+    use rsvelte_lint::rules::{no_navigation_without_resolve, no_unused_props};
+
+    if components.is_empty() {
+        return Ok(Vec::new());
+    }
+    let session = CorsaTypeSession::new(tsgo, project_root)?;
+
+    // Lower every component before the program is opened: the tsconfig has to
+    // name all of them at once, so a component added later would need a second
+    // program.
+    let projected: Vec<Option<Projected>> = components
+        .iter()
+        .map(|(path, source)| Projected::write(source, path).ok())
+        .collect();
+    let _files: Vec<VirtualFileGuard> = projected
+        .iter()
+        .flatten()
+        .map(|p| VirtualFileGuard(p.virtual_path.clone()))
+        .collect();
+
+    let virtual_paths: Vec<String> = projected
+        .iter()
+        .flatten()
+        .map(|p| json_string(&p.virtual_path.to_string_lossy()))
+        .collect();
+    if virtual_paths.is_empty() {
+        return Ok(components
+            .iter()
+            .map(|(path, _)| (path.clone(), Vec::new()))
+            .collect());
+    }
+    let tsconfig_path = project_root.join(format!(
+        ".rsvelte-lint.{}.tsconfig.json",
+        std::process::id()
+    ));
+    let tsconfig = TSCONFIG.replace(
+        "\"jsx\": \"preserve\"\n  }",
+        &format!(
+            "\"jsx\": \"preserve\"\n  }},\n  \"files\": [{}]",
+            virtual_paths.join(",")
+        ),
+    );
+    std::fs::write(&tsconfig_path, tsconfig)
+        .map_err(|e| format!("failed to write tsconfig {}: {e}", tsconfig_path.display()))?;
+    let tsconfig_guard = VirtualFileGuard(tsconfig_path.clone());
+
+    let first = projected
+        .iter()
+        .flatten()
+        .next()
+        .map(|p| p.virtual_path.to_string_lossy().into_owned());
+    let project = Rc::new(
+        block_on(ProjectSession::open(
+            session.client.clone(),
+            tsconfig_path.to_string_lossy().into_owned(),
+            first.map(Into::into),
+        ))
+        .map_err(|e| format!("failed to open corsa project: {e}"))?,
+    );
+    drop(tsconfig_guard);
+
+    let mut out = Vec::with_capacity(components.len());
+    for ((path, source), p) in components.iter().zip(projected) {
+        let Some(p) = p else {
+            out.push((path.clone(), Vec::new()));
+            continue;
+        };
+        let mut backend = CorsaTypeBackend::view(Rc::clone(&project), p);
+        let mut diags = no_unused_props::diagnostics_typed(source, path, config, &mut backend);
+        diags.extend(no_navigation_without_resolve::diagnostics_typed(
+            source,
+            path,
+            config,
+            &mut backend,
+        ));
+        out.push((path.clone(), diags));
+    }
     Ok(out)
 }
 
@@ -102,9 +202,130 @@ enum PropsTypeCache {
     Present(TypeId),
 }
 
+/// One component lowered to TSX and written beside its source, so relative
+/// imports (`./types`) resolve exactly as they do for the real file.
+struct Projected {
+    tsx: String,
+    forward_map: Vec<(u32, u32, u32)>,
+    props_anchor: Option<u32>,
+    virtual_path: PathBuf,
+}
+
+impl Projected {
+    fn write(source: &str, svelte_path: &Path) -> Result<Self, String> {
+        let filename = svelte_path.file_name().map_or_else(
+            || "Component.svelte".to_string(),
+            |n| n.to_string_lossy().into_owned(),
+        );
+        let result = svelte2tsx(
+            source,
+            Svelte2TsxOptions {
+                filename,
+                is_ts_file: true,
+                ..Default::default()
+            },
+        )
+        .map_err(|e| format!("svelte2tsx failed: {e:?}"))?;
+
+        let mut tsx = result.code;
+        // Inject the props anchor only when a render function exists to index.
+        let props_anchor = if tsx.contains("function $$render") {
+            tsx.push_str(PROPS_ANCHOR);
+            tsx.rfind(PROPS_ANCHOR_IDENT)
+                .and_then(|p| u32::try_from(p).ok())
+        } else {
+            None
+        };
+
+        let dir = svelte_path
+            .parent()
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+        let stem = svelte_path.file_stem().map_or_else(
+            || "Component".to_string(),
+            |s| s.to_string_lossy().into_owned(),
+        );
+        let virtual_path = dir.join(format!("{stem}.{}.rsvelte-lint.tsx", std::process::id()));
+        std::fs::write(&virtual_path, &tsx).map_err(|e| {
+            format!(
+                "failed to write virtual TSX {}: {e}",
+                virtual_path.display()
+            )
+        })?;
+
+        Ok(Self {
+            tsx,
+            forward_map: result.forward_map,
+            props_anchor,
+            virtual_path,
+        })
+    }
+}
+
+/// A warm `tsgo` worker shared by every component of one lint run.
+///
+/// Spawning the worker and loading its libs costs far more than the probes it
+/// answers, so the process is opened once and each component only opens a
+/// project on top of it.
+pub struct CorsaTypeSession {
+    client: ApiClient,
+    closed: bool,
+}
+
+impl CorsaTypeSession {
+    /// Spawn the worker for `tsgo`, resolving relative paths against `cwd`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the worker cannot be spawned.
+    pub fn new(tsgo: &Path, cwd: &Path) -> Result<Self, String> {
+        let client = block_on(ApiClient::spawn(
+            ApiSpawnConfig::new(tsgo)
+                .with_mode(api_mode_for(tsgo))
+                .with_cwd(cwd),
+        ))
+        .map_err(|e| format!("failed to spawn corsa worker: {e}"))?;
+        Ok(Self {
+            client,
+            closed: false,
+        })
+    }
+
+    /// Open `source` (the `.svelte` file at `svelte_path`) on this worker.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when projection, virtual-file setup, or opening the
+    /// project fails.
+    pub fn backend(&self, source: &str, svelte_path: &Path) -> Result<CorsaTypeBackend, String> {
+        CorsaTypeBackend::open(self.client.clone(), None, source, svelte_path)
+    }
+
+    /// Shut the worker down. Idempotent.
+    pub fn close(&mut self) {
+        if self.closed {
+            return;
+        }
+        self.closed = true;
+        let _ = block_on(self.client.close());
+    }
+}
+
+impl Drop for CorsaTypeSession {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 /// A corsa/tsgo-backed [`TypeBackend`] for a single Svelte component.
 pub struct CorsaTypeBackend {
-    session: ProjectSession,
+    /// Kept alive only when this backend spawned its own worker
+    /// ([`CorsaTypeBackend::new`]); `None` when the worker is shared.
+    owned_worker: Option<CorsaTypeSession>,
+    /// Shared with every sibling component when one program covers them all.
+    session: Rc<ProjectSession>,
+    /// Whether dropping this backend should unlink the virtual TSX. False when
+    /// a batch owns the file for the lifetime of the shared program.
+    owns_virtual_file: bool,
     /// The generated TSX (with the props anchor appended) — kept for byte→UTF-16
     /// conversion at probe time.
     tsx: String,
@@ -130,53 +351,39 @@ pub struct CorsaTypeBackend {
 
 impl CorsaTypeBackend {
     /// Create a backend for `source` (the `.svelte` file at `svelte_path`),
-    /// driving the `tsgo` binary at `tsgo`. The virtual TSX document is written
-    /// beside `svelte_path` so relative imports (`./types`) resolve.
+    /// spawning a worker for the `tsgo` binary at `tsgo` and owning it. Prefer
+    /// [`CorsaTypeSession::backend`] when more than one component is checked.
     ///
     /// # Errors
     ///
     /// Returns an error when projection, virtual-file setup, or the checker
     /// session initialization fails.
     pub fn new(source: &str, svelte_path: &Path, tsgo: &Path) -> Result<Self, String> {
-        let filename = svelte_path.file_name().map_or_else(
-            || "Component.svelte".to_string(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        let result = svelte2tsx(
-            source,
-            Svelte2TsxOptions {
-                filename,
-                is_ts_file: true,
-                ..Default::default()
-            },
-        )
-        .map_err(|e| format!("svelte2tsx failed: {e:?}"))?;
+        let cwd = svelte_path
+            .parent()
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+        let worker = CorsaTypeSession::new(tsgo, &cwd)?;
+        Self::open(worker.client.clone(), Some(worker), source, svelte_path)
+    }
 
-        let mut tsx = result.code;
-        // Inject the props anchor only when a render function exists to index.
-        let props_anchor = if tsx.contains("function $$render") {
-            tsx.push_str(PROPS_ANCHOR);
-            tsx.rfind(PROPS_ANCHOR_IDENT)
-                .and_then(|p| u32::try_from(p).ok())
-        } else {
-            None
-        };
-
+    /// Open a component on an already-spawned worker. The virtual TSX document
+    /// is written beside `svelte_path` so relative imports (`./types`) resolve.
+    fn open(
+        client: ApiClient,
+        owned_worker: Option<CorsaTypeSession>,
+        source: &str,
+        svelte_path: &Path,
+    ) -> Result<Self, String> {
+        let projected = Projected::write(source, svelte_path)?;
+        let Projected {
+            tsx,
+            forward_map,
+            props_anchor,
+            virtual_path,
+        } = projected;
         let project_root = svelte_path
             .parent()
             .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
-        let stem = svelte_path.file_stem().map_or_else(
-            || "Component".to_string(),
-            |s| s.to_string_lossy().into_owned(),
-        );
-        let virtual_path =
-            project_root.join(format!("{stem}.{}.rsvelte-lint.tsx", std::process::id()));
-        std::fs::write(&virtual_path, &tsx).map_err(|e| {
-            format!(
-                "failed to write virtual TSX {}: {e}",
-                virtual_path.display()
-            )
-        })?;
         let cleanup = VirtualFileGuard(virtual_path.clone());
 
         // tsconfig listing the absolute virtual file (kept beside the source so
@@ -197,15 +404,12 @@ impl CorsaTypeBackend {
         let tsconfig_guard = VirtualFileGuard(tsconfig_path.clone());
 
         let virtual_wire = virtual_path.to_string_lossy().into_owned();
-        let mode = api_mode_for(tsgo);
-        let session = block_on(ProjectSession::spawn(
-            ApiSpawnConfig::new(tsgo)
-                .with_mode(mode)
-                .with_cwd(&project_root),
+        let session = block_on(ProjectSession::open(
+            client,
             tsconfig_path.to_string_lossy().into_owned(),
             Some(virtual_wire.clone().into()),
         ))
-        .map_err(|e| format!("failed to spawn corsa session: {e}"))?;
+        .map_err(|e| format!("failed to open corsa project: {e}"))?;
 
         // The tsconfig only needs to exist for the initial program load.
         drop(tsconfig_guard);
@@ -213,9 +417,11 @@ impl CorsaTypeBackend {
         std::mem::forget(cleanup); // ownership transferred to the struct's Drop
 
         Ok(Self {
-            session,
+            owned_worker,
+            session: Rc::new(session),
+            owns_virtual_file: true,
             tsx,
-            forward_map: result.forward_map,
+            forward_map,
             props_anchor,
             virtual_wire,
             virtual_path,
@@ -224,6 +430,26 @@ impl CorsaTypeBackend {
             type_index: HashMap::new(),
             props_type_cache: PropsTypeCache::Uncomputed,
         })
+    }
+
+    /// A component view onto a program that already contains its virtual TSX.
+    /// The batch owns the file, so dropping this view must not unlink it.
+    fn view(session: Rc<ProjectSession>, projected: Projected) -> Self {
+        let virtual_wire = projected.virtual_path.to_string_lossy().into_owned();
+        Self {
+            owned_worker: None,
+            session,
+            owns_virtual_file: false,
+            tsx: projected.tsx,
+            forward_map: projected.forward_map,
+            props_anchor: projected.props_anchor,
+            virtual_wire,
+            virtual_path: projected.virtual_path,
+            closed: false,
+            types: Vec::new(),
+            type_index: HashMap::new(),
+            props_type_cache: PropsTypeCache::Uncomputed,
+        }
     }
 
     /// Intern a type (handle + `ObjectFlags`) into a stable [`TypeId`], deduping
@@ -322,8 +548,12 @@ impl CorsaTypeBackend {
             return;
         }
         self.closed = true;
-        let _ = block_on(self.session.close());
-        let _ = std::fs::remove_file(&self.virtual_path);
+        if self.owns_virtual_file {
+            let _ = std::fs::remove_file(&self.virtual_path);
+        }
+        if let Some(worker) = self.owned_worker.as_mut() {
+            worker.close();
+        }
     }
 }
 

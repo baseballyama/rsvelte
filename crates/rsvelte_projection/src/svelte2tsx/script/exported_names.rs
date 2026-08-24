@@ -2,6 +2,7 @@
 //! script blocks, plus the generated `$$prop_def` / render-props output.
 
 use std::collections::{HashMap, HashSet};
+use std::fmt::Write as _;
 
 /// Tracks names exported from a component's script block.
 ///
@@ -14,6 +15,9 @@ pub struct ExportedNames {
     names: HashMap<String, ExportedNameInfo>,
     insertion_order: Vec<String>,
     flags: ExportedNamesFlags,
+    /// Upstream's `isSvelte5Plus`. Under `version: '4'` a rune global or a
+    /// typed `$props()` does NOT put the component in runes mode.
+    svelte5_plus: bool,
     /// Type annotation text for $`props()` (e.g., "Props" from `let {...}: Props = $props()`)
     pub props_type_text: Option<String>,
     /// Whether a $$`ComponentProps` typedef was generated (for use in return statement)
@@ -38,6 +42,10 @@ pub struct ExportedNames {
     pub dollar_generics: Vec<(String, Option<String>)>,
     /// Source positions of `type X = $$Generic...` statements to blank out.
     pub dollar_generic_positions: Vec<(u32, u32)>,
+    /// Message of the first invalid `$$Generic` declaration found in the
+    /// instance script. Upstream throws from inside its walk; the walk here has
+    /// no error channel, so the caller turns this into the returned error.
+    pub dollar_generic_error: Option<String>,
     /// Type/interface declarations from instance script that should be hoisted
     /// before $$`render()`. Each entry is (start, end) relative to source (absolute positions).
     pub hoistable_type_ranges: Vec<(u32, u32)>,
@@ -124,6 +132,7 @@ impl ExportedNamesFlags {
     const HAS_EVENTS_TYPE: u16 = 1 << 5;
     const TYPE_ALREADY_INSERTED: u16 = 1 << 6;
     const PROPS_TYPE_ARG_HOIST_TS: u16 = 1 << 7;
+    const TEMPLATE_RUNES: u16 = 1 << 8;
 
     const fn contains(self, flag: u16) -> bool {
         self.0 & flag != 0
@@ -157,7 +166,16 @@ impl ExportFlags {
     const IS_PROP: u8 = 1 << 1;
     const IS_LET: u8 = 1 << 2;
     const IS_NAMED_EXPORT: u8 = 1 << 3;
+    /// Official `ExportedName.required`, set from `!node.initializer` for a
+    /// variable declaration and left `false` for every other export kind.
+    const IS_REQUIRED: u8 = 1 << 4;
 
+    pub const fn with_required_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_REQUIRED;
+        }
+        self
+    }
     pub const fn with_default_if(mut self, enabled: bool) -> Self {
         if enabled {
             self.0 |= Self::HAS_DEFAULT;
@@ -208,9 +226,18 @@ impl ExportedNameInfo {
         self.flags.contains(ExportFlags::IS_NAMED_EXPORT)
     }
 
+    #[must_use]
+    pub const fn is_required(&self) -> bool {
+        self.flags.contains(ExportFlags::IS_REQUIRED)
+    }
+
     fn mark_named_export(&mut self) {
         self.flags.0 |= ExportFlags::IS_NAMED_EXPORT;
         self.flags.0 &= !ExportFlags::IS_LET;
+        // `export { local as exported }` calls official `addExport` with
+        // `required = false`. The renamed entry replaces the earlier
+        // `export let local` entry, so its required bit must not survive.
+        self.flags.0 &= !ExportFlags::IS_REQUIRED;
     }
 }
 
@@ -304,12 +331,14 @@ impl ExportedNames {
             names: HashMap::new(),
             insertion_order: Vec::new(),
             flags: ExportedNamesFlags::default(),
+            svelte5_plus: true,
             props_type_text: None,
             bindable_props: Vec::new(),
             props_jsdoc_type: None,
             events_type_decl_pos: None,
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
+            dollar_generic_error: None,
             hoistable_type_ranges: Vec::new(),
             dollar_generic_referenced_ranges: Vec::new(),
             props_let_abs_pos: None,
@@ -394,6 +423,18 @@ impl ExportedNames {
     pub const fn set_uses_runes(&mut self, val: bool) {
         self.flags.set(ExportedNamesFlags::USES_RUNES, val);
     }
+    /// Runes mode from the template alone (`<svelte:options runes>`, a
+    /// top-level `await` in a template expression) — upstream's ungated half.
+    pub const fn set_template_runes(&mut self, val: bool) {
+        self.flags.set(ExportedNamesFlags::TEMPLATE_RUNES, val);
+    }
+    pub const fn set_svelte5_plus(&mut self, val: bool) {
+        self.svelte5_plus = val;
+    }
+    #[must_use]
+    pub const fn is_svelte5_plus(&self) -> bool {
+        self.svelte5_plus
+    }
     pub const fn set_has_props_rune(&mut self, val: bool) {
         self.flags.set(ExportedNamesFlags::HAS_PROPS_RUNE, val);
     }
@@ -449,8 +490,12 @@ impl ExportedNames {
     }
     #[must_use]
     pub const fn is_runes_mode(&self) -> bool {
-        self.flags.contains(ExportedNamesFlags::USES_RUNES)
-            || self.flags.contains(ExportedNamesFlags::HAS_PROPS_RUNE)
+        // Mirrors upstream `hasRunesGlobals || hasPropsRune() || isRunes`:
+        // the first two are gated on `isSvelte5Plus`, the third is not.
+        self.flags.contains(ExportedNamesFlags::TEMPLATE_RUNES)
+            || (self.svelte5_plus
+                && (self.flags.contains(ExportedNamesFlags::USES_RUNES)
+                    || self.flags.contains(ExportedNamesFlags::HAS_PROPS_RUNE)))
     }
     #[must_use]
     pub fn get_prop_names(&self) -> Vec<&str> {
@@ -583,14 +628,14 @@ impl ExportedNames {
         // omit the `as {…}` cast entirely when every export is untyped AND
         // required — a plain `export let x` with no default and no type
         // annotation (`required = !initializer`). A typed or defaulted /
-        // optional export (or any non-`let` export) forces the cast. Computed
-        // up-front because it also gates whether the *value* elements carry the
-        // leading JSDoc (official `createReturnElements`: doc when dontAddTypeDef).
+        // optional export forces the cast. Computed up-front because it also
+        // gates whether the *value* elements carry the leading JSDoc (official
+        // `createReturnElements`: doc when dontAddTypeDef).
         let dont_add_type_def = !is_ts
             || self
                 .names
                 .values()
-                .all(|info| info.type_annotation.is_none() && info.is_let() && !info.has_default());
+                .all(|info| info.type_annotation.is_none() && info.is_required());
         // When `dontAddTypeDef`, the props object omits the `as {…}` type assert,
         // so a captured leading JSDoc `/** … */` is emitted before the prop's
         // value element — mirrors official `createReturnElements`.
@@ -826,6 +871,44 @@ impl ExportedNames {
         }
         wrote_prop
     }
+    /// Class-body getters for the Svelte-4 class component. Mirrors upstream
+    /// `createClassGetters`: one per non-`let` export (const / function / class).
+    #[must_use]
+    pub fn create_class_getters(&self, generics: &str) -> String {
+        let runes_mode = self.is_runes_mode();
+        let mut out = String::new();
+        for (_, info) in self.ordered().filter(|(_, info)| !info.is_let()) {
+            let name = &info.local_name;
+            if runes_mode {
+                let _ = write!(
+                    out,
+                    "\n    get {name}() {{ return $$render{generics}().exports.{name} }}"
+                );
+            } else {
+                let _ = write!(
+                    out,
+                    "\n    get {name}() {{ return __sveltets_2_nonNullable(this.$$prop_def.{name}) }}"
+                );
+            }
+        }
+        out
+    }
+
+    /// Class-body accessors emitted when `accessors` is on. Mirrors upstream
+    /// `createClassAccessors`: every export that is not already a getter.
+    #[must_use]
+    pub fn create_class_accessors(&self) -> String {
+        let mut out = String::new();
+        for (_, info) in self.ordered().filter(|(_, info)| info.is_let()) {
+            let name = &info.local_name;
+            let _ = write!(
+                out,
+                "\n    get {name}() {{ return this.$$prop_def.{name} }}\n    /**accessor*/\n    set {name}(_) {{}}"
+            );
+        }
+        out
+    }
+
     fn ordered(&self) -> impl Iterator<Item = (&str, &ExportedNameInfo)> {
         self.insertion_order
             .iter()
@@ -848,7 +931,8 @@ impl ExportedNames {
             output.push(' ');
         }
         output.push_str(name);
-        if info.has_default() || !info.is_let() {
+        // Official `createReturnElementsType`: `${name}${value.required ? '' : '?'}`.
+        if !info.is_required() {
             output.push('?');
         }
         output.push_str(": ");
