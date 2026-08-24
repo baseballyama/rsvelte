@@ -21,8 +21,10 @@
 //!   as upstream's `get_rune` returns null when the name resolves to a binding.
 //!
 //! One rune *flavour* is handled per call (the caller invokes it once per
-//! prefix, mirroring the scanner's call sites). Returns `None` (caller falls
-//! back to the scanner) when the script doesn't parse as a standalone module.
+//! prefix, mirroring the scanner's call sites). Returns `None` — the caller's
+//! only cue to fall back to the scanner — ONLY when the script does not parse as
+//! a standalone module. A walk that parsed and matched nothing is an ANSWER, and
+//! returning the script verbatim is what stops the scanner from re-deciding it.
 
 use std::cell::RefCell;
 
@@ -41,9 +43,9 @@ thread_local! {
 }
 
 /// Rewrite every unshadowed call of the rune named by `prefix` (e.g.
-/// `"$derived("`, `"$state.raw("`) to its server form. Returns `Some(rewritten)`
-/// when at least one call was rewritten, `None` on a parse failure or when
-/// nothing matched (caller falls back to the byte scanner).
+/// `"$derived("`, `"$state.raw("`) to its server form. Returns the script —
+/// rewritten or verbatim — whenever it parsed, and `None` ONLY on a parse
+/// failure, which is the sole case the byte scanner is a fallback for.
 pub(crate) fn transform_rune_call_ast(script: &str, prefix: &str) -> Option<String> {
     transform_rune_calls_combined(script, &[prefix])
 }
@@ -79,8 +81,8 @@ impl<'a> RuneSpec<'a> {
 /// walk (vs one parse per prefix). Each rune flavour has a distinct callee
 /// shape (`$state` ident vs `$state.raw` member, `$derived` vs `$derived.by`),
 /// so a call matches at most one spec and spec order is irrelevant. Returns
-/// `None` (caller falls back to the per-prefix byte scanner) on a parse failure
-/// or when nothing matched.
+/// `None` (caller falls back to the per-prefix byte scanner) ONLY on a parse
+/// failure; a parsed script with no rune comes back verbatim.
 pub(crate) fn transform_rune_calls_combined(script: &str, prefixes: &[&str]) -> Option<String> {
     if prefixes.is_empty() {
         return None;
@@ -110,7 +112,12 @@ pub(crate) fn transform_rune_calls_combined(script: &str, prefixes: &[&str]) -> 
             collector.visit_program(program);
 
             if collector.edits.is_empty() {
-                return None;
+                // The script parsed and the walk found no rune to lower, which
+                // is an ANSWER — `o.$state(1)` is a method call and `function
+                // f($state) { $state(1) }` calls the parameter. Returning `None`
+                // here spelled it the same way a parse failure does, and the
+                // caller then re-ran the byte scanner, which rewrote both.
+                return Some(script.to_string());
             }
 
             let mut edits = collector.edits;
@@ -264,15 +271,32 @@ mod tests {
         );
     }
 
+    /// A declined call comes back VERBATIM, never as `None`: `None` is the
+    /// caller's cue to re-run the byte scanner, which would rewrite exactly the
+    /// occurrences this walk decided against.
     #[test]
     fn shadowed_rune_is_left_alone() {
         // `$derived` bound as a parameter — the inner call is a plain call.
-        assert!(run("function f($derived) { return $derived(1); }", "$derived(").is_none());
+        let src = "function f($derived) { return $derived(1); }";
+        assert_eq!(run(src, "$derived(").as_deref(), Some(src));
     }
 
     #[test]
     fn does_not_match_inside_string() {
-        assert!(run("let s = \"$state(0)\";", "$state(").is_none());
+        let src = "let s = \"$state(0)\";";
+        assert_eq!(run(src, "$state(").as_deref(), Some(src));
+    }
+
+    #[test]
+    fn a_rune_name_in_member_position_is_left_alone() {
+        let src = "const o = { $state: (v) => v };\nconst a = o.$state(1);";
+        assert_eq!(run(src, "$state(").as_deref(), Some(src));
+    }
+
+    #[test]
+    fn an_unparseable_script_still_reports_none() {
+        // The one case the byte scanner is a fallback FOR.
+        assert!(run("let x = $state(1;", "$state(").is_none());
     }
 
     #[test]
