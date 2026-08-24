@@ -481,10 +481,13 @@ fn find_code_filtered(
         !needle
             .iter()
             .any(|b| matches!(b, b'\'' | b'"' | b'`' | b'/')),
-        "find_rune_call needs a needle that cannot open an opaque run"
+        "find_code_from needs a needle that cannot open an opaque run"
     );
     let mut candidates = memchr::memmem::find_iter(bytes, needle);
     let mut candidate = candidates.next()?;
+    while candidate < from {
+        candidate = candidates.next()?;
+    }
     let mut i = 0usize;
     let mut prev: Option<u8> = None;
     let mut before = PrevChars::default();
@@ -834,7 +837,7 @@ mod tests {
             "const c = /$derived(x)/;",
         ] {
             let src = format!("{carrier}\nlet x = $derived(1);\n");
-            let at = find_rune_call(src.as_bytes(), b"$derived(").expect("the real call");
+            let at = find_code_from(src.as_bytes(), b"$derived(", 0).expect("the real call");
             assert_eq!(
                 &src[at..at + 9],
                 "$derived(",
@@ -845,8 +848,8 @@ mod tests {
     }
 
     #[test]
-    fn find_rune_call_reports_none_when_every_occurrence_is_text() {
-        assert!(find_rune_call(b"const c = '$state(';\n", b"$state(").is_none());
+    fn find_code_reports_none_when_every_occurrence_is_text() {
+        assert!(find_code_from(b"const c = '$state(';\n", b"$state(", 0).is_none());
     }
 
     /// `${…}` re-enters code, so the run a backtick opens is not delimited by
@@ -914,7 +917,7 @@ mod tests {
     #[test]
     fn find_rune_call_is_not_fooled_by_a_division_before_the_call() {
         let src = "const r = a / b;\nlet x = $state(r);\n";
-        let at = find_rune_call(src.as_bytes(), b"$state(").expect("the real call");
+        let at = find_code_from(src.as_bytes(), b"$state(", 0).expect("the real call");
         assert_eq!(&src[at..at + 7], "$state(");
     }
 

@@ -447,6 +447,31 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
     transformed
 }
 
+/// The store a `$.store_set` / `$.store_mutate` writes to is read through its own
+/// binding's transform — a prop reads as the getter call `store()`, a state source
+/// as `$.get(store)` — mirroring upstream's `get_store()` =
+/// `context.visit(b.id(store_name))`. The context-free store transforms emit the
+/// bare name, so resolve it here where `context` is available.
+fn resolve_store_source_arg(
+    expr: JsExpr,
+    store_sub_name: &str,
+    context: &ComponentContext,
+) -> JsExpr {
+    let Some(store_name) = store_sub_name.strip_prefix('$') else {
+        return expr;
+    };
+    let JsExpr::Call(mut call) = expr else {
+        return expr;
+    };
+    if let Some(first) = call.arguments.first_mut()
+        && matches!(first, JsExpr::Identifier(n) if n.as_str() == store_name)
+        && let Some(read_fn) = context.state.transform.get(store_name).and_then(|t| t.read)
+    {
+        *first = read_fn(&context.arena, b::id(store_name));
+    }
+    JsExpr::Call(call)
+}
+
 /// Is `RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT` set?
 fn idempotency_check_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -580,6 +605,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
     match expr {
         JsExpr::Identifier(name) => {
+            // `Identifier.js` short-circuits on the NAME before any binding is
+            // resolved, so a local `$$props` (an each item, a snippet
+            // parameter) is renamed too. Upstream only ever visits USER
+            // expressions; the `$$props` object rsvelte's own prop reads are
+            // built on has no binding, which is what separates the two here.
+            if name.as_str() == "$$props" && context.state.get_binding(name).is_some() {
+                return JsExpr::Identifier("$$sanitized_props".into());
+            }
             // Skip transforms for shadowed variables (function parameters, local vars)
             if local_scope.contains(name) {
                 return unchanged();
@@ -1095,6 +1128,15 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     final_value,
                     needs_proxy,
                 );
+                let is_store_sub = context
+                    .state
+                    .get_binding(name)
+                    .is_some_and(|b| b.kind == BindingKind::StoreSub);
+                return if is_store_sub {
+                    resolve_store_source_arg(assigned, name.as_str(), context)
+                } else {
+                    assigned
+                };
             }
 
             // Track each item assignment for uses_index detection.
@@ -1352,29 +1394,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     let mutated =
                         mutate_fn(transform, &context.arena, mutate_target, full_assignment);
 
-                    // For store subscriptions, the store *source* (first arg of
-                    // `$.store_mutate`) is read through its own binding's transform —
-                    // a prop reads as the getter call `store()`, a state /
-                    // mutable_source as `$.get(store)` — mirroring upstream's
-                    // `get_store()` = `context.visit(b.id(store_name))`. The
-                    // context-free `store_sub_mutate` emits the bare name, so apply
-                    // the transform here where `context` is available.
                     if is_store_sub {
-                        return match mutated {
-                            JsExpr::Call(mut call) => {
-                                let store_name =
-                                    name.as_str().strip_prefix('$').unwrap_or(name.as_str());
-                                if let Some(first) = call.arguments.first_mut()
-                                    && let Some(store_transform) =
-                                        context.state.transform.get(store_name)
-                                    && let Some(read_fn) = store_transform.read
-                                {
-                                    *first = read_fn(&context.arena, b::id(store_name));
-                                }
-                                JsExpr::Call(call)
-                            }
-                            other => other,
-                        };
+                        return resolve_store_source_arg(mutated, name.as_str(), context);
                     }
 
                     return mutated;
@@ -3465,6 +3486,76 @@ pub struct TemplateChunkResult {
     pub blocker_indices: Vec<usize>,
 }
 
+/// The JS comments inside `source[start..end]`, as absolute `(start, end)`
+/// pairs. The `/` probe keeps the re-parse off every comment-free template
+/// expression, which is nearly all of them; a real parse is what tells a
+/// comment apart from a division or a regex literal.
+fn interior_comment_spans(source: &str, start: usize, end: usize) -> Vec<(usize, usize)> {
+    if start >= end || end > source.len() {
+        return Vec::new();
+    }
+    let slice = &source[start..end];
+    if memchr::memchr(b'/', slice.as_bytes()).is_none() {
+        return Vec::new();
+    }
+    let allocator = oxc_allocator::Allocator::default();
+    let owned = allocator.alloc_str(slice);
+    let ret = oxc_parser::Parser::new(&allocator, owned, oxc_span::SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() {
+        return Vec::new();
+    }
+    ret.program
+        .comments
+        .iter()
+        .map(|comment| {
+            (
+                start + comment.span.start as usize,
+                start + comment.span.end as usize,
+            )
+        })
+        .collect()
+}
+
+/// Upstream's comment cursor hands a comment to whichever LOCATED node comes
+/// next, so a constant-folded tag — which leaves no node behind — does not
+/// swallow the one written inside it. Re-emit it as an opaque chunk at its
+/// source position; it parses to zero statements and one comment, so the next
+/// generated node that carries a source anchor flushes it, exactly as upstream's
+/// cursor does.
+fn push_folded_tag_comments(tag_start: u32, tag_end: u32, context: &mut ComponentContext) {
+    let (Some(start), Some(end)) = (tag_start.checked_add(1), tag_end.checked_sub(1)) else {
+        return;
+    };
+    // Upstream's component block borrows the instance script's `loc`
+    // (`component_block.loc = instance.loc`), and `reset_comment_index` then
+    // parks the cursor at the first comment that is not before it: with no
+    // `<script>` there is no `loc`, the cursor starts dead, and every comment in
+    // the file is dropped — as is every comment written ahead of the script.
+    let Some(cursor_start) = context
+        .state
+        .analysis
+        .instance_script_content
+        .as_ref()
+        .map(|script| script.start as usize)
+    else {
+        return;
+    };
+    let spans =
+        interior_comment_spans(&context.state.analysis.source, start as usize, end as usize);
+    for (start, end) in spans {
+        if start < cursor_start {
+            continue;
+        }
+        let code = context.state.analysis.source[start..end].to_string();
+        context.state.init.push(JsStatement::RawMapped {
+            code: code.into(),
+            source_offset: start as u32,
+            comment_anchor: None,
+            copied_spans: Vec::new(),
+        });
+    }
+}
+
 /// Build a template chunk from text/expression nodes.
 ///
 /// Corresponds to `build_template_chunk` in
@@ -3509,6 +3600,7 @@ pub fn build_template_chunk(
                         last_quasi.raw.push_str(&val);
                         last_quasi.cooked.push_str(&val);
                     }
+                    push_folded_tag_comments(expr_tag.start, expr_tag.end, context);
                     // Even when the expression evaluates to a literal, check if it
                     // references variables in the blocker_map. This corresponds to
                     // the official compiler's `has_blockers()` check in build_template_chunk:
@@ -4512,12 +4604,9 @@ pub(crate) fn is_js_expr_defined(
                 || trimmed == "false"
                 || trimmed.parse::<f64>().is_ok()
         }
-        JsExpr::Sequence(seq) => {
-            // A sequence expression evaluates to its last element
-            seq.expressions
-                .last()
-                .is_some_and(|e| is_js_expr_defined(e, arena, context))
-        }
+        // Upstream's `scope.evaluate` has no `SequenceExpression` case, so it
+        // falls to `default` and adds UNKNOWN — never `is_defined`, whatever
+        // the last element evaluates to.
         _ => false,
     }
 }
@@ -6810,22 +6899,12 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
     false
 }
 
-/// Check if a JSON expression is "known" (can be evaluated at compile time).
-///
-/// This approximates the official Svelte compiler's `scope.evaluate().is_known` check.
-/// An expression is "known" if it evaluates to exactly one concrete value at compile time.
-///
-/// Key differences from `has_reactive_state_json`:
-/// - `has_reactive_state_json` checks if identifiers reference reactive bindings
-/// - `is_expression_known_json` checks if the expression can be compile-time evaluated
-///   (e.g., function calls to local functions are UNKNOWN even if the callee is non-reactive)
-fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
-    let Some(obj) = json_value.as_object() else {
-        return false;
-    };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-        return false;
-    };
+/// `EvalScope` for the client transform: the same `scope.evaluate` walk the
+/// server runs, with Phase 2's reference-position resolution in place of the
+/// server's scope-index chain.
+struct ClientEvalScope<'a, 'b> {
+    context: &'a ComponentContext<'b>,
+}
 
     match expr_type {
         "Literal" => true,
@@ -7087,6 +7166,43 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         // Default: not known
         _ => false,
     }
+
+    fn evaluate_identifier(&self, node: &serde_json::Value, name: &str, depth: u8) -> Evaluation {
+        // An enclosing `{#each … as item, index}` shadows any outer binding of
+        // the same name, and the loop scope is not on `state.scope`.
+        for c in self.context.state.each_binding_context.iter().rev() {
+            if c.item_name == name {
+                return Evaluation::unknown();
+            }
+            if !c.index_name.is_empty() && c.index_name == name {
+                return Evaluation::single(EvalValue::NumberMarker);
+            }
+        }
+        let binding = node
+            .get("start")
+            .and_then(|v| v.as_u64())
+            .and_then(|start| {
+                self.context
+                    .state
+                    .scope_root
+                    .binding_at_reference(name, start as u32)
+            })
+            .or_else(|| self.context.state.get_binding(name));
+        match binding {
+            Some(b) => evaluate_binding_initial(self, b, depth),
+            None if name == "undefined" => Evaluation::single(EvalValue::Undefined),
+            None => Evaluation::unknown(),
+        }
+    }
+
+    fn binding_initial_is_props_id(&self, name: &str) -> bool {
+        self.context.state.analysis.props_id.as_deref() == Some(name)
+    }
+}
+
+/// Upstream's `scope.evaluate(node).is_known`.
+fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    evaluate_estree(&ClientEvalScope { context }, json_value, 0).is_known()
 }
 
 /// Sanitize a template string by escaping special characters.
