@@ -239,6 +239,8 @@ pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::
                 offset: 0,
                 line_offsets: &line_offsets,
                 is_typescript,
+                // A `.svelte.(js|ts)` module, not a component <script>.
+                is_script: false,
                 leading_comments: &[],
                 script_tag_start: 0,
                 script_tag_end: source.len(),
@@ -263,6 +265,8 @@ pub fn ts_snippet_is_valid(source: &str, is_typescript: bool) -> bool {
                 offset: 0,
                 line_offsets: &line_offsets,
                 is_typescript,
+                // A synthesized type-alias snippet, which cannot export.
+                is_script: false,
                 leading_comments: &[],
                 script_tag_start: 0,
                 script_tag_end: source.len(),
@@ -297,6 +301,17 @@ where
             (filename, parse(source, &alloc, opts))
         })
         .collect()
+}
+
+/// Drop a leading byte order mark. Upstream's `compiler/index.js` calls this at
+/// every public entry (`compile`, `compileModule`, `parse`, `parseCss`) before
+/// anything sees the source, so every position it reports is relative to the
+/// trimmed text. Deliberately *not* called inside [`parse`]: the formatter and
+/// the linter parse a string they also slice, and stripping under them would
+/// shift every span they hold by three bytes.
+#[must_use]
+pub fn remove_bom(source: &str) -> &str {
+    source.strip_prefix('\u{feff}').unwrap_or(source)
 }
 
 #[cfg(test)]

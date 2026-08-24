@@ -978,7 +978,9 @@ pub enum TransformError {
 impl std::fmt::Display for TransformError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TransformError::CodeGen(msg) => write!(f, "Code generation error: {}", msg),
+            // Upstream throws a bare `Error(message)` here, and a consumer reads
+            // `error.message` verbatim, so no prefix may be added.
+            TransformError::CodeGen(msg) => write!(f, "{}", msg),
             TransformError::Css(msg) => write!(f, "CSS error: {}", msg),
         }
     }

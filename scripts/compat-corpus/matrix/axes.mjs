@@ -1207,6 +1207,11 @@ export const DIRECTIVE_KINDS = {
 	style: 'style:color={color}',
 	let: 'let:x',
 	attach: '{@attach attachment}',
+	// The `experimental_async` gate is one `state.expression` upstream and one
+	// arm per element visitor here, so it drifts exactly where the plain
+	// `attach` row cannot see it: that row is legal on every host that accepts
+	// an attachment at all, and this one is rejected on all thirteen (#3318).
+	'attach-await': '{@attach await attachment()}',
 	spread: '{...props}',
 };
 

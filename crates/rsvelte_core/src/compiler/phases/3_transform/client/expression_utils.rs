@@ -2086,6 +2086,13 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return false;
     }
 
+    // `should_proxy`'s early-return list holds `ArrowFunctionExpression` and
+    // `FunctionExpression` but not `ClassExpression`, so a class expression is
+    // proxied like any other constructor-valued initializer.
+    if is_class_expression(trimmed) {
+        return true;
+    }
+
     // These prefixes settle the node type on their own, and must be decided
     // before the operator sniffs below: TS generics such as `new Map<K, V>()`
     // otherwise read as a top-level relational operator.
@@ -2593,6 +2600,16 @@ pub(super) fn contains_top_level_logical(expr: &str) -> bool {
 }
 
 /// Check if an expression is a function expression (arrow function or function keyword).
+/// Does `expr` open with a `class` expression — `class {`, `class Foo {`,
+/// `class extends Base {`? The keyword must stand alone, so `classes.map(…)`
+/// is not one.
+pub(super) fn is_class_expression(expr: &str) -> bool {
+    let Some(rest) = expr.trim_start().strip_prefix("class") else {
+        return false;
+    };
+    rest.starts_with('{') || rest.starts_with(char::is_whitespace)
+}
+
 pub(super) fn is_function_expression(expr: &str) -> bool {
     let trimmed = expr.trim();
 

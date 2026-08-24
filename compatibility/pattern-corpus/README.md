@@ -631,6 +631,9 @@ negative control that the decoding did not regress.
 | `unknown-escape-passthrough.svelte` | `\/`, `\@` and a **multi-byte** `\é` — the escape is dropped, the character kept |
 | `attribute-and-mixed-text.svelte` | the same value folded into an attribute, into a quasi between text, and twice in one chunk |
 | `module-script-const.svelte` | the const is declared in `<script module>` rather than the instance script |
+| `3263-const-tag-function-read.svelte` | [#3263](https://github.com/baseballyama/rsvelte/issues/3263) | `{@const c = fn}` read as text inside a block. Upstream evaluates a function-valued binding to the `FUNCTION` symbol, which is never `is_known`, so the read keeps its `template_effect` and the template keeps its text placeholder |
+| `3289-custom-element-constant-state.svelte` | [#3289](https://github.com/baseballyama/rsvelte/issues/3289) | `customElement` sets `accessors`, so a never-written `$state` keeps its `$.state(…)` declaration on both sides — but the READ is still known-constant. The `$derived` line is the second binding kind the same rule reaches |
+| `3298-nested-const-tag-global-call.svelte` | [#3298](https://github.com/baseballyama/rsvelte/issues/3298) | A `{@const}` whose initializer reads an enclosing `{@const}` through a pure global. The `has_call` and "has a transform" bails are facts about the TEMPLATE EXPRESSION; `scope.evaluate` consults neither once it recurses into a binding's initializer |
 
 ## `adversarial/` — proactive adversarial sweep
 

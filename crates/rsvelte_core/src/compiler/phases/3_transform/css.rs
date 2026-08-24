@@ -269,10 +269,22 @@ fn collect_is_where_unused_warnings(
                         .and_then(|s| s.as_array());
 
                     let unused = match branch_selectors {
-                        Some(bs) => {
-                            let synth = substitute_is_branch(complex_selector, ri, si, bs);
-                            is_complex_selector_unused(&synth, ctx)
-                        }
+                        // A branch that resolves its own `&` is matched from
+                        // the document root, not below the parent: upstream's
+                        // `get_relative_selectors` prepends the parent only
+                        // when no `&` is present.
+                        Some(bs) => match branch_alternatives(bs, ctx) {
+                            Some(alternatives) => without_parent_preludes(ctx, || {
+                                alternatives.iter().all(|bs| {
+                                    let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                                    is_complex_selector_unused(&synth, ctx)
+                                })
+                            }),
+                            None => {
+                                let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                                is_complex_selector_unused(&synth, ctx)
+                            }
+                        },
                         // Empty branch (e.g. `:is()`) — fall back to the
                         // isolated check.
                         None => is_complex_selector_unused(inner_complex, ctx),
@@ -4884,6 +4896,26 @@ fn is_has_argument_unused(
         }
     }
 
+    // A `:has()` nested inside the argument has its own subject set — the
+    // elements this argument could match — so it has to be resolved against
+    // those. `selector_info_has_constraints` sees no tag/class/id in
+    // `:has(:has(.b))` and would otherwise call the argument a possible match.
+    if rel_selectors.len() == 1
+        && let Some(nested) = nested_has_arguments(first)
+    {
+        let Some(candidates) =
+            elements_matching_relative(first, &first_info, subject_elements, ctx)
+        else {
+            return false;
+        };
+        if candidates.is_empty() {
+            return true;
+        }
+        return nested
+            .iter()
+            .all(|arg| is_has_argument_unused(arg, &candidates, ctx));
+    }
+
     // Arguments without any concrete constraint (e.g. `:has(:focus-visible)`)
     // can match any element; the official matcher skips plain pseudo-classes and
     // treats the selector as a possible match.
@@ -4983,6 +5015,87 @@ fn is_has_argument_unused(
         }
         _ => false, // Unknown combinator, be conservative
     }
+}
+
+/// The argument list of a `:has()` sitting inside one compound, when there is
+/// exactly one — several would each constrain the same element and this shape
+/// cannot express the conjunction.
+fn nested_has_arguments(rel: &Value) -> Option<&Vec<Value>> {
+    let selectors = rel.get("selectors")?.as_array()?;
+    let mut found = None;
+    for sel in selectors {
+        if !is_has_pseudo(sel) {
+            continue;
+        }
+        if found.is_some() {
+            return None;
+        }
+        found = sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+            .filter(|c| !c.is_empty());
+        found?;
+    }
+    found
+}
+
+/// The elements one relative selector of a `:has()` argument can match, given
+/// the subjects it is measured from. `None` when the answer cannot be trusted
+/// (an unhandled combinator, or content this component does not see).
+fn elements_matching_relative(
+    rel: &Value,
+    info: &SelectorInfo,
+    subject_elements: &[usize],
+    ctx: &CssContext,
+) -> Option<Vec<usize>> {
+    let combinator = rel
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+    // `selector_matches_element` answers "matches nothing" for a compound with
+    // no tag/class/id, but here that compound is the bare `:has()` whose
+    // argument is checked separately — every reachable element is a candidate.
+    let universal = SelectorInfo {
+        tag_name: None,
+        classes: Vec::new(),
+        id: None,
+        is_universal: true,
+        is_groups: Vec::new(),
+    };
+    let info = if selector_info_has_constraints(info) || !info.is_groups.is_empty() {
+        info
+    } else {
+        &universal
+    };
+    let mut matched = Vec::new();
+    match combinator {
+        ">" => {
+            if ctx.has_opaque_sibling_boundaries {
+                return None;
+            }
+            for &subject_idx in subject_elements {
+                for &child_idx in &ctx.dom_structure.elements[subject_idx].children_idx {
+                    if let Some(child) = ctx.dom_structure.elements.get(child_idx)
+                        && selector_matches_element(info, child)
+                    {
+                        matched.push(child_idx);
+                    }
+                }
+            }
+        }
+        " " => {
+            if ctx.has_opaque_sibling_boundaries {
+                return None;
+            }
+            for &subject_idx in subject_elements {
+                collect_matching_descendants(subject_idx, info, ctx, &mut matched);
+            }
+        }
+        _ => return None,
+    }
+    Some(matched)
 }
 
 /// Check if a multi-part :has() argument (like > h > i) is unused

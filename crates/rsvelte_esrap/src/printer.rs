@@ -550,6 +550,18 @@ fn expr_precedence(expr: &Expression) -> u8 {
     }
 }
 
+/// A `class`, `function` or object literal is a `PrimaryExpression`, so it is
+/// already a legal `extends` operand even though its precedence sits below a
+/// `MemberExpression`'s.
+fn heritage_needs_no_parens(expr: &Expression) -> bool {
+    matches!(
+        unparen(expr),
+        Expression::ClassExpression(_)
+            | Expression::FunctionExpression(_)
+            | Expression::ObjectExpression(_)
+    )
+}
+
 /// Binary/logical operator precedence (esrap's `OPERATOR_PRECEDENCE`).
 fn binary_operator_precedence(op: &str) -> u8 {
     match op {
@@ -2417,7 +2429,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         if let Some(heritage) = &node.heritage {
             ctx.write("extends ");
-            self.child_with_parens(&heritage.expression, 19, ctx);
+            // esrap visits the superclass with no parenthesisation at all, which
+            // prints text no parser accepts for anything looser than a
+            // LeftHandSideExpression; parens are kept for those and dropped for
+            // the primary expressions that need none (`extends class {}`).
+            if heritage_needs_no_parens(&heritage.expression) {
+                self.print_expression(&heritage.expression, ctx);
+            } else {
+                self.child_with_parens(&heritage.expression, 19, ctx);
+            }
             if let Some(ta) = &heritage.type_arguments {
                 self.type_parameter_instantiation(ta, ctx);
             }

@@ -39,6 +39,7 @@
 //! ```
 
 pub mod constants;
+pub(crate) mod identifier_escapes;
 pub mod legacy;
 pub mod phases;
 pub mod preprocess;
@@ -323,6 +324,22 @@ impl Default for CompileOptions {
             is_module_source: false,
             legacy_options: LegacyOptions::default(),
         }
+    }
+}
+
+/// The filename upstream's `validate-options.js` substitutes when the option is
+/// absent (`filename: string('(unknown)')`). It is not a placeholder for "we do
+/// not know": every consumer downstream reads the *defaulted* value, so the
+/// component name comes out `_unknown_` and the dev `[$.FILENAME]` assignment is
+/// still emitted.
+pub const UNKNOWN_FILENAME: &str = "(unknown)";
+
+impl CompileOptions {
+    /// The `filename` every consumer sees — the supplied one, or upstream's
+    /// [`UNKNOWN_FILENAME`] default.
+    #[must_use]
+    pub fn filename_or_unknown(&self) -> &str {
+        self.filename.as_deref().unwrap_or(UNKNOWN_FILENAME)
     }
 }
 
@@ -677,6 +694,8 @@ pub(crate) fn prepare_and_analyze<'source>(
 /// Returns a `CompileResult` containing the generated JavaScript and CSS.
 pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
 }
 
@@ -690,6 +709,8 @@ pub fn compile_client_with_program_sink(
         &phases::phase3_transform::js_ast::arena::JsArena,
     ),
 ) -> Result<CompileResult, CompileError> {
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?
         .compile_client_with_program_sink(sink)
 }
@@ -700,6 +721,8 @@ pub fn compile_with_external_sourcemap_content(
     options: CompileOptions,
 ) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?
         .compile_mode_with_sourcemap_content(generate, false)
 }
@@ -721,6 +744,8 @@ pub fn compile_both(
     source: &str,
     options: CompileOptions,
 ) -> Result<(CompileResult, CompileResult), CompileError> {
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?.compile_both()
 }
 
@@ -756,7 +781,12 @@ pub(crate) fn finalize_compile_result(
             phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
         ));
     }
-    if options.legacy_options.accessors || options.accessors {
+    // Presence, not value: upstream's `deprecate()` fires on the option being
+    // SUPPLIED (`accessors: false` warns too) and exactly once per process, so
+    // the entry point that parsed the option owns the decision. Reading
+    // `options.accessors` here would re-derive it from the behavioural field and
+    // warn on every compile.
+    if options.legacy_options.accessors {
         option_warnings.push(phases::phase3_transform::TransformWarning {
             code: "options_deprecated_accessors".to_string(),
             message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
@@ -764,7 +794,7 @@ pub(crate) fn finalize_compile_result(
             end: None,
         });
     }
-    if options.legacy_options.immutable || options.immutable {
+    if options.legacy_options.immutable {
         option_warnings.push(legacy_option_warning(
             phases::phase2_analyze::warnings::options_deprecated_immutable(),
         ));
@@ -967,6 +997,7 @@ pub fn compile_module(
                     offset: 0, // source is the entire file
                     line_offsets: &[],
                     is_typescript: false, // upstream analyze_module always parses plain JS
+                    is_script: false,
                     leading_comments: &[],
                     script_tag_start: 0,
                     script_tag_end: source.len(),

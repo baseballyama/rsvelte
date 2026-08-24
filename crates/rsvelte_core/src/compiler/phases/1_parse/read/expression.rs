@@ -1767,9 +1767,10 @@ fn expression_source_type(ts: bool) -> SourceType {
 /// `content` is wrapped in `(...)` before being handed to OXC, so we subtract
 /// one from OXC's reported `offset + len` (the right-edge of the labeled span)
 /// to land back in the unwrapped expression's coordinate space — and clamp
-/// the result to `[0, content.len()]`. Acorn reports `err.pos` at the point
-/// where it stopped consuming tokens, which corresponds to the *end* of the
-/// problematic region, not its start.
+/// the result to `[0, content.len()]`. That right edge is only ever right
+/// because the clamp lands it on the close token, so when the wrapper is what
+/// failed, [`bare_parse_error`] re-reads the body and reports acorn's position
+/// directly.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     // Two inputs acorn rejects on their very first token are described by the
     // `(…)` wrapper below instead of by themselves — nothing is left for OXC to
@@ -1788,10 +1789,30 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
-        with_oxc_allocator(|allocator| {
+        // `retry_bare` marks a diagnostic the `(…)` wrapper produced. The bare
+        // re-probe cannot run inside this closure: `with_oxc_allocator` hands
+        // out one thread-local arena and nesting it panics.
+        let (message, pos, retry_bare) = with_oxc_allocator(|allocator| {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
             if let Some(first_error) = result.diagnostics.first() {
+                // Acorn raises the shorthand-assignment error at the `=` token,
+                // while OXC labels the whole `a = 1` property.
+                if first_error.message.as_ref() == "Invalid assignment in object literal"
+                    && let Some(label) = first_error.labels.first()
+                {
+                    let label_start = label.offset() as usize;
+                    let label_end = label_start + label.len() as usize;
+                    if let Some(slice) = wrapped.get(label_start..label_end)
+                        && let Some(eq) = shorthand_assign_offset(slice)
+                    {
+                        return Some((
+                            "Shorthand property assignments are valid only in destructuring patterns"
+                                .to_string(),
+                            (label_start + eq).saturating_sub(1).min(content.len()),
+                        ));
+                    }
+                }
                 // Acorn raises "Assigning to rvalue" at the target's start, not
                 // where it stopped consuming, so this one label reads left.
                 let at_label_start = matches!(
@@ -1824,19 +1845,23 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                         wrapped_end.saturating_sub(1).min(content.len())
                     })
                     .unwrap_or(0);
-                let message = if at_label_start {
-                    "Assigning to rvalue".to_string()
-                } else {
-                    first_error.message.to_string()
+                if at_label_start {
+                    return Some(("Assigning to rvalue".to_string(), pos, false));
+                }
+                // `()` is the wrapper's own diagnostic for an empty tag body;
+                // acorn, given the body unwrapped, calls it an unexpected token.
+                let message = match first_error.message.as_ref() {
+                    "Empty parenthesized expression" => "Unexpected token",
+                    other => other,
                 };
-                return Some((message, pos));
+                return Some((message.to_string(), pos, true));
             }
             // Check for invalid assignment targets that OXC doesn't report as errors
             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
                 && is_invalid_assignment_expression(&expr_stmt.expression)
             {
-                return Some(("Assigning to rvalue".to_string(), 0));
+                return Some(("Assigning to rvalue".to_string(), 0, false));
             }
             // A template expression is parsed by its own function, so it needs
             // the acorn-only restrictions applied here too — the script path's
@@ -1846,10 +1871,20 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                 acorn_only_violation(&result.program, &wrapped, source_type.is_typescript())
             {
                 let pos = (at as usize).saturating_sub(1).min(content.len());
-                return Some((message, pos));
+                return Some((message, pos, false));
             }
             None
-        })
+        })?;
+
+        // The `(…)` is ours, not the template's, so a diagnostic that only
+        // exists because of it (`()`, a trailing comma, an arrow parameter
+        // list) is not the one upstream's `parseExpressionAt` reports on the
+        // unwrapped body. When the body itself has a diagnostic, that is
+        // acorn's — and acorn reports the *start* of the token it stopped on.
+        if retry_bare && let Some(bare) = bare_parse_error(content, source_type) {
+            return Some(bare);
+        }
+        Some((message, pos))
     };
 
     // Try TypeScript first
@@ -6829,6 +6864,11 @@ pub struct ProgramParseParams<'source, 'context> {
     pub line_offsets: &'context [usize],
     /// Set to true if the script contains TypeScript.
     pub is_typescript: bool,
+    /// Whether this is a component `<script>` rather than a standalone module.
+    /// Upstream passes the same flag to `acorn.parse`, which uses it to clear
+    /// `undefinedExports` — an exported name may be declared elsewhere in the
+    /// component, so only a module raises `Export 'x' is not defined`.
+    pub is_script: bool,
     /// HTML comments that appeared before the script tag.
     pub leading_comments: &'context [String],
     /// Positions for loc calculation (Svelte uses locator(start) for
@@ -7264,6 +7304,7 @@ fn convert_parsed_program<'ast>(
         offset,
         line_offsets,
         is_typescript,
+        is_script,
         leading_comments,
         script_tag_start,
         script_tag_end,
@@ -7441,6 +7482,7 @@ fn convert_parsed_program<'ast>(
                 content,
                 offset: offset as u32,
                 map: &mut ignore_comment_map,
+                captured: capture_comments.then(std::collections::HashMap::default),
             };
             let last_index = program.body.len().saturating_sub(1);
 
@@ -7464,6 +7506,19 @@ fn convert_parsed_program<'ast>(
                 }
             }
             claimed = attacher.next;
+
+            claimed = attacher.next;
+            if let Some(captured) = attacher.captured.take() {
+                for ((node_type, start, end), (leading, trailing)) in captured {
+                    arena.record_node_comments(
+                        &node_type,
+                        start,
+                        end,
+                        (!leading.is_empty()).then_some(leading),
+                        (!trailing.is_empty()).then_some(trailing),
+                    );
+                }
+            }
 
             body_nodes
         } else {
@@ -7577,10 +7632,12 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
 }
 
 /// A pre-computed comment entry: absolute start offset plus the comment text with
-/// its `//` / `/* */` delimiters stripped.
+/// its `//` / `/* */` delimiters stripped, and the ESTree object upstream's
+/// `add_comments` hands to a node (`{ type, value, start, end }`, no `loc`).
 struct CommentEntry {
     start: u32,
     text: CompactString,
+    value: Value,
 }
 
 /// What the walk needs to know about a node's parent to decide trailing-comment
@@ -7612,6 +7669,13 @@ struct CommentAttacher<'a> {
     content: &'a str,
     offset: u32,
     map: &'a mut Vec<(u32, Vec<CompactString>)>,
+    /// `Some` on the public `parse()` path only: `(type, start, end) ->
+    /// (leadingComments, trailingComments)`, flushed into the arena's comment
+    /// side table so `JsNode`'s `Serialize` impl emits them. The compile path
+    /// leaves it `None` — codegen re-parses script text, so materialising them
+    /// there would cost every component and change no output.
+    captured:
+        Option<std::collections::HashMap<(CompactString, u32, u32), (Vec<Value>, Vec<Value>)>>,
 }
 
 impl CommentAttacher<'_> {
@@ -7621,6 +7685,7 @@ impl CommentAttacher<'_> {
         };
         let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
         let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let node_type = obj.get("type").and_then(|t| t.as_str());
 
         let mut leading: Option<Vec<Value>> = None;
         if let Some(start) = start {
@@ -7638,7 +7703,7 @@ impl CommentAttacher<'_> {
         }
 
         // Only these parents let their last child swallow the comments that follow it.
-        let last_body_field = match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+        let last_body_field = match node_type.unwrap_or("") {
             "Program" | "BlockStatement" => Some("body"),
             "ArrayExpression" => Some("elements"),
             "ObjectExpression" => Some("properties"),
@@ -7725,9 +7790,9 @@ impl CommentAttacher<'_> {
                 }
                 self.next += 1;
             }
-        } else if let Some(end) = end
-            && end <= comment.start
-            && self.is_separator_slice(end, comment.start)
+        } else if let Some(node_end) = end
+            && node_end <= comment.start
+            && self.is_separator_slice(node_end, comment.start)
         {
             if let Some(value) = self.arena.and(self.values.get(self.next)) {
                 claimed = Some(vec![value.clone()]);
@@ -7746,7 +7811,14 @@ impl CommentAttacher<'_> {
             .is_some_and(|slice| slice.chars().all(|c| matches!(c, ',' | ')' | ' ' | '\t')))
     }
 
-    fn record_leading(&mut self, start: u32, index: usize) {
+    fn record_leading(
+        &mut self,
+        node_type: Option<&str>,
+        start: u32,
+        end: Option<u32>,
+        index: usize,
+    ) {
+        self.capture(node_type, Some(start), end, index, true);
         let text = self.comments[index].text.clone();
         if !text.trim_start_ws().starts_with("svelte-ignore") {
             return;
