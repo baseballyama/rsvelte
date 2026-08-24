@@ -81,6 +81,12 @@ jobs:
         # later, on main, where it blocks every release until fixed.
         run: node scripts/release/check-changeset-package-names.mjs
 
+      - name: Self-test the core-consumer rule table
+        # The guard's coverage is a hand-maintained list, so it needs a control
+        # on the LIST and not only on the lookup: `crates/rsvelte_napi` was
+        # missing from it while its own header explained why it should not be.
+        run: node scripts/release/test-core-consumer-changesets.mjs
+
       - name: Require consumer changesets for shared-core changes
         env:
           SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}

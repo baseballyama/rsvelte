@@ -9,7 +9,7 @@ measurement.
 
 The gate compiles every `<style lang="scss"|"sass">` block and every standalone `.scss` / `.sass`
 file in the corpus source repositories with both backends and compares the CSS byte-for-byte after
-trailing-whitespace normalisation. `scss-known-failures.json` holds **30 entries** and may only
+trailing-whitespace normalisation. `scss-known-failures.json` holds **318 entries** and may only
 shrink; it is two-sided, so an entry that starts agreeing fails the run until it is
 re-baselined in the same PR.
 
@@ -19,15 +19,24 @@ The first run measured 118 units: **64 match**, **30 diverge**, and **24 are com
 "both backends reject"**. Read the denominator as 94, not 118 — a both-reject pair is parity, but
 it is parity on a comparison that never reached the CSS.
 
+**After the wave-2 enrolment (#3130) the population is 3,027 units**: 1,755 match, 213 diverge on
+the CSS, 105 are inputs `grass` rejects and dart-sass accepts, and 954 are both-reject. The
+denominator is therefore 2,073, and `grass` agrees with dart-sass on **84.7%** of it. Treat that
+as the current size of the "near-substitute, not drop-in" claim — it was measured on 94 units
+before, and the 25× larger population did not change the verdict, only its precision.
+
 Two consequences worth stating rather than discovering later:
 
 - **A both-reject pair does not compare the two error messages.** Two backends rejecting one input
   for unrelated reasons score identically to two backends agreeing. This is the same shape the
   shape-matrix gate had before #2583 taught it to compare error codes; SCSS error text is not
   comparable across implementations, so the gate does not try.
-- **The corpus is Tailwind-era Svelte, so SCSS is rare.** 101 of the 118 units come from two
-  repositories (`attractions`, `powertable`). Growing the corpus with more Tailwind libraries
-  will not grow this gate; adding one SCSS-heavy repository would.
+- **The corpus is Tailwind-era Svelte, so SCSS is rare.** 101 of the original 118 units came from
+  two repositories (`attractions`, `powertable`), and the prediction recorded here was that
+  adding one SCSS-heavy repository would grow the gate where more Tailwind libraries would not.
+  The enrolment paid that out: 15 repositories now contribute entries, led by
+  `svelte-material-ui` (67), `mathesar` (46), `carbon-components-svelte` (41), `huly` (34) and
+  `musicat` (33) — all of them SCSS-era codebases, none of them Tailwind-era.
 
 `scripts/compat-corpus/scss-verify.mjs` builds a `node_modules` symlink shim from every
 `package.json` in the corpus and hands it to **both** backends as an extra load path. Without it,
@@ -35,9 +44,33 @@ Two consequences worth stating rather than discovering later:
 65 of its stylesheets fall into the both-reject bucket — the gate would have looked green while
 comparing almost nothing.
 
-Partition of `scss-known-failures.json` by cluster: `13 + 7 + 6 + 3 + 1`
+Partition of `scss-known-failures.json` by verdict: `213 + 105`
 
-## Cluster 1 — colour serialisation (13 entries)
+- **213 — the CSS differs** (`css-mismatch`).
+- **105 — `grass` rejects an input dart-sass compiles** (`grass-rejects-accepted`). This is the
+  half a text diff cannot describe, and it is a third of the list.
+
+The clusters below are a **diagnostic ordering of the `css-mismatch` half, not a partition**: the
+gate prints one differing line per unit and 189 of the 213 produced one, so the counts sum to 189.
+The original five clusters were written when the whole ratchet was 30 entries; each is still the
+same mechanism, at the size the enrolment found.
+
+| n | cluster | changes the cascade? |
+|---|---|---|
+| 70 | declarations after nested rules (cluster 2 below) | **yes** |
+| 44 | indentation of a nested rule | no |
+| 31 | colour serialisation (cluster 1) | no |
+| 26 | a trailing `/* … */` dropped (cluster 4) | no |
+| 10 | attribute-selector quote style — dart-sass keeps `'`, `grass` prints `"` | no |
+| 8 | a comment `grass` emits before the block dart-sass emits it after | no |
+
+The one cluster that changes rendering is also the largest, which was not true at 30 entries.
+
+Each cluster section below closes with the files that carried it **when the ratchet was 30
+entries**. Those lists are kept as the worked examples that named the mechanism; they are no
+longer the cluster's membership, which is now the counts in the table above.
+
+## Cluster 1 — colour serialisation
 
 dart-sass ≥ 1.79 serialises a computed colour in the space its channels were computed in, so
 `color.adjust` / `lighten` / `darken` results print as `rgb(92.6666666667%, …)` and
@@ -54,7 +87,7 @@ date-picker/date-picker,popover/popover-button,radio-button/radio-button,slider/
 snackbar/snackbar,star-rating/star-rating,tab/tab,time-picker/time-picker}.scss`,
 `svelte-formly/src/lib/components/fields/AutoComplete.svelte#style0`
 
-## Cluster 2 — declarations after nested rules (7 entries)
+## Cluster 2 — declarations after nested rules
 
 ```scss
 .btn {
@@ -76,7 +109,7 @@ file-input/file-input,text-field/text-field}.scss`,
 `powertable/app/src/lib/styles/power-table.scss`,
 `svelte-splitpanes/src/lib/Splitpanes.svelte#style0`
 
-## Cluster 3 — `grass` panics on the indented syntax (6 entries)
+## Cluster 3 — `grass` panics on the indented syntax
 
 Every `lang="sass"` block in `date-picker-svelte` aborts `grass` with an assertion failure in
 `grass_compiler-0.13.4/src/parse/sass.rs:200`. dart-sass compiles all six.
@@ -90,7 +123,7 @@ or in a guard on our side; either way it is the entry to burn down first.
 `date-picker-svelte/src/lib/{DateInput,DatePicker,TimePicker}.svelte#style0`,
 `date-picker-svelte/src/routes/{+layout,prop,split}.svelte#style0`
 
-## Cluster 4 — comment preservation (3 entries)
+## Cluster 4 — comment preservation
 
 `grass` drops a trailing `/* … */` that follows a declaration on the same line, and rewrites the
 leading tab of a continuation line inside a preserved multi-line comment to a single space.
@@ -100,7 +133,7 @@ changes no rule.
 `svelte-splitpanes/src/routes/examples/styling/{app-layout,splitters}/code.svelte#style0`,
 `svelte-formly/src/routes/__layout.svelte#style0`
 
-## Cluster 5 — multi-line selector indentation inside `@media` (1 entry)
+## Cluster 5 — multi-line selector indentation inside `@media`
 
 A selector list that wraps across lines inside an `@media` block keeps the block's indentation on
 every line under dart-sass; `grass` indents only the first.
