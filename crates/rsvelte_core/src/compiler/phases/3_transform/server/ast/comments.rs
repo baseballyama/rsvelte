@@ -125,7 +125,7 @@ impl ChunkRegistry {
     /// hoisted legacy-reactive declarator, whose identifier upstream keeps the
     /// `$: x = …` source `loc` of while the declaration around it stays
     /// loc-less. `expression_anchor` is what keeps it in the layout: the
-    /// [`Encounter`] walk only sees it below statement level.
+    /// `Encounter` walk only sees it below statement level.
     pub fn register_anchor(&mut self) -> Option<u32> {
         let prov_base = PROV_BASE.checked_add(self.next_prov)?;
         self.next_prov = self.next_prov.checked_add(2)?;
