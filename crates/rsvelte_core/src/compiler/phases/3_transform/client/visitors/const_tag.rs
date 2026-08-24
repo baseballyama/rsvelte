@@ -114,6 +114,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 is_defined: false,
                 is_reactive: true,
                 replacement_id: None,
+                store_source: None,
             },
         );
 
@@ -312,6 +313,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Template-kind binding (destructured @const) requires
@@ -752,6 +754,7 @@ pub(crate) fn add_const_declaration(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
         }
