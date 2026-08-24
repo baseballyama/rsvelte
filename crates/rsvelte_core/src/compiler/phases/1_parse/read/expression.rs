@@ -1976,9 +1976,11 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
+        let mut wrapped = String::with_capacity(content.len() + 3);
         wrapped.push('(');
         wrapped.push_str(content);
+        // Keep the synthetic closer outside a trailing line comment.
+        wrapped.push('\n');
         wrapped.push(')');
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
