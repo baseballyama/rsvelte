@@ -27,6 +27,7 @@ use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
+use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
 use oxc_ast_visit::VisitMut;
@@ -107,7 +108,7 @@ pub struct ServerTransformState<'a> {
     /// once (via the proven legacy `ServerCodeGenerator::new` path) and reused
     /// by `Self::eval_ctx` when folding `{expr}` template chunks / dynamic
     /// attribute values. See `server::evaluate::EvalCtx`.
-    pub eval_inputs: EvalInputs,
+    pub(crate) eval_inputs: EvalInputs,
     /// Monotonic counter for the `$$body` temporary used by element CONTENT
     /// binds (`<textarea>` value, contenteditable `innerHTML`/`innerText`/
     /// `textContent`). The first one is bare `$$body`, subsequent ones append
@@ -225,9 +226,11 @@ pub struct ServerTransformState<'a> {
     /// Leading-comment regions registered by the script transform, replayed onto
     /// a synthetic buffer at print time. See [`comments`].
     pub comments: comments::ChunkRegistry,
-    /// Comments trailing direct block-bodied legacy `$:` statements. Their final
-    /// anchor is decided after the reordered script body is assembled.
-    pub pending_reactive_comments: Vec<PendingReactiveComment>,
+    /// Comments no emitted instance statement is left to flush — the run after
+    /// the last one, and the same-line trailer of a `$:` whose label upstream
+    /// rebuilds loc-less. Their final anchor is decided after the reordered
+    /// script body is assembled.
+    pub pending_tail_comments: Vec<PendingTailComment>,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -242,7 +245,7 @@ pub struct SavedScope {
     /// The entered scope, when the node owned one (`None` = nothing changed).
     entered: Option<usize>,
     /// `constant_vars` entries the entered scope redeclared, to put back.
-    shadowed_constants: Vec<(String, String)>,
+    shadowed_constants: Vec<(String, EvalValue)>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -259,7 +262,7 @@ pub struct AsyncConstsGroup<'a> {
     pub let_decls: Vec<Statement<'a>>,
 }
 
-pub struct PendingReactiveComment {
+pub struct PendingTailComment {
     suffix: String,
     comments: Vec<Comment>,
     replay_at_tail: bool,
@@ -270,8 +273,8 @@ pub struct PendingReactiveComment {
 /// `ServerCodeGenerator` carries for `scope.evaluate`, so the two pipelines
 /// fold identically.
 #[derive(Default)]
-pub struct EvalInputs {
-    pub constant_vars: rustc_hash::FxHashMap<String, String>,
+pub(crate) struct EvalInputs {
+    pub constant_vars: rustc_hash::FxHashMap<String, EvalValue>,
     pub use_async: bool,
     pub top_level_blocker_map: rustc_hash::FxHashMap<String, usize>,
     /// Lazily-built template-scope index set (see `evaluate_identifier`).
@@ -326,12 +329,12 @@ impl<'a> ServerTransformState<'a> {
             slot_let_shadows: Vec::new(),
             current_scope_index: analysis.root.root_fragment_scope_index,
             comments: comments::ChunkRegistry::default(),
-            pending_reactive_comments: Vec::new(),
+            pending_tail_comments: Vec::new(),
             reparse_failure: std::cell::RefCell::new(None),
         }
     }
 
-    pub fn defer_reactive_block_comments(
+    pub fn defer_tail_comments(
         &mut self,
         source: &str,
         comments: &[Comment],
@@ -351,38 +354,51 @@ impl<'a> ServerTransformState<'a> {
                 comment
             })
             .collect();
-        self.pending_reactive_comments.push(PendingReactiveComment {
+        self.pending_tail_comments.push(PendingTailComment {
             suffix,
             comments,
             replay_at_tail: false,
         });
     }
 
-    pub fn mark_deferred_reactive_comment_landed(&mut self, index: usize) {
-        if let Some(comment) = self.pending_reactive_comments.get_mut(index) {
+    pub fn mark_deferred_tail_comment_landed(&mut self, index: usize) {
+        if let Some(comment) = self.pending_tail_comments.get_mut(index) {
             comment.replay_at_tail = true;
         }
     }
 
-    /// The first template expression receives a deferred comment only when no
-    /// script successor already claimed its initial landing.
-    pub fn claim_deferred_reactive_comment(&mut self, expression: &mut OxcExpression<'a>) {
-        let Some(index) = self
-            .pending_reactive_comments
+    /// The first template expression flushes every still-pending comment, the way
+    /// esrap's cursor writes the whole run before the next node it finds a
+    /// location on. A comment a script successor already took is not among them.
+    pub fn claim_deferred_tail_comment(&mut self, expression: &mut OxcExpression<'a>) {
+        if self
+            .pending_tail_comments
             .iter()
-            .position(|comment| !comment.replay_at_tail)
-        else {
+            .all(|comment| comment.replay_at_tail)
+        {
             return;
-        };
-        let comment = self.pending_reactive_comments.remove(index);
-        let mut text = String::from("x");
-        text.push_str(&comment.suffix);
-        text.push('\n');
-        let mut comments = comment.comments;
-        for comment in &mut comments {
-            comment.span.start += 1;
-            comment.span.end += 1;
         }
+        let mut text = String::from("x");
+        let mut comments: Vec<Comment> = Vec::new();
+        let mut kept = Vec::new();
+        for entry in std::mem::take(&mut self.pending_tail_comments) {
+            if entry.replay_at_tail {
+                kept.push(entry);
+                continue;
+            }
+            let base = text.len() as u32;
+            text.push_str(&entry.suffix);
+            comments.extend(entry.comments.into_iter().map(|mut comment| {
+                comment.span.start += base;
+                comment.span.end += base;
+                comment
+            }));
+        }
+        self.pending_tail_comments = kept;
+        // The anchor goes on the line after the run, so a line comment cannot
+        // swallow it and a block one still gets its own line — which is what
+        // upstream produces, the script always sitting above the template.
+        text.push('\n');
         if let Some(base) = self.comments.register_expression(&text, &comments) {
             let mut place = comments::Place::At(base + text.len() as u32);
             place.visit_expression(expression);
@@ -392,8 +408,8 @@ impl<'a> ServerTransformState<'a> {
     /// A script successor receives the first copy; the cursor then replays the
     /// same comment at the component tail. An unclaimed comment has that tail as
     /// its fallback when there is no template expression.
-    pub fn replay_deferred_reactive_comments_at_tail(&mut self) {
-        let pending = std::mem::take(&mut self.pending_reactive_comments);
+    pub fn replay_deferred_tail_comments(&mut self) {
+        let pending = std::mem::take(&mut self.pending_tail_comments);
         let Some(last) = self.body.last_mut() else {
             return;
         };
@@ -414,7 +430,13 @@ impl<'a> ServerTransformState<'a> {
                 comment.span.start = comment.span.start - first as u32 + 3;
                 comment.span.end = comment.span.end - first as u32 + 3;
             }
-            if let Some(base) = self.comments.register_component_tail(&text, &comments) {
+            // Mirrors the `should_inject_context` decision below, which is what
+            // puts the component body one level deeper.
+            let nested = self.options.dev || self.analysis.needs_context;
+            if let Some(base) = self
+                .comments
+                .register_component_tail(&text, &comments, nested)
+            {
                 let mut place = comments::Place::At(base);
                 place.visit_statement(last);
             }
@@ -520,6 +542,32 @@ impl<'a> ServerTransformState<'a> {
             })
             .map(|(name, _)| name.as_str())
             .collect()
+    }
+
+    /// `scope.get(name)`: whether the NEAREST declaration of `name` on the
+    /// render position's scope chain is a template `{@const}` / `{const}`.
+    ///
+    /// The `slot_let_shadows` veto is keyed by NAME alone, so it cannot tell a
+    /// read of an each item / snippet parameter from a read of a `{@const}`
+    /// that shadows one in an inner block — and upstream folds the latter,
+    /// because `scope.get` stops at the nearest declaration.
+    pub(super) fn nearest_declaration_is_template_const(&self, name: &str) -> bool {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let root = &self.analysis.root;
+        let mut current = Some(self.current_scope_index);
+        while let Some(idx) = current {
+            let Some(scope) = root.all_scopes.get(idx) else {
+                return false;
+            };
+            if let Some(&binding) = scope.declarations.get(name) {
+                return root
+                    .bindings
+                    .get(binding)
+                    .is_some_and(|b| matches!(b.kind, BindingKind::Template));
+            }
+            current = scope.parent;
+        }
+        false
     }
 
     /// Collect all the names currently shadowed by enclosing snippet / slot
@@ -1273,6 +1321,7 @@ pub fn server_component_ast<'a>(
         template_body
     };
 
+    let template_start = state.body.len();
     state.body.extend(template_body);
 
     // `template.body.push(b.if($$store_subs, $.unsubscribe_stores($$store_subs)))`.
@@ -1285,7 +1334,14 @@ pub fn server_component_ast<'a>(
         state.body.push(cleanup);
     }
 
-    state.replay_deferred_reactive_comments_at_tail();
+    // esrap re-syncs its comment cursor at every body it prints, and every body
+    // the template emits starts past the script — so a comment the template's
+    // first expression did not flush dies at that block instead of reaching the
+    // component body's own end.
+    if state.body[template_start..].iter().any(holds_a_body) {
+        state.pending_tail_comments.clear();
+    }
+    state.replay_deferred_tail_comments();
 
     // -- $.bind_props trailer (upstream lines 224-243) ----------------------
     // Collect `props` from bindable_prop bindings (`prop_alias ?? name`, excluding
@@ -1647,6 +1703,26 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
         ),
         None => code,
     })
+}
+
+/// Whether `stmt` holds a `{ … }` esrap prints through `body()` — the call that
+/// moves the comment cursor.
+fn holds_a_body(stmt: &Statement<'_>) -> bool {
+    struct Search(bool);
+    impl<'a> oxc_ast_visit::Visit<'a> for Search {
+        fn visit_block_statement(&mut self, _: &oxc_ast::ast::BlockStatement<'a>) {
+            self.0 = true;
+        }
+        fn visit_function_body(&mut self, _: &oxc_ast::ast::FunctionBody<'a>) {
+            self.0 = true;
+        }
+        fn visit_class_body(&mut self, _: &oxc_ast::ast::ClassBody<'a>) {
+            self.0 = true;
+        }
+    }
+    let mut search = Search(false);
+    oxc_ast_visit::Visit::visit_statement(&mut search, stmt);
+    search.0
 }
 
 fn is_prevent_snippet_stringification(stmt: &Statement<'_>) -> bool {

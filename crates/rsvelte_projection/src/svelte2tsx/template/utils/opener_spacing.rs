@@ -69,6 +69,10 @@ pub struct OpenerCtx<'a> {
     pub tag_name: &'a str,
     /// `<slot>`: its `name` attribute is consumed by the start transformation.
     pub is_slot_tag: bool,
+    /// The `bind:` prefix survives into the emitted property name. Mirrors
+    /// upstream's `preserveBind = options.typingsNamespace === 'svelteHTML'`;
+    /// a custom typings namespace drops the prefix even on an element.
+    pub preserve_bind: bool,
 }
 
 /// The two space runs an opening tag leaves behind.
@@ -423,7 +427,7 @@ fn push_binding_ranges(out: &mut Vec<Range>, bind: &BindDirective, source: &str,
     let name_start = bind.start + 5; // `bind:`
     // The `svelteHTML` typings namespace (the default) keeps the `bind:` prefix
     // in the emitted property name on elements, which widens the name range.
-    let preserve_bind = ctx.is_element;
+    let preserve_bind = ctx.is_element && ctx.preserve_bind;
     if expr_start == name_start {
         // Shorthand `bind:value`.
         if preserve_bind {

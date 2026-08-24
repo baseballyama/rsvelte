@@ -45,7 +45,7 @@ static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> 
 /// `1-parse/index.js`, a `\s` regex or `String.prototype.trim*`. Rust's
 /// `char::is_whitespace` is the Unicode `White_Space` property, which has the
 /// same 25 members but excludes `U+FEFF` and includes `U+0085`.
-pub(crate) fn is_js_whitespace(c: char) -> bool {
+pub fn is_js_whitespace(c: char) -> bool {
     matches!(
         c,
         '\u{9}'..='\u{d}'
@@ -111,6 +111,10 @@ pub struct Parser<'a> {
     pub(crate) stylesheet: Option<StyleSheet>,
     /// Parsed svelte:options.
     pub(crate) svelte_options: Option<SvelteOptions<'a>>,
+    /// The `<svelte:options>` element as collected, before validation — upstream
+    /// validates it once the whole template has been parsed.
+    pub(crate) svelte_options_raw:
+        Option<crate::compiler::phases::phase1_parse::read::options::SvelteOptionsRaw<'a>>,
     /// Pending comments that could become leading comments for a script.
     pub(crate) pending_leading_comments: Vec<String>,
     /// Whether we're in TypeScript mode.
@@ -143,6 +147,11 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
+    /// Offset of the `<` whose tag already closed an element implicitly.
+    /// Upstream pops exactly once per new tag; rsvelte re-enters the check from
+    /// each enclosing element's read loop, so without this one tag would walk
+    /// the whole ancestor chain.
+    pub(crate) implicit_close_at: Option<usize>,
     /// Parser-level warnings (e.g., element_implicitly_closed).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
     /// JS-style comments collected across the parse. Mirrors upstream
@@ -274,6 +283,7 @@ impl<'a> Parser<'a> {
             module_script: None,
             stylesheet: None,
             svelte_options: None,
+            svelte_options_raw: None,
             pending_leading_comments: Vec::new(),
             ts,
             script_ts: false,
@@ -281,6 +291,7 @@ impl<'a> Parser<'a> {
             in_svelte_options: false,
             meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
+            implicit_close_at: None,
             parse_warnings: Vec::new(),
             root_comments: std::cell::RefCell::new(Vec::new()),
             arena: ParseArena::new(),
@@ -321,9 +332,11 @@ impl<'a> Parser<'a> {
         self.module_script = None;
         self.stylesheet = None;
         self.svelte_options = None;
+        self.svelte_options_raw = None;
         self.pending_leading_comments.clear();
         self.meta_tags.clear();
         self.last_auto_closed_tag = None;
+        self.implicit_close_at = None;
         self.parse_warnings.clear();
         self.root_comments.borrow_mut().clear();
         self.depth = 0;
@@ -885,23 +898,32 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Read an identifier.
+    /// Read an identifier. Mirrors upstream's `read_identifier`, which uses
+    /// acorn's `isIdentifierStart` / `isIdentifierChar` and so accepts every
+    /// `ID_Continue` character — combining marks and ZWNJ/ZWJ included.
     #[inline]
     pub fn read_identifier(&mut self) -> CompactString {
         let start = self.index;
 
-        // Fast path: ASCII identifier characters (a-z, A-Z, 0-9, _, $)
+        let Some(first) = self.source[start..].chars().next() else {
+            return CompactString::default();
+        };
+        if !oxc_syntax::identifier::is_identifier_start(first) {
+            return CompactString::default();
+        }
+        self.index += first.len_utf8();
+
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
-            if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
-                self.index += 1;
-            } else if b < 0x80 {
-                // ASCII non-identifier char: done
-                break;
+            if b.is_ascii() {
+                if oxc_syntax::identifier::is_identifier_part_ascii(b as char) {
+                    self.index += 1;
+                } else {
+                    break;
+                }
             } else {
-                // Non-ASCII: check via char
                 let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                if c.is_alphanumeric() {
+                if oxc_syntax::identifier::is_identifier_part_unicode(c) {
                     self.index += c.len_utf8();
                 } else {
                     break;
@@ -1077,5 +1099,48 @@ impl<'a> Parser<'a> {
         )
         .unwrap_or(self.bytes.len());
         self.index
+    }
+
+    /// The index of the `}` that closes a mustache opened before `expr_start`,
+    /// or the `expected_token` upstream raises when the template holds none.
+    ///
+    /// Upstream never searches for the brace: `read_expression` lets acorn
+    /// consume one expression and `eat('}', true)` then demands the brace
+    /// wherever that stopped — the first token acorn left behind, or the end of
+    /// the right-trimmed template when it consumed everything.
+    pub(crate) fn find_mustache_close(&self, expr_start: usize) -> ParseResult<usize> {
+        if let Some(end) = crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            self.source,
+            expr_start,
+            '{',
+        ) {
+            return Ok(end);
+        }
+        // Loose mode keeps recovering so a half-typed document still yields a tree.
+        if self.options.loose {
+            return Ok(self.bytes.len());
+        }
+        use crate::compiler::phases::phase1_parse::read::expression::{
+            check_js_parse_error_with_pos, trailing_token_offset,
+        };
+        let from = expr_start.min(self.content_end);
+        let rest = &self.source[from..self.content_end];
+        if rest.trim_matches(is_js_whitespace).is_empty() {
+            return Err(ParseError::expected_token("}", self.content_end));
+        }
+        // A complete leading expression leaves the brace demanded at the first
+        // token acorn did not consume.
+        if let Some(offset) = trailing_token_offset(rest)
+            && check_js_parse_error_with_pos(&rest[..offset]).is_none()
+        {
+            return Err(ParseError::expected_token("}", from + offset));
+        }
+        // Otherwise acorn never got an expression out of the rest of the file,
+        // so upstream reports the JS parser's own error rather than the brace.
+        if let Some((message, pos)) = check_js_parse_error_with_pos(rest) {
+            let at = from + pos;
+            return Err(ParseError::svelte("js_parse_error", message, (at, at)));
+        }
+        Err(ParseError::expected_token("}", self.content_end))
     }
 }
