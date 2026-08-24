@@ -106,6 +106,12 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// without comments.
     line_starts: Vec<u32>,
     comment_source: Option<&'opt str>,
+    /// The text the comment spans index into, consulted only to decide whether
+    /// a line break separates two offsets. `line_starts` cannot answer that: it
+    /// doubles as the source-map coordinate table, so it counts LF alone, while
+    /// esrap reads placement off acorn's `loc.line`, which advances on CR and on
+    /// U+2028 / U+2029 too. `None` falls back to `line_starts`.
+    placement_source: Option<&'opt str>,
     /// Byte offsets of each line start in the buffer source-map positions are
     /// resolved against. Same as `line_starts` unless the caller split the two
     /// coordinate spaces (see [`crate::print_split`]).
@@ -114,12 +120,29 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// they take no part in comment placement — the Rust equivalent of esrap's
     /// `if (node.loc)` guards. `None` = every span is a real location.
     loc_base: Option<u32>,
-    /// Sorted, disjoint `(start, end, mapped)` ranges translating a comment-space
-    /// offset back to a source-map-space offset. `None` mapped = unmapped.
-    loc_map: Vec<(u32, u32, Option<u32>)>,
+    /// Sorted, disjoint ranges translating a comment-space offset back to a
+    /// source-map-space offset.
+    loc_map: Vec<LocRange>,
     /// Decorator expressions have no esrap mapping visitor, so their nested
     /// tokens must stay unmapped too.
     map_nodes: bool,
+}
+
+/// One `loc_map` entry: comment-space `[start, end)` resolves to `source`.
+/// `linear` means byte *i* of the range resolves to `source + (i - start)`,
+/// which is how a verbatim-copied region is carried in one entry instead of one
+/// per byte; otherwise the whole range anchors at `source`. `None` is
+/// deliberately unmapped.
+#[derive(Debug, Clone, Copy)]
+pub struct LocRange {
+    /// First comment-space byte this entry covers.
+    pub start: u32,
+    /// One past the last comment-space byte this entry covers.
+    pub end: u32,
+    /// Source-map-space offset, or `None` for a deliberately unmapped run.
+    pub source: Option<u32>,
+    /// Whether the range advances through the source byte for byte.
+    pub linear: bool,
 }
 
 /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
@@ -237,7 +260,9 @@ impl<'a> BorrowedCommentDriver<'a> {
             }
             first = false;
             self.write(comment, ctx);
-            if self.has_newline(comment.span.end, to) {
+            if self.has_newline(comment.span.end, to)
+                || matches!(comment.kind, oxc_ast::ast::CommentKind::Line)
+            {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -272,7 +297,7 @@ impl<'a> BorrowedCommentDriver<'a> {
         debug_assert!(start <= end);
         self.source
             .get(start as usize..end as usize)
-            .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+            .is_some_and(contains_line_terminator)
     }
 
     fn write<const DIRECT: bool>(
@@ -317,7 +342,19 @@ impl<'a> BorrowedCommentDriver<'a> {
     }
 }
 
+/// Whether `text` holds an ECMAScript `LineTerminator`. esrap asks this by
+/// comparing acorn `loc.line` numbers, which advance on CR and on U+2028 /
+/// U+2029 as well as on LF.
+pub(crate) fn contains_line_terminator(text: &str) -> bool {
+    text.as_bytes().iter().any(|&b| b == b'\n' || b == b'\r')
+        || text.contains(['\u{2028}', '\u{2029}'])
+}
+
 /// Byte offsets at which each source line begins (line 1 starts at 0).
+///
+/// LF only: this table also resolves source-map positions, whose line numbering
+/// is the generated buffer's. Comment *placement* asks a different question —
+/// see [`contains_line_terminator`].
 pub fn line_starts(source: &str) -> Vec<u32> {
     // Sized off an assumed ~32 bytes per line so a long source does not walk the
     // whole doubling sequence.
@@ -646,6 +683,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             comment_index: 0,
             line_starts: Vec::new(),
             comment_source: None,
+            placement_source: None,
             map_line_starts: None,
             loc_base: None,
             loc_map: Vec::new(),
@@ -670,10 +708,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             map_line_starts: None,
             line_starts,
             comment_source: None,
+            placement_source: None,
             loc_base: None,
             loc_map: Vec::new(),
             map_nodes: true,
         }
+    }
+
+    /// Decide comment placement by reading `source`, not by comparing lines in
+    /// `line_starts` (which is the source-map coordinate table).
+    pub(crate) const fn with_placement_source(mut self, source: &'opt str) -> Self {
+        self.placement_source = Some(source);
+        self
     }
 
     pub(crate) const fn with_borrowed_comments(
@@ -694,7 +740,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         mut self,
         map_line_starts: Vec<u32>,
         loc_base: u32,
-        loc_map: &[(u32, u32, Option<u32>)],
+        loc_map: &[LocRange],
         emit_locations: bool,
     ) -> Self {
         self.emit_locations = emit_locations;
@@ -723,21 +769,26 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if start >= end {
             return false;
         }
-        self.comment_source.map_or_else(
+        self.placement_text().map_or_else(
             || self.line_of(start) < self.line_of(end),
             |source| {
                 source
                     .get(start as usize..end as usize)
-                    .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+                    .is_some_and(contains_line_terminator)
             },
         )
     }
 
     fn comment_starts_on_earlier_line(&self, comment: CommentMeta, offset: u32) -> bool {
-        self.comment_source.map_or_else(
+        self.placement_text().map_or_else(
             || comment.start_line < self.line_of(offset),
             |_| self.has_newline_between(comment.start, offset),
         )
+    }
+
+    /// The text placement decisions are read from, if the caller supplied one.
+    fn placement_text(&self) -> Option<&'opt str> {
+        self.comment_source.or(self.placement_source)
     }
 
     /// esrap's `if (node.loc)`: whether a span offset is a real source position
@@ -755,6 +806,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if !self.has_loc(offset) {
             return None;
         }
+        self.map_position(offset)
+    }
+
+    /// [`Self::offset_to_line_col`] without the `loc_base` gate. Under split
+    /// coordinates a real source offset is below `loc_base` and so is "no
+    /// location" *for comments*, but it is still exactly the position a source
+    /// map segment wants. Formatting decisions must keep using
+    /// [`Self::offset_to_line_col`], which cannot compare across the two spaces.
+    fn map_position(&self, offset: u32) -> Option<(u32, u32)> {
+        if offset == u32::MAX {
+            return None;
+        }
         let map_line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
         if map_line_starts.is_empty() {
             return None;
@@ -764,20 +827,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         } else {
             match self
                 .loc_map
-                .binary_search_by(|(start, end, _)| {
-                    if offset < *start {
+                .binary_search_by(|range| {
+                    if offset < range.start {
                         std::cmp::Ordering::Greater
-                    } else if offset >= *end {
+                    } else if offset >= range.end {
                         std::cmp::Ordering::Less
                     } else {
                         std::cmp::Ordering::Equal
                     }
                 })
                 .ok()
-                .map(|i| self.loc_map[i].2)
+                .map(|i| &self.loc_map[i])
             {
-                Some(Some(mapped)) => mapped,
-                Some(None) => return None,
+                Some(range) => match range.source {
+                    Some(mapped) if range.linear => mapped + (offset - range.start),
+                    Some(mapped) => mapped,
+                    None => return None,
+                },
                 None => offset,
             }
         };
@@ -805,7 +871,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.write(suffix);
             return;
         }
-        if let Some((line, column)) = self.offset_to_line_col(start) {
+        if let Some((line, column)) = self.map_position(start) {
             ctx.location(line, column);
             ctx.write(keyword);
             let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
@@ -832,7 +898,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// guard.
     fn write_node(&self, ctx: &mut Context<DIRECT>, span: Span, content: impl AsRef<str>) {
         let content = content.as_ref();
-        if !self.emit_locations || !self.map_nodes || span.is_empty() || !self.has_loc(span.start) {
+        if !self.emit_locations || !self.map_nodes || span.is_empty() || span.start == u32::MAX {
             ctx.write(content);
             return;
         }
@@ -844,11 +910,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
 
-        if let Some((line, column)) = self.offset_to_line_col(span.start) {
+        if let Some((line, column)) = self.map_position(span.start) {
             ctx.location(line, column);
         }
         ctx.write(content);
-        if let Some((line, column)) = self.offset_to_line_col(span.end) {
+        if let Some((line, column)) = self.map_position(span.end) {
             ctx.location(line, column);
         }
     }
@@ -882,7 +948,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// can't borrow `self` mutably across calls the way the JS closure does.
     fn keyword_cursor(&self, start: u32, map_ok: bool) -> KeywordCursor {
         let cursor = if map_ok && self.emit_locations {
-            self.offset_to_line_col(start)
+            self.map_position(start)
         } else {
             None
         };
@@ -1023,7 +1089,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             first = false;
             self.write_comment_at(self.comment_index, ctx);
-            if self.has_newline_between(cmt.end, to) {
+            if !cmt.block || self.has_newline_between(cmt.end, to) {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -1269,8 +1335,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if let Some(end) = node_meta.end {
                 self.flush_trailing_comments(parent, end, until);
             }
-            let length = parent.measure();
-            let multiline = parent.end_scope(scope);
+            let length = parent.measure_with_layout_spaces(&scope);
+            // Same width rule as the multi-item branches, whose accumulator
+            // (`-1`, then `+= measure + 1` per item) equals `measure` at n == 1.
+            let multiline = parent.end_scope(scope) || usize_to_i64(length) > 60;
 
             if direct_layout && pad && length == 0 {
                 parent.cancel_optimistic_space();
@@ -1335,7 +1403,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     self.flush_trailing_comments(parent, end, next);
                 }
 
-                length += usize_to_i64(parent.measure()) + 1;
+                length += usize_to_i64(parent.measure_with_layout_spaces(&scope)) + 1;
                 multiline |= parent.end_scope(scope);
                 *item = Some(SeqLayout {
                     mark,
@@ -1429,7 +1497,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.flush_trailing_comments(parent, end, next);
             }
 
-            length += usize_to_i64(parent.measure()) + 1;
+            length += usize_to_i64(parent.measure_with_layout_spaces(&scope)) + 1;
             multiline |= parent.end_scope(scope);
             items.push(SeqLayout {
                 mark,
@@ -1439,6 +1507,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             });
         }
 
+        // esrap writes a nested sequence's own inter-item space as a string, so
+        // its `measure` counts it; here that space is a layout event `measure`
+        // subtracts, and a child measured short flips this 60-column test.
         multiline |= length > 60;
 
         for i in (0..items.len()).rev() {
@@ -1605,26 +1676,6 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
     }
 
-    /// esrap's `body`: statements on their own lines, with a blank line between
-    /// two multiline statements or a change of statement kind, interleaving
-    /// leading (before each statement), trailing (same-line), and end-of-body
-    /// comments. `body_end` is the byte offset that closes the body (program
-    /// end, or the `}` of a block).
-    fn body(
-        &mut self,
-        statements: &[Statement],
-        body_start: u32,
-        body_end: u32,
-        ctx: &mut Context<DIRECT>,
-    ) {
-        self.body_elems(
-            statements.iter().map(BodyElem::Statement),
-            Some(body_start),
-            body_end,
-            ctx,
-        );
-    }
-
     fn comments_are_outer_to_block(
         &self,
         statements: &[Statement],
@@ -1741,8 +1792,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let mut has_margin = false;
             if let Some((prev_elem, prev_multiline)) = &prev {
                 // The two kept empties of one `;;` hole are a single upstream
-                // statement, so nothing separates them.
-                let joined = prev_elem.is_kept_empty() && elem.is_kept_empty();
+                // statement, so nothing separates them — but two separate holes
+                // are two statements and take a newline. A pair is built at
+                // consecutive starts (`B::empty_kept(s)` / `(s + 1)`).
+                let joined = prev_elem.is_kept_empty()
+                    && elem.is_kept_empty()
+                    && elem.span_start() == prev_elem.span_start().wrapping_add(1);
                 has_margin = !joined && (*prev_multiline || !elem.same_kind(prev_elem));
                 if has_margin {
                     ctx.margin();
@@ -2252,7 +2307,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let start = node.span().start;
         let offset_ok = self.function_async_offset_ok(node);
         let gen_suffix = if node.generator { "* " } else { " " };
-        match self.offset_to_line_col(start) {
+        match self.map_position(start) {
             Some((line, column)) if node.r#async && offset_ok => {
                 Self::write_source_keyword(ctx, line, column, "async ");
                 let col2 = column + usize_to_u32("async ".len());
@@ -2304,7 +2359,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Some(body) => {
                 ctx.write_ascii(b' ');
                 let span = body.span();
-                self.block(&body.statements, span.start, span.end, ctx);
+                self.block_with_directives(
+                    &body.directives,
+                    &body.statements,
+                    span.start,
+                    span.end,
+                    ctx,
+                );
             }
             None => ctx.write_ascii(b';'),
         }
@@ -2592,7 +2653,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // space from `context.write(' ')`, leaving `abstract get a() `.
         if let Some(body) = &node.value.body {
             let span = body.span();
-            self.block(&body.statements, span.start, span.end, ctx);
+            self.block_with_directives(
+                &body.directives,
+                &body.statements,
+                span.start,
+                span.end,
+                ctx,
+            );
         }
     }
 
@@ -3049,7 +3116,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx.write_ascii_bytes(b" => ");
         if let ArrowFunctionBody::FunctionBody(body) = &node.body {
             let span = body.span();
-            self.block(&body.statements, span.start, span.end, ctx);
+            self.block_with_directives(
+                &body.directives,
+                &body.statements,
+                span.start,
+                span.end,
+                ctx,
+            );
         } else {
             let Some(body) = node.body.as_expression() else {
                 return;
@@ -3073,9 +3146,24 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         body_end: u32,
         ctx: &mut Context<DIRECT>,
     ) {
+        self.block_with_directives(&[], body, body_start, body_end, ctx);
+    }
+
+    /// A function body's leading string-literal statements are a separate oxc
+    /// node (`FunctionBody::directives`), so a printer that walks `statements`
+    /// alone deletes them — and only the first one of a body is a directive, so
+    /// the deletion is silent and semantics-preserving-looking.
+    fn block_with_directives(
+        &mut self,
+        directives: &[Directive],
+        body: &[Statement],
+        body_start: u32,
+        body_end: u32,
+        ctx: &mut Context<DIRECT>,
+    ) {
         if !HAS_COMMENTS {
             let keep_empty = self.options.keep_empty_statements;
-            let has_content = body.iter().any(|statement| {
+            let has_content = !directives.is_empty() || body.iter().any(|statement| {
                 keep_empty
                     || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
             });
@@ -3088,14 +3176,27 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.write_block_brace(ctx, body_start, body_end, true);
             ctx.indent();
             ctx.newline();
-            self.body(body, body_start, body_end, ctx);
+            self.body_elems(
+                directives
+                    .iter()
+                    .map(BodyElem::Directive)
+                    .chain(body.iter().map(BodyElem::Statement)),
+                Some(body_start),
+                body_end,
+                ctx,
+            );
             ctx.dedent();
             ctx.newline();
             self.write_block_brace(ctx, body_start, body_end, false);
             return;
         }
 
-        if DIRECT && self.comments_are_outer_to_block(body, body_start, body_end) {
+        // The comment-island fast path is statement-only; a body with directives
+        // takes the general path rather than a second copy of the interleaving.
+        if DIRECT
+            && directives.is_empty()
+            && self.comments_are_outer_to_block(body, body_start, body_end)
+        {
             let keep_empty = self.options.keep_empty_statements;
             let has_statement = body.iter().any(|statement| {
                 keep_empty
@@ -3120,7 +3221,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.write_block_brace(ctx, body_start, body_end, true);
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
-        self.body(body, body_start, body_end, ctx);
+        self.body_elems(
+            directives
+                .iter()
+                .map(BodyElem::Directive)
+                .chain(body.iter().map(BodyElem::Statement)),
+            Some(body_start),
+            body_end,
+            ctx,
+        );
         if ctx.empty() {
             ctx.discard_scope(scope);
         } else {
@@ -3199,7 +3308,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.write_ascii_bytes(b" = ");
                 self.print_expression(init, ctx);
             }
-            total_measure += ctx.measure();
+            total_measure += ctx.measure_with_layout_spaces(&scope);
             any_multiline |= ctx.end_scope(scope);
         }
 
@@ -3684,7 +3793,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // Builder-created calls carry `SPAN` (zero); a nonzero span is an
         // explicit source-backed call such as a lowered directive runtime call.
         if node.span.start != 0
-            && let Some((line, column)) = self.offset_to_line_col(node.span.start)
+            && let Some((line, column)) = self.map_position(node.span.start)
         {
             ctx.location(line, column);
         }
@@ -3706,7 +3815,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         self.call_arguments(&node.arguments, node.span().end, ctx);
         if node.span.start != 0
-            && let Some((line, column)) = self.offset_to_line_col(node.span.end)
+            && let Some((line, column)) = self.map_position(node.span.end)
         {
             ctx.location(line, column);
         }
@@ -4071,7 +4180,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             match &f.body {
                 Some(body) => {
                     let span = body.span();
-                    self.block(&body.statements, span.start, span.end, ctx);
+                    self.block_with_directives(
+                        &body.directives,
+                        &body.statements,
+                        span.start,
+                        span.end,
+                        ctx,
+                    );
                 }
                 None => ctx.write_ascii_bytes(b"{}"),
             }
@@ -4313,7 +4428,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < second_start && self.comment_starts_on_earlier_line(c, second_start)
+                c.start < second_start
+                    && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
             });
 
             ctx.write_ascii(b'(');
