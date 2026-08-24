@@ -175,6 +175,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // sibling each blocks. Reference: EachBlock.js lines 129-133
     let saved_transform = context.state.transform.clone();
     let saved_transform_deep_read = context.state.transform_deep_read.clone();
+    let saved_each_shadowing_names = context.state.each_shadowing_names.clone();
 
     // Build declarations for the render function body
     // This will insert transforms for the item and index into context.state.transform
@@ -434,7 +435,23 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // forces level 1.
     let prev_nesting = context.state.template_nesting_level;
     context.state.template_nesting_level += 1;
+    // Carry the each block's own Phase-2 scope while building the body, the way
+    // the snippet and declaring-element visitors do. `get_binding` consults
+    // `state.scope` first, so without this an item name that shadows an
+    // instance binding resolves to the OUTER one and `scope.evaluate`-style
+    // checks (`is_defined`, which decides the `?? ''` guard) answer for it.
+    let saved_scope = context.state.scope;
+    if let Some(each_scope) = context
+        .state
+        .scope_root
+        .template_scope_map
+        .get(&node.start)
+        .and_then(|idx| context.state.scope_root.all_scopes.get(*idx))
+    {
+        context.state.scope = each_scope;
+    }
     let body_block = visit_fragment(&node.body, context);
+    context.state.scope = saved_scope;
     context.state.template_nesting_level = prev_nesting;
     context.state.in_control_flow_block = prev_in_control_flow;
 
@@ -485,6 +502,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Restore the original transform map to prevent leaking to sibling blocks
     context.state.transform = saved_transform;
     context.state.transform_deep_read = saved_transform_deep_read;
+    context.state.each_shadowing_names = saved_each_shadowing_names;
 
     // Build the key function
     let key_function = build_key_function(node, context, key_uses_index, &index);
@@ -554,7 +572,20 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         // `{:else}` fallback must stay local, not hoist to the component root.
         let prev_nesting = context.state.template_nesting_level;
         context.state.template_nesting_level += 1;
+        // Upstream visits the fallback with the each block's scope too, so an
+        // item name still shadows a same-named instance binding here.
+        let saved_scope = context.state.scope;
+        if let Some(each_scope) = context
+            .state
+            .scope_root
+            .template_scope_map
+            .get(&node.start)
+            .and_then(|idx| context.state.scope_root.all_scopes.get(*idx))
+        {
+            context.state.scope = each_scope;
+        }
         let fallback_block = visit_fragment(fallback, context);
+        context.state.scope = saved_scope;
         context.state.template_nesting_level = prev_nesting;
         let fallback_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], fallback_block.body);
         each_args.push(fallback_fn);
@@ -1011,6 +1042,7 @@ fn build_declarations(
                 is_defined: true,
                 is_reactive: index_reactive,
                 replacement_id: None,
+                store_source: None,
             },
         );
         // A keyed each block's index is reactive — upstream gives it kind
@@ -1031,6 +1063,10 @@ fn build_declarations(
                 .transform_deep_read
                 .remove(&index_name.to_string());
         }
+        context
+            .state
+            .each_shadowing_names
+            .remove(&index_name.to_string());
     }
 
     // Handle simple identifier context
@@ -1054,6 +1090,7 @@ fn build_declarations(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
         } else {
@@ -1068,6 +1105,7 @@ fn build_declarations(
         // Each item is not a template-kind binding in legacy reactivity;
         // ensure any outer same-named deep_read marker is shadowed.
         context.state.transform_deep_read.remove(name);
+        context.state.each_shadowing_names.remove(name);
 
         if node.index.is_some()
             && node.metadata.contains_group_binding
@@ -1134,6 +1172,7 @@ fn build_declarations(
                             is_defined: false,
                             is_reactive: true,
                             replacement_id: None,
+                            store_source: None,
                         },
                     );
                 }
@@ -1190,6 +1229,7 @@ fn build_declarations(
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
 
@@ -1224,6 +1264,7 @@ fn build_declarations(
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
 
