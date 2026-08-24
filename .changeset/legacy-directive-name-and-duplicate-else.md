@@ -1,5 +1,0 @@
----
-'@rsvelte/compiler': patch
----
-
-Reject three legacy constructs the official compiler rejects and accept one it accepts. `directive_missing_name` is now one test at the attribute dispatch site rather than three of the eight per-directive parsers, so `on:={h}`, `bind:`, `style:`, `animate:`, `let:` and any spelling carrying modifiers (`class:|foo`) are covered and the span stops at the colon; `<svelte:component this="Child">` gets upstream's `is_expression_attribute` check; a `customElement` `tag` that is not a string literal is `svelte_options_invalid_tagname`, while the empty string is accepted. A second `{:else}` in an `{#if}` or `{#each}` replaces the earlier branch instead of failing with one of three host-dependent parse errors. Four diagnostics also report upstream's fields: `svelte_component_missing_this` is zero-width, `legacy_reactive_statement_invalid` carries a position, `Not implemented: LetDirective` loses its `Code generation error: ` prefix, and a defaulted shorthand in a directive value is a `js_parse_error` at the `=` with acorn's wording rather than `expected_token`

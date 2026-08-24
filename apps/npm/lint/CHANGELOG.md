@@ -1,5 +1,7 @@
 # @rsvelte/lint
 
+## 0.10.20
+
 ## 0.10.19
 
 ### Patch Changes

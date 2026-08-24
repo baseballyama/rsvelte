@@ -1,5 +1,0 @@
----
-"@rsvelte/compiler": patch
----
-
-Fix three defects in the argument list of a functional pseudo-class. `An+B` is now gated on being inside a pseudo-class rather than on the pseudo-class's *name*, so `:is(2n)`, `:not(2n of .a)` and `:where(5)` parse as upstream does, and the nine spellings the old heuristic over-accepted (`-2n-1`, `-1`, `2foo`, `2n /* t */`, `n+`, `2n+`, `2N`, `2e`, `3 n`) are rejected at the position official reports — including the `read_identifier` fallback that makes `:nth-child(-n-1)` a legal type selector. Comments between `:is()` / `:not()` / `:has()` / `:where()` arguments survive: the list is spliced out of the source the way upstream's printer edits it, instead of being rebuilt and joined with `", "`. And an unused argument is pruned out of an `:is()` / `:where()` / `:has()` list as `/* (unused) … */` — the printer and the `css_unused_selector` warning now read one marking pass instead of each deciding for itself — while a `:has()` whose subject is reached through a combinator (`.a :has(.b)`) is judged against the elements that chain can actually reach, so a rule official prunes is no longer kept.

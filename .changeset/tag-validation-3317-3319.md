@@ -1,5 +1,0 @@
----
-"@rsvelte/compiler": patch
----
-
-Three `{@…}` tag validation fixes. `{@debug s,}`, `{@debug , s}` and `{@debug ...arr}` are now the `js_parse_error` official raises instead of compiling with the stray argument silently dropped, because the argument list goes through the same expression parser every other tag body does and the identifier check runs before the closing-brace check, as it does upstream. `await` in an `{@attach}` expression trips the `experimental_async` gate on every host — it was checked in the `RegularElement` visitor only, so a component, `<svelte:element>`, `<svelte:component>`, `<svelte:self>`, `<svelte:body>`, `<svelte:window>` and `<svelte:document>` accepted it — and `{@attach …}` written in fragment position instead of as an attribute is `expected_tag` rather than silently dropped. An empty tag body (`{@html }`, `{@attach }`, `{}`) reports acorn's `Unexpected token` rather than the `()` wrapper's own diagnostic, and `expected_token` carries the zero-width span upstream builds from an index instead of a one-character one.

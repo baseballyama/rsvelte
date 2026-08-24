@@ -1,5 +1,12 @@
 # @rsvelte/fmt
 
+## 0.7.14
+
+### Patch Changes
+
+- 1660df2: The formatter no longer breaks an expression that fits inside a mustache glued to a preceding tag. The width a glued tag charged for what precedes it was measured from the start of the SOURCE line, which is the output column only when the input is already formatted — on a one-liner it counted the whole open tag even though that tag wraps and the content restarts at the element indent, leaving `{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}` 21 columns instead of 45 and splitting a member chain the oracle keeps flat. The measurement now starts at the last `>` before the tag.
+- 9fbc4ad: Stop `rsvelte-fmt` aborting on a template expression whose last token is a `//` line comment. The expression was handed to the JS formatter as `(<slice>);` with the `);` on the comment's own line, so the comment swallowed it and the whole file failed with `script parse failed: Expected `)`but found`EOF``. `<b>{flag // c⏎}</b>` and `<div data-a={flag // c⏎}>` now format. Their output is still not valid Svelte — the markup printer puts the tag's closing `}` on the comment's line, tracked separately.
+
 ## 0.7.13
 
 ### Patch Changes

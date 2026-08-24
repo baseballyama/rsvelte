@@ -139,7 +139,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_client"
-version = "1.7.1"
+version = "1.12.4"
 dependencies = [
  "base64",
  "corsa_core",
@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_core"
-version = "1.7.1"
+version = "1.12.4"
 dependencies = [
  "base64",
  "bumpalo",
@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_jsonrpc"
-version = "1.7.1"
+version = "1.12.4"
 dependencies = [
  "corsa_core",
  "corsa_runtime",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "corsa_runtime"
-version = "1.7.1"
+version = "1.12.4"
 dependencies = [
  "smallvec",
 ]
@@ -1088,7 +1088,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte_core"
-version = "0.10.19"
+version = "0.10.20"
 dependencies = [
  "bumpalo",
  "compact_str",
@@ -1140,7 +1140,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.10.19"
+version = "0.10.20"
 dependencies = [
  "anyhow",
  "bytecount",
@@ -1178,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.10.19"
+version = "0.10.20"
 dependencies = [
  "indexmap",
  "memchr",
