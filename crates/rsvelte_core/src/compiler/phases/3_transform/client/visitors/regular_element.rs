@@ -2515,6 +2515,18 @@ fn build_element_special_value_attribute(
     }
 }
 
+/// The single `{ … }` an attribute's value consists of, in either spelling.
+fn expression_tag_of<'a>(value: &'a AttributeValue<'a>) -> Option<&'a ExpressionTag<'a>> {
+    match value {
+        AttributeValue::Expression(tag) => Some(tag),
+        AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
+            AttributeValuePart::ExpressionTag(tag) => Some(tag),
+            AttributeValuePart::Text(_) => None,
+        },
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2526,17 +2538,5 @@ mod tests {
         assert!(is_dom_property("innerHTML"));
         assert!(!is_dom_property("class"));
         assert!(!is_dom_property("id"));
-    }
-}
-
-/// The single `{ … }` an attribute's value consists of, in either spelling.
-fn expression_tag_of<'a>(value: &'a AttributeValue<'a>) -> Option<&'a ExpressionTag<'a>> {
-    match value {
-        AttributeValue::Expression(tag) => Some(tag),
-        AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
-            AttributeValuePart::ExpressionTag(tag) => Some(tag),
-            AttributeValuePart::Text(_) => None,
-        },
-        _ => None,
     }
 }
