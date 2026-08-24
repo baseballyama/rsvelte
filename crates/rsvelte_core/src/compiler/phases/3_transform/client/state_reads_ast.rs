@@ -194,25 +194,49 @@ pub fn transform_state_reads_ast(
         && trimmed.ends_with('}')
         && !contains_top_level_semicolon(trimmed)
         && !inner_is_block_statement(trimmed);
-    let leading_ws = source.len() - source.trim_start().len();
-    let parse_source: std::borrow::Cow<str> = if needs_paren_wrap {
+    let paren_wrapped = |source: &str| {
+        let leading_ws = source.len() - source.trim_start().len();
         let trimmed_start = &source[leading_ws..];
         let trailing_ws = trimmed_start.len() - trimmed_start.trim_end().len();
         let core = &trimmed_start[..trimmed_start.len() - trailing_ws];
-        std::borrow::Cow::Owned(format!(
+        format!(
             "{}({}){}",
             &source[..leading_ws],
             core,
             &source[source.len() - trailing_ws..]
-        ))
+        )
+    };
+    let parse_source: std::borrow::Cow<str> = if needs_paren_wrap {
+        std::borrow::Cow::Owned(paren_wrapped(source))
     } else {
         std::borrow::Cow::Borrowed(source)
     };
     let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
 
-    ast_rewrite::with_program(
+    match run_state_reads_pass(source, &parse_source, span_offset, &effective) {
+        ast_rewrite::ParseAttempt::Parsed(out) => out,
+        // An expression whose leading token is an object literal — `{ a: m }.a`
+        // — is a block statement under the program goal and so never parses.
+        // The parser's verdict, not a byte scan, is what tells the two apart.
+        ast_rewrite::ParseAttempt::NotParsed if !needs_paren_wrap && trimmed.starts_with('{') => {
+            run_state_reads_pass(source, &paren_wrapped(source), 1, &effective).into_option()
+        }
+        ast_rewrite::ParseAttempt::NotParsed => None,
+    }
+}
+
+/// One parse-and-splice attempt for [`transform_state_reads_ast`]. `parse_source`
+/// may differ from `source` only by the `(`…`)` that forces expression goal;
+/// `span_offset` is what that insertion shifts every span by.
+fn run_state_reads_pass(
+    source: &str,
+    parse_source: &str,
+    span_offset: i32,
+    effective: &[&str],
+) -> ast_rewrite::ParseAttempt<String> {
+    ast_rewrite::with_program_attempt(
         &STATE_READS_ALLOC,
-        &parse_source,
+        parse_source,
         SourceType::mjs(),
         ParseOptions {
             allow_return_outside_function: true,
@@ -230,7 +254,7 @@ pub fn transform_state_reads_ast(
 
             let mut collector = StateReadsCollector {
                 semantic,
-                effective: &effective,
+                effective,
                 effective_names: &effective_names,
                 state_var_symbols,
                 replacements: Vec::new(),

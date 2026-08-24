@@ -47,6 +47,27 @@ fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
 // Public API
 // ============================================================================
 
+/// Where the `<an+b> of <selector>` keyword ends inside an `:nth-*()` argument.
+///
+/// The space after `of` is optional when the selector begins with a token that
+/// already ends the identifier, which is what minifiers emit.
+fn find_nth_of_split(trimmed: &str) -> Option<usize> {
+    let bytes = trimmed.as_bytes();
+    let mut from = 0;
+
+    while let Some(rel) = memmem::find(&bytes[from..], b" of") {
+        let at = from + rel;
+        match bytes.get(at + 3) {
+            Some(b' ') => return Some(at + 4),
+            Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&') => return Some(at + 3),
+            _ => {}
+        }
+        from = at + 1;
+    }
+
+    None
+}
+
 /// Parse CSS content and return the children array for StyleSheet.
 pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
     let mut parser = CssParser::new(content, offset);
@@ -138,6 +159,18 @@ fn collect_css_comments(content: &str, offset: usize) -> Vec<Value> {
 }
 
 /// Helper: build a CSS `Block` node.
+/// The combinator token starting at `i`, mirroring upstream's
+/// `REGEX_COMBINATOR = /(\+|~|>|\|\|)/y` — a lone `|` is a namespace separator.
+fn combinator_at(bytes: &[u8], i: usize) -> Option<&'static str> {
+    match bytes[i] {
+        b'+' => Some("+"),
+        b'>' => Some(">"),
+        b'~' => Some("~"),
+        b'|' if bytes.get(i + 1) == Some(&b'|') => Some("||"),
+        _ => None,
+    }
+}
+
 fn block_value(start: usize, end: usize, children: Vec<Value>) -> Value {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("Block".to_string()));
@@ -1001,7 +1034,25 @@ impl<'a> CssParser<'a> {
         let selectors: Vec<Value> = self
             .split_by_comma_respecting_parens(text, offset)
             .into_iter()
-            .filter(|(s, _)| !Self::is_only_whitespace_and_comments(s))
+            .filter(|(s, selector_offset)| {
+                if !Self::is_only_whitespace_and_comments(s) {
+                    return true;
+                }
+                // Upstream runs `read_selector` on every comma-separated
+                // segment, so an empty one reaches `read_identifier` and raises
+                // there — at the index the leading whitespace and comments have
+                // been consumed to.
+                let pos = *selector_offset + Self::leading_ws_and_comments_len(s);
+                record_first_error(
+                    &self.error,
+                    crate::error::ParseError::svelte(
+                        "css_expected_identifier",
+                        "Expected a valid CSS identifier",
+                        (pos, pos),
+                    ),
+                );
+                false
+            })
             .map(|(selector, selector_offset)| {
                 // Strip leading whitespace AND CSS comments to find the actual selector start
                 let leading_skip = Self::leading_ws_and_comments_len(selector);
@@ -1048,7 +1099,7 @@ impl<'a> CssParser<'a> {
 
     fn create_empty_relative_selector_with_combinator(
         &self,
-        comb: char,
+        comb: &str,
         comb_start: usize,
         comb_end: usize,
     ) -> Value {
@@ -1217,7 +1268,7 @@ impl<'a> CssParser<'a> {
         let mut current_start = 0;
         let mut i = 0;
         let bytes = text.as_bytes();
-        let mut last_combinator: Option<(char, usize, usize)> = None;
+        let mut last_combinator: Option<(&'static str, usize, usize)> = None;
 
         while i < bytes.len() {
             let c = bytes[i];
@@ -1302,7 +1353,7 @@ impl<'a> CssParser<'a> {
             }
 
             // Check for combinators (+, >, ~)
-            if c == b'+' || c == b'>' || c == b'~' {
+            if let Some(comb_name) = combinator_at(bytes, i) {
                 let selector_text = text[current_start..i].trim_ws();
                 if !selector_text.is_empty() {
                     let selector_offset = base_offset + current_start;
@@ -1315,10 +1366,10 @@ impl<'a> CssParser<'a> {
                 }
 
                 let combinator_start = base_offset + i;
-                let combinator_end = combinator_start + 1;
-                last_combinator = Some((c as char, combinator_start, combinator_end));
+                let combinator_end = combinator_start + comb_name.len();
+                last_combinator = Some((comb_name, combinator_start, combinator_end));
 
-                i += 1;
+                i += comb_name.len();
                 // Skip whitespace after combinator
                 while i < bytes.len() && bytes[i].is_ascii_whitespace() {
                     i += 1;
@@ -1349,7 +1400,7 @@ impl<'a> CssParser<'a> {
                         j += 1;
                     }
                 }
-                if j < bytes.len() && !matches!(bytes[j], b'+' | b'>' | b'~' | b')' | b']') {
+                if j < bytes.len() && !matches!(bytes[j], b'+' | b'>' | b'~' | b'|' | b')' | b']') {
                     // Check if next is a selector start
                     if bytes[j].is_ascii_alphabetic()
                         || bytes[j] == b':'
@@ -1377,7 +1428,7 @@ impl<'a> CssParser<'a> {
                             // Set up space combinator for next selector
                             let combinator_start = base_offset + i;
                             let combinator_end = combinator_start + 1;
-                            last_combinator = Some((' ', combinator_start, combinator_end));
+                            last_combinator = Some((" ", combinator_start, combinator_end));
 
                             // Skip whitespace and continue from next selector
                             i = j;
@@ -1431,7 +1482,7 @@ impl<'a> CssParser<'a> {
         &self,
         text: &str,
         offset: usize,
-        combinator: Option<(char, usize, usize)>,
+        combinator: Option<(&'static str, usize, usize)>,
     ) -> Value {
         let start = if let Some((_, comb_start, _)) = combinator {
             comb_start
@@ -1856,7 +1907,11 @@ impl<'a> CssParser<'a> {
             .trim_ws()
             .to_string();
 
-        if property.is_empty() || self.is_eof() || self.current_char() != ':' {
+        // An empty property is not on its own an error: upstream's rule is
+        // `!value && !property.startsWith('--')`, so `{ : red }` is a
+        // declaration with property `''`, and the empty-value half is checked
+        // in phase 2 against the built node.
+        if self.is_eof() || self.current_char() != ':' {
             // No `property: value` shape. Upstream's `read_declaration` reads
             // the property up to the first whitespace-or-colon, optionally eats
             // a `:`, then reads the value up to `;` / `}`. When that value is
@@ -2323,8 +2378,11 @@ impl<'a> SelectorParser<'a> {
                 }
             } else if c == '[' {
                 // Attribute selector
-                if let Some(selector) = self.parse_attribute_selector() {
-                    selectors.push(selector);
+                match self.parse_attribute_selector() {
+                    Some(selector) => selectors.push(selector),
+                    // The error is already recorded; upstream throws here, so
+                    // nothing after it is part of the selector.
+                    None => break,
                 }
             } else if c == '*' {
                 // Universal selector
@@ -2728,37 +2786,30 @@ impl<'a> SelectorParser<'a> {
                 );
                 rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
 
-                // Wrap in ComplexSelector
-                let mut complex_sel = Map::new();
-                complex_sel.insert(
-                    "type".to_string(),
-                    Value::String("ComplexSelector".to_string()),
-                );
-                complex_sel.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                complex_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                complex_sel.insert(
-                    "children".to_string(),
-                    Value::Array(vec![Value::Object(rel_sel)]),
-                );
+                    let mut complex_sel = Map::new();
+                    complex_sel.insert(
+                        "type".to_string(),
+                        Value::String("ComplexSelector".to_string()),
+                    );
+                    complex_sel.insert("start".to_string(), nth_start_value.clone());
+                    complex_sel
+                        .insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                    complex_sel.insert(
+                        "children".to_string(),
+                        Value::Array(vec![Value::Object(rel_sel)]),
+                    );
 
-                // Wrap in SelectorList
-                let mut sel_list = Map::new();
-                sel_list.insert(
-                    "type".to_string(),
-                    Value::String("SelectorList".to_string()),
-                );
-                sel_list.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                sel_list.insert(
-                    "children".to_string(),
-                    Value::Array(vec![Value::Object(complex_sel)]),
-                );
+                    let mut sel_list = Map::new();
+                    sel_list.insert(
+                        "type".to_string(),
+                        Value::String("SelectorList".to_string()),
+                    );
+                    sel_list.insert("start".to_string(), nth_start_value);
+                    sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                    sel_list.insert(
+                        "children".to_string(),
+                        Value::Array(vec![Value::Object(complex_sel)]),
+                    );
 
                 Some(of_list.unwrap_or(Value::Object(sel_list)))
             } else {
@@ -3058,7 +3109,7 @@ impl<'a> SelectorParser<'a> {
         let mut current_start = 0;
         let mut i = 0;
         let bytes = text.as_bytes();
-        let mut last_combinator: Option<(char, usize, usize)> = None;
+        let mut last_combinator: Option<(&'static str, usize, usize)> = None;
 
         while i < bytes.len() {
             let c = bytes[i];
@@ -3141,7 +3192,7 @@ impl<'a> SelectorParser<'a> {
             }
 
             // Check for combinators
-            if c == b'+' || c == b'>' || c == b'~' {
+            if let Some(comb_name) = combinator_at(bytes, i) {
                 // Found a combinator
                 let selector_text = text[current_start..i].trim_ws();
                 if !selector_text.is_empty() {
@@ -3155,10 +3206,10 @@ impl<'a> SelectorParser<'a> {
                 }
 
                 let combinator_start = base_offset + i;
-                let combinator_end = combinator_start + 1;
-                last_combinator = Some((c as char, combinator_start, combinator_end));
+                let combinator_end = combinator_start + comb_name.len();
+                last_combinator = Some((comb_name, combinator_start, combinator_end));
 
-                i += 1;
+                i += comb_name.len();
                 // Skip whitespace after combinator
                 while i < bytes.len() && bytes[i].is_ascii_whitespace() {
                     i += 1;
@@ -3175,7 +3226,7 @@ impl<'a> SelectorParser<'a> {
                     j += 1;
                 }
                 if j < bytes.len()
-                    && !matches!(bytes[j], b'+' | b'>' | b'~' | b')')
+                    && !matches!(bytes[j], b'+' | b'>' | b'~' | b'|' | b')')
                     && bytes[j] != b'('
                 {
                     // Check if next is a selector start
@@ -3201,7 +3252,7 @@ impl<'a> SelectorParser<'a> {
                             // Set up space combinator for next selector
                             let combinator_start = base_offset + i;
                             let combinator_end = combinator_start + 1;
-                            last_combinator = Some((' ', combinator_start, combinator_end));
+                            last_combinator = Some((" ", combinator_start, combinator_end));
 
                             // Skip whitespace and continue from next selector
                             i = j;
@@ -3258,7 +3309,7 @@ impl<'a> SelectorParser<'a> {
         &self,
         text: &str,
         offset: usize,
-        combinator: Option<(char, usize, usize)>,
+        combinator: Option<(&'static str, usize, usize)>,
     ) -> Value {
         let start = if let Some((_, comb_start, _)) = combinator {
             comb_start
@@ -3344,7 +3395,21 @@ impl<'a> SelectorParser<'a> {
         }
 
         // Read attribute name (identifier)
+        let name_pos = self.offset + self.index;
         let name = self.read_identifier();
+        if name.is_empty() {
+            // Upstream reads the name with the same `read_identifier`, which
+            // rejects an empty one — there is no namespace syntax inside `[…]`.
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_expected_identifier",
+                    "Expected a valid CSS identifier",
+                    (name_pos, name_pos),
+                ),
+            );
+            return None;
+        }
 
         // Skip whitespace
         while !self.is_eof() && is_js_whitespace(self.current_char()) {
@@ -3356,14 +3421,15 @@ impl<'a> SelectorParser<'a> {
         let mut value: Option<String> = None;
         let mut flags: Option<String> = None;
 
+        // `/[~^$*|]?=/y` — a sticky match, so a prefix char with no `=` after it
+        // consumes nothing and leaves the `]` check to reject the selector.
         let c = self.current_char();
-        if c == '~' || c == '|' || c == '^' || c == '$' || c == '*' {
-            let op_char = c;
+        if (c == '~' || c == '|' || c == '^' || c == '$' || c == '*')
+            && self.peek_next_char() == '='
+        {
             self.advance();
-            if self.current_char() == '=' {
-                self.advance();
-                matcher = Some(format!("{}=", op_char));
-            }
+            self.advance();
+            matcher = Some(format!("{}=", c));
         } else if c == '=' {
             self.advance();
             matcher = Some("=".to_string());
@@ -3417,32 +3483,34 @@ impl<'a> SelectorParser<'a> {
             while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
+        }
 
-            // Read flags (e.g., 'i' or 's')
-            let c = self.current_char();
-            if c != ']' && c.is_alphabetic() {
-                let flags_start = self.index;
-                while !self.is_eof() && self.current_char().is_alphabetic() {
-                    self.advance();
-                }
-                flags = Some(self.source[flags_start..self.index].to_string());
-
-                // Skip whitespace
-                while !self.is_eof() && is_js_whitespace(self.current_char()) {
-                    self.advance();
-                }
+        // Read flags (e.g., 'i' or 's')
+        let c = self.current_char();
+        if c != ']' && c.is_alphabetic() {
+            let flags_start = self.index;
+            while !self.is_eof() && self.current_char().is_alphabetic() {
+                self.advance();
             }
-        } else {
-            // No matcher - skip to ']'
-            while !self.is_eof() && self.current_char() != ']' {
+            flags = Some(self.source[flags_start..self.index].to_string());
+
+            // Skip whitespace
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
         }
 
-        // consume ']'
-        if !self.is_eof() && self.current_char() == ']' {
-            self.advance();
+        // consume ']' — upstream's `parser.eat(']', true)`, so anything else
+        // ends the selector rather than being skipped over.
+        if self.is_eof() || self.current_char() != ']' {
+            let pos = self.offset + self.index;
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte("expected_token", "Expected token ]", (pos, pos)),
+            );
+            return None;
         }
+        self.advance();
         let end = self.offset + self.index;
 
         let mut obj = Map::new();
@@ -3514,6 +3582,10 @@ impl<'a> SelectorParser<'a> {
     /// reads with the same `read_identifier` — so an empty one is an error.
     fn read_namespaced_local_name(&mut self) -> Option<String> {
         let pos = self.offset + self.index;
+        if self.current_char() == '*' {
+            self.advance();
+            return Some("*".to_string());
+        }
         let local = self.read_identifier();
         if local.is_empty() {
             record_first_error(

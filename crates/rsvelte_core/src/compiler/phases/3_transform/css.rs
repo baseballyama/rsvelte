@@ -226,8 +226,7 @@ fn collect_is_where_unused_warnings(
                 // substituted into the enclosing chain, and upstream's `css-warn.js`
                 // never recurses into it — so it is marked but never reported.
                 if sel_name == "has" {
-                    let flags =
-                        has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx);
+                    let flags = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx);
                     for (bi, inner_complex) in children.iter().enumerate() {
                         let unused = flags.as_ref().is_some_and(|f| f.get(bi) == Some(&true))
                             || is_functional_branch_unused(inner_complex, None, ctx);
@@ -572,11 +571,12 @@ fn render_stylesheet_internal(
         }
 
         // Post-process: replace animation keyframe references. Upstream inserts
-        // the prefix through MagicString, so the mapping is only accurate while
-        // no keyframe reference moved the output.
+        // the prefix with `prependRight`, which splits the chunk it lands in and
+        // maps both halves, so the copies are shifted rather than dropped.
         if !keyframes.is_empty() {
-            writer.text = replace_animation_keyframes(&writer.text, hash, &keyframes);
-            writer.copies.clear();
+            let (text, insertions) = replace_animation_keyframes(&writer.text, hash, &keyframes);
+            writer.text = text;
+            writer.apply_insertions(&insertions);
         }
 
         // Generate CSS source map
@@ -761,9 +761,18 @@ fn is_css_name_boundary(c: char) -> bool {
 /// Replace animation keyframe name references in the CSS output
 /// This follows the official Svelte implementation approach: scan through animation property
 /// values and prefix any tokens that match defined keyframe names.
-fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<String>) -> String {
+/// Returns the rewritten text and, in ascending order, every `(offset in the
+/// input text, inserted byte length)` — upstream inserts the prefix with
+/// `prependRight`, so the rest of the stylesheet keeps its mapping.
+fn replace_animation_keyframes(
+    css: &str,
+    hash: &str,
+    keyframes: &FxHashSet<String>,
+) -> (String, Vec<(u32, u32)>) {
     let mut result = String::with_capacity(css.len() + keyframes.len() * hash.len() * 2);
     let chars: Vec<char> = css.chars().collect();
+    let mut insertions: Vec<(u32, u32)> = Vec::new();
+    let mut inserted = 0usize;
     let mut i = 0;
 
     while i < chars.len() {
@@ -840,6 +849,8 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
                         // Insert prefix before the name
                         let prefix = format!("{}-", hash);
                         result.insert_str(name_start, &prefix);
+                        insertions.push(((name_start - inserted) as u32, prefix.len() as u32));
+                        inserted += prefix.len();
                     }
                     name.clear();
 
@@ -864,6 +875,8 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
             if !name.is_empty() && keyframes.contains(&name) {
                 let prefix = format!("{}-", hash);
                 result.insert_str(name_start, &prefix);
+                insertions.push(((name_start - inserted) as u32, prefix.len() as u32));
+                inserted += prefix.len();
             }
         } else {
             result.push(chars[i]);
@@ -871,7 +884,7 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
         }
     }
 
-    result
+    (result, insertions)
 }
 
 /// Extract CSS content from source (finds the <style> block)
@@ -1039,6 +1052,7 @@ fn emit_selector(
     let emitted = produced.as_bytes();
     let mut runs: Vec<(usize, usize, usize)> = Vec::new();
     let (mut i, mut j) = (0usize, 0usize);
+    let mut open_globals = 0usize;
     'emitted: while j < emitted.len() {
         // `prependRight` / `appendRight` / `appendLeft` insertions carry no
         // segment of their own, so they only move the generated cursor.
@@ -1054,6 +1068,32 @@ fn emit_selector(
             {
                 j += inserted.len();
                 continue 'emitted;
+            }
+        }
+        // `:global(…)` and a bare `:global` are `remove`d from the source, so
+        // what follows them is still an unedited chunk and keeps its position.
+        {
+            let mut k = i;
+            if !emitted[j].is_ascii_whitespace() {
+                while k < src.len() && src[k].is_ascii_whitespace() {
+                    k += 1;
+                }
+            }
+            let global_open = b":global(".as_slice();
+            let global_bare = b":global".as_slice();
+            if src[k..].starts_with(global_open) && !emitted[j..].starts_with(global_open) {
+                i = k + global_open.len();
+                open_globals += 1;
+                continue;
+            }
+            if open_globals > 0 && src.get(k) == Some(&b')') && emitted[j] != b')' {
+                i = k + 1;
+                open_globals -= 1;
+                continue;
+            }
+            if src[k..].starts_with(global_bare) && !emitted[j..].starts_with(global_bare) {
+                i = k + global_bare.len();
+                continue;
             }
         }
         // The separator before a pruned selector goes through `overwrite`,
@@ -1108,13 +1148,29 @@ fn mark_tree(output: &mut CssWriter, node: &Value) {
         Value::Object(map) => {
             if map.contains_key("start") && map.contains_key("type") {
                 mark_node(output, node);
-                if map.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && !matches!(
-                        map.get("name").and_then(|n| n.as_str()),
-                        Some("is" | "where" | "has" | "not")
-                    )
-                {
-                    return;
+                let name = map.get("name").and_then(|n| n.as_str());
+                match map.get("type").and_then(|t| t.as_str()) {
+                    Some("PseudoClassSelector")
+                        if !matches!(name, Some("is" | "where" | "has" | "not")) =>
+                    {
+                        return;
+                    }
+                    // The Atrule visitor returns before `next()` for keyframes,
+                    // so nothing inside one is ever visited.
+                    Some("Atrule")
+                        if matches!(
+                            name,
+                            Some(
+                                "keyframes"
+                                    | "-webkit-keyframes"
+                                    | "-moz-keyframes"
+                                    | "-o-keyframes"
+                            )
+                        ) =>
+                    {
+                        return;
+                    }
+                    _ => {}
                 }
             }
             for value in map.values() {
@@ -1568,6 +1624,8 @@ fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
 /// Check if a complex selector is unused
 /// Returns UnusedStatus to distinguish between unused and no-match cases
 fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedStatus {
+    let reachable = reachable_complex_selector(complex);
+    let complex = reachable.as_ref().unwrap_or(complex);
     let unused = is_complex_selector_unused_impl(complex, ctx);
     if unused {
         // Check if it's a no-match case (sibling combinator that absolutely cannot match)
@@ -1584,8 +1642,50 @@ fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedSta
 
 /// Check if a complex selector is unused
 /// A complex selector is unused if it doesn't match any element in the template.
+/// Index of the leftmost relative selector upstream's backward walk reaches.
+///
+/// `apply_combinator`'s `default:` arm returns `true` *without* recursing, so a
+/// combinator it does not handle — `||`, and anything outside `' ' > + ~` —
+/// halts the walk: everything to its left is never visited, and so is neither
+/// marked `scoped` nor consulted for `used`.
+fn first_reachable_relative_selector(rel_selectors: &[Value]) -> usize {
+    truncate_trailing_globals(rel_selectors)
+        .iter()
+        .rposition(|rel| {
+            rel.get("combinator")
+                .and_then(|combinator| combinator.get("name"))
+                .and_then(|name| name.as_str())
+                .is_some_and(|name| !matches!(name, " " | ">" | "+" | "~"))
+        })
+        .unwrap_or(0)
+}
+
+/// The part of a complex selector upstream's backward walk actually visits, or
+/// `None` when that is the whole thing.
+fn reachable_complex_selector(complex: &Value) -> Option<Value> {
+    let children = complex.get("children").and_then(|c| c.as_array())?;
+    let from = first_reachable_relative_selector(children);
+    if from == 0 || from >= children.len() {
+        return None;
+    }
+    let mut visited: Vec<Value> = children[from..].to_vec();
+    // The halting combinator itself is never applied, so drop it rather than let
+    // a downstream check try to satisfy it.
+    if let Some(first) = visited.first_mut().and_then(|rel| rel.as_object_mut()) {
+        first.remove("combinator");
+    }
+    let mut reachable = complex.clone();
+    reachable
+        .as_object_mut()?
+        .insert("children".to_string(), Value::Array(visited));
+    Some(reachable)
+}
+
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
-    is_complex_selector_unused_impl(complex, ctx)
+    match reachable_complex_selector(complex) {
+        Some(reachable) => is_complex_selector_unused_impl(&reachable, ctx),
+        None => is_complex_selector_unused_impl(complex, ctx),
+    }
 }
 
 /// Implementation of complex selector unused check
@@ -4488,8 +4588,8 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
             if !is_has_pseudo(sel) {
                 continue;
             }
-            if has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx)
-                .is_some_and(|flags| flags.iter().all(|&unused| unused))
+            if let Some(flags) = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx)
+                && flags.iter().all(|&unused| unused)
             {
                 return true;
             }
@@ -4497,219 +4597,6 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     }
 
     false
-}
-
-/// Per-argument verdicts for one `:has()`, taken under every way the enclosing
-/// rule's `&` can resolve — an argument is unused only when no resolution keeps
-/// it reachable. `None` when nothing may be concluded.
-fn has_pseudo_unused_under_every_host(
-    rel_selectors: &[Value],
-    ri: usize,
-    selectors: &[Value],
-    sel: &Value,
-    ctx: &CssContext,
-) -> Option<Vec<bool>> {
-    let mut merged: Option<Vec<bool>> = None;
-    for (chain, offset) in effective_host_chains(rel_selectors, ctx) {
-        let flags = has_argument_unused_flags(&chain, offset + ri, selectors, sel, ctx)?;
-        merged = Some(match merged {
-            None => flags,
-            Some(prev) => prev
-                .iter()
-                .zip(flags.iter())
-                .map(|(a, b)| *a && *b)
-                .collect(),
-        });
-    }
-    merged
-}
-
-/// The relative-selector chains this rule really matches against, and where
-/// `rel_selectors` starts inside each. A nested rule with no explicit `&` is
-/// `parent <selector>` — upstream's `get_relative_selectors` prepends exactly
-/// that, and [`build_parent_chains`] is this file's port of it — so the `:has()`
-/// subject has to satisfy the parent chain too. One entry per parent
-/// alternative; the bare selector when the rule is not nested or resolves its
-/// own `&`.
-fn effective_host_chains(rel_selectors: &[Value], ctx: &CssContext) -> Vec<(Vec<Value>, usize)> {
-    let bare = || vec![(rel_selectors.to_vec(), 0usize)];
-
-    if rel_selectors.iter().any(relative_selector_has_nesting) {
-        return bare();
-    }
-    let parent_preludes = ctx.parent_preludes.borrow();
-    if parent_preludes.is_empty() {
-        return bare();
-    }
-    let Some(chains) = build_parent_chains(&parent_preludes, parent_preludes.len()) else {
-        return bare();
-    };
-
-    chains
-        .into_iter()
-        .map(|mut chain| {
-            let offset = chain.len();
-            for (i, rel) in rel_selectors.iter().enumerate() {
-                chain.push(if i == 0 {
-                    with_descendant_head(rel)
-                } else {
-                    rel.clone()
-                });
-            }
-            (chain, offset)
-        })
-        .collect()
-}
-
-/// What a `&` stands for inside an argument list: the subject compound of each
-/// alternative the enclosing rules resolve to. Reuses [`build_parent_chains`],
-/// this file's port of upstream's `get_relative_selectors`, so there is one
-/// answer to "what is the parent" rather than a second one here.
-///
-/// Only the chain's **last** compound is taken. A multi-part parent (`.x .y`)
-/// therefore contributes `.y` alone, dropping the `.x` ancestor requirement —
-/// which weakens the test, so a branch can only come out *less* unused, never
-/// more.
-fn nesting_substitute_alternatives(ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
-    let parent_preludes = ctx.parent_preludes.borrow();
-    if parent_preludes.is_empty() {
-        return None;
-    }
-    let chains = build_parent_chains(&parent_preludes, parent_preludes.len())?;
-    let alternatives: Vec<Vec<Value>> = chains
-        .iter()
-        .filter_map(|chain| {
-            chain
-                .last()?
-                .get("selectors")
-                .and_then(|s| s.as_array())
-                .cloned()
-        })
-        .collect();
-    (!alternatives.is_empty()).then_some(alternatives)
-}
-
-/// Whether any relative selector of `complex` carries a top-level `&`.
-fn relative_selectors_carry_nesting(complex: &Value) -> bool {
-    complex
-        .get("children")
-        .and_then(|c| c.as_array())
-        .is_some_and(|rels| {
-            rels.iter().any(|rel| {
-                rel.get("selectors")
-                    .and_then(|s| s.as_array())
-                    .is_some_and(|sels| {
-                        sels.iter().any(|s| {
-                            s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
-                        })
-                    })
-            })
-        })
-}
-
-/// The forms one `:is()` / `:where()` argument compound takes once its `&` is
-/// resolved — one per way the enclosing rules resolve it. `None` when the
-/// compound carries no `&`, or when no parent can resolve it, in which case the
-/// compound is used as written.
-fn branch_alternatives(branch: &[Value], ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
-    if !branch
-        .iter()
-        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
-    {
-        return None;
-    }
-    let alternatives: Vec<Vec<Value>> = nesting_substitute_alternatives(ctx)?
-        .iter()
-        .filter_map(|sub| replace_nesting_in_selectors(branch, sub))
-        .collect();
-    // An empty list would make the `all()` below vacuously true.
-    (!alternatives.is_empty()).then_some(alternatives)
-}
-
-/// Evaluate `f` as if the rule were not nested — the counterpart of resolving
-/// `&` by substitution, since the substituted selector already carries the
-/// parent and must not also be required to sit below it.
-fn without_parent_preludes<T>(ctx: &CssContext, f: impl FnOnce() -> T) -> T {
-    let saved = ctx.parent_preludes.replace(Vec::new());
-    let out = f();
-    ctx.parent_preludes.replace(saved);
-    out
-}
-
-/// Rewrite one argument-list compound, replacing its `&` with `substitute`.
-/// `None` when the compound has no `&` to replace.
-fn replace_nesting_in_selectors(selectors: &[Value], substitute: &[Value]) -> Option<Vec<Value>> {
-    if !selectors
-        .iter()
-        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
-    {
-        return None;
-    }
-    let mut out = Vec::with_capacity(selectors.len() + substitute.len());
-    for sel in selectors {
-        if sel.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
-            out.extend(substitute.iter().cloned());
-        } else {
-            out.push(sel.clone());
-        }
-    }
-    Some(out)
-}
-
-/// Rewrite an argument `ComplexSelector` so each `&` becomes `substitute`.
-fn replace_nesting_in_complex(complex: &Value, substitute: &[Value]) -> Option<Value> {
-    let rels = complex.get("children")?.as_array()?;
-    let mut children = Vec::with_capacity(rels.len());
-    let mut replaced = false;
-    for rel in rels {
-        let selectors = rel.get("selectors").and_then(|s| s.as_array());
-        match selectors.and_then(|s| replace_nesting_in_selectors(s, substitute)) {
-            Some(new_selectors) => {
-                replaced = true;
-                let mut cloned = rel.clone();
-                if let Value::Object(map) = &mut cloned {
-                    map.insert("selectors".to_string(), Value::Array(new_selectors));
-                }
-                children.push(cloned);
-            }
-            None => children.push(rel.clone()),
-        }
-    }
-    if !replaced {
-        return None;
-    }
-    let mut out = complex.clone();
-    if let Value::Object(map) = &mut out {
-        map.insert("children".to_string(), Value::Array(children));
-    }
-    Some(out)
-}
-
-/// Whether a `&` appears anywhere in this compound, a pseudo-class's argument
-/// list included — upstream finds it with a `walk`, which descends into `args`.
-fn relative_selector_has_nesting(rel: &Value) -> bool {
-    rel.get("selectors")
-        .and_then(|s| s.as_array())
-        .is_some_and(|sels| sels.iter().any(simple_selector_has_nesting))
-}
-
-fn simple_selector_has_nesting(sel: &Value) -> bool {
-    match sel.get("type").and_then(|t| t.as_str()) {
-        Some("NestingSelector") => true,
-        Some("PseudoClassSelector") => sel
-            .get("args")
-            .and_then(|a| a.get("children"))
-            .and_then(|c| c.as_array())
-            .is_some_and(|complexes| {
-                complexes.iter().any(|complex| {
-                    complex
-                        .get("children")
-                        .and_then(|c| c.as_array())
-                        .is_some_and(|rels| rels.iter().any(relative_selector_has_nesting))
-                })
-            }),
-        _ => false,
-    }
 }
 
 fn is_has_pseudo(sel: &Value) -> bool {
@@ -4743,28 +4630,27 @@ fn has_argument_unused_flags(
         .and_then(|c| c.as_array())
         .filter(|c| !c.is_empty())?;
 
-    // `&` inside the argument refers to the parent CSS rule, not to an element.
-    // Resolve it against the enclosing preludes; if it cannot be resolved,
-    // nothing may be concluded about this `:has()`.
-    let resolved;
-    let has_children: &[Value] = if has_children.iter().any(relative_selectors_carry_nesting) {
-        let alternatives = nesting_substitute_alternatives(ctx)?;
-        // One alternative only: with several, an argument would have to be
-        // unreachable under all of them, which this per-argument shape cannot
-        // express — so decline rather than guess.
-        let [substitute] = alternatives.as_slice() else {
-            return None;
-        };
-        resolved = has_children
-            .iter()
-            .map(|complex| {
-                replace_nesting_in_complex(complex, substitute).unwrap_or_else(|| complex.clone())
+    // `&` inside the argument refers to the parent CSS rule, not to an element,
+    // so it cannot be resolved through the DOM structure.
+    let has_nesting_in_args = has_children.iter().any(|complex| {
+        complex
+            .get("children")
+            .and_then(|c| c.as_array())
+            .is_some_and(|rels| {
+                rels.iter().any(|rel| {
+                    rel.get("selectors")
+                        .and_then(|s| s.as_array())
+                        .is_some_and(|sels| {
+                            sels.iter().any(|s| {
+                                s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                            })
+                        })
+                })
             })
-            .collect::<Vec<_>>();
-        &resolved
-    } else {
-        has_children
-    };
+    });
+    if has_nesting_in_args {
+        return None;
+    }
 
     // The subject is the compound the `:has()` sits in, `:has()` itself excluded.
     let subject_info = extract_selector_info_from_selectors(selectors);
@@ -6085,7 +5971,8 @@ fn transform_block_with_nested_rules<'a>(
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // Output the opening brace
-    output.push('{');
+    mark_node(output, block);
+    output.copy_verbatim(css_source, css_start, block_start, "{");
 
     let mut last_end = block_start + 1; // After the '{'
 
@@ -6192,7 +6079,7 @@ fn transform_block_with_nested_rules<'a>(
         output.trim_preceding_whitespace();
     }
 
-    output.push('}');
+    output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
 }
 
 /// Transform an at-rule that is nested inside a rule's block (e.g. `@media`
@@ -6217,6 +6104,8 @@ fn transform_nested_atrule<'a>(
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    mark_node(output, node);
 
     let src = |from: usize, to: usize| -> &str {
         let s = from.saturating_sub(css_start);
@@ -6245,18 +6134,18 @@ fn transform_nested_atrule<'a>(
             p_start += 1;
         }
 
-        output.push_str(src(node_start, p_start));
+        output.copy(node_start, src(node_start, p_start));
 
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
         if prelude.starts_with("-global-") {
             // Remove the `-global-` prefix
-            output.push_str(src(p_start + 8, node_end));
+            output.copy(p_start + 8, src(p_start + 8, node_end));
         } else {
             if !is_in_bare_global_block {
                 output.push_str(hash);
                 output.push('-');
             }
-            output.push_str(src(p_start, node_end));
+            output.copy(p_start, src(p_start, node_end));
         }
         return;
     }
@@ -6264,7 +6153,8 @@ fn transform_nested_atrule<'a>(
     // Blockless at-rules (e.g. @import) — copy verbatim.
     let block = node.get("block").filter(|b| !b.is_null());
     let Some(block) = block else {
-        output.push_str(src(node_start, node_end));
+        mark_tree(output, node);
+        output.copy(node_start, src(node_start, node_end));
         return;
     };
 
@@ -6272,7 +6162,8 @@ fn transform_nested_atrule<'a>(
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // `@media (...) {` — copied verbatim from source.
-    output.push_str(src(node_start, block_start + 1));
+    mark_node(output, block);
+    output.copy(node_start, src(node_start, block_start + 1));
 
     let mut last_end = block_start + 1;
 
@@ -6361,7 +6252,7 @@ fn transform_nested_atrule<'a>(
         output.push_str(src(last_end, block_end - 1));
     }
 
-    output.push('}');
+    output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
 }
 
 /// Transform a :global { ... } block by commenting out the :global wrapper
@@ -6385,12 +6276,18 @@ fn transform_global_block<'a>(
         let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         if !_ctx.minify {
-            // Comment out `:global {`
+            // Comment out `:global {`. Upstream brackets it with `prependRight`
+            // / `appendLeft`, so the wrapper text itself stays a mapped chunk.
             output.push_str("/* ");
             let selector_start = prelude_start.saturating_sub(css_start);
             let open_brace_end = (block_start + 1).saturating_sub(css_start); // Include the '{'
             if open_brace_end <= css_source.len() && selector_start < open_brace_end {
-                output.push_str(&css_source[selector_start..open_brace_end]);
+                // Upstream returns after `visit(node.block)` without calling
+                // `next()`, so the prelude's own nodes are never visited and
+                // carry no `addSourcemapLocation`.
+                mark_node(output, node);
+                mark_node(output, block);
+                output.copy(prelude_start, &css_source[selector_start..open_brace_end]);
             }
             output.push_str("*/");
         }
@@ -6409,7 +6306,7 @@ fn transform_global_block<'a>(
                     let ws_start = last_end.saturating_sub(css_start);
                     let ws_end = child_start.saturating_sub(css_start);
                     if ws_end <= css_source.len() && ws_start < ws_end {
-                        output.push_str(&css_source[ws_start..ws_end]);
+                        output.copy(last_end, &css_source[ws_start..ws_end]);
                     }
                 }
 
@@ -6476,12 +6373,13 @@ fn transform_global_block<'a>(
                     collect_global_keyframe_prefixes(child, css_source, css_start, &mut cuts);
                     cuts.retain(|&c| c >= child_start_idx && c + 8 <= child_end_idx);
                     cuts.sort_unstable();
+                    mark_tree(output, child);
                     let mut from = child_start_idx;
                     for cut in cuts {
-                        output.push_str(&css_source[from..cut]);
+                        output.copy(from + css_start, &css_source[from..cut]);
                         from = cut + 8;
                     }
-                    output.push_str(&css_source[from..child_end_idx]);
+                    output.copy(from + css_start, &css_source[from..child_end_idx]);
                 }
 
                 last_end = child_end;
@@ -6493,7 +6391,7 @@ fn transform_global_block<'a>(
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = (block_end - 1).saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.push_str(&css_source[ws_start..ws_end]);
+                    output.copy(last_end, &css_source[ws_start..ws_end]);
                 }
             }
             if _ctx.minify {
@@ -6503,7 +6401,9 @@ fn transform_global_block<'a>(
 
         if !_ctx.minify {
             // Comment out `}`
-            output.push_str("/*}*/");
+            output.push_str("/*");
+            output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
+            output.push_str("*/");
         }
         // In minify mode, skip the closing } wrapper
     }
@@ -6571,10 +6471,16 @@ fn transform_atrule_preserving<'a>(
         let ws_start = (*last_end).saturating_sub(css_start);
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.push_str(&css_source[ws_start..ws_end]);
+            output.copy_verbatim(
+                css_source,
+                css_start,
+                *last_end,
+                &css_source[ws_start..ws_end],
+            );
         }
     }
 
+    mark_node(output, node);
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
     // Handle keyframes - need special handling for name prefixing
@@ -6585,32 +6491,34 @@ fn transform_atrule_preserving<'a>(
     {
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
 
-        // Check if it's a global keyframe
-        if let Some(keyframe_name) = prelude.strip_prefix("-global-") {
-            let _ = write!(output, "@{} {}", name, keyframe_name);
-        } else {
-            let _ = write!(output, "@{} {}-{}", name, hash, prelude);
+        // Mirror the official Atrule visitor: the prelude starts after `@name`
+        // plus any spaces, and the hash goes in as a `prependRight` insertion so
+        // everything around it stays a mapped chunk.
+        let mut p_start = node_start + name.len() + 1;
+        while p_start
+            .checked_sub(css_start)
+            .is_some_and(|off| css_source.as_bytes().get(off) == Some(&b' '))
+        {
+            p_start += 1;
         }
-
-        // Copy block from source, preserving original whitespace between prelude and block
-        if let Some(block) = node.get("block") {
-            let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-
-            // Check if there was whitespace between prelude and block in original source
-            let blk_s = block_start.saturating_sub(css_start);
-            if blk_s > 0 && blk_s <= css_source.len() {
-                let byte_before = css_source.as_bytes().get(blk_s.saturating_sub(1));
-                if byte_before.is_some_and(|&b| b == b' ' || b == b'\t' || b == b'\n') {
-                    output.push(' ');
-                }
+        // Everything but the inserted hash is copied through: the official
+        // Atrule visitor returns before `next()`, so nothing inside a keyframes
+        // block is transformed or gets an `addSourcemapLocation`.
+        let src = |from: usize, to: usize| -> &str {
+            let s = from.saturating_sub(css_start);
+            let e = to.saturating_sub(css_start);
+            if e <= css_source.len() && s < e {
+                &css_source[s..e]
+            } else {
+                ""
             }
-
-            let blk_start_off = blk_s;
-            let blk_end_off = block_end.saturating_sub(css_start);
-            if blk_end_off <= css_source.len() && blk_start_off < blk_end_off {
-                output.push_str(&css_source[blk_start_off..blk_end_off]);
-            }
+        };
+        output.copy(node_start, src(node_start, p_start));
+        if prelude.starts_with("-global-") {
+            output.copy(p_start + 8, src(p_start + 8, node_end));
+        } else {
+            let _ = write!(output, "{}-", hash);
+            output.copy(p_start, src(p_start, node_end));
         }
 
         *last_end = node_end;
@@ -6651,27 +6559,30 @@ fn transform_atrule_preserving<'a>(
         let src_start = node_start.saturating_sub(css_start);
         let src_end = node_end.saturating_sub(css_start);
         if src_end <= css_source.len() && src_start < src_end {
-            output.push_str(&css_source[src_start..src_end]);
+            mark_tree(output, node);
+            output.copy(node_start, &css_source[src_start..src_end]);
         }
         *last_end = node_end;
         return;
     }
 
     // Handle media, supports, layer, etc. - need to transform nested rules
-    output.push('@');
-    output.push_str(name);
+    let mut header = String::from("@");
+    header.push_str(name);
 
     if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
         && !prelude.is_empty()
     {
-        output.push(' ');
-        output.push_str(prelude);
+        header.push(' ');
+        header.push_str(prelude);
     }
 
     if let Some(block) = block {
         let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
-        output.push_str(" {");
+        header.push_str(" {");
+        mark_node(output, block);
+        output.copy_verbatim(css_source, css_start, node_start, &header);
 
         if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
             let mut inner_last_end = block_start + 1; // after '{'
@@ -6701,8 +6612,10 @@ fn transform_atrule_preserving<'a>(
             }
         }
 
-        output.push('}');
+        let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
     } else {
+        output.push_str(&header);
         output.push(';');
     }
 
@@ -7199,33 +7112,39 @@ fn transform_complex_selector(
                 }
             });
 
-        let complex_bumps_specificity = children.iter().any(|relative_selector| {
-            if is_global_like(relative_selector) {
-                return false;
-            }
-            let scoped = relative_selector
-                .get("metadata")
-                .and_then(|metadata| metadata.get("scoped"))
-                .and_then(|scoped| scoped.as_bool())
-                .unwrap_or(true);
-            scoped
-                && relative_selector
-                    .get("selectors")
-                    .and_then(|selectors| selectors.as_array())
-                    .is_some_and(|selectors| {
-                        selectors.iter().any(|selector| {
-                            let ty = selector.get("type").and_then(|ty| ty.as_str());
-                            !matches!(
-                                ty,
-                                Some(
-                                    "PseudoClassSelector"
-                                        | "PseudoElementSelector"
-                                        | "NestingSelector"
-                                )
-                            )
-                        })
-                    })
-        });
+        let first_reachable = first_reachable_relative_selector(children);
+
+        let complex_bumps_specificity =
+            children
+                .iter()
+                .skip(first_reachable)
+                .any(|relative_selector| {
+                    if is_global_like(relative_selector) {
+                        return false;
+                    }
+                    let scoped = relative_selector
+                        .get("metadata")
+                        .and_then(|metadata| metadata.get("scoped"))
+                        .and_then(|scoped| scoped.as_bool())
+                        .unwrap_or(true);
+                    scoped
+                        && relative_selector
+                            .get("selectors")
+                            .and_then(|selectors| selectors.as_array())
+                            .is_some_and(|selectors| {
+                                selectors.iter().any(|selector| {
+                                    let ty = selector.get("type").and_then(|ty| ty.as_str());
+                                    !matches!(
+                                        ty,
+                                        Some(
+                                            "PseudoClassSelector"
+                                                | "PseudoElementSelector"
+                                                | "NestingSelector"
+                                        )
+                                    )
+                                })
+                            })
+                });
 
         // Track if the next relative selector should be treated as global
         // (after a bare :global modifier)
@@ -7234,7 +7153,9 @@ fn transform_complex_selector(
         // the combinator gap can be copied verbatim from the stylesheet.
         let mut prev_rel_span: Option<(usize, usize)> = None;
 
-        for relative_selector in children {
+        for (rel_index, relative_selector) in children.iter().enumerate() {
+            // Left of a combinator upstream cannot apply, nothing is scoped.
+            let is_reachable = rel_index >= first_reachable;
             // Check if this relative selector starts with bare :global (no args)
             let starts_with_bare_global = relative_selector
                 .get("selectors")
@@ -7389,7 +7310,18 @@ fn transform_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start (e.g., "> nav" as a nested selector)
                     // Don't add leading space
-                    let _ = write!(result, "{} ", name);
+                    match leading_combinator_text(
+                        node,
+                        relative_selector,
+                        name,
+                        css_source,
+                        css_start,
+                    ) {
+                        Some(text) => result.push_str(&text),
+                        None => {
+                            let _ = write!(result, "{} ", name);
+                        }
+                    }
                 } else {
                     let _ = write!(result, " {} ", name);
                 }
@@ -7481,11 +7413,12 @@ fn transform_complex_selector(
                     _previous_was_scoped = false;
                 } else if has_partial_global {
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
-                    let needs_scoping = relative_selector
-                        .get("metadata")
-                        .and_then(|m| m.get("scoped"))
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(true);
+                    let needs_scoping = is_reachable
+                        && relative_selector
+                            .get("metadata")
+                            .and_then(|m| m.get("scoped"))
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(true);
 
                     // Check if this contains a NestingSelector - if so, skip scoping
                     // (the & inherits scoping from parent rule)
@@ -7552,11 +7485,12 @@ fn transform_complex_selector(
                     _previous_was_scoped = needs_scoping && !has_nesting;
                 } else {
                     // Regular scoped selector
-                    let needs_scoping = relative_selector
-                        .get("metadata")
-                        .and_then(|m| m.get("scoped"))
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(true); // Default to scoping
+                    let needs_scoping = is_reachable
+                        && relative_selector
+                            .get("metadata")
+                            .and_then(|m| m.get("scoped"))
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(true); // Default to scoping
 
                     // Check if this relative selector contains a NestingSelector (&)
                     // If so, skip adding scoping - the & refers to the parent rule which already has scoping
@@ -7725,6 +7659,37 @@ fn compound_start(relative_selector: &Value) -> Option<usize> {
         .map(|s| s as usize)
 }
 
+/// The source text between a complex selector's start and its first compound —
+/// a nested rule's leading combinator, which the in-place rewrite leaves alone.
+fn leading_combinator_text(
+    node: &Value,
+    relative_selector: &Value,
+    name: &str,
+    css_source: &str,
+    css_start: usize,
+) -> Option<String> {
+    let from = (node.get("start").and_then(|s| s.as_u64())? as usize).checked_sub(css_start)?;
+    let to = compound_start(relative_selector)?.checked_sub(css_start)?;
+    if to <= from || to > css_source.len() {
+        return None;
+    }
+    let text = css_source.get(from..to)?;
+    if !is_combinator_run(text.trim(), name) {
+        return None;
+    }
+    Some(text.to_string())
+}
+
+/// A gap that is nothing but combinator tokens ending in the one the AST kept.
+/// `>>` / `>>>` are read one token at a time upstream, keeping only the last.
+fn is_combinator_run(trimmed: &str, name: &str) -> bool {
+    !trimmed.is_empty()
+        && trimmed
+            .bytes()
+            .all(|b| matches!(b, b'>' | b'+' | b'~' | b'|'))
+        && trimmed.ends_with(name.trim())
+}
+
 /// Upstream rewrites the stylesheet in place, so the author's whitespace between
 /// two compounds — including line breaks — survives into the output.
 fn source_combinator_text(
@@ -7750,8 +7715,11 @@ fn source_combinator_text(
     }
     let text = css_source.get(from..to)?;
     // A gap holding anything but the combinator (a comment, a synthesized node's
-    // stale span) falls back to the canonical spelling.
-    if text.is_empty() || text.trim() != name.trim() {
+    // stale span) falls back to the canonical spelling. `>>` / `>>>` are a run of
+    // combinator tokens that upstream's regex reads one at a time, keeping only
+    // the last — but its in-place rewrite leaves the whole run in the output.
+    let trimmed = text.trim();
+    if text.is_empty() || (trimmed != name.trim() && !is_combinator_run(trimmed, name)) {
         return None;
     }
     Some(text.to_string())
@@ -7943,6 +7911,24 @@ fn format_simple_selector_with_scope(
             )
         }
         "AttributeSelector" => {
+            // Upstream never rewrites the brackets, so the author's spacing
+            // (`[ data-k ]`) survives; `name`/`matcher`/`value` cannot carry it.
+            if let (Some(start), Some(end), Some(css_start)) = (
+                sel.get("start").and_then(|s| s.as_u64()),
+                sel.get("end").and_then(|e| e.as_u64()),
+                css_start,
+            ) {
+                let src_start = (start as usize).saturating_sub(css_start);
+                let src_end = (end as usize).saturating_sub(css_start);
+                if src_end <= css_source.len()
+                    && src_start < src_end
+                    && css_source[src_start..src_end].starts_with('[')
+                    && css_source[src_start..src_end].ends_with(']')
+                {
+                    return css_source[src_start..src_end].to_string();
+                }
+            }
+
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
             let matcher = sel.get("matcher").and_then(|m| m.as_str());
             let value = sel.get("value").and_then(|v| v.as_str());

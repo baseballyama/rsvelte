@@ -408,9 +408,10 @@ fn handle_property_definition<'a>(
     ));
 }
 
-/// The `$.tag(...)` wrap for one value, reflowed when a comment sits between the
-/// `=` and the value: esrap cannot keep such a call on one line, because a `//`
-/// comment would swallow the rest of it.
+/// The `$.tag(...)` wrap for one value. A comment between the `=` and the value
+/// moves inside the call, and the call is reflowed only when that region spans a
+/// line: esrap keeps a one-line comment inline, but a `//` comment placed inline
+/// would swallow the rest of the call.
 fn tag_edit(
     source: &str,
     stmt_start: u32,
@@ -428,9 +429,17 @@ fn tag_edit(
     let Some(eq) = assignment_eq_offset(source, lhs_end, init_span.start) else {
         return flat;
     };
-    let comment = source[eq as usize + 1..init_span.start as usize].trim();
+    let separator = &source[eq as usize + 1..init_span.start as usize];
+    let comment = separator.trim();
     if comment.is_empty() {
         return flat;
+    }
+    if !separator.contains('\n') {
+        return (
+            eq + 1,
+            init_span.end,
+            format!(" {tag_fn}({comment} {init_text}, '{label}')"),
+        );
     }
 
     let indent = line_indent(source, stmt_start);
