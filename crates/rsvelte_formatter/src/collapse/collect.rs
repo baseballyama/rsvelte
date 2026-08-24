@@ -421,12 +421,40 @@ pub(super) fn collect(
                     None,
                 ) {
                     edits.push(edit);
+                } else if let Some(edit) = try_break_block_overflow(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                    options,
+                ) {
+                    // `shouldHugStart`/`shouldHugEnd` reject `SvelteBoundary` by node
+                    // type, so it breaks into the block shape like a block element.
+                    edits.push(edit);
                 } else {
                     collect(out, &s.fragment, line_width, false, options, edits);
                 }
             }
-            TemplateNode::SvelteHead(s)
-            | TemplateNode::SvelteBody(s)
+            TemplateNode::SvelteHead(s) => {
+                // `<svelte:head>` hugs like an inline element, so a flow-block child
+                // force-breaks it into the hug shape (`prettier`'s `breakParent`).
+                if let Some(edit) = try_hug_mixed(
+                    out,
+                    s.name.as_str(),
+                    s.start,
+                    s.end,
+                    &s.fragment,
+                    line_width,
+                    options,
+                ) {
+                    edits.push(edit);
+                } else {
+                    collect(out, &s.fragment, line_width, false, options, edits);
+                }
+            }
+            TemplateNode::SvelteBody(s)
             | TemplateNode::SvelteDocument(s)
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteWindow(s) => {
