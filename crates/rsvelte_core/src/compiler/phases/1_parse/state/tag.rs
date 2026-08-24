@@ -18,6 +18,7 @@ use crate::ast::template::{
 };
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
 
@@ -845,6 +846,38 @@ impl<'a> Parser<'a> {
         None
     }
 
+    /// Step over a regex literal from its opening `/`. A `/` inside a character
+    /// class does not close it, which is the one rule a quote scan does not have.
+    fn skip_header_regex(&mut self) {
+        self.index += 1; // consume the opening `/`
+        let mut in_class = false;
+        while self.index < self.bytes.len() {
+            match self.bytes[self.index] {
+                b'\\' => {
+                    self.index += 2;
+                    continue;
+                }
+                b'[' => in_class = true,
+                b']' => in_class = false,
+                b'/' if !in_class => {
+                    self.index += 1;
+                    // the flags
+                    while self.index < self.bytes.len()
+                        && self.bytes[self.index].is_ascii_alphabetic()
+                    {
+                        self.index += 1;
+                    }
+                    return;
+                }
+                // A regex literal cannot span a line; an unterminated one is a
+                // parse error the expression reader reports, not this scan.
+                b'\n' => return,
+                _ => {}
+            }
+            self.index += 1;
+        }
+    }
+
     fn skip_header_string(&mut self, quote: u8) {
         self.index += 1; // consume the opening quote
         while self.index < self.bytes.len() {
@@ -904,6 +937,10 @@ impl<'a> Parser<'a> {
         // the first ` as ` and the codegen emits `let const as item = …`.
         let mut last_as: Option<usize> = None;
         let mut depth: i32 = 0;
+        // The previous significant CODE byte. Only it separates `/re/` from a
+        // division, and it must be recorded by the scan rather than read back
+        // off the source, so bytes inside a literal never count as the token.
+        let mut prev: Option<u8> = None;
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
 
@@ -913,6 +950,15 @@ impl<'a> Parser<'a> {
             match b {
                 b'\'' | b'"' | b'`' => {
                     self.skip_header_string(b);
+                    prev = Some(b);
+                    continue;
+                }
+                b'/' if self.bytes.get(self.index + 1) != Some(&b'/')
+                    && self.bytes.get(self.index + 1) != Some(&b'*')
+                    && slash_starts_regex_at(self.bytes, self.index, prev) =>
+                {
+                    self.skip_header_regex();
+                    prev = Some(b'/');
                     continue;
                 }
                 b'/' if self.bytes.get(self.index + 1) == Some(&b'/') => {
@@ -963,6 +1009,9 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
 
+            if !b.is_ascii_whitespace() {
+                prev = Some(b);
+            }
             if b < 0x80 {
                 self.index += 1;
             } else {
@@ -1427,6 +1476,10 @@ impl<'a> Parser<'a> {
             Back,
         }
         let mut str_mode = StrMode::None;
+        // The previous significant code byte — the only thing that separates a
+        // regex literal from a division, and it has to be recorded by the scan
+        // so bytes inside a literal or a comment never count as the token.
+        let mut prev: Option<u8> = None;
         while !self.is_eof() {
             let c = self.current_char();
             // Handle strings and template literals
@@ -1441,6 +1494,7 @@ impl<'a> Parser<'a> {
                     }
                     if c == '\'' {
                         str_mode = StrMode::None;
+                        prev = Some(b'\'');
                     }
                     self.advance();
                     continue;
@@ -1455,6 +1509,7 @@ impl<'a> Parser<'a> {
                     }
                     if c == '"' {
                         str_mode = StrMode::None;
+                        prev = Some(b'"');
                     }
                     self.advance();
                     continue;
@@ -1469,6 +1524,7 @@ impl<'a> Parser<'a> {
                     }
                     if c == '`' {
                         str_mode = StrMode::None;
+                        prev = Some(b'`');
                     }
                     self.advance();
                     continue;
@@ -1490,28 +1546,58 @@ impl<'a> Parser<'a> {
                 self.advance();
                 continue;
             }
+            // This scan had no arm for either, so a `}` in a comment or a regex
+            // literal ended the head.
+            if c == '/' {
+                if self.bytes.get(self.index + 1) == Some(&b'/') {
+                    while !self.is_eof() && self.bytes[self.index] != b'\n' {
+                        self.index += 1;
+                    }
+                    continue;
+                }
+                if self.bytes.get(self.index + 1) == Some(&b'*') {
+                    self.index += 2;
+                    while self.index + 1 < self.bytes.len()
+                        && !(self.bytes[self.index] == b'*' && self.bytes[self.index + 1] == b'/')
+                    {
+                        self.index += 1;
+                    }
+                    self.index = (self.index + 2).min(self.bytes.len());
+                    continue;
+                }
+                if slash_starts_regex_at(self.bytes, self.index, prev) {
+                    self.skip_header_regex();
+                    prev = Some(b'/');
+                    continue;
+                }
+            }
             if c == '(' {
                 paren_depth += 1;
+                prev = Some(b'(');
                 self.advance();
                 continue;
             }
             if c == ')' {
                 paren_depth -= 1;
+                prev = Some(b')');
                 self.advance();
                 continue;
             }
             if c == '[' {
                 bracket_depth += 1;
+                prev = Some(b'[');
                 self.advance();
                 continue;
             }
             if c == ']' {
                 bracket_depth -= 1;
+                prev = Some(b']');
                 self.advance();
                 continue;
             }
             if c == '{' {
                 brace_depth += 1;
+                prev = Some(b'{');
                 self.advance();
                 continue;
             }
@@ -1555,6 +1641,9 @@ impl<'a> Parser<'a> {
                         break;
                     }
                 }
+            }
+            if !c.is_whitespace() {
+                prev = Some(self.bytes[self.index]);
             }
             self.advance();
         }
