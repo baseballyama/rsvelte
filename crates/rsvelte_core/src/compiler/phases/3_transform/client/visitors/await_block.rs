@@ -272,6 +272,7 @@ fn create_derived_block_argument(
                 // Await block resolved values need reactive tracking
                 is_reactive: true,
                 replacement_id: None,
+                store_source: None,
             },
         );
         // Await then/catch bindings are template-kind in the official
@@ -349,6 +350,7 @@ fn create_derived_block_argument(
                 // Destructured await values need reactive tracking
                 is_reactive: true,
                 replacement_id: None,
+                store_source: None,
             },
         );
         // Destructured await then/catch values are template-kind.

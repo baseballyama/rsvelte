@@ -4422,14 +4422,19 @@ pub(super) fn find_prop_mutation_location(source: &str, var_name: &str) -> (usiz
 /// The transformation is:
 ///   `console.log(x, y)` -> `console.log(...$.log_if_contains_state("log", x, y))`
 ///
-/// This is only applied when at least one argument could potentially reference
-/// reactive state (i.e., not all arguments are simple literals).
+/// Applied when some argument can evaluate to `UNKNOWN`, which is upstream's
+/// rule; the literal test below is reached only for an argument list that does
+/// not parse on its own.
 ///
 /// Console calls inside `$.inspect()` callbacks are excluded, as those are
 /// already handled by the inspect infrastructure.
 ///
 /// Reference: CallExpression.js in the official Svelte compiler
-pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
+pub(super) fn transform_console_calls_dev(
+    stmt: &str,
+    is_ts: bool,
+    analysis: Option<&crate::compiler::phases::phase2_analyze::ComponentAnalysis>,
+) -> String {
     const CONSOLE_METHODS: &[&str] = &[
         "debug",
         "dir",
@@ -4473,9 +4478,14 @@ pub(super) fn transform_console_calls_dev(stmt: &str) -> String {
             if let Some(args_end) = find_matching_paren(&result[args_start..]) {
                 let args_content = &result[args_start..args_start + args_end];
 
-                // Only wrap if arguments could contain reactive state.
-                // Skip if all arguments are simple literals (strings, numbers, booleans).
-                if !args_content.is_empty() && !all_args_are_literals(args_content) {
+                // Upstream's rule is `scope.evaluate(arg).has_unknown`, not "is a
+                // literal": a binary expression, an arrow, a `!x` and a folded
+                // binding are all known. Ask the shared predicate whenever the
+                // argument list parses on its own.
+                let needs_wrap =
+                    super::console_wrap::args_text_need_wrap(args_content, is_ts, analysis)
+                        .unwrap_or_else(|| !all_args_are_literals(args_content));
+                if !args_content.is_empty() && needs_wrap {
                     // Transform: console.METHOD(args) -> console.METHOD(...$.log_if_contains_state("METHOD", args))
                     let new_call = format!(
                         "console.{}(...$.log_if_contains_state('{}', {}))",

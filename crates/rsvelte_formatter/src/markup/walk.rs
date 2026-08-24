@@ -350,6 +350,14 @@ fn handle_element(
 ) -> Result<(), FormatError> {
     let is_empty = is_empty_fragment(fragment);
     let empty_nonhug = is_empty_nonhug_element(name, fragment);
+    let last_child_ends_here = fragment
+        .nodes
+        .iter()
+        .rev()
+        .find(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
+        .is_some_and(|n| {
+            !matches!(n, TemplateNode::Text(_)) && crate::collapse::template_node_span(n).1 == end
+        });
     let wrapped = push_open_tag(
         source,
         start,
@@ -363,6 +371,10 @@ fn handle_element(
         options,
         edits,
     )?;
+    // Children first: an element and its last descendant can both close
+    // implicitly at the same offset (`<tr><td>a<td>b</tr>`), and coincident
+    // inserts emit in push order, so the inner close tag has to be pushed first.
+    collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
     push_close_tag(
         source,
         end,
@@ -371,10 +383,10 @@ fn handle_element(
         depth,
         is_empty,
         empty_nonhug,
+        last_child_ends_here,
         options,
         edits,
     );
-    collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
     Ok(())
 }
 
