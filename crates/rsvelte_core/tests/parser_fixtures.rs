@@ -127,8 +127,11 @@ struct TestResult {
 /// Tests to skip for parser-legacy due to known limitations.
 /// See README.md "Known Limitations" section for details.
 const LEGACY_SKIP_TESTS: &[&str] = &[
-    // OXC does not attach comments to AST nodes in ESTree format (leadingComments/trailingComments).
-    // The official Svelte compiler uses acorn which provides this functionality.
+    // Not an OXC limitation: `parse()` attaches comments itself, and this fixture
+    // gets 13/13 leading and 11/13 trailing. The two it misses are inside a
+    // template-expression arrow body, and a template expression is a different
+    // parse entry point from a `<script>` `Program` — which is where the
+    // `add_comments` port runs.
     "javascript-comments",
     // Upstream skips this fixture (`_config.js` `skip: true`): the official
     // compiler now errors with `block_unexpected_close` (the open `<li>`

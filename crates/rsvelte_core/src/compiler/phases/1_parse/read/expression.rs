@@ -7251,7 +7251,15 @@ fn convert_parsed_program<'ast>(
         // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-        let body: Vec<JsNode> = if has_comments && has_ignore {
+        // The public `parse()` path needs real `leadingComments`/`trailingComments`
+        // on statements, which is what upstream's `add_comments` produces; the walk
+        // below is already that algorithm, so capture turns it on rather than
+        // adding a second one. `claimed` is how many comments it consumed — the
+        // rest are the Program's own trailing comments, exactly as in upstream's
+        // `ast.type === 'Program'` special case.
+        let capture_comments = crate::ast::arena::comment_capture_active();
+        let mut claimed = 0usize;
+        let body: Vec<JsNode> = if has_comments && (has_ignore || capture_comments) {
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
             let comment_entries: Vec<CommentEntry> = all_comments
@@ -7263,6 +7271,7 @@ fn convert_parsed_program<'ast>(
                     CommentEntry {
                         start: offset as u32 + comment.span.start,
                         text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                        value: build_comment_value(comment, content, offset),
                     }
                 })
                 .collect();
@@ -7273,6 +7282,7 @@ fn convert_parsed_program<'ast>(
                 content,
                 offset: offset as u32,
                 map: &mut ignore_comment_map,
+                captured: capture_comments.then(std::collections::HashMap::default),
             };
             let last_index = program.body.len().saturating_sub(1);
 
@@ -7296,6 +7306,19 @@ fn convert_parsed_program<'ast>(
                 }
             }
 
+            claimed = attacher.next;
+            if let Some(captured) = attacher.captured.take() {
+                for ((node_type, start, end), (leading, trailing)) in captured {
+                    arena.record_node_comments(
+                        &node_type,
+                        start,
+                        end,
+                        (!leading.is_empty()).then_some(leading),
+                        (!trailing.is_empty()).then_some(trailing),
+                    );
+                }
+            }
+
             body_nodes
         } else {
             // No comments, or comments but no `svelte-ignore` — fast path: keep
@@ -7307,16 +7330,26 @@ fn convert_parsed_program<'ast>(
                 .collect()
         };
 
-        // Build trailing comments (all JS comments stored on Program for backward compat)
-        let trailing_comments_val = if has_comments {
+        // Upstream gives the Program only what the walk did not claim
+        // (`add_comments`' `ast.type === 'Program'` special case). Off the
+        // `parse()` path nothing consumes these, and the flat dump is what phase
+        // 2/3 have always seen, so it is left alone there.
+        let trailing_comments_val = if !has_comments {
+            None
+        } else if capture_comments {
+            let leftover: Vec<Value> = all_comments
+                .iter()
+                .skip(claimed)
+                .map(|comment| build_comment_value(comment, content, offset))
+                .collect();
+            (!leftover.is_empty()).then_some(leftover)
+        } else {
             Some(
                 all_comments
                     .iter()
                     .map(|comment| build_comment_value(comment, content, offset))
                     .collect(),
             )
-        } else {
-            None
         };
 
         // Build leading comments from HTML comments before script tag
@@ -7388,10 +7421,12 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
 }
 
 /// A pre-computed comment entry: absolute start offset plus the comment text with
-/// its `//` / `/* */` delimiters stripped.
+/// its `//` / `/* */` delimiters stripped, and the ESTree object upstream's
+/// `add_comments` hands to a node (`{ type, value, start, end }`, no `loc`).
 struct CommentEntry {
     start: u32,
     text: CompactString,
+    value: Value,
 }
 
 /// What the walk needs to know about a node's parent to decide trailing-comment
@@ -7415,6 +7450,13 @@ struct CommentAttacher<'a> {
     content: &'a str,
     offset: u32,
     map: &'a mut Vec<(u32, Vec<CompactString>)>,
+    /// `Some` on the public `parse()` path only: `(type, start, end) ->
+    /// (leadingComments, trailingComments)`, flushed into the arena's comment
+    /// side table so `JsNode`'s `Serialize` impl emits them. The compile path
+    /// leaves it `None` — codegen re-parses script text, so materialising them
+    /// there would cost every component and change no output.
+    captured:
+        Option<std::collections::HashMap<(CompactString, u32, u32), (Vec<Value>, Vec<Value>)>>,
 }
 
 impl CommentAttacher<'_> {
@@ -7424,6 +7466,7 @@ impl CommentAttacher<'_> {
         };
         let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
         let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let node_type = obj.get("type").and_then(|t| t.as_str());
 
         if let Some(start) = start {
             while self
@@ -7431,13 +7474,13 @@ impl CommentAttacher<'_> {
                 .get(self.next)
                 .is_some_and(|comment| comment.start < start)
             {
-                self.record_leading(start, self.next);
+                self.record_leading(node_type, start, end, self.next);
                 self.next += 1;
             }
         }
 
         // Only these parents let their last child swallow the comments that follow it.
-        let last_body_field = match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+        let last_body_field = match node_type.unwrap_or("") {
             "Program" | "BlockStatement" => Some("body"),
             "ArrayExpression" => Some("elements"),
             "ObjectExpression" => Some("properties"),
@@ -7480,7 +7523,35 @@ impl CommentAttacher<'_> {
             }
         }
 
-        self.claim_trailing(end, parent.as_ref());
+        self.claim_trailing(node_type, start, end, parent.as_ref());
+    }
+
+    /// Append one comment to the node at `(type, start, end)` in the capture map.
+    /// The type is part of the key because a span does not identify a node: an
+    /// `ExpressionStatement` in semicolon-free source has exactly its
+    /// expression's, and keying on the span alone gave both the same comment.
+    fn capture(
+        &mut self,
+        node_type: Option<&str>,
+        start: Option<u32>,
+        end: Option<u32>,
+        index: usize,
+        leading: bool,
+    ) {
+        let (Some(node_type), Some(start), Some(end), Some(map)) =
+            (node_type, start, end, self.captured.as_mut())
+        else {
+            return;
+        };
+        let slot = map
+            .entry((CompactString::from(node_type), start, end))
+            .or_default();
+        let value = self.comments[index].value.clone();
+        if leading {
+            slot.0.push(value);
+        } else {
+            slot.1.push(value);
+        }
     }
 
     /// Discard every comment that starts before `end` without recording it.
@@ -7496,7 +7567,13 @@ impl CommentAttacher<'_> {
 
     /// Let this node claim the comments that follow it, so they cannot become leading
     /// comments of a later node.
-    fn claim_trailing(&mut self, end: Option<u32>, parent: Option<&ParentInfo>) {
+    fn claim_trailing(
+        &mut self,
+        node_type: Option<&str>,
+        start: Option<u32>,
+        end: Option<u32>,
+        parent: Option<&ParentInfo>,
+    ) {
         let Some(comment) = self.comments.get(self.next) else {
             return;
         };
@@ -7510,12 +7587,14 @@ impl CommentAttacher<'_> {
                 if parent_end.is_some_and(|pe| comment.start >= pe) {
                     break;
                 }
+                self.capture(node_type, start, end, self.next, false);
                 self.next += 1;
             }
-        } else if let Some(end) = end
-            && end <= comment.start
-            && self.is_separator_slice(end, comment.start)
+        } else if let Some(node_end) = end
+            && node_end <= comment.start
+            && self.is_separator_slice(node_end, comment.start)
         {
+            self.capture(node_type, start, end, self.next, false);
             self.next += 1;
         }
     }
@@ -7529,7 +7608,14 @@ impl CommentAttacher<'_> {
             .is_some_and(|slice| slice.chars().all(|c| matches!(c, ',' | ')' | ' ' | '\t')))
     }
 
-    fn record_leading(&mut self, start: u32, index: usize) {
+    fn record_leading(
+        &mut self,
+        node_type: Option<&str>,
+        start: u32,
+        end: Option<u32>,
+        index: usize,
+    ) {
+        self.capture(node_type, Some(start), end, index, true);
         let text = self.comments[index].text.clone();
         if !text.trim_start_ws().starts_with("svelte-ignore") {
             return;
