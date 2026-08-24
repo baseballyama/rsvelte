@@ -20,7 +20,6 @@ use lazy_static::lazy_static;
 use parse_attached_sourcemap::parse_attached_sourcemap;
 use regex::Regex;
 use replace_in_code::{replace_in_code, slice_source};
-use rustc_hash::FxHashMap;
 use types::*;
 
 lazy_static! {
@@ -230,8 +229,8 @@ fn last_line_utf16_len(s: &str) -> usize {
 /// Parse tag attributes from a string.
 ///
 /// Corresponds to `parse_tag_attributes` in index.js.
-fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
-    let mut attrs = FxHashMap::default();
+fn parse_tag_attributes(str: &str) -> AttributeMap {
+    let mut attrs = AttributeMap::default();
 
     for cap in ATTRIBUTE_PATTERN.captures_iter(str) {
         let name = cap.get(1).map(|m| m.as_str()).unwrap_or("");
@@ -258,7 +257,7 @@ fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
 /// Stringify tag attributes to a string.
 ///
 /// Corresponds to `stringify_tag_attributes` in index.js.
-fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue>>) -> String {
+fn stringify_tag_attributes(attributes: &Option<AttributeMap>) -> String {
     if let Some(attrs) = attributes {
         let value = attrs
             .iter()
@@ -352,15 +351,12 @@ async fn process_tag(
                     deps.extend_from_slice(&processed.dependencies);
                 }
 
-                // Check if anything changed. An attribute-only change (same code,
-                // no map, but returned `attributes`) must still be treated as a
-                // real diff so the tag is re-emitted with the new attributes —
-                // otherwise the original tag with stale attributes is returned
-                // (H-139).
-                if processed.map.is_none()
-                    && processed.code == content
-                    && processed.attributes.is_none()
-                {
+                // Upstream discards the whole result here, `attributes`
+                // included, so an attribute-only change never takes effect.
+                // Re-emitting the tag for it replaces the attribute list
+                // wholesale and drops `module` / `lang`, which changes what the
+                // component compiles to.
+                if processed.map.is_none() && processed.code == content {
                     return Ok(MappedCode::from_source(&slice_source(
                         tag_with_content.to_string(),
                         tag_offset,
@@ -526,18 +522,17 @@ mod tests {
 
     #[test]
     fn test_stringify_tag_attributes() {
-        let mut attrs = FxHashMap::default();
+        let mut attrs = AttributeMap::default();
         attrs.insert("lang".to_string(), AttributeValue::String("ts".to_string()));
         attrs.insert("defer".to_string(), AttributeValue::Boolean(true));
 
-        let stringified = stringify_tag_attributes(&Some(attrs));
-        assert!(stringified.contains("lang=\"ts\""));
-        assert!(stringified.contains("defer"));
+        // Upstream stringifies `Object.entries`, i.e. insertion order.
+        assert_eq!(stringify_tag_attributes(&Some(attrs)), " lang=\"ts\" defer");
     }
 
     #[test]
     fn test_stringify_tag_attributes_escapes_values() {
-        let mut attrs = FxHashMap::default();
+        let mut attrs = AttributeMap::default();
         attrs.insert(
             "data-test".to_string(),
             AttributeValue::String(r#"a&b"c<d>e"#.to_string()),

@@ -267,7 +267,7 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
         context
             .state
             .init
-            .push(JsStatement::Block(JsBlockStatement { body: block_body }));
+            .push(JsStatement::Block(JsBlockStatement::with_body(block_body)));
     }
 }
 

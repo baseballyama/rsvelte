@@ -45,11 +45,46 @@ pub enum CommentPolicy {
     Ignore,
 }
 
+/// How redundant parentheses are treated.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ParenPolicy {
+    /// Keep them, so `(x)` and `x` are different. The default, because the
+    /// corpus gate's whole job is to notice text upstream did not write.
+    #[default]
+    Preserve,
+    /// Drop them. Only for callers asking whether one program means the same as
+    /// another — a round-trip check, where `return (/*c*/ x)` is the printer
+    /// deliberately reproducing esrap's comment rule and not a change of meaning.
+    Ignore,
+}
+
+struct ClearPife;
+
+impl<'a> oxc_ast_visit::VisitMut<'a> for ClearPife {
+    fn visit_arrow_function_expression(
+        &mut self,
+        it: &mut oxc_ast::ast::ArrowFunctionExpression<'a>,
+    ) {
+        it.pife = false;
+        oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, it);
+    }
+
+    fn visit_function(
+        &mut self,
+        it: &mut oxc_ast::ast::Function<'a>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        it.pife = false;
+        oxc_ast_visit::walk_mut::walk_function(self, it, flags);
+    }
+}
+
 /// Comparison options.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Options {
     pub dialect: Dialect,
     pub comments: CommentPolicy,
+    pub parens: ParenPolicy,
 }
 
 impl Options {
@@ -62,6 +97,12 @@ impl Options {
     #[must_use]
     pub const fn with_comments(mut self, comments: CommentPolicy) -> Self {
         self.comments = comments;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_parens(mut self, parens: ParenPolicy) -> Self {
+        self.parens = parens;
         self
     }
 }
@@ -149,7 +190,19 @@ pub fn canonicalize_with(code: &str, options: Options) -> Result<Canonical, Pars
         Dialect::Esm => SourceType::mjs(),
         Dialect::Tsx => SourceType::tsx(),
     };
-    let parsed = Parser::new(&allocator, code, source_type).parse();
+    let mut parsed = Parser::new(&allocator, code, source_type)
+        .with_options(oxc_parser::ParseOptions {
+            preserve_parens: options.parens == ParenPolicy::Preserve,
+            ..oxc_parser::ParseOptions::default()
+        })
+        .parse();
+    if options.parens == ParenPolicy::Ignore {
+        // `preserve_parens: false` removes the paren *node*, but oxc also records
+        // "this function was parenthesized" on the function itself (`pife`) and
+        // the codegen reprints the parens from that flag. Clearing it is the
+        // second half of ignoring parens.
+        oxc_ast_visit::VisitMut::visit_program(&mut ClearPife, &mut parsed.program);
+    }
     if parsed.panicked || !parsed.diagnostics.is_empty() {
         let message = parsed
             .diagnostics
@@ -622,5 +675,34 @@ mod tests {
         assert_eq!(first_difference("abc", "abc"), None);
         assert_eq!(first_difference("abc", "abd"), Some(2));
         assert_eq!(first_difference("abc", "ab"), Some(2));
+    }
+}
+
+#[cfg(test)]
+mod paren_policy_tests {
+    use super::{Comparison, Options, ParenPolicy, compare_with};
+
+    /// esrap parenthesizes a `return` argument when a comment sits between the
+    /// keyword and the expression, so a round-trip check has to be able to ask
+    /// "same program?" without counting that pair. oxc records the wrap on the
+    /// function itself (`pife`), not only as a paren node, so dropping the node
+    /// alone is not enough.
+    #[test]
+    fn ignoring_parens_absorbs_a_parenthesized_function() {
+        let bare = "export function f(then) {\n\treturn (...a) => then(...a);\n}";
+        let wrapped = "export function f(then) {\n\treturn ((...a) => then(...a));\n}";
+
+        assert!(matches!(
+            compare_with(bare, wrapped, Options::default()),
+            Comparison::CodeDiffers { .. }
+        ));
+        assert!(matches!(
+            compare_with(
+                bare,
+                wrapped,
+                Options::default().with_parens(ParenPolicy::Ignore)
+            ),
+            Comparison::Equivalent
+        ));
     }
 }
