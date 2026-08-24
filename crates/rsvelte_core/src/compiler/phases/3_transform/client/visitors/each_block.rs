@@ -1040,6 +1040,7 @@ fn build_declarations(
                 is_defined: true,
                 is_reactive: index_reactive,
                 replacement_id: None,
+                store_source: None,
             },
         );
         // A keyed each block's index is reactive — upstream gives it kind
@@ -1083,6 +1084,7 @@ fn build_declarations(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
         } else {
@@ -1163,6 +1165,7 @@ fn build_declarations(
                             is_defined: false,
                             is_reactive: true,
                             replacement_id: None,
+                            store_source: None,
                         },
                     );
                 }
@@ -1219,6 +1222,7 @@ fn build_declarations(
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
 
@@ -1253,6 +1257,7 @@ fn build_declarations(
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
 

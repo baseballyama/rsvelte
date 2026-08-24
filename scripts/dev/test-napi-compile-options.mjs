@@ -104,6 +104,10 @@ assert(
 // ---------------------------------------------------------------------------
 
 const libSource = readFileSync(resolve(repoRoot, 'crates/rsvelte_napi/src/lib.rs'), 'utf8');
+const projectionInterfacesSource = readFileSync(
+	resolve(repoRoot, 'crates/rsvelte_projection/src/svelte2tsx/interfaces.rs'),
+	'utf8'
+);
 
 const camel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
@@ -118,11 +122,11 @@ function napiObjectStructs(src) {
 	return out;
 }
 
-/** The hand-rolled svelte2tsx option reader is not a struct — read its keys. */
+/** The shared svelte2tsx option reader is not a N-API struct — read its keys. */
 function svelte2tsxKeys(src) {
-	const body = src.match(/fn parse_svelte2tsx_options\([\s\S]*?\n\}/);
+	const body = src.match(/pub fn from_json\([\s\S]*?\n    \}\n\}/);
 	if (!body) return null;
-	return [...body[0].matchAll(/obj\.get\("(\w+)"\)/g)].map((m) => m[1]);
+	return [...body[0].matchAll(/obj\s*\.get\("(\w+)"\)/g)].map((m) => m[1]);
 }
 
 const structs = napiObjectStructs(libSource);
@@ -160,8 +164,8 @@ assert(
 	unclassified.join(', ')
 );
 
-const s2tKeys = svelte2tsxKeys(libSource);
-assert('parse_svelte2tsx_options still reads its keys by name', s2tKeys != null && s2tKeys.length > 0);
+const s2tKeys = svelte2tsxKeys(projectionInterfacesSource);
+assert('Svelte2TsxOptions::from_json still reads its keys by name', s2tKeys != null && s2tKeys.length > 0);
 
 /** `surface -> [key]`, keyed the way the assertions below name them. */
 const DECLARED = new Map([
@@ -756,6 +760,34 @@ const S2T_CASES = [
 		src: S2T_SRC,
 		base: { filename: 'A.svelte', version: '5' },
 		variant: { filename: 'A.svelte', version: '4' },
+	},
+	{
+		key: 'emitJsDoc',
+		src: '<script>export let a = 1;</script>',
+		base: { filename: 'A.svelte' },
+		variant: { filename: 'A.svelte', emitJsDoc: true },
+		marker: (r) => r.code.includes('/** @typedef'),
+	},
+	{
+		key: 'typingsNamespace',
+		src: '<div />',
+		base: { filename: 'A.svelte' },
+		variant: { filename: 'A.svelte', typingsNamespace: 'customHTML' },
+		marker: (r) => r.code.includes('customHTML'),
+	},
+	{
+		key: 'noSvelteComponentTyped',
+		src: S2T_SRC,
+		base: { filename: 'A.svelte', version: '4', mode: 'dts', isTsFile: true },
+		variant: {
+			filename: 'A.svelte',
+			version: '4',
+			mode: 'dts',
+			isTsFile: true,
+			noSvelteComponentTyped: true,
+		},
+		marker: (r) =>
+			r.code.includes('SvelteComponent') && !r.code.includes('SvelteComponentTyped'),
 	},
 ];
 

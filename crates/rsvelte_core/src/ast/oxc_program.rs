@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
@@ -8,13 +10,13 @@ use self_cell::self_cell;
 
 struct ProgramOwner<'source> {
     allocator: Allocator,
-    source: &'source str,
+    source: Cow<'source, str>,
     source_type: SourceType,
 }
 
 impl ProgramOwner<'_> {
-    const fn source(&self) -> &str {
-        self.source
+    fn source(&self) -> &str {
+        &self.source
     }
 }
 
@@ -37,6 +39,18 @@ self_cell!(
 impl<'source> RetainedProgram<'source> {
     #[must_use]
     pub fn parse(source: &'source str, is_typescript: bool) -> Self {
+        Self::parse_cow(Cow::Borrowed(source), is_typescript)
+    }
+
+    /// Parse a source the caller may own — used when a pass has to repair the
+    /// text before parsing it (see the svelte2tsx script-recovery re-parse).
+    #[must_use]
+    pub fn parse_owned(source: String, is_typescript: bool) -> Self {
+        Self::parse_cow(Cow::Owned(source), is_typescript)
+    }
+
+    #[must_use]
+    fn parse_cow(source: Cow<'source, str>, is_typescript: bool) -> Self {
         let source_type = if is_typescript {
             SourceType::ts()
         } else {

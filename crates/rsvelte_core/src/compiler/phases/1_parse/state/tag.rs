@@ -513,11 +513,12 @@ impl<'a> Parser<'a> {
         }
 
         if self.match_byte(b':') {
-            // Block continuation - should not happen at top level
+            // Block continuation - should not happen at top level. Upstream
+            // `next()` reports at the `:` it just ate, not at the `{`.
             return Err(crate::error::ParseError::svelte(
                 "block_invalid_continuation_placement",
                 "{:...} block is invalid at this position (did you forget to close the preceding element or block?)",
-                (start, start),
+                (self.index, self.index),
             ));
         }
 
@@ -548,7 +549,7 @@ impl<'a> Parser<'a> {
         // Use find_matching_bracket to properly handle strings, comments, and regex
         // inside the expression (the naive depth counter breaks on e.g. {'{'}).
         // find_matching_bracket already has an optimized fast path for simple expressions.
-        let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
+        let end = self.find_mustache_close(expr_start)?;
         self.index = end;
 
         let expr_content = &self.source[expr_start..self.index];
@@ -644,7 +645,7 @@ impl<'a> Parser<'a> {
         // Read the test expression using find_matching_bracket to handle
         // strings, comments, and regex inside the expression (e.g., /^\d{4}/)
         let expr_start = self.index;
-        let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
+        let end = self.find_mustache_close(expr_start)?;
         self.index = end;
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
@@ -725,8 +726,7 @@ impl<'a> Parser<'a> {
             // {:else if ...}
             self.require_whitespace()?;
             let alt_expr_start = self.index;
-            let end = find_matching_bracket(self.source, alt_expr_start, '{')
-                .unwrap_or(self.source.len());
+            let end = self.find_mustache_close(alt_expr_start)?;
             self.index = end;
             let alt_expr_content = &self.source[alt_expr_start..self.index];
             self.advance(); // consume '}'
@@ -1743,7 +1743,7 @@ impl<'a> Parser<'a> {
         // Read the key expression using find_matching_bracket to handle
         // strings, comments, and regex inside the expression
         let expr_start = self.index;
-        let end = find_matching_bracket(self.source, expr_start, '{').unwrap_or(self.source.len());
+        let end = self.find_mustache_close(expr_start)?;
         self.index = end;
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
@@ -2021,8 +2021,7 @@ impl<'a> Parser<'a> {
                 // tag early. Mirrors upstream `read_expression`, which parses
                 // with acorn and skips over the same lexical contexts.
                 let expr_start = self.index;
-                let end = find_matching_bracket(self.source, expr_start, '{')
-                    .unwrap_or(self.source.len());
+                let end = self.find_mustache_close(expr_start)?;
                 self.index = end;
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
@@ -2044,8 +2043,7 @@ impl<'a> Parser<'a> {
                 // `{@render foo(/}/g)}`) do not terminate the tag early. Mirrors
                 // upstream `read_expression`.
                 let expr_start = self.index;
-                let end = find_matching_bracket(self.source, expr_start, '{')
-                    .unwrap_or(self.source.len());
+                let end = self.find_mustache_close(expr_start)?;
                 self.index = end;
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
@@ -2087,8 +2085,7 @@ impl<'a> Parser<'a> {
                 // destructuring patterns like `{ handler } = obj` nest correctly.
                 self.skip_whitespace();
                 let expr_start = self.index;
-                let end = find_matching_bracket(self.source, expr_start, '{')
-                    .unwrap_or(self.source.len());
+                let end = self.find_mustache_close(expr_start)?;
                 self.index = end;
                 let expr_content = &self.source[expr_start..self.index];
                 let expr_end = self.index;
@@ -2268,8 +2265,7 @@ impl<'a> Parser<'a> {
                     // do not terminate the tag early. Mirrors upstream
                     // `read_expression`.
                     let expr_start = self.index;
-                    let end = find_matching_bracket(self.source, expr_start, '{')
-                        .unwrap_or(self.source.len());
+                    let end = self.find_mustache_close(expr_start)?;
                     self.index = end;
                     let expr_content = self.source[expr_start..end].trim_ws();
 

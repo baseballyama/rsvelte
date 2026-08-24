@@ -1100,4 +1100,47 @@ impl<'a> Parser<'a> {
         .unwrap_or(self.bytes.len());
         self.index
     }
+
+    /// The index of the `}` that closes a mustache opened before `expr_start`,
+    /// or the `expected_token` upstream raises when the template holds none.
+    ///
+    /// Upstream never searches for the brace: `read_expression` lets acorn
+    /// consume one expression and `eat('}', true)` then demands the brace
+    /// wherever that stopped — the first token acorn left behind, or the end of
+    /// the right-trimmed template when it consumed everything.
+    pub(crate) fn find_mustache_close(&self, expr_start: usize) -> ParseResult<usize> {
+        if let Some(end) = crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            self.source,
+            expr_start,
+            '{',
+        ) {
+            return Ok(end);
+        }
+        // Loose mode keeps recovering so a half-typed document still yields a tree.
+        if self.options.loose {
+            return Ok(self.bytes.len());
+        }
+        use crate::compiler::phases::phase1_parse::read::expression::{
+            check_js_parse_error_with_pos, trailing_token_offset,
+        };
+        let from = expr_start.min(self.content_end);
+        let rest = &self.source[from..self.content_end];
+        if rest.trim_matches(is_js_whitespace).is_empty() {
+            return Err(ParseError::expected_token("}", self.content_end));
+        }
+        // A complete leading expression leaves the brace demanded at the first
+        // token acorn did not consume.
+        if let Some(offset) = trailing_token_offset(rest)
+            && check_js_parse_error_with_pos(&rest[..offset]).is_none()
+        {
+            return Err(ParseError::expected_token("}", from + offset));
+        }
+        // Otherwise acorn never got an expression out of the rest of the file,
+        // so upstream reports the JS parser's own error rather than the brace.
+        if let Some((message, pos)) = check_js_parse_error_with_pos(rest) {
+            let at = from + pos;
+            return Err(ParseError::svelte("js_parse_error", message, (at, at)));
+        }
+        Err(ParseError::expected_token("}", self.content_end))
+    }
 }

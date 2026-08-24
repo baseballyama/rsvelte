@@ -96,7 +96,7 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    find_code, is_ident_byte, skip_opaque,
+    find_rune_code, is_ident_byte, skip_opaque,
 };
 use compact_str::CompactString;
 use memchr::memmem;
@@ -4645,7 +4645,7 @@ fn transform_module_script_runes_with_target(
     // intact, so the non-dev removal stays. `find_code` rather than a plain
     // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
             let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
@@ -4669,7 +4669,7 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
@@ -4861,7 +4861,7 @@ fn transform_module_script_runes_with_target(
     // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
     // that sits in a string / template / regex / comment untouched, and this
     // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -4990,7 +4990,7 @@ fn transform_module_script_runes_with_target(
     // / regex / comment is text. Matching it either rewrote the literal (#2988)
     // or aborted the loop on its unbalanced parens, leaving the real rune call
     // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;

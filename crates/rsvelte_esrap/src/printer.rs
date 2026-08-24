@@ -1672,26 +1672,6 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
     }
 
-    /// esrap's `body`: statements on their own lines, with a blank line between
-    /// two multiline statements or a change of statement kind, interleaving
-    /// leading (before each statement), trailing (same-line), and end-of-body
-    /// comments. `body_end` is the byte offset that closes the body (program
-    /// end, or the `}` of a block).
-    fn body(
-        &mut self,
-        statements: &[Statement],
-        body_start: u32,
-        body_end: u32,
-        ctx: &mut Context<DIRECT>,
-    ) {
-        self.body_elems(
-            statements.iter().map(BodyElem::Statement),
-            Some(body_start),
-            body_end,
-            ctx,
-        );
-    }
-
     fn comments_are_outer_to_block(
         &self,
         statements: &[Statement],
@@ -2371,7 +2351,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Some(body) => {
                 ctx.write_ascii(b' ');
                 let span = body.span();
-                self.block(&body.statements, span.start, span.end, ctx);
+                self.block_with_directives(
+                    &body.directives,
+                    &body.statements,
+                    span.start,
+                    span.end,
+                    ctx,
+                );
             }
             None => ctx.write_ascii(b';'),
         }
@@ -2659,7 +2645,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // space from `context.write(' ')`, leaving `abstract get a() `.
         if let Some(body) = &node.value.body {
             let span = body.span();
-            self.block(&body.statements, span.start, span.end, ctx);
+            self.block_with_directives(
+                &body.directives,
+                &body.statements,
+                span.start,
+                span.end,
+                ctx,
+            );
         }
     }
 
@@ -3116,7 +3108,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx.write_ascii_bytes(b" => ");
         if let ArrowFunctionBody::FunctionBody(body) = &node.body {
             let span = body.span();
-            self.block(&body.statements, span.start, span.end, ctx);
+            self.block_with_directives(
+                &body.directives,
+                &body.statements,
+                span.start,
+                span.end,
+                ctx,
+            );
         } else {
             let Some(body) = node.body.as_expression() else {
                 return;
@@ -3140,9 +3138,24 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         body_end: u32,
         ctx: &mut Context<DIRECT>,
     ) {
+        self.block_with_directives(&[], body, body_start, body_end, ctx);
+    }
+
+    /// A function body's leading string-literal statements are a separate oxc
+    /// node (`FunctionBody::directives`), so a printer that walks `statements`
+    /// alone deletes them — and only the first one of a body is a directive, so
+    /// the deletion is silent and semantics-preserving-looking.
+    fn block_with_directives(
+        &mut self,
+        directives: &[Directive],
+        body: &[Statement],
+        body_start: u32,
+        body_end: u32,
+        ctx: &mut Context<DIRECT>,
+    ) {
         if !HAS_COMMENTS {
             let keep_empty = self.options.keep_empty_statements;
-            let has_content = body.iter().any(|statement| {
+            let has_content = !directives.is_empty() || body.iter().any(|statement| {
                 keep_empty
                     || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
             });
@@ -3155,14 +3168,27 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.write_block_brace(ctx, body_start, body_end, true);
             ctx.indent();
             ctx.newline();
-            self.body(body, body_start, body_end, ctx);
+            self.body_elems(
+                directives
+                    .iter()
+                    .map(BodyElem::Directive)
+                    .chain(body.iter().map(BodyElem::Statement)),
+                Some(body_start),
+                body_end,
+                ctx,
+            );
             ctx.dedent();
             ctx.newline();
             self.write_block_brace(ctx, body_start, body_end, false);
             return;
         }
 
-        if DIRECT && self.comments_are_outer_to_block(body, body_start, body_end) {
+        // The comment-island fast path is statement-only; a body with directives
+        // takes the general path rather than a second copy of the interleaving.
+        if DIRECT
+            && directives.is_empty()
+            && self.comments_are_outer_to_block(body, body_start, body_end)
+        {
             let keep_empty = self.options.keep_empty_statements;
             let has_statement = body.iter().any(|statement| {
                 keep_empty
@@ -3187,7 +3213,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.write_block_brace(ctx, body_start, body_end, true);
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
-        self.body(body, body_start, body_end, ctx);
+        self.body_elems(
+            directives
+                .iter()
+                .map(BodyElem::Directive)
+                .chain(body.iter().map(BodyElem::Statement)),
+            Some(body_start),
+            body_end,
+            ctx,
+        );
         if ctx.empty() {
             ctx.discard_scope(scope);
         } else {
@@ -4127,7 +4161,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             match &f.body {
                 Some(body) => {
                     let span = body.span();
-                    self.block(&body.statements, span.start, span.end, ctx);
+                    self.block_with_directives(
+                        &body.directives,
+                        &body.statements,
+                        span.start,
+                        span.end,
+                        ctx,
+                    );
                 }
                 None => ctx.write_ascii_bytes(b"{}"),
             }

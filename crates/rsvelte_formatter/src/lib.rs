@@ -123,10 +123,19 @@ pub fn format_with_arenas(
     options: &FormatOptions,
     arenas: &mut Arenas,
 ) -> Result<String, FormatError> {
-    match format_attempt(source, options, arenas, false) {
-        Err(e) if e.is_dialect_sensitive() => format_attempt(source, options, arenas, true),
+    // `parse` strips a leading BOM, so every span it hands back is relative to
+    // the stripped text; slicing the unstripped source with one is three bytes
+    // off. Prettier keeps the BOM in its output, so it goes back on afterwards.
+    let stripped = rsvelte_core::remove_bom(source);
+    let formatted = match format_attempt(stripped, options, arenas, false) {
+        Err(e) if e.is_dialect_sensitive() => format_attempt(stripped, options, arenas, true),
         other => other,
-    }
+    }?;
+    Ok(if stripped.len() == source.len() {
+        formatted
+    } else {
+        format!("\u{feff}{formatted}")
+    })
 }
 
 fn normalize_file_edges(out: &mut String) {

@@ -832,8 +832,6 @@ jobs:
     steps:
       # This job had no checkout while its verdict was inline bash; the script
       # needs one. Sparse, because `scripts/ci` is all it reads.
-      # This job had no checkout while its verdict was inline bash; the script
-      # needs one. Sparse, because `scripts/ci` is all it reads.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: false
@@ -1275,6 +1273,14 @@ jobs:
 
       - name: Run svelte pin guard tests
         run: node scripts/ci/test-check-svelte-dependency-pin.mjs
+
+      # An upstream report that nobody links is a report nobody can tell was
+      # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).
+      - name: Check upstream_issues is indexed
+        run: node scripts/ci/check-upstream-issues.mjs
+
+      - name: Run upstream_issues index guard tests
+        run: node scripts/ci/test-check-upstream-issues.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest
