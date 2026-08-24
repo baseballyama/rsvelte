@@ -36,11 +36,46 @@ pub fn format_js_source(
             parser_ret.diagnostics
         )));
     }
-    let formatted = format_program(&allocator, &parser_ret.program, options.js.clone())
+    let formatted = print_program_guarded(
+        &allocator,
+        &parser_ret.program,
+        options.js.clone(),
+        source_type,
+    )?;
+    Ok(formatted.unwrap_or_else(|| source.to_string()))
+}
+
+/// Print a program through `oxc_formatter`, returning `None` when the formatted
+/// text would be a DIFFERENT program.
+///
+/// oxc drops parentheses that a brand check needs — `#x in (o || {})` prints as
+/// `#x in o || {}` and `(#x in o) * 2` as `#x in o * 2`
+/// (`upstream_issues/3451-oxc-private-in-parens.md`). A formatter must not
+/// rewrite what the code means, so this verifies the brand checks survived
+/// instead of predicting which ones oxc gets wrong. A program with no brand
+/// check takes the empty-record fast path and never re-parses.
+fn print_program_guarded<'a>(
+    allocator: &'a Allocator,
+    program: &oxc_ast::ast::Program<'a>,
+    js: JsFormatOptions,
+    source_type: SourceType,
+) -> Result<Option<String>, FormatError> {
+    let formatted = format_program(allocator, program, js)
         .print()
         .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
         .into_code();
-    Ok(formatted)
+    let before = crate::private_in_guard::brand_check_shapes(program);
+    if before.is_empty() {
+        return Ok(Some(formatted));
+    }
+    let reparsed = Parser::new(allocator, &formatted, source_type)
+        .with_options(formatter_parse_options())
+        .parse();
+    if !reparsed.diagnostics.is_empty() {
+        return Ok(None);
+    }
+    let after = crate::private_in_guard::brand_check_shapes(&reparsed.program);
+    Ok((before == after).then_some(formatted))
 }
 
 /// The single indent unit (one nesting level) implied by `JsFormatOptions`.
@@ -135,10 +170,10 @@ pub fn format_script(
         js.line_width =
             oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
     }
-    let formatted = format_program(allocator, &parser_ret.program, js)
-        .print()
-        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
-        .into_code();
+    let Some(formatted) = print_program_guarded(allocator, &parser_ret.program, js, source_type)?
+    else {
+        return Ok(None);
+    };
 
     // oxc_formatter emits a trailing newline. Add one indent level to
     // every non-empty line so the body is nested under `<script>` using
@@ -223,10 +258,10 @@ pub fn format_nested_script(
             .min(js.line_width.value().saturating_sub(1));
     let nested_width = js.line_width.value().saturating_sub(narrow);
     js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
-    let formatted = format_program(allocator, &parser_ret.program, js)
-        .print()
-        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
-        .into_code();
+    let Some(formatted) = print_program_guarded(allocator, &parser_ret.program, js, source_type)?
+    else {
+        return Ok(None);
+    };
 
     let reindented = crate::reindent::reindent(formatted.trim_end(), &body_indent, false);
     let tag_indent = unit.repeat(depth);

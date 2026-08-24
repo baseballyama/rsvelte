@@ -6,7 +6,9 @@ use std::fmt::Write as _;
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
-use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
+use crate::compiler::phases::phase3_transform::shared::class_body::{
+    find_class_header, split_class_members_onto_lines,
+};
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
 /// JS-lexical-aware replacement for `find_matching_paren`: given `s` positioned
@@ -918,24 +920,24 @@ fn transform_class_fields_client_with_options(
     retain_all_public_jsdoc: bool,
 ) -> String {
     // Check if script contains a class with $state or $derived fields
-    if memmem::find(script.as_bytes(), b"class ").is_none()
+    if memmem::find(script.as_bytes(), b"class").is_none()
         || (memmem::find(script.as_bytes(), b"$state").is_none()
             && memmem::find(script.as_bytes(), b"$derived").is_none())
     {
         return script.to_string();
     }
 
-    // Find the class body
-    let Some(class_pos) = memmem::find(script.as_bytes(), b"class ") else {
+    // The keyword and the class name are separated by any run of JS whitespace,
+    // not the single ASCII space a `b"class "` needle bakes in (#3470), and a
+    // `class ` inside a comment or a string is text rather than a header
+    // (#2986). Both come from the shared lexical scan.
+    let Some(header) = find_class_header(script) else {
         return script.to_string();
     };
+    let class_pos = header.keyword;
+    let brace_pos = header.body_brace - class_pos;
 
-    // Find the opening brace of the class
     let after_class = &script[class_pos..];
-    let Some(brace_pos) = after_class.find('{') else {
-        return script.to_string();
-    };
-
     let class_header = &after_class[..brace_pos + 1];
 
     // Synthesized members are printed relative to the class's own source
@@ -2447,17 +2449,20 @@ pub(super) fn transform_constructor_assignment(
                         let qualified = format!("this.#{}", field.private_backing_name);
                         let read =
                             constructor_field_read(&field.rune_type, &qualified, at_ctor_depth);
-                        // Upstream `AssignmentExpression.js`: the built value is a
-                        // LogicalExpression, which `should_proxy` always proxies, so
-                        // the flag rides on the field kind alone.
-                        let proxy = if field.rune_type == "$state" {
+                        // Upstream `AssignmentExpression.js` (#18594): the logical
+                        // operator short-circuits around the whole `$.set`, so the
+                        // setter only runs when it actually assigns — and its value
+                        // is the bare RHS, which `should_proxy` traces as it does
+                        // for `=`.
+                        let proxy = if field.rune_type == "$state" && expression_needs_proxy(value)
+                        {
                             ", true"
                         } else {
                             ""
                         };
                         return format!(
-                            "$.set({}, {} {} {}{}){}",
-                            qualified, read, binary_op, value, proxy, tail
+                            "{} {} $.set({}, {}{}){}",
+                            read, binary_op, qualified, value, proxy, tail
                         );
                     }
                 }
@@ -2655,6 +2660,35 @@ export class Counter {
     fn script_without_runes_is_unchanged() {
         let script = "class Helper {\n\tvalue = 1;\n}\n";
         assert_eq!(transform_class_fields_client(script), script);
+    }
+
+    #[test]
+    fn any_js_whitespace_separates_the_class_keyword_from_its_name() {
+        for separator in [
+            "\t", "  ", "\n", "\u{a0}", "\u{feff}", "\u{b}", "\u{c}", "\u{3000}",
+        ] {
+            let script = format!("class{separator}K {{\n\tv = $state(1);\n}}\n");
+            let out = transform_class_fields_client(&script);
+            for expected in ["#v = $.state(1)", "get v()", "set v(value)"] {
+                assert!(
+                    out.contains(expected),
+                    "missing {expected} for separator {separator:?}:\n{out}"
+                );
+            }
+        }
+    }
+
+    /// The control for the case above: `class ` written where it is text and not
+    /// code must still not start a class body (#2986). An over-broad separator
+    /// rule that stopped consulting the lexical scan would lower this.
+    #[test]
+    fn a_class_keyword_inside_a_comment_or_string_still_starts_nothing() {
+        for script in [
+            "// we avoid class here\nconst make = () => {\n\tconst v = $state(1);\n\treturn v;\n};\n",
+            "const label = 'class name';\nconst make = () => {\n\tconst v = $state(1);\n\treturn v;\n};\n",
+        ] {
+            assert_eq!(transform_class_fields_client(script), script, "{script:?}");
+        }
     }
 
     #[test]
