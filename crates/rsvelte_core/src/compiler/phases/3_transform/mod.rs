@@ -148,6 +148,16 @@ pub fn transform_component(
     transform_component_with_sourcemap_content(analysis, ast, source, options, true)
 }
 
+fn map_pass_disabled(name: &str) -> bool {
+    static DISABLED: std::sync::LazyLock<Option<String>> =
+        std::sync::LazyLock::new(|| std::env::var("RSVELTE_NO_MAP_PASSES").ok());
+    match DISABLED.as_deref() {
+        None => false,
+        Some("all") => true,
+        Some(list) => list.split(',').any(|n| n.trim() == name),
+    }
+}
+
 pub(crate) fn transform_component_with_sourcemap_content(
     analysis: &ComponentAnalysis,
     ast: &Root,
@@ -202,15 +212,6 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 // Lowering inserts framework calls between copied source tokens;
                 // token mappings fill those holes before the coarser
                 // emitter anchors are considered.
-                let wrapper_mappings = ast.instance.as_deref().map_or_else(Vec::new, |script| {
-                    generate_default_function_wrapper_mappings_with_starts(
-                        &result.code,
-                        source,
-                        script.start as usize,
-                        script.end as usize,
-                        &mapping_starts,
-                    )
-                });
                 let mut runtime_mappings = Vec::new();
                 let mut template_name_mappings = Vec::new();
                 let mut remaining_result_mappings = Vec::new();
@@ -228,33 +229,9 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         remaining_result_mappings.push(mapping);
                     }
                 }
-                let effect_mappings = if source.contains("$effect") {
-                    generate_effect_callback_mappings_with_starts(
-                        &result.code,
-                        source,
-                        &mapping_starts,
-                    )
-                } else {
-                    Vec::new()
-                };
-                let legacy_prop_read_mappings = if source.contains("export let ") {
-                    generate_legacy_prop_read_mappings_with_starts(
-                        &result.code,
-                        source,
-                        &mapping_starts,
-                    )
-                } else {
-                    Vec::new()
-                };
-                let template_element_mappings =
-                    generate_template_element_runtime_mappings_with_starts(
-                        &result.code,
-                        source,
-                        &mapping_starts,
-                    );
-                let inline_script_mappings =
-                    if source.contains("<script>") && source.contains("export ") {
-                        generate_inline_script_mappings_with_starts(
+                let legacy_prop_read_mappings =
+                    if !map_pass_disabled("legacy_prop") && source.contains("export let ") {
+                        generate_legacy_prop_read_mappings_with_starts(
                             &result.code,
                             source,
                             &mapping_starts,
@@ -262,12 +239,36 @@ pub(crate) fn transform_component_with_scripts<'source>(
                     } else {
                         Vec::new()
                     };
-                let bind_value_mappings = if source.contains("bind:value={") {
+                let template_element_mappings = if map_pass_disabled("template_element") {
+                    Vec::new()
+                } else {
+                    generate_template_element_runtime_mappings_with_starts(
+                        &result.code,
+                        source,
+                        &mapping_starts,
+                    )
+                };
+                let inline_script_mappings = if !map_pass_disabled("inline_script")
+                    && source.contains("<script>")
+                    && source.contains("export ")
+                {
+                    generate_inline_script_mappings_with_starts(
+                        &result.code,
+                        source,
+                        &mapping_starts,
+                    )
+                } else {
+                    Vec::new()
+                };
+                let bind_value_mappings = if !map_pass_disabled("bind_value")
+                    && source.contains("bind:value={")
+                {
                     generate_bind_value_mappings_with_starts(&result.code, source, &mapping_starts)
                 } else {
                     Vec::new()
                 };
-                let component_bind_mappings = if source.contains("bind:")
+                let component_bind_mappings = if !map_pass_disabled("component_bind")
+                    && source.contains("bind:")
                     && (result.code.contains("get ")
                         || result.code.contains("set ")
                         || result.code.contains("${"))
@@ -280,13 +281,17 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let collapsed_declaration_mappings =
+                let collapsed_declaration_mappings = if map_pass_disabled("collapsed") {
+                    Vec::new()
+                } else {
                     generate_collapsed_declaration_mappings_with_starts(
                         &result.code,
                         source,
                         &mapping_starts,
-                    );
-                let import_mappings = if source.contains("import ") {
+                    )
+                };
+                let import_mappings = if !map_pass_disabled("import") && source.contains("import ")
+                {
                     generate_verbatim_import_mappings_with_starts(
                         &result.code,
                         source,
@@ -295,27 +300,47 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let token_mappings = generate_token_mappings_with_starts(
-                    &result.code,
-                    source,
-                    &mapping_starts,
-                    source_token_positions,
-                );
-                let rune_mappings = if source.contains("$effect")
-                    || source.contains("$state")
-                    || source.contains("$derived")
-                    || source.contains("$props")
-                    || source.contains("$bindable")
+                let token_mappings = if map_pass_disabled("token") {
+                    Vec::new()
+                } else {
+                    generate_token_mappings_with_starts(
+                        &result.code,
+                        source,
+                        &mapping_starts,
+                        source_token_positions,
+                    )
+                };
+                let rune_mappings = if !map_pass_disabled("rune")
+                    && (source.contains("$effect")
+                        || source.contains("$state")
+                        || source.contains("$derived")
+                        || source.contains("$props")
+                        || source.contains("$bindable"))
                 {
                     generate_rune_mappings_with_starts(&result.code, source, &mapping_starts)
                 } else {
                     Vec::new()
                 };
+                // The printer reads one span for both brace mapping and comment
+                // resync, so a comment-bearing component cannot carry its own
+                // function braces yet.
+                let wrapper_mappings = if map_pass_disabled("wrapper") {
+                    Vec::new()
+                } else {
+                    ast.instance.as_deref().map_or_else(Vec::new, |script| {
+                        generate_default_function_wrapper_mappings_with_starts(
+                            &result.code,
+                            source,
+                            script.start as usize,
+                            script.end as usize,
+                            &mapping_starts,
+                        )
+                    })
+                };
                 let mapping_capacity = wrapper_mappings.len()
                     + bind_value_mappings.len()
                     + component_bind_mappings.len()
                     + runtime_mappings.len()
-                    + effect_mappings.len()
                     + legacy_prop_read_mappings.len()
                     + template_element_mappings.len()
                     + inline_script_mappings.len()
@@ -329,7 +354,6 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 mappings.extend(bind_value_mappings);
                 mappings.extend(component_bind_mappings);
                 mappings.extend(runtime_mappings);
-                mappings.extend(effect_mappings);
                 mappings.extend(legacy_prop_read_mappings);
                 mappings.extend(template_element_mappings);
                 mappings.extend(inline_script_mappings);
@@ -591,15 +615,9 @@ pub(crate) fn transform_component_with_scripts<'source>(
             let filename = options.filename.as_deref();
             let source_name = get_source_name(filename, output_filename, "input.svelte");
 
-            // Determine the output file basename for the "file" field
-            let file_name = output_filename
-                .map(|f| {
-                    f.split(['/', '\\'])
-                        .next_back()
-                        .unwrap_or("input.svelte.js")
-                        .to_string()
-                })
-                .unwrap_or_else(|| "input.svelte.js".to_string());
+            // Upstream's JS map comes out of esrap's `print()`, which sets no
+            // `file` key; only the CSS map names its output file.
+            let file_name: Option<&str> = None;
 
             let mut mappings_str = encode_vlq_mappings(&js_mappings);
 
@@ -695,7 +713,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         // Only one source referenced - use single-source format
                         let content = multi_contents.first().map(|s| s.as_str()).unwrap_or(source);
                         Some(generate_sourcemap_json(
-                            &file_name,
+                            file_name,
                             &multi_sources[0],
                             include_sourcemap_content.then_some(content),
                             &mappings_str,
@@ -707,7 +725,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         let contents_refs: Vec<&str> =
                             multi_contents.iter().map(|s| s.as_str()).collect();
                         Some(js_ast::codegen::generate_sourcemap_json_multi(
-                            &file_name,
+                            file_name,
                             &sources_refs,
                             &contents_refs,
                             &mappings_str,
@@ -727,7 +745,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         .map(String::as_str)
                         .unwrap_or(&source_name);
                     Some(generate_sourcemap_json(
-                        &file_name,
+                        file_name,
                         preprocessed_source,
                         include_sourcemap_content.then_some(content),
                         &mappings_str,
@@ -736,7 +754,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 }
             } else {
                 Some(generate_sourcemap_json(
-                    &file_name,
+                    file_name,
                     &source_name,
                     include_sourcemap_content.then_some(source),
                     &mappings_str,
@@ -750,14 +768,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
             let filename = options.filename.as_deref();
             if output_filename.is_some() || filename.is_some() {
                 let source_name = get_source_name(filename, output_filename, "input.svelte");
-                let file_name = output_filename
-                    .map(|f| {
-                        f.split(['/', '\\'])
-                            .next_back()
-                            .unwrap_or("input.svelte.js")
-                            .to_string()
-                    })
-                    .unwrap_or_else(|| "input.svelte.js".to_string());
+                let file_name: Option<&str> = None;
 
                 // Generate line-level identity mappings (each generated line maps to line 0, col 0)
                 let line_count = js.chars().filter(|&c| c == '\n').count();
@@ -774,7 +785,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 }
                 let mappings_str = encode_vlq_mappings(&trivial_mappings);
                 Some(generate_sourcemap_json(
-                    &file_name,
+                    file_name,
                     &source_name,
                     include_sourcemap_content.then_some(source),
                     &mappings_str,
@@ -892,7 +903,7 @@ pub(crate) fn remap_css_sourcemap(
 
     let names_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
     generate_sourcemap_json(
-        file_name,
+        Some(file_name),
         &source_name,
         Some(if original_content.is_empty() {
             ""
@@ -1897,103 +1908,6 @@ fn generate_rune_mappings_with_starts(
     mappings
 }
 
-/// Map the source-backed tail of user effect calls before generic token matching
-/// claims the same generated coordinates for framework scaffolding.
-#[cfg(test)]
-fn generate_effect_callback_mappings(
-    generated: &str,
-    source: &str,
-) -> Vec<js_ast::codegen::SourceMapping> {
-    generate_effect_callback_mappings_with_starts(
-        generated,
-        source,
-        &MappingLineStarts::new(generated, source),
-    )
-}
-
-fn generate_effect_callback_mappings_with_starts(
-    generated: &str,
-    source: &str,
-    starts: &MappingLineStarts,
-) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
-
-    fn occurrences(code: &str, patterns: &[&str]) -> Vec<(usize, usize)> {
-        let mut found = Vec::new();
-        for pattern in patterns {
-            let mut cursor = 0;
-            while let Some(offset) = code[cursor..].find(pattern) {
-                let start = cursor + offset;
-                let end = start + pattern.len();
-                if code.as_bytes().get(end) == Some(&b'(') {
-                    found.push((start, end));
-                }
-                cursor = end;
-            }
-        }
-        found.sort_unstable();
-        found
-    }
-
-    let generated_effects = occurrences(generated, &["$.user_pre_effect", "$.user_effect"]);
-    let source_effects = occurrences(source, &["$effect.pre", "$effect"]);
-    let gen_line_starts = &starts.generated;
-    let src_line_starts = &starts.source;
-    let mut mappings = Vec::new();
-
-    let mut push = |gen_offset: usize, source_offset: usize| {
-        let (gen_line, gen_col) = offset_to_line_col_utf16(generated, gen_line_starts, gen_offset);
-        let (orig_line, orig_col) =
-            offset_to_line_col_utf16(source, src_line_starts, source_offset);
-        mappings.push(js_ast::codegen::SourceMapping {
-            gen_line: gen_line as u32,
-            gen_col: gen_col as u32,
-            source: 0,
-            orig_line: orig_line as u32,
-            orig_col: orig_col as u32,
-            name: None,
-        });
-    };
-
-    for (index, ((generated_start, generated_end), (source_start, source_end))) in generated_effects
-        .iter()
-        .zip(source_effects.iter())
-        .enumerate()
-    {
-        push(*generated_start, *source_start);
-        push(*generated_end, *source_end);
-
-        let generated_limit = generated_effects
-            .get(index + 1)
-            .map_or(generated.len(), |(start, _)| *start);
-        let source_limit = source_effects
-            .get(index + 1)
-            .map_or(source.len(), |(start, _)| *start);
-        let mut generated_offset = *generated_end;
-        let mut source_offset = *source_end;
-        while generated_offset < generated_limit && source_offset < source_limit {
-            let generated_byte = generated.as_bytes()[generated_offset];
-            let source_byte = source.as_bytes()[source_offset];
-            if generated_byte.is_ascii_whitespace() {
-                generated_offset += 1;
-                continue;
-            }
-            if source_byte.is_ascii_whitespace() {
-                source_offset += 1;
-                continue;
-            }
-            if generated_byte != source_byte {
-                break;
-            }
-            push(generated_offset, source_offset);
-            generated_offset += 1;
-            source_offset += 1;
-            push(generated_offset, source_offset);
-        }
-    }
-    mappings
-}
-
 /// The legacy prop read inserted ahead of a template expression has two distinct
 /// source carriers: the exported binding and the expression itself.
 #[cfg(test)]
@@ -2884,11 +2798,11 @@ mod tests {
 
     use super::{
         generate_bind_value_mappings, generate_default_function_wrapper_mappings,
-        generate_effect_callback_mappings, generate_inline_script_mappings,
-        generate_legacy_prop_read_mappings, generate_server_declaration_mappings,
-        generate_server_token_mappings, generate_server_wrapper_mappings,
-        generate_template_element_runtime_mappings, generate_token_mappings,
-        generate_verbatim_import_mappings, typescript_declaration_annotation_end,
+        generate_inline_script_mappings, generate_legacy_prop_read_mappings,
+        generate_server_declaration_mappings, generate_server_token_mappings,
+        generate_server_wrapper_mappings, generate_template_element_runtime_mappings,
+        generate_token_mappings, generate_verbatim_import_mappings,
+        typescript_declaration_annotation_end,
     };
 
     #[test]
@@ -2918,26 +2832,6 @@ mod tests {
                 mapping.orig_line,
                 mapping.orig_col,
             ) == (1, 7, 1, 8)
-        }));
-    }
-
-    #[test]
-    fn maps_user_effect_callback_after_runtime_lowering() {
-        let source = "<script>\n\t$effect(() => {\n\t\tfoo;\n\t});\n</script>";
-        let generated = "\t$.user_effect(() => {\n\t\tfoo;\n\t});";
-        let mappings = generate_effect_callback_mappings(generated, source);
-
-        assert!(mappings.iter().any(|mapping| {
-            mapping.gen_line == 1
-                && mapping.gen_col == 2
-                && mapping.orig_line == 2
-                && mapping.orig_col == 2
-        }));
-        assert!(mappings.iter().any(|mapping| {
-            mapping.gen_line == 0
-                && mapping.gen_col == 22
-                && mapping.orig_line == 1
-                && mapping.orig_col == 16
         }));
     }
 

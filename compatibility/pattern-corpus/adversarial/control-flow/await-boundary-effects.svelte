@@ -30,4 +30,5 @@
 
 {#await p}{:then v}{v}{/await}
 {#await p then}<i>bare-then</i>{/await}
+{#await p}{:then}{/await}
 <button onclick={() => (p = Promise.reject(new Error('x')))}>{n}</button>
