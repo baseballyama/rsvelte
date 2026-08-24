@@ -18,3 +18,4 @@ minimumReleaseAgeExclude:
   - svelte
   - vite
   - oxlint
+  - '@oxlint/*'
