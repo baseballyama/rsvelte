@@ -483,22 +483,13 @@ fn collect_indent_edits_inner(
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_ref()));
                 if !has_trailing_ws {
                     let last_end = crate::collapse::template_node_span(last).1;
-                    // The `\n{parent_indent}` insert and any synthetic close
-                    // tag for an empty implicitly-closed element are both
-                    // zero-length inserts at `last_end`. We push the newline
-                    // FIRST so it ends up earlier in the vec; the close tag is
-                    // pushed second. When applied in descending-start order the
-                    // close tag insert fires last and lands at the same position
-                    // as the newline (now the position of the newly-inserted
-                    // `\n`), placing `</tag>` BEFORE the `\n`:
-                    //   `<duiv>\n</duiv>\n</div>` — correct layout.
-                    // Note: non-empty implicitly-closed elements (e.g. `<li>a`)
-                    // are handled by `push_close_tag` case 4 in markup.rs
-                    // (replaces trailing whitespace span with `</tag>`), so we
-                    // only insert `</tag>` here for EMPTY elements.
-                    edits.push((last_end, last_end, format!("\n{parent_indent}")));
-                    // Implicitly-closed RegularElement with EMPTY content: insert
-                    // synthetic </tag> (pushed second so it lands before the \n).
+                    // A synthetic close tag for an empty implicitly-closed
+                    // element and the `\n{parent_indent}` separator are both
+                    // zero-length inserts at `last_end`; coincident inserts emit
+                    // in push order, so the close tag goes first:
+                    //   `<duiv>\n</duiv>\n</div>`.
+                    // Non-empty implicitly-closed elements are `push_close_tag`'s
+                    // job in markup.rs, which also pushes before this pass runs.
                     if let TemplateNode::RegularElement(e) = last {
                         let is_implicitly_closed =
                             source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
@@ -509,6 +500,7 @@ fn collect_indent_edits_inner(
                             edits.push((last_end, last_end, format!("</{}>", e.name.as_str())));
                         }
                     }
+                    edits.push((last_end, last_end, format!("\n{parent_indent}")));
                 }
             }
         }
@@ -536,8 +528,15 @@ fn collect_indent_edits_inner(
                     && matches!(&fragment.nodes[last_idx + 1],
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_ref()));
                 if !has_trailing_ws {
-                    let is_implicitly_closed =
-                        source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
+                    // Only the trailing-whitespace shape needs a newline back:
+                    // when the content abuts the parent's close tag markup.rs
+                    // inserts `</tag>` and consumes nothing, so the oracle keeps
+                    // `<ul><li>a</li></ul>` on one line.
+                    let is_implicitly_closed = source
+                        .as_bytes()
+                        .get(e.end as usize - 1)
+                        .copied()
+                        .is_some_and(|b| b.is_ascii_whitespace());
                     let is_nonempty =
                         !e.fragment.nodes.iter().all(
                             |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
@@ -670,39 +669,23 @@ fn recurse_into_children(
             }
         }
         TemplateNode::AwaitBlock(blk) => {
-            // When the pending block is whitespace-only AND there is a then/catch
-            // binding, the expression pass collapses the two headers into one
-            // (`{#await expr then value}`). Skip the pending fragment here so we
-            // don't emit a spurious blank-line edit inside the collapsed region.
-            // `await_pending_is_empty` returns false when pending is None (shorthand form)
-            // and true only when pending is Some but whitespace-only (expanded form to collapse).
-            // Mirror `try_collapse_await_header`'s collapse condition exactly so the
-            // two passes always agree on whether the pending block was collapsed.
-            let pending_collapsed = crate::expression::await_pending_is_empty(blk.pending.as_ref())
-                && ((blk.then.is_some() && blk.value.is_some())
-                    || (blk.catch.is_some() && blk.error.is_some()));
-            // When the pending block has real content but the `then` body is empty
-            // (and there's no catch), the expression pass strips the `{:then …}`
-            // separator entirely. Skip the then-body indent pass so we don't emit
-            // a spurious blank-line edit (`\n\n`) inside the erased region.
-            // Mirror `try_strip_await_then_separator`'s condition exactly.
-            let separator_stripped = !pending_collapsed
-                && blk.pending.is_some()
-                && blk.value.is_some()
-                && blk.catch.is_none()
-                && blk.then.as_ref().is_some_and(|f| {
-                    f.nodes.iter().all(|n| {
-                        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
-                            if crate::is_blank_text(t.data.as_ref()))
-                    })
-                });
-            if !pending_collapsed && let Some(frag) = &blk.pending {
+            // The expression pass erases whatever clauses the oracle drops, so
+            // indenting inside one of those regions would emit a blank-line edit
+            // into text that no longer exists. Both passes read the same plan.
+            let plan = crate::expression::plan_await_block(source, blk);
+            if plan.keep_pending
+                && let Some(frag) = &blk.pending
+            {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
-            if !separator_stripped && let Some(frag) = &blk.then {
+            if plan.keep_then
+                && let Some(frag) = &blk.then
+            {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
-            if let Some(frag) = &blk.catch {
+            if plan.keep_catch
+                && let Some(frag) = &blk.catch
+            {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
         }

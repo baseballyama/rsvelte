@@ -19,11 +19,14 @@
 //! operator branch that upstream resolves to a `STRING` / `NUMBER` / boolean
 //! value set without consulting a binding.
 
+use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingIdentifier, BindingPattern, Program, VariableDeclaration, VariableDeclarationKind,
-    VariableDeclarator,
+    ArrayExpressionElement, BindingIdentifier, BindingPattern, Program, Statement,
+    VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
+use oxc_parser::Parser;
+use oxc_span::SourceType;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
@@ -76,6 +79,47 @@ pub(super) fn args_need_wrap(args: &[Value], analysis: &ComponentAnalysis) -> bo
                 || ctx.evaluate_estree(arg, 0).has_unknown()
         })
     })
+}
+
+/// Upstream's `arguments.some(...)` test applied to an argument list that is
+/// only available as text — the fallback the fragment path takes when oxc
+/// rejects the whole statement.
+///
+/// `Some(verdict)` when the list parses; `None` when it does not, which is the
+/// caller's cue to keep its own heuristic. Parsing the arguments as an array
+/// literal maps them one-to-one onto elements, spreads included, without
+/// needing the statement around them to be well-formed.
+pub(super) fn args_text_need_wrap(
+    args: &str,
+    is_ts: bool,
+    analysis: Option<&ComponentAnalysis>,
+) -> Option<bool> {
+    let source = format!("[{args}]");
+    let source_type = if is_ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &source, source_type).parse();
+    if !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    let oxc_ast::ast::Expression::ArrayExpression(array) = &stmt.expression else {
+        return None;
+    };
+    Some(array.elements.iter().any(|element| {
+        match element {
+            ArrayExpressionElement::SpreadElement(_) => true,
+            ArrayExpressionElement::Elision(_) => true,
+            other => other
+                .as_expression()
+                .is_none_or(|expr| shape_can_be_unknown(expr, analysis, None)),
+        }
+    }))
 }
 
 /// The generated program's own `const` declarations, indexed by name.
