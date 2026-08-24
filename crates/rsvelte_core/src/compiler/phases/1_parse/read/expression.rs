@@ -1741,7 +1741,11 @@ pub fn parse_expression_with_end<'a>(
 /// where it stopped consuming tokens, which corresponds to the *end* of the
 /// problematic region, not its start.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
-    let wrapped = wrap_for_parse("(", content, ")");
+    let mut wrapped = String::with_capacity(content.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
@@ -1925,7 +1929,11 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     // the first error label lands on the first leftover token. (Parsing the bare
     // string as a program is unreliable: OXC's statement-level error recovery
     // folds trailing tokens into one recovered node, hiding the boundary.)
-    let wrapped = wrap_for_parse("(", content, ")");
+    let mut wrapped = String::with_capacity(content.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
@@ -6942,7 +6950,7 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 /// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
 /// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
 /// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
-const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
     "1015", // A parameter cannot have a question mark and an initializer
     "1016", // A required parameter cannot follow an optional parameter
     "1021", // An index signature must have a type annotation
@@ -6952,6 +6960,8 @@ const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
     "1093", // Type annotation cannot appear on a constructor declaration
     "1094", // An accessor cannot have type parameters
     "1095", // A 'set' accessor cannot have a return type annotation
+    "1147", // Import declarations in a namespace cannot reference a module
+    "1194", // Export declarations are not permitted in a namespace
     "1221", // Generators are not allowed in an ambient context
     "1222", // An overload signature cannot be declared as a generator
     "1263", // Declarations with initializers cannot also have definite assignment assertions
@@ -7085,6 +7095,7 @@ fn acorn_only_violation(
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        export_declare_global_at: Option<u32>,
         check_ts_modifier: bool,
         content: &'c str,
         ts_modifier_at: Option<u32>,
@@ -7112,6 +7123,16 @@ fn acorn_only_violation(
                 self.with_at = Some(stmt.span.start);
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
+        }
+        // `export declare global { … }`: acorn wants an ambient declaration after
+        // `export declare`, and a global augmentation is not one.
+        fn visit_export_declaration(&mut self, export: &oxc_ast::ast::ExportDeclaration<'a>) {
+            if let oxc_ast::ast::Declaration::TSGlobalDeclaration(global) = &export.declaration
+                && self.export_declare_global_at.is_none()
+            {
+                self.export_declare_global_at = Some(global.span.start);
+            }
+            oxc_ast_visit::walk::walk_export_declaration(self, export);
         }
         fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
             self.record_ts_modifier(
@@ -7148,11 +7169,15 @@ fn acorn_only_violation(
         check_decorator,
         decorator_at: None,
         with_at: None,
+        export_declare_global_at: None,
         check_ts_modifier,
         content,
         ts_modifier_at: None,
     };
-    if check_decorator || check_with || check_ts_modifier {
+    // The TypeScript-only rule below needs a token that is cheap to rule out, so
+    // a plain-JS script keeps the walk it had.
+    let check_ts_acorn = is_typescript && content.contains("global");
+    if check_decorator || check_with || check_ts_modifier || check_ts_acorn {
         finder.visit_program(program);
     }
 
@@ -7164,6 +7189,12 @@ fn acorn_only_violation(
             (
                 at,
                 "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error".to_string(),
+            )
+        }),
+        finder.export_declare_global_at.map(|at| {
+            (
+                at,
+                "'export declare' must be followed by an ambient declaration.".to_string(),
             )
         }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
@@ -8527,15 +8558,9 @@ fn convert_statement_for_program(
                 line_offsets,
             ))
         }
-        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => {
-            Some(convert_ts_module_declaration_as_node(
-                arena,
-                module_decl.span,
-                ts_namespace_block(&module_decl.body),
-                offset,
-                line_offsets,
-            ))
-        }
+        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => Some(
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets),
+        ),
         oxc_ast::ast::Statement::TSGlobalDeclaration(module_decl) => {
             Some(convert_ts_module_declaration_as_node(
                 arena,
@@ -8551,14 +8576,48 @@ fn convert_statement_for_program(
     }
 }
 
-/// The `TSModuleBlock` a namespace body carries, or `None` for the dotted form
-/// (`namespace N.M {}`), which nests another declaration instead of a block.
-fn ts_namespace_block<'a>(
-    body: &'a oxc_ast::ast::TSNamespaceDeclarationBody<'a>,
-) -> Option<&'a oxc_ast::ast::TSModuleBlock<'a>> {
-    match body {
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(block),
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+/// Build the node for a `namespace N { … }` / `module N { … }`.
+///
+/// A dotted name is the source spelling of `namespace N { namespace M { … } }`,
+/// so it is nested here and the strip reaches the innermost body through the
+/// same recursion. Official crashes on the dotted form instead
+/// (`upstream_issues/3568-svelte-dotted-namespace-crash.md`); this is rsvelte's
+/// deliberate reading, pinned by `tests/ts_export_type_only_declaration.rs`.
+fn convert_ts_namespace_as_node(
+    arena: &ParseArena,
+    module_decl: &oxc_ast::ast::TSNamespaceDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    match &module_decl.body {
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(block),
+                offset,
+                line_offsets,
+            )
+        }
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let inner_start = offset + inner.span.start as usize;
+            let inner_end = offset + inner.span.end as usize;
+            let inner_node = convert_ts_namespace_as_node(arena, inner, offset, line_offsets);
+            let body = arena.alloc_js_node(JsNode::BlockStatement {
+                start: inner_start as u32,
+                end: inner_end as u32,
+                loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                body: arena.alloc_js_children(vec![inner_node]),
+            });
+            JsNode::TSModuleDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                body: Some(body),
+            }
+        }
     }
 }
 
@@ -8580,7 +8639,31 @@ fn convert_ts_module_declaration_as_node(
         let block_body: Vec<JsNode> = block
             .body
             .iter()
-            .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+            .filter_map(|stmt| {
+                if let Some(node) = convert_statement_for_program(arena, stmt, offset, line_offsets)
+                {
+                    return Some(node);
+                }
+                // The typed program has no variant for these two (issue #3681), so
+                // `convert_statement_for_program` drops them — but upstream's visitor
+                // leaves both in place, which makes the namespace non-type. Only
+                // these two stand in: most of what it drops (a type alias, say) IS
+                // type-only and must keep stripping to empty.
+                if !matches!(
+                    stmt,
+                    oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)
+                        | oxc_ast::ast::Statement::ExportAllDeclaration(_)
+                ) {
+                    return None;
+                }
+                let start = offset + stmt.span().start as usize;
+                let end = offset + stmt.span().end as usize;
+                Some(JsNode::DebuggerStatement {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                })
+            })
             .collect();
         arena.alloc_js_node(JsNode::BlockStatement {
             start: start as u32,
@@ -8802,13 +8885,9 @@ fn convert_declaration_for_program_as_node(
                 line_offsets,
             )
         }
-        Declaration::TSNamespaceDeclaration(module_decl) => convert_ts_module_declaration_as_node(
-            arena,
-            module_decl.span,
-            ts_namespace_block(&module_decl.body),
-            offset,
-            line_offsets,
-        ),
+        Declaration::TSNamespaceDeclaration(module_decl) => {
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets)
+        }
         Declaration::TSGlobalDeclaration(module_decl) => convert_ts_module_declaration_as_node(
             arena,
             module_decl.span,

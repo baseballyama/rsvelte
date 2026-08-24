@@ -151,6 +151,11 @@ const RATCHETS = [
 		key: 'parse-oracle-excluded.json',
 		jsons: ['parse-oracle-excluded.json'],
 	},
+	{
+		doc: 'parse-ast-known-failures.md',
+		key: 'parse-ast-known-failures.json',
+		jsons: ['parse-ast-known-failures.json'],
+	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', jsons: ['matrix-known-failures.json'] },
 	{ doc: 'dual-run-known-failures.md', key: 'dual-run-known-failures.json', jsons: ['dual-run-known-failures.json'] },
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', jsons: ['validator-known-failures.json'] },
@@ -447,7 +452,10 @@ for (const { doc, key, prefix, label } of PARTITIONS) {
 		fail(`PARTITIONS declares \`${key}\` for ${doc}, which is not a ratchet in RATCHETS`);
 		continue;
 	}
-	const population = prefix ? ids.filter((id) => String(id).startsWith(prefix)) : ids;
+	// A ratchet is an array of ids or an object keyed by them; `Object.keys` on an
+	// array is its indices, so normalise rather than branching at every use.
+	const idList = Array.isArray(ids) ? ids : Object.keys(ids);
+	const population = prefix ? idList.filter((id) => String(id).startsWith(prefix)) : idList;
 	const matches = partitionLines(fs.readFileSync(docPath, 'utf8')).filter(
 		(p) => p.key === key && (p.prefix ?? undefined) === prefix && p.label === label,
 	);

@@ -1123,7 +1123,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Slots can only be declared in the instance script"
+            "$$Slots can only be declared in the instance script"
         );
     }
 
@@ -1133,7 +1133,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Slots can only be declared in the instance script"
+            "$$Slots can only be declared in the instance script"
         );
     }
 
@@ -1144,7 +1144,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Props can only be declared in the instance script"
+            "$$Props can only be declared in the instance script"
         );
     }
 
@@ -1155,7 +1155,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Props can only be declared in the instance script"
+            "$$Props can only be declared in the instance script"
         );
     }
 
@@ -1165,7 +1165,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Events can only be declared in the instance script"
+            "$$Events can only be declared in the instance script"
         );
     }
 
@@ -1176,7 +1176,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Events can only be declared in the instance script"
+            "$$Events can only be declared in the instance script"
         );
     }
 
@@ -1188,7 +1188,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Props can only be declared in the instance script"
+            "$$Props can only be declared in the instance script"
         );
     }
 

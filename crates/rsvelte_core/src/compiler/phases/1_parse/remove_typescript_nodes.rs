@@ -372,39 +372,36 @@ fn strip_export_named_declaration_typed(
         return Ok(());
     }
 
-    // If the declaration is already an EmptyStatement, the whole export is empty.
-    if let Some(decl_id) = declaration
-        && arena.get_js_node(decl_id).node_type() == Some("EmptyStatement")
-    {
-        *node = typed_empty_statement(node);
+    // Upstream visits the declaration BEFORE deciding, so an export whose
+    // declaration only becomes empty during the visit (`export namespace N { … }`)
+    // is emptied too; leaving it makes the export count as a component export.
+    if let Some(decl_id) = declaration {
+        recurse_node_id(decl_id, arena)?;
+        if arena.get_js_node(decl_id).node_type() == Some("EmptyStatement") {
+            *node = typed_empty_statement(node);
+        }
         return Ok(());
     }
 
-    // Filter type-only specifiers.
-    if !spec_range.is_empty() {
-        let specs = arena.get_js_children(spec_range);
-        let any_type = specs.iter().any(specifier_export_kind_is_type);
-        if any_type {
-            let kept: Vec<JsNode> = specs
-                .iter()
-                .filter(|s| !specifier_export_kind_is_type(s))
-                .cloned()
-                .collect();
-            if kept.is_empty() {
-                *node = typed_empty_statement(node);
-                return Ok(());
-            }
-            let new_range = arena.alloc_js_children(kept);
-            if let JsNode::ExportNamedDeclaration { specifiers, .. } = node {
-                *specifiers = new_range;
-            }
+    // An export left with no specifiers — including one written with none
+    // (`export {}`) — is empty, mirroring `if (specifiers.length === 0)`.
+    let specs = arena.get_js_children(spec_range);
+    if specs.iter().all(specifier_export_kind_is_type) {
+        *node = typed_empty_statement(node);
+        return Ok(());
+    }
+    if specs.iter().any(specifier_export_kind_is_type) {
+        let kept: Vec<JsNode> = specs
+            .iter()
+            .filter(|s| !specifier_export_kind_is_type(s))
+            .cloned()
+            .collect();
+        let new_range = arena.alloc_js_children(kept);
+        if let JsNode::ExportNamedDeclaration { specifiers, .. } = node {
+            *specifiers = new_range;
         }
     }
 
-    // Recurse into the declaration (e.g. `export interface Foo`).
-    if let Some(decl_id) = declaration {
-        recurse_node_id(decl_id, arena)?;
-    }
     Ok(())
 }
 

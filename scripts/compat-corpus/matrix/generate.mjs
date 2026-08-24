@@ -621,7 +621,7 @@ export const FAMILIES = {
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
 	'write-host': writeHostCases,
-	'tag-name': tagNameCases,
+	'keyword-separator': keywordSeparatorCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

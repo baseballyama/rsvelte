@@ -6,7 +6,9 @@ use std::fmt::Write as _;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    after_keywords, code_bytes, skip_opaque,
+};
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
 };
@@ -1066,10 +1068,13 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     // Pattern: `export let name = value;` / `export var name = value;` / `export let name;`
     // Upstream keeps the source declaration keyword (`export var` → `var`),
     // rewriting only the initializer to `$.prop(...)`.
-    let kw = if trimmed.starts_with("export let ") {
-        "let"
-    } else if trimmed.starts_with("export var ") {
-        "var"
+    // The separator between `export` and the declaration keyword is any run of
+    // JS whitespace, not the single ASCII space a literal needle bakes in
+    // (#3470).
+    let (kw, declarator_at) = if let Some(at) = after_keywords(trimmed, &["export", "let"]) {
+        ("let", at)
+    } else if let Some(at) = after_keywords(trimmed, &["export", "var"]) {
+        ("var", at)
     } else {
         return line.to_string();
     };
@@ -1113,7 +1118,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
     // Extract the declaration body after `export let ` / `export var `.
     // `trimmed` already points past any leading block comment.
-    let rest_raw = trimmed[11..].trim(); // After "export let " / "export var "
+    let rest_raw = trimmed[declarator_at..].trim();
 
     // Strip trailing `// line comment` and `/* block comment */` from the declaration
     // text BEFORE splitting declarators.  Without this, a declaration like:

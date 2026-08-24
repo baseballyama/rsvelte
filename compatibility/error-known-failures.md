@@ -102,8 +102,8 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-message-known-failures.client-dev.json` holds 11 entries;
 `error-message-known-failures.server.json` holds 10 entries; and
 `error-message-known-failures.server-dev.json` holds 10 entries. All four of
-`error-position-known-failures.<target>.json` hold 78 entries, all four of
-`error-end-known-failures.<target>.json` hold 98 entries, and all four of
+`error-position-known-failures.<target>.json` hold 72 entries, all four of
+`error-end-known-failures.<target>.json` hold 86 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
@@ -115,6 +115,11 @@ measured on. Almost every
 compile error is raised in Phase 1/2, before the target is consulted, so a
 divergence shows up on all four targets at once. Expect the sixteen files to move
 together in a burn-down PR.
+
+The malformed-markup position pass then retired 6 position and 12 end entries
+per target. The detailed shape partitions below remain the measured snapshot
+from before that pass; they are historical evidence about the backlog's shape,
+not a decomposition of the current 72/86 files.
 
 The single asymmetry is genuinely target-dependent, which is exactly what the
 split exists to keep visible:
@@ -161,7 +166,7 @@ The codes agree; `start` does not. An editor, a Vite overlay and `rsvelte-check`
 all place the diagnostic from `start`, so a wrong one points the user at the
 wrong code.
 
-By shape (client target, all 92 entries), classified from the run's own
+By shape (client target, 92-entry measurement snapshot), classified from the run's own
 `error.json` records rather than by subtracting from the previous baseline:
 
 - **29 — rsvelte reports no span at all.** The raising site constructs
@@ -199,8 +204,8 @@ code. The canonical shape is `<div a="1" a="2">`, where `attribute_duplicate`
 reports `position: [11, 12]` against upstream's `[11, 16]` — the right start, one
 character of highlight instead of the whole attribute.
 
-Partition of `error-end-known-failures.<target>.json` by shape: `26 + 47 + 25`
-(client target, classified from the run's own `error.json` records):
+Partition of the measured error-end snapshot by shape (client target,
+classified from the run's own `error.json` records):
 
 - **29 — rsvelte reports no `end` at all.** The same `validation(...)` vs
   `validation_at(...)` raising sites the `start` ratchet's no-span cluster names;

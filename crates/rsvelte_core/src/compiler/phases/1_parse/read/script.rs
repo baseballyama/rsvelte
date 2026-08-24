@@ -188,26 +188,23 @@ impl<'a> Parser<'a> {
             }
             self.eat_optional(">"); // consume '>'
         } else if self.is_eof() {
-            // Script tag was not closed - check if there's actual content
-            // If there's HTML content in the script, it's element_unclosed
-            // If it's empty/only whitespace at EOF, it's unexpected_eof
-            let has_html_content = script_content.contains('<') || script_content.contains('{');
-            if has_html_content {
-                // Upstream reports at `template.length`, and its template is
-                // right-trimmed.
-                let at = self.content_end;
-                return Err(crate::error::ParseError::svelte(
-                    "element_unclosed",
-                    "`<script>` was left open",
-                    (at, at),
-                ));
-            } else {
+            // Upstream's `read_until` throws when it is *entered* at the end of
+            // the right-trimmed template — an empty body — while a body that ran
+            // out of input before `</script>` is the tag left open. Either way
+            // the point is the trimmed end, not the file's.
+            let at = self.content_end;
+            if content_start >= self.content_end {
                 return Err(crate::error::ParseError::svelte(
                     "unexpected_eof",
                     "Unexpected end of input",
-                    (self.index, self.index),
+                    (at, at),
                 ));
             }
+            return Err(crate::error::ParseError::svelte(
+                "element_unclosed",
+                "`<script>` was left open",
+                (at, at),
+            ));
         }
 
         let end = self.index;

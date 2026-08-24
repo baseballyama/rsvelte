@@ -1043,3 +1043,35 @@ Read the `.md` before trusting the headline: of 118 units, 24 are compared only
 as "both backends reject", so the population that actually reaches a CSS
 comparison is 94. Both backends are version-pinned (`sass` 1.102.0, `grass`
 0.13.4) so the ratchet is reproducible; bumping either is expected to move it.
+
+## Public `parse()` AST parity (`parse-ast-verify.mjs`)
+
+`parse()` is a separate documented export of `svelte/compiler` from `compile()`,
+and it is what svelte2tsx, `eslint-plugin-svelte` and an editor integration read.
+Nothing compared its return value to official's until this gate (#3389) — the
+corpus gates compare `compile()` output, and the svelte2tsx / lint gates consume
+rsvelte's own AST without ever diffing it against upstream's.
+
+Every `.svelte` manifest entry is parsed by both compilers on three axes —
+`modern` (`{ modern: true }`), `legacy` (no options, i.e. the default shape) and
+`loose` (seven inline sources official rejects unless `loose` is set) — and the
+two results are compared after a `JSON.parse(JSON.stringify(...))` round-trip on
+both sides. The round-trip is load-bearing twice over: rsvelte's NAPI `parse`
+returns a JSON *string* where official returns an object, and official's modern
+AST keeps `EachBlock.index` / `EachBlock.key` / `SnippetBlock.typeParams` as
+present-but-`undefined` keys that no consumer of the JSON boundary can observe.
+
+```bash
+cargo build --release -p rsvelte_napi --lib
+node scripts/compat-corpus/binding.mjs --stage
+node scripts/compat-corpus/collect.mjs
+pnpm run corpus:parse-ast                 # gate (~50s, 28k compared pairs)
+pnpm run corpus:parse-ast -- --report-only # every divergence, no ratchet check
+pnpm run corpus:parse-ast:update           # re-baseline (full runs only)
+```
+
+The ratchet key is a **field, not a file**: `<axis>::<NodeType>.<field>#<kind>`.
+Read `compatibility/parse-ast-known-failures.md` for why — per-entry keys are a
+five-figure file that churns on every submodule bump, and per-divergent-path-set
+keys multiply independent defects into 472 classes over 4,468 files. Entry counts
+are printed but deliberately not ratcheted, because they track corpus size.

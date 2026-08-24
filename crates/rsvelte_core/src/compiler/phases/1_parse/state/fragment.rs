@@ -143,11 +143,15 @@ impl<'a> Parser<'a> {
         // block. `parse_fragment` stops on `{/...}` without consuming it, so any
         // leftover close marker here is an error in strict mode. (Comments
         // `{/*`, `{//` are not close markers.)
-        if !self.options.loose && self.match_block_close_marker().is_some() {
+        if !self.options.loose
+            && let Some(slash_pos) = self.match_block_close_marker()
+        {
+            // Upstream `close()` reports at `parser.index - 1` — the `/` it just
+            // ate, not the `{`.
             return Err(crate::error::ParseError::svelte(
                 "block_unexpected_close",
                 "Unexpected block closing tag",
-                (self.index, self.index + 1),
+                (slash_pos, slash_pos),
             ));
         }
 
@@ -186,44 +190,9 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Calculate end position - consider fragment nodes, script, and style
-        let fragment_end = fragment
-            .nodes
-            .last()
-            .map(|node| match node {
-                TemplateNode::Text(t) => t.end,
-                TemplateNode::Comment(c) => c.end,
-                TemplateNode::ExpressionTag(e) => e.end,
-                TemplateNode::HtmlTag(h) => h.end,
-                TemplateNode::ConstTag(c) => c.end,
-                TemplateNode::DeclarationTag(d) => d.end,
-                TemplateNode::DebugTag(d) => d.end,
-                TemplateNode::RenderTag(r) => r.end,
-                TemplateNode::AttachTag(a) => a.end,
-                TemplateNode::IfBlock(b) => b.end,
-                TemplateNode::EachBlock(b) => b.end,
-                TemplateNode::AwaitBlock(b) => b.end,
-                TemplateNode::KeyBlock(b) => b.end,
-                TemplateNode::SnippetBlock(b) => b.end,
-                TemplateNode::RegularElement(e) => e.end,
-                TemplateNode::Component(c) => c.end,
-                TemplateNode::TitleElement(t) => t.end,
-                TemplateNode::SlotElement(s) => s.end,
-                TemplateNode::SvelteBody(s)
-                | TemplateNode::SvelteDocument(s)
-                | TemplateNode::SvelteFragment(s)
-                | TemplateNode::SvelteBoundary(s)
-                | TemplateNode::SvelteHead(s)
-                | TemplateNode::SvelteOptions(s)
-                | TemplateNode::SvelteSelf(s)
-                | TemplateNode::SvelteWindow(s) => s.end,
-                TemplateNode::SvelteComponent(c) => c.end,
-                TemplateNode::SvelteElement(e) => e.end,
-            })
-            .unwrap_or(0);
-
-        // End is the maximum of fragment end, script end, and style end
-        let end = fragment_end.max(max_special_end);
+        // Upstream parses `template.trimEnd()` but sets `this.root.end =
+        // template.length` on the UNTRIMMED source (`phases/1-parse/index.js`).
+        let end = self.source.len() as u32;
 
         Ok(Root {
             css: self.stylesheet.take().map(Box::new),
@@ -453,7 +422,9 @@ impl<'a> Parser<'a> {
                 // Block continuation tags like {:else}, {:then}, {:catch} are only valid
                 // within IfBlock, EachBlock, or AwaitBlock contexts
                 if is_block_continuation {
-                    let cont_start = self.index;
+                    // Upstream `next()` reports at `parser.index - 1` — the `:`
+                    // it just ate, not the `{`.
+                    let cont_start = self.match_block_continuation_marker().unwrap_or(self.index);
                     // Get the current context from the stack
                     let current_context = self.stack.last();
                     let is_valid_continuation_context = matches!(

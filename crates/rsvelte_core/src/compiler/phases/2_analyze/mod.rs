@@ -3623,6 +3623,25 @@ fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<S
     }
 }
 
+/// Collect the `$`-prefixed names a single block-level statement declares.
+/// Only the binding slot matters: the initializer is walked by the caller.
+fn collect_dollar_declared_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match node {
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for decl in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator { id, .. } = decl {
+                    collect_dollar_param_names(arena.get_js_node(*id), arena, out);
+                }
+            }
+        }
+        JsNode::FunctionDeclaration { id: Some(id), .. }
+        | JsNode::ClassDeclaration { id: Some(id), .. } => {
+            collect_dollar_param_names(arena.get_js_node(*id), arena, out);
+        }
+        _ => {}
+    }
+}
+
 /// Call `f` once for every direct child of `node`.
 ///
 /// This is the single place that knows what the children of each `JsNode`
@@ -4025,25 +4044,31 @@ fn js_node_check_features(
                 | JsNode::FunctionDeclaration { .. }
         );
 
-    // Shadow-aware rune detection: `$`-prefixed function parameters (e.g.
-    // `function bar($derived, $effect) {}`) shadow the rune names inside the
-    // function, mirroring upstream where such references resolve to the
-    // parameter binding and never reach `module.scope.references` (the set
-    // runes-mode detection is computed from).
+    // Shadow-aware rune detection: a `$`-prefixed name declared in an enclosing
+    // scope (a function parameter, a `catch` parameter, or a block-scoped
+    // declaration) shadows the rune inside it, mirroring upstream where such a
+    // reference resolves to that binding and stops bubbling before
+    // `module.scope.references` — the set runes-mode detection is computed from.
+    // Only nested scopes are collected: a script's own top level declares into
+    // the module/instance scope, which `validate_identifier_name` rejects first.
     let shadow_base = shadowed.len();
-    if let JsNode::FunctionDeclaration { params, .. }
-    | JsNode::FunctionExpression { params, .. }
-    | JsNode::ArrowFunctionExpression { params, .. } = node
-    {
-        for param in arena.get_js_children(*params) {
-            collect_dollar_param_names(param, arena, shadowed);
+    match node {
+        JsNode::FunctionDeclaration { params, .. }
+        | JsNode::FunctionExpression { params, .. }
+        | JsNode::ArrowFunctionExpression { params, .. } => {
+            for param in arena.get_js_children(*params) {
+                collect_dollar_param_names(param, arena, shadowed);
+            }
         }
-    }
-    if let JsNode::CatchClause {
-        param: Some(param), ..
-    } = node
-    {
-        collect_dollar_param_names(arena.get_js_node(*param), arena, shadowed);
+        JsNode::CatchClause {
+            param: Some(param), ..
+        } => collect_dollar_param_names(arena.get_js_node(*param), arena, shadowed),
+        JsNode::BlockStatement { body, .. } | JsNode::StaticBlock { body, .. } => {
+            for stmt in arena.get_js_children(*body) {
+                collect_dollar_declared_names(stmt, arena, shadowed);
+            }
+        }
+        _ => {}
     }
 
     for_each_js_reference_child(node, arena, &mut |child| {

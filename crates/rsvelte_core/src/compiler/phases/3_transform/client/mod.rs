@@ -96,7 +96,7 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    find_code, is_ident_byte, skip_opaque,
+    after_keyword, after_keywords, contains_identifier, find_rune_code, is_ident_byte, skip_opaque,
 };
 use compact_str::CompactString;
 use memchr::memmem;
@@ -4718,7 +4718,7 @@ fn transform_module_script_runes_with_target(
     // intact, so the non-dev removal stays. `find_code` rather than a plain
     // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
             let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
@@ -4742,7 +4742,7 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
@@ -4943,7 +4943,7 @@ fn transform_module_script_runes_with_target(
     // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
     // that sits in a string / template / regex / comment untouched, and this
     // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -5072,7 +5072,7 @@ fn transform_module_script_runes_with_target(
     // / regex / comment is text. Matching it either rewrote the literal (#2988)
     // or aborted the loop on its unbalanced parens, leaving the real rune call
     // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
@@ -5918,7 +5918,7 @@ fn transform_instance_script_for_visitors(
 
     // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
-    let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
+    let has_export = contains_identifier(script, "export");
     let has_comma_decl = split_top_level_declarations;
     if !has_dollar
         && !has_export
@@ -5997,7 +5997,7 @@ fn transform_instance_script_for_visitors(
     };
 
     // Transform class fields only if the script contains class definitions with runes
-    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b"class ").is_some()
+    let script: std::borrow::Cow<str> = if contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
@@ -6014,7 +6014,7 @@ fn transform_instance_script_for_visitors(
     };
 
     // Split comma-separated variable declarations only if needed
-    let class_transform_can_add_declarations = memmem::find(script.as_bytes(), b"class ").is_some()
+    let class_transform_can_add_declarations = contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some());
     let split = if split_top_level_declarations
@@ -6388,18 +6388,16 @@ fn transform_instance_script_for_visitors(
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
     // The per-line walk can only succeed where the substring exists.
-    let has_legacy_export_let =
-        (memmem::find(script_rest.as_bytes(), b"export let").is_some() && {
-            super::profile::record_st_collect_scan(script_rest.len() as u64);
-            script_rest.lines().any(|line| {
-                let trimmed = line.trim();
-                trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-            })
-        }) || analysis
-            .root
-            .bindings
-            .iter()
-            .any(|b| matches!(b.kind, BindingKind::BindableProp));
+    let has_legacy_export_let = (memmem::find(script_rest.as_bytes(), b"export").is_some() && {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+        script_rest
+            .lines()
+            .any(|line| after_keywords(line.trim(), &["export", "let"]).is_some())
+    }) || analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| matches!(b.kind, BindingKind::BindableProp));
 
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
@@ -6966,36 +6964,27 @@ fn transform_instance_script_for_visitors(
                 super::profile::PA_EXPORT_KW_PROBE,
                 statement.len() as u64,
             );
-            let mut s = first_line_trimmed;
+            // The keyword and the declaration it exports need not share a
+            // physical line, so this reads the joined statement.
+            let mut s: &str = statement.trim();
             while s.starts_with("/*") {
                 if let Some(end) = s.find("*/") {
                     s = s[end + 2..].trim_start();
                 } else {
-                    // Unclosed block comment — scan across accumulated lines
-                    let full = statement.as_str();
-                    let mut t: &str = full.trim();
-                    while t.starts_with("/*") {
-                        if let Some(e) = t.find("*/") {
-                            t = t[e + 2..].trim_start();
-                        } else {
-                            t = "";
-                            break;
-                        }
-                    }
-                    s = t;
+                    s = "";
                     break;
                 }
             }
             s
         };
-        if has_legacy_export_let
-            && (effective_export_kw_line.starts_with("export let ")
-                || effective_export_kw_line.starts_with("export var "))
-        {
+        let export_prop_declarator_at =
+            after_keywords(effective_export_kw_line, &["export", "let"])
+                .or_else(|| after_keywords(effective_export_kw_line, &["export", "var"]));
+        if has_legacy_export_let && let Some(declarator_at) = export_prop_declarator_at {
             let _pa =
                 super::profile::pa_guard(super::profile::PA_EXPORT_LET, statement.len() as u64);
             // Check if this is a destructured export let pattern
-            let after_export_let = effective_export_kw_line[11..].trim();
+            let after_export_let = effective_export_kw_line[declarator_at..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
                 let _pa_sub = super::profile::pa_guard(
                     super::profile::PA_EL_DESTRUCTURED,
@@ -7133,21 +7122,25 @@ fn transform_instance_script_for_visitors(
         let statement = {
             let _pa =
                 super::profile::pa_guard(super::profile::PA_EXPORT_STRIP, statement.len() as u64);
-            if first_line_trimmed.starts_with("export function ")
-                || first_line_trimmed.starts_with("export const ")
-                || first_line_trimmed.starts_with("export class ")
-                || first_line_trimmed.starts_with("export var ")
-                || first_line_trimmed.starts_with("export async function ")
-            {
-                // Remove the "export " prefix from the first line
-                if let Some(pos) = memmem::find(statement.as_bytes(), b"export ") {
-                    let mut s = String::with_capacity(statement.len() - 7);
-                    s.push_str(&statement[..pos]);
-                    s.push_str(&statement[pos + 7..]);
-                    s
-                } else {
-                    statement
-                }
+            // The separator between `export` and what it declares is any run of
+            // JS whitespace, not the single ASCII space a literal needle bakes
+            // in (#3470); an unstripped `export` lands inside the component
+            // function, where no parser accepts it.
+            let head = statement.trim_start();
+            let head_at = statement.len() - head.len();
+            let exported = after_keyword(head, "export").filter(|&at| {
+                let rest = &head[at..];
+                ["function", "const", "class", "var"]
+                    .iter()
+                    .any(|kw| after_keyword(rest, kw).is_some())
+                    || after_keyword(rest, "async")
+                        .is_some_and(|a| after_keyword(&rest[a..], "function").is_some())
+            });
+            if let Some(at) = exported {
+                let mut s = String::with_capacity(statement.len() - at);
+                s.push_str(&statement[..head_at]);
+                s.push_str(&head[at..]);
+                s
             } else {
                 statement
             }
