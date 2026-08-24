@@ -273,8 +273,8 @@ fn a_derived_field_written_at_a_constructor_root_matches_official() {
             "$.update_pre(this.#d, -1);",
             "$.set(this.#d, $.get(this.#d) & 5);",
             "$.set(this.#d, $.get(this.#d) >>> 5);",
-            "$.set(this.#d, $.get(this.#d) ?? 5);",
-            "$.set(this.#d, $.get(this.#d) || 5);",
+            "$.get(this.#d) ?? $.set(this.#d, 5);",
+            "$.get(this.#d) || $.set(this.#d, 5);",
             "$.set(this.#d, 3);",
             "log($.get(this.#d));",
         ] {

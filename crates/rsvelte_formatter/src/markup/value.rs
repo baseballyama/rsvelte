@@ -402,6 +402,7 @@ pub(super) fn render_attribute_node(
     options: &FormatOptions,
     attr_depth: usize,
     narrow_value: bool,
+    regular_element: bool,
 ) -> Result<String, FormatError> {
     let tw = tab_width(options);
     match &node.value {
@@ -427,6 +428,13 @@ pub(super) fn render_attribute_node(
             render_single_expression_value(node, inner_src, options, attr_depth, narrow_value)
         }
         AttributeValue::Sequence(parts) => {
+            // prettier-plugin-svelte collapses whitespace runs inside a `class`
+            // value, but only on a regular element.
+            let normalized = (regular_element && node.name.as_str() == "class")
+                .then(|| super::class_value::normalized_class_parts(parts))
+                .flatten();
+            let parts: &[AttributeValuePart] = normalized.as_deref().unwrap_or(parts);
+
             // Tailwind class sort: a fully static value (no `{expr}`) of a
             // configured class attribute is reordered before printing. Values
             // with interpolation are left to the normal path — their class list
