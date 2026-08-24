@@ -62,8 +62,7 @@ fn main() {
             generate,
             dev,
             runes,
-            filename,
-            custom_element,
+            filename: Some(path.clone()),
             ..Default::default()
         },
     ) {

@@ -159,7 +159,7 @@ const ACCEPTED: &[&str] = &[
     "{#each arr as { a /*c*/ }}{a}{/each}",
     "{#each arr /*c*/ as x}{x}{/each}",
     "{#each arr\n as \n x \n, \n i \n (x)\n}{x}{/each}",
-    "{#each arr as const as item}{item}{/each}",
+    "<script lang=\"ts\"></script>{#each arr as const as item}{item}{/each}",
     "{#await p then v}{v}{/await}",
     "{#await p then [a]}{a}{/await}",
     "{#await p then }w{/await}",

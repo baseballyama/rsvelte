@@ -77,14 +77,20 @@ fn a_top_level_at_rule_maps_its_own_prelude() {
         code,
         "\n\t@media (min-width: 1px) { .a.svelte-70s02x { color: red } }\n"
     );
-    assert_eq!(mappings, ";AAEA,CAAC,wBAAwB,EAAE,gBAAE,CAAC,EAAE,WAAW,CAAC;");
+    assert_eq!(
+        mappings,
+        ";AAEA,CAAC,wBAAwB,EAAE,gBAAE,CAAC,EAAE,WAAW,CAAC;"
+    );
 
     let (code, mappings) = css(&component("@supports (color: red) { .a { color: red } }"));
     assert_eq!(
         code,
         "\n\t@supports (color: red) { .a.svelte-70s02x { color: red } }\n"
     );
-    assert_eq!(mappings, ";AAEA,CAAC,uBAAuB,EAAE,gBAAE,CAAC,EAAE,WAAW,CAAC;");
+    assert_eq!(
+        mappings,
+        ";AAEA,CAAC,uBAAuB,EAAE,gBAAE,CAAC,EAAE,WAAW,CAAC;"
+    );
 }
 
 #[test]

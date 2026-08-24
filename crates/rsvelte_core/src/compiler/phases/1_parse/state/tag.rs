@@ -22,8 +22,17 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_reg
 use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
 
-use super::super::parser::{Parser, StackEntry, is_js_whitespace, is_js_whitespace_byte};
+use super::super::parser::{Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
+
+fn leftover_token_offset(content: &str, ts: bool) -> Option<usize> {
+    super::super::read::expression::trailing_token_offset(content, ts).filter(|&off| {
+        off > 0
+            && content.get(..off).is_some_and(|prefix| {
+                super::super::read::expression::check_js_parse_error_with_pos(prefix, ts).is_none()
+            })
+    })
+}
 
 /// A `{:…}` continuation clause.
 ///
@@ -44,15 +53,7 @@ pub(crate) enum Clause {
     // `expect` rather than `allow`: the `{#await}` clause loop reads these arms
     // as soon as its duplicate check lands, and an unfulfilled `expect` is a
     // compile error — so the placeholder cannot outlive its reason.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the {#await} clause loop constructs these")
-    )]
     Then,
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the {#await} clause loop constructs these")
-    )]
     Catch,
 }
 
@@ -78,10 +79,7 @@ impl Clause {
     fn duplicate_error(self, at: usize) -> crate::error::ParseError {
         crate::error::ParseError::svelte(
             "block_duplicate_clause",
-            format!(
-                "{} cannot appear more than once within a block\nhttps://svelte.dev/e/block_duplicate_clause",
-                self.tag()
-            ),
+            format!("{} cannot appear more than once within a block", self.tag()),
             (at, at),
         )
     }
@@ -1248,9 +1246,10 @@ impl<'a> Parser<'a> {
             // Parse body fragment
             let body = self.parse_fragment()?;
 
-            // Check for {:else}
+            // Check for {:else}. Upstream replaces the fallback when another
+            // {:else} follows it, so keep consuming continuation clauses.
             let mut fallback = None;
-            if let Some(colon_pos) = self.match_block_continuation_marker() {
+            while let Some(colon_pos) = self.match_block_continuation_marker() {
                 self.index = colon_pos + 1;
                 self.skip_whitespace();
                 if self.eat_optional("else") {
@@ -1482,8 +1481,9 @@ impl<'a> Parser<'a> {
         // Parse body
         let body = self.parse_fragment()?;
 
+        // Like `{#if}`, a repeated `{:else}` replaces the earlier fallback.
         let mut fallback = None;
-        if let Some(colon_pos) = self.match_block_continuation_marker() {
+        while let Some(colon_pos) = self.match_block_continuation_marker() {
             self.index = colon_pos + 1;
             self.skip_whitespace();
             if self.eat_optional("else") {
@@ -1555,15 +1555,6 @@ impl<'a> Parser<'a> {
             offset,
             self.expression_line_offsets(),
             self.ts,
-        )
-    }
-
-    /// Upstream anchors this at the `:` of the continuation marker, not the `{`.
-    fn block_duplicate_clause(colon_pos: usize, name: &str) -> crate::error::ParseError {
-        crate::error::ParseError::svelte(
-            "block_duplicate_clause",
-            format!("{name} cannot appear more than once within a block"),
-            (colon_pos, colon_pos),
         )
     }
 
@@ -1786,7 +1777,7 @@ impl<'a> Parser<'a> {
         // to avoid find_matching_bracket finding the block's closing }
         let head = trimmed_content.trim_ws();
         let expression =
-            if let Some(lazy) = self.defer_expression(head, adjusted_start, LazyKind::HeadBrace) {
+            if let Some(lazy) = self.defer_expression(head, adjusted_start, LazyKind::AwaitHead) {
                 lazy
             } else {
                 match super::super::expression::parse_expression_with_end(
@@ -1816,6 +1807,7 @@ impl<'a> Parser<'a> {
                             head,
                             adjusted_start,
                             '}',
+                            self.ts,
                         ));
                     }
                 }
@@ -1875,8 +1867,11 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
 
             if self.eat_optional("then") {
-                if !self.options.loose && then_fragment.is_some() {
-                    return Err(Self::block_duplicate_clause(colon_pos, "{:then}"));
+                if !self.options.loose
+                    && Clause::Then.duplicate_is_error()
+                    && then_fragment.is_some()
+                {
+                    return Err(Clause::Then.duplicate_error(colon_pos));
                 }
                 // Upstream eats `}` before requiring the separator, so `{:then}`
                 // stays legal while `{:thenv}` is not.
@@ -1889,8 +1884,11 @@ impl<'a> Parser<'a> {
 
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
-                if !self.options.loose && catch_fragment.is_some() {
-                    return Err(Self::block_duplicate_clause(colon_pos, "{:catch}"));
+                if !self.options.loose
+                    && Clause::Catch.duplicate_is_error()
+                    && catch_fragment.is_some()
+                {
+                    return Err(Clause::Catch.duplicate_error(colon_pos));
                 }
                 if !self.match_str("}") {
                     self.require_whitespace()?;
@@ -2263,10 +2261,8 @@ impl<'a> Parser<'a> {
                 // the call test would otherwise report as a semantic error.
                 // The retry runs only on the failing path, so a well-formed
                 // render tag still costs one parse.
-                let leading_ws = expr_content.len() - expr_content.trim_start_ws().len();
-                let offset = expr_start + leading_ws;
-                let trimmed = expr_content.trim_ws();
-                let expression = self.parse_head_expression(trimmed, expr_start, false, '}')?;
+                let (expression, leftover) =
+                    self.parse_head_expression_split(expr_content, expr_start, false, '}', false)?;
 
                 // Upstream rejects anything but a call (optionally chained) here:
                 // `new foo()` and `foo` are parse errors, `foo?.()` is not.
@@ -2278,6 +2274,10 @@ impl<'a> Parser<'a> {
                         "`{@render ...}` tags can only contain call expressions\nhttps://svelte.dev/e/render_tag_invalid_expression",
                         (err_start, err_end),
                     ));
+                }
+
+                if let Some(err) = leftover {
+                    return Err(err);
                 }
 
                 Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {
@@ -2397,18 +2397,30 @@ impl<'a> Parser<'a> {
                                 )?,
                             }
                         } else {
-                            self.parse_js_expression_eager_strict(&pattern_clean, expr_start)?
+                            // A plain-identifier pattern goes through upstream's
+                            // `read_identifier`, not acorn, so its `loc` carries
+                            // `character`; only destructuring falls through.
+                            super::super::read::expression::with_read_identifier_loc(
+                                self.parse_js_expression_eager_strict(&pattern_clean, expr_start)?,
+                                self.expression_line_offsets(),
+                            )
                         };
 
                     // Calculate the offset for the init expression in the
                     // original source.  `trimmed` starts at `expr_start` in
                     // the source, and `eq_idx` is the position of `=` within
                     // `trimmed`.
-                    let init_offset = expr_start
-                        + eq_idx
-                        + 1
-                        + (trimmed[eq_idx + 1..].len()
-                            - trimmed[eq_idx + 1..].trim_start_ws().len());
+                    let init_offset = if init_str.is_empty() {
+                        // `read_expression` starts after `allow_whitespace`, at
+                        // the closing brace when the initializer is empty.
+                        expr_end
+                    } else {
+                        expr_start
+                            + eq_idx
+                            + 1
+                            + (trimmed[eq_idx + 1..].len()
+                                - trimmed[eq_idx + 1..].trim_start_ws().len())
+                    };
                     let init_expr = self.parse_const_initializer(init_str, init_offset)?;
 
                     // Reject a sequence-expression initializer, mirroring
@@ -2704,7 +2716,7 @@ impl<'a> Parser<'a> {
             // The deferred twin of this arm (`LazyKind::Mustache`) classifies
             // leftover input as a missing `}`; without the same test here the
             // two disagree whenever the parse is not deferred.
-            if let Some(pos) = leftover_token_offset(trimmed) {
+            if let Some(pos) = leftover_token_offset(trimmed, self.ts) {
                 return crate::error::ParseError::expected_token("}", trimmed_offset + pos);
             }
             // Recover the precise failure position from OXC's labeled span,
@@ -2833,6 +2845,24 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parse_js_expression_head_strict(
+        &self,
+        content: &str,
+        offset: usize,
+        defer: bool,
+    ) -> crate::error::ParseResult<Expression<'a>> {
+        if defer {
+            self.parse_head_expression(content, offset, false, '}')
+        } else {
+            let (expression, leftover) =
+                self.parse_head_expression_eager(content, offset, false, '}')?;
+            match leftover {
+                Some(err) => Err(err),
+                None => Ok(expression),
+            }
+        }
+    }
+
     /// [`Self::parse_head_expression`], but with the leading expression and the
     /// `expected_token` its leftover input would raise handed back separately.
     ///
@@ -2872,7 +2902,7 @@ impl<'a> Parser<'a> {
         offset: usize,
         disallow_loose: bool,
         close_char: char,
-    ) -> crate::error::ParseResult<Expression<'a>> {
+    ) -> crate::error::ParseResult<(Expression<'a>, Option<crate::error::ParseError>)> {
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
@@ -2907,15 +2937,32 @@ impl<'a> Parser<'a> {
                         None,
                     ));
                 }
-                // Strict mode: classify the failure the way upstream does. A
-                // complete leading expression followed by leftover input is an
-                // `expected_token` (missing `close_char`); anything else is a
-                // `js_parse_error` at the point acorn/OXC stopped.
+                // Upstream validates the maximal leading expression before the
+                // caller consumes the closing token. Preserve both results so
+                // callers such as `{@debug}` and `{@render}` can apply their
+                // node-shape diagnostics before reporting leftover input.
+                if let Some(off) = leftover_token_offset(trimmed, self.ts)
+                    && let Some(prefix) = trimmed.get(..off)
+                    && let Ok(expression) = parse(prefix, trimmed_offset)
+                {
+                    let mut buf = [0u8; 4];
+                    return Ok((
+                        expression,
+                        Some(crate::error::ParseError::expected_token(
+                            close_char.encode_utf8(&mut buf),
+                            trimmed_offset + off,
+                        )),
+                    ));
+                }
+
+                // Otherwise this is a malformed expression rather than a
+                // complete expression followed by leftover input.
                 Err(super::super::read::expression::close_token_or_parse_error(
                     msg,
                     trimmed,
                     trimmed_offset,
                     close_char,
+                    self.ts,
                 ))
             }
         }
@@ -2955,6 +3002,7 @@ impl<'a> Parser<'a> {
                 trimmed,
                 trimmed_offset,
                 '}',
+                self.ts,
             )),
         }
     }
@@ -2969,16 +3017,17 @@ pub(crate) fn await_head_parse_error(
     source: &str,
     start: usize,
     message: String,
+    ts: bool,
 ) -> crate::error::ParseError {
     use super::super::read::expression::{check_js_parse_error_with_pos, trailing_close_offset};
 
     let end = find_matching_bracket(source, start, '{').unwrap_or(source.len());
     let head = source[start..end].trim_end_ws();
-    if let Some(pos) = trailing_close_offset(head) {
+    if let Some(pos) = trailing_close_offset(head, ts) {
         return crate::error::ParseError::expected_token("}", start + pos);
     }
     let (message, pos) =
-        check_js_parse_error_with_pos(head).unwrap_or((message, head.trim_end_ws().len()));
+        check_js_parse_error_with_pos(head, ts).unwrap_or((message, head.trim_end_ws().len()));
     let at = start + pos;
     crate::error::ParseError::svelte("js_parse_error", message, (at, at))
 }

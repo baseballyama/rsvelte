@@ -1137,6 +1137,17 @@ mod ts_removals {
             walk::walk_formal_parameter(self, it);
         }
 
+        fn visit_formal_parameter_rest(&mut self, it: &FormalParameterRest<'a>) {
+            if it.type_annotation.is_some() {
+                collect_optional_marker_removal(
+                    it.rest.argument.span().end,
+                    self.source,
+                    self.removals,
+                );
+            }
+            walk::walk_formal_parameter_rest(self, it);
+        }
+
         fn visit_variable_declaration(&mut self, it: &VariableDeclaration<'a>) {
             if it.declare {
                 self.remove(it.span);

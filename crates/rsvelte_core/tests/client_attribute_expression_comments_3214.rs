@@ -30,7 +30,10 @@ const SCRIPT: &str = "<script>\n\tlet s = 'a';\n\tlet n = 0;\n\tconst f = (x) =>
 fn both(markup: &str, expected: &str) {
     for dev in [false, true] {
         let out = client(&format!("{SCRIPT}\n{markup}\n"), dev);
-        assert!(out.contains(expected), "dev={dev} {markup}\nwant {expected}\n{out}");
+        assert!(
+            out.contains(expected),
+            "dev={dev} {markup}\nwant {expected}\n{out}"
+        );
     }
 }
 
@@ -67,7 +70,10 @@ fn the_placement_does_not_depend_on_the_attribute() {
             "<div aria-label={/* c */ s}>x</div>",
             "$.set_attribute(div, /* c */ 'aria-label', s);",
         ),
-        ("<a href={/* c */ s}>x</a>", "$.set_attribute(a, /* c */ 'href', s);"),
+        (
+            "<a href={/* c */ s}>x</a>",
+            "$.set_attribute(a, /* c */ 'href', s);",
+        ),
         (
             "<img src={/* c */ s} alt=\"a\" />",
             "$.set_attribute(img, /* c */ 'src', s);",
@@ -81,7 +87,10 @@ fn the_placement_does_not_depend_on_the_attribute() {
 /// call breaks open — the same rule esrap applies to any argument list.
 #[test]
 fn a_line_comment_breaks_the_call_open() {
-    both("<div title={// c\n\ts}>x</div>", "$.set_attribute(\n\t\tdiv, // c");
+    both(
+        "<div title={// c\n\ts}>x</div>",
+        "$.set_attribute(\n\t\tdiv, // c",
+    );
 }
 
 /// Upstream copies the instance script's `loc` onto the component block to get

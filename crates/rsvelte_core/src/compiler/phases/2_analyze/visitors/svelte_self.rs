@@ -10,6 +10,7 @@ use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
+use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:self.

@@ -1388,15 +1388,14 @@ fn collect_legacy_reactive_statement_metadata(
         }
 
         let body_node = arena.get_js_node(*body);
-        let mut assignments = Vec::new();
-        let mut cycle_dependencies = Vec::new();
-        cycle_collect_assignments_and_deps(
-            body_node,
-            arena,
-            &mut assignments,
-            &mut cycle_dependencies,
-            &mut Vec::new(),
-        );
+        let mut facts = CycleFacts::default();
+        cycle_collect_assignments_and_deps(body_node, arena, &mut facts);
+        let CycleFacts {
+            mut assignments,
+            shadowed_assignments,
+            dependencies: mut cycle_dependencies,
+            ..
+        } = facts;
 
         let instance_scope_idx = analysis.root.instance_scope_index;
         let is_instance_binding = |name: &str| {
@@ -1523,53 +1522,75 @@ impl CycleFacts {
 /// update targets into `assignments` and every other read identifier into
 /// `dependencies`. Recurses like a generic identifier collector for the read
 /// case, but recognises `AssignmentExpression` / `UpdateExpression` so targets
-/// nested in
-/// block / if / for / sequence bodies (`$: { a = b + 1; }`) are recorded as
-/// assignments rather than dependencies — otherwise such statements collect an
-/// empty assignment set and get dropped from the cycle graph entirely.
-fn cycle_collect_assignments_and_deps(
-    node: &JsNode,
-    arena: &ParseArena,
-    assignments: &mut Vec<String>,
-    dependencies: &mut Vec<String>,
-    locals: &mut Vec<String>,
-) {
+/// nested in block / if / for / sequence bodies (`$: { a = b + 1; }`) are
+/// recorded as assignments rather than dependencies — otherwise such statements
+/// collect an empty assignment set and get dropped from the cycle graph
+/// entirely.
+///
+/// A function body is walked rather than skipped: upstream's `scope.reference`
+/// propagates out of a function scope for every name the function does not
+/// itself declare, so `$: a = (() => b)()` really does depend on `b`.
+fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: &mut CycleFacts) {
     match node {
-        JsNode::Identifier { name, .. } => {
-            if !locals.iter().any(|l| l == name.as_str())
-                && !dependencies.iter().any(|s| s == name.as_str())
-            {
-                dependencies.push(name.to_string());
-            }
+        JsNode::Identifier { name, .. } => facts.push_dependency(name.as_str()),
+        JsNode::AssignmentExpression { left, right, .. } => {
+            // LHS targets are assignments; the RHS (and any nested
+            // assignments within it) is walked for dependencies.
+            facts.push_assignment_targets(arena.get_js_node(*left), arena);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*right), arena, facts);
         }
-        // A name declared inside the `$:` body is a different binding from the
-        // instance-level one that happens to share its spelling, so it is
-        // neither a dependency nor an assignment of the reactive statement.
-        // Upstream never has to say so: it resolves through the scope tree.
-        JsNode::BlockStatement { body, .. } => {
-            let mark = locals.len();
-            let stmts = arena.get_js_children(*body);
-            for stmt in stmts {
-                collect_block_local_decls(stmt, arena, locals);
-            }
-            for stmt in stmts {
-                cycle_collect_assignments_and_deps(stmt, arena, assignments, dependencies, locals);
-            }
-            locals.truncate(mark);
+        // `x++` / `--x` assigns its argument.
+        JsNode::UpdateExpression { argument, .. } => {
+            facts.push_assignment_targets(arena.get_js_node(*argument), arena);
         }
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
+            cycle_walk_function(*params, Some(*body), arena, facts);
+        }
+        JsNode::FunctionExpression { params, body, .. }
+        | JsNode::FunctionDeclaration { params, body, .. } => {
+            cycle_walk_function(*params, *body, arena, facts);
+        }
+        // A `catch` parameter is a declaration, not a reference, and it shadows
+        // the instance binding of the same name inside the handler.
         JsNode::CatchClause { param, body, .. } => {
-            let mark = locals.len();
+            let mark = facts.locals.len();
             if let Some(param) = param {
-                extract_param_names(arena.get_js_node(*param), arena, locals);
+                extract_param_names(arena.get_js_node(*param), arena, &mut facts.locals);
             }
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*body),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
-            locals.truncate(mark);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            facts.locals.truncate(mark);
+        }
+        JsNode::BlockStatement { body, .. } => {
+            let mark = facts.locals.len();
+            for stmt in arena.get_js_children(*body) {
+                collect_block_local_decls(stmt, arena, &mut facts.locals);
+            }
+            for stmt in arena.get_js_children(*body) {
+                cycle_collect_assignments_and_deps(stmt, arena, facts);
+            }
+            facts.locals.truncate(mark);
+        }
+        // The cases share ONE block scope, so a `let` in the first case is
+        // declared for every later case too; the discriminant is outside it.
+        JsNode::SwitchStatement {
+            discriminant,
+            cases,
+            ..
+        } => {
+            cycle_collect_assignments_and_deps(arena.get_js_node(*discriminant), arena, facts);
+            let mark = facts.locals.len();
+            let cases = arena.get_js_children(*cases);
+            for case in cases {
+                if let JsNode::SwitchCase { consequent, .. } = case {
+                    for stmt in arena.get_js_children(*consequent) {
+                        collect_block_local_decls(stmt, arena, &mut facts.locals);
+                    }
+                }
+            }
+            for case in cases {
+                cycle_collect_assignments_and_deps(case, arena, facts);
+            }
+            facts.locals.truncate(mark);
         }
         JsNode::ForStatement {
             init,
@@ -1578,27 +1599,16 @@ fn cycle_collect_assignments_and_deps(
             body,
             ..
         } => {
-            let mark = locals.len();
+            let mark = facts.locals.len();
             if let Some(init) = init {
-                collect_block_local_decls(arena.get_js_node(*init), arena, locals);
+                collect_block_local_decls(arena.get_js_node(*init), arena, &mut facts.locals);
+                cycle_collect_assignments_and_deps(arena.get_js_node(*init), arena, facts);
             }
-            for child in [init, test, update].into_iter().flatten() {
-                cycle_collect_assignments_and_deps(
-                    arena.get_js_node(*child),
-                    arena,
-                    assignments,
-                    dependencies,
-                    locals,
-                );
+            for part in [test, update].into_iter().flatten() {
+                cycle_collect_assignments_and_deps(arena.get_js_node(*part), arena, facts);
             }
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*body),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
-            locals.truncate(mark);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            facts.locals.truncate(mark);
         }
         JsNode::ForOfStatement {
             left, right, body, ..
@@ -1606,46 +1616,35 @@ fn cycle_collect_assignments_and_deps(
         | JsNode::ForInStatement {
             left, right, body, ..
         } => {
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*right),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
-            let mark = locals.len();
-            collect_block_local_decls(arena.get_js_node(*left), arena, locals);
-            for child in [left, body] {
-                cycle_collect_assignments_and_deps(
-                    arena.get_js_node(*child),
-                    arena,
-                    assignments,
-                    dependencies,
-                    locals,
-                );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*right), arena, facts);
+            let mark = facts.locals.len();
+            collect_block_local_decls(arena.get_js_node(*left), arena, &mut facts.locals);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*left), arena, facts);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            facts.locals.truncate(mark);
+        }
+        // The declared names are declarations, not references; only the
+        // initializers are read.
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for decl in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator {
+                    init: Some(init), ..
+                } = decl
+                {
+                    cycle_collect_assignments_and_deps(arena.get_js_node(*init), arena, facts);
+                }
             }
-            locals.truncate(mark);
         }
-        JsNode::AssignmentExpression { left, right, .. } => {
-            // LHS targets are assignments; the RHS (and any nested
-            // assignments within it) is walked for dependencies.
-            cycle_extract_assignment_targets(arena.get_js_node(*left), arena, assignments, locals);
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*right),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
+        JsNode::ClassDeclaration {
+            super_class, body, ..
         }
-        // `x++` / `--x` assigns its argument.
-        JsNode::UpdateExpression { argument, .. } => {
-            cycle_extract_assignment_targets(
-                arena.get_js_node(*argument),
-                arena,
-                assignments,
-                locals,
-            );
+        | JsNode::ClassExpression {
+            super_class, body, ..
+        } => {
+            if let Some(super_class) = super_class {
+                cycle_collect_assignments_and_deps(arena.get_js_node(*super_class), arena, facts);
+            }
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
         }
         JsNode::MemberExpression {
             object,
@@ -1653,21 +1652,9 @@ fn cycle_collect_assignments_and_deps(
             computed,
             ..
         } => {
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*object),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*object), arena, facts);
             if *computed {
-                cycle_collect_assignments_and_deps(
-                    arena.get_js_node(*property),
-                    arena,
-                    assignments,
-                    dependencies,
-                    locals,
-                );
+                cycle_collect_assignments_and_deps(arena.get_js_node(*property), arena, facts);
             }
         }
         JsNode::Property {
@@ -1677,21 +1664,9 @@ fn cycle_collect_assignments_and_deps(
             ..
         } => {
             if *computed {
-                cycle_collect_assignments_and_deps(
-                    arena.get_js_node(*key),
-                    arena,
-                    assignments,
-                    dependencies,
-                    locals,
-                );
+                cycle_collect_assignments_and_deps(arena.get_js_node(*key), arena, facts);
             }
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*value),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*value), arena, facts);
         }
         // The annotation blob follows `properties` / `elements` in the JSON
         // field order, so its identifiers must be seen after theirs.
@@ -1701,7 +1676,7 @@ fn cycle_collect_assignments_and_deps(
             ..
         } => {
             for prop in arena.get_js_children(*properties) {
-                cycle_collect_assignments_and_deps(prop, arena, assignments, dependencies, locals);
+                cycle_collect_assignments_and_deps(prop, arena, facts);
             }
             if let Some(ta) = type_annotation {
                 let mut names = Vec::new();
@@ -1717,7 +1692,7 @@ fn cycle_collect_assignments_and_deps(
             ..
         } => {
             for elem in elements.iter().flatten() {
-                cycle_collect_assignments_and_deps(elem, arena, assignments, dependencies, locals);
+                cycle_collect_assignments_and_deps(elem, arena, facts);
             }
             if let Some(ta) = type_annotation {
                 let mut names = Vec::new();
@@ -1730,47 +1705,38 @@ fn cycle_collect_assignments_and_deps(
         // `for_each_js_child` skips `label` (it is not a rune reference); this
         // walker counted it as a dependency, so keep reading it here.
         JsNode::LabeledStatement { label, body, .. } => {
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*label),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*body),
-                arena,
-                assignments,
-                dependencies,
-                locals,
-            );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*label), arena, facts);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
         }
         _ => {
             for_each_js_child(node, arena, &mut |child| {
-                cycle_collect_assignments_and_deps(child, arena, assignments, dependencies, locals);
+                cycle_collect_assignments_and_deps(child, arena, facts);
             });
         }
     }
 }
 
-/// `cycle_extract_pattern_ids`, minus the names a scope inside the `$:` body
-/// declares — writing to a block-local `e` is not writing to the instance `e`.
-fn cycle_extract_assignment_targets(
-    node: &JsNode,
+/// Parameters shadow inside the body; their default-value expressions are
+/// evaluated before the shadowing takes effect.
+fn cycle_walk_function(
+    params: crate::ast::arena::IdRange,
+    body: Option<crate::ast::arena::JsNodeId>,
     arena: &ParseArena,
-    assignments: &mut Vec<String>,
-    locals: &[String],
+    facts: &mut CycleFacts,
 ) {
-    let mark = assignments.len();
-    cycle_extract_pattern_ids(node, arena, assignments);
-    let mut i = mark;
-    while i < assignments.len() {
-        if locals.iter().any(|l| *l == assignments[i]) {
-            assignments.remove(i);
-        } else {
-            i += 1;
-        }
+    for param in arena.get_js_children(params) {
+        collect_param_evaluations(param, arena, &mut |evaluated| {
+            cycle_collect_assignments_and_deps(evaluated, arena, facts);
+        });
     }
+    let mark = facts.locals.len();
+    for param in arena.get_js_children(params) {
+        extract_param_names(param, arena, &mut facts.locals);
+    }
+    if let Some(body) = body {
+        cycle_collect_assignments_and_deps(arena.get_js_node(body), arena, facts);
+    }
+    facts.locals.truncate(mark);
 }
 
 /// Process legacy mode exports.
@@ -3695,10 +3661,14 @@ fn collect_dollar_param_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<S
     }
 }
 
-/// Collect the `$`-prefixed names a single block-level statement declares.
-/// Only the binding slot matters: the initializer is walked by the caller.
-fn collect_dollar_declared_names(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
-    match node {
+/// Collect the `$`-prefixed names a single statement declares in the scope that
+/// holds it, so a reference to one of them inside that scope is resolved rather
+/// than counted as a rune.
+///
+/// `var` hoisting out of a nested block is not modelled: only the statements
+/// directly in the scope's own list are inspected.
+fn collect_dollar_declared_names(stmt: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+    match stmt {
         JsNode::VariableDeclaration { declarations, .. } => {
             for decl in arena.get_js_children(*declarations) {
                 if let JsNode::VariableDeclarator { id, .. } = decl {
@@ -3709,6 +3679,64 @@ fn collect_dollar_declared_names(node: &JsNode, arena: &ParseArena, out: &mut Ve
         JsNode::FunctionDeclaration { id: Some(id), .. }
         | JsNode::ClassDeclaration { id: Some(id), .. } => {
             collect_dollar_param_names(arena.get_js_node(*id), arena, out);
+        }
+        JsNode::ImportDeclaration { specifiers, .. } => {
+            for spec in arena.get_js_children(*specifiers) {
+                match spec {
+                    JsNode::ImportSpecifier { local, .. }
+                    | JsNode::ImportDefaultSpecifier { local, .. }
+                    | JsNode::ImportNamespaceSpecifier { local, .. } => {
+                        collect_dollar_param_names(arena.get_js_node(*local), arena, out);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ExportNamedDeclaration {
+            declaration: Some(decl),
+            ..
+        }
+        | JsNode::ExportDefaultDeclaration {
+            declaration: decl, ..
+        } => collect_dollar_declared_names(arena.get_js_node(*decl), arena, out),
+        _ => {}
+    }
+}
+
+/// Push every `$`-prefixed name declared by the scope `node` opens.
+fn push_dollar_shadows(node: &JsNode, arena: &ParseArena, shadowed: &mut Vec<String>) {
+    let push_statements = |range, shadowed: &mut Vec<String>| {
+        for stmt in arena.get_js_children(range) {
+            collect_dollar_declared_names(stmt, arena, shadowed);
+        }
+    };
+
+    match node {
+        JsNode::FunctionDeclaration { params, .. }
+        | JsNode::FunctionExpression { params, .. }
+        | JsNode::ArrowFunctionExpression { params, .. } => {
+            for param in arena.get_js_children(*params) {
+                collect_dollar_param_names(param, arena, shadowed);
+            }
+        }
+        JsNode::CatchClause {
+            param: Some(param), ..
+        } => collect_dollar_param_names(arena.get_js_node(*param), arena, shadowed),
+        JsNode::Program { body, .. }
+        | JsNode::BlockStatement { body, .. }
+        | JsNode::StaticBlock { body, .. } => push_statements(*body, shadowed),
+        JsNode::SwitchStatement { cases, .. } => {
+            for case in arena.get_js_children(*cases) {
+                if let JsNode::SwitchCase { consequent, .. } = case {
+                    push_statements(*consequent, shadowed);
+                }
+            }
+        }
+        JsNode::ForStatement {
+            init: Some(init), ..
+        } => collect_dollar_declared_names(arena.get_js_node(*init), arena, shadowed),
+        JsNode::ForInStatement { left, .. } | JsNode::ForOfStatement { left, .. } => {
+            collect_dollar_declared_names(arena.get_js_node(*left), arena, shadowed);
         }
         _ => {}
     }
@@ -4116,32 +4144,8 @@ fn js_node_check_features(
                 | JsNode::FunctionDeclaration { .. }
         );
 
-    // Shadow-aware rune detection: a `$`-prefixed name declared in an enclosing
-    // scope (a function parameter, a `catch` parameter, or a block-scoped
-    // declaration) shadows the rune inside it, mirroring upstream where such a
-    // reference resolves to that binding and stops bubbling before
-    // `module.scope.references` — the set runes-mode detection is computed from.
-    // Only nested scopes are collected: a script's own top level declares into
-    // the module/instance scope, which `validate_identifier_name` rejects first.
     let shadow_base = shadowed.len();
-    match node {
-        JsNode::FunctionDeclaration { params, .. }
-        | JsNode::FunctionExpression { params, .. }
-        | JsNode::ArrowFunctionExpression { params, .. } => {
-            for param in arena.get_js_children(*params) {
-                collect_dollar_param_names(param, arena, shadowed);
-            }
-        }
-        JsNode::CatchClause {
-            param: Some(param), ..
-        } => collect_dollar_param_names(arena.get_js_node(*param), arena, shadowed),
-        JsNode::BlockStatement { body, .. } | JsNode::StaticBlock { body, .. } => {
-            for stmt in arena.get_js_children(*body) {
-                collect_dollar_declared_names(stmt, arena, shadowed);
-            }
-        }
-        _ => {}
-    }
+    push_dollar_shadows(node, arena, shadowed);
 
     for_each_js_reference_child(node, arena, &mut |child| {
         if results.all_found() {
@@ -4199,8 +4203,6 @@ fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl F
                 f(arena.get_js_node(*value));
             }
         }
-        // A `break`/`continue` target names a statement label, not a binding.
-        JsNode::BreakStatement { .. } | JsNode::ContinueStatement { .. } => {}
         JsNode::VariableDeclarator { id, init, .. } => {
             for_each_pattern_reference_child(arena.get_js_node(*id), arena, f);
             if let Some(init) = init {
@@ -4244,7 +4246,6 @@ fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl F
             }
             f(arena.get_js_node(*body));
         }
-        JsNode::CatchClause { body, .. } => f(arena.get_js_node(*body)),
         // Every identifier an import or an export specifier carries is a
         // declared or an exported name; the rest of the node is literals.
         JsNode::ImportDeclaration { .. } | JsNode::ExportSpecifier { .. } => {}

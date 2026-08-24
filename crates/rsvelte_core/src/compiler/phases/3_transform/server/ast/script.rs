@@ -471,7 +471,7 @@ fn inspect_residue_local<'a>(
     origin: u32,
     state: &ServerTransformState<'a>,
 ) -> Option<Vec<Statement<'a>>> {
-    inspect_residue(expr, stmt_start, src.get(origin as usize..)?, state)
+    inspect_residue(expr, stmt_start, src.get(origin as usize..)?, false, state)
 }
 
 /// The statements a removed `$inspect(…)` / `$inspect(…).with(…)` expression
@@ -482,6 +482,7 @@ fn inspect_residue<'a>(
     expr: &OxcExpression<'_>,
     stmt_start: u32,
     src: &str,
+    wrap_reads: bool,
     state: &ServerTransformState<'a>,
 ) -> Option<Vec<Statement<'a>>> {
     let rune_store_subs = rune_names_are_store_subs(state.analysis);
@@ -497,7 +498,7 @@ fn inspect_residue<'a>(
     }
     let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src);
     Some(
-        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
+        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), wrap_reads, state)
             .into_iter()
             .collect(),
     )
@@ -519,7 +520,7 @@ fn inspect_value_expr<'a>(
         return Some(state.b.id("undefined"));
     }
     let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src.get(origin as usize..)?);
-    match build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)? {
+    match build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), false, state)? {
         Statement::ExpressionStatement(es) => Some(es.unbox().expression),
         _ => None,
     }
@@ -556,6 +557,22 @@ fn inspect_call_srcs(
             (inner_args, fn_src)
         }
     }
+}
+
+fn call_args_src(call: &oxc_ast::ast::CallExpression<'_>, src: &str) -> String {
+    let start = call.callee.span().end as usize;
+    let end = call.span.end as usize;
+    let Some(tail) = src.get(start..end) else {
+        return String::new();
+    };
+    let Some(open) = tail.find('(') else {
+        return String::new();
+    };
+    let args_start = start + open + 1;
+    let args_end = end.saturating_sub(1);
+    src.get(args_start..args_end)
+        .unwrap_or_default()
+        .to_string()
 }
 
 /// Build the dev-mode lowering of a `$inspect(...)` / `$inspect(...).with(...)`
@@ -1087,7 +1104,7 @@ fn transform_script<'a>(
                         // returning `b.empty` — a *bare* `EmptyStatement` that esrap
                         // elides (prints nothing), so those keep being dropped.
                         if let Some(residue) =
-                            inspect_residue(&es.expression, es.span.start, src, state)
+                            inspect_residue(&es.expression, es.span.start, src, true, state)
                         {
                             out.extend(residue);
                         }
@@ -3513,12 +3530,16 @@ fn transform_script_legacy<'a>(
     let mut region_start: u32 = 0;
     let mut reactive_leading_comment_pending = false;
     let mut deferred_reactive_comment: Option<usize> = None;
+    let mut previous_was_reactive_block = false;
 
     let body_len = ret.program.body.len();
     for (stmt_index, stmt) in ret.program.body.iter().enumerate() {
         let stmt_span = stmt.span();
         let is_last_stmt = stmt_index + 1 == body_len;
         let is_reactive = matches!(stmt, Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$");
+        let is_reactive_block = matches!(stmt, Statement::LabeledStatement(ls) if is_instance
+            && ls.label.name.as_str() == "$"
+            && reactive_body_has_direct_block(&ls.body));
         // Upstream rebuilds the `$` label as a loc-less `b.labeled(...)`, so
         // `body()` never flushes a comment trailing it on the same line; being the
         // last statement, nothing located is left in the script to take it either.
@@ -3845,7 +3866,21 @@ fn transform_script_legacy<'a>(
                     other => place.visit_statement(other),
                 }
             }
+            let had_deferred_reactive_comment = deferred_reactive_comment.is_some();
             if let Some(index) = deferred_reactive_comment.take() {
+                state.mark_deferred_tail_comment_landed(index);
+            }
+            if previous_was_reactive_block
+                && !had_deferred_reactive_comment
+                && stmt_span.start > region_start
+            {
+                let index = state.pending_tail_comments.len();
+                state.defer_tail_comments(
+                    src,
+                    &ret.program.comments,
+                    region_start,
+                    stmt_span.start,
+                );
                 state.mark_deferred_tail_comment_landed(index);
             }
         }
@@ -3854,6 +3889,7 @@ fn transform_script_legacy<'a>(
         } else if !is_reactive && anchor.is_some() {
             reactive_leading_comment_pending = false;
         }
+        previous_was_reactive_block = is_reactive_block;
         let trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
         region_start = if defer_reactive_tail {
             stmt_span.end

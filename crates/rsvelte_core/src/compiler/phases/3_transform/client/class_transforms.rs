@@ -1045,9 +1045,7 @@ fn transform_class_fields_client_with_options_at(
     };
     let class_pos = header.keyword;
     let brace_pos = header.body_brace - class_pos;
-
     let after_class = &script[class_pos..];
-    let class_header = &after_class[..brace_pos + 1];
 
     // Synthesized members are printed relative to the class's own source
     // indentation: hard-coding one level made a module-level `class` (column 0)

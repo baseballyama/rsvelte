@@ -1967,10 +1967,40 @@ pub(super) fn calculate_prop_flags(
 /// passes `b.literal(key.value)`, so a numeric destructuring key stays a
 /// **number** (and carries its value, not its spelling: `0x10` → `16`).
 pub(super) fn prop_key_js_literal(raw_key: &str, prop_name: &str) -> String {
+    if let Some(digits) = bigint_key_digits(raw_key) {
+        return digits;
+    }
     if let Some(n) = numeric_key_value(raw_key) {
         return crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n);
     }
     format!("'{}'", prop_name)
+}
+
+/// `Some(decimal digits)` when the raw key text is a BigInt literal. Parsed
+/// rather than pattern-matched, so `0x10n` / `1_000n` carry their value, and an
+/// identifier that merely ends in `n` is not mistaken for one.
+fn bigint_key_digits(raw_key: &str) -> Option<String> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{Expression, Statement};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let trimmed = raw_key.trim();
+    if !trimmed.ends_with('n') || !trimmed.starts_with(|c: char| c.is_ascii_digit()) {
+        return None;
+    }
+    let alloc = Allocator::default();
+    let parsed = Parser::new(&alloc, trimmed, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    match &stmt.expression {
+        Expression::BigIntLiteral(lit) => Some(lit.value.to_string()),
+        _ => None,
+    }
 }
 
 /// `Some(value)` when the raw key text is a numeric literal, parsed rather than

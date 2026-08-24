@@ -76,7 +76,7 @@ fn an_object_literal_tag_is_still_parenthesized() {
 /// between the braces is touched.
 #[test]
 fn a_ts_postfix_is_kept() {
-    let out = tsx("<div>{a as string}</div>");
+    let out = tsx("<script lang=\"ts\"></script><div>{a as string}</div>");
     assert!(out.contains("a as string;"), "got:\n{out}");
 }
 

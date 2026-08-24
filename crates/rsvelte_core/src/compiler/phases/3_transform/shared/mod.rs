@@ -9,6 +9,7 @@ pub mod class_body;
 pub mod js_scan;
 pub mod offsets;
 pub mod rune_parens;
+pub mod rune_shadow;
 pub mod template;
 
 pub use template::*;

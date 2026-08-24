@@ -226,7 +226,8 @@ fn collect_is_where_unused_warnings(
                 // substituted into the enclosing chain, and upstream's `css-warn.js`
                 // never recurses into it — so it is marked but never reported.
                 if sel_name == "has" {
-                    let flags = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx);
+                    let flags =
+                        has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx);
                     for (bi, inner_complex) in children.iter().enumerate() {
                         let unused = flags.as_ref().is_some_and(|f| f.get(bi) == Some(&true))
                             || is_functional_branch_unused(inner_complex, None, ctx);
@@ -986,6 +987,44 @@ impl CssWriter {
         self.marks.insert(offset as u32);
     }
 
+    fn apply_insertions(&mut self, insertions: &[(u32, u32)]) {
+        if insertions.is_empty() {
+            return;
+        }
+        let mut rebased: Vec<(u32, u32, u32)> = Vec::with_capacity(self.copies.len());
+        for &(gen_start, src_start, len) in &self.copies {
+            let mut shift = 0u32;
+            let mut piece_gen = gen_start;
+            let mut piece_src = src_start;
+            let mut consumed = 0u32;
+            for &(at, ins_len) in insertions {
+                if at <= gen_start {
+                    shift += ins_len;
+                } else if at < gen_start + len {
+                    let cut = at - gen_start;
+                    rebased.push((piece_gen + shift, piece_src, cut - consumed));
+                    shift += ins_len;
+                    piece_gen = gen_start + cut;
+                    piece_src = src_start + cut;
+                    consumed = cut;
+                }
+            }
+            rebased.push((piece_gen + shift, piece_src, len - consumed));
+        }
+        self.copies = rebased;
+    }
+
+    fn copy_verbatim(&mut self, css_source: &str, css_start: usize, src_start: usize, text: &str) {
+        if src_start >= css_start
+            && let from = src_start - css_start
+            && css_source.as_bytes().get(from..from + text.len()) == Some(text.as_bytes())
+        {
+            self.copy(src_start, text);
+        } else {
+            self.push_str(text);
+        }
+    }
+
     /// Drop the whitespace already emitted, mirroring upstream's
     /// `remove_preceding_whitespace(node.start)` — which walks back over the
     /// source rather than over a gap, so it can also cut into the tail of the
@@ -1451,21 +1490,27 @@ fn is_animation_declaration(property: &str) -> bool {
 /// Emit a declaration the way upstream's minifier does: the whitespace run that
 /// starts immediately after `property.length + 1` bytes is dropped, so
 /// `color : red` (space before the colon) is left alone and custom properties
-/// are skipped entirely.
-fn push_minified_declaration(output: &mut CssWriter, decl_text: &str, property: &str) {
+/// are skipped entirely. `src_start` is the declaration's source offset, so the
+/// surviving runs remain mapped like MagicString's `remove` leaves them.
+fn push_minified_declaration(
+    output: &mut CssWriter,
+    src_start: usize,
+    decl_text: &str,
+    property: &str,
+) {
     if property.starts_with("--") {
-        output.push_str(decl_text);
+        output.copy(src_start, decl_text);
         return;
     }
     let start = property.len() + 1;
     if start > decl_text.len() || !decl_text.is_char_boundary(start) {
-        output.push_str(decl_text);
+        output.copy(src_start, decl_text);
         return;
     }
     let rest = &decl_text[start..];
     let value = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
-    output.push_str(&decl_text[..start]);
-    output.push_str(value);
+    output.copy(src_start, &decl_text[..start]);
+    output.copy(src_start + decl_text.len() - value.len(), value);
 }
 
 fn has_nested_rules(block: &Value) -> bool {
@@ -4588,8 +4633,8 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
             if !is_has_pseudo(sel) {
                 continue;
             }
-            if let Some(flags) = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx)
-                && flags.iter().all(|&unused| unused)
+            if has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx)
+                .is_some_and(|flags| flags.iter().all(|&unused| unused))
             {
                 return true;
             }
@@ -4597,6 +4642,212 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     }
 
     false
+}
+
+/// Per-argument verdicts for one `:has()`, taken under every way the enclosing
+/// rule's `&` can resolve. An argument is unused only when every resolution
+/// says it is unused.
+fn has_pseudo_unused_under_every_host(
+    rel_selectors: &[Value],
+    ri: usize,
+    selectors: &[Value],
+    sel: &Value,
+    ctx: &CssContext,
+) -> Option<Vec<bool>> {
+    let mut merged: Option<Vec<bool>> = None;
+    for (chain, offset) in effective_host_chains(rel_selectors, ctx) {
+        let flags = has_argument_unused_flags(&chain, offset + ri, selectors, sel, ctx)?;
+        merged = Some(match merged {
+            None => flags,
+            Some(prev) => prev
+                .iter()
+                .zip(flags.iter())
+                .map(|(a, b)| *a && *b)
+                .collect(),
+        });
+    }
+    merged
+}
+
+fn effective_host_chains(rel_selectors: &[Value], ctx: &CssContext) -> Vec<(Vec<Value>, usize)> {
+    let bare = || vec![(rel_selectors.to_vec(), 0usize)];
+
+    if rel_selectors.iter().any(relative_selector_has_nesting) {
+        return bare();
+    }
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return bare();
+    }
+    let Some(chains) = build_parent_chains(&parent_preludes, parent_preludes.len()) else {
+        return bare();
+    };
+
+    chains
+        .into_iter()
+        .map(|mut chain| {
+            let offset = chain.len();
+            for (i, rel) in rel_selectors.iter().enumerate() {
+                chain.push(if i == 0 {
+                    with_descendant_head(rel)
+                } else {
+                    rel.clone()
+                });
+            }
+            (chain, offset)
+        })
+        .collect()
+}
+
+/// What a `&` stands for inside an argument list: the subject compound of each
+/// alternative the enclosing rules resolve to. Reuses [`build_parent_chains`],
+/// this file's port of upstream's `get_relative_selectors`, so there is one
+/// answer to "what is the parent" rather than a second one here.
+///
+/// Only the chain's **last** compound is taken. A multi-part parent (`.x .y`)
+/// therefore contributes `.y` alone, dropping the `.x` ancestor requirement —
+/// which weakens the test, so a branch can only come out *less* unused, never
+/// more.
+fn nesting_substitute_alternatives(ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return None;
+    }
+    let chains = build_parent_chains(&parent_preludes, parent_preludes.len())?;
+    let alternatives: Vec<Vec<Value>> = chains
+        .iter()
+        .filter_map(|chain| {
+            chain
+                .last()?
+                .get("selectors")
+                .and_then(|s| s.as_array())
+                .cloned()
+        })
+        .collect();
+    (!alternatives.is_empty()).then_some(alternatives)
+}
+
+/// Whether any relative selector of `complex` carries a top-level `&`.
+fn relative_selectors_carry_nesting(complex: &Value) -> bool {
+    complex
+        .get("children")
+        .and_then(|c| c.as_array())
+        .is_some_and(|rels| {
+            rels.iter().any(|rel| {
+                rel.get("selectors")
+                    .and_then(|s| s.as_array())
+                    .is_some_and(|sels| {
+                        sels.iter().any(|s| {
+                            s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                        })
+                    })
+            })
+        })
+}
+
+/// The forms one `:is()` / `:where()` argument compound takes once its `&` is
+/// resolved — one per way the enclosing rules resolve it. `None` when the
+/// compound carries no `&`, or when no parent can resolve it, in which case the
+/// compound is used as written.
+fn branch_alternatives(branch: &[Value], ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
+    if !branch
+        .iter()
+        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+    {
+        return None;
+    }
+    let alternatives: Vec<Vec<Value>> = nesting_substitute_alternatives(ctx)?
+        .iter()
+        .filter_map(|sub| replace_nesting_in_selectors(branch, sub))
+        .collect();
+    // An empty list would make the `all()` below vacuously true.
+    (!alternatives.is_empty()).then_some(alternatives)
+}
+
+/// Evaluate `f` as if the rule were not nested — the counterpart of resolving
+/// `&` by substitution, since the substituted selector already carries the
+/// parent and must not also be required to sit below it.
+fn without_parent_preludes<T>(ctx: &CssContext, f: impl FnOnce() -> T) -> T {
+    let saved = ctx.parent_preludes.replace(Vec::new());
+    let out = f();
+    ctx.parent_preludes.replace(saved);
+    out
+}
+
+/// Rewrite one argument-list compound, replacing its `&` with `substitute`.
+/// `None` when the compound has no `&` to replace.
+fn replace_nesting_in_selectors(selectors: &[Value], substitute: &[Value]) -> Option<Vec<Value>> {
+    if !selectors
+        .iter()
+        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+    {
+        return None;
+    }
+    let mut out = Vec::with_capacity(selectors.len() + substitute.len());
+    for sel in selectors {
+        if sel.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+            out.extend(substitute.iter().cloned());
+        } else {
+            out.push(sel.clone());
+        }
+    }
+    Some(out)
+}
+
+/// Rewrite an argument `ComplexSelector` so each `&` becomes `substitute`.
+fn replace_nesting_in_complex(complex: &Value, substitute: &[Value]) -> Option<Value> {
+    let rels = complex.get("children")?.as_array()?;
+    let mut children = Vec::with_capacity(rels.len());
+    let mut replaced = false;
+    for rel in rels {
+        let selectors = rel.get("selectors").and_then(|s| s.as_array());
+        match selectors.and_then(|s| replace_nesting_in_selectors(s, substitute)) {
+            Some(new_selectors) => {
+                replaced = true;
+                let mut cloned = rel.clone();
+                if let Value::Object(map) = &mut cloned {
+                    map.insert("selectors".to_string(), Value::Array(new_selectors));
+                }
+                children.push(cloned);
+            }
+            None => children.push(rel.clone()),
+        }
+    }
+    if !replaced {
+        return None;
+    }
+    let mut out = complex.clone();
+    if let Value::Object(map) = &mut out {
+        map.insert("children".to_string(), Value::Array(children));
+    }
+    Some(out)
+}
+
+/// Whether a `&` appears anywhere in this compound, a pseudo-class's argument
+/// list included — upstream finds it with a `walk`, which descends into `args`.
+fn relative_selector_has_nesting(rel: &Value) -> bool {
+    rel.get("selectors")
+        .and_then(|s| s.as_array())
+        .is_some_and(|sels| sels.iter().any(simple_selector_has_nesting))
+}
+
+fn simple_selector_has_nesting(sel: &Value) -> bool {
+    match sel.get("type").and_then(|t| t.as_str()) {
+        Some("NestingSelector") => true,
+        Some("PseudoClassSelector") => sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+            .is_some_and(|complexes| {
+                complexes.iter().any(|complex| {
+                    complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|rels| rels.iter().any(relative_selector_has_nesting))
+                })
+            }),
+        _ => false,
+    }
 }
 
 fn is_has_pseudo(sel: &Value) -> bool {
@@ -4630,27 +4881,28 @@ fn has_argument_unused_flags(
         .and_then(|c| c.as_array())
         .filter(|c| !c.is_empty())?;
 
-    // `&` inside the argument refers to the parent CSS rule, not to an element,
-    // so it cannot be resolved through the DOM structure.
-    let has_nesting_in_args = has_children.iter().any(|complex| {
-        complex
-            .get("children")
-            .and_then(|c| c.as_array())
-            .is_some_and(|rels| {
-                rels.iter().any(|rel| {
-                    rel.get("selectors")
-                        .and_then(|s| s.as_array())
-                        .is_some_and(|sels| {
-                            sels.iter().any(|s| {
-                                s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
-                            })
-                        })
-                })
+    // `&` inside the argument refers to the parent CSS rule, not to an element.
+    // Resolve it against the enclosing preludes; if it cannot be resolved,
+    // nothing may be concluded about this `:has()`.
+    let resolved;
+    let has_children: &[Value] = if has_children.iter().any(relative_selectors_carry_nesting) {
+        let alternatives = nesting_substitute_alternatives(ctx)?;
+        // One alternative only: with several, an argument would have to be
+        // unreachable under all of them, which this per-argument shape cannot
+        // express — so decline rather than guess.
+        let [substitute] = alternatives.as_slice() else {
+            return None;
+        };
+        resolved = has_children
+            .iter()
+            .map(|complex| {
+                replace_nesting_in_complex(complex, substitute).unwrap_or_else(|| complex.clone())
             })
-    });
-    if has_nesting_in_args {
-        return None;
-    }
+            .collect::<Vec<_>>();
+        &resolved
+    } else {
+        has_children
+    };
 
     // The subject is the compound the `:has()` sits in, `:has()` itself excluded.
     let subject_info = extract_selector_info_from_selectors(selectors);
@@ -5988,7 +6240,7 @@ fn transform_block_with_nested_rules<'a>(
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = child_start.saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.push_str(&css_source[ws_start..ws_end]);
+                    output.copy(last_end, &css_source[ws_start..ws_end]);
                 }
             }
 
@@ -6050,11 +6302,12 @@ fn transform_block_with_nested_rules<'a>(
                     if decl_end <= css_source.len() && decl_start < decl_end {
                         let decl_text = &css_source[decl_start..decl_end];
                         let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                        mark_node(output, child);
                         if ctx.minify && !is_animation_declaration(prop) {
                             output.trim_preceding_whitespace();
-                            push_minified_declaration(output, decl_text, prop);
+                            push_minified_declaration(output, child_start, decl_text, prop);
                         } else {
-                            output.push_str(decl_text);
+                            output.copy(child_start, decl_text);
                         }
                     }
                 }
@@ -6072,7 +6325,7 @@ fn transform_block_with_nested_rules<'a>(
         let ws_start = last_end.saturating_sub(css_start);
         let ws_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude the '}'
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.push_str(&css_source[ws_start..ws_end]);
+            output.copy(last_end, &css_source[ws_start..ws_end]);
         }
     }
     if ctx.minify {
@@ -6176,7 +6429,7 @@ fn transform_nested_atrule<'a>(
             // Copy content before this child; the whitespace run immediately
             // before it is dropped per child kind below, so comments survive.
             if child_start > last_end {
-                output.push_str(src(last_end, child_start));
+                output.copy(last_end, src(last_end, child_start));
             }
 
             match child_type {
@@ -6231,11 +6484,12 @@ fn transform_nested_atrule<'a>(
                 Some("Declaration") => {
                     let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
                     let decl_text = src(child_start, child_end);
+                    mark_node(output, child);
                     if ctx.minify && !is_animation_declaration(prop) {
                         output.trim_preceding_whitespace();
-                        push_minified_declaration(output, decl_text, prop);
+                        push_minified_declaration(output, child_start, decl_text, prop);
                     } else {
-                        output.push_str(decl_text);
+                        output.copy(child_start, decl_text);
                     }
                 }
                 _ => {}
@@ -6249,7 +6503,7 @@ fn transform_nested_atrule<'a>(
     // `remove_preceding_whitespace(node.block.end - 1)` lives in the Rule
     // visitor, so an at-rule's own closing brace keeps its whitespace.
     if block_end > last_end + 1 {
-        output.push_str(src(last_end, block_end - 1));
+        output.copy(last_end, src(last_end, block_end - 1));
     }
 
     output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
@@ -6348,11 +6602,12 @@ fn transform_global_block<'a>(
                             let to = child_end.saturating_sub(css_start);
                             if to <= css_source.len() && from < to {
                                 let decl_text = &css_source[from..to];
+                                mark_node(output, child);
                                 if is_animation_declaration(prop) {
-                                    output.push_str(decl_text);
+                                    output.copy(child_start, decl_text);
                                 } else {
                                     output.trim_preceding_whitespace();
-                                    push_minified_declaration(output, decl_text, prop);
+                                    push_minified_declaration(output, child_start, decl_text, prop);
                                 }
                             }
                         }
@@ -6607,7 +6862,7 @@ fn transform_atrule_preserving<'a>(
                 let trail_start = inner_last_end.saturating_sub(css_start);
                 let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
                 if trail_end <= css_source.len() && trail_start < trail_end {
-                    output.push_str(&css_source[trail_start..trail_end]);
+                    output.copy(inner_last_end, &css_source[trail_start..trail_end]);
                 }
             }
         }

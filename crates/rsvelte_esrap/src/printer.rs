@@ -1806,12 +1806,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             .filter(|elem| keep_empty || !elem.is_empty_stmt())
             .peekable();
         let mut prev: Option<(BodyElem<'a, 'b>, bool)> = None;
-        let mut prev_joined = false;
         let mut last_end = None;
         while let Some(elem) = elems.next() {
             let layout_mark = ctx.event_mark();
             let mut has_margin = false;
-            let mut joined = false;
             if let Some((prev_elem, prev_multiline)) = &prev {
                 // The two kept empties of one `;;` hole are a single upstream
                 // statement, so nothing separates them — but two separate holes
@@ -1828,7 +1826,6 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     ctx.newline();
                 }
             }
-            prev_joined = joined;
 
             let scope = ctx.begin_scope();
             if HAS_COMMENTS && DIRECT {

@@ -55,12 +55,23 @@ enum Message {
     Jump,
 }
 
+/// Which parses raise a row. Upstream clears acorn's `undefinedExports` after
+/// every statement when it parses a component `<script>` (`1-parse/acorn.js`
+/// `is_script`), because the exported name may be declared elsewhere in the
+/// component — so the undefined-export row is live only for a module.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Hosts {
+    Both,
+    ModuleOnly,
+}
+
 struct EarlyError {
     /// A substring of OXC's message. Chosen to survive a reworded tail, and
     /// pinned by a repro per row so a bump that breaks it fails loudly.
     needle: &'static str,
     at: At,
     message: Message,
+    hosts: Hosts,
 }
 
 const TABLE: &[EarlyError] = &[
@@ -68,61 +79,73 @@ const TABLE: &[EarlyError] = &[
         needle: "Multiple constructor implementations are not allowed",
         at: At::Last,
         message: Message::Fixed("Duplicate constructor in the same class"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "Super calls are not permitted outside constructors",
         at: At::First,
         message: Message::Fixed("'super' keyword outside a method"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "'super' can only be referenced in members of derived classes",
         at: At::First,
         message: Message::Fixed("'super' keyword outside a method"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "'super' can only be referenced in a derived class",
         at: At::First,
         message: Message::Fixed("super() call outside constructor of a subclass"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "Illegal break statement",
         at: At::First,
         message: Message::Fixed("Unsyntactic break"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "Illegal continue statement",
         at: At::First,
         message: Message::Fixed("Unsyntactic continue"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "Jump target cannot cross function boundary",
         at: At::JumpKeyword,
         message: Message::Jump,
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "Label `",
         at: At::Last,
         message: Message::Named("Label '{}' is already declared"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "must be declared in an enclosing class",
         at: At::First,
         message: Message::Named("Private field '{}' must be declared in an enclosing class"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "has already been declared",
         at: At::Last,
         message: Message::Redeclaration,
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "declaration can only be used at the top level of a module",
         at: At::First,
         message: Message::Fixed("'import' and 'export' may only appear at the top level"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "The operand of a 'delete' operator cannot be a private identifier",
         at: At::DeleteKeyword,
         message: Message::Fixed("Private fields can not be deleted"),
+        hosts: Hosts::Both,
     },
     EarlyError {
         needle: "Illegal 'use strict' directive in function with non-simple parameter list",
@@ -130,6 +153,25 @@ const TABLE: &[EarlyError] = &[
         message: Message::Fixed(
             "Illegal 'use strict' directive in function with non-simple parameter list",
         ),
+        hosts: Hosts::Both,
+    },
+    EarlyError {
+        needle: "'arguments' is not allowed in class field initializer",
+        at: At::First,
+        message: Message::Fixed("Cannot use 'arguments' in class field initializer"),
+        hosts: Hosts::Both,
+    },
+    EarlyError {
+        needle: "'arguments' is not allowed in static initialization block",
+        at: At::First,
+        message: Message::Fixed("Cannot use arguments in class static initialization block"),
+        hosts: Hosts::Both,
+    },
+    EarlyError {
+        needle: "Export '",
+        at: At::First,
+        message: Message::Named("Export '{}' is not defined"),
+        hosts: Hosts::ModuleOnly,
     },
 ];
 
@@ -138,12 +180,16 @@ const TABLE: &[EarlyError] = &[
 /// Runs ONCE per script. It must not be reached from the per-expression parse
 /// paths: a template expression is its own `Program` with no enclosing class or
 /// loop, so every one of these checks would answer a question it was not asked.
-pub fn find_early_error(program: &Program<'_>, source: &str) -> Option<(u32, String)> {
+pub fn find_early_error(
+    program: &Program<'_>,
+    source: &str,
+    is_script: bool,
+) -> Option<(u32, String)> {
     let diagnostics = SemanticBuilder::new_compiler().build(program).diagnostics;
     let mut functions = None;
     diagnostics
         .iter()
-        .filter_map(|d| translate(d, source, program, &mut functions))
+        .filter_map(|d| translate(d, source, program, is_script, &mut functions))
         .min_by_key(|(at, _)| *at)
 }
 
@@ -151,10 +197,14 @@ fn translate(
     diagnostic: &OxcDiagnostic,
     source: &str,
     program: &Program<'_>,
+    is_script: bool,
     functions: &mut Option<FunctionStarts>,
 ) -> Option<(u32, String)> {
     let text = diagnostic.message.as_ref();
     let entry = TABLE.iter().find(|e| text.contains(e.needle))?;
+    if is_script && entry.hosts == Hosts::ModuleOnly {
+        return None;
+    }
 
     let first = diagnostic.labels.first()?;
     let label = match entry.at {

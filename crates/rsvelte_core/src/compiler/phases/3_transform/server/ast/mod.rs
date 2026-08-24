@@ -231,6 +231,12 @@ pub struct ServerTransformState<'a> {
     /// rebuilds loc-less. Their final anchor is decided after the reordered
     /// script body is assembled.
     pub pending_tail_comments: Vec<PendingTailComment>,
+    /// Comments from a template expression that folded away, waiting for the
+    /// next located expression to flush them.
+    pending_template_comments: Option<PendingTemplateComments>,
+    /// Upstream only carries template comments through the component block
+    /// when an instance script supplied that block's location.
+    pub has_instance_script: bool,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -339,6 +345,8 @@ impl<'a> ServerTransformState<'a> {
             current_scope_index: analysis.root.root_fragment_scope_index,
             comments: comments::ChunkRegistry::default(),
             pending_tail_comments: Vec::new(),
+            pending_template_comments: None,
+            has_instance_script: false,
             reparse_failure: std::cell::RefCell::new(None),
         }
     }
@@ -376,34 +384,153 @@ impl<'a> ServerTransformState<'a> {
         }
     }
 
+    fn template_region_comments(&self, start: u32, end: u32) -> Vec<Comment> {
+        let Some(slice) = self.source.get(start as usize..end as usize) else {
+            return Vec::new();
+        };
+        if start >= end || memchr::memchr(b'/', slice.as_bytes()).is_none() {
+            return Vec::new();
+        }
+        let allocator = Allocator::default();
+        let ret = oxc_parser::Parser::new(
+            &allocator,
+            slice,
+            oxc_span::SourceType::mjs().with_typescript(true),
+        )
+        .parse();
+        ret.program
+            .comments
+            .iter()
+            .map(|comment| {
+                let mut comment = *comment;
+                comment.span = Span::new(comment.span.start + start, comment.span.end + start);
+                comment.attached_to = comment.span.end;
+                comment
+            })
+            .collect()
+    }
+
+    /// Restrict a template expression's interior to the part reachable by
+    /// upstream's comment cursor. The component block borrows the instance
+    /// script's location, so comments before that script (and every template
+    /// comment when there is no script) are deliberately skipped.
+    fn live_template_region(&self, region: (u32, u32)) -> Option<(u32, u32)> {
+        let cursor_start = self.analysis.instance_script_content.as_ref()?.start;
+        let start = region.0.max(cursor_start);
+        (start < region.1 && (region.1 as usize) <= self.source.len()).then_some((start, region.1))
+    }
+
+    pub fn defer_template_expression_comments(&mut self, region: (u32, u32)) {
+        let Some((start, end)) = self.live_template_region(region) else {
+            return;
+        };
+        let comments = self.template_region_comments(start, end);
+        if comments.is_empty() {
+            return;
+        }
+        match &mut self.pending_template_comments {
+            Some(pending) => pending.comments.extend(comments),
+            None => {
+                self.pending_template_comments = Some(PendingTemplateComments { start, comments });
+            }
+        }
+    }
+
+    pub fn place_template_expression_comments(
+        &mut self,
+        region: (u32, u32),
+        expr_span: (u32, u32),
+        expr: &mut OxcExpression<'a>,
+    ) {
+        let Some((start, end)) = self.live_template_region(region) else {
+            return;
+        };
+        let (expr_start, expr_end) = expr_span;
+        let own = self.template_region_comments(start, end);
+        let carried = match self.pending_template_comments.take() {
+            Some(pending) if pending.start < start => Some(pending),
+            _ => None,
+        };
+        if own.is_empty() && carried.is_none() {
+            return;
+        }
+        let region_start = carried.as_ref().map_or(start, |pending| pending.start);
+        let region_end = end.max(expr_end);
+        if expr_start < region_start || region_end as usize > self.source.len() {
+            return;
+        }
+        let mut comments = carried.map(|pending| pending.comments).unwrap_or_default();
+        comments.extend(own);
+        comments.retain(|comment| {
+            comment.span.start >= region_start
+                && comment.span.end <= region_end
+                && (comment.span.end <= expr_start || comment.span.start >= expr_end)
+        });
+        if comments.is_empty() {
+            return;
+        }
+        let Some(text) = self.source.get(region_start as usize..region_end as usize) else {
+            return;
+        };
+        for comment in &mut comments {
+            comment.span = Span::new(
+                comment.span.start - region_start,
+                comment.span.end - region_start,
+            );
+            comment.attached_to = comment.span.end;
+        }
+        if let Some(base) = self.comments.register_expression(text, &comments) {
+            let mut place = comments::Place::At(base + (expr_start - region_start));
+            place.visit_expression(expr);
+        }
+    }
+
+    pub fn visit_expression_tag(
+        &mut self,
+        tag: &crate::ast::template::ExpressionTag,
+    ) -> OxcExpression<'a> {
+        let mut visited = self.visit_expr(&tag.expression);
+        let source = self.expr_source(&tag.expression).map(str::to_owned);
+        if let (Some(start), Some(end)) = (tag.expression.start(), tag.expression.end()) {
+            self.place_template_expression_comments(
+                (tag.start + 1, tag.end - 1),
+                (start, end),
+                &mut visited,
+            );
+        }
+        self.claim_on_visited(source.as_deref(), &mut visited);
+        visited
+    }
+
     /// The first template expression flushes every still-pending comment, the way
     /// esrap's cursor writes the whole run before the next node it finds a
-    /// location on. A comment a script successor already took is not among them.
-    pub fn claim_deferred_tail_comment(&mut self, expression: &mut OxcExpression<'a>) {
-        if self
-            .pending_tail_comments
-            .iter()
-            .all(|comment| comment.replay_at_tail)
-        {
-            return;
+    /// location on. Position-anchored script comments remain eligible here when
+    /// their upstream cursor would not have advanced past the template boundary.
+    pub fn claim_deferred_tail_comment(&mut self, expression: &mut OxcExpression<'a>) -> bool {
+        if self.pending_tail_comments.is_empty() {
+            return false;
         }
         let mut text = String::from("x");
         let mut comments: Vec<Comment> = Vec::new();
-        let mut kept = Vec::new();
         for entry in std::mem::take(&mut self.pending_tail_comments) {
-            if entry.replay_at_tail {
-                kept.push(entry);
-                continue;
-            }
             let base = text.len() as u32;
             text.push_str(&entry.suffix);
-            comments.extend(entry.comments.into_iter().map(|mut comment| {
-                comment.span.start += base;
-                comment.span.end += base;
-                comment
-            }));
+            if !entry.replay_at_tail {
+                comments.extend(entry.comments.into_iter().map(|mut comment| {
+                    comment.span.start += base;
+                    comment.span.end += base;
+                    comment
+                }));
+            }
         }
-        self.pending_tail_comments = kept;
+        if comments.is_empty() {
+            if let Some(base) = self.comments.register_anchor() {
+                let mut place = comments::Place::At(base);
+                place.visit_expression(expression);
+                return true;
+            }
+            return false;
+        }
         // The anchor goes on the line after the run, so a line comment cannot
         // swallow it and a block one still gets its own line — which is what
         // upstream produces, the script always sitting above the template.

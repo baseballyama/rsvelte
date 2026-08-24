@@ -423,7 +423,12 @@ pub(crate) fn skip_ws_and_comments_back(
 /// `` ` ``, `/`), so testing its first byte settles the whole match.
 /// This is also used by production scans whose needles are not rune keypaths.
 pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
-    find_code_filtered(bytes, needle, |_, _| true)
+    find_code_filtered(bytes, needle, 0, |_, _| true)
+}
+
+#[cfg(test)]
+fn find_code_from(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+    find_code_filtered(bytes, needle, from, |_, _| true)
 }
 
 /// [`find_code`], but only for a match that can head a rune keypath.
@@ -436,28 +441,55 @@ pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
 /// accepts. The identifier-character test is the same rule one byte over:
 /// `a$state(` is a single identifier that merely ends in the rune's spelling.
 pub(crate) fn find_rune_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
-    find_code_filtered(bytes, needle, |at, significant| {
-        // `.` / `?.` — a member property. Read off the last SIGNIFICANT byte so
-        // `o\n\t.$state(` and `o /*c*/ . $state(` answer the same as `o.$state(`.
-        if significant == Some(b'.') {
-            return false;
+    debug_assert!(
+        !needle
+            .iter()
+            .any(|b| matches!(b, b'\'' | b'"' | b'`' | b'/')),
+        "find_rune_code needs a needle that cannot open an opaque run"
+    );
+    let mut candidates = memchr::memmem::find_iter(bytes, needle);
+    let mut candidate = candidates.next()?;
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    let mut before = PrevChars::default();
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            while candidate < next {
+                candidate = candidates.next()?;
+            }
+            if !is_comment {
+                prev = Some(b'x');
+                before.push_opaque();
+            }
+            i = next;
+            continue;
         }
-        // A longer identifier ending in the rune's spelling. This one reads the
-        // IMMEDIATE predecessor: the significant byte skips whitespace, and
-        // `return $state(1)` would otherwise be rejected on the `n` of `return`.
-        if at > 0 && is_ident_byte(bytes[at - 1]) {
-            return false;
+        if i == candidate {
+            if is_rune_call_at(bytes, candidate, needle, &before) {
+                return Some(candidate);
+            }
+            candidate = candidates.next()?;
         }
-        // `function $inspect(v) {}` declares the name; the `(` belongs to the
-        // parameter list, not to a call. Left un-tested, the `$inspect(` removal
-        // deleted the name and emitted `function  {` — text no parser accepts.
-        preceding_word(bytes, at) != Some(b"function")
-    })
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+            before.push_code_byte(bytes, i);
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Whether a rune-shaped match names a rune call rather than a property,
+/// longer identifier, function declaration, or class/object method.
+pub(crate) fn is_rune_call_at(bytes: &[u8], at: usize, needle: &[u8], before: &PrevChars) -> bool {
+    before.starts_a_rune(bytes, at)
+        && !is_method_definition(bytes, at, needle, before)
+        && preceding_word(bytes, at) != Some(b"function")
 }
 
 /// The identifier token ending immediately before `at`, skipping ASCII
-/// whitespace. Reads bytes only: a comment between the keyword and the name
-/// makes this `None`, which leaves the caller's answer where it already was.
+/// whitespace. A comment between the keyword and the name deliberately yields
+/// `None`; the shared scanner has already skipped that opaque region.
 fn preceding_word(bytes: &[u8], at: usize) -> Option<&[u8]> {
     let mut end = at;
     while end > 0 && bytes[end - 1].is_ascii_whitespace() {
@@ -470,11 +502,58 @@ fn preceding_word(bytes: &[u8], at: usize) -> Option<&[u8]> {
     (start < end).then(|| &bytes[start..end])
 }
 
+#[cfg(test)]
+fn find_rune_call(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+    find_rune_code(bytes, needle)
+}
+
+fn is_method_definition(bytes: &[u8], at: usize, needle: &[u8], before: &PrevChars) -> bool {
+    if !before.could_start_a_member() {
+        return false;
+    }
+    let Some(after_params) = end_of_parens(bytes, at + needle.len() - 1) else {
+        return false;
+    };
+    next_code_byte(bytes, after_params) == Some(b'{')
+}
+
+fn end_of_parens(bytes: &[u8], open: usize) -> Option<usize> {
+    debug_assert_eq!(bytes.get(open), Some(&b'('));
+    let mut depth = 0usize;
+    let mut prev: Option<u8> = None;
+    let mut i = open;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    None
+}
+
 /// `accept(match_start, last_significant_code_byte_before_it)` decides whether a
 /// code match counts; a rejected one is skipped and scanning continues.
 fn find_code_filtered(
     bytes: &[u8],
     needle: &[u8],
+    from: usize,
     accept: impl Fn(usize, Option<u8>) -> bool,
 ) -> Option<usize> {
     debug_assert!(
@@ -573,13 +652,14 @@ impl PrevChars {
     /// Can a rune name start here? Not when the previous character continues an
     /// identifier, and not after the `.` of a member access — but `...` is a
     /// spread, whose operand may well be a rune call.
-    pub(crate) fn starts_a_rune(&self) -> bool {
-        match self.last {
-            None => true,
-            Some(c) if is_ident_char(c) => false,
-            Some('.') => self.before_last == Some('.'),
-            Some(_) => true,
+    pub(crate) fn starts_a_rune(&self, bytes: &[u8], at: usize) -> bool {
+        if self.last == Some('.') && self.before_last != Some('.') {
+            return false;
         }
+        std::str::from_utf8(&bytes[..at])
+            .ok()
+            .and_then(|prefix| prefix.chars().next_back())
+            .is_none_or(|c| !is_ident_char(c))
     }
 
     /// Could a class / object member start here? `get`, `set`, `async` and
@@ -615,8 +695,8 @@ fn is_js_whitespace(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_rune_code, skip_opaque,
-        slash_starts_regex_at,
+        KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_code_from, find_rune_call,
+        find_rune_code, skip_opaque, slash_starts_regex_at,
     };
 
     #[test]

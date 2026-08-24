@@ -53,9 +53,10 @@ fn effect_text_in_template_is_preserved() {
 
 #[test]
 fn real_effect_call_is_still_stripped() {
-    // A genuine `$effect.root(...)` call (effects don't run on the server) is
-    // still replaced with a no-op cleanup function.
+    // A genuine statement-position `$effect.root(...)` call is removed entirely
+    // because effects do not run on the server. Expression-position calls use
+    // the no-op cleanup function instead (covered by #3343's regression test).
     let out = server_module(r#"export function f(){ $effect.root(() => { g(); }); }"#);
     assert!(!out.contains("$effect.root"), "got:\n{out}");
-    assert!(out.contains("() => {}"), "got:\n{out}");
+    assert!(out.contains("export function f() {}"), "got:\n{out}");
 }

@@ -2122,7 +2122,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg = &call.arguments[0];
         self.visit_argument(arg);
         let arg_span = arg.span();
-        let (mut pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        let (mut pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span, init_span);
         // `$.derived` is built with a plain string callee and takes the user's
         // own function unchanged, so the declarator's leading comments flush
         // before that argument just like the ones written inside the parens.
@@ -2217,7 +2217,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // the declarator's `=` and `$derived(` reach the same slot, because
         // upstream builds `$.derived` with a plain string callee that carries
         // no `loc` of its own.
-        let (mut pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        let (mut pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span, init_span);
         let lead_spans = self.declarator_lead_comment_spans(id.span().end, call.span.start);
         let start = lead_spans
             .first()

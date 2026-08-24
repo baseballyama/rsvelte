@@ -572,21 +572,6 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
             _ => set,
         };
 
-        let rewrite = match short_circuit {
-            None => set_call,
-            Some(op) => {
-                let logical = format!("{} {} {}", read(), op.as_str(), set_call);
-                if self
-                    .tight_parents
-                    .contains(&(expr.span.start, expr.span.end))
-                {
-                    format!("({})", logical)
-                } else {
-                    logical
-                }
-            }
-        };
-
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }

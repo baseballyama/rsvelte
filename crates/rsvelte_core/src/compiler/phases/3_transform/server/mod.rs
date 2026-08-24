@@ -26,7 +26,7 @@ use super::js_ast::nodes::{JsImportDeclaration, JsImportSpecifier, JsStatement};
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::is_ident_byte;
+use crate::compiler::phases::phase3_transform::shared::{js_scan, rune_shadow};
 use memchr::memmem;
 use std::cell::RefCell;
 
@@ -263,16 +263,11 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
             }
             _ => {}
         }
-        if i + needle.len() <= n && &bytes[i..i + needle.len()] == needle {
-            // A rune name in the property slot of `o.$effect(cb)` is a method
-            // call, not a rune — upstream's `get_global_keypath` walks a member
-            // chain down to its BASE identifier, which this one never is. Same
-            // rule one byte over for `a$effect(`, a single longer identifier.
-            let is_rune_head = needle.first() != Some(&b'$')
-                || (!last_significant_is_dot(bytes, i) && (i == 0 || !is_ident_byte(bytes[i - 1])));
-            if is_rune_head {
-                out.push(i);
-            }
+        if i + needle.len() <= n
+            && &bytes[i..i + needle.len()] == needle
+            && (!rune_needle || js_scan::is_rune_call_at(bytes, i, needle, &before))
+        {
+            out.push(i);
         }
         if !bytes[i].is_ascii_whitespace() {
             before.push_code_byte(bytes, i);
@@ -462,10 +457,10 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
 /// `CallExpression` visitor at every expression depth.
 fn lower_module_dev_inspect(source: &str) -> String {
     use super::client::find_matching_paren;
-    use super::shared::js_scan::find_code;
+    use super::shared::js_scan::find_rune_code;
 
     let mut result = source.to_string();
-    while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
         let args_start = pos + b"$inspect(".len();
         let Some(args_len) = find_matching_paren(&result[args_start..]) else {
             break;
@@ -568,7 +563,7 @@ fn previous_significant_code_byte(s: &str, pos: usize) -> Option<u8> {
     last
 }
 
-fn strip_effects_from_source(source: &str) -> String {
+fn strip_effects_from_source(source: &str, binds_rune_name: bool) -> String {
     use super::client::find_matching_paren;
 
     // A `$effect` that resolves to a declaration (`function f($effect) { $effect(1) }`)

@@ -451,7 +451,7 @@ fn resolve_expression(
         Err((msg, pos)) => {
             // Store the first parse error encountered
             if first_error.is_none() {
-                *first_error = lazy_parse_error(kind, msg, content, start, ts);
+                *first_error = lazy_parse_error(kind, msg, content, start, source, ts);
             }
             // Still set the expression to something valid to allow continued processing
             *expr = super::read::expression::create_empty_identifier("", pos, pos + content.len());
@@ -467,11 +467,12 @@ fn lazy_parse_error(
     msg: String,
     content: &str,
     start: usize,
+    source: &str,
     ts: bool,
 ) -> Option<crate::error::ParseError> {
-    let close = match kind {
+    Some(match kind {
         LazyKind::Lenient => return None,
-        LazyKind::AwaitHead => super::state::tag::await_head_parse_error(source, start, msg),
+        LazyKind::AwaitHead => super::state::tag::await_head_parse_error(source, start, msg, ts),
         // Upstream's `read_expression` parses ONE maximal expression with acorn
         // and then `eat('}', true)`: a complete leading expression followed by
         // leftover tokens (e.g. `{foo();}` — the `;` is left over) surfaces as
@@ -509,7 +510,7 @@ fn lazy_parse_error(
             } else {
                 '}'
             };
-            super::read::expression::close_token_or_parse_error(msg, content, start, close)
+            super::read::expression::close_token_or_parse_error(msg, content, start, close, ts)
         }
     })
 }

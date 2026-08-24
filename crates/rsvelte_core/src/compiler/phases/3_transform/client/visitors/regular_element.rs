@@ -9,6 +9,8 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, BindDirective, ClassDirective, Fragment,
     LetDirective, RegularElement as RegularElementNode, StyleDirective, TemplateNode,
 };
+use crate::ast::template::{AttributeValuePart, ExpressionTag};
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::animate_directive::animate_directive;
@@ -30,8 +32,6 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
-use crate::ast::template::{AttributeValuePart, ExpressionTag};
-use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
     JsExpr, JsLiteral, JsPattern, JsStatement,
@@ -2002,7 +2002,9 @@ fn node_id_expr(
     anchors: Option<&ElementAnchors<'_>>,
 ) -> JsExpr {
     match anchors {
-        Some(a) => a.region.anchor(arena, b::id(node_id), a.name_start, a.name_end),
+        Some(a) => a
+            .region
+            .anchor(arena, b::id(node_id), a.name_start, a.name_end),
         None => b::id(node_id),
     }
 }
@@ -2107,7 +2109,11 @@ fn build_element_attribute_update(
         "$.set_attribute"
     };
 
-    let mut args = vec![node_id_expr(arena, node_id, anchors), b::string(name), value];
+    let mut args = vec![
+        node_id_expr(arena, node_id, anchors),
+        b::string(name),
+        value,
+    ];
     if dev
         && element
             .metadata
@@ -2522,7 +2528,6 @@ mod tests {
         assert!(!is_dom_property("id"));
     }
 }
-
 
 /// The single `{ … }` an attribute's value consists of, in either spelling.
 fn expression_tag_of<'a>(value: &'a AttributeValue<'a>) -> Option<&'a ExpressionTag<'a>> {

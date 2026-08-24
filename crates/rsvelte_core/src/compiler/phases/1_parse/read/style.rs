@@ -297,7 +297,7 @@ fn nth_of_tail(text: &str, anb: usize) -> Option<usize> {
         return Some(anb);
     }
 
-    // `\s+of\s+`
+    // `\s+of` followed by whitespace or an unambiguous selector-start token.
     let ws = leading_ws_len(rest);
     if ws == 0 {
         return None;
@@ -305,10 +305,15 @@ fn nth_of_tail(text: &str, anb: usize) -> Option<usize> {
     let after = &rest[ws..];
     let after = after.strip_prefix("of")?;
     let trailing_ws = leading_ws_len(after);
-    if trailing_ws == 0 {
-        return None;
+    if trailing_ws > 0 {
+        return Some(anb + ws + 2 + trailing_ws);
     }
-    Some(anb + ws + 2 + trailing_ws)
+
+    matches!(
+        after.as_bytes().first(),
+        Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&')
+    )
+    .then_some(anb + ws + 2)
 }
 
 /// A comment where a compound selector should begin. Upstream's `read_selector`
@@ -2435,7 +2440,12 @@ impl<'a> SelectorParser<'a> {
                 obj.insert("start".to_string(), Value::Number((start as i64).into()));
                 obj.insert("end".to_string(), Value::Number((end as i64).into()));
                 selectors.push(Value::Object(obj));
-            } else if c.is_alphabetic() || c == '-' || c == '_' || c == '\\' || (c as u32) >= 160 {
+            } else if c.is_alphabetic()
+                || (c == '-' && !self.peek_next_char().is_ascii_digit())
+                || c == '_'
+                || c == '\\'
+                || (c as u32) >= 160
+            {
                 // Type selector (element name) - mirrors the official
                 // `read_identifier` valid character set: ASCII letters/digits,
                 // `-`, `_`, code points >= 160, and `\`-escapes.
@@ -2569,6 +2579,7 @@ impl<'a> SelectorParser<'a> {
             }
             let content_end = self.index;
             self.advance(); // consume ')'
+
             let content = &self.source[content_start..content_end];
             let leading = content.len() - content.trim_start_ws().len();
             let trailing = content.len() - content.trim_end_ws().len();
@@ -2603,7 +2614,6 @@ impl<'a> SelectorParser<'a> {
         self.advance(); // consume ':'
 
         let name = self.read_identifier();
-
         // Check for arguments in parentheses
         let args = if self.current_char() == '(' {
             let args_start = self.offset + self.index + 1;
@@ -2653,165 +2663,6 @@ impl<'a> SelectorParser<'a> {
                     ),
                 );
                 None
-            } else if is_nth_pseudo {
-                // For nth-* pseudo-classes, parse the An+B syntax and optional 'of S' selector
-                let trimmed = content.trim_ws();
-                let leading_ws = content.len() - content.trim_start_ws().len();
-                let nth_start = args_start + leading_ws;
-
-                // Check for 'of ' keyword to split An+B from selector
-                let (nth_value, selector_part, nth_end_pos) = if let Some(split) =
-                    find_nth_of(trimmed)
-                {
-                    // Everything up to and including the `of` (plus the
-                    // whitespace after it, if any) is the Nth value.
-                    let nth_val = &trimmed[..split];
-                    let sel_part = &trimmed[split..];
-                    let end_pos = nth_start + split;
-                    (nth_val, Some((sel_part, end_pos)), end_pos)
-                } else {
-                    // Check if it's a valid An+B expression or just a selector
-                    // An+B patterns: contains n, digits, +/-, or is even/odd
-                    let is_nth_pattern = trimmed == "even"
-                        || trimmed == "odd"
-                        || trimmed.contains('n')
-                        || trimmed.chars().any(|c| c.is_ascii_digit())
-                        || trimmed.starts_with('+')
-                        || trimmed.starts_with('-');
-
-                    if is_nth_pattern {
-                        let trailing_ws = content.len() - content.trim_end_ws().len();
-                        let end_pos = self.offset + content_end - trailing_ws;
-                        (trimmed, None, end_pos)
-                    } else {
-                        // Not an An+B pattern, treat as regular selector
-                        // Fall through to the non-nth parsing below
-                        let mut trimmed_inner = content.trim_ws();
-                        let mut leading_skip = content.len() - content.trim_start_ws().len();
-
-                        loop {
-                            if trimmed_inner.starts_with("/*") {
-                                if let Some(end_pos) = memmem::find(trimmed_inner.as_bytes(), b"*/")
-                                {
-                                    leading_skip += end_pos + 2;
-                                    trimmed_inner = &trimmed_inner[end_pos + 2..];
-                                    let ws_skip =
-                                        trimmed_inner.len() - trimmed_inner.trim_start_ws().len();
-                                    leading_skip += ws_skip;
-                                    trimmed_inner = trimmed_inner.trim_start_ws();
-                                } else {
-                                    break;
-                                }
-                            } else {
-                                break;
-                            }
-                        }
-
-                        let trailing_ws = content.len() - content.trim_end_ws().len();
-                        let trimmed_start = args_start + leading_skip;
-                        let trimmed_end = self.offset + content_end - trailing_ws;
-
-                        // Parse as regular selector list and set as args for the PseudoClassSelector
-                        let args = self.parse_args_selector_list(
-                            trimmed_inner,
-                            trimmed_start,
-                            trimmed_end,
-                        );
-                        let end = self.offset + self.index;
-
-                        let mut obj = Map::new();
-                        obj.insert(
-                            "type".to_string(),
-                            Value::String("PseudoClassSelector".to_string()),
-                        );
-                        obj.insert("name".to_string(), Value::String(name));
-                        obj.insert("args".to_string(), args);
-                        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-                        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-
-                        return Some(Value::Object(obj));
-                    }
-                };
-
-                // Build the Nth node
-                let mut nth_obj = Map::new();
-                nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
-                nth_obj.insert("value".to_string(), Value::String(nth_value.to_string()));
-                nth_obj.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                nth_obj.insert(
-                    "end".to_string(),
-                    Value::Number((nth_end_pos as i64).into()),
-                );
-
-                // Get the actual end position
-                let trailing_ws = content.len() - content.trim_end_ws().len();
-                let actual_end = self.offset + content_end - trailing_ws;
-
-                // What follows `of` is an ordinary selector list, not a single
-                // selector: `:nth-child(2n of .a, .b)` has two complex
-                // selectors, and only the first one carries the `Nth`.
-                let of_list = selector_part.and_then(|(sel_text, sel_start)| {
-                    let mut list = self.parse_args_selector_list(sel_text, sel_start, actual_end);
-                    prepend_nth(&mut list, Value::Object(nth_obj.clone()), nth_start)
-                        .then_some(list)
-                });
-
-                let mut selectors = vec![Value::Object(nth_obj)];
-
-                // Only reached when there is nothing after `of` to attach to.
-                if of_list.is_none()
-                    && let Some((sel_text, sel_start)) = selector_part
-                {
-                    let mut sel_parser = self.nested(sel_text, sel_start);
-                    let mut parsed = Vec::new();
-                    sel_parser.parse_selectors(&mut parsed);
-                    self.absorb_nesting_error(&sel_parser);
-                    selectors.extend(parsed);
-                }
-
-                // Wrap in RelativeSelector
-                let mut rel_sel = Map::new();
-                rel_sel.insert(
-                    "type".to_string(),
-                    Value::String("RelativeSelector".to_string()),
-                );
-                rel_sel.insert("combinator".to_string(), Value::Null);
-                rel_sel.insert("selectors".to_string(), Value::Array(selectors));
-                rel_sel.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-
-                    let mut complex_sel = Map::new();
-                    complex_sel.insert(
-                        "type".to_string(),
-                        Value::String("ComplexSelector".to_string()),
-                    );
-                    complex_sel.insert("start".to_string(), nth_start_value.clone());
-                    complex_sel
-                        .insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                    complex_sel.insert(
-                        "children".to_string(),
-                        Value::Array(vec![Value::Object(rel_sel)]),
-                    );
-
-                    let mut sel_list = Map::new();
-                    sel_list.insert(
-                        "type".to_string(),
-                        Value::String("SelectorList".to_string()),
-                    );
-                    sel_list.insert("start".to_string(), nth_start_value);
-                    sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                    sel_list.insert(
-                        "children".to_string(),
-                        Value::Array(vec![Value::Object(complex_sel)]),
-                    );
-
-                Some(of_list.unwrap_or(Value::Object(sel_list)))
             } else {
                 // Calculate trimmed content positions (strip whitespace and leading comments)
                 let mut trimmed = content.trim_ws();

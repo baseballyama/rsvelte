@@ -1060,6 +1060,26 @@ fn is_whole_string_literal(value: &str) -> bool {
     false
 }
 
+/// ECMA-262 TV/TRV line-terminator normalisation for a template literal body.
+fn normalize_template_line_terminators(body: &str) -> std::borrow::Cow<'_, str> {
+    if memchr::memchr(b'\r', body.as_bytes()).is_none() {
+        return std::borrow::Cow::Borrowed(body);
+    }
+    let mut out = String::with_capacity(body.len());
+    let mut rest = body;
+    while let Some(i) = memchr::memchr(b'\r', rest.as_bytes()) {
+        out.push_str(&rest[..i]);
+        out.push('\n');
+        rest = if rest.as_bytes().get(i + 1) == Some(&b'\n') {
+            &rest[i + 2..]
+        } else {
+            &rest[i + 1..]
+        };
+    }
+    out.push_str(rest);
+    std::borrow::Cow::Owned(out)
+}
+
 /// A literal's source text as the JS VALUE it denotes. `'1'` and `1` are two
 /// different values that render as the same text, and `+` is the operator that
 /// can tell them apart.
@@ -1068,8 +1088,13 @@ fn literal_eval_value(value: &str) -> Option<EvalValue> {
         // The cooked string, matching upstream's `scope.evaluate`; the emitter
         // re-escapes it for the quasi.
         let content = &value[1..value.len() - 1];
+        let content = if value.as_bytes()[0] == b'`' {
+            normalize_template_line_terminators(content)
+        } else {
+            std::borrow::Cow::Borrowed(content)
+        };
         return Some(EvalValue::Str(
-            crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(content),
+            crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(&content),
         ));
     }
     match value {

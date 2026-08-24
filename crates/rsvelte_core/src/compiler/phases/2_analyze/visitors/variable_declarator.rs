@@ -802,6 +802,11 @@ fn process_props_object_pattern_typed(
                         *n,
                     ),
                 ),
+                // Upstream takes `String(key.value)`, and a BigInt stringifies to
+                // its decimal digits — which is what this variant already holds.
+                crate::ast::typed_expr::LiteralValue::BigInt(digits) => {
+                    Some(digits.to_string())
+                }
                 _ => None,
             },
             _ => None,

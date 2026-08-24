@@ -653,24 +653,27 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             synth.source.push_str(&anchor.region);
             synth.source.push('\n');
             let region_start = anchor.region_start;
-            synth.comments.extend(anchor.comments.iter().map(
-                |&(start, end, line)| -> Comment {
-                    let start = base + (start - region_start);
-                    let end = base + (end - region_start);
-                    let kind = if line {
-                        CommentKind::Line
-                    } else if anchor.region[(start - base) as usize..(end - base) as usize]
-                        .contains('\n')
-                    {
-                        CommentKind::MultiLineBlock
-                    } else {
-                        CommentKind::SingleLineBlock
-                    };
-                    let mut comment = Comment::new(start, end, kind);
-                    comment.attached_to = end;
-                    comment
-                },
-            ));
+            synth.comments.extend(
+                anchor
+                    .comments
+                    .iter()
+                    .map(|&(start, end, line)| -> Comment {
+                        let start = base + (start - region_start);
+                        let end = base + (end - region_start);
+                        let kind = if line {
+                            CommentKind::Line
+                        } else if anchor.region[(start - base) as usize..(end - base) as usize]
+                            .contains('\n')
+                        {
+                            CommentKind::MultiLineBlock
+                        } else {
+                            CommentKind::SingleLineBlock
+                        };
+                        let mut comment = Comment::new(start, end, kind);
+                        comment.attached_to = end;
+                        comment
+                    }),
+            );
             synth.open_source_region = Some(anchor.region_start);
             synth.open_source_base = base;
         }

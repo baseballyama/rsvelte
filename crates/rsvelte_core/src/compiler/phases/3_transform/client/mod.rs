@@ -50,6 +50,7 @@ mod rune_transforms;
 mod sanitized_props;
 mod scan_index;
 mod scope_analysis;
+pub(crate) mod source_anchor;
 mod state_assigns_combined_ast;
 mod state_call_ast;
 mod state_eager_ast;
@@ -97,9 +98,10 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    after_keyword, after_keywords, contains_identifier, find_code, find_rune_code, is_ident_byte,
-    skip_opaque,
+    after_keyword, after_keywords, code_bytes, contains_identifier, find_code, find_rune_code,
+    is_ident_byte, skip_opaque,
 };
+use crate::compiler::phases::phase3_transform::shared::rune_shadow;
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -631,13 +633,31 @@ pub(crate) fn transform_client(
                 .as_deref()
                 .unwrap_or(&instance_script.raw),
         );
-        let instance_raw = paren_stripped
+        // In runes mode this is a user binding, and upstream renames it before
+        // generation so compiler-built `$$props` uses remain untouched.
+        let sanitized_props_renamed = analysis
+            .runes
+            .then(|| {
+                sanitized_props::rename_dollar_props(
+                    paren_stripped
+                        .as_deref()
+                        .or(dead_comments_stripped.as_deref())
+                        .unwrap_or(&instance_script.raw),
+                )
+            })
+            .flatten();
+        let instance_raw = sanitized_props_renamed
             .as_deref()
+            .or(paren_stripped.as_deref())
             .or(dead_comments_stripped.as_deref())
             .unwrap_or(&instance_script.raw);
         let retained_instance = retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
-            .filter(|_| dead_comments_stripped.is_none() && paren_stripped.is_none());
+            .filter(|_| {
+                dead_comments_stripped.is_none()
+                    && paren_stripped.is_none()
+                    && sanitized_props_renamed.is_none()
+            });
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
@@ -5005,7 +5025,9 @@ fn transform_module_script_runes_with_target(
     // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
     // that sits in a string / template / regex / comment untouched, and this
     // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_rune_code(result.as_bytes(), b"$state(") {
+    let mut state_from = 0usize;
+    while let Some(rel) = find_rune_code(&result.as_bytes()[state_from..], b"$state(") {
+        let pos = state_from + rel;
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -5140,7 +5162,9 @@ fn transform_module_script_runes_with_target(
     // / regex / comment is text. Matching it either rewrote the literal (#2988)
     // or aborted the loop on its unbalanced parens, leaving the real rune call
     // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_rune_code(result.as_bytes(), b"$derived(") {
+    let mut derived_from = 0usize;
+    while let Some(rel) = find_rune_code(&result.as_bytes()[derived_from..], b"$derived(") {
+        let pos = derived_from + rel;
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
@@ -6088,7 +6112,15 @@ fn transform_instance_script_for_visitors(
     let separated = matches!(separated_script, Cow::Owned(_));
     let retained_program = retained_program.filter(|_| !separated);
     let source_projection = source_projection.filter(|_| !separated);
-    let script = separated_script.as_ref();
+    let normalized_labels = if analysis.runes {
+        Cow::Borrowed(separated_script.as_ref())
+    } else {
+        close_reactive_label_gaps(separated_script.as_ref(), analysis.is_typescript)
+    };
+    let labels_changed = matches!(normalized_labels, Cow::Owned(_));
+    let retained_program = retained_program.filter(|_| !labels_changed);
+    let source_projection = source_projection.filter(|_| !labels_changed);
+    let script = normalized_labels.as_ref();
     let original_script = script;
 
     // Instance imports are removed by the caller before this pipeline.
@@ -7841,9 +7873,15 @@ fn transform_instance_script_for_visitors(
         // is reached, and the name still resolves — `$$exports` reads the hoisted
         // `const`. Keeping it emitted `const x` twice in one scope, which is not
         // parseable JS. H-060.
-        if at_statement_boundary && is_props_id_declaration(trimmed) {
-            line_idx += 1;
-            continue;
+        if at_statement_boundary && let Some(tail) = props_id_declaration_tail(trimmed) {
+            if tail.trim().is_empty() {
+                line_idx += 1;
+                continue;
+            }
+            // Another statement shares the line. Dropping the whole line drops
+            // that one too, and keeping it emits the hoisted `const` twice.
+            line = tail;
+            trimmed = tail.trim();
         }
 
         // Add line to accumulator (zero-copy borrow from script_lines)

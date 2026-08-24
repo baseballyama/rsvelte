@@ -95,6 +95,8 @@ pub struct ScopeBuilder<'a> {
     /// `{:else}` fragment scopes keyed by the enclosing `{#if}`'s start (see
     /// `ScopeRoot::if_alternate_scope_map`).
     if_alternate_scope_map: FxHashMap<u32, usize>,
+    /// Scope of the root template fragment.
+    root_fragment_scope_index: usize,
     /// `{:else}` fragment scopes keyed by the enclosing `{#each}`'s start (see
     /// `ScopeRoot::each_fallback_scope_map`).
     each_fallback_scope_map: FxHashMap<u32, usize>,
@@ -153,6 +155,7 @@ impl<'a> ScopeBuilder<'a> {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             if_alternate_scope_map: FxHashMap::default(),
+            root_fragment_scope_index: 0,
             each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
@@ -369,6 +372,7 @@ impl<'a> ScopeBuilder<'a> {
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
                 if_alternate_scope_map: self.if_alternate_scope_map,
+                root_fragment_scope_index: self.root_fragment_scope_index,
                 each_fallback_scope_map: self.each_fallback_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
                 conflicts,
@@ -3917,6 +3921,22 @@ impl<'a> ScopeBuilder<'a> {
     ) {
         match pattern {
             JsNode::Identifier { name, .. } => {
+                // A declaration tag at the root fragment may not shadow an
+                // instance-script declaration. Upstream checks this explicitly
+                // because the fragment and instance script are separate scopes.
+                let is_top_level = self.instance_scope_index != 0
+                    && self.current_scope == self.root_fragment_scope_index;
+                if is_top_level
+                    && self.scopes[self.instance_scope_index]
+                        .declarations
+                        .contains_key(name.as_str())
+                {
+                    let mut error = errors::declaration_duplicate(name.as_str());
+                    if let Some((start, end)) = span_of(pattern) {
+                        error = error.at(start, end);
+                    }
+                    self.validation_errors.push(error);
+                }
                 self.declare_binding(name.to_string(), binding_kind, decl_kind, span_of(pattern));
             }
             JsNode::ObjectPattern { properties, .. }

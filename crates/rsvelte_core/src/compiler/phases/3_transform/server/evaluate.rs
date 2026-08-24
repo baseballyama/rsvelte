@@ -707,7 +707,7 @@ fn push_code_point(n: f64, units: &mut Vec<u16>) -> Option<()> {
 
 /// Returns `Some((marker, computed))` where `computed` is `Some(value)` when
 /// all arguments are known and the function is computable.
-pub(crate) fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
+fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
     let nums = || -> Option<Vec<f64>> {
         args.iter()
             .map(|e| e.known_value().and_then(to_number))
@@ -785,15 +785,15 @@ pub(crate) fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<Eva
         "Number" => {
             if args.is_empty() {
                 Some(0.0)
-            } else if !all_known {
-                None
-            } else if let Some(EvalValue::BigInt(v)) = args[0].known_value() {
-                // `Number(1n)` is ToNumber on a bigint, which is defined —
-                // unlike the arithmetic operators, which throw on one, so
-                // `to_number` is right to refuse it.
-                Some(*v as f64)
+            } else if all_known {
+                // `Number()` is an explicit conversion, so unlike every
+                // implicit `ToNumber` above it accepts a bigint — and rounds.
+                match args[0].known_value() {
+                    Some(EvalValue::BigInt(v)) => Some(*v as f64),
+                    other => other.and_then(to_number),
+                }
             } else {
-                num_at(0)
+                None
             }
         }
         "Number.parseFloat" => str_at(0).map(|s| js_parse_float(&s)),
@@ -806,7 +806,6 @@ pub(crate) fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<Eva
             // These return booleans, but upstream's table marks them NUMBER.
             // None of them coerces: a missing or non-number argument is `false`.
             if !all_known {
-                // Falls through to the NUMBER marker, as upstream's `else` does.
                 return Some(EvalValue::NumberMarker);
             }
             let b = match args.first().and_then(|e| e.known_value()) {
@@ -870,9 +869,7 @@ fn js_pow(base: f64, exponent: f64) -> f64 {
     base.powf(exponent)
 }
 
-/// `Math.round` — half UP, not Rust's half-away-from-zero. The doubles just
-/// under `0.5` are the exception the naive `(n + 0.5).floor()` gets wrong:
-/// adding `0.5` rounds them up to exactly `1`.
+/// `Math.round` — half UP, not Rust's half-away-from-zero.
 fn js_round(n: f64) -> f64 {
     if !n.is_finite() || n == 0.0 {
         return n;
@@ -916,7 +913,6 @@ fn js_parse_float(s: &str) -> f64 {
     if i == digits_start || (i == digits_start + 1 && b[digits_start] == b'.') {
         return f64::NAN;
     }
-    // An exponent counts only when it is complete.
     if i < b.len() && (b[i] == b'e' || b[i] == b'E') {
         let mut j = i + 1;
         if j < b.len() && (b[j] == b'+' || b[j] == b'-') {
@@ -933,8 +929,7 @@ fn js_parse_float(s: &str) -> f64 {
     t[..i].parse::<f64>().unwrap_or(f64::NAN)
 }
 
-/// `Number.parseInt`: the longest prefix of digits in `radix`, defaulting to
-/// 16 for an `0x` prefix and 10 otherwise.
+/// `Number.parseInt`: the longest prefix of digits in `radix`.
 fn js_parse_int(s: &str, radix: f64) -> f64 {
     let t = s.trim_start_matches(js_whitespace);
     let mut b = t.as_bytes();
@@ -970,8 +965,6 @@ fn js_parse_int(s: &str, radix: f64) -> f64 {
         return f64::NAN;
     }
     let text = &t[t.len() - b.len()..][..digits];
-    // Accumulating in `f64` rounds at every step; V8 converts the whole digit
-    // string once, so `parseInt('9'.repeat(24))` is `1e24` and not `1.0000…3e24`.
     let value = if radix == 10 {
         text.parse::<f64>().unwrap_or(f64::NAN)
     } else {
@@ -995,8 +988,6 @@ fn js_parse_int(s: &str, radix: f64) -> f64 {
     sign * value
 }
 
-/// The `StrWhiteSpace` production, which `parseInt` / `parseFloat` skip. Rust's
-/// `char::is_whitespace` is the `White_Space` property, which admits U+0085.
 fn js_whitespace(c: char) -> bool {
     matches!(
         c,
@@ -1017,15 +1008,12 @@ fn js_whitespace(c: char) -> bool {
     ) || ('\u{2000}'..='\u{200a}').contains(&c)
 }
 
-/// [`eval_global_call`] applied to argument values a caller has already folded.
-///
-/// Upstream keeps ONE `globals` table (`scope.js`), whose entries pair a type
-/// marker with the real JS function; the client's constant folder carried a
-/// second copy holding eight `Math.*` names, so `String('a')` and
-/// `Math.trunc(1.5)` folded on the server and not on the client.
+/// The `globals` fold over arguments that are already concrete values. The
+/// client's constant folder asks the same question, and a second table there
+/// would be a second answer to it.
 pub(crate) fn eval_known_global_call(keypath: &str, args: &[EvalValue]) -> Option<EvalValue> {
-    let evaluations: Vec<Evaluation> = args.iter().cloned().map(Evaluation::single).collect();
-    eval_global_call(keypath, &evaluations)
+    let args: Vec<Evaluation> = args.iter().cloned().map(Evaluation::single).collect();
+    eval_global_call(keypath, &args)
 }
 
 fn is_global_keypath(keypath: &str) -> bool {
@@ -1406,31 +1394,6 @@ impl<'a> EvalCtx<'a> {
 
         static DEBUG_EVAL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         if *DEBUG_EVAL.get_or_init(|| std::env::var_os("DEBUG_EVAL").is_some()) {
-            // Print the UNFILTERED candidates too: an empty `bindings` is the
-            // interesting state, and a loop over it says nothing about why.
-            if let Some(a) = self.analysis {
-                let template_scopes = self
-                    .template_scopes_cache
-                    .get()
-                    .cloned()
-                    .unwrap_or_default();
-                eprintln!(
-                    "[evaluate] name={name} current_scope={:?} instance_scope={} kept={}",
-                    self.current_scope_index,
-                    a.root.instance_scope_index,
-                    bindings.len()
-                );
-                for b in a.root.bindings.iter().filter(|b| b.name == name) {
-                    eprintln!(
-                        "[evaluate]   cand scope={} template_scope={} reachable={} depth={:?} kind={:?}",
-                        b.scope_index,
-                        template_scopes.contains(&b.scope_index),
-                        self.template_binding_is_reachable(b.scope_index),
-                        self.scope_chain_depth(b.scope_index),
-                        b.kind
-                    );
-                }
-            }
             for b in &bindings {
                 eprintln!(
                     "[evaluate] name={} kind={:?} scope={} decl_start={:?} updated={} initial={:?} initial_type={:?}",
@@ -1571,311 +1534,445 @@ impl<'a> EvalCtx<'a> {
     /// Core evaluator over estree-JSON, mirroring upstream's `Evaluation`
     /// constructor switch.
     pub(crate) fn evaluate_estree(&self, node: &Value, depth: u8) -> Evaluation {
-        if depth > MAX_DEPTH {
-            return Evaluation::unknown();
+        evaluate_estree(self, node, depth)
+    }
+}
+
+/// The only two things the `scope.evaluate` recursion asks of its environment.
+/// Splitting them out lets the server generator and the client transform share
+/// ONE port of upstream's `Evaluation` walk with two identifier resolvers.
+pub(crate) trait EvalScope {
+    /// Upstream `scope.evaluate`'s `Identifier` case. `node` is the estree node
+    /// (its `start` lets a resolver replay Phase 2's scope-correct lookup);
+    /// `name` is its `name` field.
+    fn evaluate_identifier(&self, node: &Value, name: &str, depth: u8) -> Evaluation;
+
+    /// Upstream `get_global_keypath` requires `scope.get(name) === null`.
+    fn identifier_has_binding(&self, name: &str) -> bool;
+
+    /// Whether `<name> = $props.id()` appears in the source. The analyzer keeps
+    /// no `initial` for that shape, so only a resolver with the source text can
+    /// answer it; the client resolver has `analysis.props_id` instead.
+    fn binding_initial_is_props_id(&self, _name: &str) -> bool {
+        false
+    }
+}
+
+impl EvalScope for EvalCtx<'_> {
+    fn evaluate_identifier(&self, _node: &Value, name: &str, depth: u8) -> Evaluation {
+        EvalCtx::evaluate_identifier(self, name, depth)
+    }
+
+    fn identifier_has_binding(&self, name: &str) -> bool {
+        EvalCtx::identifier_has_binding(self, name)
+    }
+
+    fn binding_initial_is_props_id(&self, name: &str) -> bool {
+        EvalCtx::binding_initial_is_props_id(self, name)
+    }
+}
+
+/// Port of upstream `Evaluation`'s expression walk (`phases/scope.js`).
+pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
+    scope: &S,
+    node: &Value,
+    depth: u8,
+) -> Evaluation {
+    if depth > MAX_DEPTH {
+        return Evaluation::unknown();
+    }
+    let Some(ty) = node_type(node) else {
+        return Evaluation::unknown();
+    };
+
+    match ty {
+        "Literal" => {
+            if let Some(digits) = node.get("bigint").and_then(|b| b.as_str()) {
+                return match digits.parse::<i128>() {
+                    Ok(v) => Evaluation::single(EvalValue::BigInt(v)),
+                    Err(_) => Evaluation::unknown(),
+                };
+            }
+            // A regex stringifies to its source, but its value is still an object.
+            if let Some(regex) = node.get("regex") {
+                let pattern = regex.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
+                let flags = regex.get("flags").and_then(|f| f.as_str()).unwrap_or("");
+                return Evaluation::single(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
+            }
+            match node.get("value") {
+                Some(Value::String(s)) => Evaluation::single(EvalValue::Str(s.clone())),
+                Some(Value::Number(n)) => {
+                    Evaluation::single(EvalValue::Num(n.as_f64().unwrap_or(f64::NAN)))
+                }
+                Some(Value::Bool(b)) => Evaluation::single(EvalValue::Bool(*b)),
+                Some(Value::Null) => Evaluation::single(EvalValue::Null),
+                _ => Evaluation::unknown(),
+            }
         }
-        let Some(ty) = node_type(node) else {
-            return Evaluation::unknown();
-        };
 
-        match ty {
-            "Literal" => {
-                if let Some(digits) = node.get("bigint").and_then(|b| b.as_str()) {
-                    return match digits.parse::<i128>() {
-                        Ok(v) => Evaluation::single(EvalValue::BigInt(v)),
-                        Err(_) => Evaluation::unknown(),
-                    };
+        "Identifier" => {
+            let Some(name) = node.get("name").and_then(|n| n.as_str()) else {
+                return Evaluation::unknown();
+            };
+            scope.evaluate_identifier(node, name, depth)
+        }
+
+        "BinaryExpression" => {
+            let (Some(left), Some(right), Some(op)) = (
+                node.get("left"),
+                node.get("right"),
+                node.get("operator").and_then(|o| o.as_str()),
+            ) else {
+                return Evaluation::unknown();
+            };
+            let a = evaluate_estree(scope, left, depth + 1);
+            let b = evaluate_estree(scope, right, depth + 1);
+            if let (Some(av), Some(bv)) = (a.known_value(), b.known_value()) {
+                let r = eval_binary(op, av, bv);
+                if !matches!(r, EvalValue::Unknown) {
+                    return Evaluation::single(r);
                 }
-                // A regex literal stringifies to its source but is an object, so
-                // it cannot be folded as a `Str` (`typeof` would print `string`).
-                if let Some(regex) = node.get("regex") {
-                    let pattern = regex.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
-                    let flags = regex.get("flags").and_then(|f| f.as_str()).unwrap_or("");
-                    return Evaluation::single(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
-                }
-                match node.get("value") {
-                    Some(Value::String(s)) => Evaluation::single(EvalValue::Str(s.clone())),
-                    Some(Value::Number(n)) => {
-                        Evaluation::single(EvalValue::Num(n.as_f64().unwrap_or(f64::NAN)))
-                    }
-                    Some(Value::Bool(b)) => Evaluation::single(EvalValue::Bool(*b)),
-                    Some(Value::Null) => Evaluation::single(EvalValue::Null),
-                    _ => Evaluation::unknown(),
-                }
+                return Evaluation::unknown();
             }
-
-            "Identifier" => {
-                let Some(name) = node.get("name").and_then(|n| n.as_str()) else {
-                    return Evaluation::unknown();
-                };
-                self.evaluate_identifier(name, depth)
-            }
-
-            "BinaryExpression" => {
-                let (Some(left), Some(right), Some(op)) = (
-                    node.get("left"),
-                    node.get("right"),
-                    node.get("operator").and_then(|o| o.as_str()),
-                ) else {
-                    return Evaluation::unknown();
-                };
-                let a = self.evaluate_estree(left, depth + 1);
-                let b = self.evaluate_estree(right, depth + 1);
-                if let (Some(av), Some(bv)) = (a.known_value(), b.known_value()) {
-                    let r = eval_binary(op, av, bv);
-                    if !matches!(r, EvalValue::Unknown) {
-                        return Evaluation::single(r);
-                    }
-                    return Evaluation::unknown();
+            // Partial knowledge → type markers (mirrors upstream)
+            let mut ev = Evaluation::new();
+            match op {
+                "!=" | "!==" | "<" | "<=" | ">" | ">=" | "==" | "===" | "in" | "instanceof" => {
+                    ev.add(EvalValue::Bool(true));
+                    ev.add(EvalValue::Bool(false));
                 }
-                // Partial knowledge → type markers (mirrors upstream)
-                let mut ev = Evaluation::new();
-                match op {
-                    "!=" | "!==" | "<" | "<=" | ">" | ">=" | "==" | "===" | "in" | "instanceof" => {
-                        ev.add(EvalValue::Bool(true));
-                        ev.add(EvalValue::Bool(false));
-                    }
-                    "%" | "&" | "*" | "**" | "-" | "/" | "<<" | ">>" | ">>>" | "^" | "|" => {
+                "%" | "&" | "*" | "**" | "-" | "/" | "<<" | ">>" | ">>>" | "^" | "|" => {
+                    ev.add(EvalValue::NumberMarker);
+                }
+                "+" => {
+                    let a_is_string = a.is_string();
+                    let b_is_string = b.is_string();
+                    let a_is_number = a
+                        .values
+                        .iter()
+                        .all(|v| matches!(v, EvalValue::Num(_) | EvalValue::NumberMarker))
+                        && !a.values.is_empty();
+                    let b_is_number = b
+                        .values
+                        .iter()
+                        .all(|v| matches!(v, EvalValue::Num(_) | EvalValue::NumberMarker))
+                        && !b.values.is_empty();
+                    if a_is_string || b_is_string {
+                        ev.add(EvalValue::StringMarker);
+                    } else if a_is_number && b_is_number {
+                        ev.add(EvalValue::NumberMarker);
+                    } else {
+                        ev.add(EvalValue::StringMarker);
                         ev.add(EvalValue::NumberMarker);
                     }
-                    "+" => {
-                        let a_is_string = a.is_string();
-                        let b_is_string = b.is_string();
-                        let a_is_number = a
-                            .values
-                            .iter()
-                            .all(|v| matches!(v, EvalValue::Num(_) | EvalValue::NumberMarker))
-                            && !a.values.is_empty();
-                        let b_is_number = b
-                            .values
-                            .iter()
-                            .all(|v| matches!(v, EvalValue::Num(_) | EvalValue::NumberMarker))
-                            && !b.values.is_empty();
-                        if a_is_string || b_is_string {
-                            ev.add(EvalValue::StringMarker);
-                        } else if a_is_number && b_is_number {
-                            ev.add(EvalValue::NumberMarker);
-                        } else {
-                            ev.add(EvalValue::StringMarker);
-                            ev.add(EvalValue::NumberMarker);
-                        }
+                }
+                _ => ev.add(EvalValue::Unknown),
+            }
+            ev
+        }
+
+        "ConditionalExpression" => {
+            let (Some(test), Some(consequent), Some(alternate)) = (
+                node.get("test"),
+                node.get("consequent"),
+                node.get("alternate"),
+            ) else {
+                return Evaluation::unknown();
+            };
+            let t = evaluate_estree(scope, test, depth + 1);
+            let c = evaluate_estree(scope, consequent, depth + 1);
+            let a = evaluate_estree(scope, alternate, depth + 1);
+            let mut ev = Evaluation::new();
+            if let Some(tv) = t.known_value()
+                && let Some(truthy) = tv.truthy()
+            {
+                ev.extend(if truthy { c } else { a });
+                return ev;
+            }
+            ev.extend(c);
+            ev.extend(a);
+            ev
+        }
+
+        "LogicalExpression" => {
+            let (Some(left), Some(right), Some(op)) = (
+                node.get("left"),
+                node.get("right"),
+                node.get("operator").and_then(|o| o.as_str()),
+            ) else {
+                return Evaluation::unknown();
+            };
+            let a = evaluate_estree(scope, left, depth + 1);
+            let b = evaluate_estree(scope, right, depth + 1);
+            let mut ev = Evaluation::new();
+            if let Some(av) = a.known_value() {
+                let take_left = match op {
+                    "&&" => av.truthy().map(|t| !t),
+                    "||" => av.truthy(),
+                    "??" => av.is_nullish().map(|n| !n),
+                    _ => None,
+                };
+                match take_left {
+                    Some(true) => {
+                        ev.add(av.clone());
+                        return ev;
                     }
-                    _ => ev.add(EvalValue::Unknown),
+                    Some(false) => {
+                        ev.extend(b);
+                        return ev;
+                    }
+                    None => return Evaluation::unknown(),
                 }
-                ev
             }
+            ev.extend(a);
+            ev.extend(b);
+            ev
+        }
 
-            "ConditionalExpression" => {
-                let (Some(test), Some(consequent), Some(alternate)) = (
-                    node.get("test"),
-                    node.get("consequent"),
-                    node.get("alternate"),
-                ) else {
-                    return Evaluation::unknown();
+        "UnaryExpression" => {
+            let (Some(arg), Some(op)) = (
+                node.get("argument"),
+                node.get("operator").and_then(|o| o.as_str()),
+            ) else {
+                return Evaluation::unknown();
+            };
+            let a = evaluate_estree(scope, arg, depth + 1);
+            if let Some(av) = a.known_value() {
+                return match eval_unary(op, av) {
+                    EvalValue::Unknown => Evaluation::unknown(),
+                    v => Evaluation::single(v),
                 };
-                let t = self.evaluate_estree(test, depth + 1);
-                let c = self.evaluate_estree(consequent, depth + 1);
-                let a = self.evaluate_estree(alternate, depth + 1);
-                let mut ev = Evaluation::new();
-                if let Some(tv) = t.known_value()
-                    && let Some(truthy) = tv.truthy()
+            }
+            let mut ev = Evaluation::new();
+            match op {
+                "!" | "delete" => {
+                    ev.add(EvalValue::Bool(false));
+                    ev.add(EvalValue::Bool(true));
+                }
+                "+" | "-" | "~" => ev.add(EvalValue::NumberMarker),
+                "typeof" => ev.add(EvalValue::StringMarker),
+                "void" => ev.add(EvalValue::Undefined),
+                _ => ev.add(EvalValue::Unknown),
+            }
+            ev
+        }
+
+        "CallExpression" => {
+            let Some(callee) = node.get("callee") else {
+                return Evaluation::unknown();
+            };
+            let empty = Vec::new();
+            let args = node
+                .get("arguments")
+                .and_then(|a| a.as_array())
+                .unwrap_or(&empty);
+
+            if let Some((base, keypath)) = get_keypath(callee)
+                && !scope.identifier_has_binding(&base)
+            {
+                if is_rune(&keypath) {
+                    match keypath.as_str() {
+                        "$state" | "$state.raw" | "$derived" => {
+                            if let Some(arg) = args.first() {
+                                return evaluate_estree(scope, arg, depth + 1);
+                            }
+                            return Evaluation::single(EvalValue::Undefined);
+                        }
+                        "$props.id" => {
+                            return Evaluation::single(EvalValue::StringMarker);
+                        }
+                        "$effect.tracking" => {
+                            let mut ev = Evaluation::new();
+                            ev.add(EvalValue::Bool(false));
+                            ev.add(EvalValue::Bool(true));
+                            return ev;
+                        }
+                        "$derived.by" => {
+                            if let Some(arg) = args.first()
+                                && node_type(arg) == Some("ArrowFunctionExpression")
+                                && arg
+                                    .get("body")
+                                    .and_then(node_type)
+                                    .is_some_and(|t| t != "BlockStatement")
+                                && let Some(body) = arg.get("body")
+                            {
+                                return evaluate_estree(scope, body, depth + 1);
+                            }
+                            return Evaluation::unknown();
+                        }
+                        _ => return Evaluation::unknown(),
+                    }
+                }
+
+                if is_global_keypath(&keypath)
+                    && args.iter().all(|a| node_type(a) != Some("SpreadElement"))
                 {
-                    ev.extend(if truthy { c } else { a });
-                    return ev;
+                    let evaluated: Vec<Evaluation> = args
+                        .iter()
+                        .map(|a| evaluate_estree(scope, a, depth + 1))
+                        .collect();
+                    if let Some(v) = eval_global_call(&keypath, &evaluated) {
+                        return Evaluation::single(v);
+                    }
+                    return Evaluation::unknown();
                 }
-                ev.extend(c);
-                ev.extend(a);
-                ev
             }
 
-            "LogicalExpression" => {
-                let (Some(left), Some(right), Some(op)) = (
-                    node.get("left"),
-                    node.get("right"),
-                    node.get("operator").and_then(|o| o.as_str()),
-                ) else {
-                    return Evaluation::unknown();
-                };
-                let a = self.evaluate_estree(left, depth + 1);
-                let b = self.evaluate_estree(right, depth + 1);
-                let mut ev = Evaluation::new();
-                if let Some(av) = a.known_value() {
-                    let take_left = match op {
-                        "&&" => av.truthy().map(|t| !t),
-                        "||" => av.truthy(),
-                        "??" => av.is_nullish().map(|n| !n),
-                        _ => None,
-                    };
-                    match take_left {
-                        Some(true) => {
-                            ev.add(av.clone());
-                            return ev;
-                        }
-                        Some(false) => {
-                            ev.extend(b);
-                            return ev;
-                        }
+            Evaluation::unknown()
+        }
+
+        "TemplateLiteral" => {
+            let (Some(quasis), Some(exprs)) = (
+                node.get("quasis").and_then(|q| q.as_array()),
+                node.get("expressions").and_then(|e| e.as_array()),
+            ) else {
+                return Evaluation::unknown();
+            };
+            let cooked = |i: usize| -> Option<String> {
+                quasis
+                    .get(i)?
+                    .get("value")?
+                    .get("cooked")?
+                    .as_str()
+                    .map(String::from)
+            };
+            let Some(mut result) = cooked(0) else {
+                return Evaluation::unknown();
+            };
+            for (i, e) in exprs.iter().enumerate() {
+                let ev = evaluate_estree(scope, e, depth + 1);
+                if let Some(v) = ev.known_value().and_then(to_js_string) {
+                    result.push_str(&v);
+                    match cooked(i + 1) {
+                        Some(q) => result.push_str(&q),
                         None => return Evaluation::unknown(),
                     }
+                } else {
+                    return Evaluation::single(EvalValue::StringMarker);
                 }
-                ev.extend(a);
-                ev.extend(b);
-                ev
             }
-
-            "UnaryExpression" => {
-                let (Some(arg), Some(op)) = (
-                    node.get("argument"),
-                    node.get("operator").and_then(|o| o.as_str()),
-                ) else {
-                    return Evaluation::unknown();
-                };
-                let a = self.evaluate_estree(arg, depth + 1);
-                if let Some(av) = a.known_value() {
-                    return match eval_unary(op, av) {
-                        EvalValue::Unknown => Evaluation::unknown(),
-                        v => Evaluation::single(v),
-                    };
-                }
-                let mut ev = Evaluation::new();
-                match op {
-                    "!" | "delete" => {
-                        ev.add(EvalValue::Bool(false));
-                        ev.add(EvalValue::Bool(true));
-                    }
-                    "+" | "-" | "~" => ev.add(EvalValue::NumberMarker),
-                    "typeof" => ev.add(EvalValue::StringMarker),
-                    "void" => ev.add(EvalValue::Undefined),
-                    _ => ev.add(EvalValue::Unknown),
-                }
-                ev
-            }
-
-            "CallExpression" => {
-                let Some(callee) = node.get("callee") else {
-                    return Evaluation::unknown();
-                };
-                let empty = Vec::new();
-                let args = node
-                    .get("arguments")
-                    .and_then(|a| a.as_array())
-                    .unwrap_or(&empty);
-
-                if let Some((base, keypath)) = get_keypath(callee)
-                    && !self.identifier_has_binding(&base)
-                {
-                    if is_rune(&keypath) {
-                        match keypath.as_str() {
-                            "$state" | "$state.raw" | "$derived" => {
-                                if let Some(arg) = args.first() {
-                                    return self.evaluate_estree(arg, depth + 1);
-                                }
-                                return Evaluation::single(EvalValue::Undefined);
-                            }
-                            "$props.id" => {
-                                return Evaluation::single(EvalValue::StringMarker);
-                            }
-                            "$effect.tracking" => {
-                                let mut ev = Evaluation::new();
-                                ev.add(EvalValue::Bool(false));
-                                ev.add(EvalValue::Bool(true));
-                                return ev;
-                            }
-                            "$derived.by" => {
-                                if let Some(arg) = args.first()
-                                    && node_type(arg) == Some("ArrowFunctionExpression")
-                                    && arg
-                                        .get("body")
-                                        .and_then(node_type)
-                                        .is_some_and(|t| t != "BlockStatement")
-                                    && let Some(body) = arg.get("body")
-                                {
-                                    return self.evaluate_estree(body, depth + 1);
-                                }
-                                return Evaluation::unknown();
-                            }
-                            _ => return Evaluation::unknown(),
-                        }
-                    }
-
-                    if is_global_keypath(&keypath)
-                        && args.iter().all(|a| node_type(a) != Some("SpreadElement"))
-                    {
-                        let evaluated: Vec<Evaluation> = args
-                            .iter()
-                            .map(|a| self.evaluate_estree(a, depth + 1))
-                            .collect();
-                        if let Some(v) = eval_global_call(&keypath, &evaluated) {
-                            return Evaluation::single(v);
-                        }
-                        return Evaluation::unknown();
-                    }
-                }
-
-                Evaluation::unknown()
-            }
-
-            "TemplateLiteral" => {
-                let (Some(quasis), Some(exprs)) = (
-                    node.get("quasis").and_then(|q| q.as_array()),
-                    node.get("expressions").and_then(|e| e.as_array()),
-                ) else {
-                    return Evaluation::unknown();
-                };
-                let cooked = |i: usize| -> Option<String> {
-                    quasis
-                        .get(i)?
-                        .get("value")?
-                        .get("cooked")?
-                        .as_str()
-                        .map(String::from)
-                };
-                let Some(mut result) = cooked(0) else {
-                    return Evaluation::unknown();
-                };
-                for (i, e) in exprs.iter().enumerate() {
-                    let ev = self.evaluate_estree(e, depth + 1);
-                    if let Some(v) = ev.known_value().and_then(to_js_string) {
-                        result.push_str(&v);
-                        match cooked(i + 1) {
-                            Some(q) => result.push_str(&q),
-                            None => return Evaluation::unknown(),
-                        }
-                    } else {
-                        return Evaluation::single(EvalValue::StringMarker);
-                    }
-                }
-                Evaluation::single(EvalValue::Str(result))
-            }
-
-            "MemberExpression" => {
-                if let Some((base, keypath)) = get_keypath(node)
-                    && !self.identifier_has_binding(&base)
-                    && let Some(v) = global_constant(&keypath)
-                {
-                    return Evaluation::single(EvalValue::Num(v));
-                }
-                Evaluation::unknown()
-            }
-
-            "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
-                Evaluation::single(EvalValue::FunctionMarker)
-            }
-
-            // TypeScript wrappers: evaluate the inner expression.
-            "TSAsExpression"
-            | "TSNonNullExpression"
-            | "TSSatisfiesExpression"
-            | "TSTypeAssertion"
-            | "ParenthesizedExpression" => {
-                if let Some(inner) = node.get("expression") {
-                    return self.evaluate_estree(inner, depth + 1);
-                }
-                Evaluation::unknown()
-            }
-
-            _ => Evaluation::unknown(),
+            Evaluation::single(EvalValue::Str(result))
         }
+
+        "MemberExpression" => {
+            if let Some((base, keypath)) = get_keypath(node)
+                && !scope.identifier_has_binding(&base)
+                && let Some(v) = global_constant(&keypath)
+            {
+                return Evaluation::single(EvalValue::Num(v));
+            }
+            Evaluation::unknown()
+        }
+
+        "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+            Evaluation::single(EvalValue::FunctionMarker)
+        }
+
+        // TypeScript wrappers: evaluate the inner expression.
+        "TSAsExpression"
+        | "TSNonNullExpression"
+        | "TSSatisfiesExpression"
+        | "TSTypeAssertion"
+        | "ParenthesizedExpression" => {
+            if let Some(inner) = node.get("expression") {
+                return evaluate_estree(scope, inner, depth + 1);
+            }
+            Evaluation::unknown()
+        }
+
+        _ => Evaluation::unknown(),
+    }
+}
+
+/// Port of upstream `scope.evaluate`'s recursion into `binding.initial`
+/// (`phases/scope.js`, the `Identifier` case).
+pub(crate) fn evaluate_binding_initial<S: EvalScope + ?Sized>(
+    scope: &S,
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    depth: u8,
+) -> Evaluation {
+    use BindingKind::*;
+
+    // Props (and prop-like bindings) are never known.
+    if matches!(binding.kind, Prop | BindableProp | RestProp) {
+        return Evaluation::unknown();
+    }
+    // Template-loop bindings: upstream marks each indexes NUMBER and
+    // items/await/snippet params unknown.
+    if matches!(binding.kind, EachIndex) {
+        return Evaluation::single(EvalValue::NumberMarker);
+    }
+    if matches!(
+        binding.kind,
+        EachItem | AwaitThen | AwaitCatch | SnippetParam | Let
+    ) {
+        return Evaluation::unknown();
+    }
+    if binding.initial_node_type.as_deref() == Some("SnippetBlock")
+        || binding.initial_node_type.as_deref() == Some("ImportDeclaration")
+    {
+        return Evaluation::unknown();
+    }
+    if binding.is_updated() {
+        return Evaluation::unknown();
+    }
+    // `$state()` / `$state.raw()` with no argument evaluates to
+    // `undefined` (upstream scope.js CallExpression rune case: no
+    // argument → `values.add(undefined)`). The analyzer stores the rune
+    // ARGUMENT as `initial`, so a no-arg rune leaves both `initial` and
+    // `initial_node_type` unset — distinguishable from a non-literal
+    // argument, which sets `initial_node_type`.
+    if matches!(binding.kind, State | RawState)
+        && binding.initial.is_none()
+        && binding.initial_node_type.is_none()
+    {
+        return Evaluation::single(EvalValue::Undefined);
+    }
+    let Some(initial) = binding.initial.as_deref() else {
+        // A template-literal initializer (`const w = `…${x}…``) is always a
+        // defined string (upstream scope.js `TemplateLiteral` → STRING marker),
+        // so reads of it must NOT be wrapped in `$.stringify(...)`. Its quasis
+        // and expressions still fold to a concrete value when every
+        // interpolation is known, so try that before settling for the marker.
+        if binding.initial_node_type.as_deref() == Some("TemplateLiteral") {
+            if depth < MAX_DEPTH
+                && let Some(init_json) = binding.init_expr_json_parsed()
+            {
+                return evaluate_estree(scope, init_json, depth + 1);
+            }
+            return Evaluation::single(EvalValue::StringMarker);
+        }
+        // The analyzer does not capture non-literal initials in
+        // `binding.initial`, but upstream's `scope.evaluate` still knows
+        // `const uid = $props.id()` is a (defined) string — `$props.id`
+        // returns STRING (scope.js `case '$props.id'`). Recognize the
+        // `<name> = $props.id()` initializer from the source text.
+        if matches!(binding.kind, Normal) && scope.binding_initial_is_props_id(&binding.name) {
+            return Evaluation::single(EvalValue::StringMarker);
+        }
+        // A non-literal initializer is kept as AST JSON instead; upstream's
+        // `scope.evaluate` recurses into the init node whatever its shape.
+        if !matches!(binding.kind, Derived)
+            && depth < MAX_DEPTH
+            && let Some(init_json) = binding.init_expr_json_parsed()
+        {
+            return evaluate_estree(scope, init_json, depth + 1);
+        }
+        return Evaluation::unknown();
+    };
+
+    let trimmed = initial.trim_start();
+    if trimmed.starts_with('{') {
+        // estree-JSON dump (from `$derived(...)` / `{@const ...}` initials)
+        if let Ok(json) = serde_json::from_str::<Value>(initial) {
+            return evaluate_estree(scope, &json, depth + 1);
+        }
+        return Evaluation::unknown();
+    }
+
+    match parse_literal_text(initial) {
+        Some(v) => Evaluation::single(v),
+        None => Evaluation::unknown(),
     }
 }
 

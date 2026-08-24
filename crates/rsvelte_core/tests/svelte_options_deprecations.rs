@@ -180,18 +180,19 @@ fn corpus_entry_trailing_immutable_sample() {
 /// test exists so that a future change to once-per-process is a deliberate
 /// choice rather than a silent one.
 #[test]
-fn compile_option_deprecations_repeat_on_every_call() {
+fn recorded_compile_option_deprecations_repeat_on_every_call() {
     let src = "<script>let n = 1;</script>\n<b>{n}</b>";
     for _ in 0..3 {
-        let warnings = compile(
-            src,
-            CompileOptions {
-                accessors: true,
-                ..opts(GenerateMode::Client)
-            },
-        )
-        .expect("compile")
-        .warnings;
+        let mut options = CompileOptions {
+            accessors: true,
+            ..opts(GenerateMode::Client)
+        };
+        // `CompileOptions::accessors` is the behavioural value and cannot
+        // distinguish an explicitly supplied `false` from the default. Entry
+        // points record presence separately after applying their warn-once
+        // policy; this direct-core test exercises that recorded signal.
+        options.legacy_options.accessors = true;
+        let warnings = compile(src, options).expect("compile").warnings;
         assert_eq!(
             warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
             ["options_deprecated_accessors"],

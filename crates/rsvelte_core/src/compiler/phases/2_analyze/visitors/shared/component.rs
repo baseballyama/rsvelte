@@ -11,7 +11,9 @@ use super::super::super::errors;
 use super::super::VisitorContext;
 use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
-use super::utils::validate_attribute_name as validate_attribute_name_colon;
+use super::utils::{
+    validate_assignment_node, validate_attribute_name as validate_attribute_name_colon,
+};
 use crate::ast::template::{Attribute, Component};
 
 /// Visit a component and perform full analysis.

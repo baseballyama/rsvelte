@@ -156,11 +156,25 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
     let mut seen_after_keyword = false;
     let mut nesting = 0i32;
     let mut angle = 0i32;
+    let mut heritage_start: Option<usize> = None;
+    let mut nested_classes = 0u32;
+    let mut skip_depth = 0i32;
     // One past the last byte of a multi-byte JS whitespace character, whose
     // continuation bytes `is_ident_byte` would otherwise read as identifier.
     let mut whitespace_until = 0usize;
 
     for (i, byte) in js_scan::code_bytes(bytes) {
+        if skip_depth > 0 {
+            match byte {
+                b'{' => skip_depth += 1,
+                b'}' => skip_depth -= 1,
+                _ => {}
+            }
+            run_start = None;
+            prev_end = i + 1;
+            prev_sig = Some(byte);
+            continue;
+        }
         // `class\u{a0}Foo` separates two tokens exactly as `class Foo` does, and
         // `\u{b}` is JS whitespace that `is_ascii_whitespace` excludes (#3470).
         let is_whitespace = if i < whitespace_until {

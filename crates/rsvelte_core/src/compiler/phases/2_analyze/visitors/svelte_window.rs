@@ -84,10 +84,9 @@ pub fn visit(
             Attribute::Attribute(a) => {
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
-            Attribute::StyleDirective(style) => {
-                super::style_directive::visit(style, context)?;
+            other => {
+                super::shared::attribute::walk_remaining_attribute_expressions(other, context)?;
             }
-            _ => {}
         }
     }
 

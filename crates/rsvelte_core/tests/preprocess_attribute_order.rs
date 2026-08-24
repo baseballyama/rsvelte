@@ -113,7 +113,9 @@ fn returned_attributes_are_written_back_in_insertion_order() {
                 attrs.insert("aa".to_string(), AttributeValue::String("2".to_string()));
                 attrs.insert("mm".to_string(), AttributeValue::Boolean(true));
                 Ok(Some(Processed {
-                    code: "let a = 1;".to_string(),
+                    // Change the code so upstream's no-change guard does not
+                    // discard the complete result, including `attributes`.
+                    code: "let a = 2;".to_string(),
                     attributes: Some(attrs),
                     ..Default::default()
                 }))
@@ -132,5 +134,5 @@ fn returned_attributes_are_written_back_in_insertion_order() {
         ))
         .unwrap()
         .code;
-    assert_eq!(code, "<script zz=\"1\" aa=\"2\" mm>let a = 1;</script>");
+    assert_eq!(code, "<script zz=\"1\" aa=\"2\" mm>let a = 2;</script>");
 }

@@ -64,8 +64,6 @@ pub(super) fn validate_expression_shape(
         // This is important for cases like:
         //   bind:checked={()=>check, (v)=>{ check = v }}
         // where the setter contains an assignment that marks `check` as reassigned
-        walk_get_set_pair(directive, context)?;
-
         return Ok(());
     }
 
@@ -114,19 +112,7 @@ fn visit_common(
     validate_expression_shape(directive, context)?;
 
     if directive.expression.node_type() == Some("SequenceExpression") {
-        // Visit getter and setter expressions to track assignments and dependencies
-        // This is important for cases like:
-        //   bind:checked={()=>check, (v)=>{ check = v }}
-        // where the setter contains an assignment that marks `check` as reassigned
-        let node = directive.expression.as_node();
-        let expressions = node.expressions();
-        let arena = context.parse_arena;
-        for expr in arena.get_js_children(expressions) {
-            // Walk the expression to track mutations (e.g., assignments in setters).
-            // Use typed dispatch to skip the `to_value()` materialization.
-            super::script::walk_js_node_typed(expr, context)?;
-        }
-
+        walk_get_set_pair(directive, context)?;
         return Ok(());
     }
 

@@ -7,6 +7,7 @@
 use super::super::{AnalysisError, errors, warnings};
 use super::VisitorContext;
 use super::shared::fragment;
+use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{Attribute, SvelteComponentElement};
 
 /// Visit a svelte:component.

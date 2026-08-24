@@ -9,9 +9,7 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    find_code, find_rune_code, skip_opaque,
-};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_rune_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Does the code preceding a removed call demand an operand — i.e. was the call
@@ -205,7 +203,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // text trimming around the call site (leading tabs/spaces on the
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
-    if !dev && !inspect_is_store_sub {
+    if !dev && !inspect_is_store_sub && !inspect_is_func_param {
         while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
@@ -242,8 +240,8 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // and is awkward to do at the AST level.
     // The loop matters: a nested body can hold more than one, and a single
     // pass left the second `$inspect(...)` verbatim in the output.
-    if !dev && !inspect_is_store_sub {
-        while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+    if !dev && !inspect_is_store_sub && !inspect_is_func_param {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
             let inspect_start = pos + 9; // after "$inspect("
@@ -278,10 +276,10 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                 // and later transforms, then gets converted to ;; before OXC processing
                 return Cow::Owned(format!("/* $$async_hole:{} */", args));
             } else {
-                let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
-                let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
-                    // The trailing `;` of the removed call is one of the
-                    // `;;` upstream prints for the empty-as-expression.
+                let marker = if before.is_empty() && after.starts_with(';') {
+                    // A leading statement-position call keeps its own trailing
+                    // semicolon as the second half of upstream's `;;`, even
+                    // when another statement follows on the same source line.
                     "/* $$inspect_removed$$ */;"
                 } else if after.starts_with(';')
                     && matches!(before.as_bytes().last(), Some(b'{' | b'}' | b';'))
@@ -291,7 +289,10 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                     // `ExpressionStatement` and replaces its expression with
                     // `b.empty` at every depth. The call's own `;` is the
                     // second one.
-                    ";"
+                    // Keep the pair identifiable after the Raw fragment is
+                    // parsed into the final AST; ordinary user-written empty
+                    // statements are intentionally elided by the printer.
+                    "/* $$inspect_removed$$ */;"
                 } else if operand_expected_before(before) {
                     // Upstream drops in an `EmptyStatement` wherever the call
                     // was; in an operand slot that prints as a bare `;`, which

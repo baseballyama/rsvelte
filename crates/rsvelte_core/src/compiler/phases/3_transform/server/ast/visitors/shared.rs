@@ -660,7 +660,7 @@ enum SeqNode<'n> {
 /// — and the store arm builds the whole `$.store_get(...)` call fresh, so
 /// neither gives esrap's cursor a stop here. Every other read keeps the source
 /// expression's own `loc`.
-fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
+pub(crate) fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
     let name = source.trim();
     if !is_plain_identifier(name) {
         return false;
@@ -739,12 +739,13 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     && !state.nearest_declaration_is_template_const(src.trim())
                 {
                     let mut visited = state.visit_expr(expr);
-                    state.place_template_expression_comments(
-                        tag_start,
-                        tag_end,
-                        expr,
-                        &mut visited,
-                    );
+                    if let (Some(start), Some(end)) = (expr.start(), expr.end()) {
+                        state.place_template_expression_comments(
+                            (tag_start + 1, tag_end - 1),
+                            (start, end),
+                            &mut visited,
+                        );
+                    }
                     let escaped = state.b.call("$.escape", vec![visited]);
                     exprs.push(escaped);
                     quasis.push(String::new());
@@ -775,7 +776,7 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         let last = quasis.last_mut().unwrap();
                         last.push_str(&escape_html(&rendered));
                     }
-                    state.carry_template_expression_comments(tag_start, tag_end);
+                    state.defer_template_expression_comments((tag_start + 1, tag_end - 1));
                     continue;
                 }
                 // SSR constant-folding (`scope.evaluate`): upstream's
@@ -793,11 +794,18 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         let last = quasis.last_mut().unwrap();
                         last.push_str(&escape_html(&content));
                     }
-                    state.carry_template_expression_comments(tag_start, tag_end);
+                    state.defer_template_expression_comments((tag_start + 1, tag_end - 1));
                     continue;
                 }
 
                 let mut visited = state.visit_expr(expr);
+                if let (Some(start), Some(end)) = (expr.start(), expr.end()) {
+                    state.place_template_expression_comments(
+                        (tag_start + 1, tag_end - 1),
+                        (start, end),
+                        &mut visited,
+                    );
+                }
                 if !state
                     .expr_source(expr)
                     .is_some_and(|src| read_loses_its_location(state, src))

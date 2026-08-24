@@ -781,11 +781,10 @@ pub(crate) fn finalize_compile_result(
             phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
         ));
     }
-    // Presence, not value: upstream's `deprecate()` fires on the option being
-    // SUPPLIED (`accessors: false` warns too) and exactly once per process, so
-    // the entry point that parsed the option owns the decision. Reading
-    // `options.accessors` here would re-derive it from the behavioural field and
-    // warn on every compile.
+    // Presence, not value: entry points that can distinguish a supplied
+    // `accessors` option record it in `legacy_options` and own warn-once
+    // semantics. The behavioural `options.accessors` field alone does not
+    // imply that this diagnostic should be emitted.
     if options.legacy_options.accessors {
         option_warnings.push(phases::phase3_transform::TransformWarning {
             code: "options_deprecated_accessors".to_string(),
@@ -968,6 +967,10 @@ pub fn compile_module(
     source: &str,
     options: ModuleCompileOptions,
 ) -> Result<CompileResult, CompileError> {
+    // A rune name spelled with a unicode escape is the same identifier to the
+    // parser and a different one to every text scan below.
+    let normalized = identifier_escapes::normalize_module_source(source);
+    let source = normalized.as_deref().unwrap_or(source);
     let source = remove_bom(source);
     // Parse JS source into an AST using the same infrastructure as component scripts.
     // Upstream `compileModule` → `analyze_module` always parses with

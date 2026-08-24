@@ -43,6 +43,8 @@ pub struct ScopeRoot {
     /// with the other links of the chain), so the alternates live in their own
     /// map under the enclosing block's unique start.
     pub if_alternate_scope_map: FxHashMap<u32, usize>,
+    /// Scope owned by the root template fragment.
+    pub root_fragment_scope_index: usize,
     /// Scope indices of `{:else}` fragments, keyed by their `{#each}`'s start
     /// position. Upstream's `EachBlock` visitor walks the body's *nodes* with
     /// the each scope but visits the fallback as a `Fragment`, so only the
@@ -90,6 +92,7 @@ impl ScopeRoot {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             if_alternate_scope_map: FxHashMap::default(),
+            root_fragment_scope_index: 0,
             each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: FxHashSet::default(),
             conflicts: FxHashSet::default(),

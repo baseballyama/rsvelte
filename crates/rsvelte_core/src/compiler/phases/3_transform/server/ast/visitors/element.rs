@@ -2244,9 +2244,11 @@ fn attr_expr_value<'a>(
         return super::shared::save_wrap_expr_text(state, &text);
     }
     let mut visited = state.visit_expr(expr);
+    let source = state.expr_source(expr).map(str::to_owned);
     if let (Some(start), Some(end)) = (expr.start(), expr.end()) {
         state.place_template_expression_comments(region, (start, end), &mut visited);
     }
+    state.claim_on_visited(source.as_deref(), &mut visited);
     visited
 }
 

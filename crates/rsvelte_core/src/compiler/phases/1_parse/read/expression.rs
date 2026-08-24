@@ -1637,9 +1637,10 @@ pub fn parse_destructuring_pattern<'a>(
         SourceType::mjs()
     };
 
-            let wrapped = wrap_for_parse("let ", content, "= null");
-            let parser = OxcParser::new(allocator, &wrapped, source_type);
-            let result = parser.parse();
+    with_oxc_allocator(|allocator| {
+        let wrapped = wrap_for_parse("let ", content, "= null");
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
 
         if !result.diagnostics.is_empty() {
             return None;
@@ -1747,6 +1748,19 @@ fn expression_source_type(ts: bool) -> SourceType {
     }
 }
 
+/// Parse `content` unwrapped and return the first diagnostic at the offending token.
+fn bare_parse_error(content: &str, source_type: SourceType) -> Option<(String, usize)> {
+    with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, content, source_type).parse();
+        let first_error = result.diagnostics.first()?;
+        let pos = first_error
+            .labels
+            .first()
+            .map_or(0, |label| (label.offset() as usize).min(content.len()));
+        Some((first_error.message.to_string(), pos))
+    })
+}
+
 /// Check if a JavaScript expression has parse errors, returning the failure
 /// position alongside the message.
 ///
@@ -1765,7 +1779,7 @@ fn expression_source_type(ts: bool) -> SourceType {
 /// because the clamp lands it on the close token, so when the wrapper is what
 /// failed, [`bare_parse_error`] re-reads the body and reports acorn's position
 /// directly.
-pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
+pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String, usize)> {
     // Two inputs acorn rejects on their very first token are described by the
     // `(…)` wrapper below instead of by themselves — nothing is left for OXC to
     // complain about but the parentheses it never saw in the source. Answer
@@ -1804,6 +1818,7 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                             "Shorthand property assignments are valid only in destructuring patterns"
                                 .to_string(),
                             (label_start + eq).saturating_sub(1).min(content.len()),
+                            false,
                         ));
                     }
                 }
@@ -1848,7 +1863,11 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                     "Empty parenthesized expression" => "Unexpected token",
                     other => other,
                 };
-                return Some((message.to_string(), pos, true));
+                // A label which is itself the offending token already has the
+                // acorn position above. Re-parsing it bare can turn that token
+                // into consumed input (for example `do`) and move the point to
+                // its end.
+                return Some((message.to_string(), pos, !report_at_label_start));
             }
             // Check for invalid assignment targets that OXC doesn't report as errors
             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
@@ -1881,24 +1900,12 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
         Some((message, pos))
     };
 
-    // Try TypeScript first
-    let ts_result = probe(SourceType::ts());
-
-    // No TS errors means valid
-    ts_result.as_ref()?;
-
-    // Try JavaScript
-    let js_result = probe(SourceType::mjs());
-
-    // No JS errors means valid
-    js_result.as_ref()?;
-
-    let result = js_result.or(ts_result);
+    let result = probe(expression_source_type(ts));
 
     // A body with no code in it has nothing of its own to fail on, so whatever
     // OXC reported describes the `(…)` this probe wrapped it in. Acorn is given
     // the unwrapped text and says `Unexpected token` at the delimiter.
-    if is_code_empty(content) {
+    if is_code_empty(content, ts) {
         return result.map(|(_, pos)| ("Unexpected token".to_string(), pos));
     }
     result
@@ -1907,12 +1914,12 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
 /// Whether `content` carries no JavaScript at all — only whitespace and
 /// comments. Answered by the parser rather than by a scan so that a `//` or
 /// `/*` inside a string cannot be mistaken for one.
-fn is_code_empty(content: &str) -> bool {
+fn is_code_empty(content: &str, ts: bool) -> bool {
     if content.is_empty() {
         return true;
     }
     with_oxc_allocator(|allocator| {
-        let result = OxcParser::new(allocator, content, SourceType::mjs()).parse();
+        let result = OxcParser::new(allocator, content, expression_source_type(ts)).parse();
         result.program.body.is_empty() && result.diagnostics.is_empty()
     })
 }
@@ -1987,12 +1994,12 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
 /// *inside* the expression lands (`s(42 = nope)`, `1</div>`). Only a prefix that
 /// parses on its own is a place upstream's `read_expression` would have stopped,
 /// leaving the missing close token as the diagnostic.
-pub fn trailing_close_offset(content: &str) -> Option<usize> {
-    trailing_token_offset(content).filter(|&off| {
+pub fn trailing_close_offset(content: &str, ts: bool) -> Option<usize> {
+    trailing_token_offset(content, ts).filter(|&off| {
         off > 0
-            && content
-                .get(..off)
-                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix.trim_end()).is_none())
+            && content.get(..off).is_some_and(|prefix| {
+                check_js_parse_error_with_pos(prefix.trim_end(), ts).is_none()
+            })
     })
 }
 
@@ -2008,6 +2015,35 @@ pub fn trailing_close_offset(content: &str) -> Option<usize> {
 /// This mirrors upstream Svelte's `read_expression` + `eat(close, true)` flow:
 /// acorn parses one maximal expression, and any leftover surfaces as
 /// `expected_token` while a broken expression surfaces as `js_parse_error`.
+fn shorthand_assign_offset(slice: &str) -> Option<usize> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
+    let bytes = slice.as_bytes();
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80;
+    let mut iter = code_bytes(bytes);
+    let (_, first) = iter.next()?;
+    if first.is_ascii_digit() || !is_ident(first) {
+        return None;
+    }
+    let mut seen_gap = false;
+    for (i, b) in iter {
+        if is_ident(b) {
+            if seen_gap {
+                return None;
+            }
+            continue;
+        }
+        if b.is_ascii_whitespace() {
+            seen_gap = true;
+            continue;
+        }
+        if b == b'=' && !matches!(bytes.get(i + 1), Some(b'=') | Some(b'>')) {
+            return Some(i);
+        }
+        return None;
+    }
+    None
+}
+
 pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
     // Wrap in parens so a *complete* leading expression is consumed greedily and
     // the error label lands on the offending region. (Parsing the bare string as
@@ -2025,7 +2061,7 @@ pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
         // it as a diagnostic over the whole expression; acorn has no such node
         // and stops where the operator begins.
         if !ts && let Some(at) = typescript_operator_start(&result.program) {
-            return (at as usize).checked_sub(1);
+            return Some(at as usize);
         }
         let first_error = result.diagnostics.first()?;
         let label = first_error.labels.first()?;
@@ -2040,6 +2076,13 @@ pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
     // A trailing-token error has leftover input *before* the synthetic closing
     // `)`; an incomplete expression errors at/after the end.
     if content_pos >= content.len() {
+        return None;
+    }
+    // A comma continues the expression (as a SequenceExpression); acorn does
+    // not return the complete prefix and leave it for the caller's close-token
+    // check. With no following operand (`a,`) or another comma (`a,,b`) it
+    // throws a JS parse error at the missing operand instead.
+    if content.as_bytes().get(content_pos) == Some(&b',') {
         return None;
     }
     // acorn parses ONE maximal expression and only then expects the close token,
@@ -2104,12 +2147,13 @@ pub fn close_token_or_parse_error(
     trimmed: &str,
     trimmed_offset: usize,
     close_char: char,
+    ts: bool,
 ) -> crate::error::ParseError {
-    let trailing = trailing_token_offset(trimmed).filter(|&off| {
+    let trailing = trailing_token_offset(trimmed, ts).filter(|&off| {
         off > 0
             && trimmed
                 .get(..off)
-                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix).is_none())
+                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix, ts).is_none())
     });
     if let Some(off) = trailing {
         let mut buf = [0u8; 4];
@@ -2118,7 +2162,7 @@ pub fn close_token_or_parse_error(
             trimmed_offset + off,
         );
     }
-    let at = check_js_parse_error_with_pos(trimmed)
+    let at = check_js_parse_error_with_pos(trimmed, ts)
         .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
             trimmed_offset + pos
         });
@@ -2272,23 +2316,28 @@ fn parse_expression_with_typescript<'a>(
                             comment.span.start as usize - 1,
                         );
                     }
+                    let comment_text = CompactString::from(value.as_str());
+                    let comment_value = create_comment_object(
+                        comment.kind,
+                        value,
+                        comment_start,
+                        comment_end,
+                        line_offsets,
+                    )
+                    .to_value();
                     comment_entries.push(CommentEntry {
                         start: comment_start as u32,
-                        text: CompactString::from(value.as_str()),
+                        text: comment_text,
+                        value: comment_value.clone(),
                     });
-                    comment_values.push(
-                        create_comment_object(
-                            comment.kind,
-                            value,
-                            comment_start,
-                            comment_end,
-                            line_offsets,
-                        )
-                        .to_value(),
-                    );
+                    comment_values.push(comment_value);
                 }
 
                 let json_val = expr.as_json();
+                let root_type = json_val
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned);
                 let root_span = json_val
                     .get("start")
                     .and_then(Value::as_u64)
@@ -2297,29 +2346,46 @@ fn parse_expression_with_typescript<'a>(
                 let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
                 let mut attacher = CommentAttacher {
                     comments: &comment_entries,
-                    values: &comment_values,
-                    arena: Some(arena),
                     next: 0,
                     content,
                     offset: offset as u32,
                     map: &mut ignore_comment_map,
+                    captured: Some(std::collections::HashMap::default()),
                 };
                 attacher.visit(json_val, None);
                 let claimed = attacher.next;
+                if let Some(captured) = attacher.captured.take() {
+                    for ((node_type, start, end), (leading, trailing)) in captured {
+                        arena.record_node_comments(
+                            &node_type,
+                            start,
+                            end,
+                            (!leading.is_empty()).then_some(leading),
+                            (!trailing.is_empty()).then_some(trailing),
+                        );
+                    }
+                }
 
                 // Upstream's "trailing comments after the root node" case, which
                 // is what lets a caller find the end of the expression tag.
-                if let Some((root_start, root_end)) = root_span
+                if let (Some(root_type), Some((root_start, root_end))) =
+                    (root_type.as_deref(), root_span)
                     && comment_entries
                         .get(claimed)
                         .is_some_and(|c| c.start >= root_end)
                 {
                     let (leading, claimed_trailing) = arena
-                        .node_comments(root_start, root_end)
+                        .node_comments(root_type, root_start, root_end)
                         .unwrap_or((None, None));
                     let mut trailing = claimed_trailing.unwrap_or_default();
                     trailing.extend(comment_values[claimed..].iter().cloned());
-                    arena.record_node_comments(root_start, root_end, leading, Some(trailing));
+                    arena.record_node_comments(
+                        root_type,
+                        root_start,
+                        root_end,
+                        leading,
+                        Some(trailing),
+                    );
                 }
             }
 
@@ -7339,16 +7405,28 @@ fn convert_parsed_program<'ast>(
             crate::error::ParseError::svelte("js_parse_error", message.clone(), (pos, pos))
         });
 
-        if parse_error.is_none()
-            && let Some((at, message)) = acorn_only_violation(program, content, is_typescript)
-        {
-            let pos = at as usize + offset;
-            reported_at = Some((at as usize, message.clone()));
-            parse_error = Some(crate::error::ParseError::svelte(
-                "js_parse_error",
-                message,
-                (pos, pos),
-            ));
+        if parse_error.is_none() {
+            // An early error needs the enclosing scope, so it comes from a
+            // `SemanticBuilder` run rather than from the walk; acorn checks both
+            // while parsing and stops at whichever comes first. This is the only
+            // caller that may run it — the per-expression paths above parse a
+            // fragment with no enclosing class or loop.
+            let earliest = [
+                acorn_only_violation(program, content, is_typescript),
+                super::early_errors::find_early_error(program, content, is_script),
+            ]
+            .into_iter()
+            .flatten()
+            .min_by_key(|(at, _)| *at);
+            if let Some((at, message)) = earliest {
+                let pos = at as usize + offset;
+                reported_at = Some((at as usize, message.clone()));
+                parse_error = Some(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    message,
+                    (pos, pos),
+                ));
+            }
         }
 
         // acorn stops at the first thing it cannot read, so a character it does
@@ -7467,6 +7545,7 @@ fn convert_parsed_program<'ast>(
                 comment_entries.push(CommentEntry {
                     start: comment.start,
                     text: comment.value.clone(),
+                    value: js_comment_value(comment),
                 });
                 comment_values.push(js_comment_value(comment));
             }
@@ -7477,6 +7556,7 @@ fn convert_parsed_program<'ast>(
                 comment_entries.push(CommentEntry {
                     start: offset as u32 + comment.span.start,
                     text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                    value: build_comment_value(comment, content, offset),
                 });
                 if capture {
                     comment_values.push(build_comment_value(comment, content, offset));
@@ -7485,13 +7565,11 @@ fn convert_parsed_program<'ast>(
 
             let mut attacher = CommentAttacher {
                 comments: &comment_entries,
-                values: &comment_values,
-                arena: capture.then_some(arena),
                 next: 0,
                 content,
                 offset: offset as u32,
                 map: &mut ignore_comment_map,
-                captured: capture_comments.then(std::collections::HashMap::default),
+                captured: capture.then(std::collections::HashMap::default),
             };
             let last_index = program.body.len().saturating_sub(1);
 
@@ -7514,8 +7592,6 @@ fn convert_parsed_program<'ast>(
                     attacher.skip_past(offset as u32 + stmt.span().end);
                 }
             }
-            claimed = attacher.next;
-
             claimed = attacher.next;
             if let Some(captured) = attacher.captured.take() {
                 for ((node_type, start, end), (leading, trailing)) in captured {
@@ -7666,14 +7742,6 @@ struct ParentInfo {
 /// the key Phase 2 looks up while walking the typed AST.
 struct CommentAttacher<'a> {
     comments: &'a [CommentEntry],
-    /// The full `{type, value, start, end}` comment objects, parallel to
-    /// `comments`. Empty unless `arena` is set.
-    values: &'a [Value],
-    /// When set, the walk also records `leadingComments`/`trailingComments` on
-    /// each node — upstream's `add_comments`, which the public `parse()` output
-    /// carries. Left `None` on the compile path, where the side table is dead
-    /// weight (codegen re-parses script text).
-    arena: Option<&'a ParseArena>,
     next: usize,
     content: &'a str,
     offset: u32,
@@ -7696,17 +7764,13 @@ impl CommentAttacher<'_> {
         let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
         let node_type = obj.get("type").and_then(|t| t.as_str());
 
-        let mut leading: Option<Vec<Value>> = None;
         if let Some(start) = start {
             while self
                 .comments
                 .get(self.next)
                 .is_some_and(|comment| comment.start < start)
             {
-                self.record_leading(start, self.next);
-                if let Some(value) = self.arena.and(self.values.get(self.next)) {
-                    leading.get_or_insert_with(Vec::new).push(value.clone());
-                }
+                self.record_leading(node_type, start, end, self.next);
                 self.next += 1;
             }
         }
@@ -7755,12 +7819,30 @@ impl CommentAttacher<'_> {
             }
         }
 
-        let trailing = self.claim_trailing(end, parent.as_ref());
-        if let Some(arena) = self.arena
-            && (leading.is_some() || trailing.is_some())
-            && let (Some(start), Some(end)) = (start, end)
-        {
-            arena.record_node_comments(start, end, leading, trailing);
+        self.claim_trailing(node_type, start, end, parent.as_ref());
+    }
+
+    fn capture(
+        &mut self,
+        node_type: Option<&str>,
+        start: Option<u32>,
+        end: Option<u32>,
+        index: usize,
+        leading: bool,
+    ) {
+        let (Some(node_type), Some(start), Some(end), Some(map)) =
+            (node_type, start, end, self.captured.as_mut())
+        else {
+            return;
+        };
+        let slot = map
+            .entry((CompactString::from(node_type), start, end))
+            .or_default();
+        let value = self.comments[index].value.clone();
+        if leading {
+            slot.0.push(value);
+        } else {
+            slot.1.push(value);
         }
     }
 
@@ -7779,36 +7861,34 @@ impl CommentAttacher<'_> {
     /// comments of a later node.
     fn claim_trailing(
         &mut self,
+        node_type: Option<&str>,
+        start: Option<u32>,
         end: Option<u32>,
         parent: Option<&ParentInfo>,
-    ) -> Option<Vec<Value>> {
-        let comment = self.comments.get(self.next)?;
+    ) {
+        let Some(comment) = self.comments.get(self.next) else {
+            return;
+        };
         let parent_end = parent.and_then(|p| p.end);
         if matches!((end, parent_end), (Some(e), Some(pe)) if e == pe) {
-            return None;
+            return;
         }
 
-        let mut claimed: Option<Vec<Value>> = None;
         if parent.is_some_and(|p| p.is_last_in_body) {
             while let Some(comment) = self.comments.get(self.next) {
                 if parent_end.is_some_and(|pe| comment.start >= pe) {
                     break;
                 }
-                if let Some(value) = self.arena.and(self.values.get(self.next)) {
-                    claimed.get_or_insert_with(Vec::new).push(value.clone());
-                }
+                self.capture(node_type, start, end, self.next, false);
                 self.next += 1;
             }
         } else if let Some(node_end) = end
             && node_end <= comment.start
             && self.is_separator_slice(node_end, comment.start)
         {
-            if let Some(value) = self.arena.and(self.values.get(self.next)) {
-                claimed = Some(vec![value.clone()]);
-            }
+            self.capture(node_type, start, end, self.next, false);
             self.next += 1;
         }
-        claimed
     }
 
     /// `/^[,) \t]*$/` over the source between a node's end and a comment's start.
@@ -12886,6 +12966,8 @@ mod tests {
             ("y!.k", Some(1), None),
             // Broken before any complete expression exists.
             ("a +", None, None),
+            ("a,", None, None),
+            ("a,,b", None, None),
             ("<string>y", None, None),
             ("f<string>()", None, None),
             ("((a: string) => a)(\"\")", None, None),

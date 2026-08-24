@@ -138,6 +138,14 @@ fn a_top_level_snippet_still_collides_with_an_instance_function() {
     );
 }
 
+#[test]
+fn a_top_level_declaration_tag_collides_with_an_instance_let() {
+    assert_code(
+        "<script>\n\tlet foo = 'bar';\n</script>\n\n{let foo = 'baz'}\n",
+        "declaration_duplicate",
+    );
+}
+
 /// A module-script declaration is NOT in `instance.scope.declarations`, which is
 /// the only set upstream's top-level snippet check consults.
 #[test]
@@ -182,7 +190,7 @@ fn a_root_const_without_a_collision_is_unchanged() {
 #[test]
 fn a_title_const_still_reports_the_title_content_error() {
     assert_code(
-        &format!("{LET_NM}<title>{{@const nm = 1}}{{'t'}}</title>\n"),
+        &format!("{LET_NM}<svelte:head><title>{{@const nm = 1}}{{'t'}}</title></svelte:head>\n"),
         "title_invalid_content",
     );
 }

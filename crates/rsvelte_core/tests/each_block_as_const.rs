@@ -16,7 +16,10 @@ fn compile_each_alias(source: &str) -> String {
     let ast = parse(
         source,
         &oxc_allocator::Allocator::default(),
-        ParseOptions::default(),
+        ParseOptions {
+            force_typescript: true,
+            ..ParseOptions::default()
+        },
     )
     .expect("parse");
     let arena_ptr = &ast.arena as *const _;

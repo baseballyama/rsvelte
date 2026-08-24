@@ -1154,14 +1154,45 @@ impl<'a> Parser<'a> {
         }
         // A complete leading expression leaves the brace demanded at the first
         // token acorn did not consume.
-        if let Some(offset) = trailing_token_offset(rest)
-            && check_js_parse_error_with_pos(&rest[..offset]).is_none()
+        if let Some(offset) = trailing_token_offset(rest, self.ts)
+            && check_js_parse_error_with_pos(&rest[..offset], self.ts).is_none()
         {
             return Err(ParseError::expected_token("}", from + offset));
         }
+        if let Some(self_close) = memchr::memmem::find(rest.as_bytes(), b"/>") {
+            let before_self_close = rest[..self_close].trim_matches(is_js_whitespace);
+            // With no expression before `/>`, upstream's expression reader
+            // reaches the slash and the enclosing attribute reader reports the
+            // missing `}` at the `>`. There is no valid prefix to probe in this
+            // case, so treat it like the complete-expression path below.
+            if before_self_close.is_empty()
+                || check_js_parse_error_with_pos(before_self_close, self.ts).is_none()
+            {
+                return Err(ParseError::expected_token("}", from + self_close + 1));
+            }
+        }
+        // Acorn continues `1</div>` as `1 < /div...` and reports immediately
+        // after the `/` that starts the unterminated regexp. OXC's bare-program
+        // recovery instead stops at `<`, so preserve the expression-reader
+        // coordinate used by upstream for an enclosing close tag.
+        if let Some(close_tag) = memchr::memmem::find(rest.as_bytes(), b"</") {
+            // With two close tags the two `/` bytes form a complete regexp;
+            // acorn then consumes the remaining tag text and fails at EOF.
+            let after_first = close_tag + 2;
+            let at = if memchr::memmem::find(&rest.as_bytes()[after_first..], b"</").is_some() {
+                self.content_end
+            } else {
+                from + after_first
+            };
+            return Err(ParseError::svelte(
+                "js_parse_error",
+                "Unexpected token".to_string(),
+                (at, at),
+            ));
+        }
         // Otherwise acorn never got an expression out of the rest of the file,
         // so upstream reports the JS parser's own error rather than the brace.
-        if let Some((message, pos)) = check_js_parse_error_with_pos(rest) {
+        if let Some((message, pos)) = check_js_parse_error_with_pos(rest, self.ts) {
             let at = from + pos;
             return Err(ParseError::svelte("js_parse_error", message, (at, at)));
         }

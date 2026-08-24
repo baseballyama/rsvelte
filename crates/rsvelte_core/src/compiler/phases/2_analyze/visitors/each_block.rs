@@ -146,6 +146,17 @@ pub fn visit<'a, 'b: 'a>(
         context.scope = each_scope;
     }
 
+    // The key is evaluated in the each scope, so item/index references resolve
+    // there. Keep its metadata separate from the collection expression: key
+    // dependencies must not make the each item itself reactive, but the normal
+    // expression walk is still required for calls, rune validation and
+    // `needs_context`.
+    if let Some(key) = &block.key {
+        let key_node = key.as_node();
+        let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
+        walk_js_expression_node(&key_node, context, &mut key_metadata)?;
+    }
+
     // Walk the context pattern's default values so that identifiers in defaults
     // (e.g., `{#each array as { a = default_value_1 }}`) are visited and references counted.
     // The official Svelte's zimmerframe walker automatically visits the context pattern,

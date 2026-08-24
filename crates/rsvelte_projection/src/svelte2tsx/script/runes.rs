@@ -276,10 +276,9 @@ pub(super) fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSe
             oxc::Declaration::VariableDeclaration(vd) => {
                 detect_rune_in_variable_declaration(vd, declared_names)
             }
-            oxc::Declaration::FunctionDeclaration(func) => func.body.as_ref().is_some_and(|body| {
-                let scope = scope_with_params(declared_names, &func.params);
-                detect_rune_in_nested_body(&body.statements, &scope)
-            }),
+            oxc::Declaration::FunctionDeclaration(func) => {
+                detect_rune_in_function(func, declared_names)
+            }
             oxc::Declaration::ClassDeclaration(class) => {
                 detect_rune_in_class_body(class, declared_names)
             }
@@ -392,12 +391,42 @@ fn detect_rune_in_params(params: &oxc::FormalParameters, scope: &HashSet<String>
     params.items.iter().any(|p| {
         p.initializer
             .as_ref()
-            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
-        oxc::ClassElement::StaticBlock(block) => {
-            detect_rune_in_nested_body(&block.body, declared_names)
+            .is_some_and(|e| detect_rune_in_expr(e, scope))
+            || detect_rune_in_binding_pattern(&p.pattern, scope)
+    }) || params
+        .rest
+        .as_ref()
+        .is_some_and(|r| detect_rune_in_binding_pattern(&r.rest.argument, scope))
+}
+
+/// Recurse through a binding pattern looking for a rune in a default value.
+fn detect_rune_in_binding_pattern(pattern: &oxc::BindingPattern, scope: &HashSet<String>) -> bool {
+    match pattern {
+        oxc::BindingPattern::BindingIdentifier(_) => false,
+        oxc::BindingPattern::AssignmentPattern(assign) => {
+            detect_rune_in_expr(&assign.right, scope)
+                || detect_rune_in_binding_pattern(&assign.left, scope)
         }
-        _ => false,
-    })
+        oxc::BindingPattern::ObjectPattern(obj) => {
+            obj.properties
+                .iter()
+                .any(|p| detect_rune_in_binding_pattern(&p.value, scope))
+                || obj
+                    .rest
+                    .as_ref()
+                    .is_some_and(|r| detect_rune_in_binding_pattern(&r.argument, scope))
+        }
+        oxc::BindingPattern::ArrayPattern(arr) => {
+            arr.elements
+                .iter()
+                .flatten()
+                .any(|p| detect_rune_in_binding_pattern(p, scope))
+                || arr
+                    .rest
+                    .as_ref()
+                    .is_some_and(|r| detect_rune_in_binding_pattern(&r.argument, scope))
+        }
+    }
 }
 
 /// Clone `base` and add the names a binding pattern introduces, so a rune name
@@ -449,35 +478,7 @@ pub(super) fn detect_rune_in_expr(
                 || detect_rune_in_arguments(&call.arguments, declared_names)
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
-            let scope = scope_with_params(declared_names, &arrow.params);
-            match &arrow.body {
-                oxc::ArrowFunctionBody::FunctionBody(block) => {
-                    detect_rune_in_nested_body(&block.statements, &scope)
-                }
-                // Concise body: `() => $state`.
-                body => body
-                    .as_expression()
-                    .is_some_and(|e| detect_rune_in_expr(e, &scope)),
-            }
-        }
-        oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
-            let scope = scope_with_params(declared_names, &func.params);
-            detect_rune_in_nested_body(&body.statements, &scope)
-        }),
-        oxc::Expression::ClassExpression(class) => {
-            class.body.body.iter().any(|member| match member {
-                oxc::ClassElement::MethodDefinition(method) => {
-                    method.value.body.as_ref().is_some_and(|body| {
-                        let scope = scope_with_params(declared_names, &method.value.params);
-                        detect_rune_in_nested_body(&body.statements, &scope)
-                    })
-                }
-                oxc::ClassElement::PropertyDefinition(prop) => prop
-                    .value
-                    .as_ref()
-                    .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
-                _ => false,
-            })
+            detect_rune_in_arrow(arrow, declared_names)
         }
         oxc::Expression::FunctionExpression(func) => detect_rune_in_function(func, declared_names),
         oxc::Expression::ClassExpression(class) => detect_rune_in_class_body(class, declared_names),

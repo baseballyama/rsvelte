@@ -136,6 +136,7 @@ impl ChunkRegistry {
             position_only: true,
             expression_anchor: true,
             component_tail: false,
+            component_tail_nested: false,
         });
         Some(prov_base)
     }

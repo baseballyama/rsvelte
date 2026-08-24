@@ -150,14 +150,6 @@ pub struct NapiParseOptions {
     /// `svelte-eslint-parser` uses postcss). Saves ~5–10 KB of buffer
     /// and the matching JSON-parse cost on the JS side per component.
     pub skip_css_ast: Option<LenientScalar>,
-    /// `modern` from `svelte/compiler`'s `parse()`. **Defaults to `false`**,
-    /// which returns the LEGACY AST — the modern shape stays opt-in until
-    /// Svelte 6, and a drop-in replacement has to default the same way.
-    pub modern: Option<LenientScalar>,
-    /// `loose` from `svelte/compiler`'s `parse()`: recover from a parse error
-    /// and return an AST anyway, which is what an editor integration needs to
-    /// parse a document mid-keystroke.
-    pub loose: Option<LenientScalar>,
 }
 
 impl NapiParseOptions {
@@ -215,7 +207,6 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
     let modern =
         NapiParseOptions::flag(options.as_ref().and_then(|o| o.modern.as_ref()), "modern")?;
     let parse_options = ParseOptions {
-        loose: NapiParseOptions::flag(options.as_ref().and_then(|o| o.loose.as_ref()), "loose")?,
         skip_expression_loc: NapiParseOptions::flag(
             options
                 .as_ref()
@@ -228,16 +219,14 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         capture_comments: true,
         ..ParseOptions::default()
     };
-    match rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options) {
-        Ok(ast) if modern => {
-            // Serialize within the AST's arena so `JsNodeId`s in the
-            // Serialize impls resolve (mirrors `wasm::parse_svelte`).
-            rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
-                // Spans are UTF-16 code-unit offsets to match svelte/compiler
-                // (#793). ASCII source needs no remap — keep the fast path.
-                if source.is_ascii() {
-                    return serde_json::to_string(&ast)
-                        .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")));
+    match rust_parse(source, &rsvelte_core::Allocator::default(), parse_options) {
+        Ok(ast) => {
+            // Spans are UTF-16 code-unit offsets to match svelte/compiler
+            // (#793). ASCII source needs no remap — keep the fast path.
+            let remap = |mut value: serde_json::Value| {
+                if !source.is_ascii() {
+                    let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
+                    rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 }
                 serde_json::to_string(&value)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
@@ -256,15 +245,13 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                     )
                 })
             } else {
-                // `convert_to_legacy` consumes the AST and installs the
-                // serialize arena itself.
-                remap(rsvelte_core::convert_to_legacy(&source, ast))
+                // `convert_to_legacy` consumes the AST, installs the serialize
+                // arena itself, and runs the UTF-16 conversion on its own output
+                // — remapping it again converts every position twice.
+                serde_json::to_string(&rsvelte_core::convert_to_legacy(source, ast))
+                    .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             }
         }
-        // `convert_to_legacy` installs the serialize arena itself and has
-        // already remapped its spans to UTF-16.
-        Ok(ast) => serde_json::to_string(&rsvelte_core::convert_to_legacy(&source, ast))
-            .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}"))),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
 }
@@ -938,6 +925,13 @@ fn invalid_option(detail: impl std::fmt::Display) -> OptionError {
     }
 }
 
+// Function-valued options must be resolved by a JavaScript wrapper before the
+// synchronous native boundary. Silently treating them as absent can compile a
+// component in the wrong mode while still returning success.
+const RESOLVE_IN_JS: &str = "a function-valued `{}` cannot be evaluated at this entry point; \
+     resolve it in JavaScript (the `compile` wrapper in @rsvelte/vite-plugin-svelte-native does) \
+     or pass a plain value";
+
 /// `validate-options.js`'s `removed()`: an option that still has a name but no
 /// behaviour. Unlike `warn_removed()` (which only warns) this throws.
 fn removed_option(detail: &str) -> OptionError {
@@ -1177,10 +1171,6 @@ pub struct NapiCompileOptions {
     /// it silently hands the caller a different scope class than it asked for.
     /// `compileWithCssHash` is the entry that honours it.
     pub css_hash: Option<LenientScalar>,
-    /// Upstream's `warningFilter` callback. Declared only to be *rejected*: an
-    /// unknown field is dropped in silence, and a build configured to be
-    /// warning-clean would then not be.
-    pub warning_filter: Option<LenientScalar>,
     /// Pre-computed deterministic hash for the test harness (the JS
     /// `cssHash` callback can't be called from Rust).
     pub css_hash_override: Option<String>,

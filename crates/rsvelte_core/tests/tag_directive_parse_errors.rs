@@ -134,7 +134,12 @@ fn valid_tags_still_compile() {
 
 #[test]
 fn const_tag_without_initialiser_is_rejected() {
-    assert_error("{#if true}{@const c}<b>{c}</b>{/if}", "expected_token", 1, 19);
+    assert_error(
+        "{#if true}{@const c}<b>{c}</b>{/if}",
+        "expected_token",
+        1,
+        19,
+    );
     assert_error(
         "{#if true}{@const c }<b>{c}</b>{/if}",
         "expected_token",
