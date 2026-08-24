@@ -36,7 +36,22 @@ pub fn visit(
         return Err(errors::svelte_meta_invalid_content("svelte:window").at(start, end));
     }
 
-    // Validate attributes - check for invalid ones
+    // Upstream runs this whole loop before `context.next()` descends into any
+    // attribute, so "does this element take arbitrary attributes at all" is
+    // answered ahead of every per-directive rule below.
+    for attr in &window.attributes {
+        let span = match attr {
+            Attribute::SpreadAttribute(spread) => Some((spread.start, spread.end)),
+            Attribute::Attribute(a) if !super::shared::utils::is_event_attribute(a) => {
+                Some((a.start, a.end))
+            }
+            _ => None,
+        };
+        if let Some((start, end)) = span {
+            return Err(errors::illegal_element_attribute("svelte:window").at(start, end));
+        }
+    }
+
     // The target rule needs the attribute list, which the mutable loop below holds.
     for attr in &window.attributes {
         if let Attribute::BindDirective(bind) = attr {
@@ -58,23 +73,12 @@ pub fn visit(
                     errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
                 );
             }
-            Attribute::SpreadAttribute(spread) => {
-                // Spread attributes are NOT allowed on svelte:window
-                return Err(
-                    errors::illegal_element_attribute("svelte:window").at(spread.start, spread.end)
-                );
-            }
-            // Regular attributes (e.g. `onkeydown={(e) => …}`) carry expressions
+            // Event attributes (e.g. `onkeydown={(e) => …}`) carry expressions
             // that must be analysed — a non-safe call inside them (e.g. an imported
             // `goto(...)`) sets `needs_context`, driving the `$.push`/`$.pop`
             // component-context emission. Previously these were ignored, so a
             // `<svelte:window onkeydown={…goto(…)…}>` left `needs_context` false.
             Attribute::Attribute(a) => {
-                if !super::shared::utils::is_event_attribute(a) {
-                    return Err(
-                        errors::illegal_element_attribute("svelte:window").at(a.start, a.end)
-                    );
-                }
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}

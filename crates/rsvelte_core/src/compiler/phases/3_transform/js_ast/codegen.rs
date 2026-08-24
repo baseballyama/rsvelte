@@ -2666,8 +2666,30 @@ pub fn offset_to_line_col_utf16(
     line_starts: &[usize],
     offset: usize,
 ) -> (usize, usize) {
+    // A column indexes a character, so an offset that lands inside one (a
+    // producer that measured in bytes across an em dash or an emoji) has exactly
+    // one defined answer: the character it is inside. The ~25 mapping producers
+    // that feed this cannot each be trusted to hand over a boundary.
+    let mut offset = offset.min(source.len());
+    while offset > 0 && !source.is_char_boundary(offset) {
+        offset -= 1;
+    }
     let (line, _) = offset_to_line_col(line_starts, offset);
     let line_start = line_starts[line];
+    // A span whose end is not a character boundary is a producer bug; keep it
+    // loud in tests but never abort a user's build over a source-map column.
+    debug_assert!(
+        source.is_char_boundary(offset),
+        "source-map offset {offset} is not a char boundary"
+    );
+    let offset = if source.is_char_boundary(offset) {
+        offset
+    } else {
+        (line_start..offset)
+            .rev()
+            .find(|i| source.is_char_boundary(*i))
+            .unwrap_or(line_start)
+    };
     let column = &source[line_start..offset];
     let column = if column.is_ascii() {
         column.len()
@@ -2770,45 +2792,39 @@ pub fn get_source_name(
     }
 }
 
-/// Get relative path from `from` to `to`, matching Svelte's `get_relative_path`.
+/// Get relative path from `from` to `to`, matching Svelte's `get_relative_path`
+/// (`utils/mapped_code.js`), which joins the parts verbatim — no `./` prefix.
 fn get_relative_path(from: &str, to: &str) -> String {
-    let from_parts: Vec<&str> = from.split('/').collect();
-    let to_parts: Vec<&str> = to.split('/').collect();
+    let from_parts: Vec<&str> = from.split(['/', '\\']).collect();
+    let to_parts: Vec<&str> = to.split(['/', '\\']).collect();
 
     // Remove filename part from `from`
     let from_dir = &from_parts[..from_parts.len().saturating_sub(1)];
 
     let mut common = 0;
-    for (a, b) in from_dir.iter().zip(to_parts.iter()) {
-        if a == b {
-            common += 1;
-        } else {
-            break;
-        }
+    // Upstream stops shifting once `to_parts` is exhausted (it would otherwise
+    // spin on `undefined === undefined`).
+    while common < from_dir.len() && common < to_parts.len() && from_dir[common] == to_parts[common]
+    {
+        common += 1;
     }
 
-    let ups = from_dir.len() - common;
-    let mut parts: Vec<&str> = vec![".."; ups];
-    for p in &to_parts[common..] {
-        parts.push(p);
-    }
-
-    let result = parts.join("/");
-    if result.starts_with("../") || result.starts_with("./") {
-        result
-    } else {
-        format!("./{}", result)
-    }
+    let mut parts: Vec<&str> = vec![".."; from_dir.len() - common];
+    parts.extend_from_slice(&to_parts[common..]);
+    parts.join("/")
 }
 
 /// Get basename of a path (last component).
 fn get_basename(path: &str) -> &str {
-    path.rsplit('/').next().unwrap_or(path)
+    path.rsplit(['/', '\\']).next().unwrap_or(path)
 }
 
 /// Generate a complete source map JSON string (v3 format).
+///
+/// `file` is `None` for the JS map: upstream builds it through esrap's `print()`,
+/// which never sets the key. Only the CSS map names its output file.
 pub fn generate_sourcemap_json(
-    file: &str,
+    file: Option<&str>,
     source_name: &str,
     source_content: Option<&str>,
     mappings: &str,
@@ -2816,9 +2832,11 @@ pub fn generate_sourcemap_json(
 ) -> String {
     let mut json = String::with_capacity(256 + source_content.map_or(0, str::len) + mappings.len());
     json.push_str("{\"version\":3");
-    json.push_str(",\"file\":\"");
-    json_escape_str(&mut json, file);
-    json.push('"');
+    if let Some(file) = file {
+        json.push_str(",\"file\":\"");
+        json_escape_str(&mut json, file);
+        json.push('"');
+    }
     json.push_str(",\"sources\":[\"");
     json_escape_str(&mut json, source_name);
     json.push_str("\"]");
@@ -3109,7 +3127,7 @@ pub fn remap_through_sourcemap(mappings: &mut [SourceMapping], preprocessor_map_
 
 /// Generate a source map JSON with multiple sources support.
 pub fn generate_sourcemap_json_multi(
-    file: &str,
+    file: Option<&str>,
     sources: &[&str],
     sources_content: &[&str],
     mappings: &str,
@@ -3117,9 +3135,11 @@ pub fn generate_sourcemap_json_multi(
 ) -> String {
     let mut json = String::with_capacity(256 + mappings.len());
     json.push_str("{\"version\":3");
-    json.push_str(",\"file\":\"");
-    json_escape_str(&mut json, file);
-    json.push('"');
+    if let Some(file) = file {
+        json.push_str(",\"file\":\"");
+        json_escape_str(&mut json, file);
+        json.push('"');
+    }
     json.push_str(",\"sources\":[");
     for (i, src) in sources.iter().enumerate() {
         if i > 0 {
@@ -3163,15 +3183,20 @@ mod tests {
 
     #[test]
     fn sourcemap_can_externalize_single_source_content() {
-        let json = generate_sourcemap_json("out.js", "App.svelte", None, "AAAA", &[]);
+        let json = generate_sourcemap_json(Some("out.js"), "App.svelte", None, "AAAA", &[]);
         let map: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(map["sourcesContent"], serde_json::json!([null]));
     }
 
     #[test]
     fn sourcemap_preserves_embedded_source_content() {
-        let json =
-            generate_sourcemap_json("out.js", "App.svelte", Some("<h1>\"x\"</h1>"), "AAAA", &[]);
+        let json = generate_sourcemap_json(
+            Some("out.js"),
+            "App.svelte",
+            Some("<h1>\"x\"</h1>"),
+            "AAAA",
+            &[],
+        );
         let map: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(map["sourcesContent"], serde_json::json!(["<h1>\"x\"</h1>"]));
     }

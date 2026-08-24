@@ -98,16 +98,28 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 12 entries;
-`error-message-known-failures.client-dev.json` holds 12 entries;
-`error-message-known-failures.server.json` holds 11 entries; and
-`error-message-known-failures.server-dev.json` holds 11 entries. All four of
-`error-position-known-failures.<target>.json` hold 59 entries, all four of
-`error-end-known-failures.<target>.json` hold 65 entries, and all four of
-`error-frame-known-failures.<target>.json` hold 0 entries. Almost every
+`error-message-known-failures.client.json` holds 11 entries;
+`error-message-known-failures.client-dev.json` holds 11 entries;
+`error-message-known-failures.server.json` holds 10 entries; and
+`error-message-known-failures.server-dev.json` holds 10 entries. All four of
+`error-position-known-failures.<target>.json` hold 72 entries, all four of
+`error-end-known-failures.<target>.json` hold 86 entries, and all four of
+`error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
+(#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
+at all**, which keeps that comparison's population saturated at 0 across a corpus
+that more than doubled. The counts above are the re-measurement against the tree
+this branch was rebased onto (message 18/17 → 13/12, position 99 → 81, end
+128 → 101); the current population is **34,007 entries and 5,098 both-reject
+`(id, target)` pairs**, against the 14,179 / 2,843 the table above was first
+measured on. Almost every
 compile error is raised in Phase 1/2, before the target is consulted, so a
 divergence shows up on all four targets at once. Expect the sixteen files to move
 together in a burn-down PR.
+
+The malformed-markup position pass then retired 6 position and 12 end entries
+per target. The detailed shape partitions below remain the measured snapshot
+from before that pass; they are historical evidence about the backlog's shape,
+not a decomposition of the current 72/86 files.
 
 The single asymmetry is genuinely target-dependent, which is exactly what the
 split exists to keep visible:
@@ -122,9 +134,9 @@ things on a minor bump": both compilers run on the same source, in the same
 process, at the pinned version, so a difference here is rsvelte's — the argument
 settled for warning text in #2403.
 
-Clustered by code (client target, 12 entries):
+Clustered by code (client target, 11 entries):
 
-- **`js_parse_error` — 10, the whole majority.** The Svelte code is right, but the
+- **`js_parse_error` — 9, the whole majority.** The Svelte code is right, but the
   text is oxc's parser message (`Expected `,` or `}` but found `+`) where upstream
   forwards acorn's (`Unexpected token`). This is the one cluster whose fix is not a
   string edit: the two parsers phrase their own diagnostics, and rsvelte's text is
@@ -154,65 +166,63 @@ The codes agree; `start` does not. An editor, a Vite overlay and `rsvelte-check`
 all place the diagnostic from `start`, so a wrong one points the user at the
 wrong code.
 
-By shape (client target, 59 entries), classified from the run's own
-`report.json` rather than by subtracting from the previous baseline:
+By shape (client target, 92-entry measurement snapshot), classified from the run's own
+`error.json` records rather than by subtracting from the previous baseline:
 
-- **24 — rsvelte reports no span at all.** The raising site constructs
+- **29 — rsvelte reports no span at all.** The raising site constructs
   `AnalysisError::validation(...)` instead of `validation_at(...)`, so
   `start`/`end` are `None` and the JS error carries no `start` property. This is
   the same structural gap `validator-known-failures.md` tracks, and the two burn
   down together — one `validation_at` call per raising site.
-- **28 — same line, different column.** A span exists but is narrowed or widened
+- **35 — same line, different column.** A span exists but is narrowed or widened
   wrongly (e.g. `expected_token`, `attribute_empty_shorthand`).
-- **7 — different line entirely.** The worse symptom of the same defect: a
+- **28 — different line entirely.** The worse symptom of the same defect: a
   plausible but wrong location. `date-picker-svelte/src/lib/DateInput.svelte`
   reports 296:0 where upstream reports 262:11 — 34 lines off, and column 0 means
   the squiggle lands on the indentation of an unrelated statement.
 
-The shrink from 226 is **entirely inside the no-span cluster** — 174 → 24 — and
-the different-line cluster went 18 → 7 when #3210 stopped reporting an
-unterminated region at end-of-file instead of where the trimmed template ends.
-That is the shape a
+The shrink from 226 is **entirely inside the no-span cluster** — 174 → 29 — and
+the different-line cluster has not grown. That is the shape a
 span-attachment change should have, and it is worth stating because the failure
 mode it rules out is the one `validator-known-failures.md` names: a fallback that
 lands a *plausible wrong* span in place of none would have moved entries from
 no-span into different-line, shrinking the count while making the diagnostics
 worse. It did not.
 
-Clustered by code, the largest are `js_parse_error` (15, all same-line),
-`expected_token` (8: 7 same-line, 1 different-line), `css_expected_identifier`
-(6, all different-line), then `snippet_invalid_export` /
-`store_invalid_scoped_subscription` (5 each), `attribute_empty_shorthand` (3) — a
-tail of 21 codes in total, one raising site each, which is why this is a per-site
-burn-down and not one edit. `block_invalid_continuation_placement` is gone from
-this list: #3210 moved it onto the `:` upstream reports, not the `{`.
+Clustered by code, the largest are `expected_token` (19: 12 different-line, 7
+same-line), `css_expected_identifier` (16, all different-line), `js_parse_error`
+(16, all same-line), `store_invalid_scoped_subscription` (10, all no-span),
+`block_invalid_continuation_placement` (6, all same-line), then
+`snippet_invalid_export` (5, all no-span) and `attribute_empty_shorthand` (3) —
+a tail of 21 codes in total, one raising site each, which is why this is a
+per-site burn-down and not one edit.
 
 ## Error end positions
 
 The codes agree; `end` does not, so the diagnostic underlines the wrong amount of
-code. The shape this section used to call canonical — `<div a="1" a="2">`, where
-`attribute_duplicate` reported `[11, 12]` against upstream's `[11, 16]` — is fixed
-(#3114); the five `attribute-unique*` entries it covered are retired, as are the
-three `window-*` entries a zero-width meta placement span retired (#3110) and the
-three `slot_snippet_conflict` entries that gained a span (#3124) and the
-`css-nesting-selector-root` entry that gained one (#3134) and the four an
-end-of-input point retired (#3206/#3220). #3218 retired 23 more at once: every
-`expected_token` rsvelte raised spanned one column where upstream passes a bare
-index and so reports a point.
+code. The canonical shape is `<div a="1" a="2">`, where `attribute_duplicate`
+reports `position: [11, 12]` against upstream's `[11, 16]` — the right start, one
+character of highlight instead of the whole attribute.
 
-Partition of `error-end-known-failures.<target>.json` by shape: `24 + 30 + 11`
-(client target, classified from the run's own `report.json`):
+Partition of the measured error-end snapshot by shape (client target,
+classified from the run's own `error.json` records):
 
-- **24 — rsvelte reports no `end` at all.** The same `validation(...)` vs
+- **29 — rsvelte reports no `end` at all.** The same `validation(...)` vs
   `validation_at(...)` raising sites the `start` ratchet's no-span cluster names;
-  these two clusters burn down together, one call per site.
-- **30 — same line, different column.** A span exists and stops in the wrong
-  place. This is the cluster the `start` ratchet cannot reach, and it is now the
+  these two clusters burn down together, one call per site. It is the same 29
+  entries, which is what "one call per site" predicts.
+- **50 — same line, different column.** A span exists and stops in the wrong
+  place. This is the cluster the `start` ratchet cannot reach, and it is still the
   largest: attaching a span fixes `start` and leaves `end` free to be wrong.
-- **11 — different line entirely.** A multi-line construct whose closing node was
+- **33 — different line entirely.** A multi-line construct whose closing node was
   not threaded through.
 
-**6 of the 65 diverge on `end` while `start` agrees** (2 same-line, 4
+Neither the wave-2 enrolment nor the rebase re-measurement moved the *shape* of
+this backlog — all three clusters move together, which is the answer to "did new
+repositories find a new shape of span defect, or more instances of the three we
+had?" — more instances.
+
+**20 of the 112 diverge on `end` while `start` agrees** (15 same-line, 5
 different-line). Those are the ones that would have been invisible had `end` been
 folded into the `start` ratchet, and they are the argument for the split: an
 entry already listed suppresses everything about that entry.

@@ -1622,10 +1622,22 @@ pub fn walk_js_expression_node(
             metadata.set_has_state(true);
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
-        JsNode::TemplateLiteral { expressions, .. } => {
+        JsNode::TemplateLiteral {
+            quasis,
+            expressions,
+            ..
+        } => {
+            // `quasis` precedes `expressions` in the ESTree node, and upstream's
+            // walk order decides the order the warnings come out in.
+            for quasi in arena.get_js_children(*quasis) {
+                super::super::template_element::visit_typed(quasi, context)?;
+            }
             for expr in arena.get_js_children(*expressions) {
                 walk_js_expression_node(expr, context, metadata)?;
             }
+        }
+        JsNode::Literal { .. } => {
+            super::super::literal::visit_typed(expression, context)?;
         }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
             walk_js_expression_node(arena.get_js_node(*tag), context, metadata)?;
