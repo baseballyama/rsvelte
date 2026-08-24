@@ -91,6 +91,7 @@ pub(crate) fn compute_eval_inputs(
             if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
                 && (binding.scope_index == 0
                     || binding.scope_index == analysis.root.instance_scope_index
+                    || binding.scope_index == analysis.root.root_fragment_scope_index
                     || template_scopes.contains(&binding.scope_index))
                 && !binding.is_updated()
                 && !constant_vars.contains_key(&binding.name)

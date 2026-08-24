@@ -135,6 +135,11 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
     /// Classify how a referenced `name` should be read, mirroring upstream's
     /// `Identifier.js` → `build_getter` cascade.
     fn classify(&self, name: &str) -> ReadKind {
+        // `Identifier.js` short-circuits on the NAME before resolving a binding,
+        // so a local `$$props` (a parameter, an each item) is renamed too.
+        if name == "$$props" {
+            return ReadKind::SanitizedProps;
+        }
         if self.is_shadowed(name) {
             return ReadKind::Keep;
         }
@@ -142,10 +147,6 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
         // `get_binding` (which may resolve a same-named non-derived sibling).
         if self.local_derived.contains(name) {
             return ReadKind::DerivedCall;
-        }
-        // Identifier.js short-circuits.
-        if name == "$$props" {
-            return ReadKind::SanitizedProps;
         }
         if name.starts_with("$$derived_array") {
             // Terrible-but-faithful upstream hack: `$$derived_array…` → `name()`.
@@ -1019,6 +1020,15 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_block_statement(self, it);
         self.shadowed.pop();
+    }
+
+    fn visit_binding_identifier(&mut self, it: &mut oxc_ast::ast::BindingIdentifier<'a>) {
+        // `is_reference` is true in binding positions too, so upstream's
+        // `$$props` → `$$sanitized_props` short-circuit renames a declaration
+        // (a parameter, a `let`) as well as a read.
+        if it.name == "$$props" {
+            it.name = self.b.str("$$sanitized_props").into();
+        }
     }
 
     fn visit_class(&mut self, it: &mut oxc_ast::ast::Class<'a>) {

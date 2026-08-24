@@ -147,6 +147,11 @@ const RATCHETS = [
 		jsons: ['parse-known-failures.server-dev.json'],
 	},
 	{
+		doc: 'parse-ast-known-failures.md',
+		key: 'parse-ast-known-failures.json',
+		jsons: ['parse-ast-known-failures.json'],
+	},
+	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',
 		jsons: ['parse-oracle-excluded.json'],

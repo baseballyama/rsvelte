@@ -6769,11 +6769,7 @@ fn apply_store_ref_transform(
         && let Some(read_fn) = store_transform.read
     {
         let transformed_ref = read_fn(&context.arena, JsExpr::Identifier(store_name.into()));
-        // Only apply for member expressions (non-source props → $$props.X).
-        // Call-based transforms (source props → X()) are already handled by
-        // apply_transforms_to_expression, so we skip those to avoid double transformation.
-        if matches!(&transformed_ref, JsExpr::Member(_))
-            && let JsExpr::Call(ref mut call) = result
+        if let JsExpr::Call(ref mut call) = result
             && let Some(first_arg) = call.arguments.first_mut()
             && matches!(first_arg, JsExpr::Identifier(n) if n.as_str() == store_name)
         {

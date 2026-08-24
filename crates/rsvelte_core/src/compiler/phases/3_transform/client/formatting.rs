@@ -370,15 +370,21 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
     let len = bytes.len();
     let base_depth = scan.depth;
     let mut opened_block = false;
+    // A label's body is one statement, so nothing before its first code token
+    // can end it — `$:` on a line of its own is not an empty statement.
+    let mut body_started = false;
     let mut i = from;
 
     while i < len {
+        let starts_comment = scan.starts_comment(source, i);
         if let Some(next) = scan.step(source, i) {
+            body_started |= !starts_comment;
             i = next;
             continue;
         }
         let c = bytes[i];
         if c == b'\n'
+            && body_started
             && scan.depth == base_depth
             && !opened_block
             && !continues_statement(scan.last_code)
@@ -390,6 +396,7 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
             i += 1;
             continue;
         }
+        body_started = true;
         match c {
             b'(' | b'[' => scan.depth += 1,
             b'{' => {
@@ -916,7 +923,9 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
             {
                 result.push(';');
             }
-            result.push_str(";;");
+            // Marked so `to_oxc` can tell this pair from a `;;` the USER wrote,
+            // which esrap drops.
+            result.push_str("/* $$inspect_removed$$ */;;");
         } else {
             result.push_str(line);
         }
