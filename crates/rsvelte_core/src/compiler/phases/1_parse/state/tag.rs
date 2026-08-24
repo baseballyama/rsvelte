@@ -813,15 +813,9 @@ impl<'a> Parser<'a> {
         self.bytes.get(j) == Some(&b'a')
             && self.bytes.get(j + 1) == Some(&b's')
             && (self.is_js_whitespace_at(j + 2)
-                // `{#each xs as}` is upstream's `expected_whitespace`, which is
-                // only reachable once the `as` is taken as the separator.
                 || (!self.options.loose && self.bytes.get(j + 2) == Some(&b'}')))
     }
 
-    /// Byte index just past the identifier starting at `i`, or `i` when none
-    /// starts there. Mirrors upstream `Parser#read_identifier`, whose first
-    /// character must satisfy `isIdentifierStart` — so a digit begins no
-    /// identifier, and `{#each xs as v, 1}` has no index name to read.
     fn identifier_end_at(&self, i: usize) -> usize {
         let Some(first) = self.source.get(i..).and_then(|s| s.chars().next()) else {
             return i;
@@ -840,11 +834,6 @@ impl<'a> Parser<'a> {
         j
     }
 
-    /// Byte index just past the binding pattern starting at `i`. Mirrors
-    /// upstream `read_pattern` (1-parse/read/context.js): a pattern is an
-    /// identifier or a `{` / `[` destructuring, and anything else — a literal,
-    /// a rest element, a member expression — is `expected_pattern` right where
-    /// the pattern was supposed to begin.
     fn binding_pattern_end(&self, i: usize) -> ParseResult<usize> {
         let ident_end = self.identifier_end_at(i);
         if ident_end > i {
@@ -1229,10 +1218,6 @@ impl<'a> Parser<'a> {
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start_ws().len();
         let actual_context_start = context_start + leading_ws;
-        // Upstream reads ONE binding pattern here and then expects the header's
-        // next token, so the scanned region is only a candidate: everything past
-        // the pattern has to be whitespace, or a `:` continuing it as a
-        // TypeScript type annotation.
         let mut content_end = context_end;
         if !self.options.loose {
             let pattern_end = self.binding_pattern_end(actual_context_start)?;
@@ -1252,9 +1237,6 @@ impl<'a> Parser<'a> {
         if self.eat_optional(",") {
             self.skip_whitespace();
             let idx_start = self.index;
-            // Upstream's index is `parser.read_identifier()` and nothing else —
-            // a destructuring pattern, a member expression or a literal there is
-            // `expected_identifier`, not a silently dropped index.
             let idx_end = self.identifier_end_at(idx_start);
             if idx_end == idx_start {
                 if !self.options.loose {
@@ -1349,10 +1331,6 @@ impl<'a> Parser<'a> {
         }))))
     }
 
-    /// Read the single binding pattern an `{#await … then/catch …}` clause
-    /// takes, leaving `self.index` just past it. A `{:then}` / `{:catch}` value
-    /// is a pattern, not a parameter list, so a rest element or a default is
-    /// rejected the same way a literal is.
     fn read_block_pattern(&mut self) -> ParseResult<Option<Expression<'a>>> {
         let start = self.index;
         if !self.options.loose {
@@ -1360,8 +1338,6 @@ impl<'a> Parser<'a> {
             let after = self.skip_js_whitespace_from(pattern_end);
             self.index = pattern_end;
             if self.bytes.get(after) == Some(&b':') {
-                // TypeScript type annotation: upstream reads it as part of the
-                // pattern, so keep the tolerant scan for the annotation's own text.
                 self.skip_pattern_expression();
             } else if self.bytes.get(after) != Some(&b'}') {
                 return Err(crate::error::ParseError::expected_token("}", after));
@@ -1387,6 +1363,15 @@ impl<'a> Parser<'a> {
             content,
             offset,
             self.expression_line_offsets(),
+        )
+    }
+
+    /// Upstream anchors this at the `:` of the continuation marker, not the `{`.
+    fn block_duplicate_clause(colon_pos: usize, name: &str) -> crate::error::ParseError {
+        crate::error::ParseError::svelte(
+            "block_duplicate_clause",
+            format!("{name} cannot appear more than once within a block"),
+            (colon_pos, colon_pos),
         )
     }
 
@@ -1554,8 +1539,6 @@ impl<'a> Parser<'a> {
         let leading_ws = expr_content.len() - trimmed_content.len();
         let adjusted_start = expr_start + leading_ws;
         let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end_ws().len());
-        // `{#await }` has no expression at all: upstream's `read_expression`
-        // hands acorn a `}` and rethrows. Everything else stays lenient here.
         if !self.options.loose
             && !has_then
             && !has_catch
@@ -1569,41 +1552,49 @@ impl<'a> Parser<'a> {
         }
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
-        let expression = if let Some(lazy) =
-            self.defer_expression(trimmed_content.trim_ws(), adjusted_start, LazyKind::Lenient)
-        {
-            lazy
-        } else {
-            super::super::expression::parse_expression_with_end(
-                &self.arena,
-                trimmed_content.trim_ws(),
-                adjusted_start,
-                adjusted_end,
-                self.expression_line_offsets(),
-                self.source,
-                self.options.loose,
-                false,
-                '{',
-                self.ts,
-            )
-            .unwrap_or_else(|(_, pos)| {
-                // Return an invalid identifier on parse error (empty name)
-                super::super::expression::create_identifier_with_character(
-                    "",
-                    pos,
+        let head = trimmed_content.trim_ws();
+        let expression =
+            if let Some(lazy) = self.defer_expression(head, adjusted_start, LazyKind::HeadBrace) {
+                lazy
+            } else {
+                match super::super::expression::parse_expression_with_end(
+                    &self.arena,
+                    head,
+                    adjusted_start,
                     adjusted_end,
                     self.expression_line_offsets(),
-                )
-            })
-        };
+                    self.source,
+                    self.options.loose,
+                    false,
+                    '{',
+                    self.ts,
+                ) {
+                    Ok(expr) => expr,
+                    Err((_, pos)) if self.options.loose => {
+                        super::super::expression::create_identifier_with_character(
+                            "",
+                            pos,
+                            adjusted_end,
+                            self.expression_line_offsets(),
+                        )
+                    }
+                    Err((msg, _)) => {
+                        return Err(super::super::read::expression::close_token_or_parse_error(
+                            msg,
+                            head,
+                            adjusted_start,
+                            '}',
+                        ));
+                    }
+                }
+            };
 
         // Parse 'then' value if present
         if has_then {
             self.advance_by(4); // consume 'then'
             self.skip_whitespace();
 
-            // In the opening tag upstream matches `\s*}` before requiring a
-            // pattern, so `{#await p then }` binds nothing.
+            // The opening tag permits an omitted binding after `then`.
             if self.current_char() != '}' {
                 value = self.read_block_pattern()?;
             }
@@ -1653,15 +1644,10 @@ impl<'a> Parser<'a> {
 
             if self.eat_optional("then") {
                 if !self.options.loose && then_fragment.is_some() {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_duplicate_clause",
-                        "{:then} cannot appear more than once within a block",
-                        (colon_pos, colon_pos),
-                    ));
+                    return Err(Self::block_duplicate_clause(colon_pos, "{:then}"));
                 }
                 // Upstream eats `}` before requiring the separator, so `{:then}`
-                // stays legal while `{:thenv}` is not — and, unlike the opening
-                // tag, `{:then }` has no `\s*}` escape: it must carry a pattern.
+                // stays legal while `{:thenv}` is not.
                 if !self.match_str("}") {
                     self.require_whitespace()?;
                     value = self.read_block_pattern()?;
@@ -1672,11 +1658,7 @@ impl<'a> Parser<'a> {
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
                 if !self.options.loose && catch_fragment.is_some() {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_duplicate_clause",
-                        "{:catch} cannot appear more than once within a block",
-                        (colon_pos, colon_pos),
-                    ));
+                    return Err(Self::block_duplicate_clause(colon_pos, "{:catch}"));
                 }
                 if !self.match_str("}") {
                     self.require_whitespace()?;
@@ -1769,6 +1751,14 @@ impl<'a> Parser<'a> {
         let name = self.read_identifier();
         let name_end = self.index;
 
+        if name.is_empty() && !self.options.loose {
+            return Err(crate::error::ParseError::svelte(
+                "expected_identifier",
+                "Expected an identifier\nhttps://svelte.dev/e/expected_identifier",
+                (self.index, self.index),
+            ));
+        }
+
         // Create expression for the snippet name (with character field in loc)
         let expression = super::super::expression::create_identifier_with_character(
             &name,
@@ -1777,9 +1767,11 @@ impl<'a> Parser<'a> {
             self.expression_line_offsets(),
         );
 
-        // Parse optional type parameters (between < and >)
+        // Parse optional type parameters (between < and >). Upstream gates the
+        // whole scan on TypeScript mode, so a `<` after the name is not a type
+        // parameter list in a component without `lang="ts"`.
         let mut type_params = None;
-        if self.eat_optional("<") {
+        if self.ts && self.eat_optional("<") {
             let type_params_start = self.index;
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
@@ -1808,6 +1800,15 @@ impl<'a> Parser<'a> {
                     self.advance();
                 }
             }
+            // Upstream reads this with `match_bracket`, which reports
+            // `unexpected_eof` at the end of the input for a list that never closes.
+            if depth > 0 && !self.options.loose {
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_eof",
+                    "Unexpected end of input",
+                    (self.source.len(), self.source.len()),
+                ));
+            }
             let type_params_content = &self.source[type_params_start..self.index];
             if !type_params_content.trim_ws().is_empty() {
                 type_params = Some(CompactString::from(type_params_content.trim_ws()));
@@ -1815,11 +1816,20 @@ impl<'a> Parser<'a> {
             self.eat_optional(">"); // consume closing >
         }
 
-        // Parse parameters (inside parentheses)
+        // Parse parameters (inside parentheses). Upstream's `eat('(', true,
+        // false)` requires the opener outside loose mode.
         self.skip_whitespace();
         let mut parameters = Vec::new();
 
-        if self.eat_optional("(") {
+        let opened = self.eat_optional("(");
+        if !opened && !self.options.loose {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token (",
+                (self.index, self.index),
+            ));
+        }
+        if opened {
             let params_start = self.index;
 
             // Find matching closing paren, accounting for nested parens and strings
@@ -2013,7 +2023,7 @@ impl<'a> Parser<'a> {
                 // not reject it here at parse time (svelte2tsx, which only parses,
                 // would otherwise diverge from official by erroring).
                 let trimmed = expr_content.trim_ws();
-                let expression = self.parse_js_expression_lenient(trimmed, expr_start);
+                let expression = self.parse_head_expression(trimmed, expr_start, false, '}')?;
 
                 // Upstream rejects anything but a call (optionally chained) here:
                 // `new foo()` and `foo` are parse errors, `foo?.()` is not.
@@ -2147,7 +2157,7 @@ impl<'a> Parser<'a> {
                         + 1
                         + (trimmed[eq_idx + 1..].len()
                             - trimmed[eq_idx + 1..].trim_start_ws().len());
-                    let init_expr = self.parse_js_expression(init_str, init_offset);
+                    let init_expr = self.parse_const_initializer(init_str, init_offset)?;
 
                     // Reject a sequence-expression initializer, mirroring
                     // upstream: `{@const a = (b, c)}` is allowed but
@@ -2194,8 +2204,10 @@ impl<'a> Parser<'a> {
                         declarator_end,
                     )
                 } else {
-                    // No `=` found – fall back to parsing as a single expression
-                    self.parse_js_expression(trimmed, expr_start)
+                    // Upstream reads a PATTERN and then `parser.eat('=', true)`,
+                    // so a const tag with no initializer is a missing `=` rather
+                    // than an expression to be parsed and dropped.
+                    return Err(self.const_tag_missing_equals(expr_content, expr_start));
                 };
 
                 Ok(Some(TemplateNode::ConstTag(Box::new(ConstTag {
@@ -2288,6 +2300,54 @@ impl<'a> Parser<'a> {
                 Ok(None)
             }
         }
+    }
+
+    /// The error upstream raises for a `{@const …}` body with no top-level `=`.
+    ///
+    /// `read_pattern` reads an identifier or a bracketed destructuring pattern
+    /// and stops, so the missing `=` is reported where that pattern ends, past
+    /// the whitespace `allow_whitespace` then skips — which is why `{@const c}`
+    /// and `{@const c }` report a byte apart.
+    fn const_tag_missing_equals(
+        &self,
+        expr_content: &str,
+        expr_start: usize,
+    ) -> crate::error::ParseError {
+        let pattern_end = match expr_content.chars().next() {
+            Some(open @ ('{' | '[')) => {
+                match find_matching_bracket(self.source, expr_start + 1, open) {
+                    Some(close) => close + 1 - expr_start,
+                    None => expr_content.len(),
+                }
+            }
+            Some(first) if first.is_alphabetic() || first == '_' || first == '$' => {
+                let len = expr_content
+                    .char_indices()
+                    .find(|(_, c)| !(c.is_alphanumeric() || *c == '_' || *c == '$'))
+                    .map_or(expr_content.len(), |(at, _)| at);
+                let name = &expr_content[..len];
+                if crate::compiler::phases::phase1_parse::utils::is_reserved(name) {
+                    return crate::error::ParseError::svelte(
+                        "unexpected_reserved_word",
+                        format!(
+                            "'{name}' is a reserved word in JavaScript and cannot be used here"
+                        ),
+                        (expr_start, expr_start),
+                    );
+                }
+                len
+            }
+            _ => {
+                return crate::error::ParseError::svelte(
+                    "expected_pattern",
+                    "Expected identifier or destructure pattern",
+                    (expr_start, expr_start),
+                );
+            }
+        };
+        let rest = &expr_content[pattern_end..];
+        let at = expr_start + pattern_end + (rest.len() - rest.trim_start_ws().len());
+        crate::error::ParseError::expected_token("=", at)
     }
 
     /// Parse a JavaScript expression and return as Expression (internal version).
@@ -2419,18 +2479,6 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Parse an expression whose parse failures are swallowed into an empty
-    /// identifier: `{@render …}` (its invalid-call check is an analysis-phase
-    /// error) and the `{#await …}` head.
-    pub fn parse_js_expression_lenient(&self, content: &str, offset: usize) -> Expression<'a> {
-        let leading_ws = content.len() - content.trim_start_ws().len();
-        let trimmed = content.trim_ws();
-        match self.defer_expression(trimmed, offset + leading_ws, LazyKind::Lenient) {
-            Some(lazy) => lazy,
-            None => self.parse_js_expression_internal(content, offset, false, '{'),
-        }
-    }
-
     /// Parse an attribute-value expression, propagating `js_parse_error` for
     /// invalid expressions like upstream's `read_expression`. Deferred unless
     /// the value belongs to `<svelte:options>`, whose values `read_options`
@@ -2529,23 +2577,51 @@ impl<'a> Parser<'a> {
                 // complete leading expression followed by leftover input is an
                 // `expected_token` (missing `close_char`); anything else is a
                 // `js_parse_error` at the point acorn/OXC stopped.
-                if let Some(pos) = super::super::read::expression::trailing_token_offset(trimmed) {
-                    return Err(crate::error::ParseError::expected_token(
-                        &close_char.to_string(),
-                        trimmed_offset + pos,
-                    ));
-                }
-                let abs_pos =
-                    super::super::read::expression::check_js_parse_error_with_pos(trimmed)
-                        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
-                            trimmed_offset + pos
-                        });
-                Err(crate::error::ParseError::svelte(
-                    "js_parse_error",
+                Err(super::super::read::expression::close_token_or_parse_error(
                     msg,
-                    (abs_pos, abs_pos),
+                    trimmed,
+                    trimmed_offset,
+                    close_char,
                 ))
             }
+        }
+    }
+
+    /// `read_expression` for a `{@const …}` initializer.
+    ///
+    /// Eager on purpose: the sequence-expression rejection that follows reads
+    /// the parsed node, and a deferred expression has no node to read — the
+    /// rejection would go silently missing.
+    fn parse_const_initializer(
+        &self,
+        trimmed: &str,
+        trimmed_offset: usize,
+    ) -> crate::error::ParseResult<Expression<'a>> {
+        match super::super::read::expression::parse_expression(
+            &self.arena,
+            trimmed,
+            trimmed_offset,
+            self.expression_line_offsets(),
+            self.source,
+            self.options.loose,
+            false,
+            '{',
+            self.ts,
+        ) {
+            Ok(expr) => Ok(expr),
+            Err(_) if self.options.loose => {
+                Ok(super::super::read::expression::create_empty_identifier(
+                    "",
+                    trimmed_offset,
+                    trimmed_offset + trimmed.len(),
+                ))
+            }
+            Err((msg, _)) => Err(super::super::read::expression::close_token_or_parse_error(
+                msg,
+                trimmed,
+                trimmed_offset,
+                '}',
+            )),
         }
     }
 }

@@ -112,7 +112,7 @@ pub fn fragment(
 
     // Early return if no nodes
     if cleaned.hoisted.is_empty() && cleaned.trimmed.is_empty() {
-        return JsBlockStatement { body: Vec::new() };
+        return JsBlockStatement::new();
     }
 
     // Analyze trimmed nodes
@@ -285,7 +285,7 @@ pub fn fragment(
                     &context.arena,
                     &id_name,
                     Some(b::call(&context.arena, template_id_expr, vec![])),
-                    Some(name_start),
+                    Some((name_start, name_end)),
                 ),
             );
 
@@ -783,7 +783,7 @@ pub fn fragment(
     // Merge memoizer conflicts back to parent so sibling scopes also avoid collisions
     context.state.memoizer.merge_conflicts(&state.memoizer);
 
-    JsBlockStatement { body }
+    JsBlockStatement::with_body(body)
 }
 
 /// Collect all identifier names from a JS statement.
