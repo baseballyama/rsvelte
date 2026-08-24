@@ -84,6 +84,18 @@ fn a_shadowed_rune_name_stays_a_store_subscription() {
     assert_legacy("<script>import { state } from './s.js';\nvoid $state;</script><div></div>");
     assert_legacy("<script>let derived = 1;\nvoid $derived;</script><div></div>");
     assert_legacy("<script>let state = 1;</script>{$state}");
+    assert_legacy("<script>$: state = 1;\nvoid $state;</script><div></div>");
+    assert_legacy(
+        "<script>let source = {};\n$: ({ state } = source);\nvoid $state;</script><div></div>",
+    );
+
+    let output = to_tsx(
+        "<script lang=\"ts\">export let api: number;\nlet source = {};\n$: ({ state } = source);\nvoid $state;</script><div></div>",
+    );
+    assert!(
+        output.contains("props: {api: api}"),
+        "a reactive `state` declaration must keep legacy exported props:\n{output}"
+    );
     // A parameter that literally spells `$state` shadows it too.
     assert_legacy("<script>function f($state) { return $state; }</script><div></div>");
     assert_legacy("<script>try {} catch ($state) { void $state; }</script><div></div>");

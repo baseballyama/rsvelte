@@ -369,11 +369,15 @@ pub(super) fn handle_export_named_decl(
                     .with_default_if(has_init)
                     .with_prop_if(is_prop)
                     .with_let_if(is_let)
-                    .with_named_export_if(true)
-                    // Official `addExport`: `required: required || existing?.required`,
-                    // and a named export passes `required = false`, so the
-                    // declaration's own `!initializer` is the whole answer.
-                    .with_required_if(!has_init),
+                    // Official `addExport` passes `required = false` for the
+                    // named export itself, then preserves `required` from a
+                    // matching possible export. Thus `let x: T; export
+                    // { x as y }` stays required, while the collision path
+                    // above for `export let x: T; export { x as y }` is
+                    // optional (exported declarations are not possible
+                    // exports).
+                    .with_required_if(possible.is_some_and(|p| !p.has_init()))
+                    .with_named_export_if(true),
             );
             // The JSDoc lives on the `let x` declaration (or, for a renamed
             // export, on the `export { … }` statement); carry it onto the

@@ -6,7 +6,10 @@ use std::collections::HashSet;
 use oxc_ast::ast as oxc;
 
 use super::ExportedNames;
-use super::ast_utils::{collect_binding_names, extract_all_names_from_binding_pattern};
+use super::ast_utils::{
+    collect_binding_names, extract_all_names_from_binding_pattern,
+    extract_names_from_assignment_target,
+};
 
 /// The official svelte2tsx `is_rune` quirk: a `$state(...)`/`$derived(...)`/
 /// `$props(...)` call that is the *direct* initializer of a variable
@@ -85,7 +88,31 @@ pub(super) fn detect_runes_in_program(
     exported_names: &mut ExportedNames,
     declared_names: &HashSet<String>,
 ) {
-    if detect_rune_in_nested_body(body, declared_names) {
+    // Reactive assignments introduce implicit top-level bindings for rune/store
+    // disambiguation, but they must not be added to the declaration set used by
+    // the later reactive-statement rewrite: that pass needs to know that they
+    // are new so it can turn `$: state = ...` into `let state = ...`.
+    let mut rune_scope = declared_names.clone();
+    for stmt in body {
+        let oxc::Statement::LabeledStatement(labeled) = stmt else {
+            continue;
+        };
+        if labeled.label.name != "$" {
+            continue;
+        }
+        let oxc::Statement::ExpressionStatement(expr_stmt) = &labeled.body else {
+            continue;
+        };
+        let expr = match &expr_stmt.expression {
+            oxc::Expression::ParenthesizedExpression(paren) => &paren.expression,
+            other => other,
+        };
+        if let oxc::Expression::AssignmentExpression(assign) = expr {
+            rune_scope.extend(extract_names_from_assignment_target(&assign.left));
+        }
+    }
+
+    if detect_rune_in_nested_body(body, &rune_scope) {
         exported_names.set_uses_runes(true);
     }
 }

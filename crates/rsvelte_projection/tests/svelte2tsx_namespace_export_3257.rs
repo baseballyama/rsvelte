@@ -131,4 +131,20 @@ fn an_export_without_an_initializer_is_a_required_prop() {
         &instance("export let l = 1;"),
         "props: {l: l} as {l?: typeof l}",
     );
+
+    // A named alias is added with `required = false` by official, even when
+    // the aliased declaration itself had no initializer.
+    assert_contains(
+        &instance("export let formModal: number; export { formModal as controller };"),
+        "controller?: typeof formModal",
+    );
+
+    // A non-exported declaration is first recorded as a possible export.
+    // Official carries that declaration's required bit into its later alias.
+    assert_contains(
+        &instance(
+            "type RequestStatus = { state: string }; let incomingRequestState: RequestStatus['state'] | undefined; export { incomingRequestState as requestState };",
+        ),
+        "requestState: RequestStatus['state'] | undefined",
+    );
 }

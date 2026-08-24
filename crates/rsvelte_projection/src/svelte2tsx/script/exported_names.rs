@@ -234,6 +234,10 @@ impl ExportedNameInfo {
     fn mark_named_export(&mut self) {
         self.flags.0 |= ExportFlags::IS_NAMED_EXPORT;
         self.flags.0 &= !ExportFlags::IS_LET;
+        // `export { local as exported }` calls official `addExport` with
+        // `required = false`. The renamed entry replaces the earlier
+        // `export let local` entry, so its required bit must not survive.
+        self.flags.0 &= !ExportFlags::IS_REQUIRED;
     }
 }
 
