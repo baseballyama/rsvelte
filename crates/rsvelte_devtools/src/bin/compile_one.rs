@@ -38,9 +38,8 @@ fn main() {
         }
     };
 
-    let is_module = path.ends_with(".svelte.js") || path.ends_with(".svelte.ts");
-    let result = if is_module {
-        compile_module(
+    if args.iter().any(|a| a == "--module") {
+        match compile_module(
             &source,
             ModuleCompileOptions {
                 generate,
@@ -48,24 +47,27 @@ fn main() {
                 filename: Some(path.clone()),
                 ..Default::default()
             },
-        )
-        .map(|r| r.js.code)
-    } else {
-        compile(
-            &source,
-            CompileOptions {
-                generate,
-                dev,
-                runes,
-                filename: Some(path.clone()),
-                ..Default::default()
-            },
-        )
-        .map(|r| r.js.code)
-    };
+        ) {
+            Ok(result) => print!("{}", result.js.code),
+            Err(err) => {
+                eprintln!("{err:?}");
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
 
-    match result {
-        Ok(code) => print!("{code}"),
+    match compile(
+        &source,
+        CompileOptions {
+            generate,
+            dev,
+            runes,
+            filename: Some(path.clone()),
+            ..Default::default()
+        },
+    ) {
+        Ok(result) => print!("{}", result.js.code),
         Err(err) => {
             eprintln!("{err:?}");
             std::process::exit(2);
