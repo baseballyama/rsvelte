@@ -2148,7 +2148,7 @@ impl<'a> Parser<'a> {
                             )
                             .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, expr_start))
                         } else {
-                            self.parse_js_expression(&pattern_clean, expr_start)
+                            self.parse_js_expression_eager_strict(&pattern_clean, expr_start)?
                         };
 
                     // Calculate the offset for the init expression in the
@@ -2160,7 +2160,7 @@ impl<'a> Parser<'a> {
                         + 1
                         + (trimmed[eq_idx + 1..].len()
                             - trimmed[eq_idx + 1..].trim_start_ws().len());
-                    let init_expr = self.parse_js_expression(init_str, init_offset);
+                    let init_expr = self.parse_js_expression_eager_strict(init_str, init_offset)?;
 
                     // Reject a sequence-expression initializer, mirroring
                     // upstream: `{@const a = (b, c)}` is allowed but
@@ -2208,7 +2208,7 @@ impl<'a> Parser<'a> {
                     )
                 } else {
                     // No `=` found – fall back to parsing as a single expression
-                    self.parse_js_expression(trimmed, expr_start)
+                    self.parse_js_expression_eager_strict(trimmed, expr_start)?
                 };
 
                 Ok(Some(TemplateNode::ConstTag(Box::new(ConstTag {
@@ -2366,6 +2366,18 @@ impl<'a> Parser<'a> {
             }
         }
 
+        self.parse_js_expression_eager_strict(content, offset)
+    }
+
+    /// `parse_js_expression_strict` without the deferral. `{@const}` inspects
+    /// its parsed declaration during the parse, so it cannot hold a `Lazy` — but
+    /// it must still report a `js_parse_error` rather than swallow one into an
+    /// empty identifier the way `parse_js_expression_internal` does.
+    pub fn parse_js_expression_eager_strict(
+        &self,
+        content: &str,
+        offset: usize,
+    ) -> crate::error::ParseResult<Expression<'a>> {
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
