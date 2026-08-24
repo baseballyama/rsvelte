@@ -723,6 +723,23 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteComponent => {
+                // element.js L273-276: a `this` that is not a single
+                // `{expression}` is rejected at parse time, before analysis
+                // ever looks at the node.
+                if let Some(definition) = attributes.iter().find_map(|attr| match attr {
+                    crate::ast::Attribute::Attribute(node) if node.name.as_str() == "this" => {
+                        Some(node)
+                    }
+                    _ => None,
+                }) && !Self::is_expression_attribute(definition)
+                {
+                    return Err(crate::error::ParseError::svelte(
+                        "svelte_component_invalid_this",
+                        "Invalid component definition — must be an `{expression}`\nhttps://svelte.dev/e/svelte_component_invalid_this",
+                        (definition.start as usize, definition.start as usize),
+                    ));
+                }
+
                 // Extract the "this" attribute to get the expression
                 let expression = self.extract_this_attribute(&attributes);
 
@@ -821,6 +838,18 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Some(node))
+    }
+
+    /// Mirrors `utils/ast.js` `is_expression_attribute`: the value is a single
+    /// `{expression}`, either bare or as the sole chunk of a quoted value.
+    fn is_expression_attribute(node: &crate::ast::template::AttributeNode<'a>) -> bool {
+        match &node.value {
+            AttributeValue::Expression(_) => true,
+            AttributeValue::Sequence(parts) => {
+                parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+            }
+            AttributeValue::True(_) => false,
+        }
     }
 
     /// Extract the "this" attribute from a svelte:element to get the tag expression.
@@ -1124,7 +1153,15 @@ impl<'a> Parser<'a> {
             {
                 break;
             }
-            if b == b'<' && self.index + 1 < self.bytes.len() && self.bytes[self.index + 1] == b'/'
+            // Upstream reads `<` as an attribute NAME (`regex_token_ending_character`
+            // does not list it) and only unwinds it afterwards, in loose mode, when
+            // the `>` never arrived — so stopping here is the loose recovery, not the
+            // strict one, and doing it in strict mode reports `expected_token` at the
+            // `<` instead of past the name upstream consumed.
+            if self.options.loose
+                && b == b'<'
+                && self.index + 1 < self.bytes.len()
+                && self.bytes[self.index + 1] == b'/'
             {
                 break;
             }
@@ -1555,54 +1592,7 @@ impl<'a> Parser<'a> {
         };
 
         // Parse the value (expression)
-        let (expression, end_pos) = if self.eat_optional("=") {
-            self.skip_whitespace();
-            // Handle quoted value: ="{expression}"
-            if self.eat_optional("\"") || self.eat_optional("'") {
-                let quote = if self.bytes[self.index - 1] == b'"' {
-                    '"'
-                } else {
-                    '\''
-                };
-                if self.eat_optional("{") {
-                    let expr_start = self.index;
-                    self.scan_to_closing_brace();
-                    let expr_content = &self.source[expr_start..self.index];
-                    self.advance(); // consume '}'
-                    if self.index < self.bytes.len() && self.bytes[self.index] == quote as u8 {
-                        self.advance();
-                    }
-                    (
-                        Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
-                        self.index,
-                    )
-                } else {
-                    // Plain quoted string without expression is invalid for directives.
-                    // Upstream attributes this to the value node, which starts
-                    // just past the opening quote.
-                    let error_pos = self.index;
-                    return Err(crate::error::ParseError::svelte(
-                        "directive_invalid_value",
-                        "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
-                        (error_pos, error_pos),
-                    ));
-                }
-            } else if self.eat_optional("{") {
-                // Expression in braces
-                let expr_start = self.index;
-                self.scan_to_closing_brace();
-                let expr_content = &self.source[expr_start..self.index];
-                self.advance(); // consume '}'
-                (
-                    Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
-                    self.index,
-                )
-            } else {
-                (None, self.index)
-            }
-        } else {
-            (None, name_end)
-        };
+        let (expression, end_pos) = self.read_directive_expression(name_end)?;
 
         Ok(Some(crate::ast::Attribute::OnDirective(
             crate::ast::template::OnDirective {
@@ -1639,78 +1629,17 @@ impl<'a> Parser<'a> {
         };
 
         // Parse the value (expression)
-        let (expression, end_pos) = if self.eat_optional("=") {
-            self.skip_whitespace();
-            // Handle quoted value: ="{expression}"
-            if self.eat_optional("\"") || self.eat_optional("'") {
-                let quote = if self.bytes[self.index - 1] == b'"' {
-                    '"'
-                } else {
-                    '\''
-                };
-                if self.eat_optional("{") {
-                    let expr_start = self.index;
-                    self.scan_to_closing_brace();
-                    let expr_content = &self.source[expr_start..self.index];
-                    self.advance(); // consume '}'
-                    if self.current_char() == quote {
-                        self.advance();
-                    }
-                    (
-                        self.parse_head_expression(expr_content, expr_start, false, '}')?,
-                        self.index,
-                    )
-                } else {
-                    // Plain quoted - skip
-                    while !self.is_eof() && self.current_char() != quote {
-                        self.advance();
-                    }
-                    if self.current_char() == quote {
-                        self.advance();
-                    }
-                    (
-                        super::super::expression::create_identifier_with_character(
-                            prop_name,
-                            name_start + 5,
-                            name_end,
-                            self.expression_line_offsets(),
-                        ),
-                        self.index,
-                    )
-                }
-            } else if self.eat_optional("{") {
-                // Expression in braces
-                let expr_start = self.index;
-                self.scan_to_closing_brace();
-                let expr_content = &self.source[expr_start..self.index];
-                self.advance(); // consume '}'
-                (
-                    self.parse_head_expression(expr_content, expr_start, false, '}')?,
-                    self.index,
-                )
-            } else {
-                // Shorthand: bind:value without expression means bind to a variable with same name
-                (
-                    super::super::expression::create_identifier_with_character(
-                        prop_name,
-                        name_start + 5, // start after "bind:"
-                        name_end,
-                        self.expression_line_offsets(),
-                    ),
-                    name_end,
-                )
-            }
-        } else {
-            // Shorthand: bind:value means bind to variable named "value"
-            (
-                super::super::expression::create_identifier_with_character(
-                    prop_name,
-                    name_start + 5, // start after "bind:"
-                    name_end,
-                    self.expression_line_offsets(),
-                ),
+        let (expression, end_pos) = self.read_directive_expression(name_end)?;
+        // `bind:value` with no value binds to the identifier the name spells,
+        // which upstream synthesizes from `start + colon_index + 1`.
+        let expression = match expression {
+            Some(expression) => expression,
+            None => super::super::expression::create_identifier_with_character(
+                prop_name,
+                name_start + 5,
                 name_end,
-            )
+                self.expression_line_offsets(),
+            ),
         };
 
         Ok(Some(crate::ast::Attribute::BindDirective(
@@ -1849,14 +1778,11 @@ impl<'a> Parser<'a> {
             // Shorthand: class:name without = means expression is Identifier("name")
             super::super::expression::create_identifier_with_character(
                 class_name,
-                name_start + 6, // start after "class:"
+                name_start + 6,
                 name_end,
                 self.expression_line_offsets(),
-            )
+            ),
         };
-
-        // Shorthand `class:name` (no value) ends at the name (see animate).
-        let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::ClassDirective(
             crate::ast::template::ClassDirective {
                 start: start as u32,
@@ -2163,42 +2089,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let (animate_name, modifiers) = Self::extract_name_and_modifiers(&full_name[8..]);
 
-        let had_value = self.eat_optional("=");
-        let expression = if had_value {
-            self.skip_whitespace();
-            // Handle both bare {expr} and quoted "{expr}" / '{expr}'
-            let quote =
-                if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
-                    let q = self.current_char();
-                    self.advance(); // consume opening quote
-                    Some(q)
-                } else {
-                    None
-                };
-            if self.eat_optional("{") {
-                let expr_start = self.index;
-                self.scan_to_closing_brace();
-                let expr_end = self.index;
-                let expr_content = &self.source[expr_start..expr_end];
-                self.advance(); // consume '}'
-                if quote.is_some() {
-                    self.advance(); // consume closing quote
-                }
-                Some(self.parse_head_expression(expr_content, expr_start, false, '}')?)
-            } else {
-                if quote.is_some() {
-                    self.index -= 1; // revert quote consumption
-                }
-                None
-            }
-        } else {
-            None
-        };
-
-        // A shorthand `animate:name` (no value) ends at the name — `self.index`
-        // was advanced past trailing whitespace by the pre-dispatch
-        // `skip_whitespace()`, so use `name_end` (matches upstream spans).
-        let end = if had_value { self.index } else { name_end };
+        let (expression, end) = self.read_directive_expression(name_end)?;
         Ok(Some(crate::ast::Attribute::AnimateDirective(
             crate::ast::template::AnimateDirective {
                 start: start as u32,
@@ -2222,40 +2113,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let (let_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
-        let had_value = self.eat_optional("=");
-        let expression = if had_value {
-            self.skip_whitespace();
-            // Handle both bare {expr} and quoted "{expr}" / '{expr}'
-            let quote =
-                if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
-                    let q = self.current_char();
-                    self.advance(); // consume opening quote
-                    Some(q)
-                } else {
-                    None
-                };
-            if self.eat_optional("{") {
-                let expr_start = self.index;
-                self.scan_to_closing_brace();
-                let expr_end = self.index;
-                let expr_content = &self.source[expr_start..expr_end];
-                self.advance(); // consume '}'
-                if quote.is_some() {
-                    self.advance(); // consume closing quote
-                }
-                Some(self.parse_head_expression(expr_content, expr_start, false, '}')?)
-            } else {
-                if quote.is_some() {
-                    self.index -= 1; // revert quote consumption
-                }
-                None
-            }
-        } else {
-            None
-        };
-
-        // Shorthand `let:name` (no value) ends at the name (see animate).
-        let end = if had_value { self.index } else { name_end };
+        let (expression, end) = self.read_directive_expression(name_end)?;
         Ok(Some(crate::ast::Attribute::LetDirective(
             crate::ast::template::LetDirective {
                 start: start as u32,

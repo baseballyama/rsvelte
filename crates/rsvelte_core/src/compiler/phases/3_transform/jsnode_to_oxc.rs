@@ -1720,6 +1720,7 @@ mod tests {
                     offset: 0,
                     line_offsets: &line_offsets,
                     is_typescript: false,
+                    is_script: false,
                     leading_comments: &[],
                     script_tag_start: 0,
                     script_tag_end: src.len(),

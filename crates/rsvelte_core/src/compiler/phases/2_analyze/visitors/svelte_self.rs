@@ -112,12 +112,14 @@ pub fn visit<'a, 'b: 'a>(
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                super::script::walk_expression(&spread.expression, context)?;
+                super::shared::attribute::walk_template_expression(&spread.expression, context)?;
             }
             Attribute::AttachTag(attach) => {
-                super::script::walk_expression(&attach.expression, context)?;
+                super::shared::attribute::walk_template_expression(&attach.expression, context)?;
             }
-            _ => {}
+            other => {
+                super::shared::attribute::walk_remaining_attribute_expressions(other, context)?;
+            }
         }
     }
 

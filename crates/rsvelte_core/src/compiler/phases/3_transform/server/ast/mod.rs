@@ -1166,6 +1166,7 @@ pub fn server_component_ast<'a>(
     allocator: &'a Allocator,
 ) -> Result<String, String> {
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
+    state.has_instance_script = ast.instance.is_some();
 
     // Precompute the SSR constant-folding inputs (`constant_vars` /
     // `use_async` / `top_level_blocker_map`) via the standalone
@@ -1445,7 +1446,9 @@ pub fn server_component_ast<'a>(
         // ($$renderer) => { <block_body> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
         let mut inner_body = b.body(block_body);
-        comments::mark_component_body(&mut inner_body);
+        if state.has_instance_script {
+            comments::mark_component_body(&mut inner_body);
+        }
         let arrow = b.arrow(inner_params, inner_body, false, false);
         // 2nd arg: `dev && component_name` → the bare identifier in dev, omitted
         // (no 2nd arg) otherwise.
@@ -1572,7 +1575,7 @@ pub fn server_component_ast<'a>(
         b.params(vec![b.id_pat("$$renderer")], None)
     };
     let mut fn_body = b.body(final_body);
-    if !should_inject_context {
+    if !should_inject_context && state.has_instance_script {
         comments::mark_component_body(&mut fn_body);
     }
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
@@ -1667,7 +1670,7 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
     // `hoisted[0]` when `use_async`) must stay ahead of it, so insert AFTER
     // any leading `import 'svelte/internal/flags/async';`.
     if options.dev {
-        let filename = options.filename.as_deref().unwrap_or("");
+        let filename = options.filename_or_unknown();
         // `b.member(id, '$.FILENAME', computed=true)` → `<Name>[$.FILENAME]`,
         // where the computed key `$.FILENAME` is itself the member expression
         // `$.FILENAME` (namespace `$` dot-access `FILENAME`).

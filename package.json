@@ -54,6 +54,7 @@
 		"bootstrap-platform-packages": "node scripts/release/bootstrap-platform-packages.mjs",
 		"test:envelope": "node scripts/dev/test-envelope-validation.mjs",
 		"test:parse-envelope": "node scripts/dev/test-parse-envelope-validation.mjs",
+		"test:parse-bom": "node scripts/dev/test-parse-bom.mjs",
 		"test:corpus-verify-flags": "node scripts/dev/test-corpus-verify-baseline-flags.mjs",
 		"test:corpus-parse-gate": "node scripts/dev/test-corpus-parse-gate.mjs",
 		"test:lint-verify-floor": "node scripts/dev/test-lint-verify-population-floor.mjs",

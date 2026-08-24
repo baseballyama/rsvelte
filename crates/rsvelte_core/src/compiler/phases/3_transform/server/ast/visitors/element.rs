@@ -2128,7 +2128,9 @@ fn build_attribute_value<'a>(
 ) -> OxcExpression<'a> {
     match value {
         AttributeValue::True(_) => state.b.bool(true),
-        AttributeValue::Expression(tag) => attr_expr_value(&tag.expression, state),
+        AttributeValue::Expression(tag) => {
+            attr_expr_value(&tag.expression, (tag.start + 1, tag.end - 1), state)
+        }
         AttributeValue::Sequence(parts) => {
             // Single-element sequence collapses to its lone part (upstream's
             // `value.length === 1` branch).
@@ -2143,7 +2145,7 @@ fn build_attribute_value<'a>(
                         state.b.string(&escape_attr(&data))
                     }
                     AttributeValuePart::ExpressionTag(tag) => {
-                        attr_expr_value(&tag.expression, state)
+                        attr_expr_value(&tag.expression, (tag.start + 1, tag.end - 1), state)
                     }
                 };
             }
@@ -2175,6 +2177,7 @@ fn build_attribute_value<'a>(
                                 let content = js_display_string(value);
                                 quasis.last_mut().unwrap().push_str(&content);
                             }
+                            state.defer_template_expression_comments((tag.start + 1, tag.end - 1));
                             continue;
                         }
                         // Live expression: wrap in `$.stringify` unless it is
@@ -2231,6 +2234,7 @@ fn attribute_value_source(
 /// unchanged.
 fn attr_expr_value<'a>(
     expr: &crate::ast::js::Expression,
+    region: (u32, u32),
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
     if state.attr_optimiser.is_some()
@@ -2239,7 +2243,11 @@ fn attr_expr_value<'a>(
     {
         return super::shared::save_wrap_expr_text(state, &text);
     }
-    state.visit_expr(expr)
+    let mut visited = state.visit_expr(expr);
+    if let (Some(start), Some(end)) = (expr.start(), expr.end()) {
+        state.place_template_expression_comments(region, (start, end), &mut visited);
+    }
+    visited
 }
 
 /// Whether `name` is an event-handler attribute (`on` + lowercase letter), the
