@@ -56,9 +56,7 @@ use props_rune::{
     PropsRuneInfo, apply_props_typedef, collect_props_rune_info, detect_props_rune_oxc,
 };
 use reactive::handle_reactive_statement;
-use runes::{
-    detect_rune_in_class_body, detect_rune_in_function, detect_runes_call, detect_runes_expr_stmt,
-};
+use runes::detect_runes_in_program;
 use script_facts::ScriptFacts;
 use stores::{
     inject_store_subscriptions_vars_only_with_program, inject_store_subscriptions_with_program,
@@ -109,6 +107,7 @@ pub fn process_instance_script(
     emit_jsdoc: bool,
     is_dts_mode: bool,
     script_generic_names: &HashSet<String>,
+    has_generics_attr: bool,
 ) -> Vec<LiftedImport> {
     let offset = script.content_offset;
     let mut instance_imports = Vec::new();
@@ -130,6 +129,10 @@ pub fn process_instance_script(
         // statement whose initializer we're checking. See
         // collect_top_level_declared_names.
         let declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
+        // Runes-globals detection is ONE walk over the whole instance script,
+        // mirroring upstream's single identifier pass — not a per-statement-kind
+        // dispatch, which structurally cannot see the kinds it has no arm for.
+        detect_runes_in_program(&program.body, exported_names, &declared_names);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -150,7 +153,6 @@ pub fn process_instance_script(
                     // into the `exports:` return, not `props:`).
                     let is_let = matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                     for declarator in &var_decl.declarations {
-                        detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Collect $props() info for typedef generation (one per
                         // `$props()` destructure).
@@ -239,19 +241,6 @@ pub fn process_instance_script(
                         }
                     }
                 }
-                // Official's `checkGlobalsForRunes` walks the whole AST, so a rune
-                // anywhere inside a function counts.
-                // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                oxc::Statement::FunctionDeclaration(func)
-                    if detect_rune_in_function(func, &declared_names) =>
-                {
-                    exported_names.set_uses_runes(true);
-                }
-                oxc::Statement::ClassDeclaration(class)
-                    if detect_rune_in_class_body(class, &declared_names) =>
-                {
-                    exported_names.set_uses_runes(true);
-                }
                 oxc::Statement::ExportDeclaration(export) => {
                     // Also check exports for declared names
                     {
@@ -299,19 +288,6 @@ pub fn process_instance_script(
                                     }
                                 }
                             }
-                            // Runes inside an exported function body still put the
-                            // component in runes mode.
-                            oxc::Declaration::FunctionDeclaration(func)
-                                if detect_rune_in_function(func, &declared_names) =>
-                            {
-                                exported_names.set_uses_runes(true);
-                            }
-                            // `export class C { x = $state(0) }` → runes mode.
-                            oxc::Declaration::ClassDeclaration(class)
-                                if detect_rune_in_class_body(class, &declared_names) =>
-                            {
-                                exported_names.set_uses_runes(true);
-                            }
                             // `export type X = ...` / `export interface X { ... }`.
                             //
                             // In TypeScript these are still TypeAliasDeclaration /
@@ -341,6 +317,18 @@ pub fn process_instance_script(
                                         rel_end: type_alias.span.end,
                                     });
                                 }
+                                // Upstream models `export type T = …` as one
+                                // TypeAliasDeclaration carrying an `export`
+                                // modifier, so `addIfIsGeneric` reaches it and
+                                // removes the declaration from the `export`
+                                // keyword onwards.
+                                add_if_is_dollar_generic(
+                                    type_alias,
+                                    export.span.start,
+                                    raw_content,
+                                    has_generics_attr,
+                                    exported_names,
+                                );
                             }
                             oxc::Declaration::TSInterfaceDeclaration(iface) => {
                                 let name = iface.id.name.to_string();
@@ -393,32 +381,13 @@ pub fn process_instance_script(
                             rel_end: type_alias.span.end,
                         });
                     }
-                    // Detect `type X = $$Generic;` or `type X = $$Generic<constraint>;`
-                    let type_text = &raw_content[type_alias.type_annotation.span().start as usize
-                        ..type_alias.type_annotation.span().end as usize];
-                    if type_text == "$$Generic" || type_text.starts_with("$$Generic<") {
-                        let name = type_alias.id.name.to_string();
-                        let constraint = if type_text.starts_with("$$Generic<") {
-                            // Extract the constraint from $$Generic<constraint>
-                            let inner = &type_text[10..type_text.len() - 1]; // skip "$$Generic<" and ">"
-                            Some(inner.to_string())
-                        } else {
-                            None
-                        };
-                        exported_names.dollar_generics.push((name, constraint));
-                        // Record the position to blank out later
-                        exported_names
-                            .dollar_generic_positions
-                            .push((type_alias.span.start, type_alias.span.end));
-                    }
-                }
-                // Detect rune globals used as standalone expression statements,
-                // e.g. `$effect(() => { ... })` or `$effect.pre(() => { ... })`.
-                // These are missed by `detect_runes_call` which only visits
-                // VariableDeclarator inits.
-                // Reference: svelte2tsx ExportedNames.ts `hasRunesGlobals` check.
-                oxc::Statement::ExpressionStatement(es) => {
-                    detect_runes_expr_stmt(es, exported_names, &declared_names);
+                    add_if_is_dollar_generic(
+                        type_alias,
+                        type_alias.span.start,
+                        raw_content,
+                        has_generics_attr,
+                        exported_names,
+                    );
                 }
                 _ => {}
             }
@@ -438,70 +407,19 @@ pub fn process_instance_script(
         let mut reactive_declared_names: HashSet<String> = HashSet::new();
 
         // Pass 2: handle exports
-        for stmt in &program.body {
-            if let oxc::Statement::ExportDeclaration(export) = stmt {
-                handle_export_named_decl(
-                    export.span,
-                    Some(&export.declaration),
-                    &[],
-                    offset,
-                    str,
-                    exported_names,
-                    true,
-                    &possible_exports,
-                    raw_content,
-                    is_ts,
-                    basename,
-                    emit_jsdoc,
-                );
-            } else if let oxc::Statement::ExportNamedDeclaration(export) = stmt {
-                handle_export_named_decl(
-                    export.span,
-                    None,
-                    &export.specifiers,
-                    offset,
-                    str,
-                    exported_names,
-                    true,
-                    &possible_exports,
-                    raw_content,
-                    is_ts,
-                    basename,
-                    emit_jsdoc,
-                );
-            } else if let oxc::Statement::ExportFromDeclaration(export) = stmt {
-                handle_export_named_decl(
-                    export.span,
-                    None,
-                    &export.specifiers,
-                    offset,
-                    str,
-                    exported_names,
-                    true,
-                    &possible_exports,
-                    raw_content,
-                    is_ts,
-                    basename,
-                    emit_jsdoc,
-                );
-            } else if let oxc::Statement::ExportDefaultDeclaration(export) = stmt {
-                // Instance scripts can't have `export default` (svelte rejects
-                // it). Official svelte2tsx blanks just the `export` keyword for a
-                // default-exported FUNCTION or CLASS declaration, leaving
-                // `default function …`/`default class …` (invalid TSX → oxfmt
-                // skips → raw output). A default-exported EXPRESSION
-                // (`export default 42`) is kept verbatim. Mirror that.
-                let is_decl = matches!(
-                    export.declaration,
-                    oxc::ExportDefaultDeclarationKind::FunctionDeclaration(_)
-                        | oxc::ExportDefaultDeclarationKind::ClassDeclaration(_)
-                );
-                if is_decl {
-                    let start = export.span.start + offset;
-                    str.overwrite(start, start + 6, "");
-                }
-            }
-        }
+        handle_instance_export_statements(
+            &program.body,
+            &mut InstanceExportContext {
+                offset,
+                str,
+                exported_names,
+                possible_exports: &possible_exports,
+                raw_content,
+                is_ts,
+                basename,
+                emit_jsdoc,
+            },
+        );
 
         // Blank out $$Generic type alias declarations
         for &(start, end) in &exported_names.dollar_generic_positions {
@@ -832,6 +750,9 @@ fn collect_module_names(
                 collect_exported_module_declaration(&export.declaration, exported_names)?;
             }
             oxc::Statement::TSTypeAliasDeclaration(t) => {
+                if dollar_generic_type_args(t).is_some() {
+                    return Err(dollar_generic_in_module_script_error());
+                }
                 let name = t.id.name.to_string();
                 if is_special_type_name(&name) {
                     return Err(sentinel_type_in_module_script_error(&name));
@@ -871,6 +792,143 @@ fn collect_module_names(
     Ok(())
 }
 
+/// Everything `handle_export_named_decl` needs, bundled so the recursive
+/// instance-script export walk stays readable.
+struct InstanceExportContext<'a, 'b> {
+    offset: u32,
+    str: &'a mut MagicString<'b>,
+    exported_names: &'a mut ExportedNames,
+    possible_exports: &'a HashMap<String, PossibleExport>,
+    raw_content: &'a str,
+    is_ts: bool,
+    basename: &'a str,
+    emit_jsdoc: bool,
+}
+
+/// Lift every `export` in the instance script into the component's prop/export
+/// surface and strip the keyword.
+///
+/// Upstream's walk is `ts.forEachChild` over the WHOLE instance AST, and
+/// `handleVariableStatement` / `handleExportFunctionOrClass` /
+/// `handleExportDeclaration` fire wherever they match — the `export` branch of
+/// `handleVariableStatement` never checks that the parent is the source file. A
+/// `namespace` / `module` / `global` body is the only other place an `export`
+/// can legally sit, so recursing into those reproduces upstream's reach.
+fn handle_instance_export_statements(body: &[oxc::Statement], ctx: &mut InstanceExportContext) {
+    for stmt in body {
+        match stmt {
+            oxc::Statement::ExportDeclaration(export) => {
+                handle_export_named_decl(
+                    export.span,
+                    Some(&export.declaration),
+                    &[],
+                    ctx.offset,
+                    ctx.str,
+                    ctx.exported_names,
+                    true,
+                    ctx.possible_exports,
+                    ctx.raw_content,
+                    ctx.is_ts,
+                    ctx.basename,
+                    ctx.emit_jsdoc,
+                );
+                // `export namespace N { export const a = 1 }` — the outer
+                // `export` is left alone, but the body still gets walked.
+                match &export.declaration {
+                    oxc::Declaration::TSNamespaceDeclaration(ns) => {
+                        handle_namespace_body_exports(&ns.body, ctx);
+                    }
+                    oxc::Declaration::TSExternalModuleDeclaration(module_decl) => {
+                        if let Some(block) = &module_decl.body {
+                            handle_instance_export_statements(&block.body, ctx);
+                        }
+                    }
+                    oxc::Declaration::TSGlobalDeclaration(global) => {
+                        handle_instance_export_statements(&global.body.body, ctx);
+                    }
+                    _ => {}
+                }
+            }
+            oxc::Statement::ExportNamedDeclaration(export) => {
+                handle_export_named_decl(
+                    export.span,
+                    None,
+                    &export.specifiers,
+                    ctx.offset,
+                    ctx.str,
+                    ctx.exported_names,
+                    true,
+                    ctx.possible_exports,
+                    ctx.raw_content,
+                    ctx.is_ts,
+                    ctx.basename,
+                    ctx.emit_jsdoc,
+                );
+            }
+            oxc::Statement::ExportFromDeclaration(export) => {
+                handle_export_named_decl(
+                    export.span,
+                    None,
+                    &export.specifiers,
+                    ctx.offset,
+                    ctx.str,
+                    ctx.exported_names,
+                    true,
+                    ctx.possible_exports,
+                    ctx.raw_content,
+                    ctx.is_ts,
+                    ctx.basename,
+                    ctx.emit_jsdoc,
+                );
+            }
+            oxc::Statement::ExportDefaultDeclaration(export) => {
+                // Instance scripts can't have `export default` (svelte rejects
+                // it). Official svelte2tsx blanks just the `export` keyword for a
+                // default-exported FUNCTION or CLASS declaration, leaving
+                // `default function …`/`default class …` (invalid TSX → oxfmt
+                // skips → raw output). A default-exported EXPRESSION
+                // (`export default 42`) is kept verbatim. Mirror that.
+                let is_decl = matches!(
+                    export.declaration,
+                    oxc::ExportDefaultDeclarationKind::FunctionDeclaration(_)
+                        | oxc::ExportDefaultDeclarationKind::ClassDeclaration(_)
+                );
+                if is_decl {
+                    let start = export.span.start + ctx.offset;
+                    ctx.str.overwrite(start, start + 6, "");
+                }
+            }
+            oxc::Statement::TSNamespaceDeclaration(ns) => {
+                handle_namespace_body_exports(&ns.body, ctx);
+            }
+            oxc::Statement::TSExternalModuleDeclaration(module_decl) => {
+                if let Some(block) = &module_decl.body {
+                    handle_instance_export_statements(&block.body, ctx);
+                }
+            }
+            oxc::Statement::TSGlobalDeclaration(global) => {
+                handle_instance_export_statements(&global.body.body, ctx);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn handle_namespace_body_exports(
+    body: &oxc::TSNamespaceDeclarationBody<'_>,
+    ctx: &mut InstanceExportContext,
+) {
+    match body {
+        // `namespace A.B { … }` — the dotted form nests another namespace.
+        oxc::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            handle_namespace_body_exports(&inner.body, ctx);
+        }
+        oxc::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            handle_instance_export_statements(&block.body, ctx);
+        }
+    }
+}
+
 fn collect_exported_module_declaration(
     declaration: &oxc::Declaration<'_>,
     exported_names: &mut ExportedNames,
@@ -898,6 +956,9 @@ fn collect_exported_module_declaration(
             }
         }
         oxc::Declaration::TSTypeAliasDeclaration(declaration) => {
+            if dollar_generic_type_args(declaration).is_some() {
+                return Err(dollar_generic_in_module_script_error());
+            }
             add_module_type_name(declaration.id.name.to_string(), exported_names)?;
         }
         oxc::Declaration::TSInterfaceDeclaration(declaration) => {
@@ -927,6 +988,65 @@ fn sentinel_type_in_module_script_error(name: &str) -> super::utils::error::Svel
     super::utils::error::Svelte2TsxError::Script(format!(
         "{name} can only be declared in the instance script"
     ))
+}
+
+/// The type arguments of a `type X = $$Generic<…>` alias, or `None` when the
+/// alias is not a `$$Generic` one. Mirrors upstream's `is$$GenericType`, which
+/// tests the AST node rather than the annotation's source text.
+fn dollar_generic_type_args<'a, 'b>(
+    type_alias: &'b oxc::TSTypeAliasDeclaration<'a>,
+) -> Option<Option<&'b oxc::TSTypeParameterInstantiation<'a>>> {
+    let oxc::TSType::TSTypeReference(reference) = &type_alias.type_annotation else {
+        return None;
+    };
+    let oxc::TSTypeName::IdentifierReference(ident) = &reference.type_name else {
+        return None;
+    };
+    (ident.name == "$$Generic").then(|| reference.type_arguments.as_deref())
+}
+
+/// Upstream `Generics.addIfIsGeneric`: turn `type X = $$Generic<C>` into a
+/// `$$render` type parameter and blank the declaration. `decl_start` is where
+/// the removal begins, which is the `export` keyword for the exported form.
+fn add_if_is_dollar_generic(
+    type_alias: &oxc::TSTypeAliasDeclaration<'_>,
+    decl_start: u32,
+    raw_content: &str,
+    has_generics_attr: bool,
+    exported_names: &mut ExportedNames,
+) {
+    let Some(type_arguments) = dollar_generic_type_args(type_alias) else {
+        return;
+    };
+    if has_generics_attr {
+        exported_names.dollar_generic_error.get_or_insert_with(|| {
+            "Invalid $$Generic declaration: $$Generic definitions are not allowed when the generics attribute is present on the script tag".to_string()
+        });
+        return;
+    }
+    let params = type_arguments.map(|args| &args.params);
+    if params.is_some_and(|params| params.len() > 1) {
+        exported_names.dollar_generic_error.get_or_insert_with(|| {
+            "Invalid $$Generic declaration: Only one type argument allowed".to_string()
+        });
+        return;
+    }
+    let constraint = params.and_then(|params| params.first()).map(|arg| {
+        let span = arg.span();
+        raw_content[span.start as usize..span.end as usize].to_string()
+    });
+    exported_names
+        .dollar_generics
+        .push((type_alias.id.name.to_string(), constraint));
+    exported_names
+        .dollar_generic_positions
+        .push((decl_start, type_alias.span.end));
+}
+
+fn dollar_generic_in_module_script_error() -> super::utils::error::Svelte2TsxError {
+    super::utils::error::Svelte2TsxError::Script(
+        "$$Generic declarations are only allowed in the instance script".to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -1003,7 +1123,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Slots can only be declared in the instance script"
+            "$$Slots can only be declared in the instance script"
         );
     }
 
@@ -1013,7 +1133,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Slots can only be declared in the instance script"
+            "$$Slots can only be declared in the instance script"
         );
     }
 
@@ -1024,7 +1144,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Props can only be declared in the instance script"
+            "$$Props can only be declared in the instance script"
         );
     }
 
@@ -1035,7 +1155,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Props can only be declared in the instance script"
+            "$$Props can only be declared in the instance script"
         );
     }
 
@@ -1045,7 +1165,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Events can only be declared in the instance script"
+            "$$Events can only be declared in the instance script"
         );
     }
 
@@ -1056,7 +1176,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Events can only be declared in the instance script"
+            "$$Events can only be declared in the instance script"
         );
     }
 
@@ -1068,7 +1188,7 @@ mod tests {
         let err = svelte2tsx(source, Svelte2TsxOptions::default()).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Script error: $$Props can only be declared in the instance script"
+            "$$Props can only be declared in the instance script"
         );
     }
 

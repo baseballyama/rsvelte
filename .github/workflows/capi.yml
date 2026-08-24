@@ -180,7 +180,7 @@ jobs:
         if: github.event_name != 'pull_request' && runner.os != 'Windows'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version: '1.27'
 
       - name: Go smoke
         if: github.event_name != 'pull_request' && runner.os != 'Windows'
