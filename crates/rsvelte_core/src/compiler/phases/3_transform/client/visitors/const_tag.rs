@@ -114,6 +114,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 is_defined: false,
                 is_reactive: true,
                 replacement_id: None,
+                store_source: None,
             },
         );
 
@@ -129,6 +130,10 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // through the `$.get(name)` transform above instead of being rewritten
         // to `$$props.name` (mirrors the `let:` / each-item shadowing).
         context.state.shadowed_prop_names.insert(id_name.clone());
+        context
+            .state
+            .each_shadowing_names
+            .insert(id_name.clone(), ());
 
         // Extract referenced variable names from init expression for blocker detection
         let init_refs = extract_refs_from_json_expr(&parsed.init_expr);
@@ -308,6 +313,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Template-kind binding (destructured @const) requires
@@ -317,6 +323,10 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 .transform_deep_read
                 .insert(id_name.clone(), ());
             context.state.shadowed_prop_names.insert(id_name.clone());
+            context
+                .state
+                .each_shadowing_names
+                .insert(id_name.clone(), ());
         }
     }
 }
@@ -744,6 +754,7 @@ pub(crate) fn add_const_declaration(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
         }
