@@ -52,12 +52,20 @@ pub fn visit<'a, 'b: 'a>(
                 if bind.name != "this" {
                     context.analysis.uses_component_bindings = true;
                 }
-                let bind_node = bind.expression.as_node();
-                validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
-                // Walk the bind expression to add template references.
-                // This is important for legacy mode state promotion - bindings need
-                // template references to be promoted from 'normal' to 'state' kind.
-                super::script::walk_expression(&bind.expression, context)?;
+                // Upstream runs one `BindDirective` visitor for every host, so a
+                // `{get, set}` pair takes its own early branch here too.
+                if super::bind_directive::is_get_set_pair(bind) {
+                    super::bind_directive::validate_get_set_pair(bind, context)?;
+                    super::bind_directive::walk_get_set_pair(bind, context)?;
+                } else {
+                    let bind_node = bind.expression.as_node();
+                    validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
+                    super::bind_directive::validate_bind_value_target(bind, context)?;
+                    // Walk the bind expression to add template references.
+                    // This is important for legacy mode state promotion - bindings need
+                    // template references to be promoted from 'normal' to 'state' kind.
+                    super::bind_directive::walk_bind_expression(bind, context)?;
+                }
             }
             Attribute::OnDirective(on) => {
                 if on.modifiers.len() > 1 || on.modifiers.iter().any(|modifier| modifier != "once")
@@ -99,9 +107,9 @@ pub fn visit<'a, 'b: 'a>(
 
     // Set up component context for slot attribute validation
     // svelte:component is a component, so children with slot attributes should be valid
-    let was_direct_child = context.is_direct_child_of_component;
+    let was_direct_child = context.direct_component_parent;
     let was_direct_snippet = context.is_direct_child_of_snippet;
-    context.is_direct_child_of_component = true;
+    context.direct_component_parent = super::DirectComponentParent::Component;
     context.is_direct_child_of_snippet = false;
     context.component_depth += 1;
     context
@@ -138,7 +146,7 @@ pub fn visit<'a, 'b: 'a>(
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();
     context.component_depth -= 1;
-    context.is_direct_child_of_component = was_direct_child;
+    context.direct_component_parent = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;
 
     Ok(())

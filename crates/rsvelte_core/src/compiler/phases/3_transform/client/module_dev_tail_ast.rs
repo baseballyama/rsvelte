@@ -86,6 +86,9 @@ pub(super) fn transform_module_dev_tail_ast(
     is_ts: bool,
     is_runes: bool,
     analysis: Option<&ComponentAnalysis>,
+    // Built from the module source as the user wrote it — the trace label's
+    // position is the source's, and the passes above have already moved it.
+    trace_thunks: &[String],
 ) -> Option<String> {
     let bytes = source.as_bytes();
 
@@ -102,12 +105,16 @@ pub(super) fn transform_module_dev_tail_ast(
             || memchr::memmem::find(bytes, b"$.proxy").is_some());
 
     let has_inspect = dev && super::inspect_rune_ast::source_has_inspect_rune(source);
+    let has_trace = dev
+        && !trace_thunks.is_empty()
+        && super::inspect_rune_ast::source_has_inspect_trace(source);
     let has_await = dev && super::await_reactivity_loss_ast::source_has_await(source);
     let experimental_async = analysis.is_some_and(|a| a.experimental_async);
 
     if !has_effect && !has_strict && !has_console && !has_tag && !has_inspect && !has_await {
         return None;
     }
+    let _ = has_trace;
 
     let source_type = if is_ts {
         SourceType::ts().with_module(true)
@@ -138,6 +145,13 @@ pub(super) fn transform_module_dev_tail_ast(
             if has_tag {
                 edits.extend(super::tag_declarator_ast::collect_tag_declarator_edits(
                     program, src,
+                ));
+            }
+            if has_trace {
+                edits.extend(super::inspect_rune_ast::collect_inspect_trace_edits(
+                    program,
+                    src,
+                    trace_thunks,
                 ));
             }
             if has_inspect {
@@ -171,7 +185,7 @@ mod tests {
         is_ts: bool,
         is_runes: bool,
     ) -> Option<String> {
-        super::transform_module_dev_tail_ast(source, dev, is_ts, is_runes, None)
+        super::transform_module_dev_tail_ast(source, dev, is_ts, is_runes, None, &[])
     }
 
     /// Runes-mode dev batch — the shape `.svelte.(js|ts)` always compiles in.

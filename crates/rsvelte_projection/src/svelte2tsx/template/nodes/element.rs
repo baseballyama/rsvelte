@@ -78,7 +78,7 @@ pub fn handle_regular_element(
 
     // Actions precede the element; other directive suffixes retain source order.
     let (directive_prefix, _directive_suffix, action_count) =
-        build_directive_prefix_suffix(&el.attributes, source, &el.name);
+        build_directive_prefix_suffix(&el.attributes, source, &el.name, &options.typings_namespace);
     let actions_arg = action_arguments(action_count);
 
     // `bind:` directives generate a suffix appended right after the
@@ -108,6 +108,7 @@ pub fn handle_regular_element(
         &el.name,
         options.is_ts_file || !options.emit_jsdoc,
         &el.name,
+        &options.typings_namespace,
     );
 
     // Build the opener as a `Vec<Seg>` (header lit + attr segs + trailer
@@ -131,13 +132,18 @@ pub fn handle_regular_element(
     };
     let header_lit = if directive_prefix.is_empty() {
         format!(
-            "{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
-            indent, element_var_decl, el.name, actions_arg,
+            "{}{{ {}{}.createElement(\"{}\"{}, {{",
+            indent, element_var_decl, options.typings_namespace, el.name, actions_arg,
         )
     } else {
         format!(
-            "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
-            indent, directive_prefix, element_var_decl, el.name, actions_arg,
+            "{}{{{}{{ {}{}.createElement(\"{}\"{}, {{",
+            indent,
+            directive_prefix,
+            element_var_decl,
+            options.typings_namespace,
+            el.name,
+            actions_arg,
         )
     };
     // The trailer closes the props object + createElement call (`}});`), then
@@ -189,6 +195,7 @@ fn regular_opener_attributes(
         in_component_slot,
         Some(content_start),
         options.namespace.preserves_attribute_case(),
+        options.preserves_bind_prefix(),
     );
     let spacing = opener_spacing(
         source,
@@ -203,6 +210,7 @@ fn regular_opener_attributes(
             in_component_slot,
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     if spacing.in_attr_object > 0 {
@@ -340,6 +348,7 @@ pub fn handle_title_element(
         &counter.element_opener_comments,
         saved_slot.is_some(),
         options.namespace.preserves_attribute_case(),
+        options.preserves_bind_prefix(),
     );
 
     let spacing = opener_spacing(
@@ -358,6 +367,7 @@ pub fn handle_title_element(
             in_component_slot: saved_slot.is_some(),
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     let indent = " ".repeat(spacing.before_block);
@@ -369,8 +379,9 @@ pub fn handle_title_element(
         None => indent,
     };
     let opener = format!(
-        "{}{{ svelteHTML.createElement(\"title\", {{{}{}}});",
+        "{}{{ {}.createElement(\"title\", {{{}{}}});",
         indent,
+        options.typings_namespace,
         " ".repeat(spacing.in_attr_object),
         attrs_str
     );
