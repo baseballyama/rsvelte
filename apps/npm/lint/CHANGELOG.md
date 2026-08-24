@@ -1,5 +1,29 @@
 # @rsvelte/lint
 
+## 0.10.19
+
+### Patch Changes
+
+- 762a8a5: Strip a leading UTF-8 BOM before linting, so a parse offset and the source text agree. The compiler's parser strips it (as upstream and as ESLint's `SourceCode` do) and therefore reports offsets relative to the stripped text, while the linter kept the unstripped source for its line table and its rule slices: every column on the BOM's line came out three short, and the JS-whitespace scan panicked slicing at byte 1, inside the BOM.
+- 762a8a5: Apply `--fix` edits to the BOM-stripped source. The rules report offsets relative to the stripped text (as the parser and ESLint's `SourceCode` do) while the fixer spliced the unstripped source, so every edit in a BOM-prefixed file landed three bytes early — producing text such as `<scriptconstlet b = 2;`. The BOM is restored in the output, as `eslint --fix` does.
+
+## 0.10.18
+
+### Patch Changes
+
+- fa88d36: Align `rsvelte-lint` with `eslint-plugin-svelte` on the axes no gate previously compared.
+
+  - 21 rules defaulted to `warn` where upstream defaults to `error`. Severity decides the exit code in both tools, so `rsvelte-lint` exited 0 where `eslint` exits 1 on the same source. Three rule mode-gates likewise made rsvelte run a rule ESLint skips.
+  - The human-readable and GitHub Actions diagnostic writers printed a zero-based column — `4:0` where ESLint prints `4:1`. SARIF and the machine format were already correct.
+  - `--fix` resolved `eslint-disable` directives against the parser's line table while the report path used the reporting rule's own table, so a directive suppressed one line and the fixer rewrote another wherever U+2028/U+2029 make the two tables differ.
+  - `prefer-class-directive`'s autofix trimmed with Unicode `White_Space` semantics while its report used JS semantics, so a `class` value padded with U+FEFF was reported identically to ESLint and rewritten differently.
+  - The JSON API the wasm and NAPI bindings wrap reported every rule on the parser's line table, so the seven rules that upstream positions with `getLocFromIndex` came out on a different line and column there than from the CLI. All consumers now share one `LintDiagnostic::report_span`.
+  - `prefer-destructured-store-props` now gates its rune-named-store skip on runes mode, `infinite-reactive-loop` no longer treats an inline function expression as a then-callback, `no-trailing-spaces` no longer counts a leading BOM as trailing whitespace (its autofix would have deleted the BOM), and lint parse errors now carry a line and column instead of a debug-formatted struct.
+
+- 8d38523: `svelte/sort-attributes` now honours an `order` pattern that uses lookaround.
+
+  The `order` option takes JS regexes, and Rust's `regex` crate implements no lookaround, so a pattern like `"/^(?=x-)x-a$/u"` failed to compile and its group was silently dropped — the rule then reported nothing for the attributes that group was meant to order. `regex` is still tried first and every default pattern compiles there, so the backtracking fallback is unreachable from the default path.
+
 ## 0.10.17
 
 ## 0.10.16
