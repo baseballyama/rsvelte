@@ -45,26 +45,33 @@ impl<'a> Parser<'a> {
         // accidentally swallow `{letter}` or `{constant}` expressions.
         let decl_start = self.index;
 
-        // The keyword must be followed by whitespace to open a declaration tag
-        // (`{let ` / `{const ` / `{type `), so `{letter}` / `{constant}` /
-        // `{type}` stay expression tags and contrived calls like `{let(x)}`
-        // remain expressions rather than malformed declarations. (Upstream uses
-        // a `\b` word boundary and then parses to disambiguate; requiring
-        // whitespace reaches the same result for every real-world tag without a
-        // statement parse.)
-        let kw_terminated_at = |off: usize| {
+        // Upstream keys this on `\b`, whose word class is `[A-Za-z0-9_]`. `$` is
+        // outside it, so `{var$x}` reaches the unsupported-keyword throw before
+        // anything is parsed even though `var$x` is a legal identifier — an
+        // upstream defect (`upstream_issues/svelte-declaration-tag-dollar-identifier.md`)
+        // that byte parity means reproducing rather than picking a side.
+        let word_boundary_at = |off: usize| {
             self.bytes
                 .get(self.index + off)
                 .copied()
-                .is_some_and(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+                .is_none_or(|b| !b.is_ascii_alphanumeric() && b != b'_')
+        };
+        // The other two regexes are CONFIRMED by parsing, and the parse reads
+        // `let$x` as one identifier — so their boundary is the identifier class,
+        // which is where the upstream defect above stops.
+        let ident_boundary_at = |off: usize| {
+            self.bytes
+                .get(self.index + off)
+                .copied()
+                .is_none_or(|b| !b.is_ascii_alphanumeric() && !matches!(b, b'_' | b'$') && b < 0x80)
         };
 
         // `var` / `interface` / `enum` are reserved words that can never be a
         // valid declaration tag — error immediately with the keyword span
         // (mirrors upstream `regex_unsupported_declaration`).
-        if (self.match_str("var") && kw_terminated_at(3))
-            || (self.match_str("interface") && kw_terminated_at(9))
-            || (self.match_str("enum") && kw_terminated_at(4))
+        if (self.match_str("var") && word_boundary_at(3))
+            || (self.match_str("interface") && word_boundary_at(9))
+            || (self.match_str("enum") && word_boundary_at(4))
         {
             let kw_len = if self.match_str("var") {
                 3
@@ -84,9 +91,9 @@ impl<'a> Parser<'a> {
         // *might* be a TS type-alias declaration (confirmed below from the
         // body). Anything else is not a declaration tag — return `Ok(None)`
         // with `self.index` untouched so the expression-tag parser re-reads it.
-        let is_const = self.match_str("const") && kw_terminated_at(5);
-        let is_let = self.match_str("let") && kw_terminated_at(3);
-        let is_maybe_type = self.match_str("type") && kw_terminated_at(4);
+        let is_const = self.match_str("const") && ident_boundary_at(5);
+        let is_let = self.match_str("let") && ident_boundary_at(3);
+        let is_maybe_type = self.match_str("type") && ident_boundary_at(4);
         if !is_let && !is_const && !is_maybe_type {
             return Ok(None);
         }
@@ -138,11 +145,30 @@ impl<'a> Parser<'a> {
             if !(ident_next && has_assignment) {
                 return Ok(None);
             }
+            // Upstream reaches its `declaration_tag_invalid_type` only through
+            // the parse, so a type alias in a plain `<script>` is a JavaScript
+            // parse error rather than a Svelte one — and a shape that parses as
+            // JS is an `ExpressionStatement`, which upstream hands back to the
+            // expression-tag reader.
+            let stmt_text = self.source[decl_start..body_end].trim_end_ws();
+            if let Some((msg, pos)) =
+                super::super::read::expression::check_js_statement_parse_error(stmt_text, self.ts)
+            {
+                let abs = decl_start + pos.min(stmt_text.len());
+                return Err(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    msg,
+                    (abs, abs),
+                ));
+            }
+            if !self.ts {
+                return Ok(None);
+            }
             // Genuine `type Foo = …` alias → invalid declaration tag. The span
             // covers the whole declaration (trailing whitespace trimmed),
             // mirroring upstream's `{ start: declaration.start, end:
             // declaration.end }`.
-            let decl_text_end = decl_start + self.source[decl_start..body_end].trim_end_ws().len();
+            let decl_text_end = decl_start + stmt_text.len();
             return Err(crate::error::ParseError::svelte(
                 "declaration_tag_invalid_type",
                 "Declaration tags must be `let` or `const` declarations",
@@ -195,7 +221,15 @@ impl<'a> Parser<'a> {
                             stmt_text, self.ts,
                         )
                     {
-                        let abs = decl_start + pos.min(stmt_text.len());
+                        // `let` is not a reserved word in sloppy mode, so acorn
+                        // rejects a bare `{let}` only for being a declaration it
+                        // cannot finish, and reports that AT the keyword. `const`
+                        // is reserved, consumed, and fails at the token after.
+                        let abs = if kind == "let" && body_text.is_empty() {
+                            decl_start
+                        } else {
+                            decl_start + pos.min(stmt_text.len())
+                        };
                         return Err(crate::error::ParseError::svelte(
                             "js_parse_error",
                             msg,
