@@ -248,14 +248,28 @@ pub fn detect_store_subscriptions(
                     continue;
                 }
 
-                // A `$props()` initializer whose binding KIND is the only record
-                // of the rune (a rest element, a destructured prop). Same rule:
-                // `$props()` claims only the name `$props`.
-                if store_name == "props"
-                    && matches!(
-                        binding.kind,
-                        BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-                    )
+                // Upstream skips the store sub whenever `get_rune(init, scope)`
+                // is non-null — i.e. for ANY rune-call initializer, not only the
+                // $state/$derived family the binding KIND records. `const host =
+                // $host()` leaves a Normal binding, but `$host` is still the
+                // rune. The one exception is its own name: `let state =
+                // $props()` still makes `$state` a store subscription, while
+                // `let { props } = $props()` keeps `$props` a rune.
+                if binding
+                    .init_rune
+                    .as_deref()
+                    .is_some_and(|r| r != "$props" || store_name == "props")
+                {
+                    continue;
+                }
+
+                // A `$props()` destructuring assigns its binding kinds in the
+                // later visitor walk, which runs after this pass, so the kind is
+                // still the default here even though `init_rune` is already set.
+                if matches!(
+                    binding.kind,
+                    BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
+                ) && store_name == "props"
                 {
                     continue;
                 }
@@ -646,6 +660,77 @@ fn dollar_param_body_range(
     None
 }
 
+/// The `catch (…)` parameter binding, and the range of the block it scopes.
+///
+/// A catch parameter is a declaration slot, so upstream's `scope.references` —
+/// which this scan stands in for — never holds it, and a `$name` read inside the
+/// block resolves to it rather than to a store. `dollar_param_body_range` cannot
+/// answer this because it requires the parenthesised list to be followed by
+/// `=>`, and a catch clause is followed by `{`.
+fn dollar_catch_param_body_range(
+    chars: &[char],
+    ident_start: usize,
+    ident_end: usize,
+) -> Option<(usize, usize)> {
+    let len = chars.len();
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    if k < 0 || chars[k as usize] != '(' {
+        return None;
+    }
+    let mut j = k - 1;
+    while j >= 0 && is_js_whitespace(chars[j as usize]) {
+        j -= 1;
+    }
+    if !keyword_ends_at(chars, j, "catch") {
+        return None;
+    }
+    let mut m = ident_end;
+    while m < len && is_js_whitespace(chars[m]) {
+        m += 1;
+    }
+    if m >= len || chars[m] != ')' {
+        return None;
+    }
+    let mut b = m + 1;
+    while b < len && is_js_whitespace(chars[b]) {
+        b += 1;
+    }
+    if b >= len || chars[b] != '{' {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut e = b;
+    while e < len {
+        match chars[e] {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((b, e + 1));
+                }
+            }
+            _ => {}
+        }
+        e += 1;
+    }
+    Some((b, len))
+}
+
+/// The target of a `break` / `continue`, which names a LABEL rather than a
+/// binding. ESTree keeps labels out of the reference set, so upstream never sees
+/// one; counting it made `break $state;` read as a rune use and flipped the
+/// component into runes mode.
+fn is_dollar_ident_jump_label(chars: &[char], ident_start: usize) -> bool {
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    keyword_ends_at(chars, k, "break") || keyword_ends_at(chars, k, "continue")
+}
+
 /// Check if a `$xxx` identifier at `ident_end` is being used as an object property key.
 ///
 /// Returns true if `$xxx` is followed (ignoring whitespace) by `:` but NOT `::`.
@@ -942,7 +1027,9 @@ fn collect_dollar_identifiers_pass(
     // characters precede the reference (M-005). Only the reference-collecting
     // pass reads it, and only a non-ASCII script needs it at all — otherwise a
     // char index already is the byte offset.
-    let char_byte_offsets: Option<Vec<usize>> = if collect_declared || js.is_ascii() {
+    // The regex skip below indexes bytes too, so the table is built for every
+    // non-ASCII script rather than only for the reference-collecting pass.
+    let char_byte_offsets: Option<Vec<usize>> = if js.is_ascii() {
         None
     } else {
         Some(js.char_indices().map(|(b, _)| b).collect())
@@ -1034,6 +1121,18 @@ fn collect_dollar_identifiers_pass(
             }
         }
 
+        // A regex literal is opaque, so `/\$mystore/` names no store. Whether a
+        // `/` opens one is the previous token's question, and js_scan already
+        // answers it — a second implementation here would be free to disagree.
+        if c == '/'
+            && let Some(end) =
+                regex_literal_end(js, chars, char_byte_offsets.as_deref(), i, prev_code)
+        {
+            prev_code = Some(end - 1);
+            i = end;
+            continue;
+        }
+
         // Track brace depth for template literal interpolations
         if c == '{' {
             brace_depth += 1;
@@ -1118,7 +1217,8 @@ fn collect_dollar_identifiers_pass(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    let param_range = dollar_param_body_range(chars, ident_start, i);
+                    let param_range = dollar_param_body_range(chars, ident_start, i)
+                        .or_else(|| dollar_catch_param_body_range(chars, ident_start, i));
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
                         || is_dollar_ident_destructuring_declaration(chars, ident_start);
                     let is_class_member_name = class_bodies.last() == Some(&brace_depth)
@@ -1143,6 +1243,7 @@ fn collect_dollar_identifiers_pass(
                             .iter()
                             .any(|(n, s, e)| n == &ident && ident_start >= *s && ident_start < *e)
                         && !is_dollar_ident_object_property_key(chars, ident_start, i)
+                        && !is_dollar_ident_jump_label(chars, ident_start)
                         && !is_dollar_ident_type_declaration(chars, ident_start)
                     {
                         let byte_offset = match &char_byte_offsets {
@@ -1167,6 +1268,44 @@ fn collect_dollar_identifiers_pass(
         }
         i += 1;
     }
+}
+
+/// Char index just past the regex literal opening at `at`, or `None` when that
+/// `/` is a division, a comment or an unterminated literal.
+fn regex_literal_end(
+    js: &str,
+    chars: &[char],
+    offsets: Option<&[usize]>,
+    at: usize,
+    prev_code: Option<usize>,
+) -> Option<usize> {
+    let to_byte = |ci: usize| match offsets {
+        Some(table) => table.get(ci).copied(),
+        None => Some(ci),
+    };
+    // JS spells no operator outside ASCII, so a non-ASCII code char is an
+    // identifier char — which is what decides division over regex.
+    let prev = match prev_code {
+        Some(p) => Some(match chars.get(p)? {
+            c if c.is_ascii() => *c as u8,
+            _ => b'x',
+        }),
+        None => None,
+    };
+    let start = to_byte(at)?;
+    let (end, was_comment) =
+        crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque(
+            js.as_bytes(),
+            start,
+            prev,
+        )?;
+    if was_comment {
+        return None;
+    }
+    Some(match offsets {
+        Some(table) => table.partition_point(|&b| b < end),
+        None => end,
+    })
 }
 
 /// Check if a character is a valid JavaScript identifier character.
@@ -1508,6 +1647,10 @@ fn collect_dollar_refs_from_attributes(
             Attribute::StyleDirective(style_dir) => {
                 // StyleDirective.value is AttributeValue (not Option)
                 match &style_dir.value {
+                    // Shorthand `style:$store` reads the name as the value.
+                    AttributeValue::True(_) => {
+                        push_dollar_directive_name(&style_dir.name, style_dir.start, refs);
+                    }
                     AttributeValue::Expression(expr_tag) => {
                         collect_dollar_refs_from_expression(&expr_tag.expression, source, refs);
                     }
@@ -1522,37 +1665,22 @@ fn collect_dollar_refs_from_attributes(
                             }
                         }
                     }
-                    _ => {}
                 }
             }
             Attribute::UseDirective(use_dir) => {
-                // Check if the directive name contains a store reference
-                // e.g., use:$store.action should create a subscription for $store
-                if use_dir.name.starts_with('$') {
-                    // Extract the store name (before the first . if present)
-                    let store_name = if let Some(dot_pos) = use_dir.name.find('.') {
-                        &use_dir.name[..dot_pos]
-                    } else {
-                        use_dir.name.as_str()
-                    };
-                    if store_name.len() > 1 {
-                        refs.push(StoreRef {
-                            name: store_name.to_string(),
-                            position: use_dir.start as usize,
-                            in_module: false,
-                        });
-                    }
-                }
+                push_dollar_directive_name(&use_dir.name, use_dir.start, refs);
                 if let Some(ref expr) = use_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
             }
             Attribute::TransitionDirective(trans_dir) => {
+                push_dollar_directive_name(&trans_dir.name, trans_dir.start, refs);
                 if let Some(ref expr) = trans_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
             }
             Attribute::AnimateDirective(anim_dir) => {
+                push_dollar_directive_name(&anim_dir.name, anim_dir.start, refs);
                 if let Some(ref expr) = anim_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
@@ -1564,6 +1692,24 @@ fn collect_dollar_refs_from_attributes(
                 collect_dollar_refs_from_expression(&attach.expression, source, refs);
             }
         }
+    }
+}
+
+/// Record the store a directive's *name* refers to, e.g. `transition:$store`.
+///
+/// Upstream reaches this through one shared `SvelteDirective` scope visitor, so
+/// every directive whose name is an identifier has to register it.
+fn push_dollar_directive_name(name: &str, start: u32, refs: &mut Vec<StoreRef>) {
+    if !name.starts_with('$') {
+        return;
+    }
+    let store_name = name.split('.').next().unwrap_or(name);
+    if store_name.len() > 1 {
+        refs.push(StoreRef {
+            name: store_name.to_string(),
+            position: start as usize,
+            in_module: false,
+        });
     }
 }
 

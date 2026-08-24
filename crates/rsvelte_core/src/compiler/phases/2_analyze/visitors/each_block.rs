@@ -126,11 +126,11 @@ pub fn visit<'a, 'b: 'a>(
         child_count,
     }));
 
-    // Clear is_direct_child_of_component since children of control flow blocks
+    // Clear direct_component_parent since children of control flow blocks
     // are not direct children of a component
-    let was_direct_child = context.is_direct_child_of_component;
+    let was_direct_child = context.direct_component_parent;
     let was_direct_snippet = context.is_direct_child_of_snippet;
-    context.is_direct_child_of_component = false;
+    context.direct_component_parent = super::DirectComponentParent::None;
     context.is_direct_child_of_snippet = false;
 
     // Push fragment owner type for const_tag placement validation
@@ -161,29 +161,22 @@ pub fn visit<'a, 'b: 'a>(
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
-    // 写経 `EachBlock.js`: `context.visit(node.body); if (node.key) context.visit(node.key);`
-    // — the key is visited INSIDE the each scope and BEFORE the fallback, so a
-    // name in it resolves to the each item / index binding (and a write to one
-    // marks that binding mutated, which is what promotes the collection to
-    // state).
-    //
-    // IMPORTANT: use a separate metadata for the key expression, NOT
-    // `block.metadata.expression`. Upstream visits the key without the
-    // expression-metadata context, so its dependencies are NOT added to
-    // `node.metadata.expression.dependencies`; adding them would wrongly set
-    // EACH_ITEM_REACTIVE when the iterable has no external dependencies but the
-    // key does.
-    if let Some(key) = &block.key {
-        let key_node = key.as_node();
-        let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
-        walk_js_expression_node(&key_node, context, &mut key_metadata)?;
-    }
-
-    // Fallback is still in the each block's scope (same scope as body), and
-    // upstream's `animate:` rule reads the parent's key and BODY child count for
-    // a fallback element too — so the frame stays pushed across it.
+    // The fallback gets its own child scope (upstream visits it as a `Fragment`
+    // while the body's nodes are walked with the each scope), but upstream's
+    // `animate:` rule reads the parent's key and BODY child count for a fallback
+    // element too — so the frame stays pushed across it.
     if let Some(ref mut fallback) = block.fallback {
+        let body_scope = context.scope;
+        if let Some(&fallback_scope) = context
+            .analysis
+            .root
+            .each_fallback_scope_map
+            .get(&block.start)
+        {
+            context.scope = fallback_scope;
+        }
         fragment::analyze(fallback, context)?;
+        context.scope = body_scope;
     }
 
     // Pop EachBlock context
@@ -195,8 +188,8 @@ pub fn visit<'a, 'b: 'a>(
     // Pop fragment owner type
     context.fragment_owner_stack.pop();
 
-    // Restore is_direct_child_of_component
-    context.is_direct_child_of_component = was_direct_child;
+    // Restore direct_component_parent
+    context.direct_component_parent = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;
 
     // Decrement block depth
