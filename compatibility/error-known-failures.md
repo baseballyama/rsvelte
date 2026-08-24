@@ -98,10 +98,10 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 12 entries;
-`error-message-known-failures.client-dev.json` holds 12 entries;
-`error-message-known-failures.server.json` holds 11 entries; and
-`error-message-known-failures.server-dev.json` holds 11 entries. All four of
+`error-message-known-failures.client.json` holds 11 entries;
+`error-message-known-failures.client-dev.json` holds 11 entries;
+`error-message-known-failures.server.json` holds 10 entries; and
+`error-message-known-failures.server-dev.json` holds 10 entries. All four of
 `error-position-known-failures.<target>.json` hold 65 entries, all four of
 `error-end-known-failures.<target>.json` hold 77 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. Almost every
