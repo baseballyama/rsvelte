@@ -2666,8 +2666,30 @@ pub fn offset_to_line_col_utf16(
     line_starts: &[usize],
     offset: usize,
 ) -> (usize, usize) {
+    // A column indexes a character, so an offset that lands inside one (a
+    // producer that measured in bytes across an em dash or an emoji) has exactly
+    // one defined answer: the character it is inside. The ~25 mapping producers
+    // that feed this cannot each be trusted to hand over a boundary.
+    let mut offset = offset.min(source.len());
+    while offset > 0 && !source.is_char_boundary(offset) {
+        offset -= 1;
+    }
     let (line, _) = offset_to_line_col(line_starts, offset);
     let line_start = line_starts[line];
+    // A span whose end is not a character boundary is a producer bug; keep it
+    // loud in tests but never abort a user's build over a source-map column.
+    debug_assert!(
+        source.is_char_boundary(offset),
+        "source-map offset {offset} is not a char boundary"
+    );
+    let offset = if source.is_char_boundary(offset) {
+        offset
+    } else {
+        (line_start..offset)
+            .rev()
+            .find(|i| source.is_char_boundary(*i))
+            .unwrap_or(line_start)
+    };
     let column = &source[line_start..offset];
     let column = if column.is_ascii() {
         column.len()

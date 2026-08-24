@@ -127,6 +127,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     // Store subscriptions are reactive
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 };
                 context.state.transform.insert(name.clone(), transform);
                 continue;
@@ -157,6 +158,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                         // Props are reactive
                         is_reactive: true,
                         replacement_id: None,
+                        store_source: None,
                     };
                     context.state.transform.insert(name.clone(), transform);
                 } else {
@@ -184,7 +186,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     };
 
                 // Determine the mutate function based on runes mode
-                let mutate_fn: fn(&JsArena, JsExpr, JsExpr) -> JsExpr =
+                let mutate_fn: fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr) -> JsExpr =
                     if context.state.analysis.runes {
                         mutate_value_runes
                     } else {
@@ -208,11 +210,36 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     // State sources ($state, $derived, legacy reactive) are reactive
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 };
 
                 // Register the transform in the state
                 context.state.transform.insert(name.clone(), transform);
             }
+        }
+    }
+
+    resolve_store_sources(context);
+}
+
+/// Fill in every `$store` transform's `store_source`. Upstream reads it lazily
+/// (`get_store()`) so transforms registered later still apply; doing it in one
+/// sweep after registration is the same guarantee without a closure.
+pub(crate) fn resolve_store_sources(context: &mut ComponentContext) {
+    let resolved: Vec<(String, JsExpr)> = context
+        .state
+        .transform
+        .iter()
+        .filter_map(|(name, _transform)| {
+            let store_name = name.strip_prefix('$')?;
+            let source = context.state.transform.get(store_name)?;
+            let read_fn = source.read?;
+            Some((name.clone(), read_fn(&context.arena, b::id(store_name))))
+        })
+        .collect();
+    for (name, source) in resolved {
+        if let Some(transform) = context.state.transform.get_mut(&name) {
+            transform.store_source = Some(source);
         }
     }
 }
@@ -235,7 +262,13 @@ fn prop_source_read(arena: &JsArena, node: JsExpr) -> JsExpr {
 /// The callee uses `JsExpr::Raw` to prevent `apply_transforms_to_expression`
 /// from applying the prop read transform (`x -> x()`), which would turn
 /// the setter `x(value)` into `x()(value)`.
-fn prop_source_assign(arena: &JsArena, node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+fn prop_source_assign(
+    _transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    value: JsExpr,
+    _needs_proxy: bool,
+) -> JsExpr {
     let callee = match node {
         JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
         _ => node,
@@ -246,7 +279,12 @@ fn prop_source_assign(arena: &JsArena, node: JsExpr, value: JsExpr, _needs_proxy
 /// Transform a prop mutation (non-bindable).
 ///
 /// For non-bindable props, mutations are passed through unchanged.
-fn prop_mutate(_arena: &JsArena, _node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn prop_mutate(
+    _transform: &IdentifierTransform,
+    _arena: &JsArena,
+    _node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     mutation
 }
 
@@ -255,7 +293,12 @@ fn prop_mutate(_arena: &JsArena, _node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// For bindable props, mutations need to notify the parent.
 /// Transforms `x.prop = value` to `x(x.prop = value, true)`
 /// The callee uses `JsExpr::Raw` to prevent double-transformation.
-fn prop_bindable_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn prop_bindable_mutate(
+    _transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     let callee = match node {
         JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
         _ => node,
@@ -266,7 +309,13 @@ fn prop_bindable_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsEx
 /// Transform a prop update expression (++ or --).
 ///
 /// Transforms `x++` to `$.update_prop(x)` or `++x` to `$.update_pre_prop(x)`.
-fn prop_update(arena: &JsArena, operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+fn prop_update(
+    _transform: &IdentifierTransform,
+    arena: &JsArena,
+    operator: JsUpdateOp,
+    argument: JsExpr,
+    prefix: bool,
+) -> JsExpr {
     let method = if prefix {
         "update_pre_prop"
     } else {
@@ -299,6 +348,20 @@ fn store_sub_read(arena: &JsArena, node: JsExpr) -> JsExpr {
     b::getter_call(arena, node)
 }
 
+/// Upstream's `get_store()`: how the store variable behind a `$store`
+/// subscription reads. Resolved once per transform map, so a single pass
+/// already produces the final form instead of relying on a second visit.
+pub(crate) fn store_source(transform: &IdentifierTransform, node: &JsExpr) -> JsExpr {
+    if let Some(ref resolved) = transform.store_source {
+        return resolved.clone();
+    }
+    let name = match node {
+        JsExpr::Identifier(name) => name.strip_prefix('$').unwrap_or(name).to_string(),
+        _ => "unknown".to_string(),
+    };
+    b::id(&name)
+}
+
 /// Transform a store subscription assignment.
 ///
 /// This transforms `$store = value` into `$.store_set(store, value)`.
@@ -313,16 +376,18 @@ fn store_sub_read(arena: &JsArena, node: JsExpr) -> JsExpr {
 /// # Returns
 ///
 /// A call expression: `$.store_set(store, value)`
-fn store_sub_assign(arena: &JsArena, node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
-    // Extract the store name from the $store identifier
-    let store_name = if let JsExpr::Identifier(ref name) = node {
-        // Remove the $ prefix
-        name.strip_prefix('$').unwrap_or(name).to_string()
-    } else {
-        "unknown".to_string()
-    };
-
-    b::svelte_call(arena, "store_set", vec![b::id(&store_name), value])
+fn store_sub_assign(
+    transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    value: JsExpr,
+    _needs_proxy: bool,
+) -> JsExpr {
+    b::svelte_call(
+        arena,
+        "store_set",
+        vec![store_source(transform, &node), value],
+    )
 }
 
 /// Transform a store subscription mutation.
@@ -341,14 +406,12 @@ fn store_sub_assign(arena: &JsArena, node: JsExpr, value: JsExpr, _needs_proxy: 
 /// * `arena` - The JS arena allocator
 /// * `node` - The store subscription identifier (e.g., `$store`)
 /// * `mutation` - The mutation expression (e.g., `$store.prop = value`)
-fn store_sub_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
-    // Extract store name from $store -> store
-    let store_name = if let JsExpr::Identifier(ref name) = node {
-        name.strip_prefix('$').unwrap_or(name).to_string()
-    } else {
-        "unknown".to_string()
-    };
-
+fn store_sub_mutate(
+    transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     // We need to untrack the store read, for consistency with Svelte 4
     let untracked = b::call(
         arena,
@@ -363,7 +426,11 @@ fn store_sub_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
     b::call(
         arena,
         b::member_path(arena, "$.store_mutate"),
-        vec![b::id(&store_name), transformed_mutation, untracked],
+        vec![
+            store_source(transform, &node),
+            transformed_mutation,
+            untracked,
+        ],
     )
 }
 
@@ -429,6 +496,7 @@ fn replace_store_with_untracked(arena: &JsArena, expr: &JsExpr, untracked: &JsEx
 ///
 /// A call to `$.update_pre_store()` (prefix) or `$.update_store()` (postfix)
 fn store_sub_update(
+    transform: &IdentifierTransform,
     arena: &JsArena,
     operator: JsUpdateOp,
     argument: JsExpr,
@@ -440,17 +508,9 @@ fn store_sub_update(
         "update_store"
     };
 
-    // Extract the store name from the $store identifier
-    let store_name = if let JsExpr::Identifier(ref name) = argument {
-        // Remove the $ prefix
-        name.strip_prefix('$').unwrap_or(name).to_string()
-    } else {
-        "unknown".to_string()
-    };
-
     // Build args: store, $store()
     let mut args = vec![
-        b::id(&store_name),                       // store
+        store_source(transform, &argument),
         b::call(arena, argument.clone(), vec![]), // $store()
     ];
 
@@ -469,7 +529,7 @@ fn store_sub_update(
 fn create_assign_fn(
     name: &str,
     context: &ComponentContext,
-) -> fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr {
+) -> fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr, bool) -> JsExpr {
     // Check if this identifier has a corresponding store subscription
     let store_name = format!("${}", name);
     let has_store_sub = context
@@ -513,7 +573,13 @@ fn create_assign_fn(
 /// // Input: obj = { a: 1 }
 /// // Output: $.set(obj, { a: 1 }, true)
 /// ```
-fn assign_value(arena: &JsArena, node: JsExpr, value: JsExpr, needs_proxy: bool) -> JsExpr {
+fn assign_value(
+    _transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    value: JsExpr,
+    needs_proxy: bool,
+) -> JsExpr {
     // Build the $.set() call
     let mut args = vec![node, value];
     if needs_proxy {
@@ -538,12 +604,13 @@ fn assign_value(arena: &JsArena, node: JsExpr, value: JsExpr, needs_proxy: bool)
 ///
 /// A call expression: `$.store_unsub($.set(node, value[, true]), "$name", $$stores)`
 fn assign_value_with_store(
+    transform: &IdentifierTransform,
     arena: &JsArena,
     node: JsExpr,
     value: JsExpr,
     needs_proxy: bool,
 ) -> JsExpr {
-    let set_call = assign_value(arena, node.clone(), value, needs_proxy);
+    let set_call = assign_value(transform, arena, node.clone(), value, needs_proxy);
 
     // Extract the name for the store subscription
     let store_name = if let JsExpr::Identifier(ref name) = node {
@@ -582,7 +649,12 @@ fn assign_value_with_store(
 /// // Input: node = data, mutation = data.items[1].price = 2000
 /// // Output: $.get(data).items[1].price = 2000
 /// ```
-fn mutate_value_runes(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn mutate_value_runes(
+    _transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     // The mutation is an assignment expression where the left side is a member expression
     // like `data.items[1].price = 2000`. We need to replace `data` with `$.get(data)`.
     //
@@ -686,7 +758,12 @@ fn replace_root_identifier_with_getter(
 /// # Returns
 ///
 /// A call expression: `$.mutate(node, mutation)`
-fn mutate_value_legacy(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
+fn mutate_value_legacy(
+    _transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: JsExpr,
+    mutation: JsExpr,
+) -> JsExpr {
     // In legacy mode, the mutation expression needs the root identifier replaced with $.get()
     // e.g., state.count++ -> $.mutate(state, $.get(state).count++)
     let get_node = b::svelte_call(arena, "get", vec![node.clone()]);
@@ -722,6 +799,7 @@ fn mutate_value_legacy(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExp
 /// // Output: $.update(count, -1)
 /// ```
 pub fn update_value(
+    _transform: &IdentifierTransform,
     arena: &JsArena,
     operator: JsUpdateOp,
     argument: JsExpr,
@@ -746,6 +824,23 @@ mod tests {
     use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
     use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
     use std::rc::Rc;
+
+    /// The transforms under test here are the non-store ones, which never read
+    /// `store_source`.
+    fn noop_transform() -> IdentifierTransform {
+        IdentifierTransform {
+            read: None,
+            read_source: None,
+            assign: None,
+            mutate: None,
+            update: None,
+            skip_proxy: false,
+            is_defined: false,
+            is_reactive: false,
+            replacement_id: None,
+            store_source: None,
+        }
+    }
 
     #[test]
     fn test_get_value() {
@@ -782,7 +877,7 @@ mod tests {
         let arena = JsArena::new();
         let node = b::id("count");
         let value = b::number(5.0);
-        let result = assign_value(&arena, node, value, false);
+        let result = assign_value(&noop_transform(), &arena, node, value, false);
 
         // Should generate $.set(count, 5)
         match result {
@@ -798,7 +893,7 @@ mod tests {
         let arena = JsArena::new();
         let node = b::id("obj");
         let value = b::empty_object();
-        let result = assign_value(&arena, node, value, true);
+        let result = assign_value(&noop_transform(), &arena, node, value, true);
 
         // Should generate $.set(obj, {}, true)
         match result {
@@ -818,7 +913,7 @@ mod tests {
             b::member(&arena, node.clone(), "prop"),
             b::number(5.0),
         );
-        let result = mutate_value_runes(&arena, node, mutation.clone());
+        let result = mutate_value_runes(&noop_transform(), &arena, node, mutation.clone());
 
         // In runes mode, should return the mutation with root identifier replaced by $.get()
         match result {
@@ -836,7 +931,7 @@ mod tests {
             b::member(&arena, node.clone(), "prop"),
             b::number(5.0),
         );
-        let result = mutate_value_legacy(&arena, node, mutation);
+        let result = mutate_value_legacy(&noop_transform(), &arena, node, mutation);
 
         // In legacy mode, should wrap in $.mutate()
         match result {
@@ -851,7 +946,13 @@ mod tests {
     fn test_update_value_increment() {
         let arena = JsArena::new();
         let argument = b::id("count");
-        let result = update_value(&arena, JsUpdateOp::Increment, argument, true);
+        let result = update_value(
+            &noop_transform(),
+            &arena,
+            JsUpdateOp::Increment,
+            argument,
+            true,
+        );
 
         // Should generate $.update_pre(count)
         match result {
@@ -866,7 +967,13 @@ mod tests {
     fn test_update_value_decrement() {
         let arena = JsArena::new();
         let argument = b::id("count");
-        let result = update_value(&arena, JsUpdateOp::Decrement, argument, false);
+        let result = update_value(
+            &noop_transform(),
+            &arena,
+            JsUpdateOp::Decrement,
+            argument,
+            false,
+        );
 
         // Should generate $.update(count, -1)
         match result {

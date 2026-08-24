@@ -555,6 +555,10 @@ fn collect_store_candidates(
             i = next + 1;
             continue;
         }
+        // Set while scanning backwards, read after the identifier's end is
+        // known: a directive NAME accepts only a bare `$store`, so the decision
+        // needs both the keyword before it and the byte after it.
+        let mut is_directive_name = false;
         // Skip member access, string keys, identifier continuations.
         if pos > 0 {
             let prev = bytes[pos - 1];
@@ -574,10 +578,20 @@ fn collect_store_candidates(
                 i = next;
                 continue;
             }
-            // `use:$store` / `transition:$x` / `in:$x` / `out:$x` / `animate:$x`
-            // — the `$name` is a DIRECTIVE NAME (in an element opener), not a
-            // store auto-subscription. Official collects template stores from
-            // expression VALUES, never directive names.
+            // A `$name` written as a DIRECTIVE NAME subscribes for every
+            // directive except `style:` and `on:`, measured against official
+            // svelte2tsx across all nine kinds:
+            //
+            //   use / transition / in / out / animate / class / bind  subscribe
+            //   style / on                                            do not
+            //
+            // The split is not shorthand-vs-value and not directive-vs-value:
+            // `class:$store` subscribes while `style:$store` does not, and
+            // `style:color={$store}` subscribes while `style:$store` does not.
+            // Upstream's `style:` shorthand therefore emits an
+            // `__sveltets_2_ensureType(…, $store)` that references a binding it
+            // never declares — see `upstream_issues/3234-*`. Mirrored here
+            // because output parity is the contract.
             if prev == b':' {
                 let kw_end = pos - 1;
                 let mut k = kw_end;
@@ -587,10 +601,11 @@ fn collect_store_candidates(
                 let kw = &scan_source[k..kw_end];
                 let boundary_ok =
                     k == 0 || matches!(bytes[k - 1], b' ' | b'\t' | b'\n' | b'\r' | b'<');
-                if boundary_ok && matches!(kw, "use" | "transition" | "in" | "out" | "animate") {
+                if boundary_ok && matches!(kw, "style" | "on") {
                     i = next;
                     continue;
                 }
+                is_directive_name = boundary_ok;
             }
         }
         if !(nb.is_ascii_alphabetic() || nb == b'_') {
@@ -605,6 +620,18 @@ fn collect_store_candidates(
             } else {
                 break;
             }
+        }
+        // A directive name subscribes only when it is a BARE `$store`. Official
+        // subscribes for `use:$store` but not for `use:$store.action`, and the
+        // same holds for every kind that subscribes at all — measured across
+        // `use`/`transition`/`in`/`out`/`animate`/`class`/`bind`. The member
+        // form is not a store read it declares, so emitting one here produced a
+        // subscription upstream never writes (`store-directive/main.svelte`).
+        // Only the NAME position is restricted: `use:x={$store.action}` and a
+        // plain `{$store.x}` both still subscribe.
+        if is_directive_name && bytes.get(end) == Some(&b'.') {
+            i = end;
+            continue;
         }
         let full = &scan_source[pos..end];
         // Object-literal property KEY (`{ $name: value }` / after a `,`): the
