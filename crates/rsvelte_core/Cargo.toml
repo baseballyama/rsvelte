@@ -94,7 +94,7 @@ oxc_ast = { version = "0.145", features = ["serialize"] }
 oxc_span = "0.145"
 oxc_diagnostics = "0.145"
 oxc_codegen = "0.145"
-rsvelte_esrap = { version = "=0.10.34", path = "../rsvelte_esrap" }
+rsvelte_esrap = { version = "=0.10.35", path = "../rsvelte_esrap" }
 oxc_syntax = "0.145"
 oxc_semantic = "0.145"
 
