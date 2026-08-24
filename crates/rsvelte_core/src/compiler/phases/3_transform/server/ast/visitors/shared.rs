@@ -653,6 +653,36 @@ enum SeqNode<'n> {
 /// Whether `src` is a single bare JS identifier (`foo`, `$bar`, `_x9`) — used to
 /// gate the block-local `constant_vars` fold so only a simple `{name}` read folds
 /// to its registered literal (a member access / call / operator never does).
+/// Whether `build_getter` replaces a read of `name` WHOLESALE with a
+/// builder-made node. The `derived` arm calls `b.call(binding.node)` — the node
+/// of the DECLARATION, whose location sits above any comment trailing the script
+/// — and the store arm builds the whole `$.store_get(...)` call fresh, so
+/// neither gives esrap's cursor a stop here. Every other read keeps the source
+/// expression's own `loc`.
+fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
+    let name = source.trim();
+    if !is_plain_identifier(name) {
+        return false;
+    }
+    if name == "$$props" || name.starts_with("$$derived_array") {
+        return true;
+    }
+    if state.local_derived_names.contains(name) {
+        return true;
+    }
+    state
+        .analysis
+        .root
+        .get_binding(name, state.current_scope_index)
+        .is_some_and(|index| {
+            matches!(
+                state.analysis.root.bindings[index].kind,
+                crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
+                    | crate::compiler::phases::phase2_analyze::scope::BindingKind::Derived
+            )
+        })
+}
+
 fn is_plain_identifier(src: &str) -> bool {
     let mut chars = src.chars();
     match chars.next() {
@@ -701,6 +731,10 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         .slot_let_shadows
                         .iter()
                         .any(|f| f.contains(src.trim()))
+                    // …unless a `{@const}` on the render position's own scope
+                    // chain shadows it first. The veto is keyed by NAME, and
+                    // `scope.get` stops at the nearest declaration.
+                    && !state.nearest_declaration_is_template_const(src.trim())
                 {
                     let visited = state.visit_expr(expr);
                     let escaped = state.b.call("$.escape", vec![visited]);
@@ -725,9 +759,13 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     && is_plain_identifier(src.trim())
                     && let Some(value) = state.eval_inputs.constant_vars.get(src.trim())
                 {
-                    if value != "null" && value != "undefined" {
+                    use crate::compiler::phases::phase3_transform::server::evaluate::{
+                        EvalValue, js_display_string,
+                    };
+                    if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                        let rendered = js_display_string(value);
                         let last = quasis.last_mut().unwrap();
-                        last.push_str(&escape_html(value));
+                        last.push_str(&escape_html(&rendered));
                     }
                     continue;
                 }
@@ -750,7 +788,12 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                 }
 
                 let mut visited = state.visit_expr(expr);
-                state.claim_deferred_reactive_comment(&mut visited);
+                if !state
+                    .expr_source(expr)
+                    .is_some_and(|src| read_loses_its_location(state, src))
+                {
+                    state.claim_deferred_tail_comment(&mut visited);
+                }
                 let escaped = state.b.call("$.escape", vec![visited]);
                 exprs.push(escaped);
                 quasis.push(String::new());
