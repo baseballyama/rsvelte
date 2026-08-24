@@ -421,9 +421,7 @@ pub(crate) fn skip_ws_and_comments_back(
 ///
 /// `needle` must contain no byte that can open an opaque run (`'`, `"`,
 /// `` ` ``, `/`), so testing its first byte settles the whole match.
-/// Every production caller is a rune scan and so wants [`find_rune_code`]; this
-/// stays as the negative control the rune tests contrast against.
-#[cfg(test)]
+/// This is also used by production scans whose needles are not rune keypaths.
 pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
     find_code_filtered(bytes, needle, |_, _| true)
 }
