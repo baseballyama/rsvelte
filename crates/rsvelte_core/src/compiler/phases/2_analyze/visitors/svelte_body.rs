@@ -31,8 +31,28 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
         return Err(errors::svelte_meta_invalid_content("svelte:body").at(start, end));
     }
 
+    // Upstream runs this whole loop before `context.next()` descends into any
+    // attribute, so "does this element take arbitrary attributes at all" is
+    // answered ahead of every per-directive rule below.
+    for attr in &body.attributes {
+        let span = match attr {
+            Attribute::SpreadAttribute(spread) => Some((spread.start, spread.end)),
+            Attribute::Attribute(a) if !super::shared::utils::is_event_attribute(a) => {
+                Some((a.start, a.end))
+            }
+            _ => None,
+        };
+        if let Some((start, end)) = span {
+            return Err(errors::svelte_body_illegal_attribute().at(start, end));
+        }
+    }
+
     // Event expressions on special elements participate in normal reference analysis.
     // The target rule needs the attribute list, which the mutable loop below holds.
+    super::shared::special_element::reject_illegal_attributes(&body.attributes, |start, end| {
+        errors::svelte_body_illegal_attribute().at(start, end)
+    })?;
+
     for attr in &body.attributes {
         if let Attribute::BindDirective(bind) = attr {
             bind_directive::validate_binding_target(bind, "svelte:body", &body.attributes)?;
@@ -45,21 +65,19 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
                 bind_directive::visit_with_svelte_element(bind, context)?;
             }
             Attribute::OnDirective(on) => on_directive::visit(on, context)?,
+            Attribute::StyleDirective(style_dir) => {
+                super::style_directive::visit(style_dir, context)?;
+            }
             Attribute::LetDirective(let_dir) => {
                 return Err(
                     errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
                 );
             }
-            Attribute::SpreadAttribute(spread) => {
-                return Err(errors::svelte_body_illegal_attribute().at(spread.start, spread.end));
-            }
             Attribute::Attribute(attribute) => {
-                if !super::shared::utils::is_event_attribute(attribute) {
-                    return Err(
-                        errors::svelte_body_illegal_attribute().at(attribute.start, attribute.end)
-                    );
-                }
                 super::attribute::visit_attribute_value_expressions(&mut attribute.value, context)?;
+            }
+            Attribute::StyleDirective(style) => {
+                super::style_directive::visit(style, context)?;
             }
             _ => {}
         }

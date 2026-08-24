@@ -724,6 +724,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             let conv_object = {
                 {
+                    // Downstream matchers walk a member chain by variant, so a span
+                    // wrapper in object position hides the root identifier from them.
                     let __tmp = without_outer_source_span(
                         convert_js_node(pa.get_js_node(*object), context),
                         context,
@@ -1155,13 +1157,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             // Check if the argument is a simple identifier with an update transform
             if let Some(name_str) = get_jsnode_identifier_name(arg_node)
-                && let Some(update_fn) = context
-                    .state
-                    .transform
-                    .get(&name_str)
-                    .and_then(|t| t.update)
+                && let Some(update_transform) = context.state.transform.get(&name_str)
+                && let Some(update_fn) = update_transform.update
             {
                 return update_fn(
+                    update_transform,
                     &context.arena,
                     update_op,
                     JsExpr::Identifier(name_str.into()),
@@ -1333,12 +1333,12 @@ fn convert_property_key_from_node(
         JsNode::Identifier { name, .. } => JsPropertyKey::Identifier(name.to_string().into()),
         JsNode::Literal { value, raw, .. } => {
             let lit = match value {
-                LiteralValue::String(s) => {
-                    if raw.starts_with('"') {
-                        return JsPropertyKey::Literal(JsLiteral::String(s.to_string().into()));
-                    }
-                    JsLiteral::String(s.to_string().into())
-                }
+                // esrap prints a literal from its `raw`, so the key's quote
+                // spelling is part of the output; `JsLiteral::String` carries none.
+                LiteralValue::String(s) => JsLiteral::RawString {
+                    value: s.to_string().into(),
+                    raw: raw.clone(),
+                },
                 LiteralValue::Number(n) => JsLiteral::Number(*n),
                 LiteralValue::BigInt(d) => JsLiteral::BigInt(if raw.is_empty() {
                     format!("{d}n").into()
@@ -2281,14 +2281,20 @@ fn should_proxy_json(value: &Value) -> bool {
     }
 }
 
-/// Whether `value` is a direct `$state(...)` call — the only initializer shape
-/// `create_state_declarator` labels.
+/// Whether `value` is a direct rune call whose declarator NAME the lowering
+/// needs: `$state` / `$state.raw` decide `$.state` vs a bare value from the
+/// binding, and all four label their signal with `$.tag(…, name)` in dev.
 fn is_state_rune_call(value: &Value, context: &ComponentContext) -> bool {
     value
         .as_object()
         .filter(|obj| obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression"))
         .and_then(|obj| get_rune_from_call(obj, context))
-        .is_some_and(|rune| rune == "$state")
+        .is_some_and(|rune| is_named_declarator_rune(&rune))
+}
+
+/// The runes whose declarator name reaches [`transform_rune_call`].
+fn is_named_declarator_rune(rune: &str) -> bool {
+    matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by")
 }
 
 /// Typed counterpart of [`is_state_rune_call`].
@@ -2298,7 +2304,54 @@ fn is_state_rune_call_jsnode(node: &JsNode, pa: &ParseArena, context: &Component
     };
     let callee_node = pa.get_js_node(*callee);
     is_potential_rune_call(callee_node, context)
-        && get_rune_from_call_jsnode(callee_node, pa, context).is_some_and(|rune| rune == "$state")
+        && get_rune_from_call_jsnode(callee_node, pa, context)
+            .is_some_and(|rune| is_named_declarator_rune(&rune))
+}
+
+/// `$.tag(signal, name)` in dev — upstream labels every declared signal with the
+/// name it is bound to.
+fn tag_declared_signal(
+    signal: JsExpr,
+    declarator: Option<&str>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    match declarator {
+        Some(name) if context.state.dev => JsExpr::Call(JsCallExpression {
+            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                property: JsMemberProperty::Identifier("tag".into()),
+                computed: false,
+                optional: false,
+            })),
+            arguments: vec![signal, JsExpr::Literal(JsLiteral::String(name.into()))],
+            optional: false,
+        }),
+        _ => signal,
+    }
+}
+
+/// `$.state(value)` — plus `$.tag(…, name)` in dev — when the declared binding
+/// is a state SOURCE, mirroring the tail of upstream's `create_state_declarator`.
+fn wrap_state_source(
+    value: JsExpr,
+    is_state: bool,
+    declarator: Option<&str>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    if !is_state {
+        return value;
+    }
+    let sourced = JsExpr::Call(JsCallExpression {
+        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+            property: JsMemberProperty::Identifier("state".into()),
+            computed: false,
+            optional: false,
+        })),
+        arguments: vec![value],
+        optional: false,
+    });
+    tag_declared_signal(sourced, declarator, context)
 }
 
 /// Transform a rune call expression.
@@ -2343,34 +2396,54 @@ fn transform_rune_call(
         }
 
         "$state" | "$state.raw" => {
-            // In template context (event handlers, etc.), $state() is used for local variables
-            // that don't need reactive tracking. We only need $.proxy() for deep reactivity.
+            // Upstream's `create_state_declarator` (client VariableDeclaration.js):
+            // `$.proxy(v)` when the value needs proxying, then `$.state(...)` on top
+            // when `is_state_source` — which in runes mode means the binding is
+            // reassigned. A declaration inside a template expression's function body
+            // is the same declaration, so it gets the same answer; treating it as a
+            // plain local left `x = 1` next to a `$.set(x, 2)` that sets a non-signal.
             //
-            // For script-level $state declarations, the transformation is handled by
-            // `transform_client_runes_with_skip_and_state` in mod.rs, which uses $.state()
-            // for reactive tracking when needed.
-            //
-            // $state(value) -> $.proxy(value) for objects/arrays, or just value for primitives
-            // $state.raw(value) -> value (no proxy needed)
-            let arg = arguments.first();
+            // For script-level `$state` declarations the transformation is handled by
+            // `transform_client_runes_with_skip_and_state` in mod.rs.
+            let declarator = context.state.state_declarator_name.take();
+            let is_state = declarator.as_deref().is_some_and(|name| {
+                context.state.get_binding(name).is_some_and(|binding| {
+                    crate::compiler::phases::phase3_transform::client::utils::is_state_source(
+                        binding,
+                        context.state.analysis,
+                    )
+                })
+            });
 
-            if let Some(arg_value) = arg {
-                let converted = convert_json_value(arg_value, context);
+            let Some(arg_value) = arguments.first() else {
+                // No argument - use undefined
+                return wrap_state_source(
+                    JsExpr::Identifier("undefined".into()),
+                    is_state,
+                    declarator.as_deref(),
+                    context,
+                );
+            };
 
-                // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
-                if rune == "$state" && should_proxy_json(arg_value) {
-                    let proxied = JsExpr::Call(JsCallExpression {
-                        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
-                            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
-                            property: JsMemberProperty::Identifier("proxy".into()),
-                            computed: false,
-                            optional: false,
-                        })),
-                        arguments: vec![converted],
+            let converted = convert_json_value(arg_value, context);
+
+            // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
+            let value = if rune == "$state" && should_proxy_json(arg_value) {
+                let proxied = JsExpr::Call(JsCallExpression {
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("proxy".into()),
+                        computed: false,
                         optional: false,
-                    });
-                    match context.state.state_declarator_name.take() {
-                        Some(name) if context.state.dev => JsExpr::Call(JsCallExpression {
+                    })),
+                    arguments: vec![converted],
+                    optional: false,
+                });
+                // `$.tag_proxy` labels a proxy that is NOT also a source; a source
+                // gets its label from the `$.tag` below instead.
+                match declarator.as_deref() {
+                    Some(name) if context.state.dev && !is_state => {
+                        JsExpr::Call(JsCallExpression {
                             callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
                                 object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                                 property: JsMemberProperty::Identifier("tag_proxy".into()),
@@ -2382,17 +2455,16 @@ fn transform_rune_call(
                                 JsExpr::Literal(JsLiteral::String(name.into())),
                             ],
                             optional: false,
-                        }),
-                        _ => proxied,
+                        })
                     }
-                } else {
-                    // Primitives or $state.raw: just return the value as-is
-                    converted
+                    _ => proxied,
                 }
             } else {
-                // No argument - use undefined
-                JsExpr::Identifier("undefined".into())
-            }
+                // Primitives or $state.raw: just the value
+                converted
+            };
+
+            wrap_state_source(value, is_state, declarator.as_deref(), context)
         }
 
         "$state.snapshot" => {
@@ -2429,7 +2501,8 @@ fn transform_rune_call(
         "$derived" => {
             // $derived(expr) -> $.derived(() => expr), with unthunk optimization:
             // if expr is a simple 0-arg call, pass the callee directly: $.derived(value)
-            if let Some(arg) = arguments.first() {
+            let declarator = context.state.state_declarator_name.take();
+            let call = if let Some(arg) = arguments.first() {
                 let converted = convert_json_value(arg, context);
                 // Apply thunk with unthunk optimization
                 let thunk = crate::compiler::phases::phase3_transform::js_ast::builders::thunk(
@@ -2459,17 +2532,19 @@ fn transform_rune_call(
                     arguments: vec![],
                     optional: false,
                 })
-            }
+            };
+            tag_declared_signal(call, declarator.as_deref(), context)
         }
 
         "$derived.by" => {
             // $derived.by(fn) -> $.derived(fn)
+            let declarator = context.state.state_declarator_name.take();
             let converted_args: Vec<JsExpr> = arguments
                 .iter()
                 .map(|arg| convert_json_value(arg, context))
                 .collect();
 
-            JsExpr::Call(JsCallExpression {
+            let call = JsExpr::Call(JsCallExpression {
                 callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
                     object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("derived".into()),
@@ -2478,7 +2553,8 @@ fn transform_rune_call(
                 })),
                 arguments: converted_args,
                 optional: false,
-            })
+            });
+            tag_declared_signal(call, declarator.as_deref(), context)
         }
 
         "$effect" | "$effect.pre" => {
@@ -3690,7 +3766,7 @@ fn convert_block_statement(
     // Restore the shadow set to its state before this block was entered.
     context.state.shadowed_prop_names = saved_shadowed;
 
-    JsBlockStatement { body }
+    JsBlockStatement::with_body(body)
 }
 
 /// Add the top-level variable-declaration names from a JSON statement value to
@@ -3990,7 +4066,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .get("block")
                 .and_then(|b| b.as_object())
                 .map(|b| convert_block_statement(b, context))
-                .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+                .unwrap_or_else(JsBlockStatement::new);
             let handler = obj.get("handler").and_then(|h| {
                 let h_obj = h.as_object()?;
                 // Route the catch parameter through the full pattern converter so
@@ -4004,7 +4080,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                     .get("body")
                     .and_then(|b| b.as_object())
                     .map(|b| convert_block_statement(b, context))
-                    .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+                    .unwrap_or_else(JsBlockStatement::new);
                 Some(JsCatchClause { param, body })
             });
             let finalizer = obj
@@ -4657,23 +4733,16 @@ pub(crate) fn is_svelte_ignored_before_offset(start: usize, code: &str, source: 
         // Look backwards from the start position, searching within a reasonable window
         // We look at up to 500 chars before the node to find preceding comments
         let search_start_byte = start.saturating_sub(500);
-        // Ensure we're at a valid char boundary
-        let search_start = if source.is_char_boundary(search_start_byte) {
-            search_start_byte
-        } else {
-            source[..search_start_byte]
-                .char_indices()
-                .next_back()
-                .map_or(0, |(i, _)| i)
+        // Both ends have to be floored to a character start: slicing to a
+        // non-boundary is what this guards, so the guard cannot slice either.
+        let floor = |mut index: usize| {
+            while index > 0 && !source.is_char_boundary(index) {
+                index -= 1;
+            }
+            index
         };
-        let start = if source.is_char_boundary(start) {
-            start
-        } else {
-            source[..start]
-                .char_indices()
-                .next_back()
-                .map_or(0, |(i, _)| i)
-        };
+        let search_start = floor(search_start_byte);
+        let start = floor(start);
         let before = &source[search_start..start];
 
         // Check for JS-style svelte-ignore comments: // svelte-ignore <code>
@@ -5002,7 +5071,13 @@ fn try_transform_assignment(
             && is_non_coercive_operator(operator)
             && should_proxy_rhs.unwrap_or(true);
 
-        let result = assign_fn(&context.arena, b::id(&root_name), value, needs_proxy);
+        let result = assign_fn(
+            transform,
+            &context.arena,
+            b::id(&root_name),
+            value,
+            needs_proxy,
+        );
         let result = apply_store_ref_transform(result, &root_name, context);
         return Some(result);
     }
@@ -5045,7 +5120,7 @@ fn try_transform_assignment(
 
         let mutation_expr = b::assign_op(&context.arena, operator, visited_left, visited_right);
 
-        let result = mutate_fn(&context.arena, b::id(&root_name), mutation_expr);
+        let result = mutate_fn(transform, &context.arena, b::id(&root_name), mutation_expr);
         let result = apply_store_ref_transform(result, &root_name, context);
         // If the mutated prop carries `legacy_indirect_bindings` (a legacy
         // `<select bind:value={prop…}>` whose subtree references other scope
@@ -5161,12 +5236,13 @@ fn is_known_primitive_json(value: Option<&Value>) -> bool {
                     args.iter()
                         .all(|a| a.get("type").and_then(|t| t.as_str()) != Some("SpreadElement"))
                 });
-            no_spread
-                && value
-                    .get("callee")
-                    .and_then(super::shared::utils::json_keypath)
-                    .as_deref()
-                    .is_some_and(super::shared::utils::is_known_defined_global_call)
+            value
+                .get("callee")
+                .and_then(super::shared::utils::json_keypath)
+                .as_deref()
+                .is_some_and(|keypath| {
+                    super::shared::utils::is_known_defined_global_call(keypath, !no_spread)
+                })
         }
         "MemberExpression" => super::shared::utils::json_keypath(value)
             .as_deref()
@@ -5220,12 +5296,15 @@ fn is_known_primitive_jsnode(node: &JsNode, pa: &ParseArena) -> bool {
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            pa.get_js_children(*arguments)
+            let has_spread = pa
+                .get_js_children(*arguments)
                 .iter()
-                .all(|a| !matches!(a, JsNode::SpreadElement { .. }))
-                && jsnode_keypath(pa.get_js_node(*callee), pa)
-                    .as_deref()
-                    .is_some_and(super::shared::utils::is_known_defined_global_call)
+                .any(|a| matches!(a, JsNode::SpreadElement { .. }));
+            jsnode_keypath(pa.get_js_node(*callee), pa)
+                .as_deref()
+                .is_some_and(|keypath| {
+                    super::shared::utils::is_known_defined_global_call(keypath, has_spread)
+                })
         }
         JsNode::MemberExpression { .. } => jsnode_keypath(node, pa)
             .as_deref()
@@ -5901,7 +5980,7 @@ fn try_build_single_assignment(
 
     // Check if there's a transform for this identifier and copy the function pointers
     // we need before any mutable borrows
-    let transform = context.state.transform.get(&root_name)?;
+    let transform = context.state.transform.get(&root_name)?.clone();
     let assign_fn = transform.assign;
     let mutate_fn = transform.mutate;
     let replacement_id = transform.replacement_id.clone();
@@ -5913,6 +5992,7 @@ fn try_build_single_assignment(
         if let Some(assign_fn) = assign_fn {
             // For destructure assignments, we don't need proxy (always using "=" operator)
             return Some(assign_fn(
+                &transform,
                 &context.arena,
                 b::id(&root_name),
                 path.expression.clone(),
@@ -5930,7 +6010,12 @@ fn try_build_single_assignment(
             } else {
                 b::id(&root_name)
             };
-            return Some(mutate_fn(&context.arena, node_id, mutation_expr));
+            return Some(mutate_fn(
+                &transform,
+                &context.arena,
+                node_id,
+                mutation_expr,
+            ));
         }
     }
 
@@ -6308,7 +6393,7 @@ fn convert_block_statement_from_jsnode(
     // Restore the shadow set to its state before this block was entered.
     context.state.shadowed_prop_names = saved_shadowed;
 
-    JsBlockStatement { body }
+    JsBlockStatement::with_body(body)
 }
 
 /// Add the top-level variable-declaration names from a JsNode statement to
@@ -6550,9 +6635,11 @@ fn convert_update_expression(
     // apply the update transform directly to avoid invalid JS like $.get(x)++ or x()++.
     if let Some(arg_val) = argument_value
         && let Some(name) = extract_identifier_name_from_json(arg_val)
-        && let Some(update_fn) = context.state.transform.get(&name).and_then(|t| t.update)
+        && let Some(update_transform) = context.state.transform.get(&name)
+        && let Some(update_fn) = update_transform.update
     {
         return update_fn(
+            update_transform,
             &context.arena,
             operator,
             JsExpr::Identifier(name.into()),
@@ -6684,7 +6771,13 @@ fn try_transform_update(
         && name == root_name
         && let Some(update_fn) = transform.update
     {
-        let result = update_fn(&context.arena, operator, argument.clone(), prefix);
+        let result = update_fn(
+            transform,
+            &context.arena,
+            operator,
+            argument.clone(),
+            prefix,
+        );
         // For store subscriptions, apply the underlying store's read transform
         // to replace bare `store` with `$$props.store` for non-source props.
         let result = apply_store_ref_transform(result, name, context);
@@ -6721,7 +6814,7 @@ fn try_transform_update(
                 prefix,
             });
 
-            let result = mutate_fn(&context.arena, b::id(&root_name), update_expr);
+            let result = mutate_fn(transform, &context.arena, b::id(&root_name), update_expr);
             let result = apply_store_ref_transform(result, &root_name, context);
             return Some(result);
         }
@@ -6752,11 +6845,7 @@ fn apply_store_ref_transform(
         && let Some(read_fn) = store_transform.read
     {
         let transformed_ref = read_fn(&context.arena, JsExpr::Identifier(store_name.into()));
-        // Only apply for member expressions (non-source props → $$props.X).
-        // Call-based transforms (source props → X()) are already handled by
-        // apply_transforms_to_expression, so we skip those to avoid double transformation.
-        if matches!(&transformed_ref, JsExpr::Member(_))
-            && let JsExpr::Call(ref mut call) = result
+        if let JsExpr::Call(ref mut call) = result
             && let Some(first_arg) = call.arguments.first_mut()
             && matches!(first_arg, JsExpr::Identifier(n) if n.as_str() == store_name)
         {

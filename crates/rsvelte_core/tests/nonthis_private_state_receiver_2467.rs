@@ -79,9 +79,9 @@ fn logical_and_shift_compounds_are_rewritten_not_left_as_assignment_targets() {
         !out.contains("$.get(inst.#n) ??="),
         "the LHS must not be rewritten into a call expression:\n{out}"
     );
-    assert_has(&out, "$.set(inst.#n, inst.#n.v ?? s, true);");
-    assert_has(&out, "$.set(inst.#n, inst.#n.v && s, true);");
-    assert_has(&out, "$.set(inst.#n, inst.#n.v || s, true);");
+    assert_has(&out, "inst.#n.v ?? $.set(inst.#n, s, true);");
+    assert_has(&out, "inst.#n.v && $.set(inst.#n, s, true);");
+    assert_has(&out, "inst.#n.v || $.set(inst.#n, s, true);");
     assert_has(&out, "$.set(inst.#n, inst.#n.v << 2);");
 }
 
@@ -90,8 +90,8 @@ fn logical_compound_proxies_only_for_plain_state() {
     // Same gate as `this`: `$state.raw` and `$derived` must not carry `, true`,
     // and a `$derived` field reads through `$.get` even in a constructor.
     let out = client(LOGICAL_AND_SHIFT);
-    assert_has(&out, "$.set(inst.#x, inst.#x.v ?? s);");
-    assert_has(&out, "$.set(inst.#d, $.get(inst.#d) ?? s);");
+    assert_has(&out, "inst.#x.v ?? $.set(inst.#x, s);");
+    assert_has(&out, "$.get(inst.#d) ?? $.set(inst.#d, s);");
 }
 
 // ── gap 2: the silent proxy loss ────────────────────────────────────────────
@@ -168,7 +168,7 @@ fn method_bodies_still_read_through_get() {
 ",
     );
     assert_has(&out, "$.set(inst.#n, $.get(inst.#n) + 1);");
-    assert_has(&out, "$.set(inst.#n, $.get(inst.#n) ?? s, true);");
+    assert_has(&out, "$.get(inst.#n) ?? $.set(inst.#n, s, true);");
     assert_has(&out, "$.set(inst.#n, { a: s }, true);");
     assert_has(&out, "const a = $.get(inst.#n);");
 }
@@ -195,7 +195,7 @@ fn a_function_nested_in_the_constructor_reads_through_get() {
     );
     assert_has(&out, "$.set(inst.#n, inst.#n.v + 1);");
     assert_has(&out, "$.set(inst.#n, $.get(inst.#n) + 2);");
-    assert_has(&out, "$.set(inst.#n, $.get(inst.#n) ?? s, true);");
+    assert_has(&out, "$.get(inst.#n) ?? $.set(inst.#n, s, true);");
     assert_has(&out, "const a = $.get(inst.#n);");
 }
 

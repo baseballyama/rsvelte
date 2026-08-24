@@ -123,15 +123,48 @@ const RATCHETS = [
 		key: 'error-frame-known-failures.<target>.json',
 		jsons: perTarget('error-frame-known-failures'),
 	},
+	// Declared per target rather than through the `<target>` placeholder: the two
+	// client targets carry entries and the two server ones are still at 0, so one
+	// shared count would have to be wrong for two of the four.
 	{
 		doc: 'parse-known-failures.md',
-		key: 'parse-known-failures.<target>.json',
-		jsons: perTarget('parse-known-failures'),
+		key: 'parse-known-failures.client.json',
+		jsons: ['parse-known-failures.client.json'],
+	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.client-dev.json',
+		jsons: ['parse-known-failures.client-dev.json'],
+	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.server.json',
+		jsons: ['parse-known-failures.server.json'],
+	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.server-dev.json',
+		jsons: ['parse-known-failures.server-dev.json'],
+	},
+	{
+		doc: 'parse-ast-known-failures.md',
+		key: 'parse-ast-known-failures.json',
+		jsons: ['parse-ast-known-failures.json'],
+	},
+	{
+		doc: 'parse-ast-known-failures.md',
+		key: 'parse-ast-known-failures.json',
+		jsons: ['parse-ast-known-failures.json'],
 	},
 	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',
 		jsons: ['parse-oracle-excluded.json'],
+	},
+	{
+		doc: 'parse-ast-known-failures.md',
+		key: 'parse-ast-known-failures.json',
+		jsons: ['parse-ast-known-failures.json'],
 	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', jsons: ['matrix-known-failures.json'] },
 	{ doc: 'dual-run-known-failures.md', key: 'dual-run-known-failures.json', jsons: ['dual-run-known-failures.json'] },
@@ -199,6 +232,15 @@ const RATCHETS = [
  * "this doc states no clusters" from "someone removed the one it stated".
  */
 const PARTITIONS = [
+	{ doc: 'known-failures.md', key: 'known-failures.client.json', label: 'verdict' },
+	{ doc: 'known-failures.md', key: 'known-failures.server.json', label: 'verdict' },
+	{ doc: 'known-failures.md', key: 'known-failures.server-dev.json', label: 'verdict' },
+	{ doc: 'known-failures.md', key: 'known-failures.client-dev.json', label: 'verdict' },
+	{
+		doc: 'svelte2tsx-known-failures.md',
+		key: 'svelte2tsx-known-failures.json',
+		label: 'verdict',
+	},
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },
@@ -218,7 +260,7 @@ const PARTITIONS = [
 		key: 'lint-severity-known-failures.json',
 		label: 'cause',
 	},
-	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'cluster' },
+	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'verdict' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'key kind' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'request phase' },
 	{
@@ -253,6 +295,12 @@ const PARTITIONS = [
 		doc: 'matrix-known-failures.md',
 		key: 'matrix-known-failures.json',
 		prefix: 'async-derived/',
+		label: 'cause',
+	},
+	{
+		doc: 'matrix-known-failures.md',
+		key: 'matrix-known-failures.json',
+		prefix: 'async-attribute-slot/',
 		label: 'cause',
 	},
 	{
@@ -414,7 +462,10 @@ for (const { doc, key, prefix, label } of PARTITIONS) {
 		fail(`PARTITIONS declares \`${key}\` for ${doc}, which is not a ratchet in RATCHETS`);
 		continue;
 	}
-	const population = prefix ? ids.filter((id) => String(id).startsWith(prefix)) : ids;
+	// A ratchet is an array of ids or an object keyed by them; `Object.keys` on an
+	// array is its indices, so normalise rather than branching at every use.
+	const idList = Array.isArray(ids) ? ids : Object.keys(ids);
+	const population = prefix ? idList.filter((id) => String(id).startsWith(prefix)) : idList;
 	const matches = partitionLines(fs.readFileSync(docPath, 'utf8')).filter(
 		(p) => p.key === key && (p.prefix ?? undefined) === prefix && p.label === label,
 	);

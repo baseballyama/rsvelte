@@ -28,6 +28,8 @@ use oxc_ast::ast::*;
 use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType, Span};
 
+use crate::compiler::phases::phase3_transform::shared::js_scan;
+
 use super::ast_rewrite::{self, Edit};
 
 thread_local! {
@@ -58,7 +60,11 @@ pub fn wrap_state_derived_with_tag_class_fields_ast_from(
     {
         return None;
     }
-    memchr::memmem::find(source.as_bytes(), b"class ")?;
+    // A prefilter for the AST rewrite below: `class\tK` is a class too, so the
+    // needle is the keyword, never the keyword plus one ASCII space (#3470).
+    if !js_scan::contains_identifier(source, "class") {
+        return None;
+    }
 
     ast_rewrite::rewrite_once(
         &CLASS_TAG_ALLOC,
@@ -402,9 +408,10 @@ fn handle_property_definition<'a>(
     ));
 }
 
-/// The `$.tag(...)` wrap for one value, reflowed when a comment sits between the
-/// `=` and the value: esrap cannot keep such a call on one line, because a `//`
-/// comment would swallow the rest of it.
+/// The `$.tag(...)` wrap for one value. A comment between the `=` and the value
+/// moves inside the call, and the call is reflowed only when that region spans a
+/// line: esrap keeps a one-line comment inline, but a `//` comment placed inline
+/// would swallow the rest of the call.
 fn tag_edit(
     source: &str,
     stmt_start: u32,
@@ -422,9 +429,17 @@ fn tag_edit(
     let Some(eq) = assignment_eq_offset(source, lhs_end, init_span.start) else {
         return flat;
     };
-    let comment = source[eq as usize + 1..init_span.start as usize].trim();
+    let separator = &source[eq as usize + 1..init_span.start as usize];
+    let comment = separator.trim();
     if comment.is_empty() {
         return flat;
+    }
+    if !separator.contains('\n') {
+        return (
+            eq + 1,
+            init_span.end,
+            format!(" {tag_fn}({comment} {init_text}, '{label}')"),
+        );
     }
 
     let indent = line_indent(source, stmt_start);

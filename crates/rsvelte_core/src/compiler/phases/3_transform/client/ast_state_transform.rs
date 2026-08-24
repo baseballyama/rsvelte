@@ -176,6 +176,17 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String], dev: bool)
     }
 }
 
+/// A declarator initializer with its redundant parentheses peeled off, paired
+/// with the span a rewrite of it must cover.
+///
+/// Upstream parses with acorn, which builds no `ParenthesizedExpression` at
+/// all, so `let v = ($state(1))` reaches `get_rune` as the bare call and the
+/// parens never survive into the output. Matching only the bare
+/// `CallExpression` here left the rune unlowered instead (#3248).
+fn init_without_parens<'x, 'ast>(init: &'x Expression<'ast>) -> (&'x Expression<'ast>, Span) {
+    (init.without_parentheses(), init.span())
+}
+
 /// Execute a closure with a freshly-reset thread-local OXC allocator.
 fn with_ast_transform_allocator<F, R>(f: F) -> R
 where
@@ -870,13 +881,25 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         &self,
         call: &CallExpression<'_>,
         arg_span: Span,
+        init_span: Span,
     ) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
         let callee_end = call.callee.span().end;
         let open = self
             .trivia_code_start(callee_end, arg_span.start)
             .filter(|&p| self.source.as_bytes().get(p as usize) == Some(&b'('))
             .map(|p| p + 1);
-        let mut pre = self.trivia_comment_spans(callee_end, arg_span.start);
+        // A comment between redundant parens and the callee (`(/* c */ $state(1))`)
+        // is flushed before the value just like one inside the call's own parens.
+        let mut pre = Vec::new();
+        if init_span.start < call.span.start {
+            let region =
+                &self.source.as_bytes()[init_span.start as usize..call.span.start as usize];
+            if let Some(last_open) = region.iter().rposition(|&b| b == b'(') {
+                let from = init_span.start + last_open as u32 + 1;
+                pre.extend(self.trivia_comment_spans(from, call.span.start));
+            }
+        }
+        pre.extend(self.trivia_comment_spans(callee_end, arg_span.start));
         if let Some(open) = open {
             pre.extend(self.trivia_comment_spans(open, arg_span.start));
         }
@@ -903,6 +926,52 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             }
         }
         None
+    }
+
+    /// The comment run written between a declarator's binding and its rune
+    /// call. Any code byte restarts the run, so a comment inside a type
+    /// annotation — which is not adjacent to the call — is not one of them.
+    ///
+    /// Upstream never leaves these ahead of the declarator: the lowered call
+    /// either inherits the source callee's `loc` (`$state`) or hands the
+    /// argument to a node esrap flushes them inside, so they end up within the
+    /// wrapper rather than before it.
+    fn declarator_lead_comment_spans(&self, from: u32, to: u32) -> Vec<(u32, u32)> {
+        let bytes = self.source.as_bytes();
+        let mut i = from as usize;
+        let end = (to as usize).min(bytes.len());
+        let mut run: Vec<(u32, u32)> = Vec::new();
+        while i < end {
+            match bytes[i] {
+                b if b.is_ascii_whitespace() => i += 1,
+                b'/' if bytes.get(i + 1) == Some(&b'/') && i + 1 < end => {
+                    let stop = memchr::memchr(b'\n', &bytes[i..end]).map_or(end, |p| i + p);
+                    run.push((i as u32, stop as u32));
+                    i = stop;
+                }
+                b'/' if bytes.get(i + 1) == Some(&b'*') && i + 1 < end => {
+                    let Some(close) = memchr::memmem::find(&bytes[i + 2..end], b"*/") else {
+                        return Vec::new();
+                    };
+                    let stop = i + 2 + close + 2;
+                    run.push((i as u32, stop as u32));
+                    i = stop;
+                }
+                quote @ (b'\'' | b'"' | b'`') => {
+                    run.clear();
+                    i += 1;
+                    while i < end && bytes[i] != quote {
+                        i += if bytes[i] == b'\\' { 2 } else { 1 };
+                    }
+                    i += 1;
+                }
+                _ => {
+                    run.clear();
+                    i += 1;
+                }
+            }
+        }
+        run
     }
 
     /// Same-line trailing comments (esrap's `flush_trailing_comments`): each is
@@ -1020,16 +1089,37 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// no longer has to walk the script in dev mode, eliminating one
     /// O(text_len) buffer pass per component.
     fn maybe_tag_declarator(&self, var_name: &str, replacement: String) -> String {
+        self.maybe_tag_declarator_with_lead(var_name, replacement, "")
+            .0
+    }
+
+    /// [`Self::maybe_tag_declarator`], with the declarator's leading comment run
+    /// placed just inside the tag call and a flag saying whether a wrap
+    /// happened — the caller needs it to decide whether its replacement span
+    /// has to swallow those comments.
+    ///
+    /// `lead` only belongs inside the wrap for `$.state(`: upstream builds that
+    /// callee with the source `$state` callee's `loc`, so esrap flushes the
+    /// comments right before it. `$.proxy(` is built with a plain string callee
+    /// and carries no `loc`, which puts the comments before its argument
+    /// instead — its caller folds them into the argument text rather than
+    /// passing them here.
+    fn maybe_tag_declarator_with_lead(
+        &self,
+        var_name: &str,
+        replacement: String,
+        lead: &str,
+    ) -> (String, bool) {
         if !self.dev {
-            return replacement;
+            return (replacement, false);
         }
         let head = replacement.as_str();
         if head.starts_with("$.state(") || head.starts_with("$.derived(") {
-            format!("$.tag({}, '{}')", replacement, var_name)
+            (format!("$.tag({lead}{replacement}, '{var_name}')"), true)
         } else if head.starts_with("$.proxy(") {
-            format!("$.tag_proxy({}, '{}')", replacement, var_name)
+            (format!("$.tag_proxy({replacement}, '{var_name}')"), true)
         } else {
-            replacement
+            (replacement, false)
         }
     }
 
@@ -1053,6 +1143,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_state_raw_or_frozen_init(init) {
             return false;
         }
@@ -1084,7 +1175,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
-            let (pre, post) = self.rune_call_comment_slots(call, arg_span);
+            let (pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
             pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
             post_comments = post;
             arg_end = arg_span.end;
@@ -1105,15 +1196,22 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             self.split_trailing_comments(&post_comments, arg_end)
         };
 
-        let mut replacement = if is_non_reactive {
+        let replacement = if is_non_reactive {
             arg_text
         } else {
             format!("$.state({arg_text}{trailing})")
         };
 
-        replacement = self.maybe_tag_declarator(var_name, replacement);
+        let lead_spans = self.declarator_lead_comment_spans(id.span().end, call.span.start);
+        let lead = self.flush_trivia_comments(&lead_spans, call.span.start, true);
+        let (mut replacement, tagged) =
+            self.maybe_tag_declarator_with_lead(var_name, replacement, &lead);
+        let start = match lead_spans.first() {
+            Some(&(first, _)) if tagged => first,
+            _ => call.span.start,
+        };
         let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
-        self.add_replacement(call.span.start, end, replacement);
+        self.add_replacement(start, end, replacement);
         true
     }
 
@@ -1134,6 +1232,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_state_call_init(init) {
             return false;
         }
@@ -1177,7 +1276,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
-            let (pre, post) = self.rune_call_comment_slots(call, arg_span);
+            let (pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
             pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
             post_comments = post;
             arg_end = arg_span.end;
@@ -1190,7 +1289,17 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         } else {
             "void 0".to_string()
         };
-        let arg_text = format!("{pre_comments}{arg_text}");
+        // `$.proxy` is the only wrapper here built with a plain string callee,
+        // so it carries no `loc` and the declarator's leading comments flush
+        // before its ARGUMENT rather than before the call.
+        let lead_spans = self.declarator_lead_comment_spans(id.span().end, call.span.start);
+        let proxy_is_head = is_non_reactive && needs_proxy;
+        let lead_before_arg = if proxy_is_head {
+            self.flush_trivia_comments(&lead_spans, call.span.start, true)
+        } else {
+            String::new()
+        };
+        let arg_text = format!("{lead_before_arg}{pre_comments}{arg_text}");
 
         let bare = is_non_reactive && !needs_proxy;
         // A wrapper call keeps same-line trailing comments inside its parens
@@ -1202,7 +1311,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             self.split_trailing_comments(&post_comments, arg_end)
         };
 
-        let mut replacement = if is_non_reactive {
+        let replacement = if is_non_reactive {
             if needs_proxy {
                 format!("$.proxy({arg_text}{trailing})")
             } else {
@@ -1216,9 +1325,19 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("$.state({arg_text}{trailing})")
         };
 
-        replacement = self.maybe_tag_declarator(var_name, replacement);
+        let lead_before_call = if proxy_is_head {
+            String::new()
+        } else {
+            self.flush_trivia_comments(&lead_spans, call.span.start, true)
+        };
+        let (mut replacement, tagged) =
+            self.maybe_tag_declarator_with_lead(var_name, replacement, &lead_before_call);
+        let start = match lead_spans.first() {
+            Some(&(first, _)) if proxy_is_head || tagged => first,
+            _ => call.span.start,
+        };
         let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
-        self.add_replacement(call.span.start, end, replacement);
+        self.add_replacement(start, end, replacement);
         true
     }
 
@@ -1243,6 +1362,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
 
         // Determine $state vs $state.raw (text path doesn't handle frozen
         // destructuring, so we match the same shapes only).
@@ -1318,7 +1438,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let replacement = declarations.join(", ");
         let start = declarator.id.span().start;
-        let end = call.span.end;
+        let end = init_span.end;
         self.add_replacement(start, end, replacement);
         true
     }
@@ -1573,6 +1693,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_call_init(init) {
             return false;
         }
@@ -1730,7 +1851,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // optional trailing pieces of the VariableDeclaration remain.
         let replacement = declarations.join(",\n\t");
         let start = pattern_span.start;
-        let end = call.span.end;
+        let end = init_span.end;
         self.add_replacement(start, end, replacement);
         true
     }
@@ -1751,6 +1872,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_by_init(init) {
             return false;
         }
@@ -1815,7 +1937,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let replacement = declarations.join(",\n\t");
         let start = pattern_span.start;
-        let end = call.span.end;
+        let end = init_span.end;
         self.add_replacement(start, end, replacement);
         true
     }
@@ -1841,6 +1963,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         let Expression::CallExpression(call) = init else {
             return false;
         };
@@ -1875,6 +1998,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // becomes `$.get(state1)` in the helper input, and the helper
         // copies it verbatim into the emitted `$.prop(...)` default arg.
         walk::walk_variable_declarator(self, declarator);
+        // The shared text helper matches `= $props()`, so redundant parens
+        // around the call are dropped here rather than in the helper — esrap
+        // reprints the declaration and never keeps them either (#3248).
+        if init_span != call.span {
+            self.add_replacement(init_span.start, call.span.start, String::new());
+            self.add_replacement(call.span.end, init_span.end, String::new());
+        }
         let decl_span = decl.span;
         let walked_source = self.apply_and_drain_inner_replacements(decl_span.start, decl_span.end);
 
@@ -1922,13 +2052,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         if end < bytes.len() && bytes[end] == b';' {
             end += 1;
         }
-        // The helper's trailing `;\n` is now redundant — we consumed
-        // the source's `;` ourselves and the per-statement-loop
-        // appends a fresh `\n`. Strip them.
-        let mut stripped = transformed
-            .trim_end_matches('\n')
-            .trim_end_matches(';')
-            .to_string();
+        // The replacement has to terminate itself: the range above swallowed the
+        // source's `;`, and what follows is a line break only when the next
+        // statement is on the next line.
+        let mut stripped = transformed.trim_end_matches('\n').to_string();
 
         // When the helper returns an empty replacement (read-only
         // `{ name } = $props()` with no defaults), and the component
@@ -1969,6 +2096,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_by_init(init) {
             return false;
         }
@@ -1994,7 +2122,15 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg = &call.arguments[0];
         self.visit_argument(arg);
         let arg_span = arg.span();
-        let (pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        let (mut pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        // `$.derived` is built with a plain string callee and takes the user's
+        // own function unchanged, so the declarator's leading comments flush
+        // before that argument just like the ones written inside the parens.
+        let lead_spans = self.declarator_lead_comment_spans(id.span().end, call.span.start);
+        let start = lead_spans
+            .first()
+            .map_or(call.span.start, |&(first, _)| first);
+        pre_spans.splice(0..0, lead_spans);
         let lead_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, true);
         let transformed_arg = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
@@ -2004,7 +2140,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let replacement = format!("$.derived({lead_comments}{transformed_arg}{trail})");
         let mut replacement = self.maybe_tag_declarator(var_name, replacement);
         let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
-        self.add_replacement(call.span.start, end, replacement);
+        self.add_replacement(start, end, replacement);
         true
     }
 
@@ -2039,6 +2175,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_call_init(init) {
             return false;
         }
@@ -2076,8 +2213,16 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Comments between the call's `(` and the argument ride along: into the
         // synthesized thunk's empty parameter parens (where esrap flushes them
         // — the params sequence runs until the body's start), or straight
-        // before the argument when no thunk is added.
-        let (pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        // before the argument when no thunk is added. The ones written between
+        // the declarator's `=` and `$derived(` reach the same slot, because
+        // upstream builds `$.derived` with a plain string callee that carries
+        // no `loc` of its own.
+        let (mut pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        let lead_spans = self.declarator_lead_comment_spans(id.span().end, call.span.start);
+        let start = lead_spans
+            .first()
+            .map_or(call.span.start, |&(first, _)| first);
+        pre_spans.splice(0..0, lead_spans);
         let param_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, false);
         let lead_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, true);
 
@@ -2108,7 +2253,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let mut replacement = self.maybe_tag_declarator(var_name, replacement);
             let end =
                 self.append_comments_past_semicolon(&post_spans, call.span.end, &mut replacement);
-            self.add_replacement(call.span.start, end, replacement);
+            self.add_replacement(start, end, replacement);
             return true;
         }
 
@@ -2158,6 +2303,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             };
             let end =
                 self.append_comments_past_semicolon(&post_spans, call.span.end, &mut replacement);
+            // The async form drops the thunk parens the leading comments would
+            // have gone into, so they keep their source position here.
             self.add_replacement(call.span.start, end, replacement);
             return true;
         }
@@ -2168,7 +2315,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let mut replacement = self.maybe_tag_declarator(var_name, replacement);
             let end =
                 self.append_comments_past_semicolon(&post_spans, call.span.end, &mut replacement);
-            self.add_replacement(call.span.start, end, replacement);
+            self.add_replacement(start, end, replacement);
             return true;
         }
 
@@ -2184,7 +2331,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 let mut replacement = self.maybe_tag_declarator(var_name, replacement);
                 let end =
                     self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
-                self.add_replacement(call.span.start, end, replacement);
+                self.add_replacement(start, end, replacement);
                 return true;
             }
         }
@@ -2205,7 +2352,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let replacement = format!("$.derived({derived_arg}{trail})");
         let mut replacement = self.maybe_tag_declarator(var_name, replacement);
         let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
-        self.add_replacement(call.span.start, end, replacement);
+        self.add_replacement(start, end, replacement);
         true
     }
 

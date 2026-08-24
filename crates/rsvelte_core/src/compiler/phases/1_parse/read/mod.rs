@@ -4,8 +4,9 @@
 //! The expression module provides JavaScript/TypeScript expression parsing using OXC.
 //! The style module also provides CSS parsing functionality.
 
+pub(crate) mod early_errors;
 pub mod expression;
-mod options;
+pub(crate) mod options;
 pub(crate) mod script;
 pub(crate) mod strict_mode;
 pub mod style;

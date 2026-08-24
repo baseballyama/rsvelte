@@ -24,7 +24,8 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, has_dynamic_children, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
+    build_render_statement_with_memoizer, build_template_chunk,
+    collect_expression_identifiers_for_blockers, expression_has_reactive_state,
     is_known_defined_global_call, js_expr_keypath,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
@@ -129,6 +130,7 @@ fn process_element_let_directives(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Let directive bindings are template-kind.
@@ -166,6 +168,7 @@ fn process_element_let_directives(
                         is_defined: false,
                         is_reactive: true,
                         replacement_id: None,
+                        store_source: None,
                     },
                 );
                 context.state.transform_deep_read.insert(name.clone(), ());
@@ -199,10 +202,9 @@ pub fn visit_regular_element(
 ) -> TransformResult {
     // Push element to template
     let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
-    // Avoid allocation when name is already lowercase (common case for HTML)
     let name_str = node.name.as_str();
-    let elem_name = if is_html && name_str.bytes().any(|b| b.is_ascii_uppercase()) {
-        name_str.to_lowercase()
+    let elem_name = if is_html {
+        super::shared::utils::html_lowercase(name_str)
     } else {
         name_str.to_string()
     };
@@ -687,9 +689,25 @@ pub fn visit_regular_element(
                     build_set_style(&node_id, Some(&attr.value), &style_directives, context);
                     style_handled = true;
                 } else if is_custom_element {
-                    // Custom element: use $.set_custom_element_data
-                    let result =
-                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    // Custom element: use $.set_custom_element_data.
+                    // Its own Memoizer, and its own ungrouped `template_effect`,
+                    // because `set_custom_element_data` may not be idempotent
+                    // (RegularElement.js `build_custom_element_attribute_update_assignment`).
+                    // Routing the value through the memoizer is also what keeps an
+                    // `await` in the attribute legal: it lands in `async_values()`
+                    // as `async () => …` instead of being inlined into an arrow the
+                    // parser then rejects.
+                    let mut local_memoizer =
+                        Memoizer::with_parent_conflicts(&context.state.memoizer);
+                    let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                        local_memoizer.add(
+                            expr,
+                            metadata.has_call(),
+                            metadata.has_await(),
+                            false,
+                            metadata.has_state(),
+                        )
+                    });
                     let node_id = extract_node_id(&context.state.node);
                     let call = b::call(
                         &context.arena,
@@ -702,13 +720,42 @@ pub fn visit_regular_element(
                     );
 
                     if result.has_state {
-                        // For reactive values, wrap in template_effect
+                        let params = local_memoizer.apply();
+                        let sync_values = local_memoizer.sync_values(&context.arena);
+                        let async_values = local_memoizer.async_values(&context.arena);
+                        let blocker_exprs =
+                            context.state.get_blockers_for_expr(&call, &context.arena);
+                        let param_patterns: Vec<JsPattern> = params
+                            .iter()
+                            .filter_map(|p| {
+                                if let JsExpr::Identifier(name) = p {
+                                    Some(JsPattern::Identifier(name.clone()))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        let mut args = vec![b::arrow(&context.arena, param_patterns, call)];
+                        if sync_values.is_some()
+                            || async_values.is_some()
+                            || !blocker_exprs.is_empty()
+                        {
+                            args.push(sync_values.unwrap_or_else(|| b::undefined(&context.arena)));
+                        }
+                        if async_values.is_some() || !blocker_exprs.is_empty() {
+                            args.push(async_values.unwrap_or_else(|| b::undefined(&context.arena)));
+                        }
+                        if !blocker_exprs.is_empty() {
+                            args.push(b::array(blocker_exprs));
+                        }
+
                         context.state.init.push(b::stmt(
                             &context.arena,
                             b::call(
                                 &context.arena,
                                 b::member_path(&context.arena, "$.template_effect"),
-                                vec![b::thunk(&context.arena, call)],
+                                args,
                             ),
                         ));
                     } else {
@@ -1099,6 +1146,15 @@ pub fn visit_regular_element(
         match n.as_ref() {
             TemplateNode::Text(_) => true,
             TemplateNode::ExpressionTag(expr_tag) => {
+                let has_blockers = if context.state.blocker_map.borrow().is_empty() {
+                    false
+                } else {
+                    let blocker_names =
+                        collect_expression_identifiers_for_blockers(&expr_tag.expression);
+                    let blocker_name_refs: Vec<&str> =
+                        blocker_names.iter().map(String::as_str).collect();
+                    context.state.has_blockers_for_names(&blocker_name_refs)
+                };
                 // Check if expression is non-reactive AND has no non-pure calls.
                 // Non-pure calls (to local functions) need to be in a template_effect
                 // for proper execution context, so they can't use the textContent shortcut.
@@ -1117,6 +1173,7 @@ pub fn visit_regular_element(
                     context.state.parse_arena,
                 ) && !expression_has_reactive_state(&expr_tag.expression, context)
                     && !expr_tag.metadata.expression.has_call()
+                    && !has_blockers
             }
             _ => false,
         }
@@ -1737,9 +1794,13 @@ pub fn visit_regular_element(
 /// child_init is merged. Since our Phase 2 analysis doesn't mutate the AST to set
 /// this flag (immutable references), we check for DebugTag presence as a fallback.
 fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
-    hoisted
-        .iter()
-        .any(|n| matches!(n.as_ref(), TemplateNode::DebugTag(_)))
+    hoisted.iter().any(|n| match n.as_ref() {
+        // Upstream's dynamism comes from the Identifier visitor, so a `{@debug}`
+        // with no identifiers leaves the fragment static and its effect is
+        // discarded with the rest of `child_state.init`.
+        TemplateNode::DebugTag(tag) => !tag.identifiers.is_empty(),
+        _ => false,
+    })
 }
 
 /// Check if any trimmed children are dynamic (non-static, non-text).
@@ -2243,7 +2304,12 @@ fn is_value_known_defined(
         }
         JsExpr::Call(call) => js_expr_keypath(arena.get_expr(call.callee), arena)
             .as_deref()
-            .is_some_and(is_known_defined_global_call),
+            .is_some_and(|keypath| {
+                is_known_defined_global_call(
+                    keypath,
+                    super::shared::utils::js_call_has_spread(call),
+                )
+            }),
         // For identifiers: look up the binding to check if the initial value is defined.
         // This mirrors the official compiler's scope.evaluate() which, for identifiers,
         // checks if the binding is not updated, has an initial value, and is not a prop,

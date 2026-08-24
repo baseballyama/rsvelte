@@ -145,6 +145,7 @@ compatibility/manifest.json
 compatibility/.corpus-generation
 compatibility/report.json
 compatibility/report-s2t.json
+compatibility/esrap-report.json
 compatibility/cluster.txt
 compatibility/matrix-artifacts/
 compatibility/mutant-artifacts/
@@ -180,8 +181,11 @@ compatibility/lsp-current-*.json
 /target-rt/
 /target-verify/
 
-# Built by scripts/compat-corpus/scss-verify.mjs so both SCSS backends can resolve
-# a corpus package that imports itself by its published specifier.
-compatibility/scss-node-modules-shim/
-compatibility/.lint-adversarial-config.json
-compatibility/.lint-adversarial-rules.json
+ # Built by scripts/compat-corpus/scss-verify.mjs so both SCSS backends can resolve
+ # a corpus package that imports itself by its published specifier.
+ compatibility/scss-node-modules-shim/
+ compatibility/.lint-adversarial-config.json
+ compatibility/.lint-adversarial-rules.json
+ 
+ # Local, per-developer Claude Code settings
+ .claude/settings.local.json

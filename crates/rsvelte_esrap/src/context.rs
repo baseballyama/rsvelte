@@ -78,7 +78,16 @@ pub struct Context<const DIRECT: bool = false> {
     indent: String,
     indent_depth: u32,
     layout_bytes: usize,
+    /// Subset of `layout_bytes` that are separator/pad spaces. esrap writes
+    /// those with `context.write(' ')`, so an enclosing `measure()` counts them
+    /// as content; this port materialises them as layout spans (so they can be
+    /// retro-patched into a newline) and therefore has to add them back.
+    space_bytes: usize,
     measure_base: usize,
+    /// Bytes written past their UTF-16 length. esrap measures a JS string,
+    /// so a multi-byte character costs 1 (or 2) there and up to 4 here.
+    wide_excess: usize,
+    measure_wide_base: usize,
     has_newline: bool,
     pending: u8,
     direct_dirty: bool,
@@ -89,10 +98,13 @@ pub struct Context<const DIRECT: bool = false> {
 
 pub(crate) struct Scope {
     measure_base: usize,
+    wide_excess: usize,
+    measure_wide_base: usize,
     event_len: usize,
     text_len: usize,
     layout_len: usize,
     layout_bytes: usize,
+    space_bytes: usize,
     indent_depth: u32,
     pending: u8,
     direct_dirty: bool,
@@ -117,7 +129,10 @@ impl Context<false> {
             indent: String::new(),
             indent_depth: 0,
             layout_bytes: 0,
+            space_bytes: 0,
             measure_base: 0,
+            wide_excess: 0,
+            measure_wide_base: 0,
             has_newline: false,
             pending: 0,
             direct_dirty: false,
@@ -139,7 +154,10 @@ impl Context<true> {
             indent: indent.to_owned(),
             indent_depth: 0,
             layout_bytes: 0,
+            space_bytes: 0,
             measure_base: 0,
+            wide_excess: 0,
+            measure_wide_base: 0,
             has_newline: false,
             pending: 0,
             direct_dirty: false,
@@ -159,7 +177,10 @@ impl<const DIRECT: bool> Context<DIRECT> {
             indent: String::new(),
             indent_depth: 0,
             layout_bytes: 0,
+            space_bytes: 0,
             measure_base: 0,
+            wide_excess: 0,
+            measure_wide_base: 0,
             has_newline: false,
             pending: 0,
             direct_dirty: false,
@@ -211,6 +232,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             self.pending |= PENDING_SPACE;
         } else {
             self.buffer.event(EventKind::Space);
+            self.space_bytes += 1;
         }
     }
 
@@ -241,6 +263,9 @@ impl<const DIRECT: bool> Context<DIRECT> {
             self.buffer.event(EventKind::Flush);
         } else {
             self.buffer.text.push_str(content);
+        }
+        if !content.is_ascii() {
+            self.wide_excess += content.len() - content.chars().map(char::len_utf16).sum::<usize>();
         }
         if self.has_newline {
             self.multiline = true;
@@ -291,6 +316,8 @@ impl<const DIRECT: bool> Context<DIRECT> {
     /// Splice `child`'s output in place, propagating its multiline state.
     pub fn append(&mut self, child: Context<false>) {
         let child_multiline = child.multiline;
+        self.space_bytes += child.space_bytes;
+        self.wide_excess += child.wide_excess;
         let mut child_buffer = child.buffer;
         if DIRECT {
             self.append_deferred(&child_buffer);
@@ -308,10 +335,13 @@ impl<const DIRECT: bool> Context<DIRECT> {
     pub(crate) fn begin_scope(&mut self) -> Scope {
         let scope = Scope {
             measure_base: self.measure_base,
+            wide_excess: self.wide_excess,
+            measure_wide_base: self.measure_wide_base,
             event_len: self.buffer.events.len(),
             text_len: self.buffer.text.len(),
             layout_len: self.buffer.layouts.len(),
             layout_bytes: self.layout_bytes,
+            space_bytes: self.space_bytes,
             indent_depth: self.indent_depth,
             pending: self.pending,
             direct_dirty: self.direct_dirty,
@@ -323,6 +353,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
         } else {
             self.buffer.text.len()
         };
+        self.measure_wide_base = self.wide_excess;
         self.has_newline = false;
         self.multiline = false;
         scope
@@ -331,6 +362,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
     pub(crate) fn end_scope(&mut self, scope: Scope) -> bool {
         let child_multiline = self.multiline;
         self.measure_base = scope.measure_base;
+        self.measure_wide_base = scope.measure_wide_base;
         self.has_newline = scope.has_newline;
         self.multiline = scope.multiline || scope.has_newline || child_multiline;
         child_multiline
@@ -340,15 +372,18 @@ impl<const DIRECT: bool> Context<DIRECT> {
         self.buffer.text.truncate(if DIRECT {
             scope.text_len
         } else {
-            self.measure_base
+            self.visible_base
         });
         self.buffer.events.truncate(scope.event_len);
         self.buffer.layouts.truncate(scope.layout_len);
         self.layout_bytes = scope.layout_bytes;
+        self.space_bytes = scope.space_bytes;
         self.indent_depth = scope.indent_depth;
         self.pending = scope.pending;
         self.direct_dirty = scope.direct_dirty;
         self.measure_base = scope.measure_base;
+        self.wide_excess = scope.wide_excess;
+        self.measure_wide_base = scope.measure_wide_base;
         self.has_newline = scope.has_newline;
         self.multiline = scope.multiline;
     }
@@ -362,10 +397,12 @@ impl<const DIRECT: bool> Context<DIRECT> {
 
     pub(crate) fn retro_space_mark(&mut self) -> EventMark {
         let mark = self.event_mark();
+        self.space_bytes += 1;
         if DIRECT && self.pending == 0 {
             let start = mark.offset;
             self.buffer.text.push(' ');
             self.layout_bytes += 1;
+            self.space_bytes += 1;
             self.buffer.layouts.push(LayoutSpan {
                 start,
                 raw_len: 1,
@@ -381,6 +418,9 @@ impl<const DIRECT: bool> Context<DIRECT> {
     }
 
     pub(crate) fn insert_event(&mut self, mark: EventMark, kind: EventKind) {
+        if matches!(kind, EventKind::Space) {
+            self.space_bytes += 1;
+        }
         if DIRECT {
             self.insert_direct(mark.offset, kind);
             return;
@@ -394,23 +434,46 @@ impl<const DIRECT: bool> Context<DIRECT> {
         );
     }
 
-    /// `true` when nothing with visible content has been written.
+    /// `true` when nothing with visible content has been written. A separator
+    /// space is not content (esrap's `has_content` answers `false` for it), so
+    /// this excludes every layout byte.
     pub const fn empty(&self) -> bool {
+        self.visible_len() == self.visible_base
+    }
+
+    /// Length counted by [`measure`](Self::measure), before the scope base is
+    /// subtracted.
+    const fn measured_len(&self) -> usize {
         if DIRECT {
-            self.buffer.text.len() - self.layout_bytes == self.measure_base
+            self.buffer.text.len() - self.layout_bytes + self.space_bytes
         } else {
-            self.buffer.text.len() == self.measure_base
+            self.buffer.text.len() + self.space_bytes
         }
+    }
+
+    /// `measure`, plus the separator/pad spaces written since `scope` began.
+    /// esrap emits those with `context.write(' ')`, so a handler that measures a
+    /// whole rendered subtree (rather than one sequence item) sees them.
+    pub(crate) const fn measure_with_layout_spaces(&self, scope: &Scope) -> usize {
+        self.measure() + (self.space_bytes - scope.space_bytes)
     }
 
     /// Total length of the literal strings in this context, ignoring whitespace
     /// sentinels — esrap's `measure`, used to decide if a layout fits on a line.
     pub const fn measure(&self) -> usize {
-        if DIRECT {
+        let bytes = if DIRECT {
             self.buffer.text.len() - self.layout_bytes - self.measure_base
         } else {
             self.buffer.text.len() - self.measure_base
-        }
+        };
+        bytes - (self.wide_excess - self.measure_wide_base)
+    }
+
+    /// Total length of the literal strings in this context, ignoring newline and
+    /// indentation sentinels — esrap's `measure`, used to decide if a layout fits
+    /// on a line.
+    pub const fn measure(&self) -> usize {
+        self.measured_len() - self.measure_base
     }
 
     /// Consume the context, yielding its flat output buffer (for the top-level
@@ -554,6 +617,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
         } else if self.pending & (PENDING_SPACE | PENDING_OPTIMISTIC_SPACE) != 0 {
             self.buffer.text.push(' ');
             self.layout_bytes += 1;
+            self.space_bytes += 1;
             self.buffer.layouts.push(LayoutSpan {
                 start,
                 raw_len: 1,
@@ -654,14 +718,17 @@ mod tests {
         finish_direct(buffer, &indent, dirty).0
     }
 
+    /// esrap reserves its non-string `space` command for the one `else` case;
+    /// every separator space is `context.write(' ')`, which `measure` counts.
+    /// Newlines and indentation are the sentinels it skips.
     #[test]
-    fn measure_counts_only_strings() {
+    fn measure_counts_separator_spaces_but_not_newlines() {
         let mut ctx = Context::new();
         ctx.write_ascii_bytes(b"abc");
         ctx.space();
         ctx.newline();
         ctx.write_ascii_bytes(b"de");
-        assert_eq!(ctx.measure(), 5);
+        assert_eq!(ctx.measure(), 6);
     }
 
     #[test]

@@ -62,6 +62,13 @@ pub(crate) fn push_expr_comment(comment: crate::ast::template::JsComment) {
     EXPR_COMMENT_SINK.with(|sink| sink.borrow_mut().push(comment));
 }
 
+/// Snapshot the per-thread expression-comment sink without draining it.
+/// Upstream's `parser.root.comments` is the same array every script parse is
+/// handed, so a script's comment walk also sees what earlier parses recorded.
+pub(crate) fn peek_expr_comments() -> Vec<crate::ast::template::JsComment> {
+    EXPR_COMMENT_SINK.with(|sink| sink.borrow().clone())
+}
+
 /// Drain the per-thread expression-comment sink. Returns all comments
 /// collected since the last drain.
 pub(crate) fn take_expr_comments() -> Vec<crate::ast::template::JsComment> {
@@ -215,6 +222,7 @@ fn record_oxc_comment(
         end: end as u32,
         value: compact_str::CompactString::from(value),
         loc,
+        loc_has_character: false,
     });
 }
 
@@ -1221,21 +1229,71 @@ fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-/// Words the fast path may spell but strict mode does not allow as an
-/// identifier, plus the two whose legality depends on how they are used.
-const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
-    "let",
-    "yield",
-    "static",
-    "implements",
-    "interface",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "eval",
-    "arguments",
-];
+/// Every word the fast path would spell as an ordinary identifier and the real
+/// parser would not: the reserved words, the strict-mode ones, and the two
+/// (`eval`, `arguments`) whose legality depends on how they are used.
+///
+/// The set has to be the closed one rather than the shapes anybody has hit.
+/// `import` and `new` head a construct whose node type the fast path cannot
+/// produce (`MetaProperty`, `ImportExpression`), and spelling `import.meta.url`
+/// as a member chain makes its leftmost object an unbound global — which every
+/// `is_pure` port then reads as static; `this` is the same shape one node type
+/// over (`ThisExpression`); and every remaining keyword is a program the real
+/// parser rejects and the fast path silently accepts.
+///
+/// `true` / `false` / `null` are absent on purpose: the fast path builds them as
+/// literals, which is what they are.
+#[inline]
+fn is_fast_path_suspect_word(word: &[u8]) -> bool {
+    matches!(
+        word,
+        b"await"
+            | b"break"
+            | b"case"
+            | b"catch"
+            | b"class"
+            | b"const"
+            | b"continue"
+            | b"debugger"
+            | b"default"
+            | b"delete"
+            | b"do"
+            | b"else"
+            | b"enum"
+            | b"export"
+            | b"extends"
+            | b"finally"
+            | b"for"
+            | b"function"
+            | b"if"
+            | b"import"
+            | b"in"
+            | b"instanceof"
+            | b"new"
+            | b"return"
+            | b"super"
+            | b"switch"
+            | b"this"
+            | b"throw"
+            | b"try"
+            | b"typeof"
+            | b"var"
+            | b"void"
+            | b"while"
+            | b"with"
+            | b"yield"
+            | b"let"
+            | b"static"
+            | b"implements"
+            | b"interface"
+            | b"package"
+            | b"private"
+            | b"protected"
+            | b"public"
+            | b"eval"
+            | b"arguments"
+    )
+}
 
 /// Whether `bytes` could hold something the fast path would accept and acorn
 /// would not — a legacy octal literal, an escape inside a string literal, or one
@@ -1243,6 +1301,10 @@ const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
 /// only costs a real parse.
 fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
     let mut i = 0;
+    // A word after `.` is a PROPERTY name, where every reserved word is legal —
+    // and `props.class` is ordinary Svelte, so exempting it is what keeps the
+    // widened list off the common path.
+    let mut after_dot = false;
     while i < bytes.len() {
         let b = bytes[i];
         if b == b'\\' {
@@ -1254,11 +1316,10 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
                 i += 1;
             }
             let word = &bytes[start..i];
-            // A member/property name is not a binding, but the fast path does
-            // not distinguish them and a real parse is cheap enough.
-            if FAST_PATH_SUSPECT_WORDS.iter().any(|w| w.as_bytes() == word) {
+            if !after_dot && is_fast_path_suspect_word(word) {
                 return true;
             }
+            after_dot = false;
             continue;
         }
         if b.is_ascii_digit() {
@@ -1269,7 +1330,11 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
             if bytes[start] == b'0' && bytes.get(start + 1).is_some_and(u8::is_ascii_digit) {
                 return true;
             }
+            after_dot = false;
             continue;
+        }
+        if !b.is_ascii_whitespace() {
+            after_dot = b == b'.';
         }
         i += 1;
     }
@@ -1498,12 +1563,11 @@ pub fn parse_expression<'a>(
         return Ok(expr);
     }
 
-    // Use known TS mode: parse with TS only if the file uses TypeScript,
-    // otherwise parse as JS directly. Fall back to the other mode only on failure.
-    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
-
-    if let Some(expr) = result {
+    // Upstream picks the acorn variant once per component from `parser.ts`, so a
+    // component with no `lang="ts"` script never reaches the TypeScript grammar.
+    // Falling back to the other mode here accepted TS-only syntax in a plain
+    // component's template.
+    if let Some(expr) = parse_expression_with_typescript(arena, content, offset, line_offsets, ts) {
         return Ok(expr);
     }
 
@@ -1518,7 +1582,7 @@ pub fn parse_expression<'a>(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content, ts)
     {
         return Err((error_msg, offset));
     }
@@ -1529,6 +1593,20 @@ pub fn parse_expression<'a>(
         offset + content.len(),
         line_offsets,
     ))
+}
+
+/// Wrap a source slice for OXC, keeping the suffix off the slice's last line —
+/// a trailing `//` comment would otherwise swallow it.
+///
+/// The newline sits between `content` and `suffix`, so every offset inside
+/// `content` keeps its position and an arrow's `)` stays adjacent to its `=>`.
+fn wrap_for_parse(prefix: &str, content: &str, suffix: &str) -> String {
+    let mut wrapped = String::with_capacity(prefix.len() + content.len() + suffix.len() + 1);
+    wrapped.push_str(prefix);
+    wrapped.push_str(content);
+    wrapped.push('\n');
+    wrapped.push_str(suffix);
+    wrapped
 }
 
 /// Parse a destructuring pattern (for `{@const}` tags).
@@ -1559,10 +1637,7 @@ pub fn parse_destructuring_pattern<'a>(
                 SourceType::mjs()
             };
 
-            let mut wrapped = String::with_capacity(content.len() + 12);
-            wrapped.push_str("let ");
-            wrapped.push_str(content);
-            wrapped.push_str(" = null");
+            let wrapped = wrap_for_parse("let ", content, "= null");
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
 
@@ -1630,11 +1705,8 @@ pub fn parse_expression_with_end<'a>(
         return Ok(expr);
     }
 
-    // Use known TS mode, fall back to other mode on failure
-    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
-
-    if let Some(expr) = result {
+    // The component's one language mode, as upstream picks it from `parser.ts`.
+    if let Some(expr) = parse_expression_with_typescript(arena, content, offset, line_offsets, ts) {
         return Ok(expr);
     }
 
@@ -1646,13 +1718,39 @@ pub fn parse_expression_with_end<'a>(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content, ts)
     {
         return Err((error_msg, offset));
     }
 
     // Fall back to invalid identifier
     Ok(create_invalid_identifier(offset, end, line_offsets))
+}
+
+/// Wrap a template expression's source text in `(` … `)` so OXC parses it as an
+/// expression rather than a program.
+///
+/// The newline before the closing paren restores what the caller's
+/// whitespace-trim removed: upstream parses in place, where a trailing `//`
+/// comment is still terminated by the template's own newline.
+fn wrap_in_parens(content: &str) -> String {
+    let mut wrapped = String::with_capacity(content.len() + 3);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    wrapped.push('\n');
+    wrapped.push(')');
+    wrapped
+}
+
+/// The `SourceType` a template expression is parsed with. Upstream picks the
+/// acorn variant once per component from `parser.ts`, so a component with no
+/// `lang="ts"` script never reaches the TypeScript grammar.
+fn expression_source_type(ts: bool) -> SourceType {
+    if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    }
 }
 
 /// Check if a JavaScript expression has parse errors, returning the failure
@@ -1669,31 +1767,74 @@ pub fn parse_expression_with_end<'a>(
 /// `content` is wrapped in `(...)` before being handed to OXC, so we subtract
 /// one from OXC's reported `offset + len` (the right-edge of the labeled span)
 /// to land back in the unwrapped expression's coordinate space — and clamp
-/// the result to `[0, content.len()]`. Acorn reports `err.pos` at the point
-/// where it stopped consuming tokens, which corresponds to the *end* of the
-/// problematic region, not its start.
+/// the result to `[0, content.len()]`. That right edge is only ever right
+/// because the clamp lands it on the close token, so when the wrapper is what
+/// failed, [`bare_parse_error`] re-reads the body and reports acorn's position
+/// directly.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
+    // Two inputs acorn rejects on their very first token are described by the
+    // `(…)` wrapper below instead of by themselves — nothing is left for OXC to
+    // complain about but the parentheses it never saw in the source. Answer
+    // them here, where the wrapper cannot reach.
+    let leading_ws = content.len() - content.trim_start_ws().len();
+    let head = &content[leading_ws..];
+    if head.trim_end_ws().is_empty() || head.starts_with("...") {
+        return Some(("Unexpected token".to_string(), leading_ws));
+    }
+
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
-        with_oxc_allocator(|allocator| {
+        // `retry_bare` marks a diagnostic the `(…)` wrapper produced. The bare
+        // re-probe cannot run inside this closure: `with_oxc_allocator` hands
+        // out one thread-local arena and nesting it panics.
+        let (message, pos, retry_bare) = with_oxc_allocator(|allocator| {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
             if let Some(first_error) = result.diagnostics.first() {
+                // Acorn raises the shorthand-assignment error at the `=` token,
+                // while OXC labels the whole `a = 1` property.
+                if first_error.message.as_ref() == "Invalid assignment in object literal"
+                    && let Some(label) = first_error.labels.first()
+                {
+                    let label_start = label.offset() as usize;
+                    let label_end = label_start + label.len() as usize;
+                    if let Some(slice) = wrapped.get(label_start..label_end)
+                        && let Some(eq) = shorthand_assign_offset(slice)
+                    {
+                        return Some((
+                            "Shorthand property assignments are valid only in destructuring patterns"
+                                .to_string(),
+                            (label_start + eq).saturating_sub(1).min(content.len()),
+                        ));
+                    }
+                }
                 // Acorn raises "Assigning to rvalue" at the target's start, not
                 // where it stopped consuming, so this one label reads left.
                 let at_label_start = matches!(
                     first_error.message.as_ref(),
                     "Cannot assign to this expression" | "Invalid left-hand side in assignment"
                 );
+                // The default reads the label's END because acorn reports where
+                // it stopped consuming — true when the label is what it consumed,
+                // false when the label IS the offending token, which acorn then
+                // reports at its start. `Expected X but found Y` labels the found
+                // token, so it belongs to the second group too.
+                let report_at_label_start = at_label_start
+                    || matches!(
+                        first_error.message.as_ref(),
+                        "Unexpected token" | "Unexpected new.target expression"
+                    )
+                    || first_error.message.starts_with("Expected ");
                 let pos = first_error
                     .labels
                     .first()
                     .map(|label| {
-                        if at_label_start {
+                        if report_at_label_start {
                             label.offset() as usize
                         } else {
                             label.offset() as usize + label.len() as usize
@@ -1704,19 +1845,23 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                         wrapped_end.saturating_sub(1).min(content.len())
                     })
                     .unwrap_or(0);
-                let message = if at_label_start {
-                    "Assigning to rvalue".to_string()
-                } else {
-                    first_error.message.to_string()
+                if at_label_start {
+                    return Some(("Assigning to rvalue".to_string(), pos, false));
+                }
+                // `()` is the wrapper's own diagnostic for an empty tag body;
+                // acorn, given the body unwrapped, calls it an unexpected token.
+                let message = match first_error.message.as_ref() {
+                    "Empty parenthesized expression" => "Unexpected token",
+                    other => other,
                 };
-                return Some((message, pos));
+                return Some((message.to_string(), pos, true));
             }
             // Check for invalid assignment targets that OXC doesn't report as errors
             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
                 && is_invalid_assignment_expression(&expr_stmt.expression)
             {
-                return Some(("Assigning to rvalue".to_string(), 0));
+                return Some(("Assigning to rvalue".to_string(), 0, false));
             }
             // A template expression is parsed by its own function, so it needs
             // the acorn-only restrictions applied here too — the script path's
@@ -1726,10 +1871,20 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                 acorn_only_violation(&result.program, &wrapped, source_type.is_typescript())
             {
                 let pos = (at as usize).saturating_sub(1).min(content.len());
-                return Some((message, pos));
+                return Some((message, pos, false));
             }
             None
-        })
+        })?;
+
+        // The `(…)` is ours, not the template's, so a diagnostic that only
+        // exists because of it (`()`, a trailing comma, an arrow parameter
+        // list) is not the one upstream's `parseExpressionAt` reports on the
+        // unwrapped body. When the body itself has a diagnostic, that is
+        // acorn's — and acorn reports the *start* of the token it stopped on.
+        if retry_bare && let Some(bare) = bare_parse_error(content, source_type) {
+            return Some(bare);
+        }
+        Some((message, pos))
     };
 
     // Try TypeScript first
@@ -1744,7 +1899,28 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     // No JS errors means valid
     js_result.as_ref()?;
 
-    js_result.or(ts_result)
+    let result = js_result.or(ts_result);
+
+    // A body with no code in it has nothing of its own to fail on, so whatever
+    // OXC reported describes the `(…)` this probe wrapped it in. Acorn is given
+    // the unwrapped text and says `Unexpected token` at the delimiter.
+    if is_code_empty(content) {
+        return result.map(|(_, pos)| ("Unexpected token".to_string(), pos));
+    }
+    result
+}
+
+/// Whether `content` carries no JavaScript at all — only whitespace and
+/// comments. Answered by the parser rather than by a scan so that a `//` or
+/// `/*` inside a string cannot be mistaken for one.
+fn is_code_empty(content: &str) -> bool {
+    if content.is_empty() {
+        return true;
+    }
+    with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, content, SourceType::mjs()).parse();
+        result.program.body.is_empty() && result.diagnostics.is_empty()
+    })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
@@ -1757,10 +1933,7 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
 ///
 /// Returns `Some((message, pos_in_params))` when parsing fails.
 pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize)> {
-    let mut wrapped = String::with_capacity(params.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(params);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", params, ") => {}");
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
@@ -1826,7 +1999,7 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
 /// This mirrors upstream Svelte's `read_expression` + `eat(close, true)` flow:
 /// acorn parses one maximal expression, and any leftover surfaces as
 /// `expected_token` while a broken expression surfaces as `js_parse_error`.
-pub fn trailing_token_offset(content: &str) -> Option<usize> {
+pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
     // Wrap in parens so a *complete* leading expression is consumed greedily and
     // the first error label lands on the first leftover token. (Parsing the bare
     // string as a program is unreliable: OXC's statement-level error recovery
@@ -1834,28 +2007,113 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
-    let probe = |source_type: SourceType| -> Option<usize> {
-        with_oxc_allocator(|allocator| {
-            let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-            let first_error = result.diagnostics.first()?;
-            let label = first_error.labels.first()?;
-            // Map the label's *start* back into `content` (strip the leading `(`).
-            let start = label.offset() as usize;
-            if start == 0 {
-                return None;
-            }
-            let content_pos = start - 1;
-            // A trailing-token error has leftover input *before* the synthetic
-            // closing `)`; an incomplete expression errors at/after the end.
-            if content_pos >= content.len() {
-                return None;
-            }
-            Some(content_pos)
-        })
-    };
-    probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
+    let content_pos = with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, &wrapped, expression_source_type(ts)).parse();
+        // OXC keeps a TypeScript-only operator in a JavaScript file and reports
+        // it as a diagnostic over the whole expression; acorn has no such node
+        // and stops where the operator begins.
+        if !ts && let Some(at) = typescript_operator_start(&result.program) {
+            return (at as usize).checked_sub(1);
+        }
+        let first_error = result.diagnostics.first()?;
+        let label = first_error.labels.first()?;
+        // Map the label's *start* back into `content` (strip the leading `(`).
+        let start = label.offset() as usize;
+        if start == 0 {
+            return None;
+        }
+        Some(start - 1)
+    })?;
+
+    // A trailing-token error has leftover input *before* the synthetic closing
+    // `)`; an incomplete expression errors at/after the end.
+    if content_pos >= content.len() {
+        return None;
+    }
+    // acorn parses ONE maximal expression and only then expects the close token,
+    // so leftover input is only leftover when what precedes it is itself a
+    // complete expression. Without this an error *inside* the expression (e.g.
+    // `String(a b)`) reads as a missing close token.
+    let prefix = content.get(..content_pos)?;
+    check_js_parse_error_with_pos(prefix, ts)
+        .is_none()
+        .then_some(content_pos)
+}
+
+/// The start of the leftmost TypeScript-only postfix operator (`as`,
+/// `satisfies`, `!`) OXC recovered while parsing a JavaScript file — i.e. the
+/// byte where acorn would have stopped. `None` when the program carries none.
+fn typescript_operator_start(program: &OxcProgram<'_>) -> Option<u32> {
+    use oxc_ast_visit::Visit;
+
+    #[derive(Default)]
+    struct Scan {
+        at: Option<u32>,
+    }
+    impl Scan {
+        fn record(&mut self, end: u32) {
+            self.at = Some(self.at.map_or(end, |current| current.min(end)));
+        }
+    }
+    impl<'a> Visit<'a> for Scan {
+        fn visit_ts_as_expression(&mut self, node: &oxc_ast::ast::TSAsExpression<'a>) {
+            self.record(node.expression.span().end);
+            oxc_ast_visit::walk::walk_ts_as_expression(self, node);
+        }
+        fn visit_ts_satisfies_expression(
+            &mut self,
+            node: &oxc_ast::ast::TSSatisfiesExpression<'a>,
+        ) {
+            self.record(node.expression.span().end);
+            oxc_ast_visit::walk::walk_ts_satisfies_expression(self, node);
+        }
+        fn visit_ts_non_null_expression(&mut self, node: &oxc_ast::ast::TSNonNullExpression<'a>) {
+            self.record(node.expression.span().end);
+            oxc_ast_visit::walk::walk_ts_non_null_expression(self, node);
+        }
+    }
+
+    let mut scan = Scan::default();
+    scan.visit_program(program);
+    scan.at
+}
+
+/// Classify a failed `read_expression` for a construct terminated by
+/// `close_char`, the way upstream's caller does: acorn parses ONE maximal
+/// expression and the caller then `eat(close_char, true)`, so leftover input
+/// after a *complete* expression is a missing close token while a malformed
+/// expression is a `js_parse_error` at the byte where the parse stopped.
+///
+/// The prefix re-parse is what separates the two: OXC labels an invalid
+/// assignment target at the target's start, which the leftover-input probe
+/// would otherwise read as "the expression ended here".
+pub fn close_token_or_parse_error(
+    msg: String,
+    trimmed: &str,
+    trimmed_offset: usize,
+    close_char: char,
+) -> crate::error::ParseError {
+    let trailing = trailing_token_offset(trimmed).filter(|&off| {
+        off > 0
+            && trimmed
+                .get(..off)
+                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix).is_none())
+    });
+    if let Some(off) = trailing {
+        let mut buf = [0u8; 4];
+        return crate::error::ParseError::expected_token(
+            close_char.encode_utf8(&mut buf),
+            trimmed_offset + off,
+        );
+    }
+    let at = check_js_parse_error_with_pos(trimmed)
+        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
+            trimmed_offset + pos
+        });
+    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
 }
 
 /// Create an identifier for invalid expressions
@@ -1920,10 +2178,7 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
-        wrapped.push('(');
-        wrapped.push_str(content);
-        wrapped.push(')');
+        let wrapped = wrap_for_parse("(", content, ")");
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
@@ -1947,15 +2202,10 @@ fn parse_expression_with_typescript<'a>(
             }
 
             // Adjust positions: subtract 1 for the opening paren we added
-            let mut expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
+            let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
             if !result.program.comments.is_empty() {
-                // Get the actual expression's start and end positions
-                let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
-                let expr_start = inner_expr.span().start;
-                let expr_end = inner_expr.span().end;
-
                 // Mirror upstream `parser.root.comments`: every comment seen
                 // by acorn is pushed there in source order, *in addition* to
                 // being attached as leading/trailing on the inner node.
@@ -1988,34 +2238,36 @@ fn parse_expression_with_typescript<'a>(
                     return Some(expr);
                 }
 
-                // Collect leading comments (before the expression)
-                let leading_comments: Vec<Value> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|comment| comment.span.end <= expr_start)
-                    .map(|comment| {
-                        // Adjust positions: -1 for the paren, then add offset
-                        let comment_start = offset + comment.span.start as usize - 1;
-                        let comment_end = offset + comment.span.end as usize - 1;
-
-                        // Get raw comment text
-                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let mut value = extract_comment_value(raw, comment.kind);
-
-                        // Normalize block comment indentation
-                        if matches!(
-                            comment.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                comment.span.start as usize - 1,
-                            );
-                        }
-
+                // Upstream runs the same `add_comments` walk over a template
+                // expression as over a script program (`read_expression` shares
+                // `get_comment_handlers`), so the trailing-comment rules — the
+                // last-in-body case and the `/^[,) \t]*$/` separator — hold here too.
+                let mut comment_entries: Vec<CommentEntry> =
+                    Vec::with_capacity(result.program.comments.len());
+                let mut comment_values: Vec<Value> =
+                    Vec::with_capacity(result.program.comments.len());
+                for comment in result.program.comments.iter() {
+                    // -1 for the paren the expression was wrapped in.
+                    let comment_start = offset + comment.span.start as usize - 1;
+                    let comment_end = offset + comment.span.end as usize - 1;
+                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                    let mut value = extract_comment_value(raw, comment.kind);
+                    if matches!(
+                        comment.kind,
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock
+                    ) {
+                        value = normalize_block_comment_indentation(
+                            &value,
+                            content,
+                            comment.span.start as usize - 1,
+                        );
+                    }
+                    comment_entries.push(CommentEntry {
+                        start: comment_start as u32,
+                        text: CompactString::from(value.as_str()),
+                    });
+                    comment_values.push(
                         create_comment_object(
                             comment.kind,
                             value,
@@ -2023,116 +2275,42 @@ fn parse_expression_with_typescript<'a>(
                             comment_end,
                             line_offsets,
                         )
-                        .to_value()
-                    })
-                    .collect();
+                        .to_value(),
+                    );
+                }
 
-                // Collect trailing comments (after the expression)
-                let trailing_comments: Vec<Value> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|comment| comment.span.start >= expr_end)
-                    .map(|comment| {
-                        // Adjust positions: -1 for the paren, then add offset
-                        let comment_start = offset + comment.span.start as usize - 1;
-                        let comment_end = offset + comment.span.end as usize - 1;
+                let json_val = expr.as_json();
+                let root_span = json_val
+                    .get("start")
+                    .and_then(Value::as_u64)
+                    .zip(json_val.get("end").and_then(Value::as_u64))
+                    .map(|(s, e)| (s as u32, e as u32));
+                let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
+                let mut attacher = CommentAttacher {
+                    comments: &comment_entries,
+                    values: &comment_values,
+                    arena: Some(arena),
+                    next: 0,
+                    content,
+                    offset: offset as u32,
+                    map: &mut ignore_comment_map,
+                };
+                attacher.visit(json_val, None);
+                let claimed = attacher.next;
 
-                        // Get raw comment text
-                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let mut value = extract_comment_value(raw, comment.kind);
-
-                        // Normalize block comment indentation
-                        if matches!(
-                            comment.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                comment.span.start as usize - 1,
-                            );
-                        }
-
-                        create_comment_object(
-                            comment.kind,
-                            value,
-                            comment_start,
-                            comment_end,
-                            line_offsets,
-                        )
-                        .to_value()
-                    })
-                    .collect();
-
-                // Interior comments: a comment that sits *inside* the
-                // expression (after its start, before its end) is attached as a
-                // `leadingComments` entry on the sub-node it immediately
-                // precedes — mirroring acorn (e.g. `a instanceof /* c */ B`
-                // attaches `/* c */` to `B`). Svelte 5.56.1 #18330.
-                let interior_comments: Vec<(usize, Value)> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|c| c.span.end > expr_start && c.span.start < expr_end)
-                    .map(|c| {
-                        let comment_start = offset + c.span.start as usize - 1;
-                        let comment_end = offset + c.span.end as usize - 1;
-                        let raw = &wrapped[c.span.start as usize..c.span.end as usize];
-                        let mut value = extract_comment_value(raw, c.kind);
-                        if matches!(
-                            c.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                c.span.start as usize - 1,
-                            );
-                        }
-                        (
-                            comment_end,
-                            create_comment_object(
-                                c.kind,
-                                value,
-                                comment_start,
-                                comment_end,
-                                line_offsets,
-                            )
-                            .to_value(),
-                        )
-                    })
-                    .collect();
-
-                // Attach comments to the expression
-                if !leading_comments.is_empty()
-                    || !trailing_comments.is_empty()
-                    || !interior_comments.is_empty()
+                // Upstream's "trailing comments after the root node" case, which
+                // is what lets a caller find the end of the expression tag.
+                if let Some((root_start, root_end)) = root_span
+                    && comment_entries
+                        .get(claimed)
+                        .is_some_and(|c| c.start >= root_end)
                 {
-                    let mut json_val = expr.as_json().clone();
-                    if let Value::Object(ref mut obj) = json_val {
-                        if !leading_comments.is_empty() {
-                            obj.set_field("leadingComments", Value::Array(leading_comments));
-                        }
-                        if !trailing_comments.is_empty() {
-                            obj.set_field("trailingComments", Value::Array(trailing_comments));
-                        }
-                    }
-                    // Attach each interior comment to the node it precedes.
-                    for (comment_end, comment_obj) in interior_comments {
-                        if let Some(target) =
-                            json_min_node_start_at_or_after(&json_val, comment_end)
-                        {
-                            json_attach_leading_comment_at_start(
-                                &mut json_val,
-                                target,
-                                &comment_obj,
-                            );
-                        }
-                    }
-                    expr = Expression::from_json(json_val);
+                    let (leading, claimed_trailing) = arena
+                        .node_comments(root_start, root_end)
+                        .unwrap_or((None, None));
+                    let mut trailing = claimed_trailing.unwrap_or_default();
+                    trailing.extend(comment_values[claimed..].iter().cloned());
+                    arena.record_node_comments(root_start, root_end, leading, Some(trailing));
                 }
             }
 
@@ -2141,98 +2319,6 @@ fn parse_expression_with_typescript<'a>(
 
         None
     })
-}
-
-/// Smallest `start` among AST nodes (objects carrying a non-comment `type`)
-/// whose `start >= threshold`. Used to find the node an interior comment
-/// immediately precedes.
-fn json_min_node_start_at_or_after(node: &Value, threshold: usize) -> Option<usize> {
-    fn walk(node: &Value, threshold: usize, best: &mut Option<usize>) {
-        match node {
-            Value::Object(map) => {
-                let is_ast_node = map
-                    .get("type")
-                    .and_then(|t| t.as_str())
-                    .is_some_and(|t| t != "Block" && t != "Line");
-                if is_ast_node
-                    && let Some(s) = map
-                        .get("start")
-                        .and_then(|v| v.as_u64())
-                        .map(|v| v as usize)
-                    && s >= threshold
-                    && best.is_none_or(|b| s < b)
-                {
-                    *best = Some(s);
-                }
-                for v in map.values() {
-                    walk(v, threshold, best);
-                }
-            }
-            Value::Array(arr) => {
-                for v in arr {
-                    walk(v, threshold, best);
-                }
-            }
-            _ => {}
-        }
-    }
-    let mut best = None;
-    walk(node, threshold, &mut best);
-    best
-}
-
-/// Attach `comment` to the `leadingComments` of the first (pre-order /
-/// outermost) AST node whose `start == target_start`.
-fn json_attach_leading_comment_at_start(
-    node: &mut Value,
-    target_start: usize,
-    comment: &Value,
-) -> bool {
-    match node {
-        Value::Object(map) => {
-            let is_ast_node = map
-                .get("type")
-                .and_then(|t| t.as_str())
-                .is_some_and(|t| t != "Block" && t != "Line");
-            let start = map
-                .get("start")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as usize);
-            if is_ast_node && start == Some(target_start) {
-                let entry = map
-                    .entry("leadingComments".to_string())
-                    .or_insert_with(|| Value::Array(Vec::new()));
-                if let Value::Array(arr) = entry {
-                    arr.push(comment.clone());
-                }
-                return true;
-            }
-            for v in map.values_mut() {
-                if json_attach_leading_comment_at_start(v, target_start, comment) {
-                    return true;
-                }
-            }
-            false
-        }
-        Value::Array(arr) => {
-            for v in arr.iter_mut() {
-                if json_attach_leading_comment_at_start(v, target_start, comment) {
-                    return true;
-                }
-            }
-            false
-        }
-        _ => false,
-    }
-}
-
-/// Unwrap ParenthesizedExpression to get the inner expression.
-/// This is needed because we wrap expressions in parentheses for parsing.
-fn unwrap_parenthesized<'a>(expr: &'a OxcExpression<'a>) -> &'a OxcExpression<'a> {
-    match expr {
-        OxcExpression::ParenthesizedExpression(paren) => unwrap_parenthesized(&paren.expression),
-        _ => expr,
-    }
 }
 
 /// Strip optional markers (`?`) from TypeScript parameter names.
@@ -2367,10 +2453,7 @@ pub fn parse_typescript_params<'a>(
     let source_type = SourceType::ts();
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
-    let mut wrapped = String::with_capacity(content.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", content, ") => {}");
     let mut params = Vec::new();
 
     enum ParseOutcome<'a> {
@@ -2420,10 +2503,7 @@ pub fn parse_typescript_params<'a>(
 
     // OXC TS parser failed - try stripping optional markers and re-parsing
     let stripped = strip_optional_markers(content);
-    let mut cleaned_wrapped = String::with_capacity(stripped.content.len() + 9);
-    cleaned_wrapped.push('(');
-    cleaned_wrapped.push_str(&stripped.content);
-    cleaned_wrapped.push_str(") => {}");
+    let cleaned_wrapped = wrap_for_parse("(", &stripped.content, ") => {}");
 
     let cleaned_ok = with_oxc_allocator(|allocator| {
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
@@ -2474,10 +2554,7 @@ pub fn parse_typescript_params<'a>(
                 .map(|p| search_from + p)
                 .unwrap_or(search_from);
             search_from = part_offset_in_content + part.len();
-            let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
-            single_wrapped.push('(');
-            single_wrapped.push_str(&stripped_part.content);
-            single_wrapped.push_str(") => {}");
+            let single_wrapped = wrap_for_parse("(", &stripped_part.content, ") => {}");
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();
@@ -4504,6 +4581,26 @@ pub fn create_identifier_with_character<'a>(
         optional: false,
         type_annotation: None,
     })
+}
+
+/// Re-emit an `Identifier`'s `loc` the way upstream's `Parser.read_identifier`
+/// builds it — from `locate-character`, so it carries `character`. Anything the
+/// JS parser produced keeps acorn's `{line, column}` and passes through.
+pub fn with_read_identifier_loc<'a>(
+    expr: Expression<'a>,
+    line_offsets: &[usize],
+) -> Expression<'a> {
+    if expr.node_type() != Some("Identifier") {
+        return expr;
+    }
+    let mut node = expr.as_node().into_owned();
+    if let JsNode::Identifier {
+        start, end, loc, ..
+    } = &mut node
+    {
+        *loc = create_typed_loc_with_character(*start as usize, *end as usize, line_offsets);
+    }
+    Expression::from_node(node)
 }
 
 /// Create an identifier WITHOUT a loc field.
@@ -6767,6 +6864,11 @@ pub struct ProgramParseParams<'source, 'context> {
     pub line_offsets: &'context [usize],
     /// Set to true if the script contains TypeScript.
     pub is_typescript: bool,
+    /// Whether this is a component `<script>` rather than a standalone module.
+    /// Upstream passes the same flag to `acorn.parse`, which uses it to clear
+    /// `undefinedExports` — an exported name may be declared elsewhere in the
+    /// component, so only a module raises `Export 'x' is not defined`.
+    pub is_script: bool,
     /// HTML comments that appeared before the script tag.
     pub leading_comments: &'context [String],
     /// Positions for loc calculation (Svelte uses locator(start) for
@@ -6793,7 +6895,13 @@ pub fn parse_program_with_error<'a>(
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, params.content, source_type).parse();
-        convert_parsed_program(arena, &result.program, &result.diagnostics, params)
+        convert_parsed_program(
+            arena,
+            &result.program,
+            &result.diagnostics,
+            &result.irregular_whitespaces,
+            params,
+        )
     })
 }
 
@@ -6807,8 +6915,13 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 ) {
     let retained =
         crate::ast::oxc_program::RetainedProgram::parse(params.content, params.is_typescript);
-    let (program, parse_error) =
-        convert_parsed_program(arena, retained.program(), retained.diagnostics(), params);
+    let (program, parse_error) = convert_parsed_program(
+        arena,
+        retained.program(),
+        retained.diagnostics(),
+        retained.irregular_whitespaces(),
+        params,
+    );
     (program, parse_error, retained)
 }
 
@@ -6817,7 +6930,7 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 /// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
 /// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
 /// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
-const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
     "1015", // A parameter cannot have a question mark and an initializer
     "1016", // A required parameter cannot follow an optional parameter
     "1021", // An index signature must have a type annotation
@@ -6827,6 +6940,8 @@ const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
     "1093", // Type annotation cannot appear on a constructor declaration
     "1094", // An accessor cannot have type parameters
     "1095", // A 'set' accessor cannot have a return type annotation
+    "1147", // Import declarations in a namespace cannot reference a module
+    "1194", // Export declarations are not permitted in a namespace
     "1221", // Generators are not allowed in an ambient context
     "1222", // An overload signature cannot be declared as a generator
     "1263", // Declarations with initializers cannot also have definite assignment assertions
@@ -6956,12 +7071,28 @@ fn acorn_only_violation(
     is_typescript: bool,
 ) -> Option<(u32, String)> {
     use oxc_ast_visit::Visit;
-    struct Scan {
+    struct Scan<'c> {
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        export_declare_global_at: Option<u32>,
+        check_ts_modifier: bool,
+        content: &'c str,
+        ts_modifier_at: Option<u32>,
     }
-    impl<'a> Visit<'a> for Scan {
+    impl Scan<'_> {
+        fn record_ts_modifier(&mut self, carries_modifier: bool, span: oxc_span::Span) {
+            if !self.check_ts_modifier || !carries_modifier {
+                return;
+            }
+            if let Some(at) = ts_class_modifier_stop(self.content, span.start)
+                && self.ts_modifier_at.is_none_or(|seen| at < seen)
+            {
+                self.ts_modifier_at = Some(at);
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Scan<'_> {
         fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
             if self.check_decorator && self.decorator_at.is_none() {
                 self.decorator_at = Some(dec.span.start);
@@ -6973,16 +7104,60 @@ fn acorn_only_violation(
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
         }
+        // `export declare global { … }`: acorn wants an ambient declaration after
+        // `export declare`, and a global augmentation is not one.
+        fn visit_export_declaration(&mut self, export: &oxc_ast::ast::ExportDeclaration<'a>) {
+            if let oxc_ast::ast::Declaration::TSGlobalDeclaration(global) = &export.declaration
+                && self.export_declare_global_at.is_none()
+            {
+                self.export_declare_global_at = Some(global.span.start);
+            }
+            oxc_ast_visit::walk::walk_export_declaration(self, export);
+        }
+        fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition,
+                def.span,
+            );
+            oxc_ast_visit::walk::walk_method_definition(self, def);
+        }
+        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.readonly
+                    || def.declare
+                    || def.r#type
+                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
+                def.span,
+            );
+            oxc_ast_visit::walk::walk_property_definition(self, def);
+        }
+        fn visit_accessor_property(&mut self, def: &oxc_ast::ast::AccessorProperty<'a>) {
+            // acorn has no auto-accessor plugin, so `accessor` itself is the violation.
+            self.record_ts_modifier(true, def.span);
+            oxc_ast_visit::walk::walk_accessor_property(self, def);
+        }
     }
 
     let check_decorator = !is_typescript && content.contains('@');
     let check_with = content.contains("with");
+    let check_ts_modifier = !is_typescript && content.contains("class");
     let mut finder = Scan {
         check_decorator,
         decorator_at: None,
         with_at: None,
+        export_declare_global_at: None,
+        check_ts_modifier,
+        content,
+        ts_modifier_at: None,
     };
-    if check_decorator || check_with {
+    // The TypeScript-only rule below needs a token that is cheap to rule out, so
+    // a plain-JS script keeps the walk it had.
+    let check_ts_acorn = is_typescript && content.contains("global");
+    if check_decorator || check_with || check_ts_modifier || check_ts_acorn {
         finder.visit_program(program);
     }
 
@@ -6996,12 +7171,75 @@ fn acorn_only_violation(
                 "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error".to_string(),
             )
         }),
+        finder.export_declare_global_at.map(|at| {
+            (
+                at,
+                "'export declare' must be followed by an ambient declaration.".to_string(),
+            )
+        }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
         super::strict_mode::find_violation(program, content, is_typescript),
+        finder
+            .ts_modifier_at
+            .map(|at| (at, "Unexpected token".to_string())),
     ]
     .into_iter()
     .flatten()
     .min_by_key(|(at, _)| *at)
+}
+
+/// TypeScript-only class-member modifiers. OXC parses these in a plain-JS
+/// source too and reports nothing, so every acorn boundary has to ask.
+const TS_ONLY_CLASS_MODIFIERS: [&str; 8] = [
+    "public",
+    "private",
+    "protected",
+    "readonly",
+    "override",
+    "declare",
+    "abstract",
+    "accessor",
+];
+
+/// Where acorn stops on such a member: it reads the modifier as the member's
+/// *name*, so the error lands on the token that could not follow it.
+///
+/// Only reached once OXC has already flagged the member, so the bytes from
+/// `from` are modifier keywords, whitespace and comments — never a string or a
+/// regex literal.
+fn ts_class_modifier_stop(content: &str, from: u32) -> Option<u32> {
+    let mut i = from as usize;
+    let mut seen_modifier = false;
+    loop {
+        loop {
+            i += content[i..]
+                .find(|c: char| !c.is_whitespace())
+                .unwrap_or(content.len() - i);
+            let rest = &content[i..];
+            if let Some(body) = rest.strip_prefix("//") {
+                i += 2 + body.find('\n')?;
+            } else if let Some(body) = rest.strip_prefix("/*") {
+                i += 2 + body.find("*/")? + 2;
+            } else {
+                break;
+            }
+        }
+        if i >= content.len() {
+            return None;
+        }
+        if seen_modifier {
+            return Some(i as u32);
+        }
+        let word = content[i..]
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+            .unwrap_or(content.len() - i);
+        if word == 0 {
+            // A decorator's `@`, reported by the decorator arm instead.
+            return None;
+        }
+        seen_modifier = TS_ONLY_CLASS_MODIFIERS.contains(&&content[i..i + word]);
+        i += word;
+    }
 }
 
 /// OXC reports a missing semicolon at the INSERTION POINT — the end of the
@@ -7036,10 +7274,29 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
     (i, "Unexpected token".to_string())
 }
 
+/// The first offset oxc classified as irregular whitespace that ECMAScript does
+/// not admit as whitespace at all. oxc's `is_irregular_whitespace` spans
+/// `U+2000..=U+200B` and includes `U+0085`, while `WhiteSpace` is `Zs` plus the
+/// four fixed code points — so `U+200B` and `U+0085` parse here and are
+/// `Unexpected character` for acorn, and so for upstream. Keying on the spans
+/// the parser itself reports is what keeps a string literal or a comment
+/// containing one of them accepted, as upstream accepts it.
+fn first_non_ecmascript_whitespace(content: &str, irregular: &[oxc_span::Span]) -> Option<usize> {
+    irregular
+        .iter()
+        .filter_map(|span| {
+            let at = span.start as usize;
+            let ch = content.get(at..)?.chars().next()?;
+            (!super::super::parser::is_js_whitespace(ch)).then_some(at)
+        })
+        .min()
+}
+
 fn convert_parsed_program<'ast>(
     arena: &ParseArena,
     program: &OxcProgram<'_>,
     diagnostics: &[OxcDiagnostic],
+    irregular_whitespaces: &[oxc_span::Span],
     params: ProgramParseParams<'_, '_>,
 ) -> (Expression<'ast>, Option<crate::error::ParseError>) {
     let ProgramParseParams {
@@ -7047,6 +7304,7 @@ fn convert_parsed_program<'ast>(
         offset,
         line_offsets,
         is_typescript,
+        is_script,
         leading_comments,
         script_tag_start,
         script_tag_end,
@@ -7055,7 +7313,7 @@ fn convert_parsed_program<'ast>(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let mut parse_error = diagnostics
+        let reported_at = diagnostics
             .iter()
             .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
             .map(|first_error| {
@@ -7064,18 +7322,38 @@ fn convert_parsed_program<'ast>(
                     .first()
                     .map(|label| (label.offset() as usize).min(content.len()))
                     .unwrap_or(0);
-                let (at, message) = realign_missing_semicolon(content, at, &first_error.message);
-                let pos = at + offset;
-                crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
+                realign_missing_semicolon(content, at, &first_error.message)
             });
+        let mut reported_at = reported_at;
+        let mut parse_error = reported_at.as_ref().map(|(at, message)| {
+            let pos = at + offset;
+            crate::error::ParseError::svelte("js_parse_error", message.clone(), (pos, pos))
+        });
 
         if parse_error.is_none()
             && let Some((at, message)) = acorn_only_violation(program, content, is_typescript)
         {
             let pos = at as usize + offset;
+            reported_at = Some((at as usize, message.clone()));
             parse_error = Some(crate::error::ParseError::svelte(
                 "js_parse_error",
                 message,
+                (pos, pos),
+            ));
+        }
+
+        // acorn stops at the first thing it cannot read, so a character it does
+        // not accept as whitespace outranks any error further along the source.
+        if let Some(at) = first_non_ecmascript_whitespace(content, irregular_whitespaces)
+            && reported_at
+                .as_ref()
+                .is_none_or(|(reported, _)| at < *reported)
+        {
+            let ch = content[at..].chars().next().unwrap_or('\u{fffd}');
+            let pos = at + offset;
+            parse_error = Some(crate::error::ParseError::svelte(
+                "js_parse_error",
+                format!("Unexpected character '{ch}'"),
                 (pos, pos),
             ));
         }
@@ -7106,6 +7384,21 @@ fn convert_parsed_program<'ast>(
             let start = comment.span.start as usize;
             start <= end && content[start..end].contains("svelte-ignore")
         });
+
+        // With capture on (the public `parse()` API and the parser fixtures) the
+        // walk below also has to record the comments on the nodes, which is what
+        // upstream's `add_comments` does — so it runs for capture as well, not
+        // only for a `svelte-ignore` harvest.
+        let capture = crate::ast::arena::comment_capture_active();
+        // Every script parse is handed the same `parser.root.comments` array
+        // upstream, and `read_script` passes no `index`, so comments recorded by
+        // an earlier parse are still in it and bind to this program's first
+        // statement. Snapshot before this script's own are appended.
+        let inherited = if capture {
+            peek_expr_comments()
+        } else {
+            Vec::new()
+        };
 
         // Mirror upstream `parser.root.comments`: forward every comment seen
         // by the script parser so it lands in `Root.comments`.
@@ -7149,28 +7442,47 @@ fn convert_parsed_program<'ast>(
         // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-        let body: Vec<JsNode> = if has_comments && has_ignore {
+        // How many comments the walk consumed; the rest belong to the Program.
+        let mut claimed = 0usize;
+        // The comment list the walk sees: what earlier parses left behind,
+        // followed by this script's own.
+        let mut comment_entries: Vec<CommentEntry> = Vec::new();
+        let mut comment_values: Vec<Value> = Vec::new();
+        let walk =
+            (has_comments && has_ignore) || (capture && (has_comments || !inherited.is_empty()));
+        let body: Vec<JsNode> = if walk {
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
-            let comment_entries: Vec<CommentEntry> = all_comments
-                .iter()
-                .map(|comment| {
-                    let raw_text = content
-                        .get(comment.span.start as usize..comment.span.end as usize)
-                        .unwrap_or("");
-                    CommentEntry {
-                        start: offset as u32 + comment.span.start,
-                        text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
-                    }
-                })
-                .collect();
+            comment_entries.reserve(inherited.len() + all_comments.len());
+            for comment in &inherited {
+                comment_entries.push(CommentEntry {
+                    start: comment.start,
+                    text: comment.value.clone(),
+                });
+                comment_values.push(js_comment_value(comment));
+            }
+            for comment in all_comments.iter() {
+                let raw_text = content
+                    .get(comment.span.start as usize..comment.span.end as usize)
+                    .unwrap_or("");
+                comment_entries.push(CommentEntry {
+                    start: offset as u32 + comment.span.start,
+                    text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                });
+                if capture {
+                    comment_values.push(build_comment_value(comment, content, offset));
+                }
+            }
 
             let mut attacher = CommentAttacher {
                 comments: &comment_entries,
+                values: &comment_values,
+                arena: capture.then_some(arena),
                 next: 0,
                 content,
                 offset: offset as u32,
                 map: &mut ignore_comment_map,
+                captured: capture_comments.then(std::collections::HashMap::default),
             };
             let last_index = program.body.len().saturating_sub(1);
 
@@ -7193,6 +7505,20 @@ fn convert_parsed_program<'ast>(
                     attacher.skip_past(offset as u32 + stmt.span().end);
                 }
             }
+            claimed = attacher.next;
+
+            claimed = attacher.next;
+            if let Some(captured) = attacher.captured.take() {
+                for ((node_type, start, end), (leading, trailing)) in captured {
+                    arena.record_node_comments(
+                        &node_type,
+                        start,
+                        end,
+                        (!leading.is_empty()).then_some(leading),
+                        (!trailing.is_empty()).then_some(trailing),
+                    );
+                }
+            }
 
             body_nodes
         } else {
@@ -7205,16 +7531,21 @@ fn convert_parsed_program<'ast>(
                 .collect()
         };
 
-        // Build trailing comments (all JS comments stored on Program for backward compat)
-        let trailing_comments_val = if has_comments {
+        // Under capture this is upstream's "trailing comments after the root
+        // node" special case: only what no node claimed. Without capture the
+        // Program keeps carrying every comment, which is the shape Phase 2 /
+        // svelte2tsx / the linter have always read.
+        let trailing_comments_val = if capture {
+            (claimed < comment_values.len()).then(|| comment_values[claimed..].to_vec())
+        } else if !has_comments {
+            None
+        } else {
             Some(
                 all_comments
                     .iter()
                     .map(|comment| build_comment_value(comment, content, offset))
                     .collect(),
             )
-        } else {
-            None
         };
 
         // Build leading comments from HTML comments before script tag
@@ -7252,6 +7583,21 @@ fn convert_parsed_program<'ast>(
     }
 }
 
+/// The `{type, value, start, end}` shape upstream attaches to a node, built from
+/// an already-recorded `Root.comments` entry.
+fn js_comment_value(comment: &crate::ast::template::JsComment) -> Value {
+    let comment_type = match comment.kind {
+        crate::ast::template::JsCommentKind::Line => "Line",
+        crate::ast::template::JsCommentKind::Block => "Block",
+    };
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String(comment_type.to_string()));
+    obj.set_field("value", Value::String(comment.value.to_string()));
+    obj.set_field("start", Value::Number((i64::from(comment.start)).into()));
+    obj.set_field("end", Value::Number((i64::from(comment.end)).into()));
+    Value::Object(obj)
+}
+
 /// Build a comment JSON value from an OXC comment.
 fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: usize) -> Value {
     let comment_start = offset + comment.span.start as usize;
@@ -7286,10 +7632,12 @@ fn build_comment_value(comment: &oxc_ast::ast::Comment, content: &str, offset: u
 }
 
 /// A pre-computed comment entry: absolute start offset plus the comment text with
-/// its `//` / `/* */` delimiters stripped.
+/// its `//` / `/* */` delimiters stripped, and the ESTree object upstream's
+/// `add_comments` hands to a node (`{ type, value, start, end }`, no `loc`).
 struct CommentEntry {
     start: u32,
     text: CompactString,
+    value: Value,
 }
 
 /// What the walk needs to know about a node's parent to decide trailing-comment
@@ -7309,10 +7657,25 @@ struct ParentInfo {
 /// the key Phase 2 looks up while walking the typed AST.
 struct CommentAttacher<'a> {
     comments: &'a [CommentEntry],
+    /// The full `{type, value, start, end}` comment objects, parallel to
+    /// `comments`. Empty unless `arena` is set.
+    values: &'a [Value],
+    /// When set, the walk also records `leadingComments`/`trailingComments` on
+    /// each node — upstream's `add_comments`, which the public `parse()` output
+    /// carries. Left `None` on the compile path, where the side table is dead
+    /// weight (codegen re-parses script text).
+    arena: Option<&'a ParseArena>,
     next: usize,
     content: &'a str,
     offset: u32,
     map: &'a mut Vec<(u32, Vec<CompactString>)>,
+    /// `Some` on the public `parse()` path only: `(type, start, end) ->
+    /// (leadingComments, trailingComments)`, flushed into the arena's comment
+    /// side table so `JsNode`'s `Serialize` impl emits them. The compile path
+    /// leaves it `None` — codegen re-parses script text, so materialising them
+    /// there would cost every component and change no output.
+    captured:
+        Option<std::collections::HashMap<(CompactString, u32, u32), (Vec<Value>, Vec<Value>)>>,
 }
 
 impl CommentAttacher<'_> {
@@ -7322,7 +7685,9 @@ impl CommentAttacher<'_> {
         };
         let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
         let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let node_type = obj.get("type").and_then(|t| t.as_str());
 
+        let mut leading: Option<Vec<Value>> = None;
         if let Some(start) = start {
             while self
                 .comments
@@ -7330,12 +7695,15 @@ impl CommentAttacher<'_> {
                 .is_some_and(|comment| comment.start < start)
             {
                 self.record_leading(start, self.next);
+                if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                    leading.get_or_insert_with(Vec::new).push(value.clone());
+                }
                 self.next += 1;
             }
         }
 
         // Only these parents let their last child swallow the comments that follow it.
-        let last_body_field = match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+        let last_body_field = match node_type.unwrap_or("") {
             "Program" | "BlockStatement" => Some("body"),
             "ArrayExpression" => Some("elements"),
             "ObjectExpression" => Some("properties"),
@@ -7378,7 +7746,13 @@ impl CommentAttacher<'_> {
             }
         }
 
-        self.claim_trailing(end, parent.as_ref());
+        let trailing = self.claim_trailing(end, parent.as_ref());
+        if let Some(arena) = self.arena
+            && (leading.is_some() || trailing.is_some())
+            && let (Some(start), Some(end)) = (start, end)
+        {
+            arena.record_node_comments(start, end, leading, trailing);
+        }
     }
 
     /// Discard every comment that starts before `end` without recording it.
@@ -7394,28 +7768,38 @@ impl CommentAttacher<'_> {
 
     /// Let this node claim the comments that follow it, so they cannot become leading
     /// comments of a later node.
-    fn claim_trailing(&mut self, end: Option<u32>, parent: Option<&ParentInfo>) {
-        let Some(comment) = self.comments.get(self.next) else {
-            return;
-        };
+    fn claim_trailing(
+        &mut self,
+        end: Option<u32>,
+        parent: Option<&ParentInfo>,
+    ) -> Option<Vec<Value>> {
+        let comment = self.comments.get(self.next)?;
         let parent_end = parent.and_then(|p| p.end);
         if matches!((end, parent_end), (Some(e), Some(pe)) if e == pe) {
-            return;
+            return None;
         }
 
+        let mut claimed: Option<Vec<Value>> = None;
         if parent.is_some_and(|p| p.is_last_in_body) {
             while let Some(comment) = self.comments.get(self.next) {
                 if parent_end.is_some_and(|pe| comment.start >= pe) {
                     break;
                 }
+                if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                    claimed.get_or_insert_with(Vec::new).push(value.clone());
+                }
                 self.next += 1;
             }
-        } else if let Some(end) = end
-            && end <= comment.start
-            && self.is_separator_slice(end, comment.start)
+        } else if let Some(node_end) = end
+            && node_end <= comment.start
+            && self.is_separator_slice(node_end, comment.start)
         {
+            if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                claimed = Some(vec![value.clone()]);
+            }
             self.next += 1;
         }
+        claimed
     }
 
     /// `/^[,) \t]*$/` over the source between a node's end and a comment's start.
@@ -7427,7 +7811,14 @@ impl CommentAttacher<'_> {
             .is_some_and(|slice| slice.chars().all(|c| matches!(c, ',' | ')' | ' ' | '\t')))
     }
 
-    fn record_leading(&mut self, start: u32, index: usize) {
+    fn record_leading(
+        &mut self,
+        node_type: Option<&str>,
+        start: u32,
+        end: Option<u32>,
+        index: usize,
+    ) {
+        self.capture(node_type, Some(start), end, index, true);
         let text = self.comments[index].text.clone();
         if !text.trim_start_ws().starts_with("svelte-ignore") {
             return;
@@ -8253,84 +8644,134 @@ fn convert_statement_for_program(
 
         // TypeScript module/namespace declarations - emit so remove_typescript_nodes can detect them
         oxc_ast::ast::Statement::TSExternalModuleDeclaration(module_decl) => {
-            // `declare module`, `declare global`, `declare namespace` etc. are
-            // type-only and must be stripped.
-            if module_decl.declare {
-                let start = offset + module_decl.span.start as usize;
-                let end = offset + module_decl.span.end as usize;
-                return Some(JsNode::EmptyStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc: create_typed_loc(start, end, line_offsets),
-                });
-            }
-            let start = offset + module_decl.span.start as usize;
-            let end = offset + module_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-
-            // Include body so remove_typescript_nodes can check for non-type nodes
-            let body = module_decl.body.as_ref().map(|block| {
-                let block_body: Vec<JsNode> = block
-                    .body
-                    .iter()
-                    .filter_map(|stmt| {
-                        convert_statement_for_program(arena, stmt, offset, line_offsets)
-                    })
-                    .collect();
-                arena.alloc_js_node(JsNode::BlockStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc: loc.clone(),
-                    body: arena.alloc_js_children(block_body),
-                })
-            });
-
-            Some(JsNode::TSModuleDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                body,
-            })
+            Some(convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                module_decl.body.as_deref(),
+                offset,
+                line_offsets,
+            ))
         }
-        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => {
-            let start = offset + module_decl.span.start as usize;
-            let end = offset + module_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-            if module_decl.declare {
-                return Some(JsNode::EmptyStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc,
-                });
-            }
-            let body = match &module_decl.body {
-                oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
-                    let block_body = block
-                        .body
-                        .iter()
-                        .filter_map(|stmt| {
-                            convert_statement_for_program(arena, stmt, offset, line_offsets)
-                        })
-                        .collect();
-                    Some(arena.alloc_js_node(JsNode::BlockStatement {
-                        start: start as u32,
-                        end: end as u32,
-                        loc: loc.clone(),
-                        body: arena.alloc_js_children(block_body),
-                    }))
-                }
-                oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
-            };
-            Some(JsNode::TSModuleDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                body,
-            })
+        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => Some(
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets),
+        ),
+        oxc_ast::ast::Statement::TSGlobalDeclaration(module_decl) => {
+            Some(convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(&module_decl.body),
+                offset,
+                line_offsets,
+            ))
         }
 
         // Add more statement types as needed
         _ => None,
+    }
+}
+
+/// Build the node for a `namespace N { … }` / `module N { … }`.
+///
+/// A dotted name is the source spelling of `namespace N { namespace M { … } }`,
+/// so it is nested here and the strip reaches the innermost body through the
+/// same recursion. Official crashes on the dotted form instead
+/// (`upstream_issues/3568-svelte-dotted-namespace-crash.md`); this is rsvelte's
+/// deliberate reading, pinned by `tests/ts_export_type_only_declaration.rs`.
+fn convert_ts_namespace_as_node(
+    arena: &ParseArena,
+    module_decl: &oxc_ast::ast::TSNamespaceDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    match &module_decl.body {
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(block),
+                offset,
+                line_offsets,
+            )
+        }
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let inner_start = offset + inner.span.start as usize;
+            let inner_end = offset + inner.span.end as usize;
+            let inner_node = convert_ts_namespace_as_node(arena, inner, offset, line_offsets);
+            let body = arena.alloc_js_node(JsNode::BlockStatement {
+                start: inner_start as u32,
+                end: inner_end as u32,
+                loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                body: arena.alloc_js_children(vec![inner_node]),
+            });
+            JsNode::TSModuleDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                body: Some(body),
+            }
+        }
+    }
+}
+
+/// Build the `TSModuleDeclaration` node `remove_typescript_nodes` inspects.
+/// `declare` is deliberately not consulted: upstream's visitor keys only on
+/// whether the module has a body, so `declare module "x" { … }` has to reach it.
+fn convert_ts_module_declaration_as_node(
+    arena: &ParseArena,
+    span: oxc_span::Span,
+    block: Option<&oxc_ast::ast::TSModuleBlock>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + span.start as usize;
+    let end = offset + span.end as usize;
+    let loc = create_typed_loc(start, end, line_offsets);
+
+    let body = block.map(|block| {
+        let block_body: Vec<JsNode> = block
+            .body
+            .iter()
+            .filter_map(|stmt| {
+                if let Some(node) = convert_statement_for_program(arena, stmt, offset, line_offsets)
+                {
+                    return Some(node);
+                }
+                // The typed program has no variant for these two (issue #3681), so
+                // `convert_statement_for_program` drops them — but upstream's visitor
+                // leaves both in place, which makes the namespace non-type. Only
+                // these two stand in: most of what it drops (a type alias, say) IS
+                // type-only and must keep stripping to empty.
+                if !matches!(
+                    stmt,
+                    oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)
+                        | oxc_ast::ast::Statement::ExportAllDeclaration(_)
+                ) {
+                    return None;
+                }
+                let start = offset + stmt.span().start as usize;
+                let end = offset + stmt.span().end as usize;
+                Some(JsNode::DebuggerStatement {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                })
+            })
+            .collect();
+        arena.alloc_js_node(JsNode::BlockStatement {
+            start: start as u32,
+            end: end as u32,
+            loc: loc.clone(),
+            body: arena.alloc_js_children(block_body),
+        })
+    });
+
+    JsNode::TSModuleDeclaration {
+        start: start as u32,
+        end: end as u32,
+        loc,
+        body,
     }
 }
 
@@ -8526,6 +8967,28 @@ fn convert_declaration_for_program_as_node(
         {
             convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
         }
+        // `export namespace N { … }` / `export module M { … }` — upstream walks
+        // through the export into the declaration, so the module node has to
+        // survive the wrapper.
+        Declaration::TSExternalModuleDeclaration(module_decl) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                module_decl.body.as_deref(),
+                offset,
+                line_offsets,
+            )
+        }
+        Declaration::TSNamespaceDeclaration(module_decl) => {
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets)
+        }
+        Declaration::TSGlobalDeclaration(module_decl) => convert_ts_module_declaration_as_node(
+            arena,
+            module_decl.span,
+            Some(&module_decl.body),
+            offset,
+            line_offsets,
+        ),
         _ => JsNode::from_value(convert_declaration_for_program(
             arena,
             decl,
@@ -8696,50 +9159,8 @@ fn convert_declaration_for_program(
             push_span_fields(&mut obj, start, end, line_offsets);
             Value::Object(obj)
         }
-        // TypeScript module/namespace declarations
-        oxc_ast::ast::Declaration::TSExternalModuleDeclaration(module_decl) => {
-            // `declare module`, `declare global`, `declare namespace` etc. are
-            // type-only and must be stripped from output. Emit an EmptyStatement
-            // so remove_typescript_nodes can filter it out.
-            if module_decl.declare {
-                let mut empty_obj = Map::new();
-                empty_obj.set_field("type", Value::String("EmptyStatement".to_string()));
-                return Value::Object(empty_obj);
-            }
-            let start = offset + module_decl.span.start as usize;
-            let end = offset + module_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.set_field("type", Value::String("TSModuleDeclaration".to_string()));
-            push_span_fields(&mut obj, start, end, line_offsets);
-
-            // Include body for non-type node detection
-            if let Some(block) = &module_decl.body {
-                let block_body: Vec<Value> = block
-                    .body
-                    .iter()
-                    .filter_map(|stmt| {
-                        convert_statement_for_program(arena, stmt, offset, line_offsets)
-                    })
-                    .map(|n| n.to_value())
-                    .collect();
-                let mut block_obj = Map::new();
-                block_obj.set_field("body", Value::Array(block_body));
-                obj.set_field("body", Value::Object(block_obj));
-            }
-
-            Value::Object(obj)
-        }
-        oxc_ast::ast::Declaration::TSNamespaceDeclaration(module_decl) => {
-            let mut obj = Map::new();
-            obj.set_field("type", Value::String("EmptyStatement".to_string()));
-            push_span_fields(
-                &mut obj,
-                offset + module_decl.span.start as usize,
-                offset + module_decl.span.end as usize,
-                line_offsets,
-            );
-            Value::Object(obj)
-        }
+        // TypeScript module / namespace declarations are handled by the typed
+        // `convert_ts_module_declaration_as_node` before this function is reached.
         _ => Value::Null,
     }
 }
@@ -11198,9 +11619,17 @@ fn convert_property_key(
             ))
         }
         _ => {
-            // For computed keys, try to get the expression
+            // A computed key is program-path like its siblings above: reaching for
+            // `convert_expression` would subtract the paren a template expression
+            // is wrapped in but a script is not, putting the whole subtree one
+            // byte early.
             if let Some(expr) = key.as_expression() {
-                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
+                expr_to_node(convert_expression_for_program(
+                    arena,
+                    expr,
+                    offset,
+                    line_offsets,
+                ))
             } else {
                 JsNode::Null
             }

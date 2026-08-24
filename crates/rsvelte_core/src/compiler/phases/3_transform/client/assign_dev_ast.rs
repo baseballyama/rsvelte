@@ -67,10 +67,12 @@ fn is_known_primitive(expr: &Expression<'_>) -> bool {
         Expression::Identifier(id) => id.name == "undefined",
         // A call to one of the `globals` upstream knows yields NUMBER/STRING,
         // and a function value is not UNKNOWN either.
-        Expression::CallExpression(call) => {
-            !call.arguments.iter().any(oxc_ast::ast::Argument::is_spread)
-                && oxc_keypath(&call.callee).is_some_and(|k| is_known_defined_global_call(&k))
-        }
+        Expression::CallExpression(call) => oxc_keypath(&call.callee).is_some_and(|k| {
+            is_known_defined_global_call(
+                &k,
+                call.arguments.iter().any(oxc_ast::ast::Argument::is_spread),
+            )
+        }),
         Expression::StaticMemberExpression(_) => {
             oxc_keypath(expr.without_parentheses()).is_some_and(|k| is_global_constant(&k))
         }

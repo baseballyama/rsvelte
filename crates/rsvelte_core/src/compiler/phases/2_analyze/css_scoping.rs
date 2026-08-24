@@ -584,26 +584,65 @@ fn substitute_nesting(
     child: &CssComplexSelector,
     parent: &CssComplexSelector,
 ) -> CssComplexSelector {
-    let has_nesting = child.children.iter().any(|rel| {
-        rel.selectors
-            .iter()
-            .any(|s| matches!(s, CssSimpleSelector::Nesting))
-    });
-
-    if !has_nesting {
-        // No explicit `&`: treat as descendant of parent
-        let mut combined = parent.children.clone();
-        // First child selector of `child` becomes descendant of parent
-        for (i, rel) in child.children.iter().enumerate() {
-            let mut r = rel.clone();
-            if i == 0 && r.combinator.is_none() {
-                r.combinator = Some(" ".to_string());
-            }
-            combined.push(r);
-        }
-        return CssComplexSelector { children: combined };
+    if complex_has_nesting(child) {
+        return substitute_explicit_nesting(child, parent);
     }
 
+    // No explicit `&`: treat as descendant of parent
+    let mut combined = parent.children.clone();
+    // First child selector of `child` becomes descendant of parent
+    for (i, rel) in child.children.iter().enumerate() {
+        let mut r = rel.clone();
+        if i == 0 && r.combinator.is_none() {
+            r.combinator = Some(" ".to_string());
+        }
+        combined.push(r);
+    }
+    CssComplexSelector { children: combined }
+}
+
+/// Whether a `&` appears anywhere in `sel`, a pseudo-class's argument list
+/// included. Upstream finds it with a `walk`, which descends into `args`, so
+/// `:is(&)` counts as explicit nesting and suppresses the implicit parent.
+fn complex_has_nesting(sel: &CssComplexSelector) -> bool {
+    sel.children
+        .iter()
+        .any(|rel| rel.selectors.iter().any(simple_has_nesting))
+}
+
+fn simple_has_nesting(sel: &CssSimpleSelector) -> bool {
+    match sel {
+        CssSimpleSelector::Nesting => true,
+        CssSimpleSelector::PseudoClass(_, Some(args)) => args.iter().any(complex_has_nesting),
+        _ => false,
+    }
+}
+
+/// Resolve the `&`s inside a compound's pseudo-class arguments against `parent`.
+/// `:is(&)` is the parent selector, not "anything".
+fn substitute_nesting_in_args(
+    rel: &CssRelativeSelector,
+    parent: &CssComplexSelector,
+) -> CssRelativeSelector {
+    let mut out = rel.clone();
+    for simple in &mut out.selectors {
+        if let CssSimpleSelector::PseudoClass(_, Some(args)) = simple {
+            for arg in args.iter_mut() {
+                if complex_has_nesting(arg) {
+                    *arg = substitute_explicit_nesting(arg, parent);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Replace every `&` in `child` with `parent`, without prepending anything —
+/// `child` is known to carry an explicit nesting selector.
+fn substitute_explicit_nesting(
+    child: &CssComplexSelector,
+    parent: &CssComplexSelector,
+) -> CssComplexSelector {
     // Replace each relative selector that contains `&`:
     // - If the relative selector is ONLY `&`, replace it with the full parent chain.
     // - If it's `&.foo` or similar, replace the `&` simple selector with the
@@ -611,14 +650,17 @@ fn substitute_nesting(
     //   `.parent:hover`). Earlier relative selectors of parent are prepended.
     let mut result: Vec<CssRelativeSelector> = Vec::new();
     for rel in &child.children {
+        // Arguments first, so a `&` in `&:is(&)` is resolved on both levels.
+        let rel = substitute_nesting_in_args(rel, parent);
         let has_nest = rel
             .selectors
             .iter()
             .any(|s| matches!(s, CssSimpleSelector::Nesting));
         if !has_nest {
-            result.push(rel.clone());
+            result.push(rel);
             continue;
         }
+        let rel = &rel;
 
         // If `&` is the ONLY simple selector, replace with parent's entire chain
         if rel.selectors.len() == 1 {
@@ -912,7 +954,8 @@ fn test_attribute(operator: &str, expected: &str, case_insensitive: bool, value:
     };
     match operator {
         "=" => value == expected,
-        "~=" => value.split_whitespace().any(|w| w == expected),
+        // JS `"".split(/\s/)` is `[""]`, so `[a~=""]` matches an empty value.
+        "~=" => value.split(char::is_whitespace).any(|w| w == expected),
         "|=" => format!("{}-", value).starts_with(&format!("{}-", expected)),
         "^=" => value.starts_with(&expected),
         "$=" => value.ends_with(&expected),
@@ -1161,14 +1204,23 @@ fn element_matches_simple_selectors(
                 }
                 if (name == "is" || name == "where") && args.is_some() {
                     let args = args.as_ref().unwrap();
-                    let any_matches = args.iter().any(|cs| {
-                        if let Some(last) = cs.children.last() {
-                            element_matches_simple_selectors(element, &last.selectors)
-                        } else {
-                            false
+                    let matched = args.iter().any(|cs| {
+                        // An argument made only of `:global(...)` truncates to
+                        // nothing, and upstream reads that as "matches anything"
+                        // rather than testing the global's own selectors.
+                        let relative = truncate_globals(&cs.children);
+                        match relative.last() {
+                            None => true,
+                            Some(last) => {
+                                element_matches_simple_selectors(element, &last.selectors)
+                                    // `foo :is(bar baz)` can also mean bar is an
+                                    // ancestor of foo, which this walk cannot
+                                    // check; upstream assumes it matches.
+                                    || cs.children.len() > 1
+                            }
                         }
                     });
-                    if !any_matches {
+                    if !matched {
                         return false;
                     }
                 }

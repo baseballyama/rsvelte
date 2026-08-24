@@ -9,7 +9,7 @@ use oxc_span::SourceType;
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::offsets::{ByteOffset, CharOffset};
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 
@@ -1886,7 +1886,7 @@ pub(super) fn extract_trace_call_label<'a>(
     source: &'a str,
 ) -> Option<&'a str> {
     // Look for the $inspect.trace() call in the source to find its context
-    if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
+    if let Some(trace_pos) = find_code(source.as_bytes(), b"$inspect.trace(") {
         // Walk backwards to find the enclosing call expression
         let before = &source[..trace_pos];
         // Look for `$effect(` or `$effect.pre(` pattern
@@ -1912,7 +1912,7 @@ pub(super) fn find_trace_source_location(
     _label: &str,
 ) -> Option<(usize, usize)> {
     // Find $inspect.trace() in source and then find the enclosing function/arrow
-    if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
+    if let Some(trace_pos) = find_code(source.as_bytes(), b"$inspect.trace(") {
         // The scans below read backwards for code punctuation, so prose in a
         // comment between the function head and the trace call would otherwise
         // answer for it.
@@ -2084,6 +2084,13 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
     // - `async (x) => ...` or `async function(...)` (async variants)
     if is_function_expression(trimmed) {
         return false;
+    }
+
+    // `should_proxy`'s early-return list holds `ArrowFunctionExpression` and
+    // `FunctionExpression` but not `ClassExpression`, so a class expression is
+    // proxied like any other constructor-valued initializer.
+    if is_class_expression(trimmed) {
+        return true;
     }
 
     // These prefixes settle the node type on their own, and must be decided
@@ -2593,6 +2600,16 @@ pub(super) fn contains_top_level_logical(expr: &str) -> bool {
 }
 
 /// Check if an expression is a function expression (arrow function or function keyword).
+/// Does `expr` open with a `class` expression — `class {`, `class Foo {`,
+/// `class extends Base {`? The keyword must stand alone, so `classes.map(…)`
+/// is not one.
+pub(super) fn is_class_expression(expr: &str) -> bool {
+    let Some(rest) = expr.trim_start().strip_prefix("class") else {
+        return false;
+    };
+    rest.starts_with('{') || rest.starts_with(char::is_whitespace)
+}
+
 pub(super) fn is_function_expression(expr: &str) -> bool {
     let trimmed = expr.trim();
 

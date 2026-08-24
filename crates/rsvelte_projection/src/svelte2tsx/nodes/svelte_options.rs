@@ -12,7 +12,7 @@ use super::super::svelte2tsx::slice_src;
 /// Emit the `<svelte:options>` tag as a `svelteHTML.createElement(...)` call.
 /// The parser stores svelte:options in `ast.options` (not in `fragment.nodes`),
 /// so it is handled separately.
-pub fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut MagicString<'_>) {
+pub fn emit_svelte_options_element(ast: &Root, source: &str, ns: &str, str: &mut MagicString<'_>) {
     let Some(options_node) = ast.options.as_ref() else {
         return;
     };
@@ -101,6 +101,7 @@ pub fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut MagicStri
             in_component_slot: false,
             tag_name: "svelte:options",
             is_slot_tag: false,
+            preserve_bind: ns == super::super::interfaces::DEFAULT_TYPINGS_NAMESPACE,
         },
     );
     let attrs_str = format!(
@@ -109,7 +110,7 @@ pub fn emit_svelte_options_element(ast: &Root, source: &str, str: &mut MagicStri
         attrs_parts.join("")
     );
     let replacement = format!(
-        "{}{{ svelteHTML.createElement(\"svelte:options\", {{{}}});}}",
+        "{}{{ {ns}.createElement(\"svelte:options\", {{{}}});}}",
         " ".repeat(spacing.before_block),
         attrs_str
     );

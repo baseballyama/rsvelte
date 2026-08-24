@@ -193,6 +193,13 @@ export function compileModule(
  * {@link decodeEnvelope} to obtain
  * the legacy {@link CompileResult} shape; or pass the buffer through
  * worker `postMessage` (transferable) to avoid a copy.
+ *
+ * Unlike {@link compile}, this does NOT go through the wrapper that resolves
+ * upstream's function-valued options, so a `runes` / `css` / `customElement` /
+ * `warningFilter` callback is **rejected** here rather than honoured — evaluate
+ * it yourself and pass the plain value. `runes` and `warningFilter` used to be
+ * dropped in silence instead, which produced a successful compile with the
+ * wrong result; `css` and `customElement` already threw.
  */
 export function compileEnvelope(source: string, options?: CompileOptions): Buffer;
 export function compileModuleEnvelope(
@@ -328,6 +335,13 @@ export function compileModuleBuffers(
 /**
  * The legacy JSON-on-the-boundary path. Kept exported for parity tests
  * and as an escape hatch — production callers should use {@link compile}.
+ *
+ * Unlike {@link compile}, this does NOT go through the wrapper that resolves
+ * upstream's function-valued options, so a `runes` / `css` / `customElement` /
+ * `warningFilter` callback is **rejected** here rather than honoured — evaluate
+ * it yourself and pass the plain value. `runes` and `warningFilter` used to be
+ * dropped in silence instead, which produced a successful compile with the
+ * wrong result; `css` and `customElement` already threw.
  */
 export function compileLegacy(source: string, options?: CompileOptions): CompileResult;
 export function compileModuleLegacy(
@@ -359,11 +373,28 @@ export interface ParseOptions {
 	 * JSON-parse step.
 	 */
 	skipCssAst?: boolean;
+	/**
+	 * `modern` from `svelte/compiler`'s `parse()`. **Defaults to `false`**,
+	 * which returns the LEGACY AST (`{ html, instance, module, css }`); pass
+	 * `true` for the modern `Root` shape. The modern AST stays opt-in until
+	 * Svelte 6, and this binding defaults the same way official does.
+	 */
+	modern?: boolean;
+	/**
+	 * `loose` from `svelte/compiler`'s `parse()`. Recover from a parse error
+	 * and return an AST anyway — what an editor integration needs to parse a
+	 * document mid-keystroke. Not blanket recovery: a source official still
+	 * rejects under `loose` (e.g. a stray `</div>`) throws here too.
+	 */
+	loose?: boolean;
 }
 
 /**
  * Parse a Svelte component and return the AST as a JSON string. The
  * caller is responsible for `JSON.parse` on the returned value.
+ *
+ * Without `{ modern: true }` this returns the LEGACY AST, matching
+ * `svelte/compiler`'s default.
  *
  * For the fastest path skip JSON entirely: use {@link parseEnvelope}
  * with `decodeParseEnvelope` from

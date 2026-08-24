@@ -415,6 +415,10 @@ fn build_component_children<'a, 'b>(
         Vec<&'b TemplateNode<'a>>,
         Vec<&'b crate::ast::template::LetDirective<'a>>,
     )> = Vec::new();
+    // Upstream keys one `children` record by slot name and later walks
+    // `Object.keys(children)`, so `$$slots` follows the order the slot names
+    // first appear among the children — `default` is not seeded ahead of them.
+    let mut slot_order: Vec<String> = Vec::new();
 
     for child in &fragment.nodes {
         if let TemplateNode::SnippetBlock(snippet) = child {
@@ -445,7 +449,7 @@ fn build_component_children<'a, 'b>(
             continue;
         }
 
-        match slot_name_of(child) {
+        let slot = match slot_name_of(child) {
             // An explicit `slot="default"` IS the default slot (upstream
             // `slot_name === 'default'`): its `let:` directives become the
             // default-slot lets and its content joins the `children` snippet,
@@ -453,6 +457,7 @@ fn build_component_children<'a, 'b>(
             Some(name) if name == "default" => {
                 default_lets = let_directives_of(child);
                 default_children.push(child);
+                name
             }
             // A `slot="name"` child: its OWN `let:` directives scope the named
             // slot (upstream `lets[slot_name] = child.attributes.filter(...)`).
@@ -463,8 +468,9 @@ fn build_component_children<'a, 'b>(
                         nodes.push(child);
                         *lets = child_lets;
                     }
-                    None => named_slots.push((name, vec![child], child_lets)),
+                    None => named_slots.push((name.clone(), vec![child], child_lets)),
                 }
+                name
             }
             None => {
                 // A `<svelte:fragment>` (no `slot=`) in the default slot
@@ -474,9 +480,17 @@ fn build_component_children<'a, 'b>(
                     default_lets.extend(let_directives_of(child));
                 }
                 default_children.push(child);
+                "default".to_string()
             }
+        };
+        if !slot_order.contains(&slot) {
+            slot_order.push(slot);
         }
     }
+
+    // Both loops below only *build* their `$$slots` entry; the object is
+    // assembled afterwards in `slot_order`.
+    let mut slot_entries: Vec<(String, ObjectPropertyKind<'a>)> = Vec::new();
 
     // Default slot → `children` prop + `$$slots.default: true`.
     if !default_children.is_empty() {
@@ -502,7 +516,7 @@ fn build_component_children<'a, 'b>(
                 // through to `serialized_slots.push(b.init(slot_name, slot_fn))`).
                 // The `children="foo"` attribute keeps its own `children: 'foo'`
                 // prop (emitted from the attribute loop), NOT overwritten here.
-                serialized_slots.push(state.b.init("default", slot_fn));
+                slot_entries.push(("default".to_string(), state.b.init("default", slot_fn)));
             } else if default_lets.is_empty() {
                 // No `let:` directives → the usual `children` prop path.
                 let children = if state.options.dev {
@@ -513,12 +527,15 @@ fn build_component_children<'a, 'b>(
                     slot_fn
                 };
                 push_prop(groups, state.b.init("children", children));
-                serialized_slots.push(state.b.init("default", state.b.bool(true)));
+                slot_entries.push((
+                    "default".to_string(),
+                    state.b.init("default", state.b.bool(true)),
+                ));
             } else {
                 // Scoped default slot (`let:`): expose `$$slots.default` as the
                 // slot function and point `children` at the invalid-snippet guard
                 // (upstream's `else` branch, lines 281-287).
-                serialized_slots.push(state.b.init("default", slot_fn));
+                slot_entries.push(("default".to_string(), state.b.init("default", slot_fn)));
                 push_prop(
                     groups,
                     state
@@ -541,7 +558,13 @@ fn build_component_children<'a, 'b>(
             continue;
         }
         let slot_fn = make_slot_fn(body, lets, state);
-        serialized_slots.push(state.b.init(name, slot_fn));
+        slot_entries.push((name.clone(), state.b.init(name, slot_fn)));
+    }
+
+    for name in &slot_order {
+        if let Some(index) = slot_entries.iter().position(|(n, _)| n == name) {
+            serialized_slots.push(slot_entries.remove(index).1);
+        }
     }
 
     if !serialized_slots.is_empty() {

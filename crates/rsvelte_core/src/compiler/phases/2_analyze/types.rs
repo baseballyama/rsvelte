@@ -1036,9 +1036,15 @@ mod ts_removals {
             self.remove(it.span);
         }
 
-        // Upstream passes these through verbatim (a class index signature even
-        // makes it throw), so they are left exactly as written.
-        fn visit_ts_index_signature(&mut self, _it: &TSIndexSignature<'a>) {}
+        // A class index signature is type-only and has no runtime form; upstream
+        // leaves it in and then throws while printing it, so there is no oracle
+        // to reproduce. See
+        // `upstream_issues/3422-svelte-class-index-signature-crash.md`.
+        fn visit_ts_index_signature(&mut self, it: &TSIndexSignature<'a>) {
+            self.remove(it.span);
+        }
+
+        // Upstream passes these through verbatim, so they are left as written.
         fn visit_ts_export_assignment(&mut self, _it: &TSExportAssignment<'a>) {}
         fn visit_ts_import_equals_declaration(&mut self, _it: &TSImportEqualsDeclaration<'a>) {}
         fn visit_ts_namespace_export_declaration(
@@ -1158,7 +1164,13 @@ mod ts_removals {
         }
 
         fn visit_method_definition(&mut self, it: &MethodDefinition<'a>) {
-            if it.r#type == MethodDefinitionType::TSAbstractMethodDefinition {
+            // A bodiless member is an overload signature (or an abstract method):
+            // type-only, with no runtime representation, and leaving it in emits a
+            // class member no JS parser accepts. See
+            // `upstream_issues/3421-svelte-overload-signature-not-erased.md`.
+            if it.r#type == MethodDefinitionType::TSAbstractMethodDefinition
+                || it.value.body.is_none()
+            {
                 self.remove(it.span);
                 return;
             }
@@ -1705,6 +1717,12 @@ pub struct ComponentAnalysis {
     /// Maps from (key, bindings) to the generated identifier
     pub binding_groups: FxHashMap<String, String>,
 
+    /// The group name upstream keeps on each `bind:group` directive's own
+    /// metadata, keyed by the directive expression's start. `binding_groups`
+    /// above is keyed by the GROUP, so it cannot say which group one directive
+    /// belongs to when two directives in the same each block differ.
+    pub binding_group_names: FxHashMap<u32, String>,
+
     /// Slot names mapped to their `<slot>` element's span
     pub slot_names: indexmap::IndexMap<String, (u32, u32), rustc_hash::FxBuildHasher>,
 
@@ -1752,8 +1770,7 @@ impl ComponentAnalysis {
         let name = options
             .name
             .clone()
-            .or_else(|| options.filename.as_ref().map(|f| derive_component_name(f)))
-            .unwrap_or_else(|| "Component".to_string());
+            .unwrap_or_else(|| derive_component_name(options.filename_or_unknown()));
 
         // If runes is explicitly set in options, use that; otherwise default to false
         // and let the analysis phase detect runes from source
@@ -1835,6 +1852,7 @@ impl ComponentAnalysis {
             accessors: options.accessors,
             pickled_awaits: FxHashSet::default(),
             binding_groups: FxHashMap::default(),
+            binding_group_names: FxHashMap::default(),
             slot_names: indexmap::IndexMap::default(),
             snippet_renderers: FxHashMap::default(),
             instance_body: InstanceBody::default(),
@@ -2419,7 +2437,7 @@ pub struct Export {
 }
 
 /// Custom element configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomElementConfig {
     /// The custom element tag name
     pub tag: Option<String>,
