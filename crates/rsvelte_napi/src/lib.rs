@@ -1305,7 +1305,11 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.accessors {
             opts.accessors = coerce_bool("accessors", v)?;
-            opts.legacy_options.accessors = true;
+            // Upstream reaches this one through `deprecate()`, which is `warn_once`
+            // like the removed options below — not once per compile.
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.accessors = warn_once(&WARNED);
         }
         if let Some(v) = &self.css_hash {
             return Err(match v {
@@ -1323,7 +1327,9 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.immutable {
             opts.immutable = coerce_bool("immutable", v)?;
-            opts.legacy_options.immutable = true;
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.immutable = warn_once(&WARNED);
         }
         if self.legacy.is_some() {
             return Err(removed_option(

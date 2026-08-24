@@ -114,16 +114,15 @@ pub fn blank_style_content(source: &str) -> Cow<'_, str> {
             break;
         };
 
-        if kind == 2 {
-            if sb[content_start..content_end]
+        if kind == 2
+            && sb[content_start..content_end]
                 .iter()
                 .any(|byte| !matches!(byte, b'\n' | b'\r'))
-            {
-                let bytes = blanked.get_or_insert_with(|| sb.to_vec());
-                for b in &mut bytes[content_start..content_end] {
-                    if *b != b'\n' && *b != b'\r' {
-                        *b = b' ';
-                    }
+        {
+            let bytes = blanked.get_or_insert_with(|| sb.to_vec());
+            for b in &mut bytes[content_start..content_end] {
+                if *b != b'\n' && *b != b'\r' {
+                    *b = b' ';
                 }
             }
         }

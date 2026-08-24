@@ -535,6 +535,16 @@ function runCase(surface, compile, c) {
 }
 
 console.log('\n# compile options');
+// Exercise the presence rule before the per-key cases consume upstream's
+// process-wide deprecation latches with their `true` variants.
+for (const key of ['accessors', 'immutable']) {
+	const result = napi.compile(LEGACY_SRC, { filename: 'A.svelte', [key]: false });
+	assert(
+		`compile.${key}: false still reports the deprecated option`,
+		warningCodes(result).includes(`options_deprecated_${key}`)
+	);
+}
+
 for (const c of COMPILE_CASES) runCase('compile', (s, o) => napi.compile(s, o), c);
 
 const MODERN_AST_SRC =
@@ -580,14 +590,6 @@ assert(
 	'compileEnvelope.modernAst: rejects unsupported envelope format',
 	/modernAst is not supported by compileEnvelope/.test(modernAstEnvelopeError?.message)
 );
-
-for (const key of ['accessors', 'immutable']) {
-	const result = napi.compile(LEGACY_SRC, { filename: 'A.svelte', [key]: false });
-	assert(
-		`compile.${key}: false still reports the deprecated option`,
-		warningCodes(result).includes(`options_deprecated_${key}`)
-	);
-}
 
 // `generate: 'dom'` is the pre-Svelte-5 spelling of the same key; it must still
 // select the client target AND raise the rename warning.
