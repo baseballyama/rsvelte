@@ -164,6 +164,37 @@ fn let_directive_with_destructuring() {
     );
 }
 
+// ─── #3125: a `let:` value is an EXPRESSION, not a binding pattern ─────────
+
+#[test]
+fn let_directive_value_is_formatted_as_an_expression() {
+    // prettier-plugin-svelte prints a `LetDirective` with the same
+    // `printJsExpression` as `on:` / `class:`, so a default comes back
+    // parenthesised and string quotes are normalised by the JS printer.
+    let out = fmt("<Component let:item={{ a: [b = 'x'], c: { d } = {} }}>y</Component>");
+    assert!(
+        out.contains(r#"let:item={{ a: [(b = "x")], c: ({ d } = {}) }}"#),
+        "expected let directive value printed as an expression:\n{out}"
+    );
+}
+
+#[test]
+fn let_directive_accepts_a_parenthesised_default() {
+    // The oracle's own output must format again instead of aborting the whole
+    // file with a script parse error (`(b = "x")` is not a binding pattern).
+    let src = r#"<Component let:item={{ a: [(b = "x")] }}>y</Component>"#;
+    assert_eq!(fmt(src), src);
+}
+
+#[test]
+fn let_directive_shorthand_collapses() {
+    let out = fmt("<Component let:item={item}>y</Component>");
+    assert!(
+        out.contains("<Component let:item>"),
+        "expected `let:item={{item}}` collapsed to shorthand:\n{out}"
+    );
+}
+
 // ─── #797: long {#snippet} headers break like a function signature ─────────
 
 #[test]
@@ -209,5 +240,56 @@ fn each_long_header_does_not_break() {
             "{#each someVeryLongIterableExpressionNameThatExceedsTheConfiguredWidth as itemWithAVeryLongName}"
         ),
         "each header must not break:\n{out}"
+    );
+}
+
+#[test]
+fn each_index_separator_is_normalized() {
+    // The oracle re-prints the header's fixed parts (`' as'`, `', '`), so any
+    // spelling of the whitespace around them comes out canonical.
+    for src in [
+        "{#each rows as item , i}<p>{item}{i}</p>{/each}",
+        "{#each rows as item ,i}<p>{item}{i}</p>{/each}",
+        "{#each rows as item,    i}<p>{item}{i}</p>{/each}",
+        "{#each rows as item\t,\ti}<p>{item}{i}</p>{/each}",
+        "{#each rows as item , i }<p>{item}{i}</p>{/each}",
+    ] {
+        let out = fmt(src);
+        assert!(
+            out.contains("{#each rows as item, i}"),
+            "index separator not normalized for {src:?}:\n{out}"
+        );
+    }
+}
+
+#[test]
+fn each_index_separator_after_a_destructuring_pattern() {
+    let out = fmt("{#each rows as [a = 1, ...rest] , i}<p>{a}{rest.length}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as [a = 1, ...rest], i}"),
+        "index separator not normalized after an array pattern:\n{out}"
+    );
+    let out = fmt("{#each rows as {a, b} , i}<p>{a}{b}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as { a, b }, i}"),
+        "index separator not normalized after an object pattern:\n{out}"
+    );
+}
+
+#[test]
+fn each_index_separator_with_a_key_clause() {
+    let out = fmt("{#each rows as item , i (item.id)}<p>{item}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as item, i (item.id)}"),
+        "index separator not normalized before a key clause:\n{out}"
+    );
+}
+
+#[test]
+fn each_as_keyword_whitespace_is_normalized() {
+    let out = fmt("{#each rows  as  item , i}<p>{item}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as item, i}"),
+        "`as` spacing not normalized:\n{out}"
     );
 }

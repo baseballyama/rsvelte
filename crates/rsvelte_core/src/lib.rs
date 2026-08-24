@@ -45,6 +45,10 @@ pub mod measure_stmt_chain;
 pub mod toolchain;
 
 pub use compiler::legacy::convert_to_legacy;
+// JavaScript's `\s`, which is also upstream's `is_whitespace` in
+// `phases/1-parse/index.js`. Exported so a test harness can mirror
+// upstream's own `.replace(/\s+$/, '')` exactly.
+pub use compiler::phases::phase1_parse::parser::is_js_whitespace;
 #[cfg(not(feature = "parallel"))]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "parallel")]
@@ -112,6 +116,7 @@ pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewr
 pub fn ast_rewrite_termination_counts() -> (u32, u32) {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::termination_counts()
 }
+pub use compiler::remove_bom;
 #[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,
