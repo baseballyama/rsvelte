@@ -40,9 +40,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 556 entries)
+## Matrix known failures (`matrix-known-failures.json`, 580 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 116 + 0 + 24 + 0 + 0 + 0 + 126 + 0 + 282 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 116 + 0 + 24 + 0 + 0 + 0 + 150 + 0 + 282 + 8 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -141,7 +141,7 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 
 All 189 generated comparisons now match. #2484's three special-element dev setter cases are
 covered by the direct regression tests as well as this zero-residue matrix family.
-### `removed-statement-comment` — 126 entries
+### `removed-statement-comment` — 150 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -149,20 +149,20 @@ kinds, 3 hosts (`compileModule`, the instance script's top level, one function d
 whether a statement survives after the removed one. 396 cases, 1188 comparisons; the fix that
 landed with it cleared 79 of them (403 → 324, all on `server`).
 
-Every remaining entry is in a server or server-dev tail cluster below.
+Every remaining entry is in one of the clusters below.
 
 | entries | target | cluster | issue |
 |---|---|---|---|
 | 54 | `server-dev` | `$effect` / `$effect.pre` / `$effect.root` × `instance-top` × `succ-none` | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
-| 72 | `server`, `server-dev` | `$inspect` across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
+| 96 | `client`, `server`, `server-dev` | `$inspect` across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
 Partition of `matrix-known-failures.json` entries under `removed-statement-comment/` by
-cluster: `54 + 72`
+cluster: `54 + 96`
 
 **[D].** It was reduced to a hand-written repro outside the family and measured against the
 pinned official compiler.
 
 Note the enrolment cost, because it is real: a ratchet entry suppresses everything about the
-entry it lists, so these 126 ids are now blind to any *further* regression on the same shapes
+entry it lists, so these 150 ids are now blind to any *further* regression on the same shapes
 until their issues are fixed.
 
 ---
