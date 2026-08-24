@@ -536,7 +536,7 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
 /// Drop a leading byte order mark, which would otherwise be template content.
 /// Upstream `compiler/index.js` does this at every public entry point, so every
 /// position downstream is relative to the trimmed source.
-pub(crate) fn remove_bom(source: &str) -> &str {
+pub fn remove_bom(source: &str) -> &str {
     source.strip_prefix('\u{feff}').unwrap_or(source)
 }
 
@@ -553,7 +553,7 @@ pub(crate) fn parse_component(
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
-        skip_expression_loc: !modern_ast,
+        skip_expression_loc: false,
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,

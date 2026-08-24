@@ -61,7 +61,7 @@ use util::{
     element_container, element_source_empty, ends_with_space_no_break, fragment_has_prose_word,
     indent_config, is_block_display, is_component_tag, is_html_void_element, is_html_ws,
     is_inline_block, is_inline_node, is_inline_regular_element, is_whitespace_preserving,
-    leading_linebreaks, node_end, node_start, omit_softline_allowed, parse_formatted,
+    leading_linebreaks, never_hugs, node_end, node_start, omit_softline_allowed, parse_formatted,
     split_html_ws, starts_with_space_no_break, text_end, text_start, trailing_linebreaks,
     trim_html_ws_end, trim_html_ws_start, trims_edge_whitespace,
 };

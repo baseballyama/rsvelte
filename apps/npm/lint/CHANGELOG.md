@@ -1,5 +1,12 @@
 # @rsvelte/lint
 
+## 0.10.19
+
+### Patch Changes
+
+- 762a8a5: Strip a leading UTF-8 BOM before linting, so a parse offset and the source text agree. The compiler's parser strips it (as upstream and as ESLint's `SourceCode` do) and therefore reports offsets relative to the stripped text, while the linter kept the unstripped source for its line table and its rule slices: every column on the BOM's line came out three short, and the JS-whitespace scan panicked slicing at byte 1, inside the BOM.
+- 762a8a5: Apply `--fix` edits to the BOM-stripped source. The rules report offsets relative to the stripped text (as the parser and ESLint's `SourceCode` do) while the fixer spliced the unstripped source, so every edit in a BOM-prefixed file landed three bytes early — producing text such as `<scriptconstlet b = 2;`. The BOM is restored in the output, as `eslint --fix` does.
+
 ## 0.10.18
 
 ### Patch Changes
