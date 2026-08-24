@@ -123,12 +123,16 @@ pub fn visit<'a, 'b: 'a>(
     // which `validate_slot_attribute` treats specially (a `slot="…"` text attribute
     // there is allowed). Nested elements/blocks reset this flag.
     let was_direct_snippet = context.is_direct_child_of_snippet;
+    let was_direct_child = context.direct_component_parent;
     context.is_direct_child_of_snippet = true;
+    context.direct_component_parent = super::DirectComponentParent::None;
 
     // Analyze the body
-    fragment::analyze(&mut block.body, context)?;
+    let result = fragment::analyze(&mut block.body, context);
 
     context.is_direct_child_of_snippet = was_direct_snippet;
+    context.direct_component_parent = was_direct_child;
+    result?;
 
     // Restore parent_element and scope
     context.parent_element = old_parent_element;
@@ -386,6 +390,10 @@ fn expression_only_uses_params_node(
             true
         }
 
+        JsNode::ChainExpression { expression, .. } => {
+            expression_only_uses_params_node(arena.get_js_node(*expression), param_names, context)
+        }
+
         JsNode::MemberExpression {
             object,
             property,
@@ -533,7 +541,13 @@ fn expression_only_uses_params_node(
             }
         }
 
-        _ => false,
+        // Upstream decides from the snippet scope's REFERENCES, so an expression
+        // kind this list does not name is transparent there; rejecting it here
+        // pinned the snippet on nothing but the arm being absent.
+        _ => match serde_json::from_str::<serde_json::Value>(&node.to_json_string()) {
+            Ok(v) => refs_hoistable(&v, param_names, context),
+            Err(_) => false,
+        },
     }
 }
 /// Check if default values inside a destructuring pattern (as JsNode) are hoistable.
@@ -1460,6 +1474,10 @@ fn expression_only_uses_params(
                 true
             }
 
+            Some("ChainExpression") => obj
+                .get("expression")
+                .is_none_or(|e| expression_only_uses_params(e, param_names, context)),
+
             Some("MemberExpression") => {
                 if let Some(object) = obj.get("object")
                     && !expression_only_uses_params(object, param_names, context)
@@ -1598,7 +1616,9 @@ fn expression_only_uses_params(
                 arrow_hoistable(val, param_names, context)
             }
 
-            _ => false,
+            // Same reason as the typed twin above: an unnamed expression kind is
+            // walked for references rather than treated as instance-level.
+            _ => refs_hoistable(val, param_names, context),
         }
     } else {
         true

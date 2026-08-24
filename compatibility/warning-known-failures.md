@@ -34,8 +34,8 @@ compilers already run on every entry.
 
 ## Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 10 entries on all four,
-and `warning-position-known-failures.<target>.json` the same 1 entry. That is not a
+`warning-known-failures.<target>.json` holds the same 88 entries on all four,
+and `warning-position-known-failures.<target>.json` 0 entries on all four. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 four targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -46,24 +46,50 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 10 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 88 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 10 entries that still diverge, **3 are
-under-warnings** — rsvelte stays silent where upstream warns
-(`state_referenced_locally` ×1, `perf_avoid_nested_class` ×2, and
-`options_missing_custom_element` ×1). The other
-7 are noise the user cannot suppress — 14 tuples over three codes
-(`component_name_lowercase` 10, `state_referenced_locally` 2,
-`export_let_unused` 2). Both are defects, but a
-missing diagnostic and an extra one fail differently, and the ratchet count alone
-does not distinguish them; no entry diverges in both directions at once — which
-is what lets the two counts be added:
+Not every entry is equally bad. Of the 88 entries that still diverge, **22 are
+under-warnings** — rsvelte stays silent where upstream warns — and **66 are
+over-warnings**, noise the user cannot suppress. No entry diverges in both
+directions at once. A missing diagnostic and an extra one fail
+differently, and the ratchet count alone does not distinguish them:
 
-Partition of `warning-known-failures.<target>.json` by direction: `3 + 7`
+Partition of `warning-known-failures.<target>.json` by direction: `22 + 66`
+
+**79 of the 88 arrived with the wave-2 enrolment (#3130)**, which took the
+corpus from 37 corpus sources to 104. The codes involved, counted over
+entries rather than tuples (they sum to exactly 88 — every listed entry diverges
+on one code): `css_unused_selector` 46, `state_referenced_locally` 20,
+`non_reactive_update` 8, `component_name_lowercase` 6,
+`a11y_consider_explicit_label` 4, `export_let_unused` 3,
+`perf_avoid_nested_class` 1. `css_unused_selector` is half the file and the
+burn-down target; it is the one that is neither over- nor under-warning in a
+fixed direction — it is a pruning disagreement, so it moves with the CSS entries
+in [`known-failures.md`](known-failures.md).
+
+The file was 171 entries before this branch was rebased onto `main`, and this is
+the second re-measurement against a moving `main`: the first removed **81 and
+added none**, all of them `reactive_declaration_module_script_dependency` (the
+code that used to head the list at 83 entries and is now absent from it
+entirely), and the second removed a further **2**, taking
+`options_missing_custom_element` to 0 and `a11y_consider_explicit_label` from 5
+to 4. Neither is this branch's fix; the entries had simply never been
+re-measured against a tree that carried them.
+
+The `options_missing_custom_element` under-warning that used to sit in the first
+half is gone, and it was one condition rather than a missing pass:
+`<svelte:options customElement={null} />` is skipped by `read_options` *before*
+it sets `component_options.customElement`, but upstream's analyze loop keys on
+the attribute **name**, so it still warns. rsvelte keyed on the parsed option and
+so stayed silent — and the entry that reproduced it,
+`runtime-browser/custom-elements-samples/$$slot-dynamic-content/main.svelte`, is
+the corpus's only file with that spelling. It is inlined as a test in
+`crates/rsvelte_core/tests/svelte_options_deprecations.rs`, so the shape keeps a
+guard now that the ratchet no longer holds it.
 
 Four entries left in #3027, and they are one cause in both directions: phase 2's
 `UpdateExpression` visitor never walked its argument, so `x++` recorded no
@@ -120,18 +146,22 @@ from where the entries happened to cluster in the corpus rather than from
 upstream's control flow — worth remembering when reading the clusters above,
 which were written the same way.
 
-## Warning positions (`warning-position-known-failures.<target>.json`, 1 entry each)
+## Warning positions (`warning-position-known-failures.<target>.json`, 0 entries each)
 
-The codes agree but a `(line, column)` does not. One entry remains, the same
-residual shape as the three cleared before it — rsvelte reports **no position at
-all** (`?:?`) where upstream reports one:
+The codes agree but a `(line, column)` does not. **No entry remains.**
 
-| entry | code |
-|---|---|
-| `svelte/…/migrate/samples/accessors/output.svelte` | `options_deprecated_immutable` |
-
-It is raised from a site that never received the span-attachment pass: the
-`<svelte:options>` reader. An attach-the-span fix at one emission site.
+The last one — `svelte/…/migrate/samples/accessors/output.svelte`, code
+`options_deprecated_immutable`, rsvelte reporting **no position at all** (`?:?`)
+— was the `<svelte:options>` reader, the one emission site the span-attachment
+pass never reached. Reading the whole of upstream's loop rather than attaching a
+span at the one site turned out to matter: the warning was raised from a
+per-option `if`, and upstream raises all three `<svelte:options>` diagnostics
+from a single walk of `root.options.attributes`, which is also what fixes their
+**order** (source order of the attributes, not the order the checks are written
+in) and what makes `options_deprecated_accessors` fire at all. **An empty
+ratchet makes "no worse than last time" a zero-information bar here** — the
+guards are the pinned `(code, line, column)` triples in
+`crates/rsvelte_core/tests/svelte_options_deprecations.rs`.
 
 The three `attribute_avoid_is` entries were the same shape and are fixed:
 upstream passes the attribute node (`2-analyze/visitors/shared/element.js`), and
@@ -141,7 +171,7 @@ neighbouring warnings raised from that same loop were already spanned.
 
 ### How the backlog was cleared
 
-This ratchet held **528** entries per target and now holds 1. Two systemic causes
+This ratchet held **528** entries per target and now holds none. Two systemic causes
 were measured over the 625 entries listed before the a11y half was fixed, which
 carried 967 mismatching tuples between them:
 
