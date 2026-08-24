@@ -5,7 +5,7 @@
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
 //!     [--runes-false | --runes-true]
 
-use rsvelte_core::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -35,12 +35,24 @@ fn main() {
         }
     };
 
-    let filename = if args.iter().any(|a| a == "--no-filename") {
-        None
-    } else {
-        Some(path.clone())
-    };
-    let custom_element = args.iter().any(|a| a == "--custom-element");
+    if args.iter().any(|a| a == "--module") {
+        match compile_module(
+            &source,
+            ModuleCompileOptions {
+                generate,
+                dev,
+                filename: Some(path.clone()),
+                ..Default::default()
+            },
+        ) {
+            Ok(result) => print!("{}", result.js.code),
+            Err(err) => {
+                eprintln!("{err:?}");
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
 
     match compile(
         &source,

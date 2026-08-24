@@ -207,7 +207,11 @@ export function oxfmtTree(tree, { config, label }) {
 	const root = path.join(stage, 'tree');
 	fs.symlinkSync(tree, root);
 	try {
-		execFileSync('npx', ['oxfmt', '-c', config, '--no-error-on-unmatched-pattern', 'tree'], {
+		const bin = process.env.OXFMT_BIN || 'npx';
+		const args = process.env.OXFMT_BIN
+			? ['-c', config, '--no-error-on-unmatched-pattern', 'tree']
+			: ['oxfmt', '-c', config, '--no-error-on-unmatched-pattern', 'tree'];
+		execFileSync(bin, args, {
 			cwd: stage,
 			stdio: ['ignore', 'ignore', 'pipe'],
 			maxBuffer: 1024 * 1024 * 64,
@@ -239,7 +243,9 @@ export function oxfmtParses(absFile, { config }) {
 	const copy = path.join(stage, path.basename(absFile));
 	fs.copyFileSync(absFile, copy);
 	try {
-		execFileSync('npx', ['oxfmt', '-c', config, copy], { stdio: 'ignore' });
+		const bin = process.env.OXFMT_BIN || 'npx';
+		const args = process.env.OXFMT_BIN ? ['-c', config, copy] : ['oxfmt', '-c', config, copy];
+		execFileSync(bin, args, { stdio: 'ignore' });
 		return true;
 	} catch {
 		return false;

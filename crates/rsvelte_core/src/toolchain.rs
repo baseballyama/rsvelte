@@ -324,6 +324,9 @@ pub struct PreparedComponent<'source> {
     runes_mode: bool,
     retained_scripts: RetainedScripts<'source>,
     facts: OnceCell<ComponentFacts>,
+    // `compile_both` emits two results from one immutable AST, so the
+    // serialized public tree is shared rather than rebuilt per target.
+    ast_json: OnceCell<String>,
 }
 
 impl std::fmt::Debug for PreparedComponent<'_> {
@@ -340,6 +343,9 @@ impl std::fmt::Debug for PreparedComponent<'_> {
 
 impl<'source> PreparedComponent<'source> {
     pub(crate) fn new(source: &'source str, options: CompileOptions) -> Result<Self, CompileError> {
+        // Every later phase reads this same slice by byte range, so the BOM has
+        // to go here rather than inside the parser.
+        let source = crate::compiler::remove_bom(source);
         let mut ast = Box::new(crate::compiler::parse_component(
             source,
             options.modern_ast,
@@ -361,6 +367,7 @@ impl<'source> PreparedComponent<'source> {
             runes_mode,
             retained_scripts,
             facts: OnceCell::new(),
+            ast_json: OnceCell::new(),
         })
     }
 
@@ -486,10 +493,23 @@ impl<'source> PreparedComponent<'source> {
             options,
             self.runes_mode,
         );
-        if options.modern_ast {
-            result.ast = Some(self.public_ast_json());
-        }
+        // Upstream fills `result.ast` unconditionally — the modern tree under
+        // `modernAst`, the legacy one otherwise — from the same post-analysis
+        // AST this holds.
+        result.ast = Some(self.ast_json().to_string());
         Ok(result)
+    }
+
+    // Keyed on `self.options` rather than on the per-target copy, which only
+    // ever differs in `generate`.
+    fn ast_json(&self) -> &str {
+        self.ast_json.get_or_init(|| {
+            if self.options.modern_ast {
+                self.public_ast_json()
+            } else {
+                self.legacy_ast_json()
+            }
+        })
     }
 
     fn public_ast_json(&self) -> String {
@@ -505,6 +525,11 @@ impl<'source> PreparedComponent<'source> {
             crate::compiler::legacy::convert_positions_to_utf16(&mut value, &positions);
         }
         serde_json::to_string(&value).expect("the public AST JSON is serializable")
+    }
+
+    fn legacy_ast_json(&self) -> String {
+        let value = crate::compiler::legacy::convert_to_legacy_ref(self.source, &self.ast);
+        serde_json::to_string(&value).expect("the legacy AST JSON is serializable")
     }
 }
 
