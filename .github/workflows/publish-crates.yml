@@ -39,7 +39,7 @@ jobs:
       - name: Install Rust MSRV
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
         with:
-          toolchain: "1.97"
+          toolchain: "1.98"
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -167,7 +167,7 @@ jobs:
       - name: Install Rust MSRV
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
         with:
-          toolchain: "1.97"
+          toolchain: "1.98"
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
