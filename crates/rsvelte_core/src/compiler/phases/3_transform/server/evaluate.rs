@@ -124,7 +124,7 @@ impl Evaluation {
         }
     }
 
-    fn single(v: EvalValue) -> Self {
+    pub(crate) fn single(v: EvalValue) -> Self {
         Evaluation { values: vec![v] }
     }
 
@@ -1281,7 +1281,7 @@ impl<'a> EvalCtx<'a> {
 
     /// Whether `name` resolves to a local binding (used to validate global
     /// keypaths: upstream requires `scope.get(name) === null`).
-    fn identifier_has_binding(&self, name: &str) -> bool {
+    pub(crate) fn identifier_has_binding(&self, name: &str) -> bool {
         if self.constant_vars.contains_key(name) {
             return true;
         }
@@ -1396,6 +1396,7 @@ impl<'a> EvalCtx<'a> {
                         b.name == name
                             && (b.scope_index == 0
                                 || b.scope_index == a.root.instance_scope_index
+                                || b.scope_index == a.root.root_fragment_scope_index
                                 || (template_scopes.contains(&b.scope_index)
                                     && self.template_binding_is_reachable(b.scope_index)))
                     })
@@ -1564,89 +1565,7 @@ impl<'a> EvalCtx<'a> {
         binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
         depth: u8,
     ) -> Evaluation {
-        use BindingKind::*;
-
-        // Props (and prop-like bindings) are never known.
-        if matches!(binding.kind, Prop | BindableProp | RestProp) {
-            return Evaluation::unknown();
-        }
-        // Template-loop bindings: upstream marks each indexes NUMBER and
-        // items/await/snippet params unknown.
-        if matches!(binding.kind, EachIndex) {
-            return Evaluation::single(EvalValue::NumberMarker);
-        }
-        if matches!(
-            binding.kind,
-            EachItem | AwaitThen | AwaitCatch | SnippetParam | Let
-        ) {
-            return Evaluation::unknown();
-        }
-        if binding.initial_node_type.as_deref() == Some("SnippetBlock")
-            || binding.initial_node_type.as_deref() == Some("ImportDeclaration")
-        {
-            return Evaluation::unknown();
-        }
-        if binding.is_updated() {
-            return Evaluation::unknown();
-        }
-        // `$state()` / `$state.raw()` with no argument evaluates to
-        // `undefined` (upstream scope.js CallExpression rune case: no
-        // argument → `values.add(undefined)`). The analyzer stores the rune
-        // ARGUMENT as `initial`, so a no-arg rune leaves both `initial` and
-        // `initial_node_type` unset — distinguishable from a non-literal
-        // argument, which sets `initial_node_type`.
-        if matches!(binding.kind, State | RawState)
-            && binding.initial.is_none()
-            && binding.initial_node_type.is_none()
-        {
-            return Evaluation::single(EvalValue::Undefined);
-        }
-        let Some(initial) = binding.initial.as_deref() else {
-            // A template-literal initializer (`const w = `…${x}…``) is always a
-            // defined string (upstream scope.js `TemplateLiteral` → STRING marker),
-            // so reads of it must NOT be wrapped in `$.stringify(...)`. Its quasis
-            // and expressions still fold to a concrete value when every
-            // interpolation is known, so try that before settling for the marker.
-            if binding.initial_node_type.as_deref() == Some("TemplateLiteral") {
-                if depth < MAX_DEPTH
-                    && let Some(init_json) = binding.init_expr_json_parsed()
-                {
-                    return self.evaluate_estree(init_json, depth + 1);
-                }
-                return Evaluation::single(EvalValue::StringMarker);
-            }
-            // The analyzer does not capture non-literal initials in
-            // `binding.initial`, but upstream's `scope.evaluate` still knows
-            // `const uid = $props.id()` is a (defined) string — `$props.id`
-            // returns STRING (scope.js `case '$props.id'`). Recognize the
-            // `<name> = $props.id()` initializer from the source text.
-            if matches!(binding.kind, Normal) && self.binding_initial_is_props_id(&binding.name) {
-                return Evaluation::single(EvalValue::StringMarker);
-            }
-            // A non-literal initializer is kept as AST JSON instead; upstream's
-            // `scope.evaluate` recurses into the init node whatever its shape.
-            if !matches!(binding.kind, Derived)
-                && depth < MAX_DEPTH
-                && let Some(init_json) = binding.init_expr_json_parsed()
-            {
-                return self.evaluate_estree(init_json, depth + 1);
-            }
-            return Evaluation::unknown();
-        };
-
-        let trimmed = initial.trim_start();
-        if trimmed.starts_with('{') {
-            // estree-JSON dump (from `$derived(...)` / `{@const ...}` initials)
-            if let Ok(json) = serde_json::from_str::<Value>(initial) {
-                return self.evaluate_estree(&json, depth + 1);
-            }
-            return Evaluation::unknown();
-        }
-
-        match parse_literal_text(initial) {
-            Some(v) => Evaluation::single(v),
-            None => Evaluation::unknown(),
-        }
+        evaluate_binding_initial(self, binding, depth)
     }
 
     /// Core evaluator over estree-JSON, mirroring upstream's `Evaluation`

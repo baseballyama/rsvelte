@@ -739,14 +739,14 @@ pub fn analyze_template(
     analysis: &mut ComponentAnalysis,
     parse_arena: &ParseArena,
 ) -> Result<(), AnalysisError> {
-    // Read the instance scope index before borrowing `analysis` into the context,
-    // so we can initialize context.scope to the correct starting scope.
-    // The scope builder visits the template while current_scope = instance_scope_index,
-    // so template-root declarations land in that scope; the visitor must mirror it to
-    // ensure lexical scope-chain lookups (e.g. render-tag binding resolution) are correct.
-    let instance_scope_index = analysis.root.instance_scope_index;
+    // Read the root fragment's scope before borrowing `analysis` into the context.
+    // The scope builder visits the template inside it, so template-root
+    // declarations land there; the visitor must mirror it or a lexical
+    // scope-chain lookup (render-tag binding resolution) rejects them as
+    // declared in a non-ancestor scope.
+    let root_fragment_scope_index = analysis.root.root_fragment_scope_index;
     let mut context = VisitorContext::new(analysis, parse_arena);
-    context.scope = instance_scope_index;
+    context.scope = root_fragment_scope_index;
     context.next_fragment_is_root = true;
     fragment::analyze(&mut ast.fragment, &mut context)?;
     snippet_block::promote_mutual_snippet_hoists(&mut ast.fragment.nodes, &mut context);

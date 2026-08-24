@@ -211,7 +211,12 @@ impl<'a> ScopeBuilder<'a> {
 
         // Visit template - still within the script scope so bindings are accessible
         self.in_template = true;
+        // Upstream's root fragment is `create_fragment()` — non-transparent —
+        // so it owns a non-porous scope one level below the instance script.
+        let template_outer = self.push_function_scope();
+        self.root_fragment_scope_index = self.current_scope;
         self.visit_fragment(&ast.fragment);
+        self.pop_scope(template_outer);
         self.in_template = false;
 
         // Now pop the script scope after template processing is done
@@ -642,11 +647,8 @@ impl<'a> ScopeBuilder<'a> {
         // modes, so anything below the script's top level is exempt. Runes mode
         // re-checks without the exemption, but only from the three analyze
         // visitors upstream calls it from (variable declarator / function /
-        // class), which is why a `$`-prefixed template binding stays legal.
-        // A template binding is always at least two non-porous levels below the
-        // module scope upstream — the instance scope and the root `Fragment`,
-        // neither of which we materialise — so the `depth <= 1` guard inside
-        // `validate_identifier_name` never fires for one.
+        // class), which is why a `$`-prefixed template binding stays legal —
+        // none of those three visitors ever reaches a template declaration.
         if !self.in_template {
             let function_depth = self.scopes[target_scope].function_depth;
             if let Err(e) = validate_identifier_name(&binding, Some(function_depth)) {
@@ -2742,7 +2744,10 @@ impl<'a> ScopeBuilder<'a> {
             | TemplateNode::SvelteOptions(elem)
             | TemplateNode::SvelteWindow(elem) => {
                 self.process_attributes(&elem.attributes);
+                let old_scope = self.push_scope();
+                self.register_template_scope(elem.start);
                 self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
             }
             // SvelteFragment, SlotElement, SvelteElement each get their own scope
             // (matching the official Svelte compiler where these all use the SvelteFragment handler)
@@ -3785,9 +3790,18 @@ impl<'a> ScopeBuilder<'a> {
             // A snippet declares with `Function`, which `declare_binding`
             // exempts from the duplicate check so a TypeScript overload set
             // stays legal. Two snippets are not an overload set.
+            // A top-level snippet lives in the root fragment's scope, so it is
+            // additionally checked against the instance script's declarations
+            // (upstream `SnippetBlock.js:32`).
+            let is_top_level = self.instance_scope_index != 0
+                && self.current_scope == self.root_fragment_scope_index;
             if self.scopes[self.current_scope]
                 .declarations
                 .contains_key(name)
+                || (is_top_level
+                    && self.scopes[self.instance_scope_index]
+                        .declarations
+                        .contains_key(name))
             {
                 let mut error = errors::declaration_duplicate(name);
                 if let Some((start, end)) = span {

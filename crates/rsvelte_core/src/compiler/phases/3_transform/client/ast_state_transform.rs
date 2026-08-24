@@ -176,6 +176,17 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String], dev: bool)
     }
 }
 
+/// A declarator initializer with its redundant parentheses peeled off, paired
+/// with the span a rewrite of it must cover.
+///
+/// Upstream parses with acorn, which builds no `ParenthesizedExpression` at
+/// all, so `let v = ($state(1))` reaches `get_rune` as the bare call and the
+/// parens never survive into the output. Matching only the bare
+/// `CallExpression` here left the rune unlowered instead (#3248).
+fn init_without_parens<'x, 'ast>(init: &'x Expression<'ast>) -> (&'x Expression<'ast>, Span) {
+    (init.without_parentheses(), init.span())
+}
+
 /// Execute a closure with a freshly-reset thread-local OXC allocator.
 fn with_ast_transform_allocator<F, R>(f: F) -> R
 where
@@ -870,13 +881,25 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         &self,
         call: &CallExpression<'_>,
         arg_span: Span,
+        init_span: Span,
     ) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
         let callee_end = call.callee.span().end;
         let open = self
             .trivia_code_start(callee_end, arg_span.start)
             .filter(|&p| self.source.as_bytes().get(p as usize) == Some(&b'('))
             .map(|p| p + 1);
-        let mut pre = self.trivia_comment_spans(callee_end, arg_span.start);
+        // A comment between redundant parens and the callee (`(/* c */ $state(1))`)
+        // is flushed before the value just like one inside the call's own parens.
+        let mut pre = Vec::new();
+        if init_span.start < call.span.start {
+            let region =
+                &self.source.as_bytes()[init_span.start as usize..call.span.start as usize];
+            if let Some(last_open) = region.iter().rposition(|&b| b == b'(') {
+                let from = init_span.start + last_open as u32 + 1;
+                pre.extend(self.trivia_comment_spans(from, call.span.start));
+            }
+        }
+        pre.extend(self.trivia_comment_spans(callee_end, arg_span.start));
         if let Some(open) = open {
             pre.extend(self.trivia_comment_spans(open, arg_span.start));
         }
@@ -1120,6 +1143,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_state_raw_or_frozen_init(init) {
             return false;
         }
@@ -1151,7 +1175,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
-            let (pre, post) = self.rune_call_comment_slots(call, arg_span);
+            let (pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
             pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
             post_comments = post;
             arg_end = arg_span.end;
@@ -1208,6 +1232,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_state_call_init(init) {
             return false;
         }
@@ -1251,7 +1276,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
-            let (pre, post) = self.rune_call_comment_slots(call, arg_span);
+            let (pre, post) = self.rune_call_comment_slots(call, arg_span, init_span);
             pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
             post_comments = post;
             arg_end = arg_span.end;
@@ -1337,6 +1362,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
 
         // Determine $state vs $state.raw (text path doesn't handle frozen
         // destructuring, so we match the same shapes only).
@@ -1412,7 +1438,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let replacement = declarations.join(", ");
         let start = declarator.id.span().start;
-        let end = call.span.end;
+        let end = init_span.end;
         self.add_replacement(start, end, replacement);
         true
     }
@@ -1667,6 +1693,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_call_init(init) {
             return false;
         }
@@ -1824,7 +1851,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // optional trailing pieces of the VariableDeclaration remain.
         let replacement = declarations.join(",\n\t");
         let start = pattern_span.start;
-        let end = call.span.end;
+        let end = init_span.end;
         self.add_replacement(start, end, replacement);
         true
     }
@@ -1845,6 +1872,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_by_init(init) {
             return false;
         }
@@ -1909,7 +1937,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 
         let replacement = declarations.join(",\n\t");
         let start = pattern_span.start;
-        let end = call.span.end;
+        let end = init_span.end;
         self.add_replacement(start, end, replacement);
         true
     }
@@ -1935,6 +1963,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         let Expression::CallExpression(call) = init else {
             return false;
         };
@@ -1969,6 +1998,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // becomes `$.get(state1)` in the helper input, and the helper
         // copies it verbatim into the emitted `$.prop(...)` default arg.
         walk::walk_variable_declarator(self, declarator);
+        // The shared text helper matches `= $props()`, so redundant parens
+        // around the call are dropped here rather than in the helper — esrap
+        // reprints the declaration and never keeps them either (#3248).
+        if init_span != call.span {
+            self.add_replacement(init_span.start, call.span.start, String::new());
+            self.add_replacement(call.span.end, init_span.end, String::new());
+        }
         let decl_span = decl.span;
         let walked_source = self.apply_and_drain_inner_replacements(decl_span.start, decl_span.end);
 
@@ -2063,6 +2099,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_by_init(init) {
             return false;
         }
@@ -2141,6 +2178,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
+        let (init, init_span) = init_without_parens(init);
         if !self.is_derived_call_init(init) {
             return false;
         }
