@@ -183,7 +183,7 @@ withCorpus(
 
 withCorpus(
 	(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
-	(r) => check('a stale cluster count fails', [r.code, /sums to 19 \(/.test(r.out)], [1, true]),
+	(r) => check('a stale cluster count fails', [r.code, /sums to 21 \(/.test(r.out)], [1, true]),
 );
 
 // The shape #2500 is about: an entry cited under two clusters, with the cluster

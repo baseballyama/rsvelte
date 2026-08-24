@@ -5386,16 +5386,9 @@ fn identifier_has_reactive_state(
             if binding.reassigned || binding.mutated {
                 return true;
             }
-            // If the binding has a stored initial expression (the $derived argument),
-            // parse it as JSON and check if it can be evaluated at compile time.
-            // This approximates scope.evaluate().is_known from the official compiler.
-            if let Some(initial_json) = binding.initial_json() {
-                // Check if the expression is "known" (compile-time evaluable)
-                // If known, the derived value is effectively constant → not reactive
-                return !is_expression_known_json(initial_json, context);
-            }
-            // If no initial or couldn't parse, conservatively treat as reactive
-            return true;
+            // The stored `$derived` argument approximates scope.evaluate().is_known:
+            // a known value is effectively constant → not reactive.
+            return !is_binding_initial_known(binding, context);
         }
 
         // For Template bindings (@const tag), apply the same scope.evaluate()
@@ -6696,6 +6689,23 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         _ => false,
+    }
+}
+
+/// Is a binding's stored initializer a compile-time known value — upstream's
+/// `scope.evaluate(binding.initial).is_known`?
+///
+/// `Binding::initial` carries two encodings: the initializer node's JSON, or —
+/// when that initializer is a literal — the literal's own source text. A parse
+/// that does not yield an object is therefore the literal form, not a failure,
+/// and a literal is known by construction (#3228).
+fn is_binding_initial_known(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    context: &ComponentContext,
+) -> bool {
+    match binding.initial_json().filter(|value| value.is_object()) {
+        Some(json) => is_expression_known_json(json, context),
+        None => is_initial_value_literal_or_known(&binding.initial),
     }
 }
 

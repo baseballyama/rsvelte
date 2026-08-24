@@ -657,8 +657,13 @@ pub(super) fn extract_props_from_binding_pattern_runes(
                 };
 
             if let Some(ref key) = key_name {
-                let local = local_name.unwrap_or(key).to_owned();
-                exported_names.add(key.clone(), local, has_default, None, true);
+                // Under `version: '4'` a $props() destructure is not runes mode
+                // upstream, so its names never become exports and must not leak
+                // into the legacy props / class-getter output.
+                if exported_names.is_svelte5_plus() {
+                    let local = local_name.unwrap_or(key).to_owned();
+                    exported_names.add(key.clone(), local, has_default, None, true);
+                }
                 if is_bindable {
                     exported_names.bindable_props.push(key.clone());
                 }

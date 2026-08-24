@@ -21,6 +21,11 @@ pub(super) fn push_close_tag(
     // tag wraps, the close tag drops to its own line and the whitespace body is
     // absorbed into that break. See [`is_empty_nonhug_element`].
     empty_nonhug: bool,
+    // Whether the element's last child ends exactly at `element_end` — then the
+    // `</…>` sitting there is that CHILD's close tag (`<li><span>x</span></ul>`),
+    // not a mis-typed close tag for this element, and the mismatch fallback must
+    // not claim it.
+    last_child_ends_here: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
@@ -33,8 +38,9 @@ pub(super) fn push_close_tag(
     // `element_end`.  This mirrors the oracle (prettier-plugin-svelte), which
     // always emits a close tag based on the AST element name regardless of what
     // the source contains.
-    let span = find_close_tag_span(source, element_end, tag_name)
-        .or_else(|| find_any_close_tag_span(source, element_end));
+    let span = find_close_tag_span(source, element_end, tag_name).or_else(|| {
+        (!last_child_ends_here).then(|| find_any_close_tag_span(source, element_end))?
+    });
     let Some((start, end)) = span else {
         // No explicit close tag at element_end.  There are three cases:
         //
@@ -120,6 +126,11 @@ pub(super) fn push_close_tag(
                     element_end,
                     format!("\n{parent_indent}</{tag_name}>"),
                 ));
+            } else {
+                // The implicit close sits directly against the next sibling's
+                // `<` (`<li>a<li>b`), so there is no whitespace to replace —
+                // insert the close tag. The indent pass owns the separator.
+                edits.push((element_end, element_end, format!("</{tag_name}>")));
             }
         }
         return;

@@ -125,6 +125,12 @@ diagnostics! {
     /// `%name%` has already been declared
     declaration_duplicate(name: &str) => "`{}` has already been declared", name;
 
+    /// acorn's own wording and code for a redeclaration. Raised from the
+    /// analyze phase only where TypeScript hides it from the parser: OXC's TS
+    /// mode exempts every function-vs-function redeclaration, so `1_parse` has
+    /// no diagnostic to map onto acorn's.
+    js_parse_error(name: &str) => "Identifier '{}' has already been declared", name;
+
     // Class-related errors
 
     /// `%name%` has already been declared

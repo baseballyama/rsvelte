@@ -313,7 +313,7 @@ fn compound_and_logical_assignments_keep_nested_comments() {
     assert_structurally_valid(&out, "compound/logical assignment");
     let flat = dedented(&out);
     assert!(
-        flat.contains("$.set(this.#x, this.#x.v ?? {\na: s,\n// c\nb: s\n});"),
+        flat.contains("this.#x.v ?? $.set(this.#x, {\na: s,\n// c\nb: s\n});"),
         "logical assignment RHS must survive:\n{out}"
     );
     assert!(

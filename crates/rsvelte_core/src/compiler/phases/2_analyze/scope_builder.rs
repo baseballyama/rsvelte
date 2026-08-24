@@ -90,6 +90,9 @@ pub struct ScopeBuilder<'a> {
     /// `{:else}` fragment scopes keyed by the enclosing `{#if}`'s start (see
     /// `ScopeRoot::if_alternate_scope_map`).
     if_alternate_scope_map: FxHashMap<u32, usize>,
+    /// `{:else}` fragment scopes keyed by the enclosing `{#each}`'s start (see
+    /// `ScopeRoot::each_fallback_scope_map`).
+    each_fallback_scope_map: FxHashMap<u32, usize>,
     /// Scope indices created for `{#snippet …}` bodies (see
     /// `ScopeRoot::snippet_scope_indices`).
     snippet_scope_indices: rustc_hash::FxHashSet<usize>,
@@ -144,6 +147,7 @@ impl<'a> ScopeBuilder<'a> {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             if_alternate_scope_map: FxHashMap::default(),
+            each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
@@ -354,6 +358,7 @@ impl<'a> ScopeBuilder<'a> {
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
                 if_alternate_scope_map: self.if_alternate_scope_map,
+                each_fallback_scope_map: self.each_fallback_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
                 conflicts,
                 bindings_by_name: self.bindings_by_name,
@@ -536,6 +541,38 @@ impl<'a> ScopeBuilder<'a> {
                 self.possible_implicit_declarations.push(name);
             }
         }
+    }
+
+    /// acorn-typescript separates an overload SIGNATURE from an
+    /// IMPLEMENTATION: any number of body-less declarations may share a name,
+    /// two bodies may not. `declare_binding` exempts every `Function` from the
+    /// duplicate check so that overload sets and snippets stay legal, so the
+    /// implementation-vs-implementation half is answered here, at the only
+    /// three sites that declare a real `function`.
+    fn report_duplicate_function_implementation(
+        &mut self,
+        name: &str,
+        has_body: bool,
+        span: Option<(u32, u32)>,
+    ) {
+        if !has_body {
+            return;
+        }
+        let Some(&existing) = self.scopes[self.current_scope].declarations.get(name) else {
+            return;
+        };
+        if !self.bindings[existing].is_function_implementation {
+            return;
+        }
+        // Zero width, at the redeclaring identifier — acorn reports a single
+        // `pos` and stops there, and this has to be indistinguishable from the
+        // `js_parse_error` the parser raises for the same source without
+        // `lang="ts"`.
+        let mut error = errors::js_parse_error(name);
+        if let Some((start, _)) = span {
+            error = error.at(start, start);
+        }
+        self.validation_errors.push(error);
     }
 
     /// Declare a binding in the current scope. `span` is the declaring
@@ -747,6 +784,12 @@ impl<'a> ScopeBuilder<'a> {
                         name, start, end, ..
                     } = id_node
                     {
+                        let has_body = body.is_some();
+                        self.report_duplicate_function_implementation(
+                            name,
+                            has_body,
+                            Some((*start, *end)),
+                        );
                         let idx = self.declare_binding(
                             name.to_string(),
                             BindingKind::Normal,
@@ -754,6 +797,7 @@ impl<'a> ScopeBuilder<'a> {
                             Some((*start, *end)),
                         );
                         self.bindings[idx].initial_is_function = true;
+                        self.bindings[idx].is_function_implementation = has_body;
                         self.bindings[idx].declaration_start = Some(*start);
                     }
                 }
@@ -1576,6 +1620,12 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
                     let offset = self.current_script_offset as u32;
+                    let has_body = func_decl.body.is_some();
+                    self.report_duplicate_function_implementation(
+                        &name,
+                        has_body,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -1584,6 +1634,7 @@ impl<'a> ScopeBuilder<'a> {
                     );
                     // Mark as a true JS function (not a snippet block)
                     self.bindings[idx].initial_is_function = true;
+                    self.bindings[idx].is_function_implementation = has_body;
                     self.bindings[idx].declaration_start = Some(id.span.start + offset);
                 }
                 // Create a new scope for the function body (non-porous: function_depth + 1)
@@ -2348,6 +2399,12 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
                     let offset = self.current_script_offset as u32;
+                    let has_body = func_decl.body.is_some();
+                    self.report_duplicate_function_implementation(
+                        &name,
+                        has_body,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -2355,6 +2412,7 @@ impl<'a> ScopeBuilder<'a> {
                         Some((id.span.start + offset, id.span.end + offset)),
                     );
                     self.bindings[idx].initial_is_function = true;
+                    self.bindings[idx].is_function_implementation = has_body;
                 }
                 // Process function body to track assignments inside exported functions.
                 // Without this, reassignments like `export function update() { x = 'new'; }`
@@ -3453,9 +3511,16 @@ impl<'a> ScopeBuilder<'a> {
         // Visit body
         self.visit_fragment(&block.body);
 
-        // Visit fallback if present
+        // Upstream walks the body's NODES with the each scope but visits the
+        // fallback as a `Fragment`, so only the fallback reaches the `Fragment`
+        // visitor's `scope.child(...)`: a `{@const}` naming the item duplicates
+        // it in the body and shadows it here.
         if let Some(ref fallback) = block.fallback {
+            let fallback_outer = self.push_scope();
+            self.each_fallback_scope_map
+                .insert(block.start, self.current_scope);
             self.visit_fragment(fallback);
+            self.pop_scope(fallback_outer);
         }
 
         // Official Svelte compiler logic (index.js lines 638-674):

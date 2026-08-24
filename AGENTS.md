@@ -817,7 +817,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.56.9**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
+<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.56.10**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
 to refresh. The runtime skip lists and the fixture-generation compile options are shared
 constants in `crates/rsvelte_core/tests/common/mod.rs`, so the report and the gates
 (`tests/runtime.rs`, `tests/ssr.rs`) always measure the same thing;

@@ -40,22 +40,20 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 670 entries)
+## Matrix known failures (`matrix-known-failures.json`, 666 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 282 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 282 + 8 + 0 + 0 + 0`
 
-### `binding-position` — 4 entries
+### `binding-position` — 0 entries
 
-Both are `label.body` on the **server** target (`derived-local`, `store-auto-sub`), and in
-both **rsvelte's output is the correct one**.
-
-`submodules/svelte/.../3-transform/server/visitors/LabeledStatement.js` returns early for
-a non-`$` label **without calling `context.next()`**, so zimmerframe never descends into
-the labeled subtree; the client visitor calls `context.next()` at the same guard. Since
-`$.derived()` returns a function in `svelte/internal/server`, upstream emits
-`if (doubled)` — always truthy — where every other position emits `doubled()`. Store
-auto-subscriptions inside a labeled body are mis-emitted the same way. Reported upstream;
-these two entries clear when the fix lands in `submodules/svelte`.
+The upstream fix landed. `submodules/svelte/.../3-transform/server/visitors/LabeledStatement.js`
+used to return early for a non-`$` label **without calling `context.next()`**, so zimmerframe
+never descended into the labeled subtree and, since `$.derived()` returns a function in
+`svelte/internal/server`, upstream emitted `if (doubled)` — always truthy — where every
+other position emitted `doubled()`. Store auto-subscriptions inside a labeled body were
+mis-emitted the same way. Svelte 5.56.10 adds the `context.next()` call at that guard, which
+is what these four entries (`derived-local` and `store-auto-sub`, `label.body`, on `server`
+and `server-dev`) were waiting for, so the submodule bump cleared them.
 
 The rest of the family (7 bindings × 47 positions × 3 targets, minus these) passes. It is
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and

@@ -5,7 +5,7 @@ The formatter-parity corpus formats every `.svelte` component with both
 Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
 requires **byte-identical** output. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 20 entries**, concentrated in real-world corpus repos
+**Current baseline: `fmt-known-failures.json`, 22 entries**, concentrated in real-world corpus repos
 (skeleton, layerchart, svelte-ux, layercake, cmsaasstarter, and a long tail).
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`). Every
@@ -20,7 +20,7 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 6 + 1 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 6 + 1 + 1 + 1 + 2`
 
 ## Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
@@ -234,8 +234,33 @@ and normalizes the arguments to one canonical level. The comment-line
 whitespace mix is a secondary rsvelte dedent artifact, but fixing it alone
 cannot clear the entry while the mode difference remains. Unfixable in-repo;
 a root fix would need oxfmt's standalone path to preserve multi-line
-function-value interiors verbatim (high blast radius upstream). This is the
-one entry in the baseline that is pure CSS formatting, not HTML/JS layout.
+function-value interiors verbatim (high blast radius upstream). Cluster 11
+is the same oxfmt mode difference reached through a different construct.
+
+## Cluster 11 — CSS selector source spelling, native engine (2)
+
+Two `submodules/svelte` fixtures that arrived with the 5.56.10 bump. Both are
+selectors the CSS printer re-emits from the AST rather than from the source:
+
+- `css-nth-of-minified/input.svelte` — `li:nth-child(2n of.important)`. A
+  minifier may drop the space after `of` because the `.`/`#`/`[`/`*`/`&` that
+  follows already ends the `of` identifier. The oracle keeps the input
+  spelling; rsvelte prints `of .important`.
+- `css-escape-sequences/input.svelte` — `#\31\32\33 { … }`. The space after
+  `\33` is the escape's terminator and belongs to the selector token, so
+  re-emitting the token and then adding the separator before `{` yields two
+  spaces where the oracle has one.
+
+Same root cause as Cluster 8, reached from the selector side rather than the
+declaration side: **oxfmt's svelte-embedded mode preserves selector source
+text, its standalone CSS mode re-prints selectors from the parsed AST**, and
+the standalone path is the only one rsvelte's in-process `oxc_formatter_css`
+wrapper has. Measured, not inferred: running oxfmt 0.63 over the same two
+selectors as a standalone `.css` file reproduces rsvelte's output byte for
+byte (`of .important`, `#\31\32\33  {`) — the engine and its version agree
+with rsvelte, and only the embedding mode differs. Neither spelling changes
+what the selector matches; CSS treats the two forms as the same token
+sequence. Unfixable in-repo for the same reason as Cluster 8.
 
 ## Resolved
 

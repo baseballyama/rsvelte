@@ -1134,7 +1134,12 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
         && let Some(source) = context.source
     {
         let css_content = extract_and_reformat_css(source, stylesheet);
-        if let Some(css) = css_content {
+        // A backslash means the source carries CSS escape sequences. Those are
+        // decoded into the AST and must be re-escaped canonically on the way out
+        // (`\31\32\33` and `\31 23` are the same identifier and print alike),
+        // which only the AST visitors do — copying the source through would
+        // preserve whichever spelling the author happened to use.
+        if let Some(css) = css_content.filter(|css| !css.contains('\\')) {
             if !css.is_empty() {
                 context.indent();
                 context.newline();
@@ -1239,18 +1244,34 @@ fn extract_and_reformat_css(source: &str, stylesheet: &StyleSheet) -> Option<Str
 /// Split CSS content into top-level blocks (rules, at-rules).
 /// Returns trimmed block strings.
 fn split_css_top_level_blocks(css: &str) -> Vec<String> {
-    // Byte-indexing is safe here: every token we test (`{`, `}`) is ASCII,
-    // and `current_start..=i` is sliced when `i` points at an ASCII `}`,
-    // so the slice is always on a UTF-8 char boundary.
+    // Byte-indexing is safe here: every token we test (`{`, `}`, `;`, `(`, `)`,
+    // quotes) is ASCII, and `current_start..=i` is sliced when `i` points at one
+    // of them, so the slice is always on a UTF-8 char boundary.
     let mut blocks = Vec::new();
     let mut depth = 0;
+    let mut paren_depth = 0u32;
+    let mut quote: Option<u8> = None;
     let mut current_start = 0;
     let mut in_block = false;
     let bytes = css.as_bytes();
 
     let mut i = 0;
     while i < bytes.len() {
+        // Skip over string literals: `@import "a;b";` must not split at the
+        // quoted `;`.
+        if let Some(q) = quote {
+            match bytes[i] {
+                b'\\' => i += 1,
+                c if c == q => quote = None,
+                _ => {}
+            }
+            i += 1;
+            continue;
+        }
         match bytes[i] {
+            b'"' | b'\'' => quote = Some(bytes[i]),
+            b'(' => paren_depth += 1,
+            b')' => paren_depth = paren_depth.saturating_sub(1),
             b'{' => {
                 if depth == 0 {
                     in_block = true;
@@ -1268,6 +1289,17 @@ fn split_css_top_level_blocks(css: &str) -> Vec<String> {
                     current_start = i + 1;
                     in_block = false;
                 }
+            }
+            b';' if depth == 0 && paren_depth == 0 => {
+                // A statement at-rule (`@namespace ...;`, `@import ...;`) ends
+                // here. Without this, it would be glued to the rule that
+                // follows, and that rule's selector would end up inside the
+                // at-rule's prelude — mis-indenting every following line.
+                let trimmed = css[current_start..=i].trim();
+                if !trimmed.is_empty() {
+                    blocks.push(trimmed.to_string());
+                }
+                current_start = i + 1;
             }
             _ => {}
         }

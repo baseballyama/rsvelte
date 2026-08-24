@@ -53,6 +53,9 @@ pub enum SvelteVersion {
 #[derive(Debug, Clone)]
 pub struct Svelte2TsxOptions {
     /// The filename of the Svelte component (e.g., "App.svelte").
+    ///
+    /// Empty means the caller supplied none, in which case the component is
+    /// named `$$Component` — mirrors `options.filename || ''` upstream.
     pub filename: String,
     /// Whether the file uses TypeScript (`lang="ts"` on script tag).
     /// Auto-detected from filename if not set.
@@ -71,6 +74,13 @@ pub struct Svelte2TsxOptions {
     /// Whether to emit `JSDoc` format for component export instead of TypeScript syntax.
     /// When true and not a TS file, uses `export const` + `/** @typedef */` format.
     pub emit_jsdoc: bool,
+    /// The JSX typings namespace the generated `createElement` /
+    /// `mapElementTag` calls are qualified with. Mirrors upstream's
+    /// `options.typingsNamespace || 'svelteHTML'`.
+    pub typings_namespace: String,
+    /// Import `SvelteComponent` instead of `SvelteComponentTyped` in the
+    /// class-component shapes (Svelte 3 backwards compatibility).
+    pub no_svelte_component_typed: bool,
     /// When set, rewrites relative import specifiers that escape the workspace
     /// so they remain valid from the generated `.tsx` location. Mirrors
     /// `helpers/rewriteExternalImports.ts` in the JS reference.
@@ -90,6 +100,91 @@ pub struct RewriteExternalImportsOptions {
     pub workspace_path: String,
 }
 
+impl Svelte2TsxOptions {
+    /// Whether an element's `bind:` prefix survives into the emitted property
+    /// name. Mirrors upstream's `preserveBind = typingsNamespace ===
+    /// 'svelteHTML'` — a custom typings namespace expects plain prop names.
+    #[must_use]
+    pub fn preserves_bind_prefix(&self) -> bool {
+        self.typings_namespace == DEFAULT_TYPINGS_NAMESPACE
+    }
+
+    /// Build options from the JavaScript `svelte2tsx(source, options)` object.
+    ///
+    /// Shared by every binding (NAPI, wasm) so the JS-visible option contract
+    /// has exactly one implementation. An absent key takes the JS reference's
+    /// fallback, which is not always [`Default::default`] — an absent
+    /// `filename` stays empty rather than being invented, because upstream
+    /// derives the component name from `options.filename || ''`.
+    #[must_use]
+    pub fn from_json(options: &serde_json::Value) -> Self {
+        let mut opts = Self {
+            filename: String::new(),
+            ..Self::default()
+        };
+
+        let Some(obj) = options.as_object() else {
+            return opts;
+        };
+
+        if let Some(v) = obj.get("filename").and_then(serde_json::Value::as_str) {
+            opts.filename = v.to_string();
+        }
+
+        if let Some(v) = obj.get("isTsFile").and_then(serde_json::Value::as_bool) {
+            opts.is_ts_file = v;
+        }
+
+        if let Some(v) = obj.get("mode").and_then(serde_json::Value::as_str) {
+            opts.mode = match v {
+                "dts" => Svelte2TsxMode::Dts,
+                _ => Svelte2TsxMode::Ts,
+            };
+        }
+
+        if let Some(v) = obj.get("accessors").and_then(serde_json::Value::as_bool) {
+            opts.accessors = v;
+        }
+
+        if let Some(v) = obj.get("namespace").and_then(serde_json::Value::as_str) {
+            opts.namespace = match v {
+                "svg" => Svelte2TsxNamespace::Svg,
+                "mathml" => Svelte2TsxNamespace::Mathml,
+                "foreign" => Svelte2TsxNamespace::Foreign,
+                _ => Svelte2TsxNamespace::Html,
+            };
+        }
+
+        if let Some(v) = obj.get("version").and_then(serde_json::Value::as_str) {
+            opts.version = if v.starts_with('5') {
+                SvelteVersion::V5
+            } else {
+                SvelteVersion::V4
+            };
+        }
+
+        if let Some(v) = obj
+            .get("typingsNamespace")
+            .and_then(serde_json::Value::as_str)
+        {
+            opts.typings_namespace = v.to_string();
+        }
+
+        if let Some(v) = obj.get("emitJsDoc").and_then(serde_json::Value::as_bool) {
+            opts.emit_jsdoc = v;
+        }
+
+        if let Some(v) = obj
+            .get("noSvelteComponentTyped")
+            .and_then(serde_json::Value::as_bool)
+        {
+            opts.no_svelte_component_typed = v;
+        }
+
+        opts
+    }
+}
+
 impl Default for Svelte2TsxOptions {
     fn default() -> Self {
         Self {
@@ -101,10 +196,15 @@ impl Default for Svelte2TsxOptions {
             version: SvelteVersion::V5,
             runes: None,
             emit_jsdoc: false,
+            typings_namespace: DEFAULT_TYPINGS_NAMESPACE.to_string(),
+            no_svelte_component_typed: false,
             rewrite_external_imports: None,
         }
     }
 }
+
+/// The JSX typings namespace upstream falls back to when the caller passes none.
+pub const DEFAULT_TYPINGS_NAMESPACE: &str = "svelteHTML";
 
 /// The result of a svelte2tsx conversion.
 #[derive(Debug, Clone)]

@@ -363,8 +363,8 @@ fn format_attempt(
 ///   corpus doesn't currently produce this shape, so making it explicit leaves
 ///   every corpus output byte-identical; the unit tests below lock in the
 ///   intended semantics.
-/// - Multiple inserts at one position keep the order the old apply produced
-///   (last-pushed first).
+/// - Multiple inserts at one position emit in push order, so markup's
+///   synthetic close tag precedes indent.rs's separator at the same offset.
 fn apply_edits(source: &str, edits: &mut Vec<(u32, u32, String)>) -> String {
     // Select survivors in descending-start order so the overlap tie-break
     // matches the historical back-to-front `replace_range` loop.
@@ -388,11 +388,12 @@ fn apply_edits(source: &str, edits: &mut Vec<(u32, u32, String)>) -> String {
         survivors.push((start, end, new_text));
     }
 
-    // `reverse` turns the descending-start survivors into ascending start with
-    // same-start edits in reverse push order (what the old loop produced for
-    // coincident inserts). The stable re-sort then pins the one deliberate
-    // rule: at a shared start a zero-length insert precedes the range edit.
-    survivors.reverse();
+    // Survivors are in descending start with same-start entries in push order
+    // (both sorts above are stable). The stable re-sort to ascending start
+    // therefore keeps push order at a shared position and pins two rules: a
+    // zero-length insert precedes a range edit at the same start, and two
+    // coincident inserts emit in the order their passes pushed them — markup
+    // structure (a synthetic close tag) before indentation whitespace.
     survivors.sort_by_key(|(start, end, _)| (*start, u8::from(*end > *start)));
 
     let out_cap = source.len() + survivors.iter().map(|(_, _, t)| t.len()).sum::<usize>();
@@ -450,10 +451,10 @@ mod tests {
     }
 
     #[test]
-    fn multiple_inserts_at_one_position_keep_reverse_push_order() {
-        // Matches the old back-to-front apply: the last-pushed insert prints
-        // first (each `replace_range` at the same offset prepends).
-        assert_eq!(apply("abcd", vec![e(2, 2, "1"), e(2, 2, "2")]), "ab21cd");
+    fn multiple_inserts_at_one_position_keep_push_order() {
+        // A markup pass pushes before the indent pass, so a synthetic close tag
+        // lands before the separator that follows it.
+        assert_eq!(apply("abcd", vec![e(2, 2, "1"), e(2, 2, "2")]), "ab12cd");
     }
 
     #[test]

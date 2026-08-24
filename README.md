@@ -72,7 +72,7 @@ limitations.
 
 <!-- svelte-target-version -->
 
-**Targeting Svelte `v5.56.9`** ([`20b341f10048`](https://github.com/sveltejs/svelte/commit/20b341f10048)). This line is updated by `pnpm run update-docs`.
+**Targeting Svelte `v5.56.10`** ([`56a036f4ce87`](https://github.com/sveltejs/svelte/commit/56a036f4ce87)). This line is updated by `pnpm run update-docs`.
 <!-- /svelte-target-version -->
 
 rsvelte passes 100% of the official Svelte fixtures currently in scope. CI also

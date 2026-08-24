@@ -479,7 +479,8 @@ pub fn handle_named_slot_element(
     );
 
     // Build attributes string excluding `slot` and `let:` directives
-    let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
+    let attrs_str =
+        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace);
 
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
@@ -506,6 +507,7 @@ pub fn handle_named_slot_element(
             in_component_slot: true,
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     // NOTE: the `let:foo={bar}` binding is reflected purely via the slot-def
@@ -513,9 +515,10 @@ pub fn handle_named_slot_element(
     // separate `bar;` reflection statement (that would duplicate the `{bar}`
     // content expression).
     let opener = format!(
-        "{}{}{{ svelteHTML.createElement(\"{}\", {{{}{}}});{}",
+        "{}{}{{ {}.createElement(\"{}\", {{{}{}}});{}",
         " ".repeat(spacing.before_block),
         block_open,
+        options.typings_namespace,
         el.name,
         " ".repeat(spacing.in_attr_object),
         attrs_str,
@@ -583,7 +586,8 @@ pub fn handle_named_slot_svelte_fragment(
     // position-preserving emission leaves one space per stripped attribute
     // visible inside the empty `{}` (so `slot="x" let:y` → 2 spaces,
     // `slot="x" let:y let:z` → 3 spaces, etc.).
-    let attrs_str = build_named_slot_element_attrs(&el.attributes, source);
+    let attrs_str =
+        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace);
     let inner = if attrs_str.is_empty() {
         let stripped_count = el
             .attributes
@@ -607,8 +611,10 @@ pub fn handle_named_slot_svelte_fragment(
     } else {
         attrs_str
     };
-    let opener =
-        format!("{block_open}{{ svelteHTML.createElement(\"svelte:fragment\", {{{inner}}});");
+    let opener = format!(
+        "{block_open}{{ {}.createElement(\"svelte:fragment\", {{{inner}}});",
+        options.typings_namespace
+    );
 
     if !has_closing_tag {
         // Self-closing `<svelte:fragment slot="x" />` — body has no nodes.
@@ -665,6 +671,7 @@ pub fn handle_named_slot_component(
             in_component_slot: true,
             tag_name: &comp.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     str.append_left_fmt(
@@ -731,6 +738,7 @@ pub fn handle_named_slot_svelte_component(
             in_component_slot: true,
             tag_name: &comp.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     str.append_left_fmt(
@@ -786,6 +794,7 @@ pub fn handle_named_slot_svelte_self(
             in_component_slot: true,
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     str.append_left_fmt(
@@ -803,7 +812,7 @@ pub fn handle_named_slot_svelte_self(
 }
 
 /// Build attribute string for a named slot element, excluding `slot` and `let:` directives.
-pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) -> String {
+pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str, ns: &str) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for attr in attributes {
@@ -820,7 +829,11 @@ pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) ->
                 parts.push(format_spread_attribute(spread, source));
             }
             Attribute::BindDirective(bind) => {
-                parts.push(format_bind_directive(bind, source));
+                parts.push(format_bind_directive(
+                    bind,
+                    source,
+                    ns == crate::svelte2tsx::interfaces::DEFAULT_TYPINGS_NAMESPACE,
+                ));
             }
             Attribute::OnDirective(on) => {
                 parts.push(format_on_directive(on, source));
@@ -834,10 +847,10 @@ pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) ->
                 // createElement (see the suffix in handle_named_slot_element).
             }
             Attribute::TransitionDirective(transition) => {
-                parts.push(format_transition_directive(transition, source));
+                parts.push(format_transition_directive(transition, source, ns));
             }
             Attribute::UseDirective(use_dir) => {
-                parts.push(format_use_directive(use_dir, source));
+                parts.push(format_use_directive(use_dir, source, ns));
             }
         }
     }

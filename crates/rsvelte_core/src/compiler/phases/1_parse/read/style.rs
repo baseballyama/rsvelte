@@ -1913,54 +1913,172 @@ impl<'a> CssParser<'a> {
         }
     }
 
-    /// Read a CSS identifier, handling CSS escape sequences.
+    /// Read a CSS identifier, decoding CSS escape sequences.
     fn read_identifier(&mut self) -> String {
-        let start = self.index;
+        read_css_identifier(self.source, &mut self.index)
+    }
+}
 
-        while !self.is_eof() {
-            let c = self.current_char();
+/// Put `nth` at the head of the first complex selector in `list` and stretch
+/// that selector's span back to `nth_start`, where the `<an+b>` token began.
+///
+/// Returns `false` when the list has no complex selector to attach to, so the
+/// caller can fall back to synthesizing one.
+fn prepend_nth(list: &mut Value, nth: Value, nth_start: usize) -> bool {
+    let start = Value::Number((nth_start as i64).into());
 
-            if c == '\\' {
-                // CSS escape sequence
-                self.advance(); // consume '\'
+    let Some(list_obj) = list.as_object_mut() else {
+        return false;
+    };
+    let Some(complex) = list_obj
+        .get_mut("children")
+        .and_then(Value::as_array_mut)
+        .and_then(|children| children.first_mut())
+        .and_then(Value::as_object_mut)
+    else {
+        return false;
+    };
+    let Some(relative) = complex
+        .get_mut("children")
+        .and_then(Value::as_array_mut)
+        .and_then(|children| children.first_mut())
+        .and_then(Value::as_object_mut)
+    else {
+        return false;
+    };
+    let Some(selectors) = relative.get_mut("selectors").and_then(Value::as_array_mut) else {
+        return false;
+    };
 
-                if self.is_eof() {
-                    break;
-                }
+    selectors.insert(0, nth);
+    relative.insert("start".to_string(), start.clone());
+    complex.insert("start".to_string(), start.clone());
+    list_obj.insert("start".to_string(), start);
+    true
+}
 
-                let next = self.current_char();
+/// Find the `of` separator inside an `nth-*` argument, mirroring the tail of
+/// upstream's `REGEX_NTH_OF`: `\s+of(\s+|(?=[.#[*:&]))`.
+///
+/// Returns the byte offset in `arg` where the `Nth` value ends and the `of`
+/// selector begins — the same position for both, since upstream's greedy `\s+`
+/// puts any whitespace after `of` inside the value.
+///
+/// `of` must be *preceded* by whitespace, or it would be part of the `<an+b>`
+/// dimension token (`2nof` is a single token). It does not need to be
+/// *followed* by whitespace: a `.`, `#`, `[`, `*`, `:` or `&` already ends the
+/// identifier, and minifiers rely on that to drop the space.
+fn find_nth_of(arg: &str) -> Option<usize> {
+    let bytes = arg.as_bytes();
+    let mut i = 0;
 
-                if next.is_ascii_hexdigit() {
-                    // Read 1-6 hex digits
-                    let mut hex_count = 0;
-                    while !self.is_eof() && hex_count < 6 {
-                        let hc = self.current_char();
-                        if !hc.is_ascii_hexdigit() {
-                            break;
-                        }
-                        self.advance();
-                        hex_count += 1;
-                    }
-                    // After hex digits, optionally consume one whitespace
-                    if !self.is_eof() {
-                        let after = self.current_char();
-                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
-                            self.advance();
-                        }
-                    }
-                } else {
-                    // Escape of a single non-hex character
-                    self.advance();
-                }
-            } else if c.is_alphanumeric() || c == '-' || c == '_' {
-                self.advance();
-            } else {
-                break;
+    while let Some(rel) = memmem::find(&bytes[i..], b"of") {
+        let at = i + rel;
+
+        if at > 0 && bytes[at - 1].is_ascii_whitespace() {
+            let after = at + 2;
+            let rest = &arg[after..];
+            let ws_len = rest.len() - rest.trim_start_ws().len();
+
+            if ws_len > 0 {
+                return Some(after + ws_len);
+            }
+            if matches!(
+                bytes.get(after),
+                Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&')
+            ) {
+                return Some(after);
             }
         }
 
-        self.source[start..self.index].to_string()
+        i = at + 2;
     }
+
+    None
+}
+
+/// Read a CSS identifier starting at `*index` in `source`, decoding escape
+/// sequences exactly the way the official `read_identifier` does.
+///
+/// The AST stores the *decoded* name — `\31 23` is the identifier `123` — and
+/// the printer re-escapes it on the way out (`escape_identifier`). Returning the
+/// raw source slice instead would double-escape every name that contains an
+/// escape sequence.
+///
+/// Two cases, mirroring upstream's `REGEX_UNICODE_SEQUENCE`:
+/// - `\` + 1-6 hex digits + an optional `\r\n` or single whitespace character
+///   decodes to that code point. A decoded backslash is re-emitted as `\\` so
+///   that the name still says "one literal backslash" rather than starting a
+///   fresh escape.
+/// - `\` + any other single character is kept verbatim (`\.` stays `\.`).
+fn read_css_identifier(source: &str, index: &mut usize) -> String {
+    let mut identifier = String::new();
+
+    while *index < source.len() {
+        let rest = &source[*index..];
+        let Some(c) = rest.chars().next() else { break };
+
+        if c == '\\' {
+            let after = &rest[1..];
+            // Hex digits are ASCII, so the char count is also the byte length.
+            let hex_len = after
+                .chars()
+                .take(6)
+                .take_while(char::is_ascii_hexdigit)
+                .count();
+
+            if hex_len > 0 {
+                let code = u32::from_str_radix(&after[..hex_len], 16).unwrap_or(0);
+                let mut consumed = 1 + hex_len;
+
+                // One optional whitespace terminator, with `\r\n` counting as one.
+                let tail = &after[hex_len..];
+                if tail.starts_with("\r\n") {
+                    consumed += 2;
+                } else if let Some(w) = tail.chars().next()
+                    && w.is_whitespace()
+                {
+                    consumed += w.len_utf8();
+                }
+
+                match char::from_u32(code) {
+                    Some('\\') => identifier.push_str("\\\\"),
+                    Some(ch) => identifier.push(ch),
+                    // Surrogates and out-of-range code points are not characters;
+                    // CSS replaces them with U+FFFD.
+                    None => identifier.push('\u{FFFD}'),
+                }
+
+                *index += consumed;
+                continue;
+            }
+
+            match after.chars().next() {
+                Some(n) => {
+                    identifier.push('\\');
+                    identifier.push(n);
+                    *index += 1 + n.len_utf8();
+                }
+                None => {
+                    // Trailing backslash at EOF — keep it; the printer escapes it.
+                    identifier.push('\\');
+                    *index += 1;
+                }
+            }
+            continue;
+        }
+
+        // Upstream's valid-character set: `[a-zA-Z0-9_-]` plus every code point
+        // >= 160 (CSS treats those as identifier characters, e.g. `×`).
+        if (c as u32) >= 160 || c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+            identifier.push(c);
+            *index += c.len_utf8();
+        } else {
+            break;
+        }
+    }
+
+    identifier
 }
 
 // ============================================================================
@@ -2064,13 +2182,22 @@ impl<'a> SelectorParser<'a> {
                 // Universal selector
                 let start = self.offset + self.index;
                 self.advance();
-                // `*|el` — `*` is the namespace, so the local name wins.
+                // `*|el` / `*|*` — `*` is the namespace and is kept, so the
+                // printer can put it back and the scoping pass can tell a bare
+                // `*` (which it rewrites in place) from a namespaced one.
                 let mut name = "*".to_string();
+                let mut namespace: Option<String> = None;
                 if self.current_char() == '|' {
                     self.advance();
-                    match self.read_namespaced_local_name() {
-                        Some(local) => name = local,
-                        None => break,
+                    namespace = Some(name);
+                    if self.current_char() == '*' {
+                        self.advance();
+                        name = "*".to_string();
+                    } else {
+                        match self.read_namespaced_local_name() {
+                            Some(local) => name = local,
+                            None => break,
+                        }
                     }
                 }
                 let end = self.offset + self.index;
@@ -2081,6 +2208,9 @@ impl<'a> SelectorParser<'a> {
                     Value::String("TypeSelector".to_string()),
                 );
                 obj.insert("name".to_string(), Value::String(name));
+                if let Some(ns) = namespace {
+                    obj.insert("namespace".to_string(), Value::String(ns));
+                }
                 obj.insert("start".to_string(), Value::Number((start as i64).into()));
                 obj.insert("end".to_string(), Value::Number((end as i64).into()));
                 selectors.push(Value::Object(obj));
@@ -2330,13 +2460,14 @@ impl<'a> SelectorParser<'a> {
                 let nth_start = args_start + leading_ws;
 
                 // Check for 'of ' keyword to split An+B from selector
-                let (nth_value, selector_part, nth_end_pos) = if let Some(of_pos) =
-                    memmem::find(trimmed.as_bytes(), b" of ")
+                let (nth_value, selector_part, nth_end_pos) = if let Some(split) =
+                    find_nth_of(trimmed)
                 {
-                    // Split at ' of ' - include the ' of ' in the Nth value
-                    let nth_val = &trimmed[..of_pos + 4]; // Include ' of '
-                    let sel_part = &trimmed[of_pos + 4..];
-                    let end_pos = nth_start + of_pos + 4;
+                    // Everything up to and including the `of` (plus the
+                    // whitespace after it, if any) is the Nth value.
+                    let nth_val = &trimmed[..split];
+                    let sel_part = &trimmed[split..];
+                    let end_pos = nth_start + split;
                     (nth_val, Some((sel_part, end_pos)), end_pos)
                 } else {
                     // Check if it's a valid An+B expression or just a selector
@@ -2402,10 +2533,7 @@ impl<'a> SelectorParser<'a> {
                     }
                 };
 
-                // Build the selectors array
-                let mut selectors = Vec::new();
-
-                // Add Nth object
+                // Build the Nth node
                 let mut nth_obj = Map::new();
                 nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
                 nth_obj.insert("value".to_string(), Value::String(nth_value.to_string()));
@@ -2417,20 +2545,32 @@ impl<'a> SelectorParser<'a> {
                     "end".to_string(),
                     Value::Number((nth_end_pos as i64).into()),
                 );
-                selectors.push(Value::Object(nth_obj));
 
-                // Parse selector part if present
-                if let Some((sel_text, sel_start)) = selector_part {
+                // Get the actual end position
+                let trailing_ws = content.len() - content.trim_end_ws().len();
+                let actual_end = self.offset + content_end - trailing_ws;
+
+                // What follows `of` is an ordinary selector list, not a single
+                // selector: `:nth-child(2n of .a, .b)` has two complex
+                // selectors, and only the first one carries the `Nth`.
+                let of_list = selector_part.and_then(|(sel_text, sel_start)| {
+                    let mut list = self.parse_args_selector_list(sel_text, sel_start, actual_end);
+                    prepend_nth(&mut list, Value::Object(nth_obj.clone()), nth_start)
+                        .then_some(list)
+                });
+
+                let mut selectors = vec![Value::Object(nth_obj)];
+
+                // Only reached when there is nothing after `of` to attach to.
+                if of_list.is_none()
+                    && let Some((sel_text, sel_start)) = selector_part
+                {
                     let mut sel_parser = self.nested(sel_text, sel_start);
                     let mut parsed = Vec::new();
                     sel_parser.parse_selectors(&mut parsed);
                     self.absorb_nesting_error(&sel_parser);
                     selectors.extend(parsed);
                 }
-
-                // Get the actual end position
-                let trailing_ws = content.len() - content.trim_end_ws().len();
-                let actual_end = self.offset + content_end - trailing_ws;
 
                 // Wrap in RelativeSelector
                 let mut rel_sel = Map::new();
@@ -2478,7 +2618,7 @@ impl<'a> SelectorParser<'a> {
                     Value::Array(vec![Value::Object(complex_sel)]),
                 );
 
-                Some(Value::Object(sel_list))
+                Some(of_list.unwrap_or(Value::Object(sel_list)))
             } else {
                 // Calculate trimmed content positions (strip whitespace and leading comments)
                 let mut trimmed = content.trim_ws();
@@ -3098,10 +3238,17 @@ impl<'a> SelectorParser<'a> {
             return None;
         }
 
-        // `ns|el` — the namespace is dropped and the local name is the selector.
+        // `ns|el` / `ns|*` — the namespace is kept alongside the local name.
+        let mut namespace: Option<String> = None;
         if self.current_char() == '|' {
             self.advance();
-            name = self.read_namespaced_local_name()?;
+            namespace = Some(name);
+            if self.current_char() == '*' {
+                self.advance();
+                name = "*".to_string();
+            } else {
+                name = self.read_namespaced_local_name()?;
+            }
         }
 
         let end = self.offset + self.index;
@@ -3112,6 +3259,9 @@ impl<'a> SelectorParser<'a> {
             Value::String("TypeSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
+        if let Some(ns) = namespace {
+            obj.insert("namespace".to_string(), Value::String(ns));
+        }
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
@@ -3188,63 +3338,8 @@ impl<'a> SelectorParser<'a> {
         }
     }
 
-    /// Read a CSS identifier, handling CSS escape sequences.
-    ///
-    /// CSS escape sequences:
-    /// - `\XXXXXX` where X are hex digits (1-6 digits) - represents a unicode code point
-    /// - After hex digits, an optional single whitespace (space/tab/newline) terminates the escape
-    /// - `\c` where c is any non-hex character - represents the literal character c
+    /// Read a CSS identifier, decoding CSS escape sequences.
     fn read_identifier(&mut self) -> String {
-        let start = self.index;
-
-        while !self.is_eof() {
-            let c = self.current_char();
-
-            if c == '\\' {
-                // CSS escape sequence
-                self.advance(); // consume '\'
-
-                if self.is_eof() {
-                    break;
-                }
-
-                let next = self.current_char();
-
-                if next.is_ascii_hexdigit() {
-                    // Read 1-6 hex digits
-                    let mut hex_count = 0;
-                    while !self.is_eof() && hex_count < 6 {
-                        let hc = self.current_char();
-                        if !hc.is_ascii_hexdigit() {
-                            break;
-                        }
-                        self.advance();
-                        hex_count += 1;
-                    }
-                    // After hex digits, optionally consume one whitespace character
-                    // but this whitespace is part of the escape and should be preserved
-                    if !self.is_eof() {
-                        let after = self.current_char();
-                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
-                            self.advance();
-                        }
-                    }
-                } else {
-                    // Escape of a single non-hex character (e.g., \. means literal .)
-                    self.advance();
-                }
-            } else if c.is_alphanumeric() || c == '-' || c == '_' || (c as u32) >= 160 {
-                // Mirror the official `read_identifier` valid-character set:
-                // `[a-zA-Z0-9_-]` plus every code point >= 160 (CSS treats those
-                // as identifier characters, e.g. `×` is a valid type-selector
-                // name). Without the `>= 160` branch a non-alphanumeric code
-                // point >= 160 yields an empty identifier and spins the caller.
-                self.advance();
-            } else {
-                break;
-            }
-        }
-
-        self.source[start..self.index].to_string()
+        read_css_identifier(self.source, &mut self.index)
     }
 }

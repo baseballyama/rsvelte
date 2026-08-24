@@ -65,10 +65,7 @@ use rsvelte_core::compiler::{
     compile_module as rust_compile_module,
     compile_with_external_sourcemap_content as rust_compile_with_external_sourcemap_content,
 };
-use rsvelte_projection::svelte2tsx::{
-    Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
-    svelte2tsx as rust_svelte2tsx,
-};
+use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
 #[napi(object)]
 pub struct NapiBuildInfo {
@@ -1691,49 +1688,7 @@ pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
 
 /// Parse JS options object into `Svelte2TsxOptions`.
 fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
-    let mut opts = Svelte2TsxOptions::default();
-
-    let Some(obj) = options.as_object() else {
-        return opts;
-    };
-
-    if let Some(v) = obj.get("filename").and_then(|v| v.as_str()) {
-        opts.filename = v.to_string();
-    }
-
-    if let Some(v) = obj.get("isTsFile").and_then(serde_json::Value::as_bool) {
-        opts.is_ts_file = v;
-    }
-
-    if let Some(v) = obj.get("mode").and_then(|v| v.as_str()) {
-        opts.mode = match v {
-            "dts" => Svelte2TsxMode::Dts,
-            _ => Svelte2TsxMode::Ts,
-        };
-    }
-
-    if let Some(v) = obj.get("accessors").and_then(serde_json::Value::as_bool) {
-        opts.accessors = v;
-    }
-
-    if let Some(v) = obj.get("namespace").and_then(|v| v.as_str()) {
-        opts.namespace = match v {
-            "svg" => Svelte2TsxNamespace::Svg,
-            "mathml" => Svelte2TsxNamespace::Mathml,
-            "foreign" => Svelte2TsxNamespace::Foreign,
-            _ => Svelte2TsxNamespace::Html,
-        };
-    }
-
-    if let Some(v) = obj.get("version").and_then(|v| v.as_str()) {
-        opts.version = if v.starts_with('5') {
-            SvelteVersion::V5
-        } else {
-            SvelteVersion::V4
-        };
-    }
-
-    opts
+    Svelte2TsxOptions::from_json(options)
 }
 
 // =============================================================================

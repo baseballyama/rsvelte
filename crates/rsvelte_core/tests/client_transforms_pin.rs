@@ -69,7 +69,7 @@ fn issue_1438_private_field_nullish_compound_in_method() {
         <p>{new Query().get()}</p>"#,
     );
     assert!(
-        out.contains("$.set(this.#promise, $.get(this.#promise) ?? run(), true)"),
+        out.contains("$.get(this.#promise) ?? $.set(this.#promise, run(), true)"),
         "got:\n{out}"
     );
     // The buggy shape must be gone.

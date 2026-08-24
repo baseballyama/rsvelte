@@ -121,10 +121,25 @@ pub fn visit<'a, 'b: 'a>(
         }
     }
 
+    // Upstream reaches this node through `visit_component`, so a child carrying
+    // `slot="…"` has a component owner here exactly as it does under
+    // `<svelte:component>`.
+    let was_direct_child = context.direct_component_parent;
+    let was_direct_snippet = context.is_direct_child_of_snippet;
+    context.direct_component_parent = super::DirectComponentParent::SlotOwnerOnly;
+    context.is_direct_child_of_snippet = false;
+    context.component_depth += 1;
+    context
+        .slot_owner_ancestors
+        .push(super::SlotOwnerType::Component);
+
     // Analyze children
     // Enter the template scope the scope builder created for this node, the way
     // the plain-component visitor does. Without it a `{@render}` cannot see a
     // `{#snippet}` declared as its sibling here, so the tag reads as dynamic.
+    let saved_element_ancestors = std::mem::take(&mut context.element_ancestors);
+    let saved_block_depth_at_element = std::mem::take(&mut context.block_depth_at_element);
+    let saved_parent_element = context.parent_element.take();
     let saved_scope = context.scope;
     if let Some(&node_scope) = context.analysis.root.template_scope_map.get(&self_.start) {
         context.scope = node_scope;
@@ -135,6 +150,13 @@ pub fn visit<'a, 'b: 'a>(
     let result = fragment::analyze(&mut self_.fragment, context);
     context.fragment_owner_stack.pop();
     context.scope = saved_scope;
+    context.element_ancestors = saved_element_ancestors;
+    context.block_depth_at_element = saved_block_depth_at_element;
+    context.parent_element = saved_parent_element;
+    context.slot_owner_ancestors.pop();
+    context.component_depth -= 1;
+    context.direct_component_parent = was_direct_child;
+    context.is_direct_child_of_snippet = was_direct_snippet;
     result?;
 
     Ok(())

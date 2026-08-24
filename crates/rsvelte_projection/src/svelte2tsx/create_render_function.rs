@@ -13,7 +13,6 @@ use super::magic_string::MagicString;
 use super::nodes::scripts::find_instance_imports;
 use super::nodes::slot::escape_js_single_quoted;
 use super::script::StoreScanContext;
-use super::svelte2tsx::slice_src;
 
 /// Prepend the reference-types header and open the `$$render()` wrapper.
 /// Which of the three shapes is emitted depends on whether the component has an
@@ -38,7 +37,11 @@ pub fn create_render_function(
 ) {
     let is_dts_mode = matches!(options.mode, Svelte2TsxMode::Dts);
     let header_str = if is_dts_mode {
-        "import { SvelteComponentTyped } from \"svelte\"\n\n"
+        if options.no_svelte_component_typed {
+            "import { SvelteComponent } from \"svelte\"\n\n"
+        } else {
+            "import { SvelteComponentTyped } from \"svelte\"\n\n"
+        }
     } else {
         "///<reference types=\"svelte\" />\n"
     };
@@ -92,29 +95,6 @@ pub fn create_render_function(
             ";function $$render() {{{dollar_decls}{slot_decl_mod}\nasync () => {{{store_decls}"
         );
         str.append_left(mod_end, &render_open);
-
-        // Blank out trailing whitespace after the module script ONLY when
-        // there's no template content following. This ensures the async
-        // wrapper closes immediately for module-script-only components.
-        let has_non_whitespace_template = ast.fragment.nodes.iter().any(|node| {
-            !matches!(node, crate::ast::template::TemplateNode::Text(t)
-                if slice_src(source, t.start as usize, t.end as usize).chars().all(char::is_whitespace))
-        });
-        if !has_non_whitespace_template && (mod_end as usize) < source.len() {
-            let bytes = source.as_bytes();
-            let mut trailing_end = mod_end;
-            while (trailing_end as usize) < bytes.len() {
-                let b = bytes[trailing_end as usize];
-                if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-                    trailing_end += 1;
-                } else {
-                    break;
-                }
-            }
-            if trailing_end > mod_end {
-                str.overwrite(mod_end, trailing_end, "");
-            }
-        }
 
         str.prepend_str(header_str);
     } else {

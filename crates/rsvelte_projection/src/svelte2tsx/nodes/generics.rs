@@ -112,81 +112,73 @@ pub fn type_text_typeof_references_local_value(
     false
 }
 
-/// Split a generics string like "T extends Record<string, any>, U" into
-/// just the type parameter names: `["T", "U"]`.
-/// Handles nested angle brackets and commas inside constraints.
+/// The parsed `generics="…"` attribute: upstream's `Generics` lists.
+///
+/// `definitions` are `param.getText()` and `references` are
+/// `param.name.getText()` over the type parameters of
+/// `` `<${raw}>() => {}` ``, so no bracket kind is special-cased — a comma
+/// inside an object type, tuple, parameter list or string literal belongs to
+/// the parameter it sits in.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ParsedGenerics {
+    pub definitions: Vec<String>,
+    pub references: Vec<String>,
+}
+
+impl ParsedGenerics {
+    /// Upstream `Generics.has()` — the attribute being present is not enough;
+    /// it must parse as a type parameter list.
+    pub fn has(&self) -> bool {
+        !self.definitions.is_empty()
+    }
+
+    /// Upstream `toDefinitionString()` without the surrounding `<`/`>`.
+    pub fn definitions_str(&self) -> String {
+        self.definitions.join(",")
+    }
+
+    /// Upstream `toReferencesString()` without the surrounding `<`/`>`.
+    pub fn references_str(&self) -> String {
+        self.references.join(",")
+    }
+}
+
+/// Parse a `generics="…"` attribute value the way upstream does: wrap it in an
+/// arrow function's type parameter list and read the parameters back off the
+/// TypeScript AST. Mirrors `Generics.getGenericTypeParameters`.
+pub fn parse_generics_attr(raw: &str) -> ParsedGenerics {
+    let mut out = ParsedGenerics::default();
+    if raw.is_empty() {
+        return out;
+    }
+    let probe = format!("<{raw}>() => {{}}");
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, &probe, oxc_span::SourceType::ts()).parse();
+    let Some(oxc_ast::ast::Statement::ExpressionStatement(stmt)) = parsed.program.body.first()
+    else {
+        return out;
+    };
+    let oxc_ast::ast::Expression::ArrowFunctionExpression(arrow) = &stmt.expression else {
+        return out;
+    };
+    let Some(type_parameters) = arrow.type_parameters.as_ref() else {
+        return out;
+    };
+    for param in &type_parameters.params {
+        let span = param.span;
+        let (start, end) = (span.start as usize, span.end as usize);
+        if start > end || end > probe.len() || !probe.is_char_boundary(start) {
+            return ParsedGenerics::default();
+        }
+        out.definitions.push(probe[start..end].to_string());
+        out.references.push(param.name.name.to_string());
+    }
+    out
+}
+
+/// Just the type parameter names of a `generics="…"` attribute value.
 pub fn split_generic_param_names(generics: &str) -> Vec<String> {
-    let mut names = Vec::new();
-    let mut depth = 0; // angle bracket depth
-    let mut current_start = 0;
-
-    for (i, ch) in generics.char_indices() {
-        match ch {
-            '<' => depth += 1,
-            '>' if depth > 0 => depth -= 1,
-            ',' if depth == 0 => {
-                let param = generics[current_start..i].trim();
-                names.push(extract_param_name(param));
-                current_start = i + 1;
-            }
-            _ => {}
-        }
-    }
-    // Handle the last parameter
-    let param = generics[current_start..].trim();
-    if !param.is_empty() {
-        names.push(extract_param_name(param));
-    }
-    names
-}
-
-/// Compact a generics string by stripping leading spaces from each top-level parameter.
-/// "A, B extends keyof A, C extends boolean" → "A,B extends keyof A,C extends boolean"
-pub fn compact_generic_params(generics: &str) -> String {
-    let mut result = String::new();
-    let mut depth = 0;
-    let mut after_comma = false;
-
-    for ch in generics.chars() {
-        match ch {
-            '<' => {
-                depth += 1;
-                result.push(ch);
-            }
-            '>' => {
-                if depth > 0 {
-                    depth -= 1;
-                }
-                result.push(ch);
-            }
-            ',' if depth == 0 => {
-                result.push(',');
-                after_comma = true;
-            }
-            ' ' | '\t' if after_comma => {
-                // Skip leading whitespace after comma at top level
-                continue;
-            }
-            _ => {
-                after_comma = false;
-                result.push(ch);
-            }
-        }
-    }
-    result
-}
-
-/// Extract the type parameter name from a parameter declaration,
-/// handling the `const` modifier (e.g., `const T extends ...` → `T`).
-fn extract_param_name(param: &str) -> String {
-    let mut words = param.split_whitespace();
-    let first = words.next().unwrap_or("");
-    if first == "const" {
-        // Skip `const` modifier, take the next word
-        words.next().unwrap_or(first).to_string()
-    } else {
-        first.to_string()
-    }
+    parse_generics_attr(generics).references
 }
 
 /// Extract the `generics` attribute value from a script tag text.

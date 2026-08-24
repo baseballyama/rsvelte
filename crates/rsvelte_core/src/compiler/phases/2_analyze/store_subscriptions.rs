@@ -686,6 +686,77 @@ fn dollar_param_body_range(
     None
 }
 
+/// The `catch (…)` parameter binding, and the range of the block it scopes.
+///
+/// A catch parameter is a declaration slot, so upstream's `scope.references` —
+/// which this scan stands in for — never holds it, and a `$name` read inside the
+/// block resolves to it rather than to a store. `dollar_param_body_range` cannot
+/// answer this because it requires the parenthesised list to be followed by
+/// `=>`, and a catch clause is followed by `{`.
+fn dollar_catch_param_body_range(
+    chars: &[char],
+    ident_start: usize,
+    ident_end: usize,
+) -> Option<(usize, usize)> {
+    let len = chars.len();
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    if k < 0 || chars[k as usize] != '(' {
+        return None;
+    }
+    let mut j = k - 1;
+    while j >= 0 && is_js_whitespace(chars[j as usize]) {
+        j -= 1;
+    }
+    if !keyword_ends_at(chars, j, "catch") {
+        return None;
+    }
+    let mut m = ident_end;
+    while m < len && is_js_whitespace(chars[m]) {
+        m += 1;
+    }
+    if m >= len || chars[m] != ')' {
+        return None;
+    }
+    let mut b = m + 1;
+    while b < len && is_js_whitespace(chars[b]) {
+        b += 1;
+    }
+    if b >= len || chars[b] != '{' {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut e = b;
+    while e < len {
+        match chars[e] {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((b, e + 1));
+                }
+            }
+            _ => {}
+        }
+        e += 1;
+    }
+    Some((b, len))
+}
+
+/// The target of a `break` / `continue`, which names a LABEL rather than a
+/// binding. ESTree keeps labels out of the reference set, so upstream never sees
+/// one; counting it made `break $state;` read as a rune use and flipped the
+/// component into runes mode.
+fn is_dollar_ident_jump_label(chars: &[char], ident_start: usize) -> bool {
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    keyword_ends_at(chars, k, "break") || keyword_ends_at(chars, k, "continue")
+}
+
 /// Check if a `$xxx` identifier at `ident_end` is being used as an object property key.
 ///
 /// Returns true if `$xxx` is followed (ignoring whitespace) by `:` but NOT `::`.
@@ -1172,7 +1243,8 @@ fn collect_dollar_identifiers_pass(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    let param_range = dollar_param_body_range(chars, ident_start, i);
+                    let param_range = dollar_param_body_range(chars, ident_start, i)
+                        .or_else(|| dollar_catch_param_body_range(chars, ident_start, i));
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
                         || is_dollar_ident_destructuring_declaration(chars, ident_start);
                     let is_class_member_name = class_bodies.last() == Some(&brace_depth)
@@ -1197,6 +1269,7 @@ fn collect_dollar_identifiers_pass(
                             .iter()
                             .any(|(n, s, e)| n == &ident && ident_start >= *s && ident_start < *e)
                         && !is_dollar_ident_object_property_key(chars, ident_start, i)
+                        && !is_dollar_ident_jump_label(chars, ident_start)
                         && !is_dollar_ident_type_declaration(chars, ident_start)
                     {
                         let byte_offset = match &char_byte_offsets {

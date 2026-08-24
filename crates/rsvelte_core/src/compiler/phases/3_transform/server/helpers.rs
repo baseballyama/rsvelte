@@ -83,6 +83,7 @@ pub(crate) fn compute_eval_inputs(
             .template_scope_map
             .values()
             .chain(analysis.root.if_alternate_scope_map.values())
+            .chain(analysis.root.each_fallback_scope_map.values())
             .copied()
             .collect();
         for binding in &analysis.root.bindings {

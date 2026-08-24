@@ -684,9 +684,25 @@ pub fn visit_regular_element(
                     build_set_style(&node_id, Some(&attr.value), &style_directives, context);
                     style_handled = true;
                 } else if is_custom_element {
-                    // Custom element: use $.set_custom_element_data
-                    let result =
-                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    // Custom element: use $.set_custom_element_data.
+                    // Its own Memoizer, and its own ungrouped `template_effect`,
+                    // because `set_custom_element_data` may not be idempotent
+                    // (RegularElement.js `build_custom_element_attribute_update_assignment`).
+                    // Routing the value through the memoizer is also what keeps an
+                    // `await` in the attribute legal: it lands in `async_values()`
+                    // as `async () => …` instead of being inlined into an arrow the
+                    // parser then rejects.
+                    let mut local_memoizer =
+                        Memoizer::with_parent_conflicts(&context.state.memoizer);
+                    let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                        local_memoizer.add(
+                            expr,
+                            metadata.has_call(),
+                            metadata.has_await(),
+                            false,
+                            metadata.has_state(),
+                        )
+                    });
                     let node_id = extract_node_id(&context.state.node);
                     let call = b::call(
                         &context.arena,
@@ -699,13 +715,42 @@ pub fn visit_regular_element(
                     );
 
                     if result.has_state {
-                        // For reactive values, wrap in template_effect
+                        let params = local_memoizer.apply();
+                        let sync_values = local_memoizer.sync_values(&context.arena);
+                        let async_values = local_memoizer.async_values(&context.arena);
+                        let blocker_exprs =
+                            context.state.get_blockers_for_expr(&call, &context.arena);
+                        let param_patterns: Vec<JsPattern> = params
+                            .iter()
+                            .filter_map(|p| {
+                                if let JsExpr::Identifier(name) = p {
+                                    Some(JsPattern::Identifier(name.clone()))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        let mut args = vec![b::arrow(&context.arena, param_patterns, call)];
+                        if sync_values.is_some()
+                            || async_values.is_some()
+                            || !blocker_exprs.is_empty()
+                        {
+                            args.push(sync_values.unwrap_or_else(|| b::undefined(&context.arena)));
+                        }
+                        if async_values.is_some() || !blocker_exprs.is_empty() {
+                            args.push(async_values.unwrap_or_else(|| b::undefined(&context.arena)));
+                        }
+                        if !blocker_exprs.is_empty() {
+                            args.push(b::array(blocker_exprs));
+                        }
+
                         context.state.init.push(b::stmt(
                             &context.arena,
                             b::call(
                                 &context.arena,
                                 b::member_path(&context.arena, "$.template_effect"),
-                                vec![b::thunk(&context.arena, call)],
+                                args,
                             ),
                         ));
                     } else {

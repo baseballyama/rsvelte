@@ -7234,9 +7234,7 @@ fn transform_complex_selector(
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
                         // Handle universal selector
-                        if sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*")
-                        {
+                        if sel_type == "TypeSelector" && is_bare_universal(sel) {
                             if needs_scoping {
                                 // Replace * with the scoping selector
                                 let modifier = get_modifier(selector, &local_specificity_bumped);
@@ -7453,8 +7451,53 @@ fn append_modifier(target: &mut String, modifier: &str) {
 }
 
 /// Format a simple selector
+/// Whether a `TypeSelector` is the bare universal selector `*`.
+///
+/// A namespaced universal — `svg|*`, `*|*` — is not: the scoping class is
+/// appended to it rather than replacing it, or the `svg|` prefix would be lost.
+fn is_bare_universal(sel: &Value) -> bool {
+    sel.get("name").and_then(|n| n.as_str()) == Some("*")
+        && sel.get("namespace").is_none_or(Value::is_null)
+}
+
 fn format_simple_selector(sel: &Value) -> String {
     format_simple_selector_with_scope(sel, "", "", None, 0, None, false, false)
+}
+
+/// The source text of a pseudo-class selector, arguments included.
+///
+/// The parser ends the node after the name, so an argument list has to be
+/// scanned for — the same shape `PseudoElementSelector` already needed.
+fn pseudo_source_text(sel: &Value, css_source: &str, css_start: Option<usize>) -> Option<String> {
+    let css_start = css_start?;
+    let start = sel.get("start").and_then(|s| s.as_u64())? as usize;
+    let end = sel.get("end").and_then(|e| e.as_u64())? as usize;
+    let src_start = start.checked_sub(css_start)?;
+    let mut src_end = end.checked_sub(css_start)?;
+
+    if let Some(remaining) = css_source.get(src_end..)
+        && remaining.starts_with('(')
+    {
+        let mut depth = 0usize;
+        for (i, c) in remaining.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        src_end += i + 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    (src_start < src_end)
+        .then(|| css_source.get(src_start..src_end))??
+        .to_string()
+        .into()
 }
 
 /// Format a simple selector with optional scoping for inner selectors
@@ -7551,9 +7594,23 @@ fn format_simple_selector_with_scope(
                         outer_specificity_bumped,
                     );
                     format!(":{}({})", name, inner)
+                } else if let Some(text) = pseudo_source_text(sel, css_source, css_start) {
+                    // Upstream descends only into `is`/`where`/`has`/`not`; every
+                    // other pseudo-class is left exactly as written. Rebuilding it
+                    // from the AST loses whatever the source spelled: a selector
+                    // list inside `:nth-child(2n of .a, .b)` came back as `.a.b`,
+                    // because a `SelectorList`'s children concatenate without the
+                    // separator that only the source still carries.
+                    text
                 } else {
                     format!(":{}({})", name, get_selector_text(args))
                 }
+            } else if let Some(text) = pseudo_source_text(sel, css_source, css_start) {
+                // Same reason, for the argument-less form — plus the escapes. The
+                // parser decodes `\31 st-child` to `1st-child`, so reconstructing
+                // from `name` emits an identifier that no longer starts with an
+                // escape and no longer means what it did.
+                text
             } else {
                 format!(":{}", name)
             }
@@ -7869,8 +7926,7 @@ fn transform_is_not_complex_selector(
 
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                        let is_universal = sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*");
+                        let is_universal = sel_type == "TypeSelector" && is_bare_universal(sel);
 
                         // If this is a universal selector (*) that will be replaced by :where(),
                         // don't output the * - just output the :where() directly
@@ -8035,9 +8091,23 @@ fn get_selector_text(node: &Value) -> String {
 /// Generate a raw hash string (matches Svelte's hash() function in utils.js).
 /// This is the base hash without the "svelte-" prefix.
 pub fn generate_raw_hash(source: &str) -> String {
+    // UTF-16 code units, not code points: upstream walks the string with
+    // `charCodeAt(i)`, so an astral character contributes its two surrogates
+    // separately. Iterating Rust `char`s feeds one scalar instead and diverges
+    // on any CSS holding a non-BMP character — `.a🙂b` scoped to `svelte-liey9s`
+    // where upstream said `svelte-1pwkicr`, and the scoping class has to agree
+    // byte-for-byte or nothing the selector was rewritten for still matches.
+    let units: Vec<u16> = source
+        .chars()
+        .filter(|&c| c != '\r')
+        .flat_map(|c| {
+            let mut buf = [0u16; 2];
+            c.encode_utf16(&mut buf).to_vec()
+        })
+        .collect();
     let mut hash: i32 = 5381;
-    for c in source.chars().rev().filter(|&c| c != '\r') {
-        hash = ((hash << 5).wrapping_sub(hash)) ^ (c as i32);
+    for unit in units.into_iter().rev() {
+        hash = ((hash << 5).wrapping_sub(hash)) ^ i32::from(unit);
     }
 
     // Convert to unsigned and then to base-36

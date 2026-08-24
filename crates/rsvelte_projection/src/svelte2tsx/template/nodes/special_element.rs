@@ -188,7 +188,7 @@ pub fn handle_svelte_special_element(
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
     let attrs_str = if named_slot.is_some() {
-        build_named_slot_element_attrs(&el.attributes, source)
+        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace)
     } else {
         build_attributes_string(
             &el.attributes,
@@ -196,12 +196,14 @@ pub fn handle_svelte_special_element(
             &counter.element_opener_comments,
             saved_slot.is_some(),
             options.namespace.preserves_attribute_case(),
+            options.preserves_bind_prefix(),
         )
     };
 
     let (attrs_str, indent) = special_element_opening_layout(
         el,
         source,
+        options,
         counter,
         opening_tag_end,
         attrs_str,
@@ -257,6 +259,7 @@ pub fn handle_svelte_special_element(
 fn special_element_opening_layout(
     el: &SvelteElement,
     source: &str,
+    options: &Svelte2TsxOptions,
     counter: &Counter,
     opening_tag_end: u32,
     attrs: String,
@@ -283,6 +286,7 @@ fn special_element_opening_layout(
             in_component_slot,
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     let attrs = if spacing.in_attr_object > 0 {
@@ -367,19 +371,23 @@ fn standard_special_element_opener(
     } else {
         el.name.as_str()
     };
-    let (directive_prefix, directive_suffix, action_count) =
-        build_directive_prefix_suffix(&el.attributes, source, action_tag);
+    let (directive_prefix, directive_suffix, action_count) = build_directive_prefix_suffix(
+        &el.attributes,
+        source,
+        action_tag,
+        &options.typings_namespace,
+    );
     let actions_arg = action_arguments(action_count);
     let has_directives = !directive_prefix.is_empty();
     let opener = if has_directives {
         format!(
-            "{indent}{{{directive_prefix}{{ {element_var_decl}svelteHTML.createElement(\"{}\"{actions_arg}, {{{attrs}}});{bind_suffix}{directive_suffix}",
-            el.name,
+            "{indent}{{{directive_prefix}{{ {element_var_decl}{}.createElement(\"{}\"{actions_arg}, {{{attrs}}});{bind_suffix}{directive_suffix}",
+            options.typings_namespace, el.name,
         )
     } else {
         format!(
-            "{indent}{{ {element_var_decl}svelteHTML.createElement(\"{}\", {{{attrs}}});{bind_suffix}{directive_suffix}",
-            el.name,
+            "{indent}{{ {element_var_decl}{}.createElement(\"{}\", {{{attrs}}});{bind_suffix}{directive_suffix}",
+            options.typings_namespace, el.name,
         )
     };
     (opener, has_directives)
@@ -417,8 +425,8 @@ fn handle_boundary_snippet_props(
         el.start,
         opening_tag_end,
         &format!(
-            "{indent}{{ svelteHTML.createElement(\"{}\", {{{attrs}",
-            el.name
+            "{indent}{{ {}.createElement(\"{}\", {{{attrs}",
+            options.typings_namespace, el.name
         ),
     );
     let mut anchor = opening_tag_end;
