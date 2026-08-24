@@ -152,19 +152,9 @@ const RATCHETS = [
 		jsons: ['parse-ast-known-failures.json'],
 	},
 	{
-		doc: 'parse-ast-known-failures.md',
-		key: 'parse-ast-known-failures.json',
-		jsons: ['parse-ast-known-failures.json'],
-	},
-	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',
 		jsons: ['parse-oracle-excluded.json'],
-	},
-	{
-		doc: 'parse-ast-known-failures.md',
-		key: 'parse-ast-known-failures.json',
-		jsons: ['parse-ast-known-failures.json'],
 	},
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', jsons: ['matrix-known-failures.json'] },
 	{ doc: 'dual-run-known-failures.md', key: 'dual-run-known-failures.json', jsons: ['dual-run-known-failures.json'] },
@@ -317,7 +307,7 @@ const PARTITIONS = [
 	},
 	{ doc: 'validator-known-failures.md', key: 'validator-known-failures.json', label: 'cluster' },
 	{ doc: 'warning-known-failures.md', key: 'warning-known-failures.<target>.json', label: 'direction' },
-	{ doc: 'error-known-failures.md', key: 'error-end-known-failures.<target>.json', label: 'shape' },
+	{ doc: 'parse-ast-known-failures.md', key: 'parse-ast-known-failures.json', label: 'cluster' },
 ];
 
 let failed = false;

@@ -102,8 +102,8 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-message-known-failures.client-dev.json` holds 11 entries;
 `error-message-known-failures.server.json` holds 10 entries; and
 `error-message-known-failures.server-dev.json` holds 10 entries. All four of
-`error-position-known-failures.<target>.json` hold 72 entries, all four of
-`error-end-known-failures.<target>.json` hold 86 entries, and all four of
+`error-position-known-failures.<target>.json` hold 66 entries, all four of
+`error-end-known-failures.<target>.json` hold 84 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
@@ -117,9 +117,10 @@ divergence shows up on all four targets at once. Expect the sixteen files to mov
 together in a burn-down PR.
 
 The malformed-markup position pass then retired 6 position and 12 end entries
-per target. The detailed shape partitions below remain the measured snapshot
-from before that pass; they are historical evidence about the backlog's shape,
-not a decomposition of the current 72/86 files.
+per target, and the block-header pattern pass retired another 6 position and 2
+end entries. The detailed shape partitions below remain the measured snapshot
+from before those passes; they are historical evidence about the backlog's shape,
+not a decomposition of the current 66/84 files.
 
 The single asymmetry is genuinely target-dependent, which is exactly what the
 split exists to keep visible:
