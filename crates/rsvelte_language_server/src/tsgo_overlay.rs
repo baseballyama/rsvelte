@@ -871,6 +871,7 @@ impl TsgoOverlay {
                 generated_path: shadow_path.display().to_string(),
                 workspace_path: self.workspace.display().to_string(),
             }),
+            ..Svelte2TsxOptions::default()
         }
     }
 

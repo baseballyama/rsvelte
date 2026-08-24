@@ -1,26 +1,29 @@
+use std::borrow::Cow;
+
 use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Parser;
-use oxc_span::SourceType;
+use oxc_span::{SourceType, Span};
 use self_cell::self_cell;
 
 struct ProgramOwner<'source> {
     allocator: Allocator,
-    source: &'source str,
+    source: Cow<'source, str>,
     source_type: SourceType,
 }
 
 impl ProgramOwner<'_> {
-    const fn source(&self) -> &str {
-        self.source
+    fn source(&self) -> &str {
+        &self.source
     }
 }
 
 struct ParsedProgram<'alloc> {
     program: Program<'alloc>,
     diagnostics: Vec<OxcDiagnostic>,
+    irregular_whitespaces: Vec<Span>,
     panicked: bool,
 }
 
@@ -36,6 +39,18 @@ self_cell!(
 impl<'source> RetainedProgram<'source> {
     #[must_use]
     pub fn parse(source: &'source str, is_typescript: bool) -> Self {
+        Self::parse_cow(Cow::Borrowed(source), is_typescript)
+    }
+
+    /// Parse a source the caller may own — used when a pass has to repair the
+    /// text before parsing it (see the svelte2tsx script-recovery re-parse).
+    #[must_use]
+    pub fn parse_owned(source: String, is_typescript: bool) -> Self {
+        Self::parse_cow(Cow::Owned(source), is_typescript)
+    }
+
+    #[must_use]
+    fn parse_cow(source: Cow<'source, str>, is_typescript: bool) -> Self {
         let source_type = if is_typescript {
             SourceType::ts()
         } else {
@@ -53,6 +68,7 @@ impl<'source> RetainedProgram<'source> {
                 ParsedProgram {
                     program: parsed.program,
                     diagnostics: parsed.diagnostics.into_vec(),
+                    irregular_whitespaces: parsed.irregular_whitespaces.into_vec(),
                     panicked: parsed.panicked,
                 }
             },
@@ -92,6 +108,14 @@ impl<'source> RetainedProgram<'source> {
 
     pub fn diagnostics(&self) -> &[OxcDiagnostic] {
         &self.borrow_dependent().diagnostics
+    }
+
+    /// Spans oxc classified as irregular whitespace. Two of the characters it
+    /// admits there are not ECMAScript whitespace at all, so acorn — and so
+    /// upstream — rejects the program the parser accepted.
+    #[must_use]
+    pub fn irregular_whitespaces(&self) -> &[Span] {
+        &self.borrow_dependent().irregular_whitespaces
     }
 
     #[must_use]
