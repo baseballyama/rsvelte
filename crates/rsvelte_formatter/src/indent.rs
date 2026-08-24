@@ -483,22 +483,13 @@ fn collect_indent_edits_inner(
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_ref()));
                 if !has_trailing_ws {
                     let last_end = crate::collapse::template_node_span(last).1;
-                    // The `\n{parent_indent}` insert and any synthetic close
-                    // tag for an empty implicitly-closed element are both
-                    // zero-length inserts at `last_end`. We push the newline
-                    // FIRST so it ends up earlier in the vec; the close tag is
-                    // pushed second. When applied in descending-start order the
-                    // close tag insert fires last and lands at the same position
-                    // as the newline (now the position of the newly-inserted
-                    // `\n`), placing `</tag>` BEFORE the `\n`:
-                    //   `<duiv>\n</duiv>\n</div>` — correct layout.
-                    // Note: non-empty implicitly-closed elements (e.g. `<li>a`)
-                    // are handled by `push_close_tag` case 4 in markup.rs
-                    // (replaces trailing whitespace span with `</tag>`), so we
-                    // only insert `</tag>` here for EMPTY elements.
-                    edits.push((last_end, last_end, format!("\n{parent_indent}")));
-                    // Implicitly-closed RegularElement with EMPTY content: insert
-                    // synthetic </tag> (pushed second so it lands before the \n).
+                    // A synthetic close tag for an empty implicitly-closed
+                    // element and the `\n{parent_indent}` separator are both
+                    // zero-length inserts at `last_end`; coincident inserts emit
+                    // in push order, so the close tag goes first:
+                    //   `<duiv>\n</duiv>\n</div>`.
+                    // Non-empty implicitly-closed elements are `push_close_tag`'s
+                    // job in markup.rs, which also pushes before this pass runs.
                     if let TemplateNode::RegularElement(e) = last {
                         let is_implicitly_closed =
                             source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
@@ -509,6 +500,7 @@ fn collect_indent_edits_inner(
                             edits.push((last_end, last_end, format!("</{}>", e.name.as_str())));
                         }
                     }
+                    edits.push((last_end, last_end, format!("\n{parent_indent}")));
                 }
             }
         }
@@ -536,8 +528,15 @@ fn collect_indent_edits_inner(
                     && matches!(&fragment.nodes[last_idx + 1],
                         TemplateNode::Text(t) if is_whitespace_only(t.data.as_ref()));
                 if !has_trailing_ws {
-                    let is_implicitly_closed =
-                        source.as_bytes().get(e.end as usize - 1).copied() != Some(b'>');
+                    // Only the trailing-whitespace shape needs a newline back:
+                    // when the content abuts the parent's close tag markup.rs
+                    // inserts `</tag>` and consumes nothing, so the oracle keeps
+                    // `<ul><li>a</li></ul>` on one line.
+                    let is_implicitly_closed = source
+                        .as_bytes()
+                        .get(e.end as usize - 1)
+                        .copied()
+                        .is_some_and(|b| b.is_ascii_whitespace());
                     let is_nonempty =
                         !e.fragment.nodes.iter().all(
                             |n| matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),

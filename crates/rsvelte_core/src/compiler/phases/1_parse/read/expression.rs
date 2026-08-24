@@ -1676,7 +1676,8 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
@@ -1744,7 +1745,28 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     // No JS errors means valid
     js_result.as_ref()?;
 
-    js_result.or(ts_result)
+    let result = js_result.or(ts_result);
+
+    // A body with no code in it has nothing of its own to fail on, so whatever
+    // OXC reported describes the `(…)` this probe wrapped it in. Acorn is given
+    // the unwrapped text and says `Unexpected token` at the delimiter.
+    if is_code_empty(content) {
+        return result.map(|(_, pos)| ("Unexpected token".to_string(), pos));
+    }
+    result
+}
+
+/// Whether `content` carries no JavaScript at all — only whitespace and
+/// comments. Answered by the parser rather than by a scan so that a `//` or
+/// `/*` inside a string cannot be mistaken for one.
+fn is_code_empty(content: &str) -> bool {
+    if content.is_empty() {
+        return true;
+    }
+    with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, content, SourceType::mjs()).parse();
+        result.program.body.is_empty() && result.diagnostics.is_empty()
+    })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
@@ -1834,7 +1856,8 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
-    wrapped.push(')');
+    // a trailing `//` comment would swallow a same-line `)`
+    wrapped.push_str("\n)");
 
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
@@ -1856,6 +1879,41 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
         })
     };
     probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
+}
+
+/// Classify a failed `read_expression` for a construct terminated by
+/// `close_char`, the way upstream's caller does: acorn parses ONE maximal
+/// expression and the caller then `eat(close_char, true)`, so leftover input
+/// after a *complete* expression is a missing close token while a malformed
+/// expression is a `js_parse_error` at the byte where the parse stopped.
+///
+/// The prefix re-parse is what separates the two: OXC labels an invalid
+/// assignment target at the target's start, which the leftover-input probe
+/// would otherwise read as "the expression ended here".
+pub fn close_token_or_parse_error(
+    msg: String,
+    trimmed: &str,
+    trimmed_offset: usize,
+    close_char: char,
+) -> crate::error::ParseError {
+    let trailing = trailing_token_offset(trimmed).filter(|&off| {
+        off > 0
+            && trimmed
+                .get(..off)
+                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix).is_none())
+    });
+    if let Some(off) = trailing {
+        let mut buf = [0u8; 4];
+        return crate::error::ParseError::expected_token(
+            close_char.encode_utf8(&mut buf),
+            trimmed_offset + off,
+        );
+    }
+    let at = check_js_parse_error_with_pos(trimmed)
+        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
+            trimmed_offset + pos
+        });
+    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
 }
 
 /// Create an identifier for invalid expressions
@@ -1920,9 +1978,11 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
+        let mut wrapped = String::with_capacity(content.len() + 3);
         wrapped.push('(');
         wrapped.push_str(content);
+        // Keep the synthetic closer outside a trailing line comment.
+        wrapped.push('\n');
         wrapped.push(')');
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
@@ -6828,7 +6888,7 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 /// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
 /// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
 /// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
-const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
     "1015", // A parameter cannot have a question mark and an initializer
     "1016", // A required parameter cannot follow an optional parameter
     "1021", // An index signature must have a type annotation
@@ -6838,6 +6898,8 @@ const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
     "1093", // Type annotation cannot appear on a constructor declaration
     "1094", // An accessor cannot have type parameters
     "1095", // A 'set' accessor cannot have a return type annotation
+    "1147", // Import declarations in a namespace cannot reference a module
+    "1194", // Export declarations are not permitted in a namespace
     "1221", // Generators are not allowed in an ambient context
     "1222", // An overload signature cannot be declared as a generator
     "1263", // Declarations with initializers cannot also have definite assignment assertions
@@ -6971,6 +7033,7 @@ fn acorn_only_violation(
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        export_declare_global_at: Option<u32>,
         check_ts_modifier: bool,
         content: &'c str,
         ts_modifier_at: Option<u32>,
@@ -6998,6 +7061,16 @@ fn acorn_only_violation(
                 self.with_at = Some(stmt.span.start);
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
+        }
+        // `export declare global { … }`: acorn wants an ambient declaration after
+        // `export declare`, and a global augmentation is not one.
+        fn visit_export_declaration(&mut self, export: &oxc_ast::ast::ExportDeclaration<'a>) {
+            if let oxc_ast::ast::Declaration::TSGlobalDeclaration(global) = &export.declaration
+                && self.export_declare_global_at.is_none()
+            {
+                self.export_declare_global_at = Some(global.span.start);
+            }
+            oxc_ast_visit::walk::walk_export_declaration(self, export);
         }
         fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
             self.record_ts_modifier(
@@ -7034,11 +7107,15 @@ fn acorn_only_violation(
         check_decorator,
         decorator_at: None,
         with_at: None,
+        export_declare_global_at: None,
         check_ts_modifier,
         content,
         ts_modifier_at: None,
     };
-    if check_decorator || check_with || check_ts_modifier {
+    // The TypeScript-only rule below needs a token that is cheap to rule out, so
+    // a plain-JS script keeps the walk it had.
+    let check_ts_acorn = is_typescript && content.contains("global");
+    if check_decorator || check_with || check_ts_modifier || check_ts_acorn {
         finder.visit_program(program);
     }
 
@@ -7050,6 +7127,12 @@ fn acorn_only_violation(
             (
                 at,
                 "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error".to_string(),
+            )
+        }),
+        finder.export_declare_global_at.map(|at| {
+            (
+                at,
+                "'export declare' must be followed by an ambient declaration.".to_string(),
             )
         }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
@@ -8413,15 +8496,9 @@ fn convert_statement_for_program(
                 line_offsets,
             ))
         }
-        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => {
-            Some(convert_ts_module_declaration_as_node(
-                arena,
-                module_decl.span,
-                ts_namespace_block(&module_decl.body),
-                offset,
-                line_offsets,
-            ))
-        }
+        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => Some(
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets),
+        ),
         oxc_ast::ast::Statement::TSGlobalDeclaration(module_decl) => {
             Some(convert_ts_module_declaration_as_node(
                 arena,
@@ -8437,14 +8514,48 @@ fn convert_statement_for_program(
     }
 }
 
-/// The `TSModuleBlock` a namespace body carries, or `None` for the dotted form
-/// (`namespace N.M {}`), which nests another declaration instead of a block.
-fn ts_namespace_block<'a>(
-    body: &'a oxc_ast::ast::TSNamespaceDeclarationBody<'a>,
-) -> Option<&'a oxc_ast::ast::TSModuleBlock<'a>> {
-    match body {
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(block),
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+/// Build the node for a `namespace N { … }` / `module N { … }`.
+///
+/// A dotted name is the source spelling of `namespace N { namespace M { … } }`,
+/// so it is nested here and the strip reaches the innermost body through the
+/// same recursion. Official crashes on the dotted form instead
+/// (`upstream_issues/3568-svelte-dotted-namespace-crash.md`); this is rsvelte's
+/// deliberate reading, pinned by `tests/ts_export_type_only_declaration.rs`.
+fn convert_ts_namespace_as_node(
+    arena: &ParseArena,
+    module_decl: &oxc_ast::ast::TSNamespaceDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    match &module_decl.body {
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(block),
+                offset,
+                line_offsets,
+            )
+        }
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let inner_start = offset + inner.span.start as usize;
+            let inner_end = offset + inner.span.end as usize;
+            let inner_node = convert_ts_namespace_as_node(arena, inner, offset, line_offsets);
+            let body = arena.alloc_js_node(JsNode::BlockStatement {
+                start: inner_start as u32,
+                end: inner_end as u32,
+                loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                body: arena.alloc_js_children(vec![inner_node]),
+            });
+            JsNode::TSModuleDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                body: Some(body),
+            }
+        }
     }
 }
 
@@ -8466,7 +8577,31 @@ fn convert_ts_module_declaration_as_node(
         let block_body: Vec<JsNode> = block
             .body
             .iter()
-            .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+            .filter_map(|stmt| {
+                if let Some(node) = convert_statement_for_program(arena, stmt, offset, line_offsets)
+                {
+                    return Some(node);
+                }
+                // The typed program has no variant for these two (issue #3681), so
+                // `convert_statement_for_program` drops them — but upstream's visitor
+                // leaves both in place, which makes the namespace non-type. Only
+                // these two stand in: most of what it drops (a type alias, say) IS
+                // type-only and must keep stripping to empty.
+                if !matches!(
+                    stmt,
+                    oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)
+                        | oxc_ast::ast::Statement::ExportAllDeclaration(_)
+                ) {
+                    return None;
+                }
+                let start = offset + stmt.span().start as usize;
+                let end = offset + stmt.span().end as usize;
+                Some(JsNode::DebuggerStatement {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                })
+            })
             .collect();
         arena.alloc_js_node(JsNode::BlockStatement {
             start: start as u32,
@@ -8688,13 +8823,9 @@ fn convert_declaration_for_program_as_node(
                 line_offsets,
             )
         }
-        Declaration::TSNamespaceDeclaration(module_decl) => convert_ts_module_declaration_as_node(
-            arena,
-            module_decl.span,
-            ts_namespace_block(&module_decl.body),
-            offset,
-            line_offsets,
-        ),
+        Declaration::TSNamespaceDeclaration(module_decl) => {
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets)
+        }
         Declaration::TSGlobalDeclaration(module_decl) => convert_ts_module_declaration_as_node(
             arena,
             module_decl.span,
@@ -11332,9 +11463,17 @@ fn convert_property_key(
             ))
         }
         _ => {
-            // For computed keys, try to get the expression
+            // A computed key is program-path like its siblings above: reaching for
+            // `convert_expression` would subtract the paren a template expression
+            // is wrapped in but a script is not, putting the whole subtree one
+            // byte early.
             if let Some(expr) = key.as_expression() {
-                expr_to_node(convert_expression(arena, expr, offset, line_offsets))
+                expr_to_node(convert_expression_for_program(
+                    arena,
+                    expr,
+                    offset,
+                    line_offsets,
+                ))
             } else {
                 JsNode::Null
             }

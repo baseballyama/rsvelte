@@ -20,7 +20,6 @@ use lazy_static::lazy_static;
 use parse_attached_sourcemap::parse_attached_sourcemap;
 use regex::Regex;
 use replace_in_code::{replace_in_code, slice_source};
-use rustc_hash::FxHashMap;
 use types::*;
 
 lazy_static! {
@@ -230,8 +229,8 @@ fn last_line_utf16_len(s: &str) -> usize {
 /// Parse tag attributes from a string.
 ///
 /// Corresponds to `parse_tag_attributes` in index.js.
-fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
-    let mut attrs = FxHashMap::default();
+fn parse_tag_attributes(str: &str) -> AttributeMap {
+    let mut attrs = AttributeMap::default();
 
     for cap in ATTRIBUTE_PATTERN.captures_iter(str) {
         let name = cap.get(1).map(|m| m.as_str()).unwrap_or("");
@@ -258,7 +257,7 @@ fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
 /// Stringify tag attributes to a string.
 ///
 /// Corresponds to `stringify_tag_attributes` in index.js.
-fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue>>) -> String {
+fn stringify_tag_attributes(attributes: &Option<AttributeMap>) -> String {
     if let Some(attrs) = attributes {
         let value = attrs
             .iter()
@@ -523,18 +522,17 @@ mod tests {
 
     #[test]
     fn test_stringify_tag_attributes() {
-        let mut attrs = FxHashMap::default();
+        let mut attrs = AttributeMap::default();
         attrs.insert("lang".to_string(), AttributeValue::String("ts".to_string()));
         attrs.insert("defer".to_string(), AttributeValue::Boolean(true));
 
-        let stringified = stringify_tag_attributes(&Some(attrs));
-        assert!(stringified.contains("lang=\"ts\""));
-        assert!(stringified.contains("defer"));
+        // Upstream stringifies `Object.entries`, i.e. insertion order.
+        assert_eq!(stringify_tag_attributes(&Some(attrs)), " lang=\"ts\" defer");
     }
 
     #[test]
     fn test_stringify_tag_attributes_escapes_values() {
-        let mut attrs = FxHashMap::default();
+        let mut attrs = AttributeMap::default();
         attrs.insert(
             "data-test".to_string(),
             AttributeValue::String(r#"a&b"c<d>e"#.to_string()),
