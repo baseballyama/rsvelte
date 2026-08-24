@@ -25,11 +25,11 @@ pub enum Svelte2TsxError {
 
 impl fmt::Display for Svelte2TsxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Upstream throws `new Error(message)`, so the variant name must not
+        // reach anything that shows this string to a user.
         match self {
-            Self::Parse { message, .. } => write!(f, "Parse error: {message}"),
-            Self::Template(msg) => write!(f, "Template error: {msg}"),
-            Self::Script(msg) => write!(f, "Script error: {msg}"),
-            Self::Other(msg) => write!(f, "svelte2tsx error: {msg}"),
+            Self::Parse { message, .. } => f.write_str(message),
+            Self::Template(msg) | Self::Script(msg) | Self::Other(msg) => f.write_str(msg),
         }
     }
 }
@@ -39,10 +39,21 @@ impl std::error::Error for Svelte2TsxError {}
 impl From<crate::error::ParseError> for Svelte2TsxError {
     fn from(err: crate::error::ParseError) -> Self {
         let span = err.span();
-        Self::Parse {
-            message: err.to_string(),
-            span,
-        }
+        // Upstream re-throws the svelte compiler's own error, whose `message` is
+        // the sentence plus the docs link — the code is a separate field there,
+        // where `ParseError`'s `Display` folds it into the text.
+        let message = match &err {
+            crate::error::ParseError::SvelteError { code, message, .. } => {
+                let docs_url = format!("\nhttps://svelte.dev/e/{code}");
+                if message.ends_with(&docs_url) {
+                    message.clone()
+                } else {
+                    format!("{message}{docs_url}")
+                }
+            }
+            other => other.to_string(),
+        };
+        Self::Parse { message, span }
     }
 }
 
