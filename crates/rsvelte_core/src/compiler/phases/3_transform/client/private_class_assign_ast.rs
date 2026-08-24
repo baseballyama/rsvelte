@@ -36,7 +36,7 @@
 //! | `q = expr`    | `$.set(q, expr, true)`                     | `$.set(q, expr)`                    |
 //! | `q += expr`   | `$.set(q, $.get(q) + expr)`                | `$.set(q, $.get(q) + expr)`         |
 //! | (incl. coercive `-= *= /= %= **= &= |= ^= <<= >>= >>>=` — never proxy)                             |
-//! | `q ??= expr`  | `$.set(q, $.get(q) ?? expr, true)`         | `$.set(q, $.get(q) ?? expr)`        |
+//! | `q ??= expr`  | `$.get(q) ?? $.set(q, expr)`               | `$.get(q) ?? $.set(q, expr)`        |
 //! | (incl. logical `||= &&=`; the built value is a LogicalExpression → always proxies for `$state`)   |
 //! | `q++`         | `$.update(q)`                              | `$.update(q)`                       |
 //! | `q--`         | `$.update(q, -1)`                          | `$.update(q, -1)`                   |
@@ -243,9 +243,9 @@ fn compound_of(operator: AssignmentOperator) -> Option<Compound> {
 /// is_non_coercive_operator(operator) && should_proxy(value, scope)`, where
 /// `value` is the built assignment value. The non-coercive operators are
 /// `= || && ??`; arithmetic / bitwise / shift compounds are coercive and never
-/// proxy. For `=` the value is the RHS, so `should_proxy` traces it; for the
-/// logical ops the value is a `LogicalExpression`, which is never in
-/// `should_proxy`'s no-proxy set and so always proxies for a `$state` field.
+/// proxy. Since #18594 the logical ops short-circuit around the `$.set` rather
+/// than folding the read into its argument, so their `value` is the bare RHS
+/// and `should_proxy` traces it exactly as it does for `=`.
 fn needs_proxy(
     kind: Match,
     compound: Option<Compound>,
@@ -255,8 +255,9 @@ fn needs_proxy(
 ) -> bool {
     matches!(kind, Match::State)
         && match compound {
-            None => should_proxy_with_bindings(right, var_proxy, reassigned),
-            Some(Compound::Logical(_)) => true,
+            None | Some(Compound::Logical(_)) => {
+                should_proxy_with_bindings(right, var_proxy, reassigned)
+            }
             Some(Compound::Binary(_)) => false,
         }
 }
@@ -480,20 +481,26 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
         let needs_proxy = needs_proxy(kind, compound, &expr.right, self.var_proxy, self.reassigned);
 
-        let value = match compound {
-            None => rhs_text.to_string(),
-            Some(op) => {
-                let read = field_read_text(
-                    qualified,
-                    reads_dot_v(qualified, self.v_read_qualified, self.function_depth),
-                );
-                format!("{} {} {}", read, op.as_str(), rhs_text)
-            }
+        let read = || {
+            field_read_text(
+                qualified,
+                reads_dot_v(qualified, self.v_read_qualified, self.function_depth),
+            )
         };
-        let rewrite = if needs_proxy {
+        // A logical compound short-circuits around the whole `$.set`, so the
+        // setter only runs when the operator actually assigns.
+        let value = match compound {
+            None | Some(Compound::Logical(_)) => rhs_text.to_string(),
+            Some(op @ Compound::Binary(_)) => format!("{} {} {}", read(), op.as_str(), rhs_text),
+        };
+        let set = if needs_proxy {
             format!("$.set({}, {}, true)", qualified, value)
         } else {
             format!("$.set({}, {})", qualified, value)
+        };
+        let rewrite = match compound {
+            Some(Compound::Logical(op)) => format!("{} {} {}", read(), op.as_str(), set),
+            _ => set,
         };
 
         self.replacements
@@ -735,27 +742,27 @@ mod tests {
         let out = method_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
         assert_eq!(
             out,
-            "$.set(this.#promise, $.get(this.#promise) ?? run(), true);"
+            "$.get(this.#promise) ?? $.set(this.#promise, run(), true);"
         );
     }
 
     #[test]
     fn logical_or_assign_state_proxies() {
         let out = method_body("this.#x ||= y;", &ssv(&["this.#x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#x, $.get(this.#x) || y, true);");
+        assert_eq!(out, "$.get(this.#x) || $.set(this.#x, y, true);");
     }
 
     #[test]
     fn logical_and_assign_state_proxies() {
         let out = method_body("this.#x &&= y;", &ssv(&["this.#x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#x, $.get(this.#x) && y, true);");
+        assert_eq!(out, "$.get(this.#x) && $.set(this.#x, y, true);");
     }
 
     #[test]
     fn logical_assign_other_no_proxy() {
         // `$derived`/etc. (other_qualified) never proxy — no `, true`.
         let out = method_body("this.#d ??= y;", &[], &ssv(&["this.#d"])).unwrap();
-        assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? y);");
+        assert_eq!(out, "$.get(this.#d) ?? $.set(this.#d, y);");
     }
 
     #[test]
@@ -782,7 +789,7 @@ mod tests {
         // `.v` is for `$state` / `$state.raw` only — a `$derived` field keeps
         // `$.get` even at constructor depth.
         let out = ctor_body_derived("this.#d ??= s;", &ssv(&["this.#d"])).unwrap();
-        assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? s);");
+        assert_eq!(out, "$.get(this.#d) ?? $.set(this.#d, s);");
     }
 
     #[test]
@@ -795,7 +802,7 @@ mod tests {
     #[test]
     fn constructor_logical_reads_dot_v() {
         let out = ctor_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#promise, this.#promise.v ?? run(), true);");
+        assert_eq!(out, "this.#promise.v ?? $.set(this.#promise, run(), true);");
     }
 
     #[test]
@@ -973,14 +980,16 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
             unreachable!("checked above")
         };
 
+        // A logical compound short-circuits around the whole `$.set`, so the
+        // setter only runs when the operator actually assigns.
+        let logical = match compound {
+            Some(Compound::Logical(op)) => Some((op, self.field_read(&pf, dot_v))),
+            _ => None,
+        };
         let value = match compound {
-            None => assign.right,
+            None | Some(Compound::Logical(_)) => assign.right,
             Some(Compound::Binary(op)) => {
                 self.b.binary(op, self.field_read(&pf, dot_v), assign.right)
-            }
-            Some(Compound::Logical(op)) => {
-                self.b
-                    .logical(op, self.field_read(&pf, dot_v), assign.right)
             }
         };
 
@@ -988,7 +997,11 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         if needs_proxy {
             args.push(self.b.bool(true));
         }
-        *expr = self.b.call("$.set", args);
+        let call = self.b.call("$.set", args);
+        *expr = match logical {
+            Some((op, read)) => self.b.logical(op, read, call),
+            None => call,
+        };
         self.changed = true;
     }
 
@@ -1207,19 +1220,19 @@ mod shared_decision_tests {
             "this.#a ??= run();",
             &["this.#a"],
             &[],
-            "$.set(this.#a, $.get(this.#a) ?? run(), true);",
+            "$.get(this.#a) ?? $.set(this.#a, run(), true);",
         ),
         (
             "this.#a ||= y;",
             &["this.#a"],
             &[],
-            "$.set(this.#a, $.get(this.#a) || y, true);",
+            "$.get(this.#a) || $.set(this.#a, y, true);",
         ),
         (
             "this.#d &&= y;",
             &[],
             &["this.#d"],
-            "$.set(this.#d, $.get(this.#d) && y);",
+            "$.get(this.#d) && $.set(this.#d, y);",
         ),
         ("this.#a++;", &["this.#a"], &[], "$.update(this.#a);"),
         ("this.#a--;", &["this.#a"], &[], "$.update(this.#a, -1);"),

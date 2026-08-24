@@ -28,6 +28,8 @@ use oxc_ast::ast::*;
 use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType, Span};
 
+use crate::compiler::phases::phase3_transform::shared::js_scan;
+
 use super::ast_rewrite::{self, Edit};
 
 thread_local! {
@@ -58,7 +60,11 @@ pub fn wrap_state_derived_with_tag_class_fields_ast_from(
     {
         return None;
     }
-    memchr::memmem::find(source.as_bytes(), b"class ")?;
+    // A prefilter for the AST rewrite below: `class\tK` is a class too, so the
+    // needle is the keyword, never the keyword plus one ASCII space (#3470).
+    if !js_scan::contains_identifier(source, "class") {
+        return None;
+    }
 
     ast_rewrite::rewrite_once(
         &CLASS_TAG_ALLOC,
