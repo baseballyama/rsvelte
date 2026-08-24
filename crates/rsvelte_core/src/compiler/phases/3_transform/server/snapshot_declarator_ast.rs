@@ -50,7 +50,9 @@ struct Collector {
 
 /// The sole argument of a `$.snapshot(…)` call, if `expr` is exactly that call.
 fn snapshot_argument<'a, 'b>(expr: &'b Expression<'a>) -> Option<&'b Expression<'a>> {
-    let Expression::CallExpression(call) = expr else {
+    // Upstream's acorn builds no `ParenthesizedExpression`, so `= ($.snapshot(x))`
+    // is the same declarator initializer as `= $.snapshot(x)` (#3248).
+    let Expression::CallExpression(call) = expr.without_parentheses() else {
         return None;
     };
     let Expression::StaticMemberExpression(member) = &call.callee else {

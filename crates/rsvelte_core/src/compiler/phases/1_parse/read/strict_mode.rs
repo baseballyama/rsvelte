@@ -1,17 +1,21 @@
-//! Restrictions acorn applies to a script that OXC does not.
+//! Restrictions the parser upstream uses applies to a script that OXC does not.
 //!
-//! Two families. Every component script is an ES module and therefore strict,
+//! Three families. Every component script is an ES module and therefore strict,
 //! and acorn applies the strict-mode early errors uniformly while OXC has no
 //! such pass. And acorn implements a narrower grammar: `using` declarations,
-//! the import phases and the deprecated `assert` clause are all syntax OXC
-//! parses and acorn rejects. acorn is single-pass and non-recovering, so it
-//! throws on the first violation it reaches and never sees any that follow —
-//! callers take the earliest by position.
+//! the import phases, the deprecated `assert` clause, and the TypeScript-only
+//! and auto-accessor class-member modifiers are all syntax OXC parses and acorn
+//! rejects. Finally acorn-typescript, which upstream parses a `lang="ts"` script
+//! with, enforces two rules TypeScript itself leaves to the checker — so OXC's
+//! parser has no reason to implement them and rsvelte has to. acorn is
+//! single-pass and non-recovering, so it throws on the first violation it
+//! reaches and never sees any that follow — callers take the earliest by
+//! position.
 
 use oxc_ast::ast::{
-    AssignmentTarget, BindingPattern, Class, Expression, FormalParameters, Function,
-    ObjectPropertyKind, PropertyKey, SimpleAssignmentTarget, Statement, StringLiteral,
-    TemplateLiteral,
+    AccessorPropertyType, AssignmentTarget, BindingPattern, Class, ClassElement, Expression,
+    FormalParameters, Function, MethodDefinitionType, ObjectPropertyKind, PropertyDefinitionType,
+    PropertyKey, SimpleAssignmentTarget, Statement, StringLiteral, TemplateLiteral,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
@@ -30,6 +34,42 @@ const RESERVED: &[&str] = &[
     "public",
 ];
 
+/// Class-member modifiers plain acorn cannot read: the TypeScript-only ones, and
+/// the stage-3 `accessor` the pinned acorn ships no plugin for.
+const TS_ONLY_CLASS_MODIFIERS: &[&str] = &[
+    "abstract",
+    "accessor",
+    "declare",
+    "override",
+    "private",
+    "protected",
+    "public",
+    "readonly",
+];
+
+/// The offset of the next token in `source` at or after `from`, skipping
+/// whitespace and comments.
+fn next_significant(source: &str, from: usize) -> Option<usize> {
+    let mut rest = source.get(from..)?;
+    let mut at = from;
+    loop {
+        let trimmed = rest.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
+        at += rest.len() - trimmed.len();
+        rest = trimmed;
+        if let Some(body) = rest.strip_prefix("//") {
+            let len = body.find('\n').map_or(body.len(), |i| i + 1);
+            at += 2 + len;
+            rest = &body[len..];
+        } else if let Some(body) = rest.strip_prefix("/*") {
+            let len = body.find("*/")? + 2;
+            at += 2 + len;
+            rest = &body[len..];
+        } else {
+            return (!rest.is_empty()).then_some(at);
+        }
+    }
+}
+
 /// The earliest strict-mode violation in `program`, as `(offset, message)`.
 pub fn find_violation(
     program: &oxc_ast::ast::Program<'_>,
@@ -47,8 +87,8 @@ pub fn find_violation(
 
 struct Scan<'s> {
     source: &'s str,
-    /// acorn-typescript keeps the deprecated `assert` clause, so that one
-    /// restriction is JS-only.
+    /// acorn-typescript keeps the deprecated `assert` clause and reads every
+    /// class-member modifier, so those two restrictions are JS-only.
     is_typescript: bool,
     hits: Vec<(u32, String)>,
 }
@@ -103,6 +143,126 @@ impl Scan<'_> {
                 self.hit(*at, "Argument name clash");
                 break;
             }
+        }
+    }
+
+    /// acorn reads a class member's modifiers left to right, takes the first word
+    /// it does not know as the member's name, and then throws on whatever cannot
+    /// follow a name — so it stops after the FIRST TypeScript-only modifier, which
+    /// is a later modifier (`private static x`) as often as it is the key.
+    fn stop_after_ts_modifier(&self, from: u32, until: u32) -> Option<u32> {
+        let from = from as usize;
+        let until = (until as usize).min(self.source.len());
+        let prefix = self.source.get(from..until)?;
+        let bytes = prefix.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if !bytes[i].is_ascii_alphabetic() {
+                i += 1;
+                continue;
+            }
+            let word_len = prefix[i..]
+                .find(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '$')
+                .unwrap_or(prefix.len() - i);
+            if TS_ONLY_CLASS_MODIFIERS.contains(&&prefix[i..i + word_len]) {
+                return next_significant(self.source, from + i + word_len).map(|at| at as u32);
+            }
+            i += word_len;
+        }
+        None
+    }
+
+    /// A class member carrying a modifier acorn cannot read. Only reachable in a
+    /// plain script — a `lang="ts"` one is parsed by acorn-typescript, and
+    /// `accessor` is rejected later by `remove_typescript_nodes` instead.
+    fn check_ts_class_modifiers(&mut self, element: &ClassElement<'_>) {
+        let (decorators, span, key) = match element {
+            ClassElement::MethodDefinition(m) => {
+                if m.accessibility.is_none()
+                    && !m.r#override
+                    && m.r#type == MethodDefinitionType::MethodDefinition
+                {
+                    return;
+                }
+                (&m.decorators, m.span, &m.key)
+            }
+            ClassElement::PropertyDefinition(p) => {
+                if p.accessibility.is_none()
+                    && !p.r#override
+                    && !p.readonly
+                    && !p.declare
+                    && p.r#type == PropertyDefinitionType::PropertyDefinition
+                {
+                    return;
+                }
+                (&p.decorators, p.span, &p.key)
+            }
+            // An auto-accessor is itself syntax acorn has no plugin for.
+            ClassElement::AccessorProperty(a) => (&a.decorators, a.span, &a.key),
+            ClassElement::StaticBlock(_) | ClassElement::TSIndexSignature(_) => return,
+        };
+        // A decorator's own arguments may spell a modifier keyword.
+        let from = self.after_decorators(decorators, span.start);
+        let key_start = key.span().start;
+        let at = self
+            .stop_after_ts_modifier(from, key_start)
+            .unwrap_or(key_start);
+        self.hit(at, "Unexpected token");
+    }
+
+    /// acorn-typescript raises at the member's first modifier, which is where it
+    /// opened the node — before `parseClass` re-anchors a decorated member onto
+    /// its first decorator.
+    fn after_decorators(&self, decorators: &[oxc_ast::ast::Decorator<'_>], span_start: u32) -> u32 {
+        decorators
+            .last()
+            .and_then(|d| next_significant(self.source, d.span.end as usize))
+            .map_or(span_start, |at| at as u32)
+    }
+
+    /// The two class-member rules acorn-typescript enforces in the parser and
+    /// TypeScript leaves to the checker, so OXC never reports them: an `abstract`
+    /// member outside an `abstract class`, and an `override` member in a class
+    /// with no superclass (`parseClassElement`, guarded by `inAbstractClass` and
+    /// `constructorAllowsSuper`, which are per-class and saved/restored).
+    fn check_acorn_ts_member_rules(&mut self, class: &Class<'_>, element: &ClassElement<'_>) {
+        let (decorators, span, is_abstract, is_override) = match element {
+            ClassElement::MethodDefinition(m) => (
+                &m.decorators,
+                m.span,
+                m.r#type == MethodDefinitionType::TSAbstractMethodDefinition,
+                m.r#override,
+            ),
+            ClassElement::PropertyDefinition(p) => (
+                &p.decorators,
+                p.span,
+                p.r#type == PropertyDefinitionType::TSAbstractPropertyDefinition,
+                p.r#override,
+            ),
+            ClassElement::AccessorProperty(a) => (
+                &a.decorators,
+                a.span,
+                a.r#type == AccessorPropertyType::TSAbstractAccessorProperty,
+                a.r#override,
+            ),
+            ClassElement::StaticBlock(_) | ClassElement::TSIndexSignature(_) => return,
+        };
+        if !is_abstract && !is_override {
+            return;
+        }
+        let at = self.after_decorators(decorators, span.start);
+        // acorn tests `abstract` first, and only the earliest hit is reported.
+        if is_abstract && !class.r#abstract {
+            self.hit(
+                at,
+                "Abstract methods can only appear within an abstract class.",
+            );
+        }
+        if is_override && class.heritage.is_none() {
+            self.hit(
+                at,
+                "This member cannot have an 'override' modifier because its containing class does not extend another class.",
+            );
         }
     }
 
@@ -283,6 +443,13 @@ impl<'a> Visit<'a> for Scan<'_> {
     fn visit_class(&mut self, class: &Class<'a>) {
         if let Some(id) = &class.id {
             self.check_name(id.name.as_str(), id.span.start, true);
+        }
+        for element in &class.body.body {
+            if self.is_typescript {
+                self.check_acorn_ts_member_rules(class, element);
+            } else {
+                self.check_ts_class_modifiers(element);
+            }
         }
         walk::walk_class(self, class);
     }

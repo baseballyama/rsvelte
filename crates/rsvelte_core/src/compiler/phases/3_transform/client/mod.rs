@@ -47,6 +47,7 @@ mod reactive_update_ast;
 mod read_only_props_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
+mod sanitized_props;
 mod scan_index;
 mod scope_analysis;
 mod state_assigns_combined_ast;
@@ -402,9 +403,7 @@ pub(crate) fn print_module_program(
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default()
-                .with_empty_statements(true)
-                .with_unlocated_program(true);
+            let print_opts = rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
                     rsvelte_esrap::print_split(
@@ -2649,11 +2648,8 @@ pub(crate) fn transform_client(
                 &ast_islands,
             )
             .map(|converted| {
-                // Keep `;` empty statements: the parsed-`Raw` `;;` are real
-                // EmptyStatement nodes the official compiler output preserves.
-                let print_opts = rsvelte_esrap::PrintOptions::default()
-                    .with_empty_statements(true)
-                    .with_unlocated_program(true);
+                let print_opts =
+                    rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
                 let oxc_prog = &converted.program;
                 match &converted.comment_source {
                     // The program carries comments, so it prints in the
@@ -4056,6 +4052,31 @@ fn is_complete_side_effect_import(trimmed: &str) -> bool {
     after_import[i..].trim().is_empty()
 }
 
+/// True when `text` is a `let`/`const`/`var` declaration whose whole initializer
+/// is `$props.id()` — or an already-lowered `$.props_id()`. The component body
+/// always gets a hoisted `const` for it, so the source's own declaration has to
+/// go or the scope declares the name twice, which no JS parser accepts.
+///
+/// Compared over the statement's **code**: `code_bytes` steps over comments and
+/// string bodies, so trivia anywhere in the declaration cannot defeat the match
+/// and an `=` inside a string cannot be mistaken for the assignment. The
+/// text-level version this replaced was defeated by a comment on either side of
+/// the call and by a line break before it (#3346).
+fn is_props_id_declaration(text: &str) -> bool {
+    let code: Vec<u8> = code_bytes(text.as_bytes()).map(|(_, b)| b).collect();
+    let Ok(code) = std::str::from_utf8(&code) else {
+        return false;
+    };
+    let code = code.trim();
+    let head = code.strip_prefix("export ").unwrap_or(code);
+    if !(head.starts_with("let ") || head.starts_with("const ") || head.starts_with("var ")) {
+        return false;
+    }
+    code.find('=')
+        .map(|eq| code[eq + 1..].trim().trim_end_matches(';').trim())
+        .is_some_and(|rhs| rhs == "$props.id()" || rhs == "$.props_id()")
+}
+
 /// True when `trimmed` begins an `export { ... }` specifier statement,
 /// tolerating any whitespace between `export` and `{` — including none, since
 /// `export{a}` is valid JavaScript (M-021). Guards against matching longer
@@ -4694,6 +4715,17 @@ pub(crate) fn transform_module_script_runes(
 
 /// `pre_class_script` is the script before the class-field lowering — the dev
 /// `$.tag` label needs the name the user wrote, which the lowering erases.
+/// Whether this module declares a rune-spelled name at all — the cheap
+/// precondition for [`rune_shadow::RuneShadows`]: with no such declaration no
+/// call can resolve to one, so nothing needs a scope pass.
+fn module_binds_rune_name(analysis: &ComponentAnalysis) -> bool {
+    analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| rune_shadow::is_rune_name(&b.name))
+}
+
 fn transform_module_script_runes_with_target(
     script: &str,
     pre_class_script: &str,
@@ -4705,6 +4737,10 @@ fn transform_module_script_runes_with_target(
     module_entry: bool,
 ) -> String {
     let mut result = script.to_string();
+    let mut shadows = rune_shadow::RuneShadows::new(
+        module_binds_rune_name(analysis),
+        analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts"),
+    );
 
     // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
     // These are type-only annotations that have no runtime meaning.
@@ -4975,6 +5011,10 @@ fn transform_module_script_runes_with_target(
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
         }
+        if shadows.is_bound(&result, pos) {
+            state_from = pos + 1;
+            continue;
+        }
 
         let var_name = extract_var_name_before_rune(&result[..pos]);
 
@@ -5056,7 +5096,9 @@ fn transform_module_script_runes_with_target(
     // expression positions and can't make that mistake.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = derived_by_ast::transform_derived_by_ast(&result, is_ts) {
+        if let Some(rewritten) =
+            derived_by_ast::transform_derived_by_ast(&result, is_ts, shadows.enabled())
+        {
             result = rewritten;
         }
     }
@@ -5103,6 +5145,10 @@ fn transform_module_script_runes_with_target(
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
+        }
+        if shadows.is_bound(&result, pos) {
+            derived_from = pos + 1;
+            continue;
         }
         let derived_start = pos + 9; // after "$derived("
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
@@ -5449,6 +5495,109 @@ fn separate_same_line_top_level_statements<'a>(
     }
     separated.push_str(&script[cursor..]);
     Cow::Owned(separated)
+}
+
+/// Move a legacy `$:` label's colon up against its `$`.
+///
+/// JavaScript allows whitespace and comments between a label and its colon, but
+/// every downstream stage of this pipeline locates a reactive statement by the
+/// literal two bytes `$:`, so `$ : x = 1` reaches none of them and is emitted as
+/// an inert labelled statement. The parser decides what is a label; swapping the
+/// gap with the colon rather than deleting it keeps both byte length and line
+/// count, so nothing that indexes into this text moves.
+fn close_reactive_label_gaps<'a>(script: &'a str, is_typescript: bool) -> Cow<'a, str> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Statement;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    // A gapped label is a `$` followed by whitespace or a comment. Non-ASCII is
+    // a candidate because JavaScript's whitespace reaches past it (NBSP, U+2028,
+    // U+FEFF); every other successor byte — `:`, an identifier character, `{`,
+    // `.`, `(` — rules the `$` out without a parse.
+    let bytes = script.as_bytes();
+    let gap_candidate = bytes.iter().enumerate().any(|(i, &b)| {
+        b == b'$'
+            && bytes
+                .get(i + 1)
+                .is_some_and(|&n| n.is_ascii_whitespace() || n == b'\x0b' || n == b'/' || n >= 0x80)
+    });
+    if !gap_candidate {
+        return Cow::Borrowed(script);
+    }
+
+    let allocator = Allocator::default();
+    let source_type = if is_typescript {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let parsed = Parser::new(&allocator, script, source_type).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    // Only a top-level label is a reactive statement upstream
+    // (`2-analyze/visitors/LabeledStatement.js`), so a nested one is left alone.
+    let mut gaps: Vec<(usize, usize)> = Vec::new();
+    for statement in &parsed.program.body {
+        let Statement::LabeledStatement(labeled) = statement else {
+            continue;
+        };
+        if labeled.label.name != "$" {
+            continue;
+        }
+        let gap_start = labeled.label.span.end as usize;
+        if let Some(colon) = label_colon_offset(script, gap_start)
+            && colon > gap_start
+        {
+            gaps.push((gap_start, colon));
+        }
+    }
+
+    if gaps.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    let mut out = String::with_capacity(script.len());
+    let mut cursor = 0;
+    for (gap_start, colon) in gaps {
+        out.push_str(&script[cursor..gap_start]);
+        out.push(':');
+        out.push_str(&script[gap_start..colon]);
+        cursor = colon + 1;
+    }
+    out.push_str(&script[cursor..]);
+    Cow::Owned(out)
+}
+
+/// Offset of the `:` that follows a label name at `from`, skipping the
+/// whitespace and comments the grammar allows in between.
+fn label_colon_offset(script: &str, from: usize) -> Option<usize> {
+    let bytes = script.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        match bytes[i] {
+            b':' => return Some(i),
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i = script[i..].find('\n').map_or(script.len(), |nl| i + nl + 1);
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i = script[i + 2..]
+                    .find("*/")
+                    .map_or(script.len(), |end| i + 2 + end + 2);
+            }
+            _ => {
+                let c = script[i..].chars().next()?;
+                // JavaScript's whitespace is `White_Space` plus U+FEFF.
+                if !c.is_whitespace() && c != '\u{feff}' {
+                    return None;
+                }
+                i += c.len_utf8();
+            }
+        }
+    }
+    None
 }
 
 fn might_have_comma_separated_declaration(script: &str) -> bool {
@@ -7386,6 +7535,7 @@ fn transform_instance_script_for_visitors(
                         &t,
                         prop_assignment_transform_vars,
                         &non_bindable_prop_vars,
+                        prop_source_reads_ast::ParseGoal::Statements,
                     )
                     .map(Cow::Owned)
                     .unwrap_or(t)
@@ -7687,23 +7837,14 @@ fn transform_instance_script_for_visitors(
         }
 
         // Skip $props.id() declarations - they will be added as const declarations
-        // in the component body. Match on the initializer being exactly
-        // `$props.id()` / `$.props_id()` (whitespace-tolerant) rather than the
-        // literal `= $props.id()` substring, so `let id=$props.id()` (no spaces)
-        // is also skipped instead of surviving alongside the generated const. H-060.
-        // An `export const` declarator is skipped too: upstream drops it in
-        // `VariableDeclaration` whichever way the declaration is reached, and the
-        // name still resolves — `$$exports` reads the hoisted `const`. Keeping it
-        // emitted `const x` twice in one scope, which is not parseable JS.
-        if at_statement_boundary && let Some(tail) = props_id_declaration_tail(trimmed) {
-            if tail.trim().is_empty() {
-                line_idx += 1;
-                continue;
-            }
-            // Another statement shares the line. Dropping the whole line drops
-            // that one too, and keeping it emits the hoisted `const` twice.
-            line = tail;
-            trimmed = tail.trim();
+        // in the component body. An `export const` declarator is skipped too:
+        // upstream drops it in `VariableDeclaration` whichever way the declaration
+        // is reached, and the name still resolves — `$$exports` reads the hoisted
+        // `const`. Keeping it emitted `const x` twice in one scope, which is not
+        // parseable JS. H-060.
+        if at_statement_boundary && is_props_id_declaration(trimmed) {
+            line_idx += 1;
+            continue;
         }
 
         // Add line to accumulator (zero-copy borrow from script_lines)
@@ -7845,6 +7986,23 @@ fn transform_instance_script_for_visitors(
                 }
 
                 if !next_continues {
+                    // The same rule as the per-line skip, applied once the whole
+                    // statement is in hand, so an initializer that sits on the
+                    // next line is dropped too. Both sites call the one predicate
+                    // rather than restating it — a second spelling of this test is
+                    // how #3346 got here.
+                    if is_props_id_declaration(&accumulated_lines.join("\n")) {
+                        accumulated_lines.clear();
+                        depth_paren = 0;
+                        depth_bracket = 0;
+                        depth_brace = 0;
+                        depth_in_string = None;
+                        depth_in_block_comment = false;
+                        depth_template_interp_stack.clear();
+                        line_idx += 1;
+                        continue;
+                    }
+
                     // Runes fast-path: skip process_accumulated entirely when no transforms apply
                     if runes_fastpath_eligible {
                         let statement = accumulated_lines.join("\n");
