@@ -164,8 +164,8 @@ cannot drift from the ratchet it describes:
 
 The ratio has been measured at 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66× (0.62, after the
 invalid-JS burndown), 1.38× after the inspect empty-statement fix, **0.92×** on the enrolled
-corpus, **1.13×** after the rebase onto `main`, and **1.10×** after the latest fixes — the rebase moved it back across 1.0 with no
-change to this gate at all, only to which seeds are eligible and which divergences `main`
+corpus, **1.13×** after the rebase onto `main`, and **1.10×** after the latest fixes. The rebase
+moved it back across 1.0 with no change to this gate at all, only to which seeds are eligible and which divergences `main`
 had already fixed. That is the sharpest available demonstration of the next sentence. It is not a stable property of the compiler: the earlier moves were the normalizer
 changing what it absorbs and delimiter-signature fixes removing findings from the numerator by
 construction, and this one is a change of population. Read it as a description of the current
