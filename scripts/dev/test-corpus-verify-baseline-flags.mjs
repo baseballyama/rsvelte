@@ -31,12 +31,15 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { linkDependencies } from './corpus-sandbox.mjs';
+import { MIN_FULL_CORPUS_ENTRIES } from '../compat-corpus/artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CORPUS_SCRIPTS = path.join(ROOT, 'scripts/compat-corpus');
 
-const ENTRIES = 12500; // must exceed artifacts.mjs MIN_FULL_CORPUS_ENTRIES
+// Derived, never a literal: the floor is a measurement of the corpus and moves
+// when it grows, and a hardcoded size silently drops below it.
+const ENTRIES = MIN_FULL_CORPUS_ENTRIES + 500;
 const SENTINEL = ['sentinel-entry'];
 
 const OUTPUT_RATCHETS = ['known-failures.client.json', 'known-failures.server.json', 'known-failures.client-dev.json', 'known-failures.server-dev.json'];

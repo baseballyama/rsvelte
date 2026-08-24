@@ -40,9 +40,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 666 entries)
+## Matrix known failures (`matrix-known-failures.json`, 580 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 282 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 116 + 0 + 24 + 0 + 0 + 0 + 150 + 0 + 282 + 8 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -59,34 +59,33 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 172 entries
+### `comment-slot` — 116 entries
 
 All remaining entries are `.svelte` template seeds. The `.svelte.(js|ts)` module-path
 cluster is now empty: location-less Programs discard their top-level and EOF comments while
 located nested bodies can still resynchronize the cursor, matching esrap.
 
-The current partition by target is `26 + 26 + 64 + 56` for `client`, `client-dev`,
+The current partition by target is `26 + 26 + 24 + 40` for `client`, `client-dev`,
 `server`, and `server-dev`. By seed:
 
 | seed | entries |
 |---|---:|
 | `await-block` | 32 |
-| `class-private-state` | 16 |
-| `class-static-block` | 16 |
-| `const-fold-line-continuation` | 16 |
-| `legacy-reactive` | 36 |
-| `module-script` | 40 |
+| `class-private-state` | 8 |
+| `class-static-block` | 8 |
+| `const-fold-line-continuation` | 8 |
+| `legacy-reactive` | 20 |
+| `module-script` | 24 |
 | `snippet-render` | 16 |
 
-Of these, rsvelte drops the injected comment in 152 entries, moves it in 16, and keeps or
-duplicates one official drops in 4. Comparing normalized non-comment lines finds no
+All 116 are `comment-mismatch`: comparing normalized non-comment lines finds no
 codegen-semantic divergence in this cluster. A comment is the one token that may appear
 between any two other tokens, so the matrix crosses eight comment kinds with every line
 boundary instead of relying on published-code frequency.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `152 + 16 + 4`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `116`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `32 + 16 + 16 + 16 + 36 + 40 + 16`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `32 + 8 + 8 + 8 + 20 + 24 + 16`
 
 The location-less cursor port clears 144 entries without adding a failure: all 96 trailing
 module-path rows (`module-class-state`, `module-rune-exports`, and
@@ -142,7 +141,7 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 
 All 189 generated comparisons now match. #2484's three special-element dev setter cases are
 covered by the direct regression tests as well as this zero-residue matrix family.
-### `removed-statement-comment` — 180 entries
+### `removed-statement-comment` — 150 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -150,19 +149,20 @@ kinds, 3 hosts (`compileModule`, the instance script's top level, one function d
 whether a statement survives after the removed one. 396 cases, 1188 comparisons; the fix that
 landed with it cleared 79 of them (403 → 324, all on `server`).
 
-Every remaining entry is in the server tail cluster below.
+Every remaining entry is in one of the clusters below.
 
 | entries | target | cluster | issue |
 |---|---|---|---|
-| 66 | `server` | `instance-top` × `succ-none` only: the removed statement is the last one in the script, so the orphaned comments have no anchor region to be re-homed onto. Upstream flushes them at the end of the enclosing function body; rsvelte's synthesized component-fn body is location-less, so esrap's closing `flush_comments_until` is a no-op | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
+| 54 | `server-dev` | `$effect` / `$effect.pre` / `$effect.root` × `instance-top` × `succ-none` | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
+| 96 | `client`, `server`, `server-dev` | `$inspect` across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
 Partition of `matrix-known-failures.json` entries under `removed-statement-comment/` by
-cluster: `66`
+cluster: `54 + 96`
 
 **[D].** It was reduced to a hand-written repro outside the family and measured against the
 pinned official compiler.
 
 Note the enrolment cost, because it is real: a ratchet entry suppresses everything about the
-entry it lists, so these 66 ids are now blind to any *further* regression on the same shapes
+entry it lists, so these 150 ids are now blind to any *further* regression on the same shapes
 until their issues are fixed.
 
 ---

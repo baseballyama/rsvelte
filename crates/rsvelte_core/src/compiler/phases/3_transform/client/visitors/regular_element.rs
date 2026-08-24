@@ -24,7 +24,8 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, has_dynamic_children, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
+    build_render_statement_with_memoizer, build_template_chunk,
+    collect_expression_identifiers_for_blockers, expression_has_reactive_state,
     is_known_defined_global_call, js_expr_keypath,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
@@ -127,6 +128,7 @@ fn process_element_let_directives(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Let directive bindings are template-kind.
@@ -164,6 +166,7 @@ fn process_element_let_directives(
                         is_defined: false,
                         is_reactive: true,
                         replacement_id: None,
+                        store_source: None,
                     },
                 );
                 context.state.transform_deep_read.insert(name.clone(), ());
@@ -1113,6 +1116,15 @@ pub fn visit_regular_element(
         match n.as_ref() {
             TemplateNode::Text(_) => true,
             TemplateNode::ExpressionTag(expr_tag) => {
+                let has_blockers = if context.state.blocker_map.borrow().is_empty() {
+                    false
+                } else {
+                    let blocker_names =
+                        collect_expression_identifiers_for_blockers(&expr_tag.expression);
+                    let blocker_name_refs: Vec<&str> =
+                        blocker_names.iter().map(String::as_str).collect();
+                    context.state.has_blockers_for_names(&blocker_name_refs)
+                };
                 // Check if expression is non-reactive AND has no non-pure calls.
                 // Non-pure calls (to local functions) need to be in a template_effect
                 // for proper execution context, so they can't use the textContent shortcut.
@@ -1131,6 +1143,7 @@ pub fn visit_regular_element(
                     context.state.parse_arena,
                 ) && !expression_has_reactive_state(&expr_tag.expression, context)
                     && !expr_tag.metadata.expression.has_call()
+                    && !has_blockers
             }
             _ => false,
         }
@@ -1751,9 +1764,13 @@ pub fn visit_regular_element(
 /// child_init is merged. Since our Phase 2 analysis doesn't mutate the AST to set
 /// this flag (immutable references), we check for DebugTag presence as a fallback.
 fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
-    hoisted
-        .iter()
-        .any(|n| matches!(n.as_ref(), TemplateNode::DebugTag(_)))
+    hoisted.iter().any(|n| match n.as_ref() {
+        // Upstream's dynamism comes from the Identifier visitor, so a `{@debug}`
+        // with no identifiers leaves the fragment static and its effect is
+        // discarded with the rest of `child_state.init`.
+        TemplateNode::DebugTag(tag) => !tag.identifiers.is_empty(),
+        _ => false,
+    })
 }
 
 /// Check if any trimmed children are dynamic (non-static, non-text).

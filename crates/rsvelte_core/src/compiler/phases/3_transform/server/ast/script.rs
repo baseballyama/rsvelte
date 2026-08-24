@@ -1122,6 +1122,32 @@ impl<'a> VisitMut<'a> for EffectValueLower<'a> {
         }
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
     }
+
+    fn visit_variable_declarator(&mut self, decl: &mut oxc_ast::ast::VariableDeclarator<'a>) {
+        // Upstream's server `VariableDeclaration` visitor takes `args[0] ?? void 0`
+        // for a rune it does not special-case, so a declarator initializer never
+        // reaches the `CallExpression` visitor that lowers `$effect.pending()`
+        // to `0`. `effect_pending_ast.rs` already implements this for modules.
+        if decl.init.as_ref().is_some_and(is_effect_pending_call) {
+            decl.init = Some(self.b.void0());
+            return;
+        }
+        oxc_ast_visit::walk_mut::walk_variable_declarator(self, decl);
+    }
+}
+
+/// `$effect.pending(…)` as a call expression.
+fn is_effect_pending_call(expr: &OxcExpression) -> bool {
+    let OxcExpression::CallExpression(call) = expr else {
+        return false;
+    };
+    let OxcExpression::StaticMemberExpression(m) = &call.callee else {
+        return false;
+    };
+    let OxcExpression::Identifier(obj) = &m.object else {
+        return false;
+    };
+    obj.name.as_str() == "$effect" && m.property.name.as_str() == "pending"
 }
 
 /// Tree-wide nested-rune lowering for the bodies of NESTED functions / blocks
