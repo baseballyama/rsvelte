@@ -40,6 +40,44 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`) is internal IR
 construction with unchanged output — a maintainability cleanup only.
 
+**The client source map is the one output where that string processing is not free**, because
+a text fragment has no node to stamp a position on: #2954 rebuilt the map by matching generated
+text back against the source in eleven passes, and #3015 replaced the ones a span can carry.
+Three lessons outlive that work. **`has_loc` answers "may this node carry comments", and the
+printer was reading it as "is this a mappable source position"** — under split coordinates
+`loc_base` sits *above* every real source offset, so every `JsExpr::Spanned` in a component
+whose script has a comment was silently dropped from the map; `Printer::map_position` is the
+mapping-only lookup, and formatting decisions must keep `offset_to_line_col` because a
+comment-space line and a source-space line are not comparable. And **a span belongs on the
+identifier, not on the wrapper the lowering builds around it** (upstream's
+`b.call(b.id(name, loc))`): spanning the call makes the segment cover `foo()` where official
+covers `foo`. And **an in-band wrapper variant is only safe where every downstream matcher on
+that position has been enumerated** — leaving `JsExpr::Spanned` on a member expression's
+*object* bought 18 segments and broke 49 runtime fixtures, because the client lowering walks a
+member chain by variant (`while let JsExpr::Member` then `if let JsExpr::Identifier`) and a
+wrapper answers neither, so a `bind:` setter fell through to `bar.baz = $$value` instead of
+`bar(bar().baz = $$value, true)`. **The source-map gate cannot see that class at all**: its
+unit is a segment, not the generated statement, so it scored the change green.
+What still needs a pass — the `$.prop` declaration, hoisted `import` lines,
+element identifier *uses*, component `bind:` accessors — is a `Raw` fragment or a builder call
+that had the span and dropped it, which is why #3015 step 1 (`Raw` eradication) really is the
+prerequisite it claims to be.
+
+**Two further lessons came out of making that branch green.** `loc_base` is the *boundary*
+between the comment buffer and source coordinates, so a source offset must never raise it: a
+`note_span` on the instance script's **end** put the boundary in the middle of the source range,
+every template offset after the script then read as a comment-space position, and the printer
+flushed a script comment inline mid-argument-list where `//` swallowed the rest of the line —
+output no parser accepts, from one file in 13,284. And **a field is priced on the type, not on
+the node that sets it**: the block's brace range was one `Option<(u32,u32)>` on
+`JsBlockStatement`, a struct inside every statement and expression, which grew `JsStatement`
+192 → 208 bytes and `JsExpr` 184 → 200 and cost 77% of a 2.47% allocation-byte regression for a
+range exactly one block per program carries. Neither was visible to CodSpeed, which compiles
+with `enable_sourcemap: false` while the shipping default is `true` (gate-coverage, *the perf
+gates also compile with a different option set*). Per-pass numbers are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-18--the-client-map-is-86-span-carried-and-two-of-the-eleven-passes-delete);
+**a pass measuring 0 there is not evidence it is redundant** (gate-coverage 14f).
+
 **The `.svelte.(js|ts)` module path is not in that "cleanup only" set, and calling it one was
 wrong.** `compileModule` rewrites source text, and its scans decide structure: #2986 located a
 class with `memmem::find(b"class ")` over the whole script, so a comment mentioning `class` made
@@ -112,6 +150,7 @@ one is the same shape: a scanner assuming input it did not get.
 | `\` before a quote means it is escaped | `'\\'` — the backslash was itself escaped |
 | a `$: if (…)` header ends its statement | `else` on the following line |
 | the setter call is rendered on one line | the printer breaking it across lines |
+| a backtick opens a template literal | a ```` ```svelte ```` fence inside a JSDoc comment |
 
 Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
 profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
@@ -123,10 +162,13 @@ loud half, and **how loud a given defect is depends on the input, not on the def
 one mis-splice made 9 files unparseable and 6 files parseable-and-wrong (one assigns a boolean
 instead of a ternary's result), and #2598 emitted a bare `$:` labelled statement that every
 parser accepts. Sizing a text-scanning defect by its parse-gate count therefore understates it —
-see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that produced every one of
-these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
-so the gate baselines at 0 while the instances live outside the population it inspects; that is
-why each fix lands a `compatibility/pattern-corpus` repro.
+see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that
+produced every one of these defects — huly, open-webui, carbon-components-svelte, SMUI — **were
+not corpus sources at the time**, so the gate baselined at 0 while the instances lived outside the
+population it inspected; that is why each fix lands a `compatibility/pattern-corpus` repro. All
+four are corpus sources now (#3130 took the corpus to 103 repositories), which closes the
+population hole for these particular four and for nothing else — the lesson is that the gate's
+population is a choice, not a given.
 
 **A folded constant is a JS value, and a rendered string is not one.** `scope.evaluate` is
 ported twice: the server has a typed `EvalValue` (`3_transform/server/evaluate.rs`), and the
@@ -157,6 +199,26 @@ And **"is this value known" still has three more implementations in the client**
 non-literal initializer as **source text** that only the JSON branch re-parses. So
 `{1 || 2}` folds and `const c = 1 || 2; {c}` does not, and the same for `const c = /ab/g` and
 for a `1n` bigint anywhere. Treat that as the next instalment, not as covered.
+
+**#3539 is that instalment's first row, and measuring it moved two of the sentence's claims.**
+The bigint half was the *operator table*, not the known-value predicates: `to_number` returns
+`None` for a bigint — correct, because JS `ToNumber` throws on one — and every arithmetic and
+relational arm was gated on it, while arithmetic actually uses **`ToNumeric`**, which keeps a
+bigint a bigint and throws only when the *other* operand is not one. So the fold conflated
+"this coercion throws" with "this value is unknown", and `7n + 2n` fell through with `2n + 1`.
+One table serves both walkers, so fixing it moved a 6,510-cell bigint × operator × 7-host ×
+3-target sweep from 1,539 divergences to 263. The other claim to correct is **"in the client"**:
+the `const c = 1 || 2` miss is on the *server* too, and it is not about bigints or regexes —
+`const c = 0 || 2`, `const c = 1 && 2` and `const c = null ?? 2` all fail identically on all
+three targets. What the sweep's residue actually contains is five distinct clusters, **none of
+them bigint-specific**, all reached through a *binding initializer* rather than a template
+expression: a `LogicalExpression` never folds there; the client never folds a global call
+(`Number('3')`, `String(3)`); `$derived(<any literal>)` misses the `textContent` fast path; the
+dev-mode equality guard fires on an initializer where no `$.equals` lowering happens; and
+`const r = '1' + '1'` **renders `2`** on the server. The last is a wrong value rather than a
+missed fold, and the shape that finds it is a plain string. **Ask of a residue paragraph which
+of its examples were measured and which were inferred from the mechanism** — three of these
+four were only ever the latter.
 
 **And #3027 is not one bug, it is the shape of a class — the inventory is
 [`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
@@ -257,12 +319,21 @@ same string for every push to `main`, so at a high merge rate each merge cancell
 predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
 indistinguishable in the branch header.**
 
+**And a cancelled run also shows up RED, where it is indistinguishable from a real regression.**
+`Tests` is a rollup job that reads its shards' `result`s and exits 1 unless every one is
+`success` — so a cancellation makes the rollup `FAILURE` while every shard under it is
+`cancelled`. Measured on four PRs during a mass `gh run cancel`: each reported 1–2 `FAILURE`
+against 28–54 `CANCELLED`, and the failing job's log was `BULK: cancelled UNIT: cancelled …`
+with no test output at all. So the check name and the conclusion together are not enough —
+read the rollup's step env before concluding a branch is broken, and never re-baseline or
+"fix" anything off a red rollup whose shards never ran.
+
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
-source repository — sveltejs/svelte, sveltejs/svelte.dev, and the real-world projects bits-ui /
-flowbite-svelte / melt-ui / shadcn-svelte, all pinned as submodules and listed in
-`scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
+source repository — sveltejs/svelte, sveltejs/svelte.dev and **101** real-world projects (huly,
+immich, open-webui, carbon-components-svelte, SMUI, threlte, bits-ui, … ), all pinned as
+submodules and listed in `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
 rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
 `scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
@@ -270,19 +341,36 @@ plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
 ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
 that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
-same directory holds four sibling shrink-only ratchets, each with per-entry justification in a paired
+same directory holds five sibling shrink-only ratchets, each with per-entry justification in a paired
 `.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
 svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), the lint output-parity gate
 (`lint-known-failures.json`, whose *constructed* companion
 `lint-adversarial-known-failures.json` is described under `rsvelte_lint` below), and the
 SCSS-backend gate (`scss-known-failures.json`), which compares
 `rsvelte_preprocess`'s `grass` against dart-sass on every SCSS block and `.scss` file in the corpus —
-30 divergences on a 94-unit compared population, so treat `grass` as a near-substitute, not a drop-in. svelte2tsx additionally gates its **source map** (ratchet
+30 divergences on a 94-unit compared population, so treat `grass` as a near-substitute, not a drop-in,
+and the **public `parse()` AST** gate (`parse-ast-known-failures.json`), which is the one comparison
+here whose subject is not `compile()` output at all — see below. svelte2tsx additionally gates its **source map** (ratchet
 `svelte2tsx-map-known-failures.json`), because the TSX-text gate cannot see the map at all. The two
 maps are segmented too differently to diff (byte, decoded-set and lookup-equality parity all hold for
 ~0% of the corpus), so the gate asserts that rsvelte's map is **structurally well-formed** rather
 than equal to official's — using official only to calibrate the invariants. See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
+
+**`parse()` is a second public export, and until #3389 nothing compared it.** The corpus gates
+compare `compile()`; svelte2tsx and lint consume rsvelte's own AST and never diff it against
+official's. `scripts/compat-corpus/parse-ast-verify.mjs` parses every corpus component with both
+compilers on three axes — `{modern:true}`, the default (legacy) shape, and `loose` — and ratchets
+**652 field-level divergence keys**. Three lessons are already in it. The key had to be a *field*
+(`<axis>::<NodeType>.<field>#<kind>`), not a file: one systemic divergence covers every file that
+ends in a newline, and keying on the *set* of divergent JSON paths multiplied independent defects
+into 472 classes over 4,468 files. The `Parser Modern 27/27` / `Parser Legacy 81/81` rows read as
+coverage of this API and are not: they call the **internal** parse, pick the AST mode from the
+fixture directory, and `normalize_json` deletes `loc.*.character` from both sides. And upstream's
+own harness does `input.replace(/\s+$/, '')` before parsing, so every checked-in `output.json`
+records `Root.end` of a *trimmed* input while rsvelte's harness passes the untrimmed file — the
+fixture suite was green on #3386 by **compensation**, two different inputs producing the same
+number, and fixing the compiler turns that row red until the harness mirrors the trim.
 
 The same `verify.mjs` run also gates compiler **warnings** — `(code, line, column)` per entry —
 on ratchets of their own (`warning-known-failures.{client,server,client-dev}.json` and
@@ -314,6 +402,37 @@ compared-pair count is printed and stored in `report.json`, and `--update-error-
 refuses at zero. The warning half of the same hole, and `compile.mjs` fabricating a
 whole-corpus `rust_panic` when `sources/` is missing, are tracked in #2707.
 
+### `parse()` AST parity (`scripts/compat-corpus/parse-ast-verify.mjs`)
+
+The public `parse()` export had **no gate at all** until #3389 — the other ~38 compare compiled
+text, warnings, errors, TSX, lint findings and LSP responses, and svelte2tsx and `rsvelte_lint`
+consume rsvelte's AST without ever diffing it against official's. One unit is (source, mode):
+every `.svelte` file in `compatibility/pattern-corpus/` under `{modern: true}` and under the
+default legacy shape, diffed as JSON after a round-trip on **both** sides — official keeps
+`EachBlock.index`, `EachBlock.key` and `SnippetBlock.typeParams` as present-but-undefined keys,
+and rsvelte's binding returns a JSON *string*, so a naive comparison reports a catastrophe that is
+entirely the harness. It needs no corpus collect and no submodule but `svelte`, so it rides the
+shape-matrix job.
+
+Three defects were shipped behind that gap and are fixed with it: `modern`/`loose` ignored
+(#3385), `Root.end` short of EOF (#3386), and comments never attaching to statements (#3387).
+**#3386 could not be fixed alone** — the fixture runners read their input untrimmed while
+upstream's `test.ts` trims it, so a trailing-trimmed `Root.end` and an untrimmed input were two
+deviations cancelling on the 62 of 110 fixtures whose input ends in whitespace. And #3387 was in
+**three** places: the script walk, a separate ad-hoc implementation for template expressions with
+no last-in-body or separator rule, and the fact that upstream hands every script parse the *same*
+`parser.root.comments` array, so a `<script module>` comment binds to the instance script's first
+statement.
+
+The ratchet starts at 2721 entries over 494 diverging units, keyed `<id>::<mode>::<field-class>`
+and partitioned by cause in the paired `.md`. Read the composition, not the count: the top three
+causes are template-node field sets (1395), script-node field sets (681) and **`loc.character`
+attached in exactly the wrong direction** (392) — official's positions come from
+`locate-character` (which returns `character`) and from acorn (which does not), and rsvelte has
+the two swapped. `parser_fixtures.rs` strips `character` from every `loc` before comparing, which
+is why that suite reads 100% while the class exists. **A gate's first baseline measures how long
+the surface was ungated, not how much someone let rot.**
+
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
@@ -324,8 +443,9 @@ string-literal escape × template expression slot, `await`/`yield` in a formal p
 × function form × entry point, `{#each}` collection expression × item use, the token a `/`
 follows × host, a name's slot in a binding pattern × statement context, directive kind ×
 element kind × mode, `bind:` setter shape × element kind, a raw-scanned keyword × the opaque
-region carrying it × host × entry point, and a reactive binding × the host the write to it sits
-in × the shape of that write — expanded into ~20,000 comparisons
+region carrying it × host × entry point, a reactive binding × the host the write to it sits
+in × the shape of that write, and the JS whitespace separating two keywords × the construct they
+open × entry point — expanded into ~20,000 comparisons
 in well under a minute of CPU, needing
 only `submodules/svelte` plus the NAPI binding, so it gates every PR.
 
@@ -467,6 +587,26 @@ so `p.a++` set neither `needs_context` (no `$.push`/`$.pop`) nor a reference to 
 any family whose rows share a wrapper: **is the thing I varied crossed with the thing I held
 fixed, or merely adjacent to it?**
 
+**The `class-modifier` family exists because upstream answers "what may a plain `<script>`
+contain" with a different PARSER, and rsvelte answered it with a flag.** `lang="ts"` selects
+`acorn.Parser.extend(tsPlugin())` upstream and `SourceType::ts()` here — but OXC's JS grammar is
+not acorn's, so every TypeScript-only class modifier and the stage-3 `accessor` compiled in a
+plain script that official rejects (#3100, #3203). That is the same over-acceptance shape as
+`param-default`, and no collected corpus can hold it: published code compiles. Three things it
+cost us. **The reported position is not the member's key** — acorn reads modifiers left to right,
+takes the first word it cannot read as the name, and throws on what cannot follow a name, so
+`private static a` reports at `static` and `private get a()` at `get`; a fix that reports at the
+key is right on 19 of 22 rows and wrong on the interesting ones. **The over-rejection half needs
+its own rows**: `accessor = 1`, `accessor⏎a = 1`, `static readonly = 1` and `get private() {}`
+each spell a modifier keyword where it is an ordinary name, which is what separates a check keyed
+on the parsed member from one keyed on the keyword's text. And **acorn-typescript is not a
+superset of OXC either** — it enforces two rules in the *parser* that TypeScript leaves to the
+checker (`abstract` outside an `abstract class`, `override` with no superclass), so the same
+family found rsvelte over-accepting on the `lang="ts"` side while it was fixing the JS side.
+Where the two modifier tables simply disagree (`static accessor` is legal TS and
+acorn-typescript refuses it, at a column it passes to a position parameter) the rows stay listed
+rather than ported: both compilers reject, and matching would mean reproducing the bug.
+
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
 `--families` subset (both would FALSE-SHRINK the ratchet).
@@ -498,23 +638,40 @@ a necessary condition, never as parity.
 
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
-The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,138 corpus
-entries stop being the test set and become a **seed set**. One semantics-preserving comment is
-inserted at a line boundary inside a `<script>` region and parity is required on the mutant.
-PRs get a deterministic sample; main gets the full sweep (which is what the two-sided ratchet
-needs). It found **#2351** (a comment containing `}`/`)`/`;` in a `$:` block body **aborts the
-client compiler with SIGSEGV**) and **#2347** (a `//` comment before a `$props()` pattern's
-closing brace swallows the `$.rest_props` initializer — output parses, attributes silently
-vanish) in its first run.
+The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the corpus entries
+stop being the test set and become a **seed set** (33,406 eligible after the wave-2 enrolment).
+One semantics-preserving comment is inserted at a line boundary inside a `<script>` region and
+parity is required on the mutant. PRs get a deterministic sample; main gets the full sweep
+(which is what the two-sided ratchet needs). It found **#2351** (a comment containing `}`/`)`/`;`
+in a `$:` block body **aborts the client compiler with SIGSEGV**) and **#2347** (a `//` comment
+before a `$props()` pattern's closing brace swallows the `$.rest_props` initializer — output
+parses, attributes silently vanish) in its first run.
 
 **Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
 survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
-otherwise. The full sweep yields **36** of the former and 12,910 of the latter; ratcheting per id
-without that split would be a 13,000-entry file that churns on every submodule bump. Comment
+otherwise. The full sweep yields **160** of the former and 41,802 of the latter; ratcheting per
+id without that split would be a 40,000-entry file that churns on every submodule bump. Comment
 fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
-submodule bumps. The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30×
-(0.62) and **1.66×** (0.62, post-burndown): it tracks the normalizer and the current residue,
-not the mechanism's importance, so do not cite it as a constant.
+submodule bumps.
+
+**Two things this gate taught, and both were taught by adding inputs rather than by a fix.**
+The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66×
+(post-burndown), **0.92×** (enrolled corpus) and **1.13×** (the same corpus after a rebase onto
+`main`, with no change to this gate): it tracks the normalizer and the current residue, not the
+mechanism's importance, so do not cite it as a constant — and it has now crossed 1.0 in both
+directions without the mechanism moving, with `svelte-ignore`
+(no delimiter at all) accounting for two of the four units whose output does not parse. And
+**#2347's shape came back**: `cnblocks/src/lib/svgs/vercel` drops the `$.rest_props`
+initializer under a mutant, on a seed the corpus did not hold when #2347 was fixed. A closed
+defect class reappearing on new seeds is evidence about coverage, not about the fix.
+
+**This gate's population is the complement of another gate's ratchet**, which is worth knowing
+before reading a `NEW` here as a regression: `eligible` is `manifest ∖ (union of the four output
+ratchets)`, because a seed that diverges *unmutated* cannot attribute a mutant. Shrinking the
+output ratchets therefore *adds* inputs here — a rebase that took them from 759 ids to 601 put
+158 seeds into this gate for the first time and two of them diverged. The set difference "was
+this id in an output ratchet immediately before?" is what separates a newly reachable seed from
+a regression; the count cannot.
 
 Compilation runs in child processes (mirroring `compile.mjs`): a panic aborts the process, so a
 single-process sweep loses the whole run to one bad mutant — which is what happened first. The
@@ -530,7 +687,7 @@ does `--keep-artifacts`. `compile.mjs` aborts up front when free disk is below
 this checkout and every `.claude/worktrees/*` sibling — never the checked-in `*known-failures*`
 ratchets. Because a verify against an absent tree would score every entry `match`, `verify.mjs`
 asserts ≥99% of manifest entries have compiled output before comparing, and refuses
-`--update-baseline` below 12000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
+`--update-baseline` below 30000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
 every baseline id it did not measure) — `--update-warning-baseline` is held to the same floor.
 `--update-baseline` additionally refuses `--no-fmt`, which counts formatting-only differences as
 failures; `--update-warning-baseline` does not, because warning comparison never normalizes.
@@ -665,6 +822,52 @@ abort with a stack overflow, which reads as a defect in whatever you just change
 `--release` does not need it.
 
 Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically (`.githooks/pre-commit`).
+They inherit no `CARGO_TARGET_DIR`, so a plain `git commit` builds into the worktree's own
+`target/` — 1.4 GB per worktree, on a disk that has run out twice. Prefix the commit itself
+(`CARGO_TARGET_DIR=… git commit -m …`) rather than reaching for `--no-verify`.
+
+**acorn checks JavaScript's early errors while parsing; OXC settles them after it, and rsvelte
+ran only the parser.** An early error is syntactically shaped but illegal, and none of the class
+is decidable from the token stream — each needs the enclosing scope or class — so OXC leaves them
+to `SemanticBuilder` while acorn throws from inside `Parser`. rsvelte accepted all of them and
+**copied the illegal construct straight into its output**, so every accepted case emitted text no
+JS parser accepts (#3243: `super()` outside a method, a duplicate constructor, an unsyntactic
+`break` / `continue`, a duplicate label, an undeclared or duplicated `#private` name, `import` /
+`export` below the top level, `delete this.#a`, a `'use strict'` directive in a function with a
+non-simple parameter list; #3217: a duplicate declaration). One
+`SemanticBuilder::new_compiler().build()` per script — `with_build_nodes(false)`, run only where
+the parser reported nothing — reports all of them, and reported nothing on any of the legal
+neighbours. Three things generalize past the fix. **The two do not agree on where the error is**:
+for every "already declared" class OXC labels the DECLARING occurrence and acorn stops at the
+REDECLARING one (`let x = 1; let x = 2;` — acorn 15, OXC 4), and OXC labels a jump's target where
+acorn stops at the `break` keyword; piping OXC's diagnostics through unchanged gets `code` right
+and every `start`/`end` wrong, which is the most common defect shape in this repo. **The mapping
+has to be an allow list, not a pass-through** — OXC reports more than acorn checks, so an unknown
+diagnostic must be ignored rather than raised, and the price of that is that a reworded OXC
+message makes an entry stop matching *silently*, with the symptom being a check that disappears;
+`early_errors_3243.rs` therefore carries one independently-failing repro per entry, because a
+single "all eight are rejected" assertion is satisfied by the other seven. And **OXC's TypeScript
+mode exempts every function-vs-function redeclaration** — the same over-broad rule
+`2_analyze/scope_builder.rs` has for TS overloads — while acorn-typescript rejects a duplicate
+*implementation* and accepts only a signature set, so `function f(){}` twice in a `lang="ts"`
+script stays accepted here and is recorded rather than claimed (#3484).
+
+**Two further lessons came out of the same work, and neither is about the parser.** The first is
+that **the set of classes has to be closed from the ORACLE's own list, not from the issue's
+table.** #3243 enumerates eight; enumerating all 90 `raise` / `raiseRecoverable` literals in
+acorn 8.17.0 instead and writing one input per context-dependent rule found **three more** —
+`'use strict'` in a function with a non-simple parameter list, `super()` in a class with no
+`extends`, and `delete this.#a`. An issue's list is a report of what someone hit, never a
+partition of what exists. The second is that **an oracle assembled from the component that is
+blind to the defect measures nothing**: the first version of
+`no_accepted_script_emits_unparseable_output` ran `oxc_parser` over the emitted output and
+**passed with the whole check ablated**, because `oxc_parser` is exactly the parser that defers
+this class to `SemanticBuilder`. Re-measured with real acorn on the ablated tree's own outputs,
+**24 of the 25 compiled cells are not JavaScript** — and the single exception is not a hole in
+the oracle but a fact about JavaScript: an instance script's statements are emitted *inside* the
+component function, where two `function f(){}` in one body are legal, while the same source as a
+`.svelte.js` puts them at module top level and acorn rejects it. Separating "the oracle cannot
+see this" from "the language permits this" needed the same input at two entry points.
 
 ### Docker (optional)
 
@@ -690,10 +893,38 @@ control on a string you know is there.
 | `grep X file` finds nothing that is there | `grep` is a shell function wrapping `ugrep --ignore-files`, which skips gitignored paths | `command grep` |
 | `Binary file … matches`, no lines printed | one NUL byte anywhere in the file (not non-ASCII — UTF-8 is fine) | `command grep -a`, or `git grep` |
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
-| later matches missing | `\| head -N` truncates with no error | state the denominator, or drop the cap |
+| later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
 
-Related: in `cmd \| head`, `$?` is `head`'s status, not `cmd`'s. Never read a
-verdict through a pipe.
+### A truncating or discarding stage turns a failure into a green
+
+`grep` is one instance; the class is **any stage between a command and your
+eyes that can drop the part carrying the verdict**. It never reports that it
+dropped it, so the output is not "wrong", it is *indistinguishable from success*
+— which is why re-reading it more carefully cannot help. Three of these were hit
+on one day, by three different people, each already knowing the rule:
+
+| What was read | What it actually showed | Why it read as a pass |
+|---|---|---|
+| `cargo test 2>&1 \| tail -25` | `[exited with code 0]` for a run that **failed to compile** (`no field 'errors'`; it is `diagnostics`) | the compile error scrolled past the window, and `$?` came from `tail` |
+| `cargo clippy 2>&1 \| tail -40` | dependency crates and `Finished` — the target crate's own line was outside the window | a clippy run that is clean and one that never reached your file print the *same nothing* |
+| `pgrep -c … \|\| echo 0` | `0` | the `\|\|` arm fabricated a datum that reads exactly like a measurement |
+
+Rules, in the order they are cheap:
+
+1. **Never read a verdict through a truncating stage.** Run the command bare, or
+   put the filter *after* capturing the status (`PIPESTATUS[0]`, or write to a
+   file and grep the file). `2>/dev/null` and `|| echo <literal>` are the same
+   hazard wearing different clothes: the first throws away the half that carries
+   the failure, the second manufactures the answer.
+2. **When "pass" is spelled as silence, the run needs a positive control.**
+   Introduce the defect the check exists to catch, confirm the check goes red,
+   remove it, and confirm the tree is byte-identical again (`git diff` empty).
+   Only then does the quiet run mean anything. This is the same argument as the
+   negative-grep control above, one level up: an empty result is evidence only
+   once you have shown the instrument can produce a non-empty one.
+3. **State the denominator.** "No warnings" is a claim about a population; say
+   which one (`-p <crate> --lib --tests`), because the reader cannot tell from
+   the output whether your file was in it.
 
 ### Working with Subagents
 
@@ -729,7 +960,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (Svelte **v5.56.8**). Re-run `pnpm run test-and-update`
+<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.56.10**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
 to refresh. The runtime skip lists and the fixture-generation compile options are shared
 constants in `crates/rsvelte_core/tests/common/mod.rs`, so the report and the gates
 (`tests/runtime.rs`, `tests/ssr.rs`) always measure the same thing;
@@ -739,7 +970,7 @@ Svelte bump.
 | Suite | Pass/Total |
 |-------|------------|
 | Parser Modern | 27/27 |
-| Parser Legacy | 81/81 |
+| Parser Legacy | 82/82 |
 | Compiler Errors | 145/145 |
 | Compiler Snapshot | 30/30 |
 | CSS | 181/181 |
@@ -824,6 +1055,46 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
   delegated to `vscode-{html,css}-languageservice`.
 - Ships its own TextMate grammar / language definition and accepts upstream `svelte.*`
   settings, so users replace the official extension rather than running both.
+
+### Where `rsvelte-check` time goes (`RSVELTE_CHECK_TIMING=1`)
+
+`runner::run` prints a walk / compile / overlay / typecheck / post split to stderr under
+`RSVELTE_CHECK_TIMING`. Measured on synthetic 100- and 500-component projects (TS 7.1 `tsc`,
+`skipLibCheck`, idle machine, 3 runs each): **typecheck is 66-89% of the run**, overlay
+materialization 8-29%, walk + post under 2% together.
+
+**The overlay is not the lever, and a diskless overlay is not available anyway.** A batch
+`tsc -p` reads its program from disk, so the LSP's in-memory projection has no counterpart
+here — and even a free overlay caps the whole run at 1.1-1.4x. It does have a shape worth
+knowing: 500 components materialize **2,005 files** (`.svelte.tsx`, `.svelte.tsx.map`, and two
+byte-identical `.d.ts` bridges each), ~310 ms to rewrite.
+
+**`--incremental` is the largest measured lever and it is off by default.** On the
+500-component project a warm run drops from 1693-2147 ms to 254-319 ms — **5.4-6.7x** — because
+the overlay tsconfig already carries `incremental` + `tsBuildInfoFile`, so tsgo reuses its
+program graph instead of re-checking ~2k files. The default stays off on purpose: official
+svelte-check's flag is opt-in too, and its README states the mode "might result in slightly
+different type check outcomes". Flipping it trades goal #3 for speed on a mode upstream itself
+calls lossy.
+
+### Type-aware lint opens one worker, not one per component
+
+`CorsaTypeBackend::new` used to spawn a `tsgo` API worker, write a virtual `.tsx` plus a
+tsconfig, and build a program **per component**. Measured over the 76 upstream
+`no-unused-props` fixtures (one test binary, both arms, ABBA-ordered, 5 pairs): 6.62-11.02 s
+per-spawn against 1.23-2.94 s on one warm `CorsaTypeSession` — **≥4.3x**, a lower bound because
+the Rust side is a debug build in both arms. `lint_components_types` batches a project.
+
+**One program for all components is NOT the win; the warm process is.** 62 fixtures in a single
+program measured 26-39 ms/component against 23-58 ms/component for a project-per-component on
+the same worker — no separable difference. Those fixtures are independent files, so a shared
+program shares no module graph; whether a real project (whose components import each other)
+profits is **unmeasured**.
+
+The refactor also surfaced a harness defect worth remembering: `invalid/` and `valid/` hold
+same-named fixtures while the temp dir was keyed on the stem alone, so the second one was served
+from the first one's cached project. **Reversing the iteration order moved the failures to the
+other directory** — with a cold worker per fixture the collision was invisible.
 
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,

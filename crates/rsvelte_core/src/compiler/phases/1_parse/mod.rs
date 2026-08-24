@@ -44,7 +44,7 @@
 //! Note: Legacy AST conversion is in `compiler/legacy.rs` (matches Svelte's
 //! `svelte/packages/svelte/src/compiler/legacy.js`).
 
-mod parser;
+pub(crate) mod parser;
 pub(crate) mod read;
 pub mod remove_typescript_nodes;
 pub(crate) mod resolve_lazy;
@@ -111,8 +111,12 @@ pub struct ParseOptions {
     /// When true, the parse arena records each node's
     /// `leadingComments`/`trailingComments` so they survive the typed AST
     /// round-trip in `parse()` output (the public AST API / parser fixtures set
-    /// this). The compiler leaves it `false`: codegen strips comments, and
-    /// keeping the side table off avoids any per-node recording on the hot path.
+    /// this). The compiler leaves it `false`, and what that avoids is not a
+    /// per-node *recording* but the whole `add_comments` walk: one comment
+    /// anywhere in a script or a template expression materializes that entire
+    /// program or expression as `serde_json::Value` and walks every node of it,
+    /// so the cost is all-or-nothing per unit rather than per comment.
+    /// `Root.comments` is unaffected — it is recorded outside this gate.
     pub capture_comments: bool,
     /// When true, a `{/…}` whose tail is not shaped like a block close
     /// (`/word}`) is read as an expression tag instead of a block close. The
@@ -140,6 +144,8 @@ pub fn parse<'a>(
     _alloc: &oxc_allocator::Allocator,
     options: ParseOptions,
 ) -> ParseResult<Root<'a>> {
+    // Already stripped on the compile path; this covers the standalone parse API.
+    let source = crate::compiler::remove_bom(source);
     let mut parser = Parser::new(source, options);
     // RAII install so to_value() calls during parsing
     // (e.g. build_const_variable_declaration) can resolve JsNodeIds.

@@ -47,45 +47,9 @@ on:
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
       - 'compatibility/**'
-      - 'submodules/svelte'
-      - 'submodules/svelte.dev'
-      - 'submodules/language-tools'
-      - 'submodules/eslint-plugin-svelte'
-      - 'submodules/svelte-eslint-parser'
-      - 'submodules/bits-ui'
-      - 'submodules/flowbite-svelte'
-      - 'submodules/melt-ui'
-      - 'submodules/shadcn-svelte'
-      - 'submodules/sveltestrap'
-      - 'submodules/attractions'
-      - 'submodules/svelte-ux'
-      - 'submodules/smelte'
-      - 'submodules/svar-core'
-      - 'submodules/svelte-table'
-      - 'submodules/powertable'
-      - 'submodules/svelte-pivottable'
-      - 'submodules/svelte-toast'
-      - 'submodules/svelte-sonner'
-      - 'submodules/svelte-notifications'
-      - 'submodules/svelte-fa'
-      - 'submodules/svelte-heroicons'
-      - 'submodules/svelte-calendar'
-      - 'submodules/date-picker-svelte'
-      - 'submodules/svelte-maplibre'
-      - 'submodules/layercake'
-      - 'submodules/layerchart'
-      - 'submodules/svelte-splitpanes'
-      - 'submodules/svelte-stepper'
-      - 'submodules/svelte-formly'
-      - 'submodules/svelte-form-builder'
-      - 'submodules/svelte-checkbox'
-      - 'submodules/svelte-toggle'
-      - 'submodules/svelthree'
-      - 'submodules/runed'
-      - 'submodules/mode-watcher'
-      - 'submodules/svelte-toolbelt'
-      - 'submodules/cmsaasstarter'
-      - 'submodules/skeleton'
+      # Every corpus source is a submodule and the list is 100+ entries long; glob
+      # instead of restating scripts/compat-corpus/corpus-sources.json here.
+      - 'submodules/**'
       - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
@@ -100,45 +64,9 @@ on:
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
       - 'compatibility/**'
-      - 'submodules/svelte'
-      - 'submodules/svelte.dev'
-      - 'submodules/language-tools'
-      - 'submodules/eslint-plugin-svelte'
-      - 'submodules/svelte-eslint-parser'
-      - 'submodules/bits-ui'
-      - 'submodules/flowbite-svelte'
-      - 'submodules/melt-ui'
-      - 'submodules/shadcn-svelte'
-      - 'submodules/sveltestrap'
-      - 'submodules/attractions'
-      - 'submodules/svelte-ux'
-      - 'submodules/smelte'
-      - 'submodules/svar-core'
-      - 'submodules/svelte-table'
-      - 'submodules/powertable'
-      - 'submodules/svelte-pivottable'
-      - 'submodules/svelte-toast'
-      - 'submodules/svelte-sonner'
-      - 'submodules/svelte-notifications'
-      - 'submodules/svelte-fa'
-      - 'submodules/svelte-heroicons'
-      - 'submodules/svelte-calendar'
-      - 'submodules/date-picker-svelte'
-      - 'submodules/svelte-maplibre'
-      - 'submodules/layercake'
-      - 'submodules/layerchart'
-      - 'submodules/svelte-splitpanes'
-      - 'submodules/svelte-stepper'
-      - 'submodules/svelte-formly'
-      - 'submodules/svelte-form-builder'
-      - 'submodules/svelte-checkbox'
-      - 'submodules/svelte-toggle'
-      - 'submodules/svelthree'
-      - 'submodules/runed'
-      - 'submodules/mode-watcher'
-      - 'submodules/svelte-toolbelt'
-      - 'submodules/cmsaasstarter'
-      - 'submodules/skeleton'
+      # Every corpus source is a submodule and the list is 100+ entries long; glob
+      # instead of restating scripts/compat-corpus/corpus-sources.json here.
+      - 'submodules/**'
       - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
@@ -233,7 +161,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -302,6 +230,16 @@ jobs:
 
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs
+
+      # The public `parse()` AST — a different export from `compile()`, and the
+      # one svelte2tsx / eslint-plugin-svelte / an editor integration reads. It
+      # runs as a step in this job rather than as its own because it needs
+      # exactly what this job has already paid for (the staged binding, the
+      # official compiler, `sources/`) and nothing else; the sweep is ~50s over
+      # 28k compared pairs, against ~59 minutes for one shard of the job that
+      # currently costs the most.
+      - name: Verify public parse() AST parity (ratchet)
+        run: node scripts/compat-corpus/parse-ast-verify.mjs
 
       # Asserts a PROPERTY of the transform rather than comparing its output, so
       # it sees the #3026 class on inputs whose output is byte-perfect: un-seal
@@ -389,7 +327,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
 
       - uses: ./.github/actions/setup-rust
 
@@ -416,7 +354,7 @@ jobs:
         # cached fmt oracle. The in-repo `pattern` source has no gitlink, so its
         # files are hashed into the cache key directly (see below).
         run: |
-          echo "sources=$(git submodule status submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton | awk '{print $1}' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
+          echo "sources=$(git submodule status $(node scripts/compat-corpus/submodule-paths.mjs) | awk '{print $1}' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
 
       # The oracle depends only on the pins + oxfmt version + oracle config, so
       # cache it: only the first run per pin pays the batched oracle build.
@@ -457,7 +395,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -780,6 +718,12 @@ jobs:
       - name: Shape matrix parity (ratchet against matrix-known-failures.json)
         run: node scripts/compat-corpus/matrix/run.mjs
 
+      # The public `parse()` AST, which no other gate compares to official at
+      # all. Needs no corpus collect and no submodule beyond `svelte`, so it
+      # rides this job rather than the collected-corpus one.
+      - name: parse() AST parity (ratchet against parse-ast-known-failures.json)
+        run: node scripts/compat-corpus/parse-ast-verify.mjs
+
       # The only gate here that RUNS the compiled output instead of reading it.
       # `await_waterfall` is a runtime warning gated on an argument the compiler
       # either passes or does not, so a text comparison can be green while the
@@ -796,6 +740,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # The same `verify.mjs --suites fixtures,upstream-features,upstream-testfiles`
+  # runs in ci.yml's `Language server` job, over a workspace installed with the
+  # identical flags — so on a pull request this job re-decided a verdict that had
+  # already been decided, for ~8 job-minutes. That they agree is not an
+  # assumption: `verify.mjs` exits non-zero when `added` OR `removed` is
+  # non-empty, so a pass proves the measured key set equals the scoped ratchet
+  # exactly, and across the 19 pull requests where both ran the two verdicts
+  # matched 19 times out of 19.
+  #
+  # ci.yml keeps the gate because its `pull_request:` trigger is unfiltered:
+  # every PR runs it, while this workflow is path-filtered and 6 of the 77 open
+  # PRs never reach it. What survives here is the half ci.yml cannot do — writing
+  # `lsp-current-fixtures.json`, which `lsp-current-merge` needs to complete the
+  # 17-artifact union. That consumer runs on a schedule or a dispatch, so this
+  # job now runs exactly where its output is read.
   lsp-fixtures-current:
     name: LSP fixture parity current
     needs: [changes]

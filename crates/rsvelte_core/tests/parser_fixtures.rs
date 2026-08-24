@@ -39,10 +39,17 @@ fn load_fixture(sample_dir: &Path) -> Result<(String, String, String), SkipReaso
 
     // Normalize CRLF to LF so AST byte offsets line up regardless of how the
     // submodule was checked out (Windows runners default to autocrlf=true,
-    // which would otherwise shift every span by one byte per line).
+    // which would otherwise shift every span by one byte per line), then strip
+    // trailing whitespace exactly as upstream's own harness does
+    // (`tests/parser-{modern,legacy}/test.ts`: `.replace(/\s+$/, '')`). Every
+    // checked-in `output.json` records the spans of the TRIMMED input, so a
+    // harness that passes the untrimmed file compares two different documents —
+    // which is how `Root.end` agreed here while being wrong (#3386).
     let input = fs::read_to_string(&input_path)
         .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?
-        .replace("\r\n", "\n");
+        .replace("\r\n", "\n")
+        .trim_end_matches(rsvelte_core::is_js_whitespace)
+        .to_string();
     let expected_output = fs::read_to_string(&output_path)
         .map_err(|_| SkipReason::MissingInput("readable output.json"))?
         .replace("\r\n", "\n");
@@ -72,28 +79,6 @@ fn remove_internal_fields(value: &mut serde_json::Value) {
             // Remove internal fields
             map.remove("metadata");
 
-            // Helper to remove 'character' from location objects
-            fn remove_character_from_loc(loc: &mut serde_json::Value) {
-                if let serde_json::Value::Object(loc_map) = loc {
-                    if let Some(serde_json::Value::Object(start)) = loc_map.get_mut("start") {
-                        start.remove("character");
-                    }
-                    if let Some(serde_json::Value::Object(end)) = loc_map.get_mut("end") {
-                        end.remove("character");
-                    }
-                }
-            }
-
-            // Remove 'character' field from loc.start and loc.end
-            if let Some(loc) = map.get_mut("loc") {
-                remove_character_from_loc(loc);
-            }
-
-            // Also remove from name_loc
-            if let Some(name_loc) = map.get_mut("name_loc") {
-                remove_character_from_loc(name_loc);
-            }
-
             // Recursively process all fields
             for (_, v) in map.iter_mut() {
                 remove_internal_fields(v);
@@ -120,9 +105,6 @@ struct TestResult {
 /// Tests to skip for parser-legacy due to known limitations.
 /// See README.md "Known Limitations" section for details.
 const LEGACY_SKIP_TESTS: &[&str] = &[
-    // OXC does not attach comments to AST nodes in ESTree format (leadingComments/trailingComments).
-    // The official Svelte compiler uses acorn which provides this functionality.
-    "javascript-comments",
     // Upstream skips this fixture (`_config.js` `skip: true`): the official
     // compiler now errors with `block_unexpected_close` (the open `<li>`
     // inside `{#if}` hits close()'s RegularElement case), so the checked-in

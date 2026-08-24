@@ -75,11 +75,12 @@ impl<'a> Parser<'a> {
             if self.match_str("-->") {
                 self.advance_by(3); // consume '-->'
             } else if self.is_eof() {
-                // Comment was not closed
-                return Err(crate::error::ParseError::svelte(
-                    "expected_token",
-                    "Expected token -->",
-                    (self.index, self.index),
+                // Comment was not closed. Upstream's `read_until` stops at the
+                // end of the right-trimmed template, so the demand for `-->`
+                // lands there rather than after the file's trailing whitespace.
+                return Err(crate::error::ParseError::expected_token(
+                    "-->",
+                    self.content_end,
                 ));
             }
 
@@ -285,11 +286,10 @@ impl<'a> Parser<'a> {
         //   `parser.eat('>', true, false)` throws `expected_token`, e.g.
         //   `<Comp foo={bar}\n</div>` or a top-level `<script …/>`.
         if !has_closing_bracket && !self.options.loose {
-            self.skip_whitespace();
-            if self.is_eof() {
+            if self.index >= self.content_end {
                 // Upstream throws from `read_until`, which has not consumed the
                 // trailing whitespace, so the point is the last token's end.
-                let at = self.source[..self.index].trim_end().len();
+                let at = self.content_end;
                 // Consuming the `/` got past `read_attribute`, so what runs out
                 // is `eat('>', true)` rather than the attribute reader.
                 if self_closing {
@@ -301,6 +301,8 @@ impl<'a> Parser<'a> {
                     (at, at),
                 ));
             }
+            // Upstream's `eat('>', true, false)` runs immediately after the
+            // optional `/`, so whitespace between them is not consumed first.
             return Err(crate::error::ParseError::expected_token(">", self.index));
         }
         // In loose mode, treat as an unclosed element and continue
@@ -365,6 +367,30 @@ impl<'a> Parser<'a> {
             // For raw text elements, parse content as raw text instead of HTML
             if is_raw_text_element {
                 fragment = self.parse_raw_text_content(&name)?;
+                // `<textarea>` is escapable raw text, so upstream reads its body
+                // with `read_sequence`, which raises `unexpected_eof` at the
+                // trimmed end when the closing tag never arrives — the element is
+                // not "left open", the input ran out inside it.
+                if !self.options.loose && name == "textarea" && self.index >= self.content_end {
+                    return Err(crate::error::ParseError::svelte(
+                        "unexpected_eof",
+                        "Unexpected end of input",
+                        (self.content_end, self.content_end),
+                    ));
+                }
+                // A nested `<script>` / `<style>` is read by upstream with a
+                // plain `indexOf('</name>')` and then `eat('</name>', true)`,
+                // so running out of input demands the tag at the trimmed end
+                // instead of leaving the element open.
+                if !self.options.loose
+                    && (name == "script" || name == "style")
+                    && self.index >= self.content_end
+                {
+                    return Err(crate::error::ParseError::expected_token(
+                        &format!("</{name}>"),
+                        self.content_end,
+                    ));
+                }
             } else {
                 fragment = self.parse_fragment()?;
             }
@@ -378,19 +404,33 @@ impl<'a> Parser<'a> {
                 let cn_end = self.index;
                 self.skip_whitespace();
 
+                // Upstream demands the `>` before it compares the name, so a
+                // closing tag that runs out of input is `expected_token` rather
+                // than a silently dropped element. (Raw-text elements keep
+                // rsvelte's forgiving scan for a later `>`.)
+                if !self.options.loose && !is_raw_text_element && !self.match_byte(b'>') {
+                    return Err(crate::error::ParseError::expected_token(
+                        ">",
+                        self.index.min(self.content_end),
+                    ));
+                }
+
                 // Verify matching tag
                 let closing_name = &self.source[cn_start..cn_end];
                 if closing_name == name.as_str() {
                     found_closing_tag = true;
-                    // For raw text elements, the closing tag might have garbage before >
-                    // (e.g., </textarea\n\n\n</textarea\n\n>)
-                    // Scan forward to find the actual >
                     if is_raw_text_element {
+                        // `/<\/textarea(\s[^>]*)?>/i`: once whitespace follows the
+                        // name, everything up to the `>` belongs to the closer.
                         while !self.is_eof() && self.current_char() != '>' {
                             self.advance();
                         }
+                        self.eat_optional(">");
+                    } else {
+                        // Upstream `parser.eat('>', true)` — a closing tag carries
+                        // nothing but whitespace between the name and the `>`.
+                        self.expect(">")?;
                     }
-                    self.eat_optional(">"); // consume '>'
 
                     // Upstream clears `last_auto_closed_tag` once a closing tag
                     // pops the stack below the depth recorded when the tag was
@@ -485,6 +525,7 @@ impl<'a> Parser<'a> {
                 // `block_invalid_continuation_placement` before reaching here.)
                 found_closing_tag = true;
             } else if let Some(reason) = self.should_implicitly_close() {
+                self.implicit_close_at = Some(self.index);
                 // Element was implicitly closed by the next element (sibling).
                 // Emit element_implicitly_closed warning.
                 // Corresponds to element.js L203-205:
@@ -685,17 +726,9 @@ impl<'a> Parser<'a> {
                 // Extract the "this" attribute to get the expression
                 let expression = self.extract_this_attribute(&attributes);
 
-                // Filter out the "this" attribute from the list
-                let filtered_attrs: Vec<_> = attributes
-                    .into_iter()
-                    .filter(|attr| {
-                        if let crate::ast::Attribute::Attribute(node) = attr {
-                            node.name.as_str() != "this"
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
+                // Upstream splices out only the *first* `this` (element.js L266-280);
+                // a second one stays in the list and is passed through as a prop.
+                let filtered_attrs = remove_first_this_attribute(attributes);
 
                 TemplateNode::SvelteComponent(Box::new(SvelteComponentElement {
                     start: start as u32,
@@ -739,43 +772,31 @@ impl<'a> Parser<'a> {
                 // Check if the "this" attribute is a string value (not an expression)
                 // and emit svelte_element_invalid_this warning if so.
                 // Corresponds to element.js L288-289: if (!is_expression_attribute(definition)) { w.svelte_element_invalid_this(definition); }
-                for attr in &attributes {
-                    if let crate::ast::Attribute::Attribute(node) = attr
-                        && node.name.as_str() == "this"
-                    {
-                        let is_expression_attribute = match &node.value {
-                            AttributeValue::Expression(_) => true,
-                            AttributeValue::Sequence(parts) => {
-                                parts.len() == 1
-                                    && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
-                            }
-                            _ => false,
-                        };
-                        if !is_expression_attribute {
-                            self.parse_warnings.push(crate::ast::template::ParseWarning {
-                                code: "svelte_element_invalid_this".to_string(),
-                                message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
-                                start: node.start,
-                                end: node.end,
-                            });
+                if let Some(node) = definition {
+                    let is_expression_attribute = match &node.value {
+                        AttributeValue::Expression(_) => true,
+                        AttributeValue::Sequence(parts) => {
+                            parts.len() == 1
+                                && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
                         }
+                        _ => false,
+                    };
+                    if !is_expression_attribute {
+                        self.parse_warnings.push(crate::ast::template::ParseWarning {
+                            code: "svelte_element_invalid_this".to_string(),
+                            message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
+                            start: node.start,
+                            end: node.end,
+                        });
                     }
                 }
 
                 // Extract the "this" attribute to get the tag expression
                 let tag = self.extract_this_attribute(&attributes);
 
-                // Filter out the "this" attribute from the list
-                let filtered_attrs: Vec<_> = attributes
-                    .into_iter()
-                    .filter(|attr| {
-                        if let crate::ast::Attribute::Attribute(node) = attr {
-                            node.name.as_str() != "this"
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
+                // Upstream splices out only the *first* `this` (element.js L282-296);
+                // a second one stays in the list and is rendered as an attribute.
+                let filtered_attrs = remove_first_this_attribute(attributes);
 
                 TemplateNode::SvelteElement(Box::new(SvelteDynamicElement {
                     start: start as u32,
@@ -890,13 +911,9 @@ impl<'a> Parser<'a> {
             "svelte:self" => ElementType::SvelteSelf,
             "svelte:options" => ElementType::SvelteOptions,
             _ => {
-                // Check if component (starts with uppercase or contains dot)
-                // Fast byte-level check: uppercase ASCII or first char is uppercase Unicode
-                let first = name.as_bytes().first().copied().unwrap_or(0);
-                if first.is_ascii_uppercase()
-                    || (first >= 0x80 && name.chars().next().is_some_and(|c| c.is_uppercase()))
-                    || memchr(b'.', name.as_bytes()).is_some()
-                {
+                // Upstream decides this with `regex_valid_component_name`, so a
+                // name it rejects (`X-a`, `x-a.b`) is a regular element.
+                if is_valid_component_name(name) || (self.options.loose && name.ends_with('.')) {
                     ElementType::Component
                 } else {
                     ElementType::Regular
@@ -972,12 +989,9 @@ impl<'a> Parser<'a> {
                 "article",
                 "aside",
                 "blockquote",
-                "details",
                 "div",
                 "dl",
                 "fieldset",
-                "figcaption",
-                "figure",
                 "footer",
                 "form",
                 "h1",
@@ -1012,6 +1026,12 @@ impl<'a> Parser<'a> {
 
         // Check if the next tag would implicitly close the current element
         if !self.match_byte(b'<') || self.match_str("</") || self.match_str("<!") {
+            return None;
+        }
+
+        // Upstream pops exactly one level per new tag, so a tag that has already
+        // closed an element must not walk further up the ancestor chain.
+        if self.implicit_close_at == Some(self.index) {
             return None;
         }
 
@@ -1108,7 +1128,10 @@ impl<'a> Parser<'a> {
             {
                 break;
             }
-            if b == b'{'
+            // Upstream abandons an opening tag on a block token only in loose
+            // mode; strict mode lets `read_attribute` raise the shorthand error.
+            if self.options.loose
+                && b == b'{'
                 && self.index + 1 < self.bytes.len()
                 && (self.bytes[self.index + 1] == b'/' || self.bytes[self.index + 1] == b'#')
             {
@@ -1199,6 +1222,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else if self.match_str("/*") {
@@ -1223,6 +1247,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else {
@@ -1231,6 +1256,18 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a single attribute.
+    /// The `}` that closes a `{…}` attribute opened at `open`, found with the
+    /// lexically-aware scan rather than a bare depth counter. Falls back to the
+    /// end of input so an unterminated attribute keeps reporting as before.
+    fn find_attribute_close(&self, open: usize) -> usize {
+        crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            self.source,
+            open + 1,
+            '{',
+        )
+        .unwrap_or(self.bytes.len())
+    }
+
     pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Capture JS-style comments (// and /* */) before attribute parsing
         // and record them in `root.comments`. Corresponds to `read_comment()`
@@ -1255,24 +1292,9 @@ impl<'a> Parser<'a> {
             // Check for spread attribute {...expr}
             if self.eat_optional("...") {
                 let expr_start = self.index;
-                let mut depth: u32 = 1;
-                // Fast byte-level brace scanning
-                while self.index < self.bytes.len() && depth > 0 {
-                    match self.bytes[self.index] {
-                        b'{' => {
-                            depth += 1;
-                            self.index += 1;
-                        }
-                        b'}' => {
-                            depth -= 1;
-                            if depth > 0 {
-                                self.index += 1;
-                            }
-                        }
-                        b if b < 0x80 => self.index += 1,
-                        _ => self.advance(),
-                    }
-                }
+                // A depth counter alone reads a `}` inside a string, a regex, a
+                // template literal or a comment as the attribute's own.
+                self.index = self.find_attribute_close(start);
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
                 let expression =
@@ -1288,24 +1310,7 @@ impl<'a> Parser<'a> {
 
             // Expression shorthand {expr} or empty {} in loose mode
             let expr_start = self.index;
-            let mut depth: u32 = 1;
-            // Fast byte-level brace scanning
-            while self.index < self.bytes.len() && depth > 0 {
-                match self.bytes[self.index] {
-                    b'{' => {
-                        depth += 1;
-                        self.index += 1;
-                    }
-                    b'}' => {
-                        depth -= 1;
-                        if depth > 0 {
-                            self.index += 1;
-                        }
-                    }
-                    b if b < 0x80 => self.index += 1,
-                    _ => self.advance(),
-                }
-            }
+            self.index = self.find_attribute_close(start);
             let expr_end = self.index;
             let expr_content = &self.source[expr_start..expr_end];
             self.advance(); // consume '}'
@@ -1317,7 +1322,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "attribute_empty_shorthand",
                         "Attribute shorthand cannot be empty",
-                        (expr_start, expr_start),
+                        (start, start),
                     ));
                 }
 
@@ -1372,8 +1377,12 @@ impl<'a> Parser<'a> {
                 })));
             }
 
-            // Create the expression
-            let expression = self.parse_js_expression(expr_content.trim_ws(), expr_start);
+            // Create the expression. Upstream reads the shorthand's name with
+            // `read_identifier`, so its `loc` is a `locate-character` one.
+            let expression = super::super::expression::with_read_identifier_loc(
+                self.parse_js_expression(expr_content.trim_ws(), expr_start),
+                self.expression_line_offsets(),
+            );
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim_ws().to_string();
@@ -1385,6 +1394,17 @@ impl<'a> Parser<'a> {
             if !self.options.loose
                 && let Some(bad) = shorthand_first_invalid_offset(&name)
             {
+                // Upstream reads an identifier first, so nothing identifier-like
+                // at the front means it read an *empty* one — the shorthand
+                // error, at the `{`. Only once it has one does the missing `}`
+                // become the complaint.
+                if bad == 0 {
+                    return Err(crate::error::ParseError::svelte(
+                        "attribute_empty_shorthand",
+                        "Attribute shorthand cannot be empty",
+                        (start, start),
+                    ));
+                }
                 let leading_ws = expr_content.len() - expr_content.trim_start_ws().len();
                 return Err(crate::error::ParseError::expected_token(
                     "}",
@@ -1443,6 +1463,17 @@ impl<'a> Parser<'a> {
         // Directive detection using first-byte dispatch to avoid multiple starts_with scans
         if let Some(colon_pos) = memchr(b':', name.as_bytes()) {
             let prefix = &name.as_bytes()[..colon_pos];
+            // Upstream tests the name once, in `read_attribute`, for every kind
+            // `get_directive_type` recognises — and only after the value has been
+            // read, so a malformed value is what gets reported.
+            if is_directive_prefix(prefix) && directive_name_is_empty(&name, colon_pos) {
+                self.discard_attribute_value()?;
+                return Err(crate::error::ParseError::svelte(
+                    "directive_missing_name",
+                    format!("`{name}` name cannot be empty"),
+                    (start, start + colon_pos + 1),
+                ));
+            }
             match prefix {
                 b"on" => {
                     return self.parse_on_directive(start, &name, name_loc, name_end);
@@ -1702,16 +1733,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let action_name = &full_name[4..]; // Skip "use:"
-
-        // Check for empty directive name
-        if action_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`use:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
+        let (action_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -1773,6 +1795,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(action_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -1786,16 +1809,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let class_name = &full_name[6..]; // Skip "class:"
-
-        // Check for empty directive name
-        if class_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`class:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
+        let (class_name, modifiers) = Self::extract_name_and_modifiers(&full_name[6..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -1850,6 +1864,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: Default::default(),
             },
         )))
@@ -1957,8 +1972,7 @@ impl<'a> Parser<'a> {
 
                 while !self.is_eof() {
                     let c = self.current_char();
-                    // End of unquoted value (but NOT / alone)
-                    if is_js_whitespace(c) || c == '>' {
+                    if ends_unquoted_attribute_value(self.source, self.index) {
                         break;
                     }
                     // Expression start
@@ -2049,29 +2063,19 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
-        let (directive_label, transition_name, intro, outro, modifiers) =
+        let (transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("transition:", name, true, true, mods)
+                (name, true, true, mods)
             } else if let Some(stripped) = full_name.strip_prefix("in:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("in:", name, true, false, mods)
+                (name, true, false, mods)
             } else if let Some(stripped) = full_name.strip_prefix("out:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("out:", name, false, true, mods)
+                (name, false, true, mods)
             } else {
                 return Ok(None);
             };
-
-        // An empty name (`transition:`, `in:|global`, …) is a parse error —
-        // it would otherwise lower to an empty JS identifier. H-146 / M-040.
-        if transition_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                format!("`{directive_label}` name cannot be empty"),
-                (start, name_end),
-            ));
-        }
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -2157,7 +2161,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let animate_name = &full_name[8..]; // Skip "animate:"
+        let (animate_name, modifiers) = Self::extract_name_and_modifiers(&full_name[8..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2202,6 +2206,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: None, // Populated during Phase 2 analysis
             },
         )))
@@ -2215,7 +2220,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let let_name = &full_name[4..]; // Skip "let:"
+        let (let_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2258,6 +2263,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -2287,6 +2293,22 @@ impl<'a> Parser<'a> {
                 metadata: Default::default(),
             },
         )))
+    }
+
+    /// Run the value-reading half of upstream's `read_attribute` for its errors
+    /// alone; the value is discarded because the only caller is about to raise.
+    fn discard_attribute_value(&mut self) -> ParseResult<()> {
+        if self.eat_optional("=") {
+            self.skip_whitespace();
+            self.parse_attribute_value()?;
+        } else if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token =\nhttps://svelte.dev/e/expected_token",
+                (self.index, self.index),
+            ));
+        }
+        Ok(())
     }
 
     /// Parse attribute value.
@@ -2341,30 +2363,8 @@ impl<'a> Parser<'a> {
                 if cur_byte == q {
                     break;
                 }
-            } else {
-                // Unquoted value ends at whitespace or >
-                if cur_byte == b'>'
-                    || cur_byte == b' '
-                    || cur_byte == b'\t'
-                    || cur_byte == b'\n'
-                    || cur_byte == b'\r'
-                {
-                    break;
-                }
-                // Stop at /> (self-closing tag marker)
-                if cur_byte == b'/'
-                    && self.index + 1 < self.bytes.len()
-                    && self.bytes[self.index + 1] == b'>'
-                {
-                    break;
-                }
-                // Non-ASCII whitespace check
-                if cur_byte >= 0x80 {
-                    let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                    if is_js_whitespace(c) {
-                        break;
-                    }
-                }
+            } else if ends_unquoted_attribute_value(self.source, self.index) {
+                break;
             }
 
             // Check for expression
@@ -2487,34 +2487,21 @@ impl<'a> Parser<'a> {
                     self.index += offset;
                     entity_before_stop = Some(seen);
                 } else {
-                    // Unquoted: scan for '{', whitespace, '>', or '/>'
+                    // Unquoted: `{` opens an expression, and everything else
+                    // ends where upstream's terminator set says it does.
                     while self.index < self.bytes.len() {
                         let b = self.bytes[self.index];
-                        if b == b'{'
-                            || b == b'>'
-                            || b == b' '
-                            || b == b'\t'
-                            || b == b'\n'
-                            || b == b'\r'
-                        {
+                        if b == b'{' || ends_unquoted_attribute_value(self.source, self.index) {
                             break;
                         }
-                        if b == b'/'
-                            && self.index + 1 < self.bytes.len()
-                            && self.bytes[self.index + 1] == b'>'
-                        {
-                            break;
-                        }
-                        if b < 0x80 {
-                            self.index += 1;
+                        self.index += if b < 0x80 {
+                            1
                         } else {
-                            // Non-ASCII: check for Unicode whitespace
-                            let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                            if is_js_whitespace(c) {
-                                break;
-                            }
-                            self.index += c.len_utf8();
-                        }
+                            self.source[self.index..]
+                                .chars()
+                                .next()
+                                .map_or(1, char::len_utf8)
+                        };
                     }
                 }
                 let text_end = self.index;
@@ -2664,9 +2651,11 @@ impl<'a> Parser<'a> {
                         start: text_start as u32,
                         end: self.index as u32,
                         raw: Cow::Borrowed(text_content),
-                        // `textarea` is escapable raw text, so its content still
-                        // decodes character references.
-                        data: Cow::Owned(decode_html_entities(text_content, false)),
+                        // `textarea` content goes through upstream's `read_sequence`,
+                        // which decodes with `is_attribute_value = true` — so a
+                        // semicolon-less legacy name stays literal unless a word
+                        // boundary follows it.
+                        data: Cow::Owned(decode_html_entities(text_content, true)),
                     }));
                 }
 
@@ -2687,7 +2676,7 @@ impl<'a> Parser<'a> {
                 start: text_start as u32,
                 end: self.index as u32,
                 raw: text_content.to_string().into(),
-                data: Cow::Owned(decode_html_entities(text_content, false)),
+                data: Cow::Owned(decode_html_entities(text_content, true)),
             }));
         }
 
@@ -2699,147 +2688,173 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// Check if a name is a valid HTML element name.
-/// Based on: /^(?:![a-zA-Z]+|[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9])$/
+/// Mirrors upstream `is_valid_element_name`: a doctype, a namespaced name, or
+/// `REGEX_VALID_TAG_NAME` (`svelte/src/utils.js`).
 fn is_valid_element_name(name: &str) -> bool {
+    is_doctype_name(name) || is_namespaced_name(name) || is_valid_tag_name(name)
+}
+
+/// `/^![a-zA-Z]+$/`
+fn is_doctype_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix('!') else {
+        return false;
+    };
+    !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_alphabetic())
+}
+
+/// `/^[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$/`
+fn is_namespaced_name(name: &str) -> bool {
     let bytes = name.as_bytes();
-    if bytes.is_empty() {
+    let Some(colon) = memchr(b':', bytes) else {
+        return false;
+    };
+    let (before, after) = (&bytes[..colon], &bytes[colon + 1..]);
+
+    if before.is_empty() || !before[0].is_ascii_alphabetic() {
+        return false;
+    }
+    if !before[1..].iter().all(u8::is_ascii_alphanumeric) {
         return false;
     }
 
-    // Check for doctype-like: !DOCTYPE, etc.
-    if bytes[0] == b'!' {
-        return bytes.len() > 1 && bytes[1..].iter().all(|b| b.is_ascii_alphabetic());
-    }
-
-    // Must start with a letter
-    if !bytes[0].is_ascii_alphabetic() {
+    // The tail needs an alphabetic head *and* an alphanumeric last character.
+    if after.len() < 2 || !after[0].is_ascii_alphabetic() {
         return false;
     }
-
-    // Check for namespaced element (e.g., svg:rect)
-    if let Some(colon_pos) = memchr(b':', bytes) {
-        let before_bytes = &name.as_bytes()[..colon_pos];
-        let after_bytes = &name.as_bytes()[colon_pos + 1..];
-
-        // Before colon: [a-zA-Z][a-zA-Z0-9]*
-        if before_bytes.is_empty() || !before_bytes[0].is_ascii_alphabetic() {
-            return false;
-        }
-        if !before_bytes[1..].iter().all(|b| b.is_ascii_alphanumeric()) {
-            return false;
-        }
-
-        // After colon: [a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]
-        if after_bytes.is_empty() || !after_bytes[0].is_ascii_alphabetic() {
-            return false;
-        }
-        if after_bytes.len() == 1 {
-            return true;
-        }
-        // Must end with alphanumeric
-        if !after_bytes.last().unwrap().is_ascii_alphanumeric() {
-            return false;
-        }
-        // Middle can be alphanumeric or hyphen
-        return after_bytes[1..after_bytes.len() - 1]
-            .iter()
-            .all(|b| b.is_ascii_alphanumeric() || *b == b'-');
-    }
-
-    // Simple element name: [a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?
-    if bytes.len() == 1 {
-        return true; // Single letter is valid
-    }
-
-    // Must end with alphanumeric
-    if !bytes.last().unwrap().is_ascii_alphanumeric() {
+    if !after[after.len() - 1].is_ascii_alphanumeric() {
         return false;
     }
-
-    // Middle can be alphanumeric or hyphen
-    bytes[1..bytes.len() - 1]
+    after[1..after.len() - 1]
         .iter()
         .all(|b| b.is_ascii_alphanumeric() || *b == b'-')
 }
 
-/// Check if a name is a valid Svelte component name.
-/// Based on: /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
-///
-/// Simplified implementation that handles the common cases:
-/// 1. Uppercase starting names: Component, MyComponent, Cæжαकン中
-/// 2. Dot notation: foo.Bar, a.b.C
-fn is_valid_component_name(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
+/// Upstream `REGEX_VALID_TAG_NAME`: `/^[a-zA-Z][a-zA-Z0-9]*(-[PCENChar]*)?$/u`.
+fn is_valid_tag_name(name: &str) -> bool {
+    let mut chars = name.char_indices();
+    match chars.next() {
+        Some((_, c)) if c.is_ascii_alphabetic() => {}
+        _ => return false,
     }
+    // Nothing may follow the `[a-zA-Z0-9]*` run except the optional hyphen
+    // group, so the first character outside it must be that group's `-`.
+    let Some((i, c)) = chars.find(|(_, c)| !c.is_ascii_alphanumeric()) else {
+        return true;
+    };
+    c == '-'
+        && name[i + 1..]
+            .chars()
+            .all(is_potential_custom_element_name_char)
+}
 
+/// The `PCENChar` continuation set of the HTML custom-element-name production.
+fn is_potential_custom_element_name_char(c: char) -> bool {
+    matches!(c,
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_'
+            | '\u{b7}'
+            | '\u{c0}'..='\u{d6}'
+            | '\u{d8}'..='\u{f6}'
+            | '\u{f8}'..='\u{37d}'
+            | '\u{37f}'..='\u{1fff}'
+            | '\u{200c}'..='\u{200d}'
+            | '\u{203f}'..='\u{2040}'
+            | '\u{2070}'..='\u{218f}'
+            | '\u{2c00}'..='\u{2fef}'
+            | '\u{3001}'..='\u{d7ff}'
+            | '\u{f900}'..='\u{fdcf}'
+            | '\u{fdf0}'..='\u{fffd}'
+            | '\u{10000}'..='\u{effff}')
+}
+
+/// Upstream `regex_valid_component_name`:
+/// /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
+fn is_valid_component_name(name: &str) -> bool {
     let mut chars = name.chars();
-    let first = chars.next().unwrap();
+    let Some(first) = chars.next() else {
+        return false;
+    };
 
-    // Check for uppercase-starting component (e.g., Component, MyComponent)
-    // Also supports Unicode uppercase letters (e.g., Wunderschön, Cæжαकン中)
-    if first.is_uppercase() {
-        // Rest can be identifier characters, $, or .
+    if is_uppercase_letter(first) {
         return chars.all(is_component_name_char);
     }
 
-    // Check for dot-notation component (e.g., foo.Bar, a.b.C)
-    // Must start with a valid identifier start character
-    if !is_identifier_start(first) {
+    if !is_id_start(first) {
         return false;
     }
 
-    // Split by dots
-    let parts: Vec<&str> = name.split('.').collect();
-    if parts.len() < 2 {
-        return false; // Must have at least one dot for non-uppercase start
+    // The star class excludes `.`, so splitting on it reproduces the grouping.
+    let mut parts = name.split('.');
+    let head = parts.next().unwrap_or_default();
+    if !head[first.len_utf8()..].chars().all(is_identifier_continue) {
+        return false;
     }
 
-    // Each part must be a valid identifier
-    for (i, part) in parts.iter().enumerate() {
-        if part.is_empty() {
-            return false;
-        }
-        let mut part_chars = part.chars();
-        let part_first = part_chars.next().unwrap();
-
-        // First part must start with identifier start
-        if i == 0 {
-            if !is_identifier_start(part_first) {
-                return false;
-            }
-        } else {
-            // Subsequent parts can start with identifier continue, $
-            if !is_identifier_continue(part_first) && part_first != '$' {
-                return false;
-            }
-        }
-
-        // Rest of part must be identifier continue or $
-        if !part_chars.all(|c| is_identifier_continue(c) || c == '$') {
+    let mut has_member = false;
+    for part in parts {
+        has_member = true;
+        if part.is_empty() || !part.chars().all(is_identifier_continue) {
             return false;
         }
     }
+    has_member
+}
 
-    true
+/// `\p{Lu}`. Rust's `char::is_uppercase` is the Uppercase property, which is
+/// `Lu` plus `Other_Uppercase`; the regex class means the category alone.
+fn is_uppercase_letter(c: char) -> bool {
+    c.is_uppercase()
+        && !matches!(c,
+            '\u{2160}'..='\u{216f}'
+                | '\u{24b6}'..='\u{24cf}'
+                | '\u{1f130}'..='\u{1f149}'
+                | '\u{1f150}'..='\u{1f169}'
+                | '\u{1f170}'..='\u{1f189}')
+}
+
+/// `\p{ID_Start}` alone — unlike acorn's identifier-start test it admits
+/// neither `$` nor `_`.
+fn is_id_start(c: char) -> bool {
+    if c.is_ascii() {
+        c.is_ascii_alphabetic()
+    } else {
+        oxc_syntax::identifier::is_identifier_start_unicode(c)
+    }
 }
 
 /// Check if a character can start a JavaScript identifier.
-/// Simplified version of Unicode ID_Start.
 fn is_identifier_start(c: char) -> bool {
-    c.is_alphabetic() || c == '_' || c == '$'
+    oxc_syntax::identifier::is_identifier_start(c)
 }
 
 /// Check if a character can continue a JavaScript identifier.
-/// Simplified version of Unicode ID_Continue.
 fn is_identifier_continue(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '$' || c == '\u{200c}' || c == '\u{200d}'
+    oxc_syntax::identifier::is_identifier_part(c)
 }
 
 /// Check if a character is valid in a component name (after the first char).
 fn is_component_name_char(c: char) -> bool {
     is_identifier_continue(c) || c == '.'
+}
+
+/// Upstream's `regex_invalid_unquoted_attribute_value`, `/(\/>|[\s"'=<>`])/y` —
+/// the HTML "attribute value (unquoted) state" terminators plus the `/>`
+/// self-closing marker. A lone `/` is part of the value.
+fn ends_unquoted_attribute_value(source: &str, index: usize) -> bool {
+    let bytes = source.as_bytes();
+    let Some(&byte) = bytes.get(index) else {
+        return true;
+    };
+    if matches!(byte, b'"' | b'\'' | b'=' | b'<' | b'>' | b'`') {
+        return true;
+    }
+    if byte == b'/' {
+        return bytes.get(index + 1) == Some(&b'>');
+    }
+    if byte.is_ascii() {
+        super::super::parser::is_js_whitespace_byte(byte)
+    } else {
+        source[index..].chars().next().is_some_and(is_js_whitespace)
+    }
 }
 
 /// Returns the byte offset within `name` of the first character that prevents
@@ -2856,4 +2871,19 @@ fn shorthand_first_invalid_offset(name: &str) -> Option<usize> {
             .find(|(_, c)| !is_identifier_continue(*c))
             .map(|(i, _)| i),
     }
+}
+
+/// Upstream consumes a `<svelte:element>` / `<svelte:component>` tag definition
+/// with `attributes.splice(index, 1)` on the *first* `this` attribute, so a
+/// second one survives as an ordinary attribute/prop.
+fn remove_first_this_attribute<'a>(
+    attributes: Vec<crate::ast::Attribute<'a>>,
+) -> Vec<crate::ast::Attribute<'a>> {
+    let mut attributes = attributes;
+    if let Some(index) = attributes.iter().position(|attr| {
+        matches!(attr, crate::ast::Attribute::Attribute(node) if node.name.as_str() == "this")
+    }) {
+        attributes.remove(index);
+    }
+    attributes
 }

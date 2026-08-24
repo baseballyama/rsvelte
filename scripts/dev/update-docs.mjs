@@ -159,6 +159,25 @@ function renderSvelteTargetBlock(version, commitHash) {
 	].join('\n');
 }
 
+// AGENTS.md carries the same fact in prose. The marker is inline rather than a
+// block because a comment on its own line would split the paragraph.
+function updateAgentsTargetMarker(content, version) {
+	const line = `<!-- svelte-target-version -->Source: \`pnpm run compatibility-report\` (Svelte **v${version}**).<!-- /svelte-target-version -->`;
+	const markerRegex =
+		/<!-- svelte-target-version -->[\s\S]*?<!-- \/svelte-target-version -->/;
+	if (markerRegex.test(content)) {
+		return content.replace(markerRegex, line);
+	}
+	const insertRegex = /^Source: `pnpm run compatibility-report` \(Svelte \*\*v[^*]+\*\*\)\./m;
+	if (insertRegex.test(content)) {
+		return content.replace(insertRegex, line);
+	}
+	console.warn(
+		'Warning: Could not find the Svelte target sentence in AGENTS.md. Version not written.'
+	);
+	return content;
+}
+
 function updateSvelteTargetMarker(content, version, commitHash) {
 	const block = renderSvelteTargetBlock(version, commitHash);
 	const markerRegex =
@@ -178,24 +197,40 @@ function updateSvelteTargetMarker(content, version, commitHash) {
 	return content;
 }
 
-// We only touch the <!-- svelte-target-version --> marker block so the
-// displayed Svelte version stays in sync with the submodule pointer. The
-// compatibility table itself is maintained manually because it carries
-// hand-written annotations (totals row, skip reasons) that don't survive
-// a fully automated regeneration.
-function updateReadme(_report) {
-	const readmePath = path.join(rootDir, 'README.md');
-	const original = fs.readFileSync(readmePath, 'utf-8');
-
+// Every file that states which Svelte the tree targets. AGENTS.md joined the
+// list because it carried the fact in prose that nothing wrote and nothing
+// checked, and it drifted (#3645).
+function svelteTargetDocs() {
 	const version = getSvelteVersion();
 	const commit = getSvelteCommitHash();
-	const updated = updateSvelteTargetMarker(original, version, commit);
+	return {
+		version,
+		commit,
+		files: [
+			{ name: 'README.md', apply: (c) => updateSvelteTargetMarker(c, version, commit) },
+			{ name: 'AGENTS.md', apply: (c) => updateAgentsTargetMarker(c, version) }
+		]
+	};
+}
 
-	if (updated !== original) {
-		fs.writeFileSync(readmePath, updated);
-		console.log(`Updated README.md Svelte target marker (v${version} @ ${commit.slice(0, 12)})`);
-	} else {
-		console.log(`README.md Svelte target marker already up to date (v${version} @ ${commit.slice(0, 12)})`);
+// We only touch the <!-- svelte-target-version --> marker so the displayed
+// Svelte version stays in sync with the submodule pointer. The compatibility
+// table itself is maintained manually because it carries hand-written
+// annotations (totals row, skip reasons) that don't survive a fully automated
+// regeneration.
+function updateReadme(_report) {
+	const { version, commit, files } = svelteTargetDocs();
+
+	for (const { name, apply } of files) {
+		const target = path.join(rootDir, name);
+		const original = fs.readFileSync(target, 'utf-8');
+		const updated = apply(original);
+		if (updated !== original) {
+			fs.writeFileSync(target, updated);
+			console.log(`Updated ${name} Svelte target marker (v${version} @ ${commit.slice(0, 12)})`);
+		} else {
+			console.log(`${name} Svelte target marker already up to date (v${version} @ ${commit.slice(0, 12)})`);
+		}
 	}
 }
 
@@ -262,24 +297,25 @@ function updateTestResults(report) {
 // Verify the README's Svelte target-version marker is consistent with the
 // submodule pointer. Used by CI to catch stale docs after a submodule bump.
 function checkReadmeInSync(_report) {
-	const readmePath = path.join(rootDir, 'README.md');
-	const original = fs.readFileSync(readmePath, 'utf-8');
+	const { version, commit, files } = svelteTargetDocs();
+	let stale = 0;
 
-	const version = getSvelteVersion();
-	const commit = getSvelteCommitHash();
-	const expected = updateSvelteTargetMarker(original, version, commit);
+	for (const { name, apply } of files) {
+		const original = fs.readFileSync(path.join(rootDir, name), 'utf-8');
+		if (apply(original) !== original) {
+			console.error(`${name} Svelte target-version marker is out of sync with the submodule.`);
+			stale += 1;
+		} else {
+			console.log(`${name} Svelte target marker is in sync (v${version} @ ${commit.slice(0, 12)})`);
+		}
+	}
 
-	if (expected !== original) {
-		console.error(
-			'README.md Svelte target-version marker is out of sync with the submodule.'
-		);
+	if (stale > 0) {
 		console.error('Run `pnpm run update-docs` and commit the result.');
 		console.error('');
 		console.error(`Expected Svelte target: v${version} (${commit.slice(0, 12)})`);
 		process.exit(1);
 	}
-
-	console.log(`README.md Svelte target marker is in sync (v${version} @ ${commit.slice(0, 12)})`);
 }
 
 function main() {
@@ -312,4 +348,10 @@ function main() {
 	console.log('\nDone!');
 }
 
-main();
+// Guarded so the marker helpers below can be imported by a self-test without
+// the script demanding a compatibility report it does not need.
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+	main();
+}
+
+export { updateAgentsTargetMarker, updateSvelteTargetMarker };
