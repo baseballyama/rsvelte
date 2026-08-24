@@ -71,6 +71,25 @@ const RULES = [
     prefix: 'crates/rsvelte_check/src/',
     requires: ['@rsvelte/svelte-check'],
   },
+  {
+    prefix: 'crates/rsvelte_napi/src/',
+    // Ships only as the `rsvelte.node` cdylib inside the vps-native binaries,
+    // whose fixed group has no dependency edge to any other artifact. A
+    // changeset naming `@rsvelte/compiler` republishes wasm that does not
+    // contain the change while this one stays on a stale build (#3665).
+    requires: ['@rsvelte/vite-plugin-svelte-native'],
+  },
+  {
+    prefix: 'crates/rsvelte_fmt/src/',
+    requires: ['@rsvelte/fmt'],
+  },
+  {
+    prefix: 'crates/rsvelte_language_server/src/',
+    requires: ['@rsvelte/language-server'],
+  },
+  // NOTE: `crates/rsvelte_capi/**` and `crates/rsvelte_fmt_wasm/**` are
+  // deliberately absent because they are published NOWHERE — neither appears in
+  // release.yml's build matrix, so there is no artifact to leave stale.
   // NOTE: `crates/rsvelte_lint/**` and `crates/rsvelte_lint_bindings/**` are
   // intentionally NOT listed. Their code ships in two separate artifacts — the
   // `@rsvelte/compiler` wasm (`build:wasm:core`, built from the bindings crate)
@@ -135,7 +154,40 @@ function namedPackages() {
   return named;
 }
 
+// A `fixed` group is one independently-published artifact family. If no rule
+// names any member of a group, then no source path maps to it and the guard is
+// blind to that whole artifact — which is how `crates/rsvelte_napi` went
+// unlisted while its own header explained why it should not be (#3665).
+//
+// This is a proxy: it answers "did anyone decide about this group", not "is the
+// decision right". That is deliberately the question, because the failure being
+// guarded is nobody having asked.
+export function uncoveredFixedGroups(config) {
+  const named = new Set(RULES.flatMap((rule) => rule.requires));
+  return config.fixed.filter((group) => !group.some((pkg) => named.has(pkg)));
+}
+
+function checkFixedGroupCoverage() {
+  const config = JSON.parse(
+    readFileSync(path.join(repoRoot, '.changeset', 'config.json'), 'utf8'),
+  );
+  const uncovered = uncoveredFixedGroups(config);
+  if (uncovered.length === 0) return;
+  for (const group of uncovered) {
+    console.error(
+      `::error::No rule in check-core-consumer-changesets.mjs names any package in the ` +
+        `fixed group [${group.join(', ')}]. Either add the crate prefix whose code that ` +
+        `artifact embeds, or say in a comment why it needs no rule.`,
+    );
+  }
+  process.exit(1);
+}
+
 function main() {
+  // Not behind SKIP: the table's completeness is a property of the repository,
+  // not of the pull request asking to skip its changeset.
+  checkFixedGroupCoverage();
+
   if (process.env.SKIP === 'true') {
     console.log('skip-changeset label present — skipping core-consumer changeset check.');
     return;
@@ -180,4 +232,10 @@ function main() {
   console.log('All required consumer packages are named. ✓');
 }
 
-main();
+// Guarded so the coverage helper can be imported by a self-test without the
+// script resolving a merge base it does not need.
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
+
+export { RULES };

@@ -107,6 +107,7 @@ fn build_options(sample_name: &str, sample_dir: &Path, svelte_filename: &str) ->
         runes: None,
         emit_jsdoc,
         rewrite_external_imports,
+        ..Svelte2TsxOptions::default()
     }
 }
 
