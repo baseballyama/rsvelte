@@ -152,9 +152,21 @@ pub fn visit_component<'a, 'b: 'a>(
                 if bind.name != "this" {
                     context.analysis.uses_component_bindings = true;
                 }
-                // Upstream's `BindDirective` visitor runs its whole host-agnostic
-                // tail for a component too (BindDirective.js L129-273).
-                super::super::bind_directive::validate_expression_shape(bind, context)?;
+                // Getter/setter bindings (`bind:value={get, set}`) skip the
+                // assignment + identifier validation, mirroring upstream's
+                // early SequenceExpression return in BindDirective.js — but not
+                // the pair's own checks, which run for every host.
+                if super::super::bind_directive::is_get_set_pair(bind) {
+                    super::super::bind_directive::validate_get_set_pair(bind, context)?;
+                } else {
+                    // Validate the binding expression (checks for const/import bindings)
+                    let bind_node = bind.expression.as_node();
+                    validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
+                    // `bind:x={y}` must target state or props (bind_invalid_value).
+                    // Upstream's BindDirective visitor runs this for component
+                    // bindings too (BindDirective.js L193-207).
+                    super::super::bind_directive::validate_bind_value_target(bind, context)?;
+                }
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers
@@ -205,8 +217,13 @@ pub fn visit_component<'a, 'b: 'a>(
                 if bind.name == "this" {
                     context.in_bind_this = true;
                 }
-                super::super::script::walk_expression(&bind.expression, context)?;
+                let result = if super::super::bind_directive::is_get_set_pair(bind) {
+                    super::super::bind_directive::walk_get_set_pair(bind, context)
+                } else {
+                    super::super::bind_directive::walk_bind_expression(bind, context)
+                };
                 context.in_bind_this = prev_in_bind_this;
+                result?;
             }
             Attribute::OnDirective(on) => {
                 // Visit the event handler expression if present
@@ -240,10 +257,10 @@ pub fn visit_component<'a, 'b: 'a>(
     // 3. Visit each slot's content with the correct scope
     //
     // For now, just visit the fragment normally
-    // Set is_direct_child_of_component for svelte:fragment validation
-    let was_direct_child = context.is_direct_child_of_component;
+    // Set direct_component_parent for svelte:fragment validation
+    let was_direct_child = context.direct_component_parent;
     let was_direct_snippet = context.is_direct_child_of_snippet;
-    context.is_direct_child_of_component = true;
+    context.direct_component_parent = super::super::DirectComponentParent::Component;
     context.is_direct_child_of_snippet = false;
     // Track component depth for slot attribute validation
     context.component_depth += 1;
@@ -284,7 +301,7 @@ pub fn visit_component<'a, 'b: 'a>(
     context.slot_owner_ancestors.pop();
     context.component_depth -= 1;
     context.svelte_self_parent_depth -= 1;
-    context.is_direct_child_of_component = was_direct_child;
+    context.direct_component_parent = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;
 
     Ok(())
@@ -416,9 +433,10 @@ pub fn validate_component(
         )));
     }
 
-    // Duplicate attributes are rejected by `read_attributes` in the parser, for
-    // every element alike — a second copy here is what let the `this` exemption
-    // (`<C bind:this={x} bind:this={x} />`, which upstream accepts) drift.
+    // `attribute_duplicate` is raised once, while reading the attributes
+    // (`1-parse/state/element.js`), and that port exempts every attribute named
+    // `this`. A second copy here did not, so `<C bind:this={x} bind:this={x} />`
+    // was rejected.
 
     // Track component bindings (excluding bind:this which doesn't need the settling loop)
     let has_bindings = component
