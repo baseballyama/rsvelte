@@ -2447,17 +2447,20 @@ pub(super) fn transform_constructor_assignment(
                         let qualified = format!("this.#{}", field.private_backing_name);
                         let read =
                             constructor_field_read(&field.rune_type, &qualified, at_ctor_depth);
-                        // Upstream `AssignmentExpression.js`: the built value is a
-                        // LogicalExpression, which `should_proxy` always proxies, so
-                        // the flag rides on the field kind alone.
-                        let proxy = if field.rune_type == "$state" {
+                        // Upstream `AssignmentExpression.js` (#18594): the logical
+                        // operator short-circuits around the whole `$.set`, so the
+                        // setter only runs when it actually assigns — and its value
+                        // is the bare RHS, which `should_proxy` traces as it does
+                        // for `=`.
+                        let proxy = if field.rune_type == "$state" && expression_needs_proxy(value)
+                        {
                             ", true"
                         } else {
                             ""
                         };
                         return format!(
-                            "$.set({}, {} {} {}{}){}",
-                            qualified, read, binary_op, value, proxy, tail
+                            "{} {} $.set({}, {}{}){}",
+                            read, binary_op, qualified, value, proxy, tail
                         );
                     }
                 }

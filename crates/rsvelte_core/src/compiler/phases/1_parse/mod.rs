@@ -140,6 +140,8 @@ pub fn parse<'a>(
     _alloc: &oxc_allocator::Allocator,
     options: ParseOptions,
 ) -> ParseResult<Root<'a>> {
+    // Already stripped on the compile path; this covers the standalone parse API.
+    let source = crate::compiler::remove_bom(source);
     let mut parser = Parser::new(source, options);
     // RAII install so to_value() calls during parsing
     // (e.g. build_const_variable_declaration) can resolve JsNodeIds.

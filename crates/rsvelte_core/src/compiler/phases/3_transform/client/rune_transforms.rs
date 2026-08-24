@@ -9,8 +9,23 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_rune_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
+
+/// Does the code preceding a removed call demand an operand — i.e. was the call
+/// in a value position rather than a statement of its own? The last significant
+/// character answers it: only a terminator, a block delimiter or the `)` of a
+/// bodyless `if`/`for`/`while` head can be followed by a fresh statement.
+pub(super) fn operand_expected_before(before: &str) -> bool {
+    let before = before.trim_end();
+    if before.ends_with("*/") {
+        return false;
+    }
+    !matches!(
+        before.as_bytes().last(),
+        None | Some(b';' | b'{' | b'}' | b')')
+    )
+}
 
 /// Transform runes for client-side usage with skip and state variable handling.
 pub(super) fn transform_client_runes_with_skip_and_state<'a>(
@@ -186,7 +201,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
     if !dev && !inspect_is_store_sub {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
                 let mut end = trace_start + content_end + 1;
@@ -222,7 +237,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // and is awkward to do at the AST level.
     if !dev
         && !inspect_is_store_sub
-        && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(")
+        && let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(")
     {
         {
             // In non-dev mode, remove the entire $inspect(...) call
@@ -264,6 +279,13 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                         // The trailing `;` of the removed call is one of the
                         // `;;` upstream prints for the empty-as-expression.
                         "/* $$inspect_removed$$ */;"
+                    } else if operand_expected_before(before) {
+                        // Upstream drops in an `EmptyStatement` wherever the call
+                        // was; in an operand slot that prints as a bare `;`, which
+                        // no parser accepts. Keep the slot filled with the value
+                        // `$inspect` evaluates to (see
+                        // `upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                        "undefined"
                     } else {
                         ""
                     };

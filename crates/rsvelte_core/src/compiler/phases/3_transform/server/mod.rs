@@ -26,6 +26,7 @@ use super::js_ast::nodes::{JsImportDeclaration, JsImportSpecifier, JsStatement};
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::js_scan::is_ident_byte;
 use memchr::memmem;
 use std::cell::RefCell;
 
@@ -93,6 +94,13 @@ pub fn transform_server_module(
         specifiers: vec![JsImportSpecifier::Namespace("$".into())],
         source: "svelte/internal/server".into(),
     }));
+
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs —
+    // `strip_effects_from_source` would otherwise cut the call out of its own
+    // parens and leave `();` behind.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
 
     // For server modules, strip $effect and $effect.root blocks from the source
     // before applying transforms, since effects don't run on the server.
@@ -235,11 +243,30 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
             _ => {}
         }
         if i + needle.len() <= n && &bytes[i..i + needle.len()] == needle {
-            out.push(i);
+            // A rune name in the property slot of `o.$effect(cb)` is a method
+            // call, not a rune — upstream's `get_global_keypath` walks a member
+            // chain down to its BASE identifier, which this one never is. Same
+            // rule one byte over for `a$effect(`, a single longer identifier.
+            let is_rune_head = needle.first() != Some(&b'$')
+                || (!last_significant_is_dot(bytes, i) && (i == 0 || !is_ident_byte(bytes[i - 1])));
+            if is_rune_head {
+                out.push(i);
+            }
         }
         i += 1;
     }
     out
+}
+
+/// Is the last significant byte before `at` a `.` (so `at` starts a member
+/// property)? Whitespace is skipped, which is what makes `o\n\t.$effect(` and
+/// `o.$effect(` answer the same.
+fn last_significant_is_dot(bytes: &[u8], at: usize) -> bool {
+    let mut j = at;
+    while j > 0 && bytes[j - 1].is_ascii_whitespace() {
+        j -= 1;
+    }
+    j > 0 && bytes[j - 1] == b'.'
 }
 
 /// One collect-and-splice pass over `source` for a paren-call rewrite. For every
@@ -390,6 +417,65 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
 ///
 /// Matching is JS-lexical-aware via [`code_match_positions`], so effect-call-shaped
 /// text inside string literals or comments is left untouched (issue #447, H-029).
+/// Does a call starting at `pos` stand where a STATEMENT stands?
+///
+/// Upstream reads this off the AST: an `ExpressionStatement` whose expression is
+/// the call is removed, and a call anywhere else becomes the `() => {}` no-op.
+/// Asking instead whether the call starts its own physical line answers a
+/// different question — `let m = 1; $effect.root(…)` is a statement that shares
+/// a line, and it came out as `() => {};` (issue #3343).
+///
+/// A statement can only begin where the previous statement ended, so the
+/// previous significant code character settles it: `;`, `{`, `}`, or nothing at
+/// all. The line test stays as the second sufficient condition, because
+/// semicolon-free source ends its previous statement with ASI and leaves an
+/// ordinary token there.
+fn is_statement_position(s: &str, pos: usize) -> bool {
+    match previous_significant_code_byte(s, pos) {
+        None | Some(b';' | b'{' | b'}') => true,
+        Some(_) => {
+            let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            s[line_start..pos].chars().all(char::is_whitespace)
+        }
+    }
+}
+
+/// The last non-whitespace byte of `s[..pos]` that is code — outside every
+/// string, template literal and comment.
+fn previous_significant_code_byte(s: &str, pos: usize) -> Option<u8> {
+    let bytes = s.as_bytes();
+    let n = pos.min(bytes.len());
+    let mut last = None;
+    let mut i = 0usize;
+    while i < n {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                i = skip_string_literal(bytes, i).min(n);
+                last = Some(b'"');
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(n);
+                continue;
+            }
+            b if !b.is_ascii_whitespace() => last = Some(b),
+            _ => {}
+        }
+        i += 1;
+    }
+    last
+}
+
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
 
@@ -419,11 +505,7 @@ fn strip_effects_from_source(source: &str) -> String {
         let call_start = pos + 13; // after "$effect.root("
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1; // after closing paren
-        // Statement position when everything from the line start to `pos` is
-        // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
-        let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
-        let is_statement = s[line_start..pos].chars().all(|c| c.is_whitespace());
-        if is_statement {
+        if is_statement_position(s, pos) {
             Some(remove_statement(s, pos, expr_end))
         } else {
             Some((expr_end, "() => {}".to_string()))

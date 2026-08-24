@@ -9,6 +9,7 @@
 
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
+use crate::compiler::phases::phase1_parse::utils::is_reserved;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
@@ -947,6 +948,7 @@ impl<'a> ComponentContext<'a> {
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Let directive bindings are template-kind (BindingKind::Let) in
@@ -1291,6 +1293,7 @@ impl<'a> ComponentContext<'a> {
                             is_defined: false,
                             is_reactive: true,
                             replacement_id: None,
+                            store_source: None,
                         },
                     );
                     // Let directive bindings are template-kind.
@@ -1327,6 +1330,7 @@ impl<'a> ComponentContext<'a> {
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
                         self.state.transform_deep_read.insert(name, ());
@@ -2392,7 +2396,7 @@ pub struct IdentifierTransform {
     /// - identifier: The identifier being assigned to
     /// - value: The value being assigned
     /// - needs_proxy: Whether the value needs to be proxified
-    pub assign: Option<fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
+    pub assign: Option<fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
 
     /// How to handle mutations to the identifier
     ///
@@ -2400,7 +2404,7 @@ pub struct IdentifierTransform {
     /// - arena: The JS arena allocator
     /// - identifier: The identifier being mutated
     /// - mutation_expr: The mutation expression (e.g., `obj.prop = value`)
-    pub mutate: Option<fn(&JsArena, JsExpr, JsExpr) -> JsExpr>,
+    pub mutate: Option<fn(&IdentifierTransform, &JsArena, JsExpr, JsExpr) -> JsExpr>,
 
     /// How to handle update expressions (++ or --)
     ///
@@ -2409,7 +2413,7 @@ pub struct IdentifierTransform {
     /// - operator: The update operator (++ or --)
     /// - argument: The identifier being updated
     /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
-    pub update: Option<fn(&JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
+    pub update: Option<fn(&IdentifierTransform, &JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
 
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
     /// When true, needs_proxy will always be false for assignments
@@ -2430,6 +2434,12 @@ pub struct IdentifierTransform {
     /// Used for legacy reactive imports where `numbers` becomes `$$_import_numbers()`.
     /// The read transform is then applied to the replacement identifier.
     pub replacement_id: Option<String>,
+
+    /// For a `$store` subscription, how the underlying store variable itself
+    /// reads — upstream's `get_store()`, i.e. `context.visit(b.id(name.slice(1)))`.
+    /// Resolved after every transform is registered, because the store variable's
+    /// own transform may be added later in the same pass.
+    pub store_source: Option<JsExpr>,
 }
 
 /// Component metadata.
@@ -2841,7 +2851,7 @@ impl Memoizer {
         // success.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            if !conflicts.contains(sanitized) {
+            if !conflicts.contains(sanitized) && !is_reserved(sanitized) {
                 conflicts.insert(sanitized.to_string());
                 return sanitized.to_string();
             }
@@ -2894,7 +2904,7 @@ impl Memoizer {
         // `insert` that tests and records the suffixed name in one hash.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            if !conflicts.contains(sanitized.as_str()) {
+            if !conflicts.contains(sanitized.as_str()) && !is_reserved(&sanitized) {
                 conflicts.insert(sanitized.clone());
                 return sanitized;
             }
@@ -2960,18 +2970,20 @@ fn is_valid_identifier(name: &str) -> bool {
 fn sanitize_identifier(name: &str) -> String {
     let mut result = String::with_capacity(name.len());
 
+    // Upstream is `name.replace(/(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])/g, '_')` over a
+    // UTF-16 string, so an astral character is replaced by *two* underscores.
     for (i, c) in name.chars().enumerate() {
-        if c.is_ascii_alphabetic() || c == '_' || c == '$' {
-            result.push(c);
-        } else if c.is_ascii_digit() {
-            if i == 0 {
-                // Can't start with a digit, prefix with underscore
-                result.push('_');
-            }
+        let keep = if i == 0 {
+            c.is_ascii_alphabetic() || c == '_' || c == '$'
+        } else {
+            c.is_ascii_alphanumeric() || c == '_' || c == '$'
+        };
+        if keep {
             result.push(c);
         } else {
-            // Replace invalid characters (like '-') with underscore
-            result.push('_');
+            for _ in 0..c.len_utf16() {
+                result.push('_');
+            }
         }
     }
 

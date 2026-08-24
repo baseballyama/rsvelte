@@ -1,5 +1,0 @@
----
-"@rsvelte/fmt": patch
----
-
-An expression tag glued into a run inside an element whose open tag hugs (`<span\n  >{a}{b}</span\n>`) now breaks where prettier-plugin-svelte breaks it. The hug puts the `>` before the run and the `</tag` after it on the same printed line, and both doc-building paths modelled a single-line tag as an unbreakable text atom — `collapse::node_to_child` only built a breakable group for a tag that was already multi-line, and `build_children_doc` was never given the options it needs to build one at all — so no group could absorb those columns and the run stayed flat however far it overflowed. Measured against the oxfmt(`svelte: true`) oracle over a one-column threshold sweep: 398 of 419 previously divergent widths now agree, across `<span>` / `<b>` / `<p>` / `<Comp>` / `<svelte:element>` / `<button>` hosts, `{#if}` and `{#each}` bodies, nested inline elements, and a `{@render}` at the head of the run. A run whose tags contain nothing breakable, a tag with prose on either side, an attribute value and a `{@const}` are unchanged.
