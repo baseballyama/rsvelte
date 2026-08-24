@@ -314,7 +314,7 @@ pub fn process_children<F>(
     // Helper: flush a single node
     let flush_node = |is_text: bool,
                       name: &str,
-                      loc: Option<u32>,
+                      loc: Option<(u32, u32)>,
                       prev_fn: &mut SiblingPrev<F>,
                       skip_count: &mut usize,
                       ctx: &mut ComponentContext|
@@ -538,7 +538,11 @@ pub fn process_children<F>(
                 } else {
                     // Get node name for identifier
                     let (name, name_loc) = if let TemplateNode::RegularElement(elem) = node {
-                        (elem.name.as_str(), Some(elem.start.saturating_add(1)))
+                        let start = elem.start.saturating_add(1);
+                        (
+                            elem.name.as_str(),
+                            Some((start, start.saturating_add(elem.name.len() as u32))),
+                        )
                     } else {
                         ("node", None)
                     };
@@ -640,11 +644,9 @@ fn push_static_element_to_template_inner(
         TemplateNode::RegularElement(elem) => {
             // Determine if this is an HTML element (not SVG/MathML)
             let is_html = namespace == "html" && elem.name != "svg";
-            // Avoid allocation when name is already lowercase (common case for HTML)
             let name_str = elem.name.as_str();
-            let needs_lowercase = is_html && name_str.bytes().any(|b| b.is_ascii_uppercase());
-            let elem_name = if needs_lowercase {
-                name_str.to_lowercase()
+            let elem_name = if is_html {
+                super::utils::html_lowercase(name_str)
             } else {
                 name_str.to_string()
             };

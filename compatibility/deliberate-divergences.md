@@ -192,3 +192,49 @@ measurement rather than being folded into a fix for the two rows above.
 - **Corpus gate**: `pattern/issues/2573-ctor-private-derived-write.svelte.js` covers the two
   fixed rows on all three targets. Nothing in the collected corpus writes a private `$derived`
   field through any receiver — `known-failures.server.json` is `[]`.
+
+---
+
+## TypeScript class index signature
+
+**Pinned by** `crates/rsvelte_core/tests/ts_index_signature_3422.rs`.
+**Reported upstream** in `upstream_issues/3422-svelte-class-index-signature-crash.md`.
+
+`class K { [k: string]: unknown }` makes the official compiler throw a bare
+`TypeError: Cannot read properties of undefined (reading 'type')` — no `code`, no position, no
+frame — from esrap's `TSIndexSignature` printer, because `remove_typescript_nodes.js` deletes the
+signature's `typeAnnotation` while `ClassBody` keeps the node itself. rsvelte erases the member,
+so rsvelte compiles what upstream cannot.
+
+**This entry exists because the previous behaviour was a deliberate parity choice, and it shipped
+two defects.** `2_analyze/types.rs` carried the comment *"Upstream passes these through verbatim
+(a class index signature even makes it throw), so they are left exactly as written"* — locally
+reasonable, and wrong, because "upstream throws" is not an output to be equal to.
+
+### What leaving it in cost, measured
+
+A grid of 8 index-signature spellings + 11 TypeScript-only control members × 3 class hosts
+(declaration, expression, one carrying a `$state` field) × 2 entry points (instance script,
+`<script module>`) × 3 targets = **342 cells**:
+
+| | before | after |
+|---|---|---|
+| rsvelte output rejected by acorn | 96 | **0** |
+| TypeScript left in the `.js` output | 96 | **0** |
+| instance/module script silently dropped (`server`) | 48 | **0** |
+| control cells clean | 198 | 198 |
+
+The 96 client/client-dev cells emitted `class K { [k: string]: unknown }` into a `.js` artifact.
+The 48 `server` cells are the more dangerous half and are **not** what the report described: the
+erased script is re-parsed to classify it, that parse rejected the surviving TypeScript, and the
+whole instance script was discarded — output that parses and does nothing. (#3421 made that
+failure loud; this change removes its cause.)
+
+### Why no gate sees it
+
+- **Output-equality gates**: there is no official output at all for these inputs, so nothing to
+  compare; a crash is not a `code` the error ratchets can key on either.
+- **Output-parseability gate**: parses rsvelte's side only, and the `server` half parses fine
+  while being empty.
+- **Collected corpus**: a component with a class index signature cannot be built with the official
+  compiler, so no published source can carry the shape.

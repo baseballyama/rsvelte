@@ -5,7 +5,7 @@ use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Parser;
-use oxc_span::SourceType;
+use oxc_span::{SourceType, Span};
 use self_cell::self_cell;
 
 struct ProgramOwner<'source> {
@@ -23,6 +23,7 @@ impl ProgramOwner<'_> {
 struct ParsedProgram<'alloc> {
     program: Program<'alloc>,
     diagnostics: Vec<OxcDiagnostic>,
+    irregular_whitespaces: Vec<Span>,
     panicked: bool,
 }
 
@@ -67,6 +68,7 @@ impl<'source> RetainedProgram<'source> {
                 ParsedProgram {
                     program: parsed.program,
                     diagnostics: parsed.diagnostics.into_vec(),
+                    irregular_whitespaces: parsed.irregular_whitespaces.into_vec(),
                     panicked: parsed.panicked,
                 }
             },
@@ -106,6 +108,14 @@ impl<'source> RetainedProgram<'source> {
 
     pub fn diagnostics(&self) -> &[OxcDiagnostic] {
         &self.borrow_dependent().diagnostics
+    }
+
+    /// Spans oxc classified as irregular whitespace. Two of the characters it
+    /// admits there are not ECMAScript whitespace at all, so acorn — and so
+    /// upstream — rejects the program the parser accepted.
+    #[must_use]
+    pub fn irregular_whitespaces(&self) -> &[Span] {
+        &self.borrow_dependent().irregular_whitespaces
     }
 
     #[must_use]

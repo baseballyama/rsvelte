@@ -107,11 +107,12 @@ pub fn fragment(
         context.state.analysis,
         context.state.preserve_whitespace,
         context.state.options.preserve_comments,
+        context.state.options.hmr,
     );
 
     // Early return if no nodes
     if cleaned.hoisted.is_empty() && cleaned.trimmed.is_empty() {
-        return JsBlockStatement { body: Vec::new() };
+        return JsBlockStatement::new();
     }
 
     // Analyze trimmed nodes
@@ -284,7 +285,7 @@ pub fn fragment(
                     &context.arena,
                     &id_name,
                     Some(b::call(&context.arena, template_id_expr, vec![])),
-                    Some(name_start),
+                    Some((name_start, name_end)),
                 ),
             );
 
@@ -384,11 +385,8 @@ pub fn fragment(
                     vec![b::id("$$anchor"), text_id],
                 ),
             ));
-        } else if cleaned.is_standalone && !context.state.options.hmr {
+        } else if cleaned.is_standalone {
             // No need to create a template, we can just use the existing block's anchor.
-            // When HMR is enabled, we always need a fragment wrapper because $.hmr()
-            // uses block/branch effects that need a stable anchor node.
-            // Reference: utils.js line 288 checks `!state.options.hmr`
             // Set is_standalone on state so component/render-tag visitors know
             // they need to emit $.next() after $.async() wrapping.
             context.state.is_standalone = true;
@@ -785,7 +783,7 @@ pub fn fragment(
     // Merge memoizer conflicts back to parent so sibling scopes also avoid collisions
     context.state.memoizer.merge_conflicts(&state.memoizer);
 
-    JsBlockStatement { body }
+    JsBlockStatement::with_body(body)
 }
 
 /// Collect all identifier names from a JS statement.

@@ -4,18 +4,61 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 0 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 139 entries.**
 
-The one entry this file used to hold, `pattern/issues/3200-asi-reactive-block.svelte`,
-was removed when [#3232](https://github.com/baseballyama/rsvelte/issues/3232) was
-fixed. It is worth keeping the reason on the page: the file is a
-deliberately-unparseable repro (its point is the compiler's `js_parse_error`
-position inside a `$:` block), so it exists for the *compiler* gate, and the two
-gates share one population — a repro the compiler gate needs is a component the
-svelte2tsx gate must also convert. Official's script transform is TypeScript-based
-and error-tolerant; rsvelte's oxc parse discards the AST on a fatal error, so the
-whole script pass was skipped. rsvelte now repairs the one missing-ASI class before
-re-parsing, and the entry passes.
+Partition of `svelte2tsx-known-failures.json` by verdict: `134 + 5`
+
+- **134 — the emitted TSX differs** (`ts-mismatch`).
+- **5 — one side rejects and the other compiles** (`error-mismatch`): 3 where
+  official compiles and rsvelte errors, 2 the other way round.
+
+## Wave-2 enrolment (#3130)
+
+The list was **0** before the enrolment and all 139 entries come from one of the
+67 new repositories. The 37 pre-existing *real-world* sources still contribute
+zero, which is the same positive control the compiler ratchets report.
+27 repositories contribute at least one; svelte-lexical (42),
+svelte-tweakpane-ui (16) and svelte-gantt (10) are half of the `ts-mismatch`
+half between them.
+
+**The first baseline was 173 and was written from a macOS run; Linux CI reports
+the set this file carries.** The 15 it dropped are 14 tiny
+`sveltekit/packages/package/test/fixtures/…` components plus one carbon fixture,
+all `ts-mismatch`, all passing on Linux — the two-sided ratchet is what surfaced
+them. That platform split is **still live**: re-measuring on macOS after the
+rebase reports those same 15 as NEW failures, which is the positive control that
+the file here is the Linux set and not a local one. Read it as the same caveat
+`fmt-known-failures.md` states for its own gate: **shrink this ratchet from a
+Linux `corpus-compat.yml` run, not locally.**
+
+The drop from 158 to 139 is the rebase onto `main` plus the fix for
+`pattern/issues/3200-asi-reactive-block.svelte`: re-measuring removed **19
+entries that already passed**, and the fix removed one more.
+
+The `ts-mismatch` clusters, keyed mechanically by the first differing line
+(the classifier is the one in this file's history, not a hand review — it asks
+what the differing line contains, in this order):
+
+| n | class |
+|---|---|
+| 42 | rsvelte emits an **extra** `/*Ωignore_startΩ*/` region marker |
+| 8 | rsvelte **omits** an `/*Ωignore_startΩ*/` marker official emits |
+| 16 | `__sveltets_2_ensureType(String, Number, …)` — a text run's interior whitespace is collapsed |
+| 17 | a CSS selector inside a JSDoc comment (` * .demo {`) is truncated |
+| 14 | an `import {` official keeps is emitted as a bare `;` |
+| 38 | a tail, most of it one entry each |
+
+The two marker clusters are the single largest cause and are one question —
+**where a `/*Ωignore_*Ω*/` region begins and ends** — not two. Nothing here is
+an oracle bug: the `oracle-invalid` classification (94 entries this run) already
+carries those, and it is a pass, not a ratchet entry.
+
+
+
+The former `pattern/issues/3200-asi-reactive-block.svelte` entry was removed when
+[#3232](https://github.com/baseballyama/rsvelte/issues/3232) was fixed. The file is
+a deliberately-unparseable compiler repro, but svelte2tsx now repairs its missing
+ASI before re-parsing and applies the same script transforms as official.
 
 The usual justified reason to add an entry is that **official svelte2tsx is buggy
 and rsvelte is more correct** — matching the oracle would require reproducing a
