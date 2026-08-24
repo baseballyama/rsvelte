@@ -277,17 +277,6 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
     out
 }
 
-/// Is the last significant byte before `at` a `.` (so `at` starts a member
-/// property)? Whitespace is skipped, which is what makes `o\n\t.$effect(` and
-/// `o.$effect(` answer the same.
-fn last_significant_is_dot(bytes: &[u8], at: usize) -> bool {
-    let mut j = at;
-    while j > 0 && bytes[j - 1].is_ascii_whitespace() {
-        j -= 1;
-    }
-    j > 0 && bytes[j - 1] == b'.'
-}
-
 /// One collect-and-splice pass over `source` for a paren-call rewrite. For every
 /// match start in `positions` (ascending) not already inside a consumed span,
 /// [`build`] returns `(end, replacement)` — where `end` is the byte offset just

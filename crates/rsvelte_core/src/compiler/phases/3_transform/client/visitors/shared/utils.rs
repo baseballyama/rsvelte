@@ -4404,22 +4404,6 @@ thread_local! {
     static INITIAL_EVAL_DEPTH: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
 }
 
-/// `get_literal_value_json` as `scope.evaluate` reaches it from a BINDING's
-/// initializer, where upstream memoizes nothing and so never consults
-/// `has_call` — only the template expression itself is memoized first.
-fn fold_binding_initializer(
-    jv: &serde_json::Value,
-    context: &ComponentContext,
-) -> Option<EvalValue> {
-    if INITIAL_EVAL_DEPTH.with(|d| d.get()) >= MAX_INITIAL_EVAL_DEPTH {
-        return None;
-    }
-    INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
-    let folded = get_literal_value_json(jv, context);
-    INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
-    folded
-}
-
 /// Handle complex expression types for get_literal_value that need JSON access.
 fn get_literal_value_complex(
     expr_type: &str,

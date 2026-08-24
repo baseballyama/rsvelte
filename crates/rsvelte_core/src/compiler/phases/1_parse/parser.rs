@@ -819,30 +819,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Whether an unquoted attribute value ends at byte `i` — upstream's
-    /// `regex_invalid_unquoted_attribute_value` (`/(\/>|[\s"'=<>`])/y`). A
-    /// top-level `<script>`/`<style>` attribute is read by
-    /// `read_static_attribute` instead, whose `regex_attribute_value` stops
-    /// only at `>` and whitespace.
-    pub(crate) fn unquoted_attribute_value_ends_at(&self, i: usize) -> bool {
-        let Some(&b) = self.bytes.get(i) else {
-            return true;
-        };
-        if b == b'>' {
-            return true;
-        }
-        if self.in_root_script_or_style {
-            return self.is_js_whitespace_at(i);
-        }
-        if b == b'/' {
-            return self.bytes.get(i + 1) == Some(&b'>');
-        }
-        if matches!(b, b'"' | b'\'' | b'=' | b'`' | b'<') {
-            return true;
-        }
-        self.is_js_whitespace_at(i)
-    }
-
     /// Byte index of the first non-whitespace character at or after `i`.
     pub(crate) fn skip_js_whitespace_from(&self, mut i: usize) -> usize {
         while self.is_js_whitespace_at(i) {

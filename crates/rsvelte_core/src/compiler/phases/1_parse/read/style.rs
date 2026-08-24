@@ -47,27 +47,6 @@ fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
 // Public API
 // ============================================================================
 
-/// Where the `<an+b> of <selector>` keyword ends inside an `:nth-*()` argument.
-///
-/// The space after `of` is optional when the selector begins with a token that
-/// already ends the identifier, which is what minifiers emit.
-fn find_nth_of_split(trimmed: &str) -> Option<usize> {
-    let bytes = trimmed.as_bytes();
-    let mut from = 0;
-
-    while let Some(rel) = memmem::find(&bytes[from..], b" of") {
-        let at = from + rel;
-        match bytes.get(at + 3) {
-            Some(b' ') => return Some(at + 4),
-            Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&') => return Some(at + 3),
-            _ => {}
-        }
-        from = at + 1;
-    }
-
-    None
-}
-
 /// Parse CSS content and return the children array for StyleSheet.
 pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
     let mut parser = CssParser::new(content, offset);
@@ -2125,84 +2104,6 @@ impl<'a> CssParser<'a> {
     fn read_identifier(&mut self) -> String {
         read_css_identifier(self.source, &mut self.index)
     }
-}
-
-/// Put `nth` at the head of the first complex selector in `list` and stretch
-/// that selector's span back to `nth_start`, where the `<an+b>` token began.
-///
-/// Returns `false` when the list has no complex selector to attach to, so the
-/// caller can fall back to synthesizing one.
-fn prepend_nth(list: &mut Value, nth: Value, nth_start: usize) -> bool {
-    let start = Value::Number((nth_start as i64).into());
-
-    let Some(list_obj) = list.as_object_mut() else {
-        return false;
-    };
-    let Some(complex) = list_obj
-        .get_mut("children")
-        .and_then(Value::as_array_mut)
-        .and_then(|children| children.first_mut())
-        .and_then(Value::as_object_mut)
-    else {
-        return false;
-    };
-    let Some(relative) = complex
-        .get_mut("children")
-        .and_then(Value::as_array_mut)
-        .and_then(|children| children.first_mut())
-        .and_then(Value::as_object_mut)
-    else {
-        return false;
-    };
-    let Some(selectors) = relative.get_mut("selectors").and_then(Value::as_array_mut) else {
-        return false;
-    };
-
-    selectors.insert(0, nth);
-    relative.insert("start".to_string(), start.clone());
-    complex.insert("start".to_string(), start.clone());
-    list_obj.insert("start".to_string(), start);
-    true
-}
-
-/// Find the `of` separator inside an `nth-*` argument, mirroring the tail of
-/// upstream's `REGEX_NTH_OF`: `\s+of(\s+|(?=[.#[*:&]))`.
-///
-/// Returns the byte offset in `arg` where the `Nth` value ends and the `of`
-/// selector begins — the same position for both, since upstream's greedy `\s+`
-/// puts any whitespace after `of` inside the value.
-///
-/// `of` must be *preceded* by whitespace, or it would be part of the `<an+b>`
-/// dimension token (`2nof` is a single token). It does not need to be
-/// *followed* by whitespace: a `.`, `#`, `[`, `*`, `:` or `&` already ends the
-/// identifier, and minifiers rely on that to drop the space.
-fn find_nth_of(arg: &str) -> Option<usize> {
-    let bytes = arg.as_bytes();
-    let mut i = 0;
-
-    while let Some(rel) = memmem::find(&bytes[i..], b"of") {
-        let at = i + rel;
-
-        if at > 0 && bytes[at - 1].is_ascii_whitespace() {
-            let after = at + 2;
-            let rest = &arg[after..];
-            let ws_len = rest.len() - rest.trim_start_ws().len();
-
-            if ws_len > 0 {
-                return Some(after + ws_len);
-            }
-            if matches!(
-                bytes.get(after),
-                Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&')
-            ) {
-                return Some(after);
-            }
-        }
-
-        i = at + 2;
-    }
-
-    None
 }
 
 /// Read a CSS identifier starting at `*index` in `source`, decoding escape

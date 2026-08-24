@@ -875,45 +875,6 @@ impl<'a> Parser<'a> {
     /// `` ` ``) is at `self.index`. Advances `self.index` past the closing quote.
     /// Handles backslash escapes and, for template literals, balanced `${ … }`
     /// interpolations so their braces aren't miscounted by header scanners.
-    /// Upstream's each-header reader allows only WHITESPACE between the item
-    /// pattern (or index identifier) and the next delimiter — a comment there
-    /// is `expected_token` / `expected_pattern` / `expected_identifier`, not
-    /// part of the pattern (#3057). Returns the absolute position of a comment
-    /// sitting before the first or after the last code byte of `segment`.
-    fn each_segment_comment(segment: &str, base: usize) -> Option<(bool, usize)> {
-        use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
-        let bytes = segment.as_bytes();
-        let mut first_code = None;
-        let mut last_code = None;
-        for (i, b) in code_bytes(bytes) {
-            if !(b as char).is_ascii_whitespace() {
-                if first_code.is_none() {
-                    first_code = Some(i);
-                }
-                last_code = Some(i);
-            }
-        }
-        // Only a comment START counts: non-comment junk fails the pattern parse
-        // on both sides anyway.
-        let is_comment_start =
-            |i: usize| bytes[i] == b'/' && matches!(bytes.get(i + 1), Some(b'/') | Some(b'*'));
-        let first_raw = bytes.iter().position(|b| !b.is_ascii_whitespace());
-        match (first_raw, first_code) {
-            (Some(r), Some(c)) if r < c && is_comment_start(r) => return Some((true, base + r)),
-            (Some(r), None) if is_comment_start(r) => return Some((true, base + r)),
-            _ => {}
-        }
-        if let Some(last) = last_code {
-            let tail = &bytes[last + 1..];
-            if let Some(off) = tail.iter().position(|b| !b.is_ascii_whitespace())
-                && is_comment_start(last + 1 + off)
-            {
-                return Some((false, base + last + 1 + off));
-            }
-        }
-        None
-    }
-
     /// Step over a regex literal from its opening `/`. A `/` inside a character
     /// class does not close it, which is the one rule a quote scan does not have.
     fn skip_header_regex(&mut self) {
@@ -3030,48 +2991,6 @@ pub(crate) fn await_head_parse_error(
         check_js_parse_error_with_pos(head, ts).unwrap_or((message, head.trim_end_ws().len()));
     let at = start + pos;
     crate::error::ParseError::svelte("js_parse_error", message, (at, at))
-}
-
-/// Byte offset just past the binding pattern at the start of `content` and the
-/// whitespace after it — where upstream's `read_pattern` + `allow_whitespace`
-/// leave the parser, and so where a missing `=` is reported.
-fn pattern_extent(content: &str) -> usize {
-    let bytes = content.as_bytes();
-    let mut i = content.len() - content.trim_start_ws().len();
-    match bytes.get(i) {
-        Some(&open @ (b'{' | b'[')) => {
-            let close = if open == b'{' { b'}' } else { b']' };
-            let mut depth = 0usize;
-            while i < bytes.len() {
-                let c = bytes[i];
-                i += 1;
-                if c == open {
-                    depth += 1;
-                } else if c == close {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
-                }
-            }
-        }
-        _ => {
-            while let Some(c) = content[i..].chars().next() {
-                if c.is_alphanumeric() || c == '_' || c == '$' {
-                    i += c.len_utf8();
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-    let rest = content[i..].trim_start_ws();
-    // A TypeScript annotation is part of the pattern, and with no `=` in the
-    // tag at all it runs to the end.
-    if rest.starts_with(':') {
-        return content.len();
-    }
-    content.len() - rest.len()
 }
 
 /// Whether `s` contains a `//` or `/*` comment opener. A `/` inside a string or

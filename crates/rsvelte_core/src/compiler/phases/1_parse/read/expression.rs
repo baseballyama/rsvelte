@@ -1722,21 +1722,6 @@ pub fn parse_expression_with_end<'a>(
     Ok(create_invalid_identifier(offset, end, line_offsets))
 }
 
-/// Wrap a template expression's source text in `(` … `)` so OXC parses it as an
-/// expression rather than a program.
-///
-/// The newline before the closing paren restores what the caller's
-/// whitespace-trim removed: upstream parses in place, where a trailing `//`
-/// comment is still terminated by the template's own newline.
-fn wrap_in_parens(content: &str) -> String {
-    let mut wrapped = String::with_capacity(content.len() + 3);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push('\n');
-    wrapped.push(')');
-    wrapped
-}
-
 /// The `SourceType` a template expression is parsed with. Upstream picks the
 /// acorn variant once per component from `parser.ts`, so a component with no
 /// `lang="ts"` script never reaches the TypeScript grammar.
