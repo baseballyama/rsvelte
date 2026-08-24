@@ -5491,6 +5491,9 @@ fn typed_has_reactive_state(
         // Serializes to a bare JSON `null`, which the JSON walk rejects before
         // it reads a type.
         JsNode::Null => Some(false),
+        // `this` is a pure, non-reactive leaf; a member read rooted at it is
+        // therefore governed by the property expression alone.
+        JsNode::ThisExpression { .. } => Some(false),
         JsNode::MemberExpression {
             object,
             property,
@@ -5981,7 +5984,7 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
 
     match expr_type {
         "Literal" | "BooleanLiteral" | "NumericLiteral" | "StringLiteral" | "NullLiteral"
-        | "BigIntLiteral" | "RegExpLiteral" => true,
+        | "BigIntLiteral" | "RegExpLiteral" | "ThisExpression" => true,
         "Identifier" => {
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
                 // Rune identifiers ($effect, $state, etc.) are globals with no scope
@@ -6065,7 +6068,7 @@ fn typed_is_pure(
     use crate::ast::typed_expr::JsNode;
 
     match node {
-        JsNode::Literal { .. } | JsNode::Null => true,
+        JsNode::Literal { .. } | JsNode::Null | JsNode::ThisExpression { .. } => true,
         JsNode::Identifier { name, .. } => {
             context.state.get_binding(name.as_str()).is_none()
                 && !context.state.transform.contains_key(name.as_str())
@@ -7392,8 +7395,7 @@ mod tests {
             ("[konst, konst]", false),
             ("[, count]", true),
             ("[...konst]", true),
-            // `this` parses as an ordinary identifier, so this is a plain
-            // member access on a name with no binding.
+            // `this` is a pure, non-reactive member base.
             ("this.foo", false),
             // Shapes the typed walk deliberately does NOT answer — these reach
             // the JSON fallback, so they agree by construction.

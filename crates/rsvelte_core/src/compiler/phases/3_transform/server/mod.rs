@@ -418,6 +418,49 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
     out
 }
 
+/// Dev lowering for a module's `$inspect(...)`, matching the server
+/// `CallExpression` visitor at every expression depth.
+fn lower_module_dev_inspect(source: &str) -> String {
+    use super::client::find_matching_paren;
+    use super::shared::js_scan::find_code;
+
+    let mut result = source.to_string();
+    while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+        let args_start = pos + b"$inspect(".len();
+        let Some(args_len) = find_matching_paren(&result[args_start..]) else {
+            break;
+        };
+        let args = result[args_start..args_start + args_len].to_string();
+        let after_call = args_start + args_len + 1;
+        let (end, replacement) = if result[after_call..].trim_start().starts_with(".with(") {
+            let with_offset = memmem::find(&result.as_bytes()[after_call..], b".with(").unwrap();
+            let fn_start = after_call + with_offset + b".with(".len();
+            let Some(fn_len) = find_matching_paren(&result[fn_start..]) else {
+                break;
+            };
+            let inspector = &result[fn_start..fn_start + fn_len];
+            let tail = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!(", {args}")
+            };
+            (
+                fn_start + fn_len + 1,
+                format!("({inspector})('init'{tail})"),
+            )
+        } else {
+            let head = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{args}, ")
+            };
+            (after_call, format!("console.log('$inspect(', {head}')')"))
+        };
+        result = format!("{}{}{}", &result[..pos], replacement, &result[end..]);
+    }
+    result
+}
+
 /// Strip $effect and $effect.root blocks from source code.
 /// In SSR, effects don't run, so they should be removed or replaced with no-ops.
 /// - `$effect.root(() => { ... })` -> `() => {}` (returns a no-op cleanup function)

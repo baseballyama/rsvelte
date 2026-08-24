@@ -96,7 +96,8 @@ use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    after_keyword, after_keywords, contains_identifier, find_rune_code, is_ident_byte, skip_opaque,
+    after_keyword, after_keywords, contains_identifier, find_code, find_rune_code, is_ident_byte,
+    skip_opaque,
 };
 use compact_str::CompactString;
 use memchr::memmem;
