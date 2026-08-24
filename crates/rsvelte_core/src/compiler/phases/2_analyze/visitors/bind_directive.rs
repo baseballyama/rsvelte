@@ -56,79 +56,8 @@ fn visit_common(
     super::shared::attribute::record_assign_exempt_expression(context, &directive.expression, true);
 
     // Handle getter/setter syntax (SequenceExpression)
-    if directive.expression.node_type() == Some("SequenceExpression") {
-        if directive.name == "group" {
-            return Err(errors::bind_group_invalid_expression().at(directive.start, directive.end));
-        }
-
-        // Check for invalid parentheses in the binding expression, ignoring any
-        // '(' that sits inside a comment between the opening `{` and the
-        // expression. Comment regions are detected directly from the source
-        // (scanning `/* … */` and `// …`) rather than from the expression's
-        // `leadingComments` JSON — comment capture is off on the compile path,
-        // so the typed expression carries no comment metadata here; a source
-        // scan is the robust source of truth.
-        if let Some(start) = directive.expression.start() {
-            let start_usize = start as usize;
-            let source_bytes = context.analysis.source.as_bytes();
-            let mut i = start_usize;
-            while i > 0 && source_bytes.get(i.saturating_sub(1)) != Some(&b'{') {
-                i -= 1;
-            }
-
-            // Scan from just after `{` to the expression start, tracking comment
-            // state so parens inside comments are ignored.
-            let mut pos = i;
-            let mut found_invalid_paren = false;
-            while pos < start_usize {
-                match source_bytes.get(pos) {
-                    Some(&b'/') if source_bytes.get(pos + 1) == Some(&b'*') => {
-                        pos += 2;
-                        while pos < start_usize
-                            && !(source_bytes.get(pos) == Some(&b'*')
-                                && source_bytes.get(pos + 1) == Some(&b'/'))
-                        {
-                            pos += 1;
-                        }
-                        pos += 2;
-                    }
-                    Some(&b'/') if source_bytes.get(pos + 1) == Some(&b'/') => {
-                        pos += 2;
-                        while pos < start_usize && source_bytes.get(pos) != Some(&b'\n') {
-                            pos += 1;
-                        }
-                    }
-                    Some(&b'(') => {
-                        found_invalid_paren = true;
-                        break;
-                    }
-                    _ => pos += 1,
-                }
-            }
-
-            if found_invalid_paren {
-                return Err(AnalysisError::validation_at(
-                    "bind_invalid_parens",
-                    format!(
-                        "bind:{} cannot have parentheses around the expression",
-                        directive.name
-                    ),
-                    directive.start,
-                    directive.end,
-                ));
-            }
-        }
-
-        // Validate that sequence expression has exactly 2 expressions (getter and setter)
-        {
-            let node = directive.expression.as_node();
-            let expressions = node.expressions();
-            let arena = context.parse_arena;
-            let expr_slice = arena.get_js_children(expressions);
-            if !expr_slice.is_empty() && expr_slice.len() != 2 {
-                return Err(errors::bind_invalid_expression().at(directive.start, directive.end));
-            }
-        }
+    if is_get_set_pair(directive) {
+        validate_get_set_pair(directive, context)?;
 
         // Mark subtree as dynamic
         // In full implementation: mark_subtree_dynamic(context.path)
@@ -137,20 +66,7 @@ fn visit_common(
         // This is important for cases like:
         //   bind:checked={()=>check, (v)=>{ check = v }}
         // where the setter contains an assignment that marks `check` as reassigned
-        {
-            let node = directive.expression.as_node();
-            let expressions = node.expressions();
-            let arena = context.parse_arena;
-            for expr in arena.get_js_children(expressions) {
-                // Walk the expression to track mutations (e.g., assignments in setters).
-                // Use typed dispatch to skip the `to_value()` materialization.
-                super::script::walk_js_node_typed(expr, context)?;
-            }
-        }
-
-        // Check for await in the expression
-        // TODO: Check node.metadata.expression.has_await
-        // if has_await { return Err(errors::illegal_await_expression()); }
+        walk_get_set_pair(directive, context)?;
 
         return Ok(());
     }
@@ -256,12 +172,156 @@ fn visit_common(
     if directive.name == "this" {
         context.in_bind_this = true;
     }
-    super::script::walk_expression(&directive.expression, context)?;
+    let result = walk_bind_expression(directive, context);
     context.in_bind_this = prev_in_bind_this;
+    result
+}
 
-    // TODO: Check for await in expression
-    // if node.metadata.expression.has_await { return Err(errors::illegal_await_expression()); }
+/// Whether the directive uses the `bind:x={get, set}` pair form.
+pub(super) fn is_get_set_pair(directive: &BindDirective) -> bool {
+    directive.expression.node_type() == Some("SequenceExpression")
+}
 
+/// The `SequenceExpression` half of upstream's `BindDirective` visitor, which
+/// runs before it branches on the host. Every host must reach it: it is the only
+/// place `bind:group={get, set}` is rejected, and a component reached the
+/// getter/setter lowering without it.
+pub(super) fn validate_get_set_pair(
+    directive: &BindDirective,
+    context: &VisitorContext,
+) -> Result<(), AnalysisError> {
+    if directive.name == "group" {
+        return Err(errors::bind_group_invalid_expression().at(directive.start, directive.end));
+    }
+
+    // Check for invalid parentheses in the binding expression, ignoring any
+    // '(' that sits inside a comment between the opening `{` and the
+    // expression. Comment regions are detected directly from the source
+    // (scanning `/* … */` and `// …`) rather than from the expression's
+    // `leadingComments` JSON — comment capture is off on the compile path,
+    // so the typed expression carries no comment metadata here; a source
+    // scan is the robust source of truth.
+    if let Some(start) = directive.expression.start() {
+        let start_usize = start as usize;
+        let source_bytes = context.analysis.source.as_bytes();
+        let mut i = start_usize;
+        while i > 0 && source_bytes.get(i.saturating_sub(1)) != Some(&b'{') {
+            i -= 1;
+        }
+
+        // Scan from just after `{` to the expression start, tracking comment
+        // state so parens inside comments are ignored.
+        let mut pos = i;
+        let mut found_invalid_paren = false;
+        while pos < start_usize {
+            match source_bytes.get(pos) {
+                Some(&b'/') if source_bytes.get(pos + 1) == Some(&b'*') => {
+                    pos += 2;
+                    while pos < start_usize
+                        && !(source_bytes.get(pos) == Some(&b'*')
+                            && source_bytes.get(pos + 1) == Some(&b'/'))
+                    {
+                        pos += 1;
+                    }
+                    pos += 2;
+                }
+                Some(&b'/') if source_bytes.get(pos + 1) == Some(&b'/') => {
+                    pos += 2;
+                    while pos < start_usize && source_bytes.get(pos) != Some(&b'\n') {
+                        pos += 1;
+                    }
+                }
+                Some(&b'(') => {
+                    found_invalid_paren = true;
+                    break;
+                }
+                _ => pos += 1,
+            }
+        }
+
+        if found_invalid_paren {
+            return Err(AnalysisError::validation_at(
+                "bind_invalid_parens",
+                format!(
+                    "bind:{} cannot have parentheses around the expression",
+                    directive.name
+                ),
+                directive.start,
+                directive.end,
+            ));
+        }
+    }
+
+    // Validate that sequence expression has exactly 2 expressions (getter and setter)
+    let node = directive.expression.as_node();
+    let expr_slice = context.parse_arena.get_js_children(node.expressions());
+    if !expr_slice.is_empty() && expr_slice.len() != 2 {
+        return Err(errors::bind_invalid_expression().at(directive.start, directive.end));
+    }
+
+    Ok(())
+}
+
+/// Walk both halves of a `{get, set}` pair.
+///
+/// Upstream visits the get/set functions' **bodies** with `state.expression`
+/// installed, deliberately jumping across the function so an `await` in the body
+/// still suspends (`BindDirective.js` L157-170). `bind_await_depth` reproduces
+/// that without re-shaping the walk: a function-like half suspends one depth in.
+pub(super) fn walk_get_set_pair(
+    directive: &BindDirective,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let node = directive.expression.as_node();
+    let expressions = node.expressions();
+    let arena = context.parse_arena;
+    let saw_await = std::mem::replace(&mut context.bind_has_await, false);
+    let saved_depth = context.bind_await_depth;
+
+    let mut result = Ok(());
+    for expr in arena.get_js_children(expressions) {
+        let depth = if matches!(
+            expr,
+            JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. }
+        ) {
+            context.function_depth + 1
+        } else {
+            context.function_depth
+        };
+        context.bind_await_depth = Some(depth);
+        // Walk the expression to track mutations (e.g., assignments in setters).
+        // Use typed dispatch to skip the `to_value()` materialization.
+        result = super::script::walk_js_node_typed(expr, context);
+        if result.is_err() {
+            break;
+        }
+    }
+
+    context.bind_await_depth = saved_depth;
+    let has_await = std::mem::replace(&mut context.bind_has_await, saw_await);
+    result?;
+    if has_await {
+        return Err(errors::illegal_await_expression().at(directive.start, directive.end));
+    }
+    Ok(())
+}
+
+/// Walk a plain (non-pair) `bind:` expression the way upstream does — with
+/// `state.expression` installed, so an `await` that is not inside a nested
+/// function suspends.
+pub(super) fn walk_bind_expression(
+    directive: &BindDirective,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let saw_await = std::mem::replace(&mut context.bind_has_await, false);
+    let saved_depth = context.bind_await_depth.replace(context.function_depth);
+    let result = super::script::walk_expression(&directive.expression, context);
+    context.bind_await_depth = saved_depth;
+    let has_await = std::mem::replace(&mut context.bind_has_await, saw_await);
+    result?;
+    if has_await {
+        return Err(errors::illegal_await_expression().at(directive.start, directive.end));
+    }
     Ok(())
 }
 
@@ -402,9 +462,9 @@ pub(super) fn validate_bind_value_identifier(
 }
 
 /// Resolve the binding for an Identifier bind expression and run
-/// `validate_bind_value_identifier`. Used by the component visitor
-/// (`shared/component.rs`), which does not go through `visit_common`.
-pub(super) fn validate_bind_value_for_component(
+/// `validate_bind_value_identifier`. Used by the hosts that do not go through
+/// `visit_common` — a component, `<svelte:self>` and `<svelte:element>`.
+pub(super) fn validate_bind_value_target(
     directive: &BindDirective,
     context: &VisitorContext,
 ) -> Result<(), AnalysisError> {

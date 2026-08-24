@@ -8,11 +8,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value; the client fold must agree with it.
 use crate::compiler::phases::phase3_transform::server::evaluate::{
-    EvalValue, eval_binary, eval_unary, to_js_string, to_number,
+    EvalValue, eval_binary, eval_unary, to_js_string,
 };
 
 /// Local scope information for tracking shadowed variables and their init expression types.
@@ -539,6 +540,28 @@ pub fn apply_transforms_to_expression_with_shadowed(
         };
     }
 
+    // A source span sitting directly on an identifier travels *into* the read
+    // transform, because upstream stamps the location on the identifier node and
+    // builds the read wrapper (`foo()`, `$.get(foo)`) around it unlocated — so a
+    // map segment covers the name, not the whole generated call.
+    let spanned_identifier = expr;
+    let (expr, identifier_span) = match expr {
+        JsExpr::Spanned(inner, start, end)
+            if matches!(context.arena.get_expr(*inner), JsExpr::Identifier(_)) =>
+        {
+            (context.arena.get_expr(*inner), Some((*start, *end)))
+        }
+        other => (other, None),
+    };
+    let respan = |e: JsExpr| match identifier_span {
+        Some((start, end)) => JsExpr::Spanned(context.arena.alloc_expr(e), start, end),
+        None => e,
+    };
+    // An identifier no transform rewrote keeps the wrapper it arrived in, which
+    // costs no arena node: `respan` would allocate a second one holding the same
+    // span over a clone of the same identifier.
+    let unchanged = || spanned_identifier.clone();
+
     match expr {
         JsExpr::Identifier(name) => {
             // `Identifier.js` short-circuits on the NAME before any binding is
@@ -551,13 +574,19 @@ pub fn apply_transforms_to_expression_with_shadowed(
             }
             // Skip transforms for shadowed variables (function parameters, local vars)
             if local_scope.contains(name) {
-                return expr.clone();
+                return unchanged();
             }
             // Track each block index usage for proper callback parameter generation.
             // When the index variable is referenced during body traversal, we need
             // to include it in the render callback parameters.
+            // A `{@const}` / snippet parameter of the same name shadows the index,
+            // so this is not a read of it and the callback parameter stays off.
+            let shadowed = context
+                .state
+                .each_shadowing_names
+                .contains_key(name.as_str());
             let current_idx_name = context.state.each_index_name.as_deref();
-            if current_idx_name == Some(name.as_str()) {
+            if current_idx_name == Some(name.as_str()) && !shadowed {
                 context.state.each_index_used.set(true);
             }
             // Also check ancestor each-block index names (for nested each blocks).
@@ -569,7 +598,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // (still on the ancestor stack under the same name) must NOT be marked.
             for (ancestor_idx_name, ancestor_used_flag) in &context.state.ancestor_each_index_names
             {
-                if name == ancestor_idx_name && Some(ancestor_idx_name.as_str()) != current_idx_name
+                if name == ancestor_idx_name
+                    && Some(ancestor_idx_name.as_str()) != current_idx_name
+                    && !shadowed
                 {
                     ancestor_used_flag.set(true);
                 }
@@ -603,7 +634,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // Build collection[$$index] access
                 // Note: We do NOT set each_item_assign_or_mutate here - that's only for
                 // writes (assign/mutate). The read transform just redirects to arr[$$index].
-                return build_reassigned_item_read(each_ctx, &context.arena);
+                return respan(build_reassigned_item_read(each_ctx, &context.arena));
             }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name.as_str()) {
@@ -611,7 +642,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // is part of a destructured @const declaration, so reads become
                 // $.get(computed_const).identifier_name
                 if let Some(ref source_var) = transform.read_source {
-                    return b::member(
+                    return respan(b::member(
                         &context.arena,
                         b::svelte_call(
                             &context.arena,
@@ -619,7 +650,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             vec![JsExpr::Identifier(source_var.clone().into())],
                         ),
                         name.clone(),
-                    );
+                    ));
                 }
                 if let Some(read_fn) = transform.read {
                     // If this transform has a replacement_id, use it instead of the original name.
@@ -629,10 +660,10 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
-                    return read_fn(&context.arena, input_id);
+                    return read_fn(&context.arena, respan(input_id));
                 }
             }
-            expr.clone()
+            unchanged()
         }
 
         JsExpr::Member(member) => {
@@ -851,9 +882,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             apply_transforms_to_statement_with_shadowed(stmt, context, &new_scope)
                         })
                         .collect();
-                    JsArrowBody::Block(JsBlockStatement {
-                        body: transformed_body,
-                    })
+                    JsArrowBody::Block(JsBlockStatement::with_body(transformed_body))
                 }
             };
 
@@ -885,9 +914,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             JsExpr::Function(JsFunctionExpression {
                 id: func.id.clone(),
                 params: func.params.clone(),
-                body: JsBlockStatement {
-                    body: transformed_body,
-                },
+                body: JsBlockStatement::with_body(transformed_body),
                 is_async: func.is_async,
                 is_generator: func.is_generator,
             })
@@ -1053,7 +1080,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         local_scope,
                     );
 
-                let assigned = assign_fn(
+                return assign_fn(
+                    transform,
                     &context.arena,
                     JsExpr::Identifier(name.clone()),
                     final_value,
@@ -1322,7 +1350,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    let mutated = mutate_fn(&context.arena, mutate_target, full_assignment);
+                    let mutated =
+                        mutate_fn(transform, &context.arena, mutate_target, full_assignment);
 
                     if is_store_sub {
                         return resolve_store_source_arg(mutated, name.as_str(), context);
@@ -1422,6 +1451,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 && let Some(update_fn) = transform.update
             {
                 return update_fn(
+                    transform,
                     &context.arena,
                     update.operator,
                     JsExpr::Identifier(name.clone()),
@@ -1556,7 +1586,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    return mutate_fn(&context.arena, mutate_target, full_update);
+                    return mutate_fn(transform, &context.arena, mutate_target, full_update);
                 }
             }
 
@@ -1878,8 +1908,8 @@ fn apply_transforms_to_class_member(
                 value: JsFunctionExpression {
                     id: method.value.id.clone(),
                     params: method.value.params.clone(),
-                    body: JsBlockStatement {
-                        body: method
+                    body: JsBlockStatement::with_body(
+                        method
                             .value
                             .body
                             .body
@@ -1892,7 +1922,7 @@ fn apply_transforms_to_class_member(
                                 )
                             })
                             .collect(),
-                    },
+                    ),
                     is_async: method.value.is_async,
                     is_generator: method.value.is_generator,
                 },
@@ -1918,13 +1948,13 @@ fn apply_transforms_to_class_member(
         JsClassMember::StaticBlock(block) => {
             let mut block_scope = local_scope.clone();
             register_block_local_vars(&block.body, &context.arena, &mut block_scope);
-            JsClassMember::StaticBlock(JsBlockStatement {
-                body: block
+            JsClassMember::StaticBlock(JsBlockStatement::with_body(
+                block
                     .body
                     .iter()
                     .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
                     .collect(),
-            })
+            ))
         }
     }
 }
@@ -2005,9 +2035,7 @@ fn apply_transforms_to_statement_with_shadowed(
                 .iter()
                 .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
                 .collect();
-            JsStatement::Block(JsBlockStatement {
-                body: transformed_body,
-            })
+            JsStatement::Block(JsBlockStatement::with_body(transformed_body))
         }
 
         JsStatement::For(for_stmt) => {
@@ -2165,9 +2193,9 @@ fn apply_transforms_to_statement_with_shadowed(
         ),
 
         JsStatement::Try(try_stmt) => {
-            let transformed_block = JsBlockStatement {
-                body: try_stmt.block.body.iter().map(transform_stmt).collect(),
-            };
+            let transformed_block = JsBlockStatement::with_body(
+                try_stmt.block.body.iter().map(transform_stmt).collect(),
+            );
             let transformed_handler = try_stmt.handler.as_ref().map(|handler| {
                 // The catch parameter shadows outer transforms
                 let mut catch_scope = local_scope.clone();
@@ -2176,8 +2204,8 @@ fn apply_transforms_to_statement_with_shadowed(
                 }
                 JsCatchClause {
                     param: handler.param.clone(),
-                    body: JsBlockStatement {
-                        body: handler
+                    body: JsBlockStatement::with_body(
+                        handler
                             .body
                             .body
                             .iter()
@@ -2189,16 +2217,12 @@ fn apply_transforms_to_statement_with_shadowed(
                                 )
                             })
                             .collect(),
-                    },
+                    ),
                 }
             });
-            let transformed_finalizer =
-                try_stmt
-                    .finalizer
-                    .as_ref()
-                    .map(|finalizer| JsBlockStatement {
-                        body: finalizer.body.iter().map(transform_stmt).collect(),
-                    });
+            let transformed_finalizer = try_stmt.finalizer.as_ref().map(|finalizer| {
+                JsBlockStatement::with_body(finalizer.body.iter().map(transform_stmt).collect())
+            });
             JsStatement::Try(JsTryStatement {
                 block: transformed_block,
                 handler: transformed_handler,
@@ -2260,14 +2284,14 @@ fn apply_transforms_to_statement_with_shadowed(
                 func_scope.vars.insert(id.to_string(), None);
             }
             register_block_local_vars(&func_decl.body.body, &context.arena, &mut func_scope);
-            let transformed_body = JsBlockStatement {
-                body: func_decl
+            let transformed_body = JsBlockStatement::with_body(
+                func_decl
                     .body
                     .body
                     .iter()
                     .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &func_scope))
                     .collect(),
-            };
+            );
             JsStatement::FunctionDeclaration(JsFunctionDeclaration {
                 id: func_decl.id.clone(),
                 params: func_decl.params.clone(),
@@ -3361,6 +3385,21 @@ pub fn build_render_statement_with_memoizer(
 /// # Returns
 ///
 /// Returns a member expression or identifier.
+/// Upstream lowercases an HTML element/attribute name with JS `toLowerCase`,
+/// which is not limited to ASCII; only the no-op fast path is.
+pub fn html_lowercase(name: &str) -> String {
+    let needs_lowering = if name.is_ascii() {
+        name.bytes().any(|b| b.is_ascii_uppercase())
+    } else {
+        name.chars().any(|c| c.to_lowercase().next() != Some(c))
+    };
+    if needs_lowering {
+        name.to_lowercase()
+    } else {
+        name.to_string()
+    }
+}
+
 pub fn parse_directive_name(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     name: &str,
@@ -3391,23 +3430,6 @@ pub fn parse_directive_name(
     }
 
     expression
-}
-
-/// Check if a string is a valid JavaScript identifier.
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-
-    // First character must be a letter, underscore, or dollar sign
-    let first_char = s.chars().next().unwrap();
-    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
-        return false;
-    }
-
-    // Remaining characters must be alphanumeric, underscore, or dollar sign
-    s.chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 /// Result of building a template chunk.
@@ -3641,7 +3663,9 @@ pub fn build_template_chunk(
 
 /// Collect identifiers from an AST Expression for blocker map checking.
 /// This walks the JSON AST to find all Identifier nodes.
-fn collect_expression_identifiers_for_blockers(expr: &crate::ast::js::Expression) -> Vec<String> {
+pub(crate) fn collect_expression_identifiers_for_blockers(
+    expr: &crate::ast::js::Expression,
+) -> Vec<String> {
     let mut names = Vec::new();
     let val = expr.as_json();
     collect_expr_ids_recursive(val, &mut names);
@@ -4243,6 +4267,22 @@ thread_local! {
     static INITIAL_EVAL_DEPTH: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
 }
 
+/// `get_literal_value_json` as `scope.evaluate` reaches it from a BINDING's
+/// initializer, where upstream memoizes nothing and so never consults
+/// `has_call` — only the template expression itself is memoized first.
+fn fold_binding_initializer(
+    jv: &serde_json::Value,
+    context: &ComponentContext,
+) -> Option<EvalValue> {
+    if INITIAL_EVAL_DEPTH.with(|d| d.get()) >= MAX_INITIAL_EVAL_DEPTH {
+        return None;
+    }
+    INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
+    let folded = get_literal_value_json(jv, context);
+    INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
+    folded
+}
+
 /// Handle complex expression types for get_literal_value that need JSON access.
 fn get_literal_value_complex(
     expr_type: &str,
@@ -4266,88 +4306,42 @@ fn get_literal_value_complex(
             }
         }
         "CallExpression" => {
-            // Handle pure Math functions with constant arguments
-            let callee = obj.get("callee").and_then(|v| v.as_object())?;
-            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+            let callee = obj.get("callee")?;
+            let args = obj.get("arguments").and_then(|a| a.as_array())?;
+            let (base, keypath) = static_keypath_json(callee)?;
 
-            if callee_type == "MemberExpression" {
-                let obj_node = callee.get("object").and_then(|o| o.as_object())?;
-                let prop_node = callee.get("property").and_then(|p| p.as_object())?;
-
-                let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
-                let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
-                let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
-
-                if obj_type == "Identifier" && obj_name == "Math" {
-                    let args = obj.get("arguments").and_then(|a| a.as_array())?;
-
-                    // NOTE: a `Math.*(…)` whose argument references a runtime-reactive
-                    // State/RawState binding has already been rejected by the top-level
-                    // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
-                    // adds every binding reference to `expression.dependencies`, so a
-                    // pure-callee call with such an argument still gets `has_call = true`).
-                    // Only genuinely-constant argument folds reach this point.
-
-                    // Evaluate all arguments
-                    let mut arg_values: Vec<f64> = Vec::new();
-                    for arg in args {
-                        let arg_val = get_literal_value_json(arg, context)?;
-                        arg_values.push(to_number(&arg_val)?);
-                    }
-
-                    let result = match prop_name {
-                        "max" if !arg_values.is_empty() => {
-                            arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-                        }
-                        "min" if !arg_values.is_empty() => {
-                            arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
-                        }
-                        "floor" if arg_values.len() == 1 => arg_values[0].floor(),
-                        "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
-                        "round" if arg_values.len() == 1 => arg_values[0].round(),
-                        "abs" if arg_values.len() == 1 => arg_values[0].abs(),
-                        "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
-                        "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
-                        _ => return None,
-                    };
-
-                    return Some(EvalValue::Num(result));
-                }
-
-                // Fix C: $state.raw(arg) — MemberExpression callee with object=$state, property=raw
-                if obj_type == "Identifier"
-                    && obj_name == "$state"
-                    && prop_name == "raw"
-                    && is_rune_callee(obj_name, context)
-                {
-                    let args = obj.get("arguments").and_then(|a| a.as_array());
-                    if let Some(args) = args
-                        && let Some(first_arg) = args.first()
-                    {
-                        return get_literal_value_json(first_arg, context);
-                    }
-                    return Some(EvalValue::Undefined); // no arg → undefined
-                }
+            // Mirrors upstream scope.js lines 465-481: a rune call evaluates to
+            // its single argument. `$derived.by` takes a thunk, so it is not one.
+            if matches!(keypath.as_str(), "$state" | "$state.raw" | "$derived")
+                && is_rune_callee(&base, context)
+            {
+                return match args.first() {
+                    Some(first_arg) => get_literal_value_json(first_arg, context),
+                    None => Some(EvalValue::Undefined),
+                };
             }
 
-            // Fix C: $state(arg) / $derived(arg) — Identifier callee
-            // Mirrors upstream scope.js lines 465-481: recurse into the single argument.
-            let callee = obj.get("callee").and_then(|v| v.as_object())?;
-            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
-            if callee_type == "Identifier" {
-                let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                if matches!(rune_name, "$state" | "$derived") && is_rune_callee(rune_name, context)
-                {
-                    let args = obj.get("arguments").and_then(|a| a.as_array());
-                    if let Some(args) = args
-                        && let Some(first_arg) = args.first()
-                    {
-                        return get_literal_value_json(first_arg, context);
-                    }
-                    return Some(EvalValue::Undefined); // no arg → undefined
-                }
+            // A shadowed name is not the global (`get_global_keypath`).
+            if context.state.get_binding(&base).is_some() {
+                return None;
             }
-            None
+
+            // NOTE: a global call whose argument references a runtime-reactive
+            // State/RawState binding has already been rejected by the top-level
+            // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
+            // adds every binding reference to `expression.dependencies`, so a
+            // pure-callee call with such an argument still gets `has_call = true`).
+            // Only genuinely-constant argument folds reach this point.
+            let mut arg_values = Vec::with_capacity(args.len());
+            for arg in args {
+                arg_values.push(get_literal_value_json(arg, context)?);
+            }
+            known(
+                crate::compiler::phases::phase3_transform::server::evaluate::eval_known_global_call(
+                    &keypath,
+                    &arg_values,
+                )?,
+            )
         }
         "BinaryExpression" => {
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
@@ -4419,62 +4413,15 @@ pub(crate) fn js_expr_keypath(
     }
 }
 
-/// True for the global function keypaths whose results upstream `scope.evaluate`
-/// types as NUMBER or STRING (always defined): every `Math.*`, `Number` /
-/// `Number.*`, `String` / `String.from*`, and `BigInt`. Mirrors the `globals`
-/// table in `2-analyze/scope.js`.
-pub(crate) fn is_known_defined_global_call(keypath: &str) -> bool {
-    // Upstream's `globals` table, name for name: one outside it evaluates to
-    // UNKNOWN, so a near-miss like `Math.nope()` must not read as known.
-    matches!(
-        keypath,
-        "BigInt"
-            | "Number"
-            | "Number.isInteger"
-            | "Number.isFinite"
-            | "Number.isNaN"
-            | "Number.isSafeInteger"
-            | "Number.parseFloat"
-            | "Number.parseInt"
-            | "String"
-            | "String.fromCharCode"
-            | "String.fromCodePoint"
-            | "Math.min"
-            | "Math.max"
-            | "Math.random"
-            | "Math.floor"
-            | "Math.f16round"
-            | "Math.round"
-            | "Math.abs"
-            | "Math.acos"
-            | "Math.asin"
-            | "Math.atan"
-            | "Math.atan2"
-            | "Math.ceil"
-            | "Math.cos"
-            | "Math.sin"
-            | "Math.tan"
-            | "Math.exp"
-            | "Math.log"
-            | "Math.pow"
-            | "Math.sqrt"
-            | "Math.clz32"
-            | "Math.imul"
-            | "Math.sign"
-            | "Math.log10"
-            | "Math.log2"
-            | "Math.log1p"
-            | "Math.expm1"
-            | "Math.cosh"
-            | "Math.sinh"
-            | "Math.tanh"
-            | "Math.acosh"
-            | "Math.asinh"
-            | "Math.atanh"
-            | "Math.trunc"
-            | "Math.fround"
-            | "Math.cbrt"
-    )
+pub(crate) use crate::compiler::phases::phase2_analyze::scope::is_known_defined_global_call;
+/// Does the call carry a `...spread` argument? Upstream's `globals` branch
+/// requires it not to.
+pub(crate) fn js_call_has_spread(
+    call: &crate::compiler::phases::phase3_transform::js_ast::nodes::JsCallExpression,
+) -> bool {
+    call.arguments
+        .iter()
+        .any(|arg| matches!(arg, JsExpr::Spread(_)))
 }
 
 /// Upstream `scope.evaluate`'s `global_constants` table.
@@ -4519,7 +4466,9 @@ pub(crate) fn is_js_expr_defined(
             // global keypath only matches the real globals.)
             js_expr_keypath(arena.get_expr(call.callee), arena)
                 .as_deref()
-                .is_some_and(is_known_defined_global_call)
+                .is_some_and(|keypath| {
+                    is_known_defined_global_call(keypath, js_call_has_spread(call))
+                })
         }
         JsExpr::TemplateLiteral(_) => true, // Always a string
         JsExpr::Binary(_) => true,          // Always produces a result
@@ -4768,7 +4717,17 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
             obj.get("callee")
                 .and_then(json_keypath)
                 .as_deref()
-                .is_some_and(is_known_defined_global_call)
+                .is_some_and(|keypath| {
+                    let has_spread = obj
+                        .get("arguments")
+                        .and_then(|args| args.as_array())
+                        .is_some_and(|args| {
+                            args.iter().any(|arg| {
+                                arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
+                            })
+                        });
+                    is_known_defined_global_call(keypath, has_spread)
+                })
         }
         "MemberExpression" => {
             // Member access could be undefined; can't guarantee defined.
@@ -4939,6 +4898,19 @@ fn analyze_props_json(
                 }
             }
         }
+        "NewExpression" => {
+            // Upstream's `NewExpression` visitor only calls `context.next()`, so a
+            // `new` contributes no flag of its own — every flag comes from the
+            // callee and the arguments.
+            if let Some(callee) = obj.get("callee") {
+                analyze_props_json(callee, context, props);
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    analyze_props_json(arg, context, props);
+                }
+            }
+        }
         "AwaitExpression" => {
             // has_await: always true
             props.has_await = true;
@@ -5062,6 +5034,22 @@ fn analyze_props_json(
         | "BigIntLiteral" | "RegExpLiteral" => {
             // No flags to set for literals
         }
+        "MetaProperty" | "ThisExpression" => {
+            // Leaves upstream: it has no visitor for either, and `is_reference`
+            // rejects both halves of `import.meta`, so nothing here is a read.
+            // A MEMBER of one is still dynamic — that is the `MemberExpression`
+            // arm, whose leftmost object is then not an `Identifier`.
+        }
+        "ImportExpression" => {
+            // Upstream has no visitor either, so `import(x)` is not a call —
+            // only what it is given can be reactive.
+            if let Some(source) = obj.get("source") {
+                analyze_props_json(source, context, props);
+            }
+            if let Some(options) = obj.get("options") {
+                analyze_props_json(options, context, props);
+            }
+        }
         "ArrowFunctionExpression" | "FunctionExpression" => {
             // Function definitions don't affect these flags
         }
@@ -5170,10 +5158,15 @@ fn initial_is_non_reactive(binding: &Binding, context: &ComponentContext) -> boo
             return false;
         }
         d.set(d.get() + 1);
+        // The `has_call` bail in `get_literal_value_json` models upstream
+        // memoizing the TEMPLATE expression before evaluating it; an
+        // initializer is never memoized, so enter at a non-zero depth.
+        INITIAL_EVAL_DEPTH.with(|e| e.set(e.get() + 1));
         // `is_expression_known_json` is the proper compile-time-known check: it
         // returns false for calls / awaits / reactive reads, so a template with
         // an impure or reactive interpolation stays reactive (memoized).
         let known = is_expression_known_json(json, context);
+        INITIAL_EVAL_DEPTH.with(|e| e.set(e.get() - 1));
         d.set(d.get() - 1);
         known
     })
@@ -5246,12 +5239,17 @@ fn identifier_has_reactive_state(
     // `get_literal_value` each-shadow guard: an each ITEM is always reactive
     // (matching the `BindingKind::EachItem` rule below); an each INDEX uses
     // its analyzer-computed reactivity. Innermost context wins (rev()).
-    for c in context.state.each_binding_context.iter().rev() {
-        if c.item_name == name {
-            return true;
-        }
-        if !c.index_name.is_empty() && c.index_name == name {
-            return c.index_reactive;
+    //
+    // A `{@const}` or snippet parameter in the block being visited shadows the
+    // loop variable in the other direction, and this loop is keyed by name too.
+    if !context.state.each_shadowing_names.contains_key(name) {
+        for c in context.state.each_binding_context.iter().rev() {
+            if c.item_name == name {
+                return true;
+            }
+            if !c.index_name.is_empty() && c.index_name == name {
+                return c.index_reactive;
+            }
         }
     }
 
@@ -5366,16 +5364,9 @@ fn identifier_has_reactive_state(
             if binding.reassigned || binding.mutated {
                 return true;
             }
-            // If the binding has a stored initial expression (the $derived argument),
-            // parse it as JSON and check if it can be evaluated at compile time.
-            // This approximates scope.evaluate().is_known from the official compiler.
-            if let Some(initial_json) = binding.initial_json() {
-                // Check if the expression is "known" (compile-time evaluable)
-                // If known, the derived value is effectively constant → not reactive
-                return !is_expression_known_json(initial_json, context);
-            }
-            // If no initial or couldn't parse, conservatively treat as reactive
-            return true;
+            // The stored `$derived` argument approximates scope.evaluate().is_known:
+            // a known value is effectively constant → not reactive.
+            return !is_binding_initial_known(binding, context);
         }
 
         // For Template bindings (@const tag), apply the same scope.evaluate()
@@ -5521,6 +5512,9 @@ fn typed_has_reactive_state(
         // Serializes to a bare JSON `null`, which the JSON walk rejects before
         // it reads a type.
         JsNode::Null => Some(false),
+        // `this` is a pure, non-reactive leaf; a member read rooted at it is
+        // therefore governed by the property expression alone.
+        JsNode::ThisExpression { .. } => Some(false),
         JsNode::MemberExpression {
             object,
             property,
@@ -5946,6 +5940,25 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // like `[...x.values()]`, whose result is unknown at compile time.
             true
         }
+        "MetaProperty" | "ThisExpression" => {
+            // Leaves upstream: `is_reference` rejects both halves of
+            // `import.meta`, and `this` is not a reference at all.
+            false
+        }
+        "ImportExpression" => {
+            // Not a call upstream — only its operands can be reactive.
+            if let Some(source) = obj.get("source")
+                && has_reactive_state_json(source, context)
+            {
+                return true;
+            }
+            if let Some(options) = obj.get("options")
+                && has_reactive_state_json(options, context)
+            {
+                return true;
+            }
+            false
+        }
         _ => {
             // Unknown expression type - conservatively assume reactive
             // (using set_text for a static expression is safe but slower,
@@ -5992,7 +6005,7 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
 
     match expr_type {
         "Literal" | "BooleanLiteral" | "NumericLiteral" | "StringLiteral" | "NullLiteral"
-        | "BigIntLiteral" | "RegExpLiteral" => true,
+        | "BigIntLiteral" | "RegExpLiteral" | "ThisExpression" => true,
         "Identifier" => {
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
                 // Rune identifiers ($effect, $state, etc.) are globals with no scope
@@ -6076,7 +6089,7 @@ fn typed_is_pure(
     use crate::ast::typed_expr::JsNode;
 
     match node {
-        JsNode::Literal { .. } | JsNode::Null => true,
+        JsNode::Literal { .. } | JsNode::Null | JsNode::ThisExpression { .. } => true,
         JsNode::Identifier { name, .. } => {
             context.state.get_binding(name.as_str()).is_none()
                 && !context.state.transform.contains_key(name.as_str())
@@ -6381,6 +6394,23 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             }
             false
         }
+        "NewExpression" => {
+            // A `new` is not itself a call upstream, but its callee and arguments
+            // are still walked, so `new Foo(bar())` does carry `has_call`.
+            if let Some(callee) = obj.get("callee")
+                && has_call_json(callee, context)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_call_json(arg, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
         "AssignmentExpression" => {
             if let Some(right) = obj.get("right") {
                 return has_call_json(right, context);
@@ -6414,7 +6444,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
 
     match expr_type {
         "MemberExpression" => true,
-        "CallExpression" => {
+        "CallExpression" | "NewExpression" => {
             if let Some(callee) = obj.get("callee")
                 && has_member_json(callee)
             {
@@ -6566,7 +6596,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
 
     match expr_type {
         "AwaitExpression" => true,
-        "CallExpression" => {
+        "CallExpression" | "NewExpression" => {
             if let Some(callee) = obj.get("callee")
                 && has_await_json(callee)
             {
@@ -6659,6 +6689,23 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         _ => false,
+    }
+}
+
+/// Is a binding's stored initializer a compile-time known value — upstream's
+/// `scope.evaluate(binding.initial).is_known`?
+///
+/// `Binding::initial` carries two encodings: the initializer node's JSON, or —
+/// when that initializer is a literal — the literal's own source text. A parse
+/// that does not yield an object is therefore the literal form, not a failure,
+/// and a literal is known by construction (#3228).
+fn is_binding_initial_known(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    context: &ComponentContext,
+) -> bool {
+    match binding.initial_json().filter(|value| value.is_object()) {
+        Some(json) => is_expression_known_json(json, context),
+        None => is_initial_value_literal_or_known(&binding.initial),
     }
 }
 
@@ -6831,11 +6878,11 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                         return false;
                     }
 
-                    // For Normal bindings: known if never updated with known initial
-                    // Functions are always "known" (they're defined)
-                    if binding.is_function() {
-                        return true;
-                    }
+                    // A function value is never `is_known` to upstream's
+                    // `scope.evaluate` — it recurses into the initializer and a
+                    // function expression falls through to `UNKNOWN`. Reading a
+                    // function is kept out of `has_state` by the separate
+                    // `!binding.is_function()` term, not by this one.
                     // A non-literal initializer lives in `init_expr_json`, and
                     // upstream's `scope.evaluate` recurses into the init node
                     // whatever its shape (`const b = `${a}y`` is known when `a` is).
@@ -6880,7 +6927,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
 
         // Upstream takes the chosen side when the left operand is known, so the
         // result is known whenever the folder can name it.
-        "LogicalExpression" => get_literal_value_json(json_value, context).is_some(),
+        "LogicalExpression" => fold_binding_initializer(json_value, context).is_some(),
 
         "ConditionalExpression" => {
             // Port of upstream scope.js ConditionalExpression case (lines 374-393):
@@ -6899,7 +6946,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                 return false;
             };
             // Try to fold the test to a constant via get_literal_value.
-            match get_literal_value_json(test, context).and_then(|v| v.truthy()) {
+            match fold_binding_initializer(test, context).and_then(|v| v.truthy()) {
                 Some(truthy) => {
                     // Test is a known constant — only the taken branch needs to be known.
                     if truthy {
@@ -6912,8 +6959,8 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     // Test is unknown — result is known only if both branches yield the
                     // SAME single compile-time value (mirrors upstream values.size === 1
                     // after adding both branches' values to the set).
-                    let c_val = get_literal_value_json(consequent, context);
-                    let a_val = get_literal_value_json(alternate, context);
+                    let c_val = fold_binding_initializer(consequent, context);
+                    let a_val = fold_binding_initializer(alternate, context);
                     match (c_val, a_val) {
                         (Some(c), Some(a)) => c.same(&a),
                         _ => false,
@@ -6984,7 +7031,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             // Upstream's `globals` table makes a pure global call over known
             // arguments known too (`Math.max(1, 2)`); the folder already knows
             // which, so ask it rather than keeping a second list.
-            get_literal_value_json(json_value, context).is_some()
+            fold_binding_initializer(json_value, context).is_some()
         }
 
         // Arrow/function expressions are NOT "known" in the scope.evaluate sense:
@@ -6996,11 +7043,10 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         // never reaches here.
         "ArrowFunctionExpression" | "FunctionExpression" => false,
 
-        // Member expressions are generally not known, EXCEPT a non-computed
-        // member of a pure global namespace whose members are compile-time
-        // constants — `Math.PI`, `Math.E`, `Number.MAX_VALUE`, etc. (mirrors the
-        // globals table in upstream `scope.evaluate`). This lets a derived like
-        // `$derived(2 * Math.PI * r)` fold to a known constant (no reactive deps).
+        // A member expression is known only when it is one of the eight
+        // `global_constants` keypaths upstream lists (`Math.PI`, `Math.E`, …);
+        // every other member evaluates to UNKNOWN there, `Number.MAX_VALUE`
+        // and a misspelt `Math.NOPE` included.
         "MemberExpression" => {
             if obj.get("computed").and_then(|c| c.as_bool()) == Some(true) {
                 return false;
@@ -7011,12 +7057,11 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             if object.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
                 return false;
             }
-            object
-                .get("name")
-                .and_then(|n| n.as_str())
-                .is_some_and(|name| {
-                    matches!(name, "Math" | "Number") && context.state.get_binding(name).is_none()
-                })
+            let Some(root) = object.get("name").and_then(|n| n.as_str()) else {
+                return false;
+            };
+            context.state.get_binding(root).is_none()
+                && json_keypath(json_value).is_some_and(|k| is_global_constant(&k))
         }
 
         // Default: not known
@@ -7371,8 +7416,7 @@ mod tests {
             ("[konst, konst]", false),
             ("[, count]", true),
             ("[...konst]", true),
-            // `this` parses as an ordinary identifier, so this is a plain
-            // member access on a name with no binding.
+            // `this` is a pure, non-reactive member base.
             ("this.foo", false),
             // Shapes the typed walk deliberately does NOT answer — these reach
             // the JSON fallback, so they agree by construction.
