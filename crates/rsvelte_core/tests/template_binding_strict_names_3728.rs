@@ -96,7 +96,7 @@ fn destructured_strict_names_are_rejected_in_every_pattern_host() {
 #[test]
 fn property_keys_and_ordinary_bindings_remain_legal() {
     for src in [
-        "{@const { arguments: value } = { arguments: 1 }}{value}",
+        "{#if true}{@const { arguments: value } = { arguments: 1 }}{value}{/if}",
         "{#each [{ eval: 1 }] as { eval: value }}{value}{/each}",
         "{#await promise then { arguments: value }}{value}{/await}",
         "{#each [1] as value, index}{value}{index}{/each}",
