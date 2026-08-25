@@ -9,8 +9,25 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_rune_code, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    find_rune_code_from, skip_opaque,
+};
+use crate::compiler::phases::phase3_transform::shared::rune_shadow::RuneShadows;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
+
+/// Find the next rune call whose base identifier does not resolve to a local
+/// declaration. The text changes after every removal, so `RuneShadows` caches
+/// by the current text and gives us positions in the same coordinate space.
+fn find_unbound_rune_code(script: &str, needle: &[u8], shadows: &mut RuneShadows) -> Option<usize> {
+    let mut from = 0;
+    loop {
+        let pos = find_rune_code_from(script.as_bytes(), needle, from)?;
+        if !shadows.is_bound(script, pos) {
+            return Some(pos);
+        }
+        from = pos + needle.len();
+    }
+}
 
 /// Does the code preceding a removed call demand an operand — i.e. was the call
 /// in a value position rather than a statement of its own? The last significant
@@ -37,7 +54,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     _exported_names: &[String],
     _proxy_vars: &[String],
     dev: bool,
-    _analysis: &ComponentAnalysis,
+    analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
     _read_only_props: &[(String, String)],
     pre_class_script: &str,
@@ -71,9 +88,14 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     let derived_is_func_param = !derived_is_store_sub
         && memmem::find(line.as_bytes(), b"$derived").is_some()
         && is_function_parameter_in_statement(line, "$derived");
-    let inspect_is_func_param = !inspect_is_store_sub
-        && memmem::find(line.as_bytes(), b"$inspect").is_some()
-        && is_function_parameter_in_statement(line, "$inspect");
+    // The production inspect removal is the last rune transform still on the
+    // statement-text path. Resolve its candidates with the same scope model as
+    // upstream's `get_rune`; a function/catch parameter, block local, loop
+    // binding or destructured local named `$inspect` is an ordinary value.
+    let mut inspect_shadows = RuneShadows::new(
+        !dev && !inspect_is_store_sub && memmem::find(line.as_bytes(), b"$inspect").is_some(),
+        analysis.is_typescript,
+    );
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {
@@ -203,8 +225,10 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // text trimming around the call site (leading tabs/spaces on the
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
-    if !dev && !inspect_is_store_sub && !inspect_is_func_param {
-        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
+    if !dev && !inspect_is_store_sub {
+        while let Some(pos) =
+            find_unbound_rune_code(&result, b"$inspect.trace(", &mut inspect_shadows)
+        {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
                 let mut end = trace_start + content_end + 1;
@@ -240,8 +264,8 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // and is awkward to do at the AST level.
     // The loop matters: a nested body can hold more than one, and a single
     // pass left the second `$inspect(...)` verbatim in the output.
-    if !dev && !inspect_is_store_sub && !inspect_is_func_param {
-        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
+    if !dev && !inspect_is_store_sub {
+        while let Some(pos) = find_unbound_rune_code(&result, b"$inspect(", &mut inspect_shadows) {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
             let inspect_start = pos + 9; // after "$inspect("

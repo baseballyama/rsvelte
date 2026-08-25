@@ -441,6 +441,13 @@ fn find_code_from(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
 /// accepts. The identifier-character test is the same rule one byte over:
 /// `a$state(` is a single identifier that merely ends in the rune's spelling.
 pub(crate) fn find_rune_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+    find_rune_code_from(bytes, needle, 0)
+}
+
+/// [`find_rune_code`], resuming the candidate search at `from` while still
+/// lexing from the beginning. Starting the lexer at `from` would lose whether
+/// that byte sits inside a string, comment, template or regex literal.
+pub(crate) fn find_rune_code_from(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     debug_assert!(
         !needle
             .iter()
@@ -449,6 +456,9 @@ pub(crate) fn find_rune_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
     );
     let mut candidates = memchr::memmem::find_iter(bytes, needle);
     let mut candidate = candidates.next()?;
+    while candidate < from {
+        candidate = candidates.next()?;
+    }
     let mut i = 0usize;
     let mut prev: Option<u8> = None;
     let mut before = PrevChars::default();
