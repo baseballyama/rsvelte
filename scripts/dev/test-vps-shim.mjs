@@ -118,6 +118,9 @@ await assertCompileError('compile() surfaces a shaped CompileError', () =>
 await assertCompileError('compileAsync() surfaces a shaped CompileError', () =>
 	r.compileAsync(invalidCompileSource, { filename: 'Invalid.svelte' }),
 );
+await assertCompileError('compileBuffers() surfaces a shaped CompileError', () =>
+	Promise.resolve(r.compileBuffers(invalidCompileSource, { filename: 'Invalid.svelte' })),
+);
 
 const asyncBatchInputs = [
 	{ source: compileSource, options: { filename: 'Foo.svelte', generate: 'client' } },

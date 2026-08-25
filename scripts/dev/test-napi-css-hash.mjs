@@ -126,6 +126,22 @@ assert(
 	typeMessage ?? 'no error thrown',
 );
 
+let asyncTypeMessage = null;
+try {
+	await napi.compileWithCssHash(
+		SRC,
+		{ ...OPTS, cssHash: 'not-a-function' },
+		() => 'fixed-hash',
+	);
+} catch (e) {
+	asyncTypeMessage = String(e?.message ?? e);
+}
+assert(
+	'compileWithCssHash validates a non-function cssHash instead of dropping it',
+	asyncTypeMessage != null && /cssHash should be a function/.test(asyncTypeMessage),
+	asyncTypeMessage ?? 'no error thrown',
+);
+
 const defaultResult = napi.compile(SRC, OPTS);
 assert(
 	'compile without cssHash is unaffected',

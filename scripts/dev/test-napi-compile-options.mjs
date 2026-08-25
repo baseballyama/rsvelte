@@ -580,6 +580,14 @@ assert(
 		JSON.stringify(Object.keys(defaultAst).sort()) === JSON.stringify(officialDefaultKeys),
 	`default ast keys ${JSON.stringify(defaultAst && Object.keys(defaultAst).sort())} vs official ${JSON.stringify(officialDefaultKeys)}`
 );
+const modernAstBuffers = napi.compileBuffers(MODERN_AST_SRC, {
+	filename: 'A.svelte',
+	modernAst: true,
+});
+assert(
+	'compileBuffers.modernAst: accepts the legal option while omitting AST from its binary result',
+	Buffer.isBuffer(modernAstBuffers.js.code) && modernAstBuffers.js.code.length > 0,
+);
 let modernAstEnvelopeError;
 try {
 	napi.compileEnvelope(MODERN_AST_SRC, { filename: 'A.svelte', modernAst: true });

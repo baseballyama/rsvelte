@@ -494,7 +494,9 @@ pub async fn napi_compile_with_css_hash(
     // options object is this same function — drop it instead of rejecting it the
     // way the synchronous entries do.
     let mut options = options;
-    if let Some(o) = options.as_mut() {
+    if let Some(o) = options.as_mut()
+        && matches!(o.inner.css_hash, Some(LenientScalar::Function))
+    {
         o.inner.css_hash = None;
     }
     // An `async` export's arguments must be `Send`; `Env` is not, so this is
@@ -2323,7 +2325,7 @@ pub fn napi_compile_buffers(
     options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_compile(Some(&env), options)?;
-    reject_modern_ast_for_binary_result(&opts, "compileBuffers")?;
+    let filename = opts.filename.clone();
     match rust_compile(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
             js: CompileBuffersJs {
@@ -2342,7 +2344,7 @@ pub fn napi_compile_buffers(
                 .collect::<napi::Result<Vec<_>>>()?,
             runes: result.metadata.runes,
         }),
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Err(e) => Err(compile_error(env, &source, filename.as_deref(), &e)),
     }
 }
 
@@ -2362,6 +2364,7 @@ pub fn napi_compile_module_buffers(
     options: Option<NapiModuleCompileOptionsArg>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_module_compile(Some(&env), options)?;
+    let filename = opts.filename.clone();
 
     match rust_compile_module(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
@@ -2373,7 +2376,7 @@ pub fn napi_compile_module_buffers(
             warnings: Vec::new(),
             runes: true,
         }),
-        Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
+        Err(e) => Err(compile_error(env, &source, filename.as_deref(), &e)),
     }
 }
 
