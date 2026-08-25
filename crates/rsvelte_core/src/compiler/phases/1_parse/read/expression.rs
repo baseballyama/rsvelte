@@ -8137,8 +8137,8 @@ fn convert_statement_for_program(
 
                     JsNode::from_value(Value::Object(class_obj))
                 }
-                oxc_ast::ast::ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {
-                    JsNode::Null
+                oxc_ast::ast::ExportDefaultDeclarationKind::TSInterfaceDeclaration(decl) => {
+                    convert_ts_interface_declaration_as_node(arena, decl, offset, line_offsets)
                 }
                 _ => {
                     if let Some(expr) = export_decl.declaration.as_expression() {
@@ -8723,6 +8723,12 @@ fn convert_statement_for_program(
                 loc,
             })
         }
+        oxc_ast::ast::Statement::TSTypeAliasDeclaration(decl) => Some(
+            convert_ts_type_alias_declaration_as_node(arena, decl, offset, line_offsets),
+        ),
+        oxc_ast::ast::Statement::TSInterfaceDeclaration(decl) => Some(
+            convert_ts_interface_declaration_as_node(arena, decl, offset, line_offsets),
+        ),
 
         // TypeScript module/namespace declarations - emit so remove_typescript_nodes can detect them
         oxc_ast::ast::Statement::TSExternalModuleDeclaration(module_decl) => {
@@ -8794,6 +8800,140 @@ fn convert_ts_namespace_as_node(
                 body: Some(body),
             }
         }
+    }
+}
+
+fn convert_ts_type_alias_declaration_as_node(
+    arena: &ParseArena,
+    decl: &oxc_ast::ast::TSTypeAliasDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + decl.span.start as usize;
+    let end = offset + decl.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("TSTypeAliasDeclaration".to_string()));
+    push_span_fields(&mut obj, start, end, line_offsets);
+    obj.set_field(
+        "id",
+        ts_identifier_value(
+            &decl.id.name,
+            offset + decl.id.span.start as usize,
+            offset + decl.id.span.end as usize,
+            line_offsets,
+        ),
+    );
+    obj.set_field(
+        "typeParameters",
+        decl.type_parameters
+            .as_ref()
+            .map_or(Value::Null, |parameters| {
+                convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets)
+            }),
+    );
+    obj.set_field(
+        "typeAnnotation",
+        convert_ts_type(arena, &decl.type_annotation, offset, line_offsets),
+    );
+    if decl.declare {
+        obj.set_field("declare", Value::Bool(true));
+    }
+    JsNode::TSTypeAliasDeclaration {
+        start: start as u32,
+        end: end as u32,
+        value: Box::new(Value::Object(obj)),
+    }
+}
+
+fn convert_ts_interface_declaration_as_node(
+    arena: &ParseArena,
+    decl: &oxc_ast::ast::TSInterfaceDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + decl.span.start as usize;
+    let end = offset + decl.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("TSInterfaceDeclaration".to_string()));
+    push_span_fields(&mut obj, start, end, line_offsets);
+    obj.set_field(
+        "id",
+        ts_identifier_value(
+            &decl.id.name,
+            offset + decl.id.span.start as usize,
+            offset + decl.id.span.end as usize,
+            line_offsets,
+        ),
+    );
+    obj.set_field(
+        "typeParameters",
+        decl.type_parameters
+            .as_ref()
+            .map_or(Value::Null, |parameters| {
+                convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets)
+            }),
+    );
+    // Interface heritage is uncommon in the comment residue, but keeping the
+    // expressions here makes the declaration structurally walkable rather than
+    // dropping the whole `extends` branch.
+    let extends = decl
+        .extends
+        .iter()
+        .map(|heritage| {
+            let mut heritage_obj = Map::new();
+            let heritage_start = offset + heritage.span.start as usize;
+            let heritage_end = offset + heritage.span.end as usize;
+            heritage_obj.set_field(
+                "type",
+                Value::String("TSExpressionWithTypeArguments".to_string()),
+            );
+            push_span_fields(
+                &mut heritage_obj,
+                heritage_start,
+                heritage_end,
+                line_offsets,
+            );
+            heritage_obj.set_field(
+                "expression",
+                convert_ts_type_name_adjusted(&heritage.type_name, offset, line_offsets),
+            );
+            if let Some(arguments) = &heritage.type_arguments {
+                heritage_obj.set_field(
+                    "typeParameters",
+                    convert_ts_type_param_instantiation(arena, arguments, offset, line_offsets),
+                );
+            }
+            Value::Object(heritage_obj)
+        })
+        .collect();
+    if !extends.is_empty() {
+        obj.set_field("extends", Value::Array(extends));
+    }
+
+    let body_start = offset + decl.body.span.start as usize;
+    let body_end = offset + decl.body.span.end as usize;
+    let mut body = Map::new();
+    body.set_field("type", Value::String("TSInterfaceBody".to_string()));
+    push_span_fields(&mut body, body_start, body_end, line_offsets);
+    body.set_field(
+        "body",
+        Value::Array(
+            decl.body
+                .body
+                .iter()
+                .map(|member| convert_ts_signature(arena, member, offset, line_offsets))
+                .collect(),
+        ),
+    );
+    obj.set_field("body", Value::Object(body));
+    if decl.declare {
+        obj.set_field("declare", Value::Bool(true));
+    }
+
+    JsNode::TSInterfaceDeclaration {
+        start: start as u32,
+        end: end as u32,
+        value: Box::new(Value::Object(obj)),
     }
 }
 
@@ -9071,6 +9211,12 @@ fn convert_declaration_for_program_as_node(
             offset,
             line_offsets,
         ),
+        Declaration::TSTypeAliasDeclaration(decl) => {
+            convert_ts_type_alias_declaration_as_node(arena, decl, offset, line_offsets)
+        }
+        Declaration::TSInterfaceDeclaration(decl) => {
+            convert_ts_interface_declaration_as_node(arena, decl, offset, line_offsets)
+        }
         _ => JsNode::from_value(convert_declaration_for_program(
             arena,
             decl,

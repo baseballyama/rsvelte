@@ -164,6 +164,13 @@ pub fn remove_typescript_nodes_typed(
             ));
         }
 
+        // Type aliases and interfaces exist only for public parse() fidelity;
+        // compilation removes the whole declaration before analysis.
+        Some("TSTypeAliasDeclaration") | Some("TSInterfaceDeclaration") => {
+            *node = typed_empty_statement(node);
+            return Ok(());
+        }
+
         // TS parameter properties (`constructor(private x)` / `readonly x`) are
         // not supported. The typed `TSParameterProperty` node is only ever built
         // when a modifier is present, so its presence is always an error

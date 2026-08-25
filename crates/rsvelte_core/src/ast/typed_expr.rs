@@ -683,6 +683,19 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
     },
+    /// Type-only declarations are kept as their complete ESTree object so the
+    /// public `parse()` API can expose nested TS nodes (and their comments).
+    /// Compilation removes the whole declaration before Phase 2.
+    TSTypeAliasDeclaration {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
+    TSInterfaceDeclaration {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
     // TS parameter property (`constructor(private x)` / `readonly x`). Only ever
     // constructed when an accessibility/readonly modifier is present, so its
     // presence is always an unsupported-feature error (raised by the TS stripper).
@@ -818,6 +831,59 @@ macro_rules! ser_comments {
             }
         }
     };
+}
+
+/// Clone an opaque TypeScript declaration subtree and materialize comments from
+/// the parse-only arena side table on every nested ESTree node. Unlike ordinary
+/// typed children, these nodes are serialized from `Value`, so their serializers
+/// cannot consult `ser_comments!` individually.
+fn opaque_ts_with_comments(value: &Value) -> Value {
+    let mut value = value.clone();
+    crate::ast::arena::try_with_current_serialize_arena(|arena| {
+        if !arena.has_node_comments() {
+            return;
+        }
+
+        fn apply(value: &mut Value, arena: &ParseArena) {
+            let Value::Object(obj) = value else {
+                return;
+            };
+            let key = obj
+                .get("type")
+                .and_then(|v| v.as_str())
+                .zip(obj.get("start").and_then(Value::as_u64))
+                .zip(obj.get("end").and_then(Value::as_u64));
+            if let Some(((node_type, start), end)) = key
+                && let Some((leading, trailing)) =
+                    arena.node_comments(node_type, start as u32, end as u32)
+            {
+                if let Some(trailing) = trailing {
+                    obj.insert("trailingComments".to_string(), Value::Array(trailing));
+                }
+                if let Some(leading) = leading {
+                    obj.insert("leadingComments".to_string(), Value::Array(leading));
+                }
+            }
+
+            for (field, child) in obj.iter_mut() {
+                if matches!(field.as_str(), "leadingComments" | "trailingComments") {
+                    continue;
+                }
+                match child {
+                    Value::Object(_) => apply(child, arena),
+                    Value::Array(items) => {
+                        for item in items {
+                            apply(item, arena);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        apply(&mut value, arena);
+    });
+    value
 }
 
 // The `serialize_map` length is serde_json's `Map::with_capacity` argument, so
@@ -2152,6 +2218,10 @@ impl Serialize for JsNode {
                 ser_comments!(map, "TSEnumDeclaration", *start, *end);
                 map.end()
             }
+            Self::TSTypeAliasDeclaration { value, .. }
+            | Self::TSInterfaceDeclaration { value, .. } => {
+                opaque_ts_with_comments(value).serialize(serializer)
+            }
             Self::TSModuleDeclaration {
                 start,
                 end,
@@ -2410,6 +2480,40 @@ impl JsNode {
     pub fn from_value(value: Value) -> Self {
         match value {
             Value::Object(mut owned_obj) => {
+                // These parse-only declarations deliberately retain their full
+                // ESTree object. Return before the ordinary typed conversion
+                // removes `loc` and child fields from the owned map.
+                let opaque_type = owned_obj
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned);
+                if matches!(
+                    opaque_type.as_deref(),
+                    Some("TSTypeAliasDeclaration" | "TSInterfaceDeclaration")
+                ) {
+                    let start = owned_obj
+                        .get("start")
+                        .and_then(Value::as_u64)
+                        .unwrap_or_default() as u32;
+                    let end = owned_obj
+                        .get("end")
+                        .and_then(Value::as_u64)
+                        .unwrap_or_default() as u32;
+                    return if opaque_type.as_deref() == Some("TSTypeAliasDeclaration") {
+                        Self::TSTypeAliasDeclaration {
+                            start,
+                            end,
+                            value: Box::new(Value::Object(owned_obj)),
+                        }
+                    } else {
+                        Self::TSInterfaceDeclaration {
+                            start,
+                            end,
+                            value: Box::new(Value::Object(owned_obj)),
+                        }
+                    };
+                }
+
                 let obj = &mut owned_obj;
                 let type_str = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 let start = get_u32(obj, "start");
@@ -3148,6 +3252,8 @@ impl JsNode {
             Self::TSTypeAnnotation { .. } => Some("TSTypeAnnotation"),
             Self::TSParameterProperty { .. } => Some("TSParameterProperty"),
             Self::TSEnumDeclaration { .. } => Some("TSEnumDeclaration"),
+            Self::TSTypeAliasDeclaration { .. } => Some("TSTypeAliasDeclaration"),
+            Self::TSInterfaceDeclaration { .. } => Some("TSInterfaceDeclaration"),
             Self::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
             Self::TSAsExpression { .. } => Some("TSAsExpression"),
             Self::TSSatisfiesExpression { .. } => Some("TSSatisfiesExpression"),
@@ -3869,6 +3975,8 @@ impl JsNode {
             | Self::TSTypeAnnotation { start, .. }
             | Self::TSParameterProperty { start, .. }
             | Self::TSEnumDeclaration { start, .. }
+            | Self::TSTypeAliasDeclaration { start, .. }
+            | Self::TSInterfaceDeclaration { start, .. }
             | Self::TSModuleDeclaration { start, .. }
             | Self::TSAsExpression { start, .. }
             | Self::TSSatisfiesExpression { start, .. }
@@ -3955,6 +4063,8 @@ impl JsNode {
             | Self::TSTypeAnnotation { end, .. }
             | Self::TSParameterProperty { end, .. }
             | Self::TSEnumDeclaration { end, .. }
+            | Self::TSTypeAliasDeclaration { end, .. }
+            | Self::TSInterfaceDeclaration { end, .. }
             | Self::TSModuleDeclaration { end, .. }
             | Self::TSAsExpression { end, .. }
             | Self::TSSatisfiesExpression { end, .. }
@@ -4044,6 +4154,8 @@ impl JsNode {
             Self::TSTypeAnnotation { .. } => "TSTypeAnnotation",
             Self::TSParameterProperty { .. } => "TSParameterProperty",
             Self::TSEnumDeclaration { .. } => "TSEnumDeclaration",
+            Self::TSTypeAliasDeclaration { .. } => "TSTypeAliasDeclaration",
+            Self::TSInterfaceDeclaration { .. } => "TSInterfaceDeclaration",
             Self::TSModuleDeclaration { .. } => "TSModuleDeclaration",
             Self::TSAsExpression { .. } => "TSAsExpression",
             Self::TSSatisfiesExpression { .. } => "TSSatisfiesExpression",
