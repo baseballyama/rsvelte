@@ -38,8 +38,8 @@ pub fn css_variant_from_lang(lang: &str) -> CssVariant {
 /// Format `source` as CSS of the given `variant` with `options`. `variant`
 /// overrides any value already on `options`.
 ///
-/// Returns a parse error for input the CSS parser rejects (the caller falls back to `oxfmt`, mirroring the native-JS
-/// and native-JSON paths).
+/// Returns a parse error for input the CSS parser rejects. Callers choose whether
+/// to preserve the input or fall back to an external formatter.
 ///
 /// # Errors
 ///
@@ -69,8 +69,9 @@ pub fn format_css_source(
 /// `base` supplies the indent / quote / EOL settings.
 ///
 /// The callback narrows `line_width` to each block's column and picks the dialect
-/// from its `lang`. A body the CSS parser rejects round-trips unchanged, mirroring
-/// how `oxfmt` leaves unparseable CSS in place.
+/// from its `lang`. A body this parser rejects round-trips unchanged. That can
+/// differ from the embedded PostCSS oracle, which accepts some selector syntax
+/// that `oxc_formatter_css` rejects.
 #[must_use]
 pub fn native_style_formatter(base: CssFormatOptions) -> StyleFormatter {
     Arc::new(

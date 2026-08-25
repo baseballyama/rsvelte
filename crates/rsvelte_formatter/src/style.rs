@@ -1,11 +1,10 @@
 //! `<style>` block formatting.
 //!
-//! `rsvelte_formatter` doesn't ship its own CSS engine. Instead it
-//! exposes a callback on [`crate::FormatOptions::style_formatter`] that
-//! receives the body and the lang (`css` / `scss` / `less` / ...). The
-//! `rsvelte-fmt` CLI wires this up to spawn
-//! `oxfmt --stdin-filepath style.<lang>`, so CSS formatting goes through
-//! the same engine `oxfmt` uses for standalone files.
+//! `rsvelte_formatter` exposes a callback on
+//! [`crate::FormatOptions::style_formatter`] that receives the body and the lang
+//! (`css` / `scss` / `less` / ...). The `rsvelte-fmt` CLI uses the in-process
+//! [`crate::native_style_formatter`] by default and swaps in a standalone
+//! `oxfmt --stdin-filepath style.<lang>` callback under `--no-native-css`.
 //!
 //! When no callback is set the style body is left verbatim.
 

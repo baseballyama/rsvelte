@@ -6,9 +6,9 @@
  * Oracle = `oxfmt` with the canonical config (`fmt-corpus.oxfmtrc.json`, which
  * enables `svelte: true`). With `svelte: true`, oxfmt formats `.svelte` through
  * `prettier-plugin-svelte` for the Svelte structure while formatting embedded
- * JS/CSS with its own (oxc) engine — exactly rsvelte-fmt's own architecture, so
- * a full diff isolates rsvelte's Svelte-structure formatting from the JS/CSS
- * layer (identical on both sides by construction).
+ * JS with oxc and embedded CSS with prettier-plugin-svelte's PostCSS path. The
+ * actual Rust corpus callback formats CSS through standalone oxfmt instead, so
+ * CSS-engine differences are observable alongside Svelte-structure differences.
  *
  * Three stages, all keyed by the svelte.dev SHA:
  *   Stage 1  files/<relpath>/{input,expected}.svelte

@@ -3,8 +3,9 @@
 //! Formats every `.svelte` file from the `submodules/svelte.dev` checkout with
 //! `rsvelte_formatter` and asserts the result matches the oracle produced by
 //! `oxfmt` (with `svelte: true`, i.e. `prettier-plugin-svelte` for the Svelte
-//! structure + the oxc engine for embedded JS/CSS — the same layering rsvelte
-//! uses). The oracle is precomputed into `fixtures/fmt-corpus/<svelte.dev-sha>/`
+//! structure, oxc for embedded JS, and PostCSS for embedded CSS). The actual
+//! side delegates each style body to standalone oxfmt. The oracle is precomputed
+//! into `fixtures/fmt-corpus/<svelte.dev-sha>/`
 //! by `pnpm run generate-fmt-corpus`.
 //!
 //! Because real-world components surface many not-yet-implemented gaps, the
@@ -96,9 +97,11 @@ fn oxfmt_runnable(oxfmt: &Path) -> bool {
         .is_ok_and(|s| s.success())
 }
 
-/// Build a style callback that mirrors the production one in
-/// `crates/rsvelte_fmt/src/main.rs::make_oxfmt_style_formatter`: pipe the
-/// dedented `<style>` body through oxfmt with the canonical config.
+/// Build the legacy `--no-native-css` style callback: pipe the dedented
+/// `<style>` body through standalone oxfmt with the canonical config.
+///
+/// This is intentionally not rsvelte-fmt's default in-process CSS path; the
+/// full compatibility corpus is the parity gate for that shipped path.
 fn make_style_formatter(oxfmt: PathBuf, config: PathBuf) -> StyleFormatter {
     let base = std::fs::read_to_string(&config).unwrap_or_default();
     std::sync::Arc::new(

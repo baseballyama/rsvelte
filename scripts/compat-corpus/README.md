@@ -597,10 +597,12 @@ do not move when a submodule bumps.
 A second, independent track verifies that **rsvelte-fmt** formats every
 `.svelte` component in the corpus byte-for-byte like the
 **oxfmt(`svelte: true`)** oracle — `prettier-plugin-svelte` for the Svelte
-structure plus the oxc engine for embedded JS/CSS, which is exactly
-rsvelte-fmt's own layering, so a surviving diff isolates rsvelte's
-Svelte-structure formatting (the JS/CSS layer is identical on both sides by
-construction). Unlike the compile track this is a **hard byte gate** — a
+structure, oxc for embedded JS, and PostCSS for embedded CSS. The actual side
+uses rsvelte-fmt's shipped default: rsvelte's Svelte structure, oxc for JS, and
+the in-process `oxc_formatter_css` engine for CSS. A surviving diff may therefore
+be either Svelte-structure parity or CSS-engine parity; both affect product
+output and share the same shrink-only ratchet. Unlike the compile track this is
+a **hard byte gate** — a
 formatter must match exactly, so there is no AST-equivalence fallback.
 
 ```bash
@@ -617,8 +619,10 @@ Stages:
      oxfmt rejects (or whose embedded code it can't parse) are excluded — they
      aren't valid, formattable Svelte.
    - `compatibility/fmt/actual/<id>` — rsvelte-fmt (`--stdin`, column-aware
-     `<style>` narrowing). Rebuilt every iteration; restrict to a subset with
-     `--actual --only <ids-file>` for tight burn-down.
+     `<style>` narrowing, native CSS enabled). Rebuilt every iteration; restrict
+     to a subset with `--actual --only <ids-file>` for tight burn-down. Do not
+     add `--no-native-css`: this is the large-corpus gate for the shipped default
+     CSS path.
 2. `fmt-verify.mjs` — byte-compares, writes `fmt-report.json`, ratchets against
    `compatibility/fmt-known-failures.json` (checked in; may only shrink). Exits
    non-zero only on a **regression** (a divergence not in the baseline).

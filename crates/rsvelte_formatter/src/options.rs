@@ -18,9 +18,9 @@ pub struct FormatOptions {
     /// attribute says (e.g. `"scss"`, `"less"`, `"postcss"`).
     ///
     /// When `None` (the default), `<style>` content survives verbatim.
-    /// The `rsvelte-fmt` CLI wires this up to spawn `oxfmt`, so
-    /// CSS / SCSS / Less formatting happens through the same engine
-    /// `oxfmt` uses for standalone `.css` files.
+    /// The `rsvelte-fmt` CLI supplies the in-process `oxc_formatter_css`
+    /// callback by default; `--no-native-css` supplies a standalone `oxfmt`
+    /// callback instead.
     ///
     /// The callback must be `Send + Sync` so the same `FormatOptions`
     /// can drive parallel file formatting via `rayon`.

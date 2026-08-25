@@ -1015,19 +1015,22 @@ target — regenerate the baseline with `UPDATE_SOURCEMAP_RATCHET=1 cargo test -
 ### Formatter parity corpus (svelte.dev)
 
 Asserts rsvelte formats real svelte.dev sources byte-for-byte like an **oxfmt(`svelte: true`)**
-oracle (`prettier-plugin-svelte` for Svelte structure + the oxc engine for embedded JS/CSS),
-so a diff isolates rsvelte's Svelte-structure formatting. Oracle outputs are precomputed by
+oracle (`prettier-plugin-svelte` for Svelte structure, oxc for embedded JS, and PostCSS for
+embedded CSS). Oracle outputs are precomputed by
 `pnpm run generate-fmt-corpus` (gitignored, CI-cached by svelte.dev SHA). Stage 1+2
 (`crates/rsvelte_formatter/tests/svelte_dev_corpus.rs`) covers every `.svelte` file and
 ` ```svelte ` markdown block; Stage 3 (`crates/rsvelte_fmt/tests/svelte_dev_markdown.rs`) runs
 the real `rsvelte-fmt` CLI on whole `.md` files. Both need a runnable `oxfmt` and no-op when
 absent. **Hard gate, no baseline tolerance:** any divergence fails CI.
 
-`rsvelte-fmt` formats CSS in-process via the Rust `oxc_formatter_css` crate (the same engine
-`oxfmt` uses, byte-identical without a subprocess) — for embedded `<style>` blocks, standalone
-`.css`/`.scss`/`.less` files, and the wasm formatter. `--no-native-css` reverts to the legacy
-`oxfmt`-subprocess path. Native-CSS parity is covered by
-`crates/rsvelte_formatter/tests/css_native.rs` and `crates/rsvelte_fmt/tests/cli.rs`.
+`rsvelte-fmt` formats CSS in-process via the Rust `oxc_formatter_css` crate — for embedded
+`<style>` blocks, standalone `.css`/`.scss`/`.less` files, and the wasm formatter. This is the
+engine `oxfmt` uses for standalone CSS, but it is **not** the PostCSS path used by the
+`svelte: true` oracle for embedded styles. `--no-native-css` reverts to the legacy
+`oxfmt`-subprocess path; the Rust svelte.dev gate exercises that non-default standalone path.
+The large `scripts/compat-corpus/fmt.mjs` gate intentionally keeps native CSS enabled, so its
+ratchet includes CSS-engine differences. `css_native.rs` and the CLI tests are small literal
+behavior tests, not an oracle-parity replacement.
 
 `rsvelte_fmt` is a lib + bin: `rsvelte_fmt::FormatSession` runs the CLI's
 `--stdin --stdin-filepath` pipeline (config discovery, option layering, extension

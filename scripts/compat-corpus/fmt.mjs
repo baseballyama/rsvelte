@@ -7,17 +7,20 @@
  * and sveltejs/svelte.dev):
  *
  *   compatibility/fmt/oracle/<id>   oxfmt with `svelte: true` (prettier-plugin-svelte
- *                                   for the Svelte structure + oxc for embedded JS/CSS)
+ *                                   for the Svelte structure, oxc for embedded JS,
+ *                                   and PostCSS for embedded CSS)
  *   compatibility/fmt/actual/<id>   rsvelte-fmt (rsvelte_formatter for the structure,
- *                                   oxc for embedded JS/CSS)
+ *                                   oxc for embedded JS, and oxc_formatter_css for CSS)
  *
- * Both pipelines format embedded JS/CSS with the same oxc engine, so any
- * surviving byte difference is a real Svelte-structure divergence. The
- * comparison + ratchet lives in fmt-verify.mjs.
+ * The JS layer is shared, but the CSS layer is deliberately not: this stage
+ * exercises rsvelte-fmt's shipped, in-process default against the embedded
+ * PostCSS oracle. CSS-engine differences are therefore product parity
+ * divergences and stay in the same shrink-only ratchet as structure differences.
+ * The comparison + ratchet lives in fmt-verify.mjs.
  *
- * The actual tree is formatted in one directory invocation. Native CSS parity
- * with oxfmt is covered separately, and keeping styles in-process avoids a
- * subprocess per component.
+ * The actual tree is formatted in one directory invocation. Passing
+ * `--no-native-css` here would hide the default path; gate-coverage.md records
+ * why the smaller Rust corpus and literal CSS tests are not substitutes.
  *
  * The oracle depends only on (svelte sha, svelte.dev sha, pattern-corpus tree
  * hash, oxfmt version, config hash); it is cached and skipped on re-runs unless

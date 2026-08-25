@@ -1635,6 +1635,14 @@ That is not a hole in this gate (it does compare `css.code`). It is a fact about
 (`fmt-verify.mjs:102`). No normalization — this is the one gate that compares raw bytes.
 Population: manifest entries with `kind === 'component'` (`fmt.mjs:170`).
 
+**The two sides deliberately do not share a CSS engine.** The oracle reaches
+prettier-plugin-svelte's PostCSS path for an embedded `<style>`; rsvelte-fmt's default reaches
+in-process `oxc_formatter_css`. **[D] #3628:** `.card >> .a` is accepted and respaced by
+PostCSS but rejected and preserved by OXC, while both accept `.a || .b` and choose opposite
+spacing. Both committed pattern files are ratcheted in `fmt-known-failures.json`. This is part
+of the unit, not a blind spot: changing `fmt.mjs` to pass `--no-native-css` would stop the only
+large-corpus comparison of the shipped default identified in 10a.
+
 ### Blind spot 9a — ids with no oracle file are skipped silently, and nothing counts
 
 `fmt-verify.mjs:97`: `if (oracle === null) continue; // not part of the parity set`.
@@ -1679,14 +1687,15 @@ here so it is not mistaken for a blind spot. Its staleness check is `console.war
 
 ### Blind spot 10a — it exercises the non-default CSS path
 
-`svelte_dev_corpus.rs:100-102` claims its style callback "mirrors the production one" and pipes
-each `<style>` body through an `oxfmt` subprocess (`:127-152`). **[S]** In shipped
+`svelte_dev_corpus.rs:100-106` identifies its style callback as the legacy `--no-native-css`
+path and pipes each `<style>` body through an `oxfmt` subprocess (`:130-155`). **[S]** In shipped
 `rsvelte-fmt` that function is reached **only** under `--no-native-css`
 (`crates/rsvelte_fmt/src/options.rs:154-157`); the default is the in-process
-`rsvelte_formatter::native_style_formatter`. The comment asserting production parity is stale.
-Consequence: the default native CSS engine's parity with oxfmt is measured only by gate 9's
-whole-file compare, and `crates/rsvelte_formatter/tests/css_native.rs` is 5 hand-written
-`assert_eq!`s against literal strings, not a parity gate.
+`rsvelte_formatter::native_style_formatter`. Consequence: the default native CSS engine's parity
+with the embedded PostCSS oracle is measured only by gate 9's whole-file compare, and
+`crates/rsvelte_formatter/tests/css_native.rs` is 5 hand-written `assert_eq!`s against literal
+strings, not a parity gate. #3628 corrected the stale comments but did not change this coverage
+boundary.
 
 ### Blind spot 10b — `Err(_)` from `format` does not fail the test
 

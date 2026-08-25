@@ -2,8 +2,10 @@
 
 The formatter-parity corpus formats every `.svelte` component with both
 `rsvelte-fmt` and the `oxfmt(svelte:true)` oracle (prettier-plugin-svelte for the
-Svelte structure + oxc for embedded JS/CSS — rsvelte-fmt's exact layering) and
-requires **byte-identical** output. The ratchet may only shrink.
+Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and requires
+**byte-identical** output. rsvelte-fmt uses in-process `oxc_formatter_css` for
+embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
+as well as Svelte-structure parity. The ratchet may only shrink.
 
 **Current baseline: `fmt-known-failures.json`, 796 entries** — 22 from before the
 wave-2 corpus enrolment and 774 in the current expanded-corpus population.
@@ -81,6 +83,22 @@ whitespace → **intra-line-ws**; anything else → **other**.
 | 0 | **25 — extra-line** | rsvelte emits a line where the oracle has none |
 | 2 | **26 — missing-line** | the reverse; both are CRLF sources where rsvelte leaves a bare `\r` |
 | 1 | **27 — quote-style** | an import specifier printed with single quotes where the oracle uses double |
+
+Two #3404 pattern files make the CSS-engine part of Cluster 22 explicit (they
+are included in its count of 85, not additional clusters):
+
+- `pattern/issues/3404-repeated-combinators.svelte` contains `.card >> .a`.
+  The embedded PostCSS oracle accepts the repeated combinator and removes its
+  spaces; `oxc_formatter_css` rejects that selector, so rsvelte-fmt's documented
+  parse-failure fallback preserves the source spelling.
+- `pattern/issues/3404-unhandled-combinator-scope.svelte` contains the valid
+  column combinator `.a || .b`. Both engines accept it, but PostCSS removes the
+  spaces around `||` while OXC retains them.
+
+The native parse-failure fallback's former extra leading blank line was a
+separate product bug and was fixed by #3629. These two entries remain because
+gate 9 intentionally compares the shipped native CSS path rather than replacing
+it with `--no-native-css`; #3628 records that decision and the engine boundary.
 
 **627 of 774 (81%) are cluster 20 or 21 — one question, where a line breaks** —
 and that is the burndown target, not the tail. Nothing here is an oracle bug: the
@@ -291,16 +309,14 @@ stray space+tab mix on the comment line, and a 2-space-narrower indent on
 every subsequent `repeating-linear-gradient` argument line. Root cause
 (byte-level reproduction of both pipelines, minimal repro with identical
 input): this is NOT an `oxc_formatter_css` indent-tracking bug but a
-**mode difference in oxfmt itself** — its svelte-embedded mode preserves a
+**engine difference in the two sides** — the oracle's PostCSS path preserves a
 multi-line function value's interior lines verbatim (1:1 tab→space mapping
-of the source's uneven indents), while its standalone CSS mode (the only
-mode rsvelte's dedent→format→reindent wrapper can use) parses the function
+of the source's uneven indents), while the OXC CSS formatter parses the function
 and normalizes the arguments to one canonical level. The comment-line
 whitespace mix is a secondary rsvelte dedent artifact, but fixing it alone
-cannot clear the entry while the mode difference remains. Unfixable in-repo;
-a root fix would need oxfmt's standalone path to preserve multi-line
-function-value interiors verbatim (high blast radius upstream). Cluster 11
-is the same oxfmt mode difference reached through a different construct.
+cannot clear the entry while the engine difference remains. Changing the shipped
+engine or reproducing PostCSS's source-preservation rule has a high blast radius.
+Cluster 11 is the same engine split reached through a different construct.
 
 ## Cluster 11 — CSS selector source spelling, native engine (2)
 
@@ -317,12 +333,12 @@ selectors the CSS printer re-emits from the AST rather than from the source:
   spaces where the oracle has one.
 
 Same root cause as Cluster 8, reached from the selector side rather than the
-declaration side: **oxfmt's svelte-embedded mode preserves selector source
-text, its standalone CSS mode re-prints selectors from the parsed AST**, and
-the standalone path is the only one rsvelte's in-process `oxc_formatter_css`
-wrapper has. Running oxfmt over the same two selectors as standalone CSS
+declaration side: **the embedded PostCSS oracle preserves selector source text,
+while the OXC CSS formatter re-prints selectors from the parsed AST**. Running
+oxfmt over the same two selectors as standalone CSS
 reproduces rsvelte's output byte for byte. Neither spelling changes what the
-selector matches. Unfixable in-repo for the same reason as Cluster 8.
+selector matches. Changing the product engine or teaching the AST printer to
+preserve these spellings has the same high blast radius as Cluster 8.
 
 ## Resolved
 
