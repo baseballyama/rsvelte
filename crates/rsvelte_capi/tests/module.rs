@@ -45,3 +45,23 @@ fn module_compile_handles_malformed_options() {
             .contains("options_json")
     );
 }
+
+#[test]
+fn module_compile_rejects_unknown_but_ignores_component_only_options() {
+    let unknown = compile_module("export const x = 1;", r#"{"nonsense":1}"#);
+    assert_eq!(unknown["ok"], serde_json::Value::Bool(false));
+    assert!(
+        unknown["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("options_unrecognised")
+    );
+
+    // Upstream's module validator recognises every component-only option and
+    // maps it to a no-op validator, including removed and wrong-typed values.
+    let ignored = compile_module(
+        "export const x = 1;",
+        r#"{"legacy":null,"accessors":"not-a-boolean"}"#,
+    );
+    assert_eq!(ignored["ok"], serde_json::Value::Bool(true));
+}

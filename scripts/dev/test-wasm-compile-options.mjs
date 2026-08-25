@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { compile as officialCompile } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
 
 const jsUrl = new URL('../../pkg/rsvelte_lint.js', import.meta.url).href;
 const wasmPath = fileURLToPath(new URL('../../pkg/rsvelte_lint_bg.wasm', import.meta.url));
@@ -32,6 +33,65 @@ function assert(name, cond, detail) {
 }
 
 const compile = (source, options) => JSON.parse(compiler.compile(source, options));
+
+function thrownBy(fn) {
+	try {
+		fn();
+		return null;
+	} catch (error) {
+		return {
+			code: error?.code ?? null,
+			message: String(error?.message ?? error).split('\n')[0],
+		};
+	}
+}
+
+// Validation is a separate compatibility surface from successful option
+// forwarding. Keep official Svelte as the independent oracle: comparing this
+// wasm port to either of rsvelte's other two ports would pass if both drifted
+// in the same direction (#3664).
+for (const [name, options] of [
+	['unknown key', { nonsense: 1 }],
+	['wrong boolean type', { dev: 'yes' }],
+	['wrong parametric result', { customElement: 'x-a' }],
+	['invalid namespace', { namespace: 'nope' }],
+	['removed css none', { css: 'none' }],
+	['removed option', { legacy: {} }],
+]) {
+	const official = thrownBy(() => officialCompile('<p>x</p>', options));
+	const rsvelte = thrownBy(() => compiler.compile('<p>x</p>', options));
+	assert(
+		`validation matches official: ${name}`,
+		official != null &&
+			rsvelte != null &&
+			official.code === rsvelte.code &&
+			official.message === rsvelte.message,
+		JSON.stringify({ official, rsvelte }),
+	);
+}
+
+const legacyWarnings = compile('<p>x</p>', {
+	generate: 'dom',
+	accessors: false,
+	immutable: false,
+	loopGuardTimeout: 100,
+	enableSourcemap: true,
+	hydratable: true,
+});
+const legacyWarningCodes = new Set(legacyWarnings.warnings.map((warning) => warning.code));
+for (const code of [
+	'options_renamed_ssr_dom',
+	'options_deprecated_accessors',
+	'options_deprecated_immutable',
+	'options_removed_loop_guard_timeout',
+	'options_removed_enable_sourcemap',
+	'options_removed_hydratable',
+]) {
+	assert(`legacy option emits ${code}`, legacyWarningCodes.has(code), [...legacyWarningCodes].join(', '));
+}
+
+const numericRunes = compile('<p>x</p>', { runes: 1 });
+assert('truthy non-boolean runes matches parametric semantics', numericRunes.metadata.runes === true);
 
 // 1. Function-form customElement resolves to the same output as the boolean.
 const ceBool = compile('<svelte:options customElement="my-el" /><h1>hi</h1>', {

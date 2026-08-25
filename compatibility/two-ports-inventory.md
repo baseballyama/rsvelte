@@ -88,6 +88,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [12](#12-selector-unused-and-element-scoped-are-two-engines-over-two-element-models--s) | "Selector unused" vs "element scoped" | 2 engines, 2 element models | **[S]** | no |
 | [13](#13-what-does-a-call-to-one-of-upstreams-globals-keypaths-evaluate-to--d-closed-by-degree-1) | What does a call to one of upstream's `globals` keypaths evaluate to? | 2 tables | **[D]** | closed by #3471 (degree 1) |
 | [14](#14-what-options-does-the-public-parse-run-with--d) | What options does the public `parse()` run with? | 2 bindings | **[D]** | #3688 open |
+| [15](#15-how-are-public-compile-options-validated--d) | How are public compile options validated? | 3 bindings | **[D]** | #3664 defended at degree 2 |
 
 ---
 
@@ -465,6 +466,25 @@ this went unobserved.
 is gate-coverage **39g**. Corpus growth cannot reach the wasm port, because it is in no gate's
 population. And the wasm build is what `@rsvelte/compiler` and the playground ship, so the port a
 user installs is the unmeasured one.
+
+### 15. How are public compile options validated? — [D]
+
+**Upstream:** `packages/svelte/src/compiler/validate-options.js` owns one ordered schema for
+`compile` and `compileModule`, including parametric values, removed-option errors and process-wide
+legacy warnings.
+
+**Ports.** The NAPI conversion in `crates/rsvelte_napi/src/lib.rs`, the C ABI JSON conversion in
+`crates/rsvelte_capi/src/lib.rs`, and the wasm conversion in
+`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs` each implement that schema. #3664 recorded
+demonstrated disagreements on unknown keys, wrong scalar types, nested keys, aliases, removed
+options and truthy `runes` values.
+
+**Defended at degree 2.** `scripts/dev/test-wasm-compile-options.mjs` now compares representative
+rejections directly with official Svelte and pins the warning and parametric cases independently;
+the C ABI suite spells the same exact messages and behaviours as independent expectations. The
+ports remain separate because their value domains differ (JS callbacks versus JSON and native
+callbacks), so this closes the demonstrated cells rather than removing the row. A new option or
+validator kind still has to be added to all three ports and their boundary gates.
 
 ## Adding a row, and closing one
 

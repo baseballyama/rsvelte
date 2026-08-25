@@ -150,6 +150,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 39 | svelte2tsx option axis | full TSX text per (option variant x source) against the official tool, options carried in the fixture | option values outside its grid (`rewriteExternalImports`, `runes`, most `namespace` x `mode` products); `emitDts`; the map, `exportedNames` and `events` | [S] [D] |
 | 38 | NAPI `cssHash` | the scope class the callback produces, and the callback's own argument list, against **official** | one component shape and one option set; only `css.code` / the class in `js.code`; nothing about the wasm or facade ports of the same option | [S] |
 | 39 | Print fixture suite (`tests/print.rs`) | per-sample printed Svelte text vs upstream's `output.svelte` | it compares the text, not **which code produced it** — a source-text shortcut around the whole AST printer was invisible for 43 of 43 samples | [D] |
+| 40 | Wasm compile-option boundary | six rejection outcomes against **official**, plus named callback/warning behaviours | most valid option values; error positions; interaction/order between two invalid keys; C ABI and NAPI ports | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -3477,8 +3478,8 @@ list would pass, since `includes()` only needs one occurrence.
 ### 38c — the other two ports of the same option are not here [S]
 
 `cssHash` is implemented three times: the napi bridge, the wasm bridge
-(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs`, exercised only by
-`scripts/dev/test-wasm-compile-options.mjs`, which compares rsvelte to rsvelte), and the
+(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs`, exercised by
+`scripts/dev/test-wasm-compile-options.mjs`, whose rejection matrix compares against official), and the
 `rsvelte` facade's `options.rs`, which no gate drives at all. This is the "two ports of one
 function and no gate compares the ports" shape recorded for the constant fold: the wasm port
 already passed the official argument shape while the napi port did not, and nothing would have
@@ -3591,6 +3592,22 @@ already disagree: the NAPI one sets `capture_comments: true`
 comments at all. Only the NAPI port is driven here. This is the "two ports of one function, and
 no gate compares the ports" shape from `two-ports-inventory.md`, and the wasm one is what the
 playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build call.
+
+---
+
+## 40. Wasm compile-option boundary — `scripts/dev/test-wasm-compile-options.mjs`
+
+**Unit.** Six invalid option objects are compiled by the wasm binding and official Svelte; the
+error `code` and first message line must agree. Independent assertions cover the six legacy
+warning codes, truthy non-boolean `runes`, the three parametric options, `warningFilter`, and
+`cssHash` callback arguments, fallback and throws. Hard gate, no ratchet.
+
+**Sharpest blind spots [S].** The rejection grid samples six of the declared keys and only one
+invalid value per key. It does not compare error positions, two-invalid-key ordering, most
+successful scalar values, or any C ABI/NAPI result. Callback parity is mostly property-based
+rather than full output equality, and all cases compile one small component. The key list is
+manually mirrored in the binding, so adding the same option to every list without a behavioural
+case can still pass.
 
 ---
 

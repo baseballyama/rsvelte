@@ -172,8 +172,7 @@ fn enum_options_reject_unknown_values_and_accept_documented_aliases() {
     for options in [
         r#"{"generate":"client"}"#,
         r#"{"generate":"server"}"#,
-        r#"{"generate":"ssr"}"#,
-        r#"{"generate":"false"}"#,
+        r#"{"generate":false}"#,
         r#"{"namespace":"html"}"#,
         r#"{"namespace":"svg"}"#,
         r#"{"namespace":"mathml"}"#,
@@ -195,6 +194,59 @@ fn enum_options_reject_unknown_values_and_accept_documented_aliases() {
             .unwrap()
             .contains("componentApi")
     );
+}
+
+#[test]
+fn option_validation_rejects_unknown_removed_and_nested_unknown_keys() {
+    for (options, expected) in [
+        (
+            r#"{"nonsense":1}"#,
+            "Unrecognised compiler option nonsense\nhttps://svelte.dev/e/options_unrecognised",
+        ),
+        (
+            r#"{"legacy":null}"#,
+            "Invalid compiler option: The legacy option has been removed. If you are using this because of legacy.componentApi, use compatibility.componentApi instead\nhttps://svelte.dev/e/options_removed",
+        ),
+        (
+            r#"{"experimental":{"async":true,"nonsense":1}}"#,
+            "Unrecognised compiler option experimental.nonsense\nhttps://svelte.dev/e/options_unrecognised",
+        ),
+        (
+            r#"{"compatibility":{"componentApi":5,"nonsense":1}}"#,
+            "Unrecognised compiler option compatibility.nonsense\nhttps://svelte.dev/e/options_unrecognised",
+        ),
+        (
+            r#"{"dev":"yes"}"#,
+            "Invalid compiler option: dev should be true or false, if specified\nhttps://svelte.dev/e/options_invalid_value",
+        ),
+        (
+            r#"{"customElement":"x-a"}"#,
+            "Invalid compiler option: customElement should be true or false\nhttps://svelte.dev/e/options_invalid_value",
+        ),
+        (
+            r#"{"css":false}"#,
+            "Invalid compiler option: The boolean options have been removed from the css option. Use \"external\" instead of false and \"injected\" instead of true\nhttps://svelte.dev/e/options_invalid_value",
+        ),
+    ] {
+        let env = compile("<p>x</p>", options);
+        assert_eq!(env["ok"], serde_json::Value::Bool(false), "{options}");
+        assert_eq!(env["error"]["message"], expected, "{options}");
+    }
+}
+
+#[test]
+fn truthy_non_boolean_runes_matches_parametric_semantics() {
+    let env = compile("<p>x</p>", r#"{"runes":1}"#);
+    assert_eq!(
+        ok_result(&env)["metadata"]["runes"],
+        serde_json::Value::Bool(true)
+    );
+}
+
+#[test]
+fn legacy_generate_alias_is_accepted_and_warns() {
+    let env = compile("<p>x</p>", r#"{"generate":"dom"}"#);
+    assert!(warning_codes(&env).contains(&"options_renamed_ssr_dom".to_string()));
 }
 
 // ---------------------------------------------------------------------------

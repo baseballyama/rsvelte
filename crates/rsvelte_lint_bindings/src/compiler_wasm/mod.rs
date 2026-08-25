@@ -3,15 +3,18 @@
 //! This module provides JavaScript-accessible functions for compiling
 //! Svelte components in the browser.
 
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 
 use wasm_bindgen::prelude::*;
 
 use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
 use crate::compiler::phases::phase3_transform::css::generate_css_hash;
 use crate::compiler::{
-    CompileOptions, CompileResult, CssHashFn, CssHashInput, CssMode, GenerateMode, Namespace,
-    Warning, WarningFilterFn, compile,
+    CompileOptions, CompileResult, ComponentApi, CssHashFn, CssHashInput, CssMode,
+    ExperimentalOptions, FragmentMode, GenerateMode, Namespace, Warning, WarningFilterFn, compile,
 };
 use crate::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
@@ -249,6 +252,110 @@ fn get_prop(obj: &JsValue, key: &str) -> JsValue {
     js_sys::Reflect::get(obj, &JsValue::from_str(key)).unwrap_or(JsValue::UNDEFINED)
 }
 
+const RECOGNISED_COMPILE_OPTIONS: &[&str] = &[
+    "filename",
+    "rootDir",
+    "dev",
+    "generate",
+    "warningFilter",
+    "experimental",
+    "accessors",
+    "css",
+    "cssHash",
+    "cssHashOverride",
+    "cssOutputFilename",
+    "customElement",
+    "discloseVersion",
+    "immutable",
+    "legacy",
+    "compatibility",
+    "loopGuardTimeout",
+    "name",
+    "namespace",
+    "modernAst",
+    "outputFilename",
+    "preserveComments",
+    "fragments",
+    "preserveWhitespace",
+    "runes",
+    "hmr",
+    "sourcemap",
+    "enableSourcemap",
+    "hydratable",
+    "format",
+    "tag",
+    "sveltePath",
+    "errorMode",
+    "varsReport",
+];
+
+fn present(value: &JsValue) -> bool {
+    !value.is_undefined()
+}
+
+fn invalid_option(detail: impl std::fmt::Display) -> String {
+    format!("Invalid compiler option: {detail}\nhttps://svelte.dev/e/options_invalid_value")
+}
+
+fn option_error_to_js(message: String) -> JsValue {
+    let error = js_sys::Error::new(&message);
+    error.set_name("CompileError");
+    let code = if message.contains("/options_unrecognised") {
+        "options_unrecognised"
+    } else if message.contains("/options_removed") {
+        "options_removed"
+    } else {
+        "options_invalid_value"
+    };
+    let _ = js_sys::Reflect::set(
+        error.as_ref(),
+        &JsValue::from_str("code"),
+        &JsValue::from_str(code),
+    );
+    error.into()
+}
+
+fn require_bool(options: &JsValue, key: &str) -> Result<Option<bool>, String> {
+    let value = get_prop(options, key);
+    if !present(&value) {
+        return Ok(None);
+    }
+    value
+        .as_bool()
+        .map(Some)
+        .ok_or_else(|| invalid_option(format!("{key} should be true or false, if specified")))
+}
+
+fn require_string(options: &JsValue, key: &str) -> Result<Option<String>, String> {
+    let value = get_prop(options, key);
+    if !present(&value) {
+        return Ok(None);
+    }
+    value
+        .as_string()
+        .map(Some)
+        .ok_or_else(|| invalid_option(format!("{key} should be a string, if specified")))
+}
+
+fn warn_once(flag: &AtomicBool) -> bool {
+    !flag.swap(true, Ordering::Relaxed)
+}
+
+fn reject_unrecognised_options(options: &JsValue) -> Result<(), String> {
+    if options.is_null() || options.is_undefined() {
+        return Ok(());
+    }
+    for key in js_sys::Object::keys(&js_sys::Object::from(options.clone())).iter() {
+        let Some(key) = key.as_string() else { continue };
+        if !RECOGNISED_COMPILE_OPTIONS.contains(&key.as_str()) {
+            return Err(format!(
+                "Unrecognised compiler option {key}\nhttps://svelte.dev/e/options_unrecognised"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Read `options[key]`, evaluating it once with `{ filename }` if it is a
 /// function (Svelte's `parametric()` normalization); otherwise return the raw
 /// value.
@@ -369,76 +476,253 @@ fn build_compile_options(
         return Ok(opts);
     }
 
-    let filename = get_prop(options, "filename").as_string();
+    reject_unrecognised_options(options)?;
+
+    let filename = require_string(options, "filename")?;
     // Svelte defaults `filename` to '(unknown)' before invoking parametric fns.
     let meta_filename = filename.clone().unwrap_or_else(|| "(unknown)".to_string());
     opts.filename = filename;
-    opts.root_dir = get_prop(options, "rootDir").as_string();
-    if let Some(n) = get_prop(options, "name").as_string() {
-        opts.name = Some(n);
+    opts.root_dir = require_string(options, "rootDir")?;
+
+    if let Some(value) = require_bool(options, "dev")? {
+        opts.dev = value;
     }
 
-    let generate = resolve_maybe_fn(options, "generate", &meta_filename);
-    if let Some(s) = generate.as_string() {
-        opts.generate = match s.as_str() {
-            "client" | "dom" => GenerateMode::Client,
-            "server" | "ssr" => GenerateMode::Server,
-            "false" => GenerateMode::None,
-            _ => return Err("generate must be \"client\", \"server\" or false".to_string()),
+    // `generate` is not parametric — functions are invalid values rather than
+    // callbacks receiving `{ filename }`.
+    let generate = get_prop(options, "generate");
+    if present(&generate) {
+        let (mode, renamed) = match generate.as_string().as_deref() {
+            Some("client") => (GenerateMode::Client, false),
+            Some("dom") => (GenerateMode::Client, true),
+            Some("server") => (GenerateMode::Server, false),
+            Some("ssr") => (GenerateMode::Server, true),
+            _ if generate.as_bool() == Some(false) => (GenerateMode::None, false),
+            _ => {
+                return Err(invalid_option(
+                    "generate must be \"client\", \"server\" or false",
+                ));
+            }
         };
-    } else if generate.as_bool() == Some(false) {
-        opts.generate = GenerateMode::None;
+        opts.generate = mode;
+        if renamed {
+            static WARNED: AtomicBool = AtomicBool::new(false);
+            opts.legacy_options.generate_dom_ssr = warn_once(&WARNED);
+        }
+    }
+
+    let warning_filter = get_prop(options, "warningFilter");
+    if present(&warning_filter) && warning_filter.dyn_ref::<js_sys::Function>().is_none() {
+        return Err(invalid_option(
+            "warningFilter should be a function, if specified",
+        ));
+    }
+
+    let experimental = get_prop(options, "experimental");
+    if present(&experimental) {
+        if !experimental.is_object() || js_sys::Array::is_array(&experimental) {
+            return Err(invalid_option("experimental should be an object"));
+        }
+        for key in js_sys::Object::keys(&js_sys::Object::from(experimental.clone())).iter() {
+            if key.as_string().as_deref() != Some("async") {
+                return Err(format!(
+                    "Unrecognised compiler option experimental.{}\nhttps://svelte.dev/e/options_unrecognised",
+                    key.as_string().unwrap_or_default()
+                ));
+            }
+        }
+        let value = get_prop(&experimental, "async");
+        if present(&value) {
+            opts.experimental = ExperimentalOptions {
+                r#async: value.as_bool().ok_or_else(|| {
+                    invalid_option("experimental.async should be true or false, if specified")
+                })?,
+            };
+        }
+    }
+
+    if let Some(value) = require_bool(options, "accessors")? {
+        opts.accessors = value;
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        opts.legacy_options.accessors = warn_once(&WARNED);
     }
 
     let css = resolve_maybe_fn(options, "css", &meta_filename);
-    if let Some(s) = css.as_string() {
-        opts.css = match s.as_str() {
-            "external" => CssMode::External,
-            "injected" => CssMode::Injected,
+    if present(&css) {
+        opts.css = match css.as_string().as_deref() {
+            Some("external") => CssMode::External,
+            Some("injected") => CssMode::Injected,
+            Some("none") => {
+                return Err(invalid_option(
+                    "css: \"none\" is no longer a valid option. If this was crucial for you, please open an issue on GitHub with your use case.",
+                ));
+            }
+            _ if css.as_bool().is_some() => {
+                return Err(invalid_option(
+                    "The boolean options have been removed from the css option. Use \"external\" instead of false and \"injected\" instead of true",
+                ));
+            }
             _ => {
-                return Err(
-                    "css should be either \"external\" (default, recommended) or \"injected\""
-                        .to_string(),
-                );
+                return Err(invalid_option(
+                    "css should be either \"external\" (default, recommended) or \"injected\"",
+                ));
             }
         };
     }
 
-    if let Some(b) = resolve_maybe_fn(options, "customElement", &meta_filename).as_bool() {
-        opts.custom_element = b;
+    let css_hash = get_prop(options, "cssHash");
+    if present(&css_hash) && css_hash.dyn_ref::<js_sys::Function>().is_none() {
+        return Err(invalid_option("cssHash should be a function, if specified"));
     }
-    // `runes` is tri-state: a boolean forces the mode, anything else auto-detects.
-    if let Some(b) = resolve_maybe_fn(options, "runes", &meta_filename).as_bool() {
-        opts.runes = Some(b);
+    opts.css_output_filename = require_string(options, "cssOutputFilename")?;
+
+    let custom_element = resolve_maybe_fn(options, "customElement", &meta_filename);
+    if present(&custom_element) {
+        opts.custom_element = custom_element
+            .as_bool()
+            .ok_or_else(|| invalid_option("customElement should be true or false"))?;
     }
 
-    if let Some(b) = get_prop(options, "dev").as_bool() {
-        opts.dev = b;
+    if let Some(value) = require_bool(options, "discloseVersion")? {
+        opts.disclose_version = value;
     }
-    if let Some(b) = get_prop(options, "accessors").as_bool() {
-        opts.accessors = b;
+    if let Some(value) = require_bool(options, "immutable")? {
+        opts.immutable = value;
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        opts.legacy_options.immutable = warn_once(&WARNED);
     }
-    if let Some(b) = get_prop(options, "immutable").as_bool() {
-        opts.immutable = b;
+
+    if present(&get_prop(options, "legacy")) {
+        return Err("Invalid compiler option: The legacy option has been removed. If you are using this because of legacy.componentApi, use compatibility.componentApi instead\nhttps://svelte.dev/e/options_removed".to_string());
     }
-    if let Some(b) = get_prop(options, "preserveComments").as_bool() {
-        opts.preserve_comments = b;
+
+    let compatibility = get_prop(options, "compatibility");
+    if present(&compatibility) {
+        if !compatibility.is_object() || js_sys::Array::is_array(&compatibility) {
+            return Err(invalid_option("compatibility should be an object"));
+        }
+        for key in js_sys::Object::keys(&js_sys::Object::from(compatibility.clone())).iter() {
+            if key.as_string().as_deref() != Some("componentApi") {
+                return Err(format!(
+                    "Unrecognised compiler option compatibility.{}\nhttps://svelte.dev/e/options_unrecognised",
+                    key.as_string().unwrap_or_default()
+                ));
+            }
+        }
+        let value = get_prop(&compatibility, "componentApi");
+        if present(&value) {
+            opts.compatibility.component_api = match value.as_f64() {
+                Some(4.0) => ComponentApi::V4,
+                Some(5.0) => ComponentApi::V5,
+                _ => {
+                    return Err(invalid_option(
+                        "compatibility.componentApi should be either \"4\" or \"5\"",
+                    ));
+                }
+            };
+        }
     }
-    if let Some(b) = get_prop(options, "preserveWhitespace").as_bool() {
-        opts.preserve_whitespace = b;
+
+    if present(&get_prop(options, "loopGuardTimeout")) {
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        opts.legacy_options.loop_guard_timeout = warn_once(&WARNED);
     }
-    if let Some(b) = get_prop(options, "discloseVersion").as_bool() {
-        opts.disclose_version = b;
-    }
-    if let Some(b) = get_prop(options, "hmr").as_bool() {
-        opts.hmr = b;
-    }
-    if let Some(s) = get_prop(options, "namespace").as_string() {
-        opts.namespace = match s.as_str() {
-            "svg" => Namespace::Svg,
-            "mathml" => Namespace::Mathml,
-            _ => Namespace::Html,
+    opts.name = require_string(options, "name")?;
+
+    let namespace = get_prop(options, "namespace");
+    if present(&namespace) {
+        opts.namespace = match namespace.as_string().as_deref() {
+            Some("html") => Namespace::Html,
+            Some("svg") => Namespace::Svg,
+            Some("mathml") => Namespace::Mathml,
+            _ => {
+                return Err(invalid_option(
+                    "namespace should be one of \"html\", \"mathml\" or \"svg\"",
+                ));
+            }
         };
+    }
+    if let Some(value) = require_bool(options, "modernAst")? {
+        opts.modern_ast = value;
+    }
+    opts.output_filename = require_string(options, "outputFilename")?;
+    if let Some(value) = require_bool(options, "preserveComments")? {
+        opts.preserve_comments = value;
+    }
+    let fragments = get_prop(options, "fragments");
+    if present(&fragments) {
+        opts.fragments = match fragments.as_string().as_deref() {
+            Some("html") => FragmentMode::Html,
+            Some("tree") => FragmentMode::Tree,
+            _ => {
+                return Err(invalid_option(
+                    "fragments should be either \"html\" or \"tree\"",
+                ));
+            }
+        };
+    }
+    if let Some(value) = require_bool(options, "preserveWhitespace")? {
+        opts.preserve_whitespace = value;
+    }
+
+    let runes = resolve_maybe_fn(options, "runes", &meta_filename);
+    if present(&runes) {
+        opts.runes = match runes.as_bool() {
+            Some(value) => Some(value),
+            None if runes.as_f64().is_some_and(|n| n != 0.0 && !n.is_nan()) => Some(true),
+            None if runes.as_string().is_some_and(|s| !s.is_empty()) => Some(true),
+            None if runes.is_object() => Some(true),
+            None => None,
+        };
+    }
+    if let Some(value) = require_bool(options, "hmr")? {
+        opts.hmr = value;
+    }
+
+    let sourcemap = get_prop(options, "sourcemap");
+    if present(&sourcemap) {
+        opts.sourcemap = sourcemap.as_string().or_else(|| {
+            js_sys::JSON::stringify(&sourcemap)
+                .ok()
+                .and_then(|value| value.as_string())
+        });
+    }
+    if present(&get_prop(options, "enableSourcemap")) {
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        opts.legacy_options.enable_sourcemap = warn_once(&WARNED);
+    }
+    if present(&get_prop(options, "hydratable")) {
+        static WARNED: AtomicBool = AtomicBool::new(false);
+        opts.legacy_options.hydratable = warn_once(&WARNED);
+    }
+
+    for (key, message) in [
+        (
+            "format",
+            "The format option has been removed in Svelte 4, the compiler only outputs ESM now. Remove \"format\" from your compiler options. If you did not set this yourself, bump the version of your bundler plugin (vite-plugin-svelte/rollup-plugin-svelte/svelte-loader)",
+        ),
+        (
+            "tag",
+            "The tag option has been removed in Svelte 5. Use `<svelte:options customElement=\"tag-name\" />` inside the component instead. If that does not solve your use case, please open an issue on GitHub with details.",
+        ),
+        (
+            "sveltePath",
+            "The sveltePath option has been removed in Svelte 5. If this option was crucial for you, please open an issue on GitHub with your use case.",
+        ),
+        (
+            "errorMode",
+            "The errorMode option has been removed. If you are using this through svelte-preprocess with TypeScript, use the https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax setting instead",
+        ),
+        (
+            "varsReport",
+            "The vars option has been removed. If you are using this through svelte-preprocess with TypeScript, use the https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax setting instead",
+        ),
+    ] {
+        if present(&get_prop(options, key)) {
+            return Err(format!(
+                "Invalid compiler option: {message}\nhttps://svelte.dev/e/options_removed"
+            ));
+        }
     }
 
     if let Some(func) = get_prop(options, "warningFilter").dyn_ref::<js_sys::Function>() {
@@ -531,7 +815,7 @@ fn compile_result_to_json(result: CompileResult) -> String {
 #[wasm_bindgen(js_name = compile)]
 pub fn compile_svelte(source: &str, options: JsValue) -> Result<String, JsValue> {
     let error_slot: ErrorSlot = Arc::new(Mutex::new(None));
-    let opts = build_compile_options(&options, &error_slot).map_err(|e| JsValue::from_str(&e))?;
+    let opts = build_compile_options(&options, &error_slot).map_err(option_error_to_js)?;
     let result = compile(source, opts);
     if let Some(msg) = error_slot.lock().unwrap().take() {
         return Err(JsValue::from_str(&msg));

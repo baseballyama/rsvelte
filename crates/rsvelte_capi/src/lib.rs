@@ -587,13 +587,13 @@ fn success_envelope(result: Value) -> RsvelteBuf {
 // --- options parsing ------------------------------------------------------
 
 #[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase", default)]
+#[serde(rename_all = "camelCase", default, deny_unknown_fields)]
 struct CapiExperimentalOptions {
     r#async: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase", default)]
+#[serde(rename_all = "camelCase", default, deny_unknown_fields)]
 struct CapiCompatibilityOptions {
     component_api: Option<u32>,
 }
@@ -602,7 +602,7 @@ struct CapiCompatibilityOptions {
 #[serde(rename_all = "camelCase", default)]
 struct CapiCompileOptionsJson {
     dev: Option<bool>,
-    generate: Option<String>,
+    generate: Value,
     filename: Option<String>,
     root_dir: Option<String>,
     name: Option<String>,
@@ -613,7 +613,7 @@ struct CapiCompileOptionsJson {
     css: Option<String>,
     preserve_comments: Option<bool>,
     preserve_whitespace: Option<bool>,
-    runes: Option<bool>,
+    runes: Value,
     disclose_version: Option<bool>,
     sourcemap: Option<Value>,
     output_filename: Option<String>,
@@ -630,36 +630,256 @@ struct CapiCompileOptionsJson {
 #[serde(rename_all = "camelCase", default)]
 struct CapiModuleCompileOptionsJson {
     dev: Option<bool>,
-    generate: Option<String>,
+    generate: Value,
     filename: Option<String>,
     root_dir: Option<String>,
     experimental: Option<CapiExperimentalOptions>,
 }
 
+const CAPI_RECOGNISED_COMPILE_OPTIONS: &[&str] = &[
+    "filename",
+    "rootDir",
+    "dev",
+    "generate",
+    "warningFilter",
+    "experimental",
+    "accessors",
+    "css",
+    "cssHash",
+    "cssHashOverride",
+    "cssOutputFilename",
+    "customElement",
+    "discloseVersion",
+    "immutable",
+    "legacy",
+    "compatibility",
+    "loopGuardTimeout",
+    "name",
+    "namespace",
+    "modernAst",
+    "outputFilename",
+    "preserveComments",
+    "fragments",
+    "preserveWhitespace",
+    "runes",
+    "hmr",
+    "sourcemap",
+    "enableSourcemap",
+    "hydratable",
+    "format",
+    "tag",
+    "sveltePath",
+    "errorMode",
+    "varsReport",
+];
+
+static WARNED_GENERATE_DOM_SSR: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn parse_generate_option(value: &Value) -> Result<(GenerateMode, bool), String> {
+    match value {
+        Value::String(value) if value == "client" => Ok((GenerateMode::Client, false)),
+        Value::String(value) if value == "dom" => Ok((GenerateMode::Client, true)),
+        Value::String(value) if value == "server" => Ok((GenerateMode::Server, false)),
+        Value::String(value) if value == "ssr" => Ok((GenerateMode::Server, true)),
+        Value::Bool(false) => Ok((GenerateMode::None, false)),
+        _ => Err("Invalid compiler option: generate must be \"client\", \"server\" or false\nhttps://svelte.dev/e/options_invalid_value".to_string()),
+    }
+}
+
+fn invalid_capi_option(detail: impl std::fmt::Display) -> String {
+    format!("Invalid compiler option: {detail}\nhttps://svelte.dev/e/options_invalid_value")
+}
+
+fn validate_capi_option_types(value: &Value, component: bool) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .expect("parse_options_value checked object");
+    let validate_string = |key: &str| -> Result<(), String> {
+        if object.get(key).is_some_and(|value| !value.is_string()) {
+            return Err(invalid_capi_option(format!(
+                "{key} should be a string, if specified"
+            )));
+        }
+        Ok(())
+    };
+    let validate_bool = |key: &str| -> Result<(), String> {
+        if object.get(key).is_some_and(|value| !value.is_boolean()) {
+            return Err(invalid_capi_option(format!(
+                "{key} should be true or false, if specified"
+            )));
+        }
+        Ok(())
+    };
+
+    // Keep this in validate-options.js order so an object containing multiple
+    // invalid values reports the same first failure as upstream.
+    for key in ["filename", "rootDir"] {
+        validate_string(key)?;
+    }
+    validate_bool("dev")?;
+    if let Some(generate) = object.get("generate") {
+        parse_generate_option(generate)?;
+    }
+    if object.contains_key("warningFilter") {
+        return Err(invalid_capi_option(
+            "warningFilter should be a function, if specified",
+        ));
+    }
+    if let Some(experimental) = object.get("experimental").filter(|value| !value.is_null()) {
+        let nested = experimental
+            .as_object()
+            .ok_or_else(|| invalid_capi_option("experimental should be an object"))?;
+        if let Some(key) = nested.keys().find(|key| key.as_str() != "async") {
+            return Err(format!(
+                "Unrecognised compiler option experimental.{key}\nhttps://svelte.dev/e/options_unrecognised"
+            ));
+        }
+        if nested.get("async").is_some_and(|value| !value.is_boolean()) {
+            return Err(invalid_capi_option(
+                "experimental.async should be true or false, if specified",
+            ));
+        }
+    }
+
+    // validate_module_options maps every component-only key to a no-op.
+    if !component {
+        return Ok(());
+    }
+
+    validate_bool("accessors")?;
+    if let Some(css) = object.get("css") {
+        match css {
+            Value::Bool(_) => {
+                return Err(invalid_capi_option(
+                    "The boolean options have been removed from the css option. Use \"external\" instead of false and \"injected\" instead of true",
+                ));
+            }
+            Value::String(value) if value == "none" => {
+                return Err(invalid_capi_option(
+                    "css: \"none\" is no longer a valid option. If this was crucial for you, please open an issue on GitHub with your use case.",
+                ));
+            }
+            Value::String(value) if value == "external" || value == "injected" => {}
+            _ => {
+                return Err(invalid_capi_option(
+                    "css should be either \"external\" (default, recommended) or \"injected\"",
+                ));
+            }
+        }
+    }
+    if object.contains_key("cssHash") {
+        return Err(invalid_capi_option(
+            "cssHash should be a function, if specified",
+        ));
+    }
+    for key in ["cssOutputFilename", "cssHashOverride"] {
+        validate_string(key)?;
+    }
+    if object
+        .get("customElement")
+        .is_some_and(|value| !value.is_boolean())
+    {
+        return Err(invalid_capi_option("customElement should be true or false"));
+    }
+    for key in ["discloseVersion", "immutable"] {
+        validate_bool(key)?;
+    }
+    if object.contains_key("legacy") {
+        return Err("Invalid compiler option: The legacy option has been removed. If you are using this because of legacy.componentApi, use compatibility.componentApi instead\nhttps://svelte.dev/e/options_removed".to_string());
+    }
+
+    if let Some(compatibility) = object.get("compatibility").filter(|value| !value.is_null()) {
+        let nested = compatibility
+            .as_object()
+            .ok_or_else(|| invalid_capi_option("compatibility should be an object"))?;
+        if let Some(key) = nested.keys().find(|key| key.as_str() != "componentApi") {
+            return Err(format!(
+                "Unrecognised compiler option compatibility.{key}\nhttps://svelte.dev/e/options_unrecognised"
+            ));
+        }
+        if let Some(component_api) = nested.get("componentApi")
+            && component_api.as_u64() != Some(4)
+            && component_api.as_u64() != Some(5)
+        {
+            return Err(invalid_capi_option(
+                "compatibility.componentApi should be either \"4\" or \"5\"",
+            ));
+        }
+    }
+    validate_string("name")?;
+    if let Some(namespace) = object.get("namespace")
+        && !matches!(namespace.as_str(), Some("html" | "mathml" | "svg"))
+    {
+        return Err(invalid_capi_option(
+            "namespace should be one of \"html\", \"mathml\" or \"svg\"",
+        ));
+    }
+    for key in ["modernAst", "preserveComments", "preserveWhitespace", "hmr"] {
+        validate_bool(key)?;
+    }
+    validate_string("outputFilename")?;
+    if let Some(fragments) = object.get("fragments")
+        && !matches!(fragments.as_str(), Some("html" | "tree"))
+    {
+        return Err(invalid_capi_option(
+            "fragments should be either \"html\" or \"tree\"",
+        ));
+    }
+    Ok(())
+}
+
+unsafe fn parse_options_value(ptr: *const u8, len: usize) -> Result<Value, String> {
+    if len == 0 {
+        return Ok(Value::Object(serde_json::Map::new()));
+    }
+    // SAFETY: upheld by the caller's documented pointer/length contract.
+    let source = unsafe { borrow_utf8(ptr, len) }
+        .ok_or_else(|| "options_json is not valid UTF-8".to_string())?;
+    let value: Value =
+        serde_json::from_str(source).map_err(|e| format!("options_json parse error: {e}"))?;
+    let object = value
+        .as_object()
+        .ok_or_else(|| "Invalid compiler option: options should be an object".to_string())?;
+    if let Some(key) = object
+        .keys()
+        .find(|key| !CAPI_RECOGNISED_COMPILE_OPTIONS.contains(&key.as_str()))
+    {
+        return Err(format!(
+            "Unrecognised compiler option {key}\nhttps://svelte.dev/e/options_unrecognised"
+        ));
+    }
+    Ok(value)
+}
+
 /// # Safety
 /// See [`borrow_utf8`].
 unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOptions, String> {
-    let raw: CapiCompileOptionsJson = if len == 0 {
-        CapiCompileOptionsJson::default()
-    } else {
-        // SAFETY: upheld by this function's documented `# Safety` contract
-        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
-        let s = unsafe { borrow_utf8(ptr, len) }
-            .ok_or_else(|| "options_json is not valid UTF-8".to_string())?;
-        serde_json::from_str(s).map_err(|e| format!("options_json parse error: {e}"))?
+    // SAFETY: upheld by this function's documented pointer/length contract.
+    let value = unsafe { parse_options_value(ptr, len)? };
+    let supplied = |key: &str| {
+        value
+            .as_object()
+            .is_some_and(|object| object.contains_key(key))
     };
+    validate_capi_option_types(&value, true)?;
+    let raw: CapiCompileOptionsJson = serde_json::from_value(value.clone())
+        .map_err(|e| format!("options_json parse error: {e}"))?;
 
     let mut opts = CompileOptions::default();
     if let Some(v) = raw.dev {
         opts.dev = v;
     }
-    if let Some(v) = raw.generate.as_deref() {
-        opts.generate = match v {
-            "client" => GenerateMode::Client,
-            "server" | "ssr" => GenerateMode::Server,
-            "false" => GenerateMode::None,
-            _ => return Err(format!("invalid generate option: {v:?}")),
-        };
+    if supplied("generate") {
+        let (generate, renamed) = parse_generate_option(&raw.generate)?;
+        opts.generate = generate;
+        if renamed {
+            opts.legacy_options.generate_dom_ssr =
+                !WARNED_GENERATE_DOM_SSR.swap(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+    if supplied("warningFilter") {
+        return Err("Invalid compiler option: warningFilter should be a function, if specified\nhttps://svelte.dev/e/options_invalid_value".to_string());
     }
     if let Some(v) = raw.filename {
         opts.filename = Some(v);
@@ -689,7 +909,9 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
             "html" => Namespace::Html,
             "svg" => Namespace::Svg,
             "mathml" => Namespace::Mathml,
-            _ => return Err(format!("invalid namespace option: {v:?}")),
+            _ => {
+                return Err("Invalid compiler option: namespace should be one of \"html\", \"mathml\" or \"svg\"\nhttps://svelte.dev/e/options_invalid_value".to_string());
+            }
         };
     }
     if let Some(v) = raw.immutable {
@@ -699,12 +921,29 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
         opts.legacy_options.immutable =
             !WARNED_IMMUTABLE.swap(true, std::sync::atomic::Ordering::Relaxed);
     }
+    if supplied("legacy") {
+        return Err("Invalid compiler option: The legacy option has been removed. If you are using this because of legacy.componentApi, use compatibility.componentApi instead\nhttps://svelte.dev/e/options_removed".to_string());
+    }
+    if supplied("loopGuardTimeout") {
+        static WARNED_LOOP_GUARD_TIMEOUT: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
+        opts.legacy_options.loop_guard_timeout =
+            !WARNED_LOOP_GUARD_TIMEOUT.swap(true, std::sync::atomic::Ordering::Relaxed);
+    }
     if let Some(v) = raw.css.as_deref() {
         opts.css = match v {
             "external" => CssMode::External,
             "injected" => CssMode::Injected,
-            _ => return Err(format!("invalid css option: {v:?}")),
+            "none" => {
+                return Err("Invalid compiler option: css: \"none\" is no longer a valid option. If this was crucial for you, please open an issue on GitHub with your use case.\nhttps://svelte.dev/e/options_invalid_value".to_string());
+            }
+            _ => {
+                return Err("Invalid compiler option: css should be either \"external\" (default, recommended) or \"injected\"\nhttps://svelte.dev/e/options_invalid_value".to_string());
+            }
         };
+    }
+    if supplied("cssHash") {
+        return Err("Invalid compiler option: cssHash should be a function, if specified\nhttps://svelte.dev/e/options_invalid_value".to_string());
     }
     if let Some(v) = raw.preserve_comments {
         opts.preserve_comments = v;
@@ -712,11 +951,59 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
     if let Some(v) = raw.preserve_whitespace {
         opts.preserve_whitespace = v;
     }
-    if let Some(v) = raw.runes {
-        opts.runes = Some(v);
+    if !raw.runes.is_null() {
+        opts.runes = match &raw.runes {
+            Value::Bool(value) => Some(*value),
+            Value::Number(value) if value.as_f64().is_some_and(|n| n != 0.0 && !n.is_nan()) => {
+                Some(true)
+            }
+            Value::String(value) if !value.is_empty() => Some(true),
+            Value::Array(_) | Value::Object(_) => Some(true),
+            _ => None,
+        };
     }
     if let Some(v) = raw.disclose_version {
         opts.disclose_version = v;
+    }
+    if supplied("enableSourcemap") {
+        static WARNED_ENABLE_SOURCEMAP: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
+        opts.legacy_options.enable_sourcemap =
+            !WARNED_ENABLE_SOURCEMAP.swap(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    if supplied("hydratable") {
+        static WARNED_HYDRATABLE: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
+        opts.legacy_options.hydratable =
+            !WARNED_HYDRATABLE.swap(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    for (key, message) in [
+        (
+            "format",
+            "The format option has been removed in Svelte 4, the compiler only outputs ESM now. Remove \"format\" from your compiler options. If you did not set this yourself, bump the version of your bundler plugin (vite-plugin-svelte/rollup-plugin-svelte/svelte-loader)",
+        ),
+        (
+            "tag",
+            "The tag option has been removed in Svelte 5. Use `<svelte:options customElement=\"tag-name\" />` inside the component instead. If that does not solve your use case, please open an issue on GitHub with details.",
+        ),
+        (
+            "sveltePath",
+            "The sveltePath option has been removed in Svelte 5. If this option was crucial for you, please open an issue on GitHub with your use case.",
+        ),
+        (
+            "errorMode",
+            "The errorMode option has been removed. If you are using this through svelte-preprocess with TypeScript, use the https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax setting instead",
+        ),
+        (
+            "varsReport",
+            "The vars option has been removed. If you are using this through svelte-preprocess with TypeScript, use the https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax setting instead",
+        ),
+    ] {
+        if supplied(key) {
+            return Err(format!(
+                "Invalid compiler option: {message}\nhttps://svelte.dev/e/options_removed"
+            ));
+        }
     }
     if let Some(v) = raw.sourcemap {
         if let Some(s) = v.as_str() {
@@ -751,7 +1038,9 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
         opts.compatibility.component_api = match v {
             4 => rsvelte_core::compiler::ComponentApi::V4,
             5 => rsvelte_core::compiler::ComponentApi::V5,
-            _ => return Err(format!("invalid compatibility.componentApi option: {v}")),
+            _ => {
+                return Err("Invalid compiler option: compatibility.componentApi should be either \"4\" or \"5\"\nhttps://svelte.dev/e/options_invalid_value".to_string());
+            }
         };
     }
     if let Some(hash_override) = raw.css_hash_override {
@@ -763,7 +1052,9 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
         opts.fragments = match v {
             "html" => rsvelte_core::compiler::FragmentMode::Html,
             "tree" => rsvelte_core::compiler::FragmentMode::Tree,
-            _ => return Err(format!("invalid fragments option: {v:?}")),
+            _ => {
+                return Err("Invalid compiler option: fragments should be either \"html\" or \"tree\"\nhttps://svelte.dev/e/options_invalid_value".to_string());
+            }
         };
     }
     Ok(opts)
@@ -772,27 +1063,28 @@ unsafe fn parse_compile_options(ptr: *const u8, len: usize) -> Result<CompileOpt
 /// # Safety
 /// See [`borrow_utf8`].
 unsafe fn parse_module_options(ptr: *const u8, len: usize) -> Result<ModuleCompileOptions, String> {
-    let raw: CapiModuleCompileOptionsJson = if len == 0 {
-        CapiModuleCompileOptionsJson::default()
-    } else {
-        // SAFETY: upheld by this function's documented `# Safety` contract
-        // (valid pointers/lengths and a writable out-pointer supplied by the caller).
-        let s = unsafe { borrow_utf8(ptr, len) }
-            .ok_or_else(|| "options_json is not valid UTF-8".to_string())?;
-        serde_json::from_str(s).map_err(|e| format!("options_json parse error: {e}"))?
-    };
+    // Module compilation recognises component-only keys as no-ops, matching
+    // `validate_module_options`; truly unknown keys must still be rejected.
+    // SAFETY: upheld by this function's documented pointer/length contract.
+    let value = unsafe { parse_options_value(ptr, len)? };
+    validate_capi_option_types(&value, false)?;
+    let generate_supplied = value
+        .as_object()
+        .is_some_and(|object| object.contains_key("generate"));
+    let raw: CapiModuleCompileOptionsJson =
+        serde_json::from_value(value).map_err(|e| format!("options_json parse error: {e}"))?;
 
     let mut opts = ModuleCompileOptions::default();
     if let Some(v) = raw.dev {
         opts.dev = v;
     }
-    if let Some(v) = raw.generate.as_deref() {
-        opts.generate = match v {
-            "client" => GenerateMode::Client,
-            "server" | "ssr" => GenerateMode::Server,
-            "false" => GenerateMode::None,
-            _ => return Err(format!("invalid generate option: {v:?}")),
-        };
+    if generate_supplied {
+        let (generate, renamed) = parse_generate_option(&raw.generate)?;
+        opts.generate = generate;
+        if renamed {
+            opts.legacy_options.generate_dom_ssr =
+                !WARNED_GENERATE_DOM_SSR.swap(true, std::sync::atomic::Ordering::Relaxed);
+        }
     }
     if let Some(v) = raw.filename {
         opts.filename = Some(v);
