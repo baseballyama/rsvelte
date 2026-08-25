@@ -2143,9 +2143,30 @@ pub(crate) fn transform_client(
     // Reference: transform-client.js line 513: body = [...imports, ...state.module_level_snippets, ...body];
     let module_script_non_imports: Option<(String, Option<String>)> =
         if let Some(ref module_content) = analysis.module_script_content {
+            // `$inspect.trace()`'s default label is located in the original
+            // component, so lower it before TypeScript stripping, comment
+            // removal, import extraction, or any other rewrite moves the
+            // enclosing function. The AST pass parses only the script body;
+            // its prefix supplies the whole-file line and column base.
+            let trace_lowered = if options.dev {
+                source
+                    .get(..module_content.start as usize)
+                    .zip(source.get(module_content.start as usize..module_content.end as usize))
+                    .and_then(|(prefix, module_source)| {
+                        inspect_trace_ast::transform_module_inspect_trace_with_prefix(
+                            module_source,
+                            true,
+                            analysis.is_typescript,
+                            options.filename.as_deref(),
+                            prefix,
+                        )
+                    })
+            } else {
+                None
+            };
             // Strip TypeScript syntax before processing
             let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
-                &module_content.raw,
+                trace_lowered.as_deref().unwrap_or(&module_content.raw),
             );
             // Then the comments the accessors swallow, while the class the scan
             // keys on is still in its source shape — the rune transforms below

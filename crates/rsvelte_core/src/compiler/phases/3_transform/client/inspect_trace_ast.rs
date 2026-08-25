@@ -46,6 +46,19 @@ pub(super) fn transform_module_inspect_trace(
     is_ts: bool,
     filename: Option<&str>,
 ) -> Option<String> {
+    transform_module_inspect_trace_with_prefix(source, dev, is_ts, filename, "")
+}
+
+/// Component module scripts are parsed as a source slice, but their default
+/// trace labels are located in the whole `.svelte` file. `source_prefix` is
+/// the source before that slice, including the opening `<script module>` tag.
+pub(super) fn transform_module_inspect_trace_with_prefix(
+    source: &str,
+    dev: bool,
+    is_ts: bool,
+    filename: Option<&str>,
+    source_prefix: &str,
+) -> Option<String> {
     if !source_has_inspect_trace(source) {
         return None;
     }
@@ -62,6 +75,7 @@ pub(super) fn transform_module_inspect_trace(
         |program, src| {
             let mut collector = TraceCollector {
                 source: src,
+                source_prefix,
                 filename,
                 dev,
                 parent_label: None,
@@ -75,6 +89,7 @@ pub(super) fn transform_module_inspect_trace(
 
 struct TraceCollector<'src> {
     source: &'src str,
+    source_prefix: &'src str,
     filename: Option<&'src str>,
     dev: bool,
     /// The label the *immediate* parent of a function gives it, mirroring
@@ -92,10 +107,18 @@ impl<'src> TraceCollector<'src> {
     /// `locate_node(fn)`: 1-based line, 0-based column of the function's start.
     fn locate(&self, at: u32) -> (usize, usize) {
         let before = &self.source[..at as usize];
-        let line = before.matches('\n').count() + 1;
-        let col = before[before.rfind('\n').map_or(0, |p| p + 1)..]
-            .chars()
-            .count();
+        let prefix_lines = self.source_prefix.matches('\n').count();
+        let local_lines = before.matches('\n').count();
+        let line = prefix_lines + local_lines + 1;
+        let col = if let Some(last_newline) = before.rfind('\n') {
+            before[last_newline + 1..].chars().count()
+        } else {
+            let prefix_column = self.source_prefix
+                [self.source_prefix.rfind('\n').map_or(0, |p| p + 1)..]
+                .chars()
+                .count();
+            prefix_column + before.chars().count()
+        };
         (line, col)
     }
 
@@ -258,7 +281,7 @@ impl<'a, 'src> Visit<'a> for TraceCollector<'src> {
 
 #[cfg(test)]
 mod tests {
-    use super::transform_module_inspect_trace;
+    use super::{transform_module_inspect_trace, transform_module_inspect_trace_with_prefix};
 
     fn dev(source: &str) -> Option<String> {
         transform_module_inspect_trace(source, true, false, Some("m.svelte.js"))
@@ -278,6 +301,19 @@ mod tests {
         let out =
             dev("let base = 1;\nexport function go() { $inspect.trace(); return base; }").unwrap();
         assert!(out.contains("() => 'go (m.svelte.js:2:7)'"), "got: {out}");
+    }
+
+    #[test]
+    fn a_component_module_label_includes_the_script_tags_source_prefix() {
+        let out = transform_module_inspect_trace_with_prefix(
+            "\nexport function go() { $inspect.trace(); return 1; }\n",
+            true,
+            false,
+            Some("C.svelte"),
+            "<script module>",
+        )
+        .unwrap();
+        assert!(out.contains("() => 'go (C.svelte:2:7)'"), "got: {out}");
     }
 
     /// Every label arm of `get_function_label`, and the fallback a class member

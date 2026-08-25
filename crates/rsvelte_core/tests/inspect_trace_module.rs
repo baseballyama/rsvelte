@@ -113,11 +113,11 @@ fn an_async_function_awaits_the_traced_body() {
 
 /// The rune reaches this pipeline through two entry points (a `.svelte.(js|ts)`
 /// module and a component's `<script module>`) crossed with target and mode, and
-/// only ONE of those eight cells lowers it — every other cell removes it. The
+/// only the two client-dev cells lower it — every other cell removes it. The
 /// lowering therefore cannot replace the removal; both have to stand. Read off
 /// the official compiler for all eight.
 #[test]
-fn every_target_and_mode_still_drops_the_rune() {
+fn every_entry_target_and_mode_handles_the_rune_like_upstream() {
     use rsvelte_core::{CompileOptions, compile, compiler::CssMode};
 
     const SRC: &str =
@@ -152,9 +152,19 @@ fn every_target_and_mode_still_drops_the_rune() {
         .unwrap_or_else(|e| format!("COMPILE_ERROR: {e:?}"))
     };
 
-    // The one cell that lowers.
-    let lowered = module_target(GenerateMode::Client, true);
-    assert!(lowered.contains("$.trace("), "{lowered}");
+    // The two client-dev entry points lower the rune. The component label is
+    // located in the whole `.svelte` file, including the opening script tag.
+    let lowered_module = module_target(GenerateMode::Client, true);
+    assert!(lowered_module.contains("$.trace("), "{lowered_module}");
+    let lowered_component = component(GenerateMode::Client, true);
+    assert!(
+        lowered_component.contains("$.trace("),
+        "{lowered_component}"
+    );
+    assert!(
+        lowered_component.contains("() => 'go (C.svelte:3:7)'"),
+        "{lowered_component}"
+    );
 
     for (name, out) in [
         (
