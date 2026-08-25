@@ -16,6 +16,7 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, AwaitBlock, EachBlock, Fragment, IfBlock,
     KeyBlock, RegularElement, Root, Script, SnippetBlock, TemplateNode,
 };
+use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use rustc_hash::FxHashSet;
 
 /// A store reference with location context
@@ -570,7 +571,7 @@ fn collect_dollar_refs_from_script_with_context(
 fn arrow_body_range(chars: &[char], from: usize) -> (usize, usize) {
     let len = chars.len();
     let mut s = from;
-    while s < len && (chars[s] == ' ' || chars[s] == '\t' || chars[s] == '\n' || chars[s] == '\r') {
+    while s < len && is_js_whitespace(chars[s]) {
         s += 1;
     }
     if s >= len {
@@ -589,10 +590,6 @@ fn arrow_body_range(chars: &[char], from: usize) -> (usize, usize) {
         m += 1;
     }
     (s, m)
-}
-
-fn is_js_whitespace(c: char) -> bool {
-    matches!(c, ' ' | '\t' | '\n' | '\r')
 }
 
 /// If the `$xxx` ident at `[ident_start, ident_end)` is a function/arrow
@@ -1795,6 +1792,36 @@ fn collect_dollar_refs_from_snippet_block(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dollar_parameter_scan_uses_javascript_whitespace() {
+        for whitespace in ['\u{a0}', '\u{2003}', '\u{2028}', '\u{feff}'] {
+            let source = format!("$value{whitespace}=>{whitespace}$value");
+            let chars: Vec<char> = source.chars().collect();
+            let (body_start, body_end) = dollar_param_body_range(&chars, 0, "$value".len())
+                .unwrap_or_else(|| {
+                    panic!(
+                        "U+{:04X} must delimit an arrow parameter",
+                        whitespace as u32
+                    )
+                });
+            assert_eq!(
+                chars[body_start..body_end].iter().collect::<String>(),
+                "$value"
+            );
+        }
+
+        let source = "(\u{2003}$value\u{feff})\u{202f}=>\u{a0}$value";
+        let chars: Vec<char> = source.chars().collect();
+        let ident_start = chars.iter().position(|&c| c == '$').unwrap();
+        let ident_end = ident_start + "$value".len();
+        let (body_start, body_end) = dollar_param_body_range(&chars, ident_start, ident_end)
+            .expect("JavaScript whitespace must be skipped around parenthesized parameters");
+        assert_eq!(
+            chars[body_start..body_end].iter().collect::<String>(),
+            "$value"
+        );
+    }
 
     /// The blanked text the lexical scan reads must be reachable without a third
     /// parse of a script the compiler already parsed — and the two routes must
