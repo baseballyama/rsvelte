@@ -1,4 +1,5 @@
 <script>
+	export let mystore;
 	const re = /\$mystore/;
 	const inClass = /[/]\$mystore/;
 	const escaped = /a\/b\$mystore/;

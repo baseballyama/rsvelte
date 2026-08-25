@@ -194,6 +194,13 @@ impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
         oxc_ast_visit::walk::walk_call_expression(self, it);
     }
 
+    fn visit_reg_exp_literal(&mut self, it: &oxc::RegExpLiteral<'a>) {
+        if self.collect_store_facts {
+            self.store_scan
+                .add_regex_literal_span((it.span.start + self.offset, it.span.end + self.offset));
+        }
+    }
+
     fn visit_ts_type_assertion(&mut self, it: &oxc::TSTypeAssertion<'a>) {
         #[cfg(test)]
         {

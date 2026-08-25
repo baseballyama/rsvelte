@@ -64,6 +64,7 @@ pub struct StoreScanContext<'s> {
     accessed_stores: HashSet<&'s str>,
     pub(super) dollar_param_shadow: HashMap<String, Vec<(u32, u32)>>,
     pub(super) self_named_rune_calls: Vec<u32>,
+    pub(super) regex_literal_spans: Vec<(u32, u32)>,
     import_store_names: Vec<&'s str>,
     seen_import_store_names: HashSet<&'s str>,
 }
@@ -85,6 +86,7 @@ impl<'s> StoreScanContext<'s> {
             accessed_stores: HashSet::new(),
             dollar_param_shadow: HashMap::new(),
             self_named_rune_calls: Vec::new(),
+            regex_literal_spans: Vec::new(),
             import_store_names: Vec::new(),
             seen_import_store_names: HashSet::new(),
         }
@@ -93,6 +95,7 @@ impl<'s> StoreScanContext<'s> {
     pub(super) fn begin_script_facts(&mut self) {
         self.dollar_param_shadow.clear();
         self.self_named_rune_calls.clear();
+        self.regex_literal_spans.clear();
     }
 
     pub(super) fn has_dollar(&mut self) -> bool {
@@ -119,9 +122,15 @@ impl<'s> StoreScanContext<'s> {
         self.self_named_rune_calls.push(pos);
     }
 
+    pub(super) fn add_regex_literal_span(&mut self, span: (u32, u32)) {
+        self.regex_literal_spans.push(span);
+    }
+
     pub(super) fn finish_script_facts(&mut self) {
         self.self_named_rune_calls.sort_unstable();
         self.self_named_rune_calls.dedup();
+        self.regex_literal_spans.sort_unstable();
+        self.regex_literal_spans.dedup();
     }
 
     pub(super) fn collect_loose_dollar_names(
@@ -134,7 +143,12 @@ impl<'s> StoreScanContext<'s> {
         let Some(text) = self.source.get(start..end) else {
             return;
         };
-        collect_loose_dollar_names_into(text, &mut self.accessed_stores);
+        collect_loose_dollar_names_into(
+            text,
+            start,
+            &self.regex_literal_spans,
+            &mut self.accessed_stores,
+        );
         output.extend(self.accessed_stores.iter().map(|name| (*name).to_string()));
     }
 
@@ -163,6 +177,7 @@ impl<'s> StoreScanContext<'s> {
                     candidate,
                     &self.dollar_param_shadow,
                     &self.self_named_rune_calls,
+                    &self.regex_literal_spans,
                 ) {
                     self.accessed_stores.insert(name);
                 }
@@ -175,9 +190,12 @@ impl<'s> StoreScanContext<'s> {
         let source = self.source;
         let shadow = &self.dollar_param_shadow;
         let rune_calls = &self.self_named_rune_calls;
+        let regex_spans = &self.regex_literal_spans;
         let stores = &mut self.accessed_stores;
         collect_store_candidates(source, self.script_spans, |candidate| {
-            if let Some(name) = resolve_store_candidate(source, &candidate, shadow, rune_calls) {
+            if let Some(name) =
+                resolve_store_candidate(source, &candidate, shadow, rune_calls, regex_spans)
+            {
                 stores.insert(name);
             }
         });
@@ -390,7 +408,12 @@ fn blank_instance_script_comments(source: &str, span: Option<(usize, usize)>, bu
 /// name `X` for every `$X` token found, skipping only `$$`-prefixed forms and
 /// obvious non-identifiers (comments, strings, member accesses, etc.) but NOT
 /// applying the rune-name filter.
-fn collect_loose_dollar_names_into<'s>(text: &'s str, names: &mut HashSet<&'s str>) {
+fn collect_loose_dollar_names_into<'s>(
+    text: &'s str,
+    absolute_start: usize,
+    regex_literal_spans: &[(u32, u32)],
+    names: &mut HashSet<&'s str>,
+) {
     let bytes = text.as_bytes();
     if memchr::memchr(b'$', bytes).is_none() {
         return;
@@ -441,6 +464,10 @@ fn collect_loose_dollar_names_into<'s>(text: &'s str, names: &mut HashSet<&'s st
         if next >= len {
             break;
         }
+        if position_in_spans(regex_literal_spans, source_offset(absolute_start + pos)) {
+            i = next;
+            continue;
+        }
         let nb = bytes[next];
 
         // Skip `$$` (special identifiers like `$$props`)
@@ -488,7 +515,7 @@ fn collect_loose_dollar_names_into<'s>(text: &'s str, names: &mut HashSet<&'s st
 #[cfg(test)]
 fn collect_loose_dollar_names_from_script(text: &str) -> HashSet<String> {
     let mut names = HashSet::new();
-    collect_loose_dollar_names_into(text, &mut names);
+    collect_loose_dollar_names_into(text, 0, &[], &mut names);
     names.into_iter().map(str::to_string).collect()
 }
 
@@ -673,13 +700,22 @@ fn resolve_store_candidate<'s>(
     candidate: &StoreCandidate,
     shadow: &HashMap<String, Vec<(u32, u32)>>,
     self_named_rune_calls: &[u32],
+    regex_literal_spans: &[(u32, u32)],
 ) -> Option<&'s str> {
     let pos = candidate.pos();
+    if position_in_spans(regex_literal_spans, pos) {
+        return None;
+    }
     if candidate.may_be_self_named_rune() && self_named_rune_calls.binary_search(&pos).is_ok() {
         return None;
     }
     let name = candidate.name(source);
     (!is_dollar_binding_shadowed(shadow, name, pos as usize)).then_some(name)
+}
+
+fn position_in_spans(spans: &[(u32, u32)], pos: u32) -> bool {
+    let index = spans.partition_point(|&(start, _)| start <= pos);
+    index > 0 && pos < spans[index - 1].1
 }
 
 /// True when any identifier named `props` appears in a declaration's binding
@@ -1232,6 +1268,38 @@ mod tests {
         assert!(
             result.code.contains("__sveltets_2_store_get(store)"),
             "Output should contain store subscription"
+        );
+    }
+
+    #[test]
+    fn regex_literal_store_names_do_not_inject_subscriptions_or_unbalance_markers() {
+        let source = r#"<script>
+export let mystore;
+const re = /\$mystore/;
+const inClass = /[/]\$mystore/;
+const escaped = /a\/b\$mystore/;
+const afterDivision = 6 / 2 / /\$mystore/.source.length;
+const other = writable(0);
+$other;
+</script>
+<b>{mystore}{re.source}{inClass.source}{escaped.source}{afterDivision}</b>"#;
+        let result = run_svelte2tsx(source);
+
+        assert!(
+            !result.code.contains("__sveltets_2_store_get(mystore)"),
+            "a regex body is not a store reference:\n{}",
+            result.code
+        );
+        assert!(
+            result.code.contains("__sveltets_2_store_get(other)"),
+            "a real store reference beside the regexes must remain visible:\n{}",
+            result.code
+        );
+        assert_eq!(
+            result.code.matches("/*Ωignore_startΩ*/").count(),
+            result.code.matches("/*Ωignore_endΩ*/").count(),
+            "svelte2tsx markers must remain balanced:\n{}",
+            result.code
         );
     }
 
