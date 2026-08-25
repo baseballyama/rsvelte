@@ -204,6 +204,11 @@ fn another_rune_reference_still_enables_runes_mode() {
     assert!(client.contains("$.get(d)"), "in:\n{client}");
     assert_eq!(
         warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
-        ["store_rune_conflict"]
+        [
+            "store_rune_conflict",
+            "a11y_click_events_have_key_events",
+            "a11y_no_static_element_interactions",
+            "non_reactive_update"
+        ]
     );
 }
