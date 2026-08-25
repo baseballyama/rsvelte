@@ -57,21 +57,15 @@ pub fn handle_svelte_dynamic_element(
     let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
 
     let raw_tag_text = get_expression_text(&el.tag, source);
+    let raw_tag_range = get_expression_range(&el.tag);
+    let tag_is_quoted_attribute = raw_tag_range.is_some_and(|(start, _)| {
+        start > 0 && matches!(source.as_bytes()[(start - 1) as usize], b'"' | b'\'')
+    });
     // If the `this` attribute value is a plain string literal (this="tag"),
     // the parser stores just the text without quotes. We need to wrap it
     // in quotes to produce valid JavaScript: createElement("tag", ...).
-    let tag_text = if let Some((start, _end)) = get_expression_range(&el.tag) {
-        let before = if start > 0 {
-            source.as_bytes()[(start - 1) as usize]
-        } else {
-            b'{'
-        };
-        if before == b'"' || before == b'\'' {
-            // String literal: wrap in quotes
-            format!("\"{raw_tag_text}\"")
-        } else {
-            raw_tag_text.to_string()
-        }
+    let tag_text = if tag_is_quoted_attribute {
+        format!("\"{raw_tag_text}\"")
     } else {
         raw_tag_text.to_string()
     };
@@ -92,12 +86,15 @@ pub fn handle_svelte_dynamic_element(
         )
     };
 
-    // `<svelte:element this={tag}>` names itself with the tag expression; a
-    // literal `this="div"` is emitted as a string and keeps no source range.
-    let tag_range = if tag_text.starts_with('"') {
+    // `<svelte:element this={tag}>` names itself with the tag expression. Only
+    // the attribute-text form `this="div"` keeps no source range; an expression
+    // literal such as `this={"div"}` still contributes its range to upstream's
+    // opening-tag transform even though its generated text also starts with a
+    // quote.
+    let tag_range = if tag_is_quoted_attribute {
         None
     } else {
-        get_expression_range(&el.tag)
+        raw_tag_range
     };
     let spacing = opener_spacing(
         source,

@@ -168,6 +168,18 @@ fn opener_whitespace_matches_the_official_gap_collapsing() {
             "createElement(tag, {  ...attributes,}",
         ),
         (
+            "<svelte:element this={\"section\"} class=\"dynamic-host\">f</svelte:element>",
+            "createElement(\"section\", {   \"class\":`dynamic-host`,}",
+        ),
+        (
+            "<svelte:element this={\"div\"} use:action>c</svelte:element>",
+            "createElement(\"div\", __sveltets_2_union($$action_0), {  });",
+        ),
+        (
+            "<svelte:element this={\"div\"} use:action={value}>c</svelte:element>",
+            "createElement(\"div\", __sveltets_2_union($$action_0), {   });",
+        ),
+        (
             "<slot x={1} />",
             "__sveltets_createSlot(\"default\", {  \"x\":1,}",
         ),
