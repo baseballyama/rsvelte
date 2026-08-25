@@ -6962,7 +6962,12 @@ pub fn parse_program_with_error<'a>(
         } else {
             SourceType::mjs()
         };
-        let result = OxcParser::new(allocator, params.content, source_type).parse();
+        let repaired = repair_ts_newline_import_assert(params.content, params.is_typescript);
+        let parse_source = repaired.as_deref().unwrap_or(params.content);
+        let mut result = OxcParser::new(allocator, parse_source, source_type).parse();
+        // A repair is byte-length preserving. Typed conversion and every later
+        // source slice must stay in the component's original coordinate space.
+        result.program.source_text = params.content;
         convert_parsed_program(
             arena,
             &result.program,
@@ -6981,8 +6986,22 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
     Option<crate::error::ParseError>,
     crate::ast::oxc_program::RetainedProgram<'source>,
 ) {
-    let retained =
-        crate::ast::oxc_program::RetainedProgram::parse(params.content, params.is_typescript);
+    let retained = repair_ts_newline_import_assert(params.content, params.is_typescript)
+        .map_or_else(
+            || {
+                crate::ast::oxc_program::RetainedProgram::parse(
+                    params.content,
+                    params.is_typescript,
+                )
+            },
+            |repaired| {
+                crate::ast::oxc_program::RetainedProgram::parse_repaired(
+                    params.content,
+                    repaired,
+                    params.is_typescript,
+                )
+            },
+        );
     let (program, parse_error) = convert_parsed_program(
         arena,
         retained.program(),
@@ -7340,6 +7359,65 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
         return (at, message.to_string());
     }
     (i, "Unexpected token".to_string())
+}
+
+/// Repair the one import-attributes spelling acorn-typescript accepts and OXC
+/// rejects: `assert` after a line terminator. Replacing it with `with  ` keeps
+/// the byte length, every span, and the output spelling (upstream normalizes the
+/// deprecated clause to `with`) unchanged.
+///
+/// The candidate comes from OXC's *first* effective diagnostic, not a text scan:
+/// after ASI it reports the `{` following an `assert` expression statement.
+/// Re-parsing after each replacement proves the token was grammar, rather than
+/// the same bytes in a string, comment, regex, or unrelated identifier.
+fn repair_ts_newline_import_assert(content: &str, is_typescript: bool) -> Option<String> {
+    if !is_typescript || !content.contains("assert") {
+        return None;
+    }
+
+    let mut repaired = content.to_string();
+    let mut changed = false;
+    loop {
+        let allocator = Allocator::default();
+        let parsed = OxcParser::new(&allocator, &repaired, SourceType::ts()).parse();
+        let Some(diagnostic) = parsed
+            .diagnostics
+            .iter()
+            .find(|diagnostic| !is_acorn_unchecked_ts_grammar_rule(diagnostic))
+        else {
+            return changed.then_some(repaired);
+        };
+        let Some(label) = diagnostic.labels.first() else {
+            return changed.then_some(repaired);
+        };
+        let reported = (label.offset() as usize).min(repaired.len());
+        let (brace, message) = realign_missing_semicolon(&repaired, reported, &diagnostic.message);
+        if message != "Unexpected token" || repaired.as_bytes().get(brace) != Some(&b'{') {
+            return changed.then_some(repaired);
+        }
+
+        // OXC labels the insertion point at the end of `assert`; the realigned
+        // brace is the useful fallback when only whitespace separates them.
+        // Trying both also admits a comment between the keyword and `{`.
+        let keyword = [reported, brace].into_iter().find_map(|end| {
+            let end = repaired[..end].trim_end().len();
+            let start = end.checked_sub("assert".len())?;
+            (&repaired[start..end] == "assert").then_some((start, end))
+        });
+        let Some((keyword_start, keyword_end)) = keyword else {
+            return changed.then_some(repaired);
+        };
+        if repaired[..keyword_start]
+            .as_bytes()
+            .last()
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$'))
+        {
+            return changed.then_some(repaired);
+        }
+
+        repaired.replace_range(keyword_start..keyword_end, "with  ");
+        changed = true;
+    }
 }
 
 /// The first offset oxc classified as irregular whitespace that ECMAScript does

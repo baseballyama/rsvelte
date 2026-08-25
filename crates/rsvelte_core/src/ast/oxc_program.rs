@@ -11,12 +11,18 @@ use self_cell::self_cell;
 struct ProgramOwner<'source> {
     allocator: Allocator,
     source: Cow<'source, str>,
+    /// Same-length parser-only repair. The AST's spans still index `source`.
+    parse_source: Option<String>,
     source_type: SourceType,
 }
 
 impl ProgramOwner<'_> {
     fn source(&self) -> &str {
         &self.source
+    }
+
+    fn parse_source(&self) -> &str {
+        self.parse_source.as_deref().unwrap_or(&self.source)
     }
 }
 
@@ -49,8 +55,25 @@ impl<'source> RetainedProgram<'source> {
         Self::parse_cow(Cow::Owned(source), is_typescript)
     }
 
+    /// Parse a same-length repaired spelling while retaining the original text
+    /// as the program's source. This keeps every span and source projection in
+    /// the component's coordinate space.
+    #[must_use]
+    pub fn parse_repaired(source: &'source str, repaired: String, is_typescript: bool) -> Self {
+        debug_assert_eq!(source.len(), repaired.len());
+        Self::parse_sources(Cow::Borrowed(source), Some(repaired), is_typescript)
+    }
+
     #[must_use]
     fn parse_cow(source: Cow<'source, str>, is_typescript: bool) -> Self {
+        Self::parse_sources(source, None, is_typescript)
+    }
+
+    fn parse_sources(
+        source: Cow<'source, str>,
+        parse_source: Option<String>,
+        is_typescript: bool,
+    ) -> Self {
         let source_type = if is_typescript {
             SourceType::ts()
         } else {
@@ -60,11 +83,16 @@ impl<'source> RetainedProgram<'source> {
             ProgramOwner {
                 allocator: Allocator::default(),
                 source,
+                parse_source,
                 source_type,
             },
             |owner| {
-                let parsed =
-                    Parser::new(&owner.allocator, owner.source(), owner.source_type).parse();
+                let mut parsed =
+                    Parser::new(&owner.allocator, owner.parse_source(), owner.source_type).parse();
+                // The repaired spelling is byte-for-byte the same length, so
+                // all AST spans address the original source. Downstream source
+                // projections must also see that original text.
+                parsed.program.source_text = owner.source();
                 ParsedProgram {
                     program: parsed.program,
                     diagnostics: parsed.diagnostics.into_vec(),
@@ -223,5 +251,16 @@ mod tests {
             cloned.comments[0].attached_to,
             retained.program().comments[0].attached_to + 7
         );
+    }
+
+    #[test]
+    fn repaired_parse_retains_the_original_source() {
+        let source = "import d from './d.json'\nassert { type: 'json' };";
+        let repaired = source.replacen("assert", "with  ", 1);
+        let retained = RetainedProgram::parse_repaired(source, repaired, true);
+
+        assert!(retained.diagnostics().is_empty());
+        assert_eq!(retained.source(), source);
+        assert_eq!(retained.program().source_text, source);
     }
 }

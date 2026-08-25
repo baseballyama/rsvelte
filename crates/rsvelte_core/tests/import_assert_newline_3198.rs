@@ -5,11 +5,10 @@
 //! clause in TypeScript (accepting the file) and, in JavaScript, rejects at the
 //! `{` that cannot continue the `assert` expression statement.
 //!
-//! The JavaScript rows and the `with` spelling are pinned here. The TypeScript
-//! row — where acorn-typescript keeps the clause and official compiles the file
-//! — is still an over-rejection: OXC's guard lives in
-//! `parse_import_attributes`, and a repaired re-parse cannot be threaded through
-//! `RetainedProgram`, whose owner borrows the component source for `'source`.
+//! The JavaScript rows and the `with` spelling pin the discriminating controls.
+//! For TypeScript, rsvelte repairs only OXC's first matching diagnostic with a
+//! same-length parser spelling, so retained spans continue to address the
+//! component source and the emitted import keeps its attributes clause.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -94,6 +93,36 @@ fn with_clause_on_a_new_line_compiles_everywhere() {
         if let Err((code, message, start, _)) = outcome(&src) {
             panic!(
                 "expected <script{attrs}> with `with` to compile, got `{code}` {message:?} at {start}"
+            );
+        }
+    }
+}
+
+#[test]
+fn typescript_newline_assert_compiles_and_keeps_the_clause() {
+    for attrs in [" lang=\"ts\"", " module lang=\"ts\""] {
+        let src = wrap(attrs);
+        for (generate, dev, target) in [
+            (GenerateMode::Client, false, "client"),
+            (GenerateMode::Server, false, "server"),
+            (GenerateMode::Client, true, "client-dev"),
+        ] {
+            let output = compile(
+                &src,
+                CompileOptions {
+                    filename: Some("Test.svelte".to_string()),
+                    generate,
+                    dev,
+                    css: CssMode::External,
+                    ..Default::default()
+                },
+            )
+            .unwrap_or_else(|error| panic!("{target} <script{attrs}>: {error:?}"))
+            .js
+            .code;
+            assert!(
+                output.contains("import d from \"./d.json\" with { type: \"json\" };"),
+                "{target} <script{attrs}> lost or failed to normalize the clause:\n{output}"
             );
         }
     }
