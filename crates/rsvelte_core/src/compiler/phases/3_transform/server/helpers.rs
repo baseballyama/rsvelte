@@ -10,7 +10,7 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::{
     code_bytes, code_bytes_from, skip_opaque,
 };
 use memchr::memmem;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::fmt::Write as _;
 
 /// The SSR constant-folding inputs that the pure-AST server pipeline needs:
@@ -20,6 +20,37 @@ use std::fmt::Write as _;
 pub(crate) struct EvalInputsRaw {
     pub(crate) constant_vars: FxHashMap<String, EvalValue>,
     pub(crate) top_level_blocker_map: FxHashMap<String, usize>,
+}
+
+fn top_level_binding_names(
+    analysis: &crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+    scope_index: usize,
+) -> FxHashSet<String> {
+    analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|binding| binding.scope_index == scope_index)
+        .map(|binding| binding.name.clone())
+        .collect()
+}
+
+fn top_level_excluded_names(
+    analysis: &crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+    scope_index: usize,
+) -> FxHashSet<String> {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|binding| {
+            binding.scope_index == scope_index
+                && (matches!(binding.kind, BindingKind::BindableProp) || binding.is_updated())
+        })
+        .map(|binding| binding.name.clone())
+        .collect()
 }
 
 /// Compute the SSR constant-folding inputs (`constant_vars`,
@@ -39,23 +70,24 @@ pub(crate) fn compute_eval_inputs(
 
     // A name with no knowable value has to be excluded before anything reads it,
     // not removed afterwards — see `extract_constant_vars`.
-    let excluded: rustc_hash::FxHashSet<String> = analysis
-        .map(|a| {
-            a.root
-                .bindings
-                .iter()
-                .filter(|b| matches!(b.kind, BindingKind::BindableProp) || b.is_updated())
-                .map(|b| b.name.clone())
-                .collect()
-        })
+    let module_excluded = analysis
+        .map(|analysis| top_level_excluded_names(analysis, 0))
         .unwrap_or_default();
+    let instance_scope_index = analysis.map_or(0, |analysis| analysis.root.instance_scope_index);
+    let instance_names = if instance_script.is_some() {
+        analysis
+            .map(|analysis| top_level_binding_names(analysis, instance_scope_index))
+            .unwrap_or_default()
+    } else {
+        FxHashSet::default()
+    };
 
     // Extract constants from module script first (only const declarations)
     if let Some(script) = module_script {
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
         if end > start && end <= source.len() {
-            for (k, v) in extract_constant_vars(&source[start..end], source, &excluded) {
+            for (k, v) in extract_constant_vars(&source[start..end], source, &module_excluded) {
                 constant_vars.insert(k, v);
             }
         }
@@ -63,10 +95,20 @@ pub(crate) fn compute_eval_inputs(
 
     // Then from instance script (both let and const)
     if let Some(script) = instance_script {
+        let instance_excluded = analysis
+            .map(|analysis| top_level_excluded_names(analysis, instance_scope_index))
+            .unwrap_or_default();
+
+        // An instance declaration shadows a module declaration even when its value is
+        // not constant. Remove the module value before harvesting the instance script.
+        for name in &instance_names {
+            constant_vars.remove(name);
+        }
+
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
         if end > start && end <= source.len() {
-            for (k, v) in extract_constant_vars(&source[start..end], source, &excluded) {
+            for (k, v) in extract_constant_vars(&source[start..end], source, &instance_excluded) {
                 constant_vars.insert(k, v);
             }
         }
@@ -93,6 +135,7 @@ pub(crate) fn compute_eval_inputs(
                     || binding.scope_index == analysis.root.instance_scope_index
                     || binding.scope_index == analysis.root.root_fragment_scope_index
                     || template_scopes.contains(&binding.scope_index))
+                && !(binding.scope_index == 0 && instance_names.contains(&binding.name))
                 && !binding.is_updated()
                 && !constant_vars.contains_key(&binding.name)
                 && let Some(ref init) = binding.initial
@@ -164,20 +207,6 @@ pub(crate) fn compute_eval_inputs(
                         }
                     }
                 }
-            }
-        }
-    }
-
-    // Remove BindableProp variables from constant_vars.
-    // Variables exported via `export { x }` are props and can receive values from parents,
-    // so they should NOT be treated as constants even if they have literal initial values.
-    // Also remove any binding that the scope analysis marks as updated (reassigned or mutated),
-    // to handle cases that the text-based reassignment check misses (e.g. destructuring
-    // assignments like `({ x } = { x: 1 })`).
-    if let Some(analysis) = analysis {
-        for binding in &analysis.root.bindings {
-            if matches!(binding.kind, BindingKind::BindableProp) || binding.is_updated() {
-                constant_vars.remove(&binding.name);
             }
         }
     }
@@ -1808,5 +1837,71 @@ mod js_scan_tests {
         // A `,` in a comment does not split the declarator list.
         assert_eq!(split_declarators("a = 1 /* , */ , b = 2").len(), 2);
         assert_eq!(split_declarators("a = 1 // x, y\n, b = 2").len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod eval_input_scope_tests {
+    use super::top_level_excluded_names;
+    use crate::compiler::CompileOptions;
+    use crate::compiler::phases::{phase1_parse, phase2_analyze};
+
+    fn analyze(source: &str) -> phase2_analyze::ComponentAnalysis {
+        let mut ast = phase1_parse::parse(
+            source,
+            &oxc_allocator::Allocator::default(),
+            phase1_parse::ParseOptions::default(),
+        )
+        .expect("parse");
+
+        // SAFETY: `ast` (and therefore its arena) outlives analysis.
+        let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+        phase2_analyze::analyze_component(&mut ast, source, &CompileOptions::default())
+            .expect("analyze")
+    }
+
+    #[test]
+    fn an_updated_shadow_does_not_exclude_the_outer_binding() {
+        let source = r#"<script>
+            let w = 1;
+            function f(w) {
+                w = 2;
+            }
+            const r = w;
+        </script>
+        <b>{r}</b>"#;
+        let analysis = analyze(source);
+        let excluded = top_level_excluded_names(&analysis, analysis.root.instance_scope_index);
+
+        assert!(
+            analysis.root.bindings.iter().any(|binding| {
+                binding.name == "w"
+                    && binding.scope_index != analysis.root.instance_scope_index
+                    && binding.is_updated()
+            }),
+            "the fixture must contain an updated inner binding"
+        );
+        assert!(
+            !excluded.contains("w"),
+            "an inner write must not exclude the top-level w"
+        );
+    }
+
+    #[test]
+    fn module_and_instance_exclusions_are_independent() {
+        let source = r#"<script module>
+            let w = 1;
+            w = 2;
+        </script>
+        <script>
+            const w = 3;
+        </script>
+        <b>{w}</b>"#;
+        let analysis = analyze(source);
+
+        assert!(top_level_excluded_names(&analysis, 0).contains("w"));
+        assert!(
+            !top_level_excluded_names(&analysis, analysis.root.instance_scope_index).contains("w")
+        );
     }
 }
