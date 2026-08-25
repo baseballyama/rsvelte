@@ -36,6 +36,11 @@ pub fn visit(
     // `has_state` / `has_await` without re-walking the expression.
     let node = directive.expression.as_node();
     walk_js_expression_node(&node, context, &mut directive.metadata.expression)?;
+    super::await_block::collect_pickled_awaits_node(
+        &node,
+        &mut context.analysis.pickled_awaits,
+        context.parse_arena,
+    );
 
     Ok(())
 }

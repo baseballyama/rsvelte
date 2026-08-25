@@ -189,16 +189,16 @@ The family reported **310** divergences on its first run. #3621's fix — the cl
 attribute value, whose memoizer call hardcoded `has_await: false` in all three arms of
 `build_style_attribute_value_with_memoization` — clears 28 of them (16 `output-unparseable`
 + 12 `js-mismatch`, both hosts × all four literal-`await` values × `client`/`client-dev`)
-with zero regressions elsewhere in the matrix's 25,836 comparisons. The remaining **272**
-are three causes, none of which is a formatting difference:
+with zero regressions elsewhere in the matrix's 25,836 comparisons. #3649 then cleared the
+38 client rows where a non-tail `await` was not pickled through `$.save`. The remaining
+**234** are two causes, neither of which is a formatting difference:
 
 | cause | issue | entries | verdicts |
 |---|---|---:|---|
 | the server never hoists an awaited attribute / directive / spread value | [#3648](https://github.com/baseballyama/rsvelte/issues/3648) | 230 | 80 `output-unparseable`, 150 `js-mismatch` |
-| an `await` that is not the last-evaluated expression is not pickled through `$.save` | [#3649](https://github.com/baseballyama/rsvelte/issues/3649) | 36 | `js-mismatch` (client) |
 | `<svelte:element class:x={…}>` emits an unbound `$0` | [#3650](https://github.com/baseballyama/rsvelte/issues/3650) | 6 | `js-mismatch` (client) |
 
-Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `230 + 36 + 6`
+Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `230 + 6`
 
 **Cause 1 — the server does not hoist.** Upstream wraps an element whose attribute value is
 async in `$$renderer.child(async ($$renderer) => { const $$0 = (await $.save(p))(); … })`
@@ -208,15 +208,7 @@ and interpolates `$$0`; rsvelte pushes `await p` straight into the template stri
 parses and only the `$.save` wrapper is missing (150 rows). Every one of the 80 is output no
 JS parser accepts — the loud half of the class the parse oracle exists for.
 
-**Cause 2 — `$.save` pickling.** `2-analyze/visitors/AwaitExpression.js` adds an `await` to
-`analysis.pickled_awaits` when it is *not* the last-evaluated expression of a reactive
-expression, and the client transform then emits `(await $.save(x))()` so the surrounding
-reads are re-taken after the suspension. rsvelte emits a bare `await x`. Only the
-`await-plus-state` value shape reaches it here, on every host and slot — which is the axis
-paying for itself: the same slot with a bare `await` is correct, so a family carrying one
-`await` shape per slot would have called the whole area fixed.
-
-**Cause 3 — an unbound `$0`.** `<svelte:element class:x={f()}>` memoizes the directive
+**Cause 2 — an unbound `$0`.** `<svelte:element class:x={f()}>` memoizes the directive
 object into the `template_effect` `sync` array but builds the arrow with **no parameter
 list**, so the body references a `$0` that is never bound. It parses and throws at run time,
 The remaining six rows are `await-plus-state`, `derived-await-read`, and

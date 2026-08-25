@@ -176,6 +176,11 @@ pub fn visit_attribute_value_expressions(
                 context,
                 &mut expr_tag.metadata.expression,
             )?;
+            super::await_block::collect_pickled_awaits_node(
+                &node,
+                &mut context.analysis.pickled_awaits,
+                context.parse_arena,
+            );
         }
         AttributeValue::Sequence(parts) => {
             for part in parts {
@@ -187,6 +192,11 @@ pub fn visit_attribute_value_expressions(
                             context,
                             &mut expr_tag.metadata.expression,
                         )?;
+                        super::await_block::collect_pickled_awaits_node(
+                            &node,
+                            &mut context.analysis.pickled_awaits,
+                            context.parse_arena,
+                        );
                     }
                     // A value chunk is a `Text` node upstream, so its `Text`
                     // visitor runs on it too.

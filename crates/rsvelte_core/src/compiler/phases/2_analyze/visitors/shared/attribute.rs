@@ -31,7 +31,15 @@ pub fn walk_template_expression(
     context.in_expression_tag = true;
     let result = super::super::script::walk_expression(expression, context);
     context.in_expression_tag = saved;
-    result
+    result?;
+
+    super::super::await_block::collect_pickled_awaits_node(
+        &expression.as_node(),
+        &mut context.analysis.pickled_awaits,
+        context.parse_arena,
+    );
+
+    Ok(())
 }
 
 /// The attribute kinds whose expression no host-specific arm has already walked.

@@ -50,6 +50,11 @@ pub fn visit(
             let node = expr_tag.expression.as_node();
             let mut metadata = crate::ast::template::ExpressionMetadata::default();
             walk_js_expression_node(&node, context, &mut metadata)?;
+            super::await_block::collect_pickled_awaits_node(
+                &node,
+                &mut context.analysis.pickled_awaits,
+                context.parse_arena,
+            );
         }
         AttributeValue::Sequence(parts) => {
             // Mixed content: `style:color="prefix{expr}suffix"`
@@ -59,6 +64,11 @@ pub fn visit(
                         let node = expr_tag.expression.as_node();
                         let mut metadata = crate::ast::template::ExpressionMetadata::default();
                         walk_js_expression_node(&node, context, &mut metadata)?;
+                        super::await_block::collect_pickled_awaits_node(
+                            &node,
+                            &mut context.analysis.pickled_awaits,
+                            context.parse_arena,
+                        );
                     }
                     AttributeValuePart::Text(text) => {
                         super::text::check_bidirectional_control_characters(
