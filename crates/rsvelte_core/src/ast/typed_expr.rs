@@ -1275,8 +1275,11 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_children!(map, "quasis", quasis);
+                // Acorn creates `expressions` before `quasis`, and zimmerframe
+                // visits fields in insertion order. Comment attachment depends
+                // on that walk order, so keep the public AST in the same order.
                 ser_children!(map, "expressions", expressions);
+                ser_children!(map, "quasis", quasis);
                 ser_comments!(map, "TemplateLiteral", *start, *end);
                 map.end()
             }
