@@ -72,6 +72,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `3441-svelte-rune-in-a-declarator-initializer.md` | sveltejs/svelte | #3441 | unrecorded |
 | `3451-oxc-private-in-parens.md` | oxc-project/oxc (`oxc_formatter`) | #3451 | unrecorded |
 | `3451-oxfmt-drops-required-parens-after-a-private-in.md` | oxc-project/oxc (`oxfmt`) | #3451 | unrecorded |
+| `3513-svelte-instance-import-boundary-reactivity.md` | sveltejs/svelte | #3513 | unrecorded |
 | `3568-svelte-dotted-namespace-crash.md` | sveltejs/svelte | #3568 | unrecorded |
 | `3609-svelte-snippet-param-shadowed-by-const.md` | sveltejs/svelte | #3609 | unrecorded |
 | `eslint-plugin-svelte-no-add-event-listener-suggestion.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
