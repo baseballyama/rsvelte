@@ -364,6 +364,43 @@ pub(crate) fn analyze_prepared_component_with_retained(
         }
     }
 
+    // Scope construction is intentionally mode-neutral until the synthetic
+    // store subscriptions above have been removed from rune detection. Script
+    // declarators get their final kind from the visitor below, but declarators
+    // inside template expressions do not pass through that visitor. Promote
+    // those bindings from the initializer metadata collected by ScopeBuilder,
+    // while preserving rune-named store subscriptions as ordinary bindings.
+    if analysis.runes {
+        let promotions: Vec<_> = analysis
+            .root
+            .bindings
+            .iter()
+            .enumerate()
+            .filter_map(|(index, binding)| {
+                if binding.kind != BindingKind::Normal {
+                    return None;
+                }
+                let init_rune = binding.init_rune.as_deref()?;
+                let rune_root = init_rune
+                    .split_once('.')
+                    .map_or(init_rune, |(root, _)| root);
+                if store_sub_names.contains(rune_root) {
+                    return None;
+                }
+                let kind = match init_rune {
+                    "$state" => BindingKind::State,
+                    "$state.raw" => BindingKind::RawState,
+                    "$derived" | "$derived.by" => BindingKind::Derived,
+                    _ => return None,
+                };
+                Some((index, kind))
+            })
+            .collect();
+        for (index, kind) in promotions {
+            analysis.root.bindings[index].kind = kind;
+        }
+    }
+
     // `<svelte:options>` diagnostics run once over the attribute list, so they
     // come out in source order and each carries its own attribute's span.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L685-698

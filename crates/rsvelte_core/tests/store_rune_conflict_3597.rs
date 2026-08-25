@@ -190,4 +190,20 @@ fn another_rune_reference_still_enables_runes_mode() {
         warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
         ["store_rune_conflict"]
     );
+
+    // Template-function declarators are absent from the later script visitor.
+    // Their initializer metadata must therefore be promoted after the same set
+    // difference, including when a different rune name is a store subscription.
+    let src = "<script>\n\tlet v = $state(1);\n\tconst state = { x: 1 };\n</script>\n\n<b onclick={() => { let d = $derived(v); v = d; }}>{typeof v}</b>\n";
+    let (client, warnings) = compile_it(src, GenerateMode::Client);
+    assert!(
+        client.contains("store_get(state, '$state'"),
+        "in:\n{client}"
+    );
+    assert!(client.contains("let d = $.derived("), "in:\n{client}");
+    assert!(client.contains("$.get(d)"), "in:\n{client}");
+    assert_eq!(
+        warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
+        ["store_rune_conflict"]
+    );
 }
