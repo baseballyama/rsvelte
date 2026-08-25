@@ -61,6 +61,10 @@ const POINT_ERRORS: &[(&str, &str, u32)] = &[
     ("<div>x</div\n", "expected_token", 11),
     ("<span></span\n", "expected_token", 12),
     ("<div><span>x</span\n</div>\n", "expected_token", 19),
+    // An apparent close after an unquoted attribute value is first read as an
+    // attribute named `<`; upstream then consumes `/` and demands `>` at `b`.
+    // Stopping the attribute loop at `<` reports two columns too early (#3486).
+    ("<div data-x=a</b></div>", "expected_token", 15),
     // A mustache with no `}` anywhere demands one where the expression stopped.
     ("{@html z\n", "expected_token", 8),
     ("{@render f()\n", "expected_token", 12),
