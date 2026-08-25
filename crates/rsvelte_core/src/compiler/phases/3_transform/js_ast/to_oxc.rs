@@ -493,10 +493,10 @@ impl Synth {
 pub(crate) const SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER: &str = "__rsvelte_seq1";
 
 /// Marker used by snippet-default lowering to carry an explicit source
-/// parenthesis through the compact client IR. The IR deliberately has no
-/// general parenthesized-expression wrapper; converting this one generated
-/// call directly into an oxc `ParenthesizedExpression` keeps the marker out of
-/// every downstream expression matcher.
+/// parenthesis through the compact client IR. The rsvelte printer deliberately
+/// drops oxc's `ParenthesizedExpression` nodes, so conversion rebuilds the
+/// equivalent one-element `SequenceExpression`; esrap always prints a sequence
+/// with parentheses, including when its only item is itself a sequence.
 pub(crate) const SNIPPET_DEFAULT_PAREN_MARKER: &str = "\0rsvelte_snippet_paren";
 
 /// Conversion context: holds the oxc [`AstBuilder`] and the IR arena used to
@@ -1414,9 +1414,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     && !c.optional =>
             {
                 let inner = self.expr(&c.arguments[0])?;
-                Some(Expression::ParenthesizedExpression(
-                    ParenthesizedExpression::boxed(SPAN, inner, &self.ab),
-                ))
+                Some(Expression::SequenceExpression(SequenceExpression::boxed(
+                    SPAN,
+                    ArenaVec::from_value_in(inner, &self.ab),
+                    &self.ab,
+                )))
             }
             JsExpr::Call(c) => {
                 let callee = self.expr_id(c.callee)?;

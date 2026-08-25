@@ -863,6 +863,7 @@ fn preserve_default_parentheses_inner(
                     if key == "consequent"
                         && child.get("type").and_then(serde_json::Value::as_str)
                             == Some("ConditionalExpression")
+                        && source_parenthesizes(child, &context.state.analysis.source)
                     {
                         child_expr = parenthesize_snippet_default(child_expr, context);
                     }
@@ -895,6 +896,27 @@ fn parenthesize_snippet_default(expr: JsExpr, context: &ComponentContext) -> JsE
         JsExpr::OpaqueIdentifier(SNIPPET_DEFAULT_PAREN_MARKER.into()),
         vec![expr],
     )
+}
+
+fn source_parenthesizes(value: &serde_json::Value, source: &str) -> bool {
+    let Some(start) = value.get("start").and_then(serde_json::Value::as_u64) else {
+        return false;
+    };
+    let Some(end) = value.get("end").and_then(serde_json::Value::as_u64) else {
+        return false;
+    };
+    let (mut before, mut after) = (start as usize, end as usize);
+    let bytes = source.as_bytes();
+    if before > bytes.len() || after > bytes.len() {
+        return false;
+    }
+    while before > 0 && bytes[before - 1].is_ascii_whitespace() {
+        before -= 1;
+    }
+    while after < bytes.len() && bytes[after].is_ascii_whitespace() {
+        after += 1;
+    }
+    before > 0 && after < bytes.len() && bytes[before - 1] == b'(' && bytes[after] == b')'
 }
 
 /// Check if a JSON AST expression is "simple" (doesn't need thunking).

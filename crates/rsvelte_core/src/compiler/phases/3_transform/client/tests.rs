@@ -251,6 +251,20 @@ fn snippet_defaults_preserve_parenthesized_expression_nodes() {
         result.js.code
     );
     assert!(!result.js.code.contains('\0'));
+
+    let unparenthesized = crate::compiler::compile(
+        "{#snippet s(a = true ? false ? 1 : 2 : 3)}{a}{/snippet}{@render s()}",
+        crate::compiler::CompileOptions::default(),
+    )
+    .unwrap();
+    assert!(
+        unparenthesized
+            .js
+            .code
+            .contains("() => true ? false ? 1 : 2 : 3"),
+        "source parentheses must not be invented:\n{}",
+        unparenthesized.js.code
+    );
 }
 
 #[test]
