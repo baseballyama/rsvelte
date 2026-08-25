@@ -98,18 +98,18 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 11 entries;
-`error-message-known-failures.client-dev.json` holds 11 entries;
+`error-message-known-failures.client.json` holds 10 entries;
+`error-message-known-failures.client-dev.json` holds 10 entries;
 `error-message-known-failures.server.json` holds 10 entries; and
 `error-message-known-failures.server-dev.json` holds 10 entries. All four of
-`error-position-known-failures.<target>.json` hold 66 entries, all four of
-`error-end-known-failures.<target>.json` hold 84 entries, and all four of
+`error-position-known-failures.<target>.json` hold 50 entries, all four of
+`error-end-known-failures.<target>.json` hold 63 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
 that more than doubled. The counts above are the re-measurement against the tree
 this branch was rebased onto (message 18/17 → 13/12, position 99 → 81, end
-128 → 101); the current population is **34,007 entries and 5,098 both-reject
+128 → 101); the current population is **34,601 entries and 5,138 both-reject
 `(id, target)` pairs**, against the 14,179 / 2,843 the table above was first
 measured on. Almost every
 compile error is raised in Phase 1/2, before the target is consulted, so a
@@ -120,13 +120,10 @@ The malformed-markup position pass then retired 6 position and 12 end entries
 per target, and the block-header pattern pass retired another 6 position and 2
 end entries. The detailed shape partitions below remain the measured snapshot
 from before those passes; they are historical evidence about the backlog's shape,
-not a decomposition of the current 66/84 files.
+not a decomposition of the current 50/63 files.
 
-The single asymmetry is genuinely target-dependent, which is exactly what the
-split exists to keep visible:
-`svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte`
-fails client codegen on both compilers (`Not implemented: LetDirective`) and
-compiles clean for `server`, so there is no server-side pair to compare.
+The former client-only asymmetry is gone from the current corpus population, so
+all four files now carry the same ten message entries.
 
 ## Error messages
 
@@ -135,7 +132,7 @@ things on a minor bump": both compilers run on the same source, in the same
 process, at the pinned version, so a difference here is rsvelte's — the argument
 settled for warning text in #2403.
 
-Clustered by code (client target, 11 entries):
+Clustered by code (client target, 10 entries):
 
 - **`js_parse_error` — 9, the whole majority.** The Svelte code is right, but the
   text is oxc's parser message (`Expected `,` or `}` but found `+`) where upstream
@@ -156,15 +153,6 @@ Clustered by code (client target, 11 entries):
   two parsers recover from the malformed snippet header at different points, so
   this is the same parser-divergence class as `js_parse_error` rather than a
   message string.
-- **1 entry with no code on either side** —
-  `svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte`.
-  Both compilers raise an uncoded internal failure (`Not implemented:
-  LetDirective`); rsvelte prefixes it with `Code generation error: `. This is the
-  measured answer to the reachability question #2446 left open: a `null` code
-  occurs on **1** of 2,843 pairs, and on **0** pairs one-sidedly, so the output
-  verdict's `e.code && a.code &&` guard has never actually degraded a real
-  divergence to `error-parity` in this corpus.
-
 ## Error positions
 
 The codes agree; `start` does not. An editor, a Vite overlay and `rsvelte-check`

@@ -27,20 +27,20 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 526 entries)
+## Client (`known-failures.client.json`, 450 entries)
 
-Partition of `known-failures.client.json` by verdict: `432 + 33 + 20 + 31 + 10`
+Partition of `known-failures.client.json` by verdict: `347 + 36 + 20 + 37 + 10`
 
-- **432 — the generated JS differs** (`js` / `code-differs`).
-- **33 — both compilers reject the entry with a different error code.**
+- **347 — the generated JS differs** (`js` / `code-differs`).
+- **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
-- **31 — the generated CSS differs.**
+- **37 — the generated CSS differs.**
 - **10 — rsvelte's output is not JavaScript**, ratcheted in full in
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
-Every one of the 542 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the 450 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -65,16 +65,15 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](deliberate-divergences.md), each pinned by a test.
 
-## Server (`known-failures.server.json`, 134 entries)
+## Server (`known-failures.server.json`, 131 entries)
 
-Partition of `known-failures.server.json` by verdict: `79 + 33 + 20 + 2`
+Partition of `known-failures.server.json` by verdict: `73 + 36 + 22`
 
-- **79 — the generated JS differs.**
-- **33 — both compilers reject with a different error code.**
-- **20 — one compiler rejects and the other compiles.**
-- **2 — rsvelte's output is not JavaScript.**
+- **73 — the generated JS differs.**
+- **36 — both compilers reject with a different error code.**
+- **22 — one compiler rejects and the other compiles.**
 
-All 148 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 131 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it. The last pre-enrolment entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
 `watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
@@ -92,36 +91,36 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Server dev (`known-failures.server-dev.json`, 137 entries)
+## Server dev (`known-failures.server-dev.json`, 132 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `81 + 33 + 20 + 3`
+Partition of `known-failures.server-dev.json` by verdict: `73 + 36 + 22 + 1`
 
-- **81 — the generated JS differs.**
-- **33 — both compilers reject with a different error code.**
+- **73 — the generated JS differs.**
+- **36 — both compilers reject with a different error code.**
+- **22 — one compiler rejects and the other compiles.**
+- **1 — rsvelte's output is not JavaScript.**
+
+All 132 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+it. Its JS count now matches `server`; the one extra entry is output that becomes
+unparseable only with `dev: true`, which is exactly why the target is ratcheted
+separately.
+
+## Client dev (`known-failures.client-dev.json`, 488 entries)
+
+Partition of `known-failures.client-dev.json` by verdict: `387 + 36 + 20 + 34 + 11`
+
+- **387 — the generated JS differs.**
+- **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
-- **3 — rsvelte's output is not JavaScript.**
-
-All 145 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it. It carries three fewer JS entries than `server` and no CSS entries, which is
-the split doing its job: a divergence visible only with `dev: true` and one
-visible only without are different defects.
-
-## Client dev (`known-failures.client-dev.json`, 568 entries)
-
-Partition of `known-failures.client-dev.json` by verdict: `476 + 33 + 20 + 28 + 11`
-
-- **476 — the generated JS differs.**
-- **33 — both compilers reject with a different error code.**
-- **20 — one compiler rejects and the other compiles.**
-- **28 — the generated CSS differs** (three fewer than `client`).
+- **34 — the generated CSS differs** (three fewer than `client`).
 - **11 — rsvelte's output is not JavaScript.**
 
-All 578 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it, and it is the largest of the four — 39 JS entries that `client` does not
+All 488 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+it, and it is the largest of the four — 40 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
@@ -129,7 +128,8 @@ separate ratchet because `dev` gates 18 client codegen files plus the CSS
 transform (`css/index.js:146` keeps empty rules in dev), so a dev-only
 divergence is invisible to the two `dev: false` targets — #1981
 (`<X.Y bind:…>`) was live in 524 corpus files and undetected for exactly that
-reason. CSS is compared for this target too, and is clean: 0 css-mismatches.
+reason. CSS is compared for this target too and currently contributes 34
+CSS-only baseline entries.
 
 The enrolment seed was 4566. The dev-cluster campaign (#2020, #2022–#2026,
 #2029, #2030, #2039, #2040, and the #2021 series) took it to 896, #2116
@@ -313,7 +313,7 @@ the right number and the wrong place.
 ## Wave-2 enrolment (#3130) — where all 1,413 entries come from
 
 The corpus went from 37 corpus sources to 104 (103 pinned repositories plus
-the in-repo `pattern-corpus`) and from 14,780 entries to 34,007. Every entry in all four ratchets above comes from one of the 67 new
+the in-repo `pattern-corpus`) and from 14,780 entries to 34,601. Every entry in all four ratchets above comes from one of the 67 new
 repositories: **49 of them contribute at least one, and the 37 pre-existing
 sources contribute zero.** That is the positive control for the enrolment — it
 added inputs, it did not regress anything already covered.

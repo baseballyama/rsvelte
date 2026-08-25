@@ -2,7 +2,6 @@
 	"appwrite-console/src/lib/components/breadcrumbs.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte",
 	"appwrite-console/src/routes/(public)/hackathon/+page.svelte",
-	"carbon-components-svelte/src/Text/Text.svelte",
 	"cpi-ide/src/lib/components/IDENavbar.svelte",
 	"flowbite-svelte/src/lib/typography/mark/Mark.svelte",
 	"headscale-ui/src/lib/devices/DeviceCard/DeviceTags/NewDeviceTag.svelte",
@@ -22,6 +21,7 @@
 	"huly/plugins/controlled-documents-resources/src/components/project/ProjectSelectorPopup.svelte",
 	"huly/plugins/emoji-resources/src/components/EmojiGroup.svelte",
 	"huly/plugins/emoji-resources/src/components/EmojiPopup.svelte",
+	"huly/plugins/guest-resources/src/components/Guest.svelte",
 	"huly/plugins/hr-resources/src/components/schedule/YearView.svelte",
 	"huly/plugins/love-resources/src/components/RoomPopup.svelte",
 	"huly/plugins/telegram-resources/src/components/Message.svelte",
@@ -30,7 +30,6 @@
 	"joy-of-code/src/lib/ui/header/preferences/dyslexic.svelte",
 	"layerchart/docs/src/examples/components/Treemap/nested-filter.svelte",
 	"mathesar/mathesar_ui/src/components/breadcrumb/BreadcrumbSelector.svelte",
-	"mathesar/mathesar_ui/src/components/sheet/cells/SheetDataCell.svelte",
 	"melt-ui/docs/src/components/motion.svelte",
 	"musicat/src/lib/settings/InfoPopup.svelte",
 	"musicat/src/lib/your-music/Scrapbook.svelte",
@@ -83,8 +82,10 @@
 	"svelte-material-ui/packages/chips/src/Text.svelte",
 	"svelte-material-ui/packages/select/src/Select.svelte",
 	"svelte-put/sites/docs/src/routes/(site)/+layout.svelte",
-	"svelte-ux/packages/svelte-ux/src/lib/components/Button.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-action-update/main.svelte",
+	"svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/11-declaration-tags.md/2.svelte",
+	"svelte/documentation/docs/03-template-syntax/11-declaration-tags.md/2.svelte",
 	"threlte/packages/extras/src/lib/components/HTML/HTML.svelte",
-	"trakt-web/projects/client/src/lib/sections/navbar/MobileNavbar.svelte"
+	"trakt-web/projects/client/src/lib/sections/navbar/MobileNavbar.svelte",
+	"trakt-web/projects/client/src/lib/sections/settings/_internal/SettingsGroupRow.svelte",
+	"trakt-web/projects/client/src/lib/sections/settings/_internal/streaming-services/StreamingServiceTile.svelte"
 ]

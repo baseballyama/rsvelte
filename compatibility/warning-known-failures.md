@@ -34,7 +34,7 @@ compilers already run on every entry.
 
 ## Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 88 entries on all four,
+`warning-known-failures.<target>.json` holds the same 89 entries on all four,
 and `warning-position-known-failures.<target>.json` 0 entries on all four. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
@@ -46,26 +46,26 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 88 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 89 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 88 entries that still diverge, **22 are
-under-warnings** — rsvelte stays silent where upstream warns — and **66 are
+Not every entry is equally bad. Of the 89 entries that still diverge, **22 are
+under-warnings** — rsvelte stays silent where upstream warns — and **67 are
 over-warnings**, noise the user cannot suppress. No entry diverges in both
 directions at once. A missing diagnostic and an extra one fail
 differently, and the ratchet count alone does not distinguish them:
 
-Partition of `warning-known-failures.<target>.json` by direction: `22 + 66`
+Partition of `warning-known-failures.<target>.json` by direction: `22 + 67`
 
-**79 of the 88 arrived with the wave-2 enrolment (#3130)**, which took the
+**79 of the 89 arrived with the wave-2 enrolment (#3130)**, which took the
 corpus from 37 corpus sources to 104. The codes involved, counted over
-entries rather than tuples (they sum to exactly 88 — every listed entry diverges
-on one code): `css_unused_selector` 46, `state_referenced_locally` 20,
+entries rather than tuples (they sum to exactly 89 — every listed entry diverges
+on one code): `css_unused_selector` 48, `state_referenced_locally` 22,
 `non_reactive_update` 8, `component_name_lowercase` 6,
-`a11y_consider_explicit_label` 4, `export_let_unused` 3,
+`a11y_consider_explicit_label` 4,
 `perf_avoid_nested_class` 1. `css_unused_selector` is half the file and the
 burn-down target; it is the one that is neither over- nor under-warning in a
 fixed direction — it is a pruning disagreement, so it moves with the CSS entries
