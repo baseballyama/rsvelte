@@ -361,18 +361,13 @@ pub fn process_instance_script_tag(
                 "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {type_text};/*\u{03A9}ignore_end\u{03A9}*/"
             )
         };
-        // The JS reference relocates the annotation itself, so the alias is a
-        // moved chunk that lands before the snippets moved to the same index
-        // later. Only a props declaration that opens the script shares an index
-        // with them; there `append_left` reproduces that order by riding the
-        // `function $$render() {` chunk's outro. Anywhere else `append_right` is
-        // required, so the alias stays behind when the import ending at
-        // `let_pos` is hoisted away.
-        if let_pos == content_start {
-            str.append_left(let_pos, &decl);
-        } else {
-            str.append_right(let_pos, &decl);
-        }
+        // `preprendStr` overwrites the source character at `let_pos`, so the
+        // declaration belongs to the chunk starting there. A snippet moved to
+        // that same position later therefore lands before the declaration;
+        // attaching it to the left chunk's outro reverses that order (#3461).
+        // Keeping it on the right also prevents an import ending at `let_pos`
+        // from carrying the declaration away when the import is hoisted.
+        str.append_right(let_pos, &decl);
     }
 
     // Overwrite `</script>` with slot declaration + `async () => {`.
