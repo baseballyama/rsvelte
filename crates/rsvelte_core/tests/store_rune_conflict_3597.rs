@@ -1,5 +1,4 @@
-//! Regression tests for the `$props` half of #3597 — a local binding that
-//! shadows a rune's name.
+//! Regression tests for #3597 — a local binding that shadows a rune's name.
 //!
 //! Upstream keys the decision off ONE binding: `instance.scope.get(store_name)`
 //! and `get_rune(that binding's own initial)`. rsvelte instead scanned the whole
@@ -13,10 +12,11 @@
 //! runs after this pass; `init_rune` is now set on destructured bindings too, so
 //! the per-binding test is available at the point it is needed.
 //!
-//! The rest of #3597 is open: for the other runes the store subscription IS
-//! created and the remaining divergence is that `analysis.runes` stays true,
-//! which is a different decision (upstream deletes the name from
-//! `module.scope.references` and re-reads that set).
+//! Scope construction is deliberately legacy-neutral while runes mode is being
+//! auto-detected. Store-subscription names are then excluded from the reference
+//! set that decides the mode, and the later VariableDeclarator visitor assigns
+//! rune binding kinds only if the component actually entered runes mode. This
+//! mirrors upstream's ordering and avoids the kind -> mode -> kind cycle.
 //!
 //! Every expectation below is the byte-exact output of the official compiler
 //! (Svelte v5.56.9).
@@ -109,6 +109,83 @@ fn a_prop_named_after_another_rune_is_still_a_store_subscription() {
         GenerateMode::Client,
     );
     assert!(client.contains("store_get"), "in:\n{client}");
+    assert_eq!(
+        warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
+        ["store_rune_conflict"]
+    );
+}
+
+/// A rune-shaped call whose unprefixed name is locally bound is a store
+/// subscription. In particular, its initializer must not make the component a
+/// runes component before the synthetic `$name` binding can be excluded from
+/// mode detection. Declaration order is intentionally adversarial: upstream's
+/// completed scope sees declarations that occur after the call too.
+#[test]
+fn conflicted_rune_initializers_do_not_enable_runes_mode() {
+    for (case, rune, store, init, warning) in [
+        ("$state", "$state", "state", "$state(1)", true),
+        ("$state.raw", "$state", "state", "$state.raw(1)", false),
+        ("$derived", "$derived", "derived", "$derived(1)", true),
+        (
+            "$derived.by",
+            "$derived",
+            "derived",
+            "$derived.by(() => 1)",
+            false,
+        ),
+    ] {
+        for declaration in ["const", "let"] {
+            let src = format!(
+                "<script>\n\tlet v = {init};\n\t{declaration} {store} = {{ x: 1 }};\n</script>\n\n<b>{{typeof v}}{{typeof {store}}}</b>\n"
+            );
+
+            let (client, warnings) = compile_it(&src, GenerateMode::Client);
+            assert!(
+                client.contains("import 'svelte/internal/flags/legacy';"),
+                "for {case}/{declaration}\nin:\n{client}"
+            );
+            assert!(
+                client.contains(&format!("store_get({store}, '{rune}'")),
+                "for {case}/{declaration}\nin:\n{client}"
+            );
+            let expected_warnings = if warning {
+                vec!["store_rune_conflict"]
+            } else {
+                Vec::new()
+            };
+            assert_eq!(
+                warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
+                expected_warnings,
+                "for {case}/{declaration}"
+            );
+
+            let (server, _) = compile_it(&src, GenerateMode::Server);
+            assert!(
+                server.contains(&format!(
+                    "store_get($$store_subs ??= {{}}, '{rune}', {store})"
+                )),
+                "for {case}/{declaration}\nin:\n{server}"
+            );
+        }
+    }
+}
+
+/// Excluding one conflicted rune name must not hide a different, unresolved
+/// rune reference. This is the positive control for the set-difference step.
+#[test]
+fn another_rune_reference_still_enables_runes_mode() {
+    let src = "<script>\n\tlet v = $state(1);\n\tconst state = { x: 1 };\n\tlet d = $derived(v);\n</script>\n\n<b>{typeof v}{typeof d}</b>\n";
+    let (client, warnings) = compile_it(src, GenerateMode::Client);
+
+    assert!(
+        !client.contains("import 'svelte/internal/flags/legacy';"),
+        "in:\n{client}"
+    );
+    assert!(
+        client.contains("store_get(state, '$state'"),
+        "in:\n{client}"
+    );
+    assert!(client.contains("$.derived"), "in:\n{client}");
     assert_eq!(
         warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
         ["store_rune_conflict"]

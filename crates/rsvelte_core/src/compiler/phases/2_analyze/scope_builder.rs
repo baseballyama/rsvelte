@@ -55,9 +55,6 @@ pub struct ScopeBuilder<'a> {
     /// Whether we are in runes mode
     runes_mode: bool,
     /// Whether legacy mode is explicit (compile option or `<svelte:options runes={false} />`).
-    /// Upstream assigns rune binding kinds only under `analysis.runes`, and
-    /// `runes_mode` alone is not that answer here because it is still being
-    /// auto-detected while scopes are built.
     legacy_forced: bool,
     /// Whether any script in the component uses TypeScript (lang="ts").
     /// When true, template expressions are parsed as TypeScript so that
@@ -1260,14 +1257,9 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::ObjectPattern { properties, .. } => {
                 // Detect if this ObjectPattern is initialized from $props()
                 let is_props_init = init
-                    .map(|init_id| {
-                        let init_node = self.arena.get_js_node(init_id);
-                        matches!(
-                            self.detect_binding_kind_from_node(init_node),
-                            BindingKind::Prop
-                        )
-                    })
-                    .unwrap_or(false);
+                    .and_then(|init_id| self.rune_call_callee(self.arena.get_js_node(init_id)))
+                    .as_deref()
+                    == Some("$props");
                 let properties = *properties;
                 let first_new = self.bindings.len();
                 for prop in self.arena.get_js_children(properties) {
@@ -1575,7 +1567,12 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Detect the binding kind from a JsNode expression (e.g., $state(), $derived()).
     fn detect_binding_kind_from_node(&self, expr: &JsNode) -> BindingKind {
-        if self.legacy_forced {
+        // Upstream decides the component mode from the reference set before it
+        // assigns rune binding kinds. In auto mode this first scope pass is
+        // deliberately legacy-neutral; the VariableDeclarator visitor promotes
+        // genuine rune initializers after store-subscription names have been
+        // removed from mode detection.
+        if !self.runes_mode || self.legacy_forced {
             return BindingKind::Normal;
         }
         if let JsNode::CallExpression { callee, .. } = expr {
@@ -2549,8 +2546,9 @@ impl<'a> ScopeBuilder<'a> {
                 // the variable_declarator visitor and needs the correct kind for rest props.
                 let is_props_init = init
                     .as_ref()
-                    .map(|i| matches!(self.detect_binding_kind_from_expr(i), BindingKind::Prop))
-                    .unwrap_or(false);
+                    .and_then(|i| self.rune_call_callee_expr(i))
+                    .as_deref()
+                    == Some("$props");
 
                 let first_new = self.bindings.len();
                 for prop in &obj.properties {
@@ -2601,7 +2599,9 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Detect the binding kind from an expression (e.g., $state(), $derived()).
     fn detect_binding_kind_from_expr(&self, expr: &Expression) -> BindingKind {
-        if self.legacy_forced {
+        // See the typed-path twin above. Auto mode starts with neutral binding
+        // kinds and promotes them only after mode detection.
+        if !self.runes_mode || self.legacy_forced {
             return BindingKind::Normal;
         }
         if let Expression::CallExpression(call) = expr {
@@ -2652,6 +2652,33 @@ impl<'a> ScopeBuilder<'a> {
             }
         }
         BindingKind::Normal
+    }
+
+    /// OXC-AST twin of `rune_call_callee`.
+    fn rune_call_callee_expr(&self, expr: &Expression) -> Option<String> {
+        use crate::compiler::phases::phase2_analyze::visitors::shared::function::is_rune;
+        let Expression::CallExpression(call) = expr else {
+            return None;
+        };
+        match &call.callee {
+            Expression::Identifier(ident) => {
+                let name = ident.name.as_str();
+                (is_rune(name) && self.find_binding_in_scope_chain(name).is_none())
+                    .then(|| name.to_string())
+            }
+            Expression::StaticMemberExpression(member) => {
+                let Expression::Identifier(object) = &member.object else {
+                    return None;
+                };
+                let keypath = format!("{}.{}", object.name, member.property.name);
+                (is_rune(&keypath)
+                    && self
+                        .find_binding_in_scope_chain(object.name.as_str())
+                        .is_none())
+                .then_some(keypath)
+            }
+            _ => None,
+        }
     }
 
     /// Process an import declaration.
