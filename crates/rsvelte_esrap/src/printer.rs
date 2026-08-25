@@ -1347,7 +1347,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if let Some(end) = node_meta.end {
                 self.flush_trailing_comments(parent, end, until);
             }
-            let length = parent.measure_with_layout_spaces(&scope);
+            let mut length = parent.measure_with_layout_spaces(&scope);
+            // The direct path's optimistic opening pad is materialised by the
+            // first write, after `scope` begins. It is outside the child in
+            // esrap (and in the deferred path, which inserts it after measuring),
+            // so do not let that one space flip the 60-column fit decision.
+            if direct_layout && pad && length > 0 {
+                length -= 1;
+            }
             // Same width rule as the multi-item branches, whose accumulator
             // (`-1`, then `+= measure + 1` per item) equals `measure` at n == 1.
             let multiline = parent.end_scope(scope) || usize_to_i64(length) > 60;

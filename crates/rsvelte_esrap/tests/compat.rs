@@ -38,6 +38,7 @@ fn direct_matches_deferred_sequences_and_comments() {
         "call({ alpha: very_long_identifier_name, beta: another_long_identifier_name }, tail);",
         "call(head, { alpha: very_long_identifier_name, beta: another_long_identifier_name });",
         "call(head, { alpha: very_long_identifier_name, beta: another_long_identifier_name }, tail);",
+        "() => $.clsx($.get(content)({ class: clsx($.get(theme)?.content, $$props.classes?.content) }));",
         "let first = very_long_identifier_name, second = another_long_identifier_name, third = final_long_identifier_name;",
         "const x = { only: { alpha: very_long_identifier_name, beta: another_long_identifier_name } };",
         "// lead\nconst x = 1; // tail",

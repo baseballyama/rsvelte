@@ -85,9 +85,19 @@ fn main() {
         let plain = rsvelte_esrap::print_with(&parsed.program, &source, &options);
         let mapped = rsvelte_esrap::print_with_map(&parsed.program, &source, &options);
         if plain != mapped.code {
+            let offset = plain
+                .bytes()
+                .zip(mapped.code.bytes())
+                .position(|(plain, mapped)| plain != mapped)
+                .unwrap_or_else(|| plain.len().min(mapped.code.len()));
+            let start = offset.saturating_sub(80);
+            let plain_end = (offset + 160).min(plain.len());
+            let mapped_end = (offset + 160).min(mapped.code.len());
             failures.push(format!(
-                "{}: print_with and print_with_map emitted different code",
-                path.display()
+                "{}: print_with and print_with_map first differ at byte {offset}: plain={:?}, mapped={:?}",
+                path.display(),
+                String::from_utf8_lossy(&plain.as_bytes()[start..plain_end]),
+                String::from_utf8_lossy(&mapped.code.as_bytes()[start..mapped_end]),
             ));
             continue;
         }
