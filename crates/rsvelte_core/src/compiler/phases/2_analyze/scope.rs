@@ -653,16 +653,13 @@ impl Binding {
         is_reactive_declaration_reference: bool,
         is_style_directive_reference: bool,
     ) {
-        let is_self_declaration = self.declaration_start.is_some_and(|declaration_start| {
-            start == declaration_start && end == declaration_start + self.name.len() as u32
-        });
         self.references.push(BindingReference {
             start,
             end,
             is_template_reference,
             is_reactive_declaration_reference,
             is_style_directive_reference,
-            is_self_declaration,
+            is_self_declaration: false,
             is_export_specifier: false,
         });
     }
@@ -677,16 +674,13 @@ impl Binding {
         is_style_directive_reference: bool,
         is_export_specifier: bool,
     ) {
-        let is_self_declaration = self.declaration_start.is_some_and(|declaration_start| {
-            start == declaration_start && end == declaration_start + self.name.len() as u32
-        });
         self.references.push(BindingReference {
             start,
             end,
             is_template_reference,
             is_reactive_declaration_reference,
             is_style_directive_reference,
-            is_self_declaration,
+            is_self_declaration: false,
             is_export_specifier,
         });
     }

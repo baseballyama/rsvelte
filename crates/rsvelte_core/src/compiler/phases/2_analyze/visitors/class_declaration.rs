@@ -14,6 +14,14 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     if let JsNode::ClassDeclaration { id, body, .. } = node {
         let arena = context.parse_arena;
 
+        // Upstream's `context.next()` visits the declaration identifier as well as
+        // the body. Keep the same reference-list invariant as variable declarators:
+        // the declaration itself occupies the first reference, so the unused-export
+        // check can distinguish it from one real use.
+        if let Some(id_ref) = id {
+            super::script::walk_js_node_typed(arena.get_js_node(*id_ref), context)?;
+        }
+
         // Validate identifier name if using runes and the class has an id
         if context.analysis.runes
             && let Some(id_ref) = id
