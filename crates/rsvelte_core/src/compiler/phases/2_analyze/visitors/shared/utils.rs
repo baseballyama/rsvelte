@@ -1286,7 +1286,8 @@ pub fn walk_js_expression_node(
                         && binding.scope_index <= context.function_depth + instance_scope
                     {
                         return Err(
-                            super::super::super::errors::store_invalid_scoped_subscription(),
+                            super::super::super::errors::store_invalid_scoped_subscription()
+                                .at(*start, *end),
                         );
                     }
                 }

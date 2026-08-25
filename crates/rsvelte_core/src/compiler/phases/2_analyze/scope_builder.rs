@@ -469,14 +469,14 @@ impl<'a> ScopeBuilder<'a> {
     /// leading `$`). If it is declared in any scope other than module-root or the
     /// instance script scope, that is a `store_invalid_scoped_subscription`
     /// error per the official Svelte compiler.
-    fn check_store_scoped_subscription(&mut self, store_name: &str) {
+    fn check_store_scoped_subscription(&mut self, store_name: &str, start: u32, end: u32) {
         let mut scope_idx = self.current_scope;
         loop {
             let scope = &self.scopes[scope_idx];
             if scope.declarations.contains_key(store_name) {
                 if scope_idx != 0 && scope_idx != self.instance_scope_index {
                     self.validation_errors
-                        .push(errors::store_invalid_scoped_subscription());
+                        .push(errors::store_invalid_scoped_subscription().at(start, end));
                 }
                 break;
             }
@@ -2229,7 +2229,12 @@ impl<'a> ScopeBuilder<'a> {
                     );
 
                     if !is_rune_name {
-                        self.check_store_scoped_subscription(&name[1..]);
+                        let offset = self.current_script_offset as u32;
+                        self.check_store_scoped_subscription(
+                            &name[1..],
+                            ident.span.start + offset,
+                            ident.span.end + offset,
+                        );
                     }
                 }
             }
@@ -2291,7 +2296,12 @@ impl<'a> ScopeBuilder<'a> {
                     );
 
                     if !is_rune_name {
-                        self.check_store_scoped_subscription(&name[1..]);
+                        let offset = self.current_script_offset as u32;
+                        self.check_store_scoped_subscription(
+                            &name[1..],
+                            ident.span.start + offset,
+                            ident.span.end + offset,
+                        );
                     }
                 }
 
@@ -3265,7 +3275,9 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::ChainExpression { expression, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*expression));
             }
-            JsNode::Identifier { name, .. }
+            JsNode::Identifier {
+                name, start, end, ..
+            }
                 // Check for store subscription scoping errors
                 if name.starts_with('$')
                     && !name.starts_with("$$")
@@ -3283,7 +3295,11 @@ impl<'a> ScopeBuilder<'a> {
                             | "$host"
                     );
                     if !is_rune_name {
-                        self.check_store_scoped_subscription(&name.as_str()[1..]);
+                        self.check_store_scoped_subscription(
+                            &name.as_str()[1..],
+                            *start,
+                            *end,
+                        );
                     }
                 }
             JsNode::ClassExpression { body, .. } => {
@@ -3337,7 +3353,9 @@ impl<'a> ScopeBuilder<'a> {
     /// Track an assignment target from JsNode.
     fn track_node_assignment_target(&mut self, node: &JsNode) {
         match node {
-            JsNode::Identifier { name, .. } => {
+            JsNode::Identifier {
+                name, start, end, ..
+            } => {
                 // Check for store subscription errors in assignment targets
                 if name.starts_with('$')
                     && !name.starts_with("$$")
@@ -3355,7 +3373,7 @@ impl<'a> ScopeBuilder<'a> {
                             | "$host"
                     );
                     if !is_rune_name {
-                        self.check_store_scoped_subscription(&name.as_str()[1..]);
+                        self.check_store_scoped_subscription(&name.as_str()[1..], *start, *end);
                     }
                 }
                 self.updates.push(Update {

@@ -446,6 +446,8 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 | `3455-style-seq-svelte-element.svelte` | [#3455](https://github.com/baseballyama/rsvelte/issues/3455) | Multi-chunk style reactivity also applies to `<svelte:element>`. |
 | `3455-style-seq-with-text.svelte` | [#3455](https://github.com/baseballyama/rsvelte/issues/3455) | Literal text around a reactive interpolation cannot make the complete style value static. |
 | `3456-class-rune-comment-separator.svelte` | [#3456](https://github.com/baseballyama/rsvelte/issues/3456) | A class rune field lowers when comments or noncanonical whitespace separate `=` from the rune call. |
+| `3511-store-scoped-each-position.svelte` | [#3511](https://github.com/baseballyama/rsvelte/issues/3511) | `store_invalid_scoped_subscription` highlights the offending `$name` identifier for an each-block binding instead of returning an unlocated diagnostic. |
+| `3511-store-scoped-snippet-position.svelte` | [#3511](https://github.com/baseballyama/rsvelte/issues/3511) | The same diagnostic range is preserved for a scoped snippet parameter. |
 | `3557-global-call-initializer-fold.svelte` | [#3557](https://github.com/baseballyama/rsvelte/issues/3557) | Pure global calls in binding initializers use the shared evaluator and fold with the same value as direct template expressions. |
 | `3557-global-call-shadowed.svelte` | [#3557](https://github.com/baseballyama/rsvelte/issues/3557) | A locally shadowed global is not treated as a pure built-in call during folding. |
 | `3561-module-inspect-trace.svelte.js` | [#3561](https://github.com/baseballyama/rsvelte/issues/3561) | `$inspect.trace` lowers in module top level, arrows, named functions, methods and nested functions with the correct trace owner. |
