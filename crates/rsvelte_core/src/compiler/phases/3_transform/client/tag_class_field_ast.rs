@@ -262,6 +262,13 @@ fn handle_class<'a>(
     ctx: &ClassTagCtx<'_>,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
+    // An `extends` expression may itself be an inline class. Those classes do
+    // not appear in the surrounding statement/expression walk, so recurse from
+    // the owning class before handling its own fields (#3072 mutation corpus).
+    if let Some(heritage) = &class.heritage {
+        walk_expression_for_classes(&heritage.expression, ctx, replacements);
+    }
+
     let source = ctx.source;
     // Upstream's fallback for a class with no id (`ClassBody.js:82`).
     let class_name = class
@@ -886,6 +893,24 @@ mod tests {
         let src = "let C = class { #x = $.state(0); };";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
         assert!(out.contains("'[class].#x'"), "got: {out}");
+    }
+
+    #[test]
+    fn walks_commented_inline_classes_in_extends_chains() {
+        let src = "class Outer extends (class extends class {\n\t/* deep */\n\t#deep = $.state(1);\n} {\n\t// mid\n\t#mid = $.state(2);\n}) {\n\t#own = $.state(3);\n}";
+        let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
+        assert!(
+            out.contains("#deep = $.tag($.state(1), '[class].#deep')"),
+            "got: {out}"
+        );
+        assert!(
+            out.contains("#mid = $.tag($.state(2), '[class].#mid')"),
+            "got: {out}"
+        );
+        assert!(
+            out.contains("#own = $.tag($.state(3), 'Outer.#own')"),
+            "got: {out}"
+        );
     }
 
     #[test]
