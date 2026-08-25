@@ -268,6 +268,27 @@ impl<'a> Parser<'a> {
         let eq_idx = match first_equals {
             Some(i) => i,
             None => {
+                // `let` permits a declarator without an initializer. The
+                // multi-declarator builder already represents that as
+                // `init: null`; let the single-declarator path use the same
+                // representation once the complete statement has parsed.
+                if kind == "let" && !body_text.is_empty() {
+                    let stmt_text = self.source[decl_start..body_end].trim_end_ws();
+                    if super::super::read::expression::check_js_statement_parse_error(
+                        stmt_text, self.ts,
+                    )
+                    .is_none()
+                    {
+                        return Ok(Some(self.build_multi_declarator_tag(
+                            start,
+                            decl_start,
+                            body_start,
+                            body_end,
+                            kind,
+                            &[(0, body_text.to_string())],
+                        )));
+                    }
+                }
                 if !self.options.loose {
                     // Upstream `read_declaration()` parses the tag body as a
                     // statement with acorn and rethrows the failure in strict
