@@ -430,6 +430,9 @@ pub struct VisitorContext<'a> {
     /// within a template expression are NOT suspending and must not trigger
     /// the `experimental_async` / `legacy_await_invalid` errors.
     pub in_template_function: bool,
+    /// Whether a template expression is inside a non-arrow function that owns
+    /// an `arguments` binding. Arrow functions inherit this from their parent.
+    pub in_template_arguments_function: bool,
     /// Stack of ignored warning codes.
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
     /// Corresponds to ignore_stack in Svelte's state.js.
@@ -627,6 +630,7 @@ impl<'a> VisitorContext<'a> {
             uses_event_attributes: false,
             in_expression_tag: false,
             in_template_function: false,
+            in_template_arguments_function: false,
             ignore_stack: Vec::new(),
             script_ignore_comments: rustc_hash::FxHashMap::default(),
             element_ancestors: Vec::new(),

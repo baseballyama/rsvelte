@@ -1242,6 +1242,10 @@ pub fn walk_js_expression_node(
                 context.analysis.uses_slots = true;
             }
 
+            if name == "arguments" && !context.in_template_arguments_function {
+                return Err(errors::invalid_arguments_usage().at(*start, *end));
+            }
+
             // Bare `$` and `$$xxx` (other than the reserved `$$props` /
             // `$$restProps` / `$$slots`) are illegal as variable names.
             // Mirrors `visit_identifier_inner` for the JS-side identifier
@@ -1550,6 +1554,10 @@ pub fn walk_js_expression_node(
 
             let saved_in_template_function = context.in_template_function;
             context.in_template_function = true;
+            let saved_in_arguments_function = context.in_template_arguments_function;
+            if !matches!(expression, JsNode::ArrowFunctionExpression { .. }) {
+                context.in_template_arguments_function = true;
+            }
             for param in arena.get_js_children(*params) {
                 walk_parameter_evaluations(param, context, metadata)?;
             }
@@ -1584,6 +1592,7 @@ pub fn walk_js_expression_node(
             }
 
             context.in_template_function = saved_in_template_function;
+            context.in_template_arguments_function = saved_in_arguments_function;
             context.expression = saved_expression;
             context.scope = saved_scope;
             while context.decl_undo_log.len() > decl_undo_mark {
