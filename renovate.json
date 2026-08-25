@@ -61,6 +61,19 @@
       "enabled": false
     },
     {
+      "description": "The lint oracle must stay on ESLint 9 until eslint-plugin-svelte stops calling SourceCode.isSpaceBetweenTokens, which ESLint 10 removed; upgrading makes every positive no-reactive-functions report throw instead of producing an oracle result.",
+      "matchFileNames": [
+        "scripts/compat-corpus/lint-oracle/package.json"
+      ],
+      "matchDepNames": [
+        "eslint"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
       "description": "The svelte-check oracle must stay on a TypeScript major that svelte-check still declares as a peer (^5 || ^6); a v7 bump makes `npm install` fail ERESOLVE and takes the whole svelte-check parity job down.",
       "matchFileNames": [
         "scripts/compat-corpus/check-oracle/package.json"
