@@ -72,6 +72,12 @@ Related shape already reported: `3173-svelte-client-drops-an-eager-declarator.md
 ## Status in rsvelte
 
 rsvelte currently emits `$.get(i) < 3` / `$.update(i)` / `t += $.get(d)`, which is the
-correct lowering. Byte equality with the official compiler is the goal, so rsvelte will be
-changed to reproduce the loss (tracked as #3300) rather than keep the more faithful output —
-the same decision as `2990-svelte-class-accessor-drops-later-comments.md`.
+correct lowering. **Decision: do not reproduce the official compiler's loss.** Unlike a
+comment-placement or formatting divergence, the two outputs do not behave identically:
+official compares and mutates the Source object, skips the loop body, and can write `NaN`.
+Byte equality serves the drop-in-replacement goal; it does not outrank runtime correctness.
+
+`crates/rsvelte_core/tests/for_head_rune_reads_3300.rs` pins the correct lowering in dev and
+production for `$state` and `$derived`, including reads in the loop test, update, body, and a
+closure. If upstream fixes its transform, the report remains useful history but the deliberate
+divergence disappears naturally because the outputs converge.
