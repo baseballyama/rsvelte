@@ -820,10 +820,9 @@ reserved word makes the client name its variable after the tag, so `<var>x</var>
 exactly the four that are not reserved. `<svelte:element this="var">` and the
 server target are clean, so the site is the client's own name allocator
 (`Memoizer::generate_id`), which has three of upstream's four membership tests
-and not `is_reserved`. The other hold is `css/css-comment-placements`, whose
-selector-list block is written at the configured indentation rather than with
-tabs because the fmt oracle passes a comment-bearing selector list through
-verbatim (#3580).
+and not `is_reserved`. The other hold was `css/css-comment-placements`: #3580
+reproduced the fmt oracle's source-indent passthrough for a comment-bearing
+selector list, so its selector-list block now carries the discriminating tabs.
 
 The fourth pass held back four, two of them found by a gate other than the
 compiler comparison: `special-elements/custom-element-option-forms` in its

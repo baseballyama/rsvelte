@@ -301,19 +301,111 @@ fn leading_ascii_ws(l: &str) -> usize {
     l.bytes().take_while(|&b| b == b' ' || b == b'\t').count()
 }
 
+/// prettier-plugin-svelte keeps the source indentation from a block comment
+/// between comma-separated selectors through the selector that opens the rule.
+/// The standalone CSS printer normalizes those lines, so restore only that
+/// lexical prelude after formatting. Matching by content occurrence prevents a
+/// repeated selector in an earlier rule from receiving the later rule's indent.
 fn restore_comment_adjacent_selector_indent(source: &str, formatted: String) -> String {
-    let preserved: Vec<(&str, &str)> = source
-        .lines()
-        .zip(source.lines().skip(1))
-        .filter_map(|(previous, line)| {
-            let indent_len = leading_ascii_ws(line);
-            let indent = &line[..indent_len];
-            (indent.contains('\t')
-                && previous.contains(',')
-                && previous.contains("/*")
-                && line.contains("/*")
-                && line.contains('{'))
-            .then_some((line.trim_start(), indent))
+    let lines: Vec<&str> = source.lines().collect();
+    let mut preserve = vec![false; lines.len()];
+    let bytes = source.as_bytes();
+    let mut line = 0;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut in_comment = false;
+    let mut paren_depth = 0_u32;
+    let mut bracket_depth = 0_u32;
+    let mut first_code = None;
+    let mut comma_line = None;
+    let mut comment_line = None;
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if byte == b'\n' {
+            line += 1;
+        }
+
+        if in_comment {
+            if byte == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                in_comment = false;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == delimiter {
+                quote = None;
+            }
+            i += 1;
+            continue;
+        }
+
+        if byte == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            if comma_line.is_some() && comment_line.is_none() {
+                comment_line = Some(line);
+            }
+            in_comment = true;
+            i += 2;
+            continue;
+        }
+
+        if !byte.is_ascii_whitespace() && first_code.is_none() {
+            first_code = Some(byte);
+        }
+
+        match byte {
+            b'\'' | b'"' => quote = Some(byte),
+            b'(' => paren_depth += 1,
+            b')' => paren_depth = paren_depth.saturating_sub(1),
+            b'[' => bracket_depth += 1,
+            b']' => bracket_depth = bracket_depth.saturating_sub(1),
+            b',' if paren_depth == 0 && bracket_depth == 0 => comma_line = Some(line),
+            b'{' if paren_depth == 0 && bracket_depth == 0 => {
+                if first_code != Some(b'@')
+                    && let (Some(comma), Some(comment)) = (comma_line, comment_line)
+                {
+                    let start = if comment > comma {
+                        comment
+                    } else {
+                        comment + 1
+                    };
+                    for keep in preserve.iter_mut().take(line + 1).skip(start) {
+                        *keep = true;
+                    }
+                }
+                first_code = None;
+                comma_line = None;
+                comment_line = None;
+            }
+            b'}' | b';' if paren_depth == 0 && bracket_depth == 0 => {
+                first_code = None;
+                comma_line = None;
+                comment_line = None;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    let mut source_occurrences = std::collections::HashMap::new();
+    let preserved: Vec<(&str, usize, &str)> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let content = line.trim_start();
+            let occurrence = source_occurrences.entry(content).or_insert(0_usize);
+            let current = *occurrence;
+            *occurrence += 1;
+            preserve[index].then_some((content, current, &line[..leading_ascii_ws(line)]))
         })
         .collect();
     if preserved.is_empty() {
@@ -321,15 +413,21 @@ fn restore_comment_adjacent_selector_indent(source: &str, formatted: String) -> 
     }
 
     let mut restored = String::with_capacity(formatted.len());
+    let mut formatted_occurrences = std::collections::HashMap::new();
     for line in formatted.split_inclusive('\n') {
-        let content = line.strip_suffix('\n').unwrap_or(line);
+        let without_lf = line.strip_suffix('\n').unwrap_or(line);
+        let content = without_lf.strip_suffix('\r').unwrap_or(without_lf);
         let newline = &line[content.len()..];
-        if let Some((_, indent)) = preserved
+        let trimmed = content.trim_start();
+        let occurrence = formatted_occurrences.entry(trimmed).or_insert(0_usize);
+        let current = *occurrence;
+        *occurrence += 1;
+        if let Some((_, _, indent)) = preserved
             .iter()
-            .find(|(selector, _)| content.trim_start() == *selector)
+            .find(|(selector, ordinal, _)| trimmed == *selector && current == *ordinal)
         {
             restored.push_str(indent);
-            restored.push_str(content.trim_start());
+            restored.push_str(trimmed);
             restored.push_str(newline);
         } else {
             restored.push_str(line);
@@ -419,7 +517,7 @@ fn detect_lang(css: &StyleSheet) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::dedent;
+    use super::{dedent, restore_comment_adjacent_selector_indent};
 
     #[test]
     fn dedent_handles_multibyte_leading_whitespace() {
@@ -431,5 +529,28 @@ mod tests {
         // min_indent at one, a valid char boundary on both lines.
         let out = dedent("  a\n \u{a0}b");
         assert_eq!(out, " a\n\u{a0}b");
+    }
+
+    #[test]
+    fn restores_source_indent_after_a_commented_selector_separator() {
+        let source = "  .a,\n\t/* c */\n\t.b {\n    color: red;\n  }";
+        let formatted = "  .a,\n  /* c */\n  .b {\n    color: red;\n  }".to_string();
+        assert_eq!(
+            restore_comment_adjacent_selector_indent(source, formatted),
+            "  .a,\n\t/* c */\n\t.b {\n    color: red;\n  }"
+        );
+    }
+
+    #[test]
+    fn does_not_restore_declaration_comments_or_an_earlier_duplicate_selector() {
+        let source =
+            "  .b { color: red, /* value */ blue; }\n  .a,\n\t/* c */\n\t.b { color: red; }";
+        let formatted =
+            "  .b {\n    color: red, /* value */ blue;\n  }\n  .a,\n  /* c */\n  .b { color: red; }\n"
+                .to_string();
+        assert_eq!(
+            restore_comment_adjacent_selector_indent(source, formatted),
+            "  .b {\n    color: red, /* value */ blue;\n  }\n  .a,\n\t/* c */\n\t.b { color: red; }\n"
+        );
     }
 }

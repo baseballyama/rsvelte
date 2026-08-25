@@ -11,8 +11,8 @@
   }
 
   .a,
-  /* between two selectors */
-  .b {
+	/* between two selectors */
+	.b {
     margin: 0;
   }
 
