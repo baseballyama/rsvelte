@@ -181,6 +181,7 @@ fn an_inspect_with_declarator_keeps_its_binding_and_value() {
                         "$.inspect(() => [a], (...$$args) => console.log(...$$args))"
                     }
                     (GenerateMode::Server, true) => "console.log('init', a)",
+                    (GenerateMode::None, true) => unreachable!("the test only compiles targets"),
                 };
                 assert!(
                     code.contains(&format!("{prefix} = {value};")),
