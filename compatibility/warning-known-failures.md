@@ -34,7 +34,7 @@ compilers already run on every entry.
 
 ## Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 89 entries on all four,
+`warning-known-failures.<target>.json` holds the same 90 entries on all four,
 and `warning-position-known-failures.<target>.json` 0 entries on all four. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
@@ -46,30 +46,36 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 89 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 90 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 89 entries that still diverge, **22 are
+Not every entry is equally bad. Of the 90 entries that still diverge, **23 are
 under-warnings** — rsvelte stays silent where upstream warns — and **67 are
 over-warnings**, noise the user cannot suppress. No entry diverges in both
 directions at once. A missing diagnostic and an extra one fail
 differently, and the ratchet count alone does not distinguish them:
 
-Partition of `warning-known-failures.<target>.json` by direction: `22 + 67`
+Partition of `warning-known-failures.<target>.json` by direction: `23 + 67`
 
-**79 of the 89 arrived with the wave-2 enrolment (#3130)**, which took the
-corpus from 37 corpus sources to 104. The codes involved, counted over
-entries rather than tuples (they sum to exactly 89 — every listed entry diverges
-on one code): `css_unused_selector` 48, `state_referenced_locally` 22,
+**79 of the 89 pre-existing entries arrived with the wave-2 enrolment (#3130)**,
+which took the corpus from 37 corpus sources to 104. Across all 89 pre-existing
+entries, the codes counted over entries rather than tuples sum to exactly 89:
+`css_unused_selector` 48, `state_referenced_locally` 22,
 `non_reactive_update` 8, `component_name_lowercase` 6,
 `a11y_consider_explicit_label` 4,
 `perf_avoid_nested_class` 1. `css_unused_selector` is half the file and the
 burn-down target; it is the one that is neither over- nor under-warning in a
 fixed direction — it is a pruning disagreement, so it moves with the CSS entries
 in [`known-failures.md`](known-failures.md).
+
+The 90th entry, `pattern/issues/3482-template-class-indent.svelte`, deliberately
+adds another nested class to exercise client output indentation. Its four target
+tuples are under-warnings for the already-known `perf_avoid_nested_class` gap;
+that diagnostic is independent of the output-formatting repair and remains
+ratcheted here rather than suppressing the fixture from the output gate.
 
 The file was 171 entries before this branch was rebased onto `main`, and this is
 the second re-measurement against a moving `main`: the first removed **81 and

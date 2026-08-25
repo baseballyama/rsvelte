@@ -1766,10 +1766,12 @@ impl<'a> JsCodegen<'a> {
         self.indent_level += 1;
         for member in &class.body.body {
             self.newline();
+            self.indent();
             self.emit_class_member(member);
         }
         self.indent_level -= 1;
         self.newline();
+        self.indent();
         self.output.push('}');
     }
 
