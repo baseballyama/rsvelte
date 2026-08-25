@@ -56,6 +56,13 @@ pub enum JsStatement {
     VariableDeclaration(JsVariableDeclaration),
     /// Function declaration
     FunctionDeclaration(JsFunctionDeclaration),
+    /// A class declaration whose source is retained for the primary OXC path.
+    /// The structured form lets the text fallback indent it at its generated
+    /// nesting instead of replaying the template source column verbatim.
+    ClassDeclaration {
+        class: JsClassExpression,
+        source: CompactString,
+    },
     /// Expression statement
     Expression(JsExpressionStatement),
     /// Return statement

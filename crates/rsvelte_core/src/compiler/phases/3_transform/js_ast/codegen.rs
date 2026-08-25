@@ -335,6 +335,10 @@ impl<'a> JsCodegen<'a> {
             JsStatement::ExportNamed(export) => self.emit_export_named(export),
             JsStatement::VariableDeclaration(decl) => self.emit_variable_declaration(decl),
             JsStatement::FunctionDeclaration(decl) => self.emit_function_declaration(decl),
+            JsStatement::ClassDeclaration { class, .. } => {
+                self.emit_class_expression(class);
+                self.needs_semicolon = false;
+            }
             JsStatement::Expression(expr_stmt) => {
                 self.emit_expression(self.arena.get_expr(expr_stmt.expression));
                 self.needs_semicolon = true;
@@ -1906,6 +1910,7 @@ impl<'a> JsCodegen<'a> {
         match stmt {
             // These are always multiline
             JsStatement::FunctionDeclaration(_)
+            | JsStatement::ClassDeclaration { .. }
             | JsStatement::For(_)
             | JsStatement::ForOf(_)
             | JsStatement::While(_)
@@ -2288,6 +2293,7 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
         JsStatement::ExportNamed(_) => "ExportNamedDeclaration",
         JsStatement::VariableDeclaration(_) => "VariableDeclaration",
         JsStatement::FunctionDeclaration(_) => "FunctionDeclaration",
+        JsStatement::ClassDeclaration { .. } => "ClassDeclaration",
         JsStatement::Expression(_) => "ExpressionStatement",
         JsStatement::Return(_) => "ReturnStatement",
         JsStatement::If(_) => "IfStatement",
@@ -3683,5 +3689,39 @@ mod tests {
         assert!(code.contains("foo()"), "got: {code}");
         assert!(code.contains("static count = 0;"), "got: {code}");
         assert!(!code.contains("class Thing {}"), "body dropped: {code}");
+    }
+
+    #[test]
+    fn class_declaration_fallback_uses_generated_indentation() {
+        let arena = JsArena::new();
+        let class = JsClassExpression {
+            id: Some("K".into()),
+            super_class: None,
+            body: JsClassBody {
+                body: vec![JsClassMember::Property(JsPropertyDefinition {
+                    key: JsPropertyKey::Identifier("#x".into()),
+                    value: Some(arena.alloc_expr(number(1.0))),
+                    computed: false,
+                    is_static: false,
+                })],
+            },
+        };
+        let program = JsProgram::with_body(vec![JsStatement::FunctionDeclaration(
+            JsFunctionDeclaration {
+                id: Some("outer".into()),
+                params: smallvec::smallvec![],
+                body: JsBlockStatement::with_body(vec![JsStatement::ClassDeclaration {
+                    class,
+                    source: "class K {\n\t#x = 1;\n}".into(),
+                }]),
+                is_async: false,
+                is_generator: false,
+            },
+        )]);
+
+        assert_eq!(
+            generate(&program, &arena).unwrap(),
+            "function outer() {\n\tclass K {\n\t\t#x = 1;\n\t}\n}"
+        );
     }
 }

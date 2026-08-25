@@ -785,6 +785,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 let decl = oxc_ast::ast::Declaration::FunctionDeclaration(func);
                 Some(Statement::from(decl))
             }
+            // Keep parsing the retained source on the primary path. Besides
+            // preserving comments and syntax the compact IR does not model,
+            // this leaves its source-map behaviour unchanged; the structured
+            // class is for the text fallback only.
+            JsStatement::ClassDeclaration { source, .. } => {
+                self.raw_single_statement(source, None, &[], false, &[])
+            }
             JsStatement::For(for_stmt) => self.for_statement(for_stmt),
             JsStatement::ForOf(for_of) => self.for_of_statement(for_of),
             JsStatement::While(w) => {
@@ -1820,6 +1827,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                         })
                         .collect(),
                 )
+            }
+            JsStatement::ClassDeclaration { source, .. } => {
+                let stmts = self.parse_raw_statements(source, false, &[])?;
+                self.take_chunk_region(None, &[]);
+                Some(stmts)
             }
             JsStatement::Raw(code) => {
                 let stmts = self.parse_raw_statements(code, false, &[])?;

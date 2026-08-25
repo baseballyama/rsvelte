@@ -1598,6 +1598,13 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
 
             match node_type {
                 "Identifier" => convert_identifier(obj, context),
+                "PrivateIdentifier" => JsExpr::Identifier(
+                    format!(
+                        "#{}",
+                        obj.get("name").and_then(|name| name.as_str()).unwrap_or("")
+                    )
+                    .into(),
+                ),
                 "Literal" => convert_literal(obj, context),
                 "MemberExpression" => convert_member_expression(obj, context),
                 "CallExpression" => convert_call_expression(obj, context),
@@ -3381,6 +3388,95 @@ fn convert_class_expression(
     })
 }
 
+/// Whether the compact class IR can reproduce this declaration without
+/// deleting syntax or comments on the text-fallback path. The primary OXC
+/// path still parses `source`; this only guards the secondary printer.
+fn class_declaration_has_structured_fallback(value: &Value, source: &str) -> bool {
+    if source.contains("//") || source.contains("/*") {
+        return false;
+    }
+
+    class_declaration_nodes_are_supported(value)
+}
+
+fn class_declaration_nodes_are_supported(value: &Value) -> bool {
+    match value {
+        Value::Array(values) => values.iter().all(class_declaration_nodes_are_supported),
+        Value::Object(obj) => {
+            if let Some(node_type) = obj.get("type").and_then(|node_type| node_type.as_str())
+                && !matches!(
+                    node_type,
+                    "Identifier"
+                        | "PrivateIdentifier"
+                        | "Literal"
+                        | "MemberExpression"
+                        | "CallExpression"
+                        | "BinaryExpression"
+                        | "UnaryExpression"
+                        | "LogicalExpression"
+                        | "ConditionalExpression"
+                        | "ArrayExpression"
+                        | "ObjectExpression"
+                        | "ArrowFunctionExpression"
+                        | "FunctionExpression"
+                        | "AssignmentExpression"
+                        | "UpdateExpression"
+                        | "SequenceExpression"
+                        | "ThisExpression"
+                        | "Super"
+                        | "ClassExpression"
+                        | "NewExpression"
+                        | "AwaitExpression"
+                        | "YieldExpression"
+                        | "SpreadElement"
+                        | "TemplateLiteral"
+                        | "TemplateElement"
+                        | "TaggedTemplateExpression"
+                        | "ChainExpression"
+                        | "ImportExpression"
+                        | "MetaProperty"
+                        | "ObjectPattern"
+                        | "ArrayPattern"
+                        | "RestElement"
+                        | "AssignmentPattern"
+                        | "Property"
+                        | "ExpressionStatement"
+                        | "VariableDeclaration"
+                        | "VariableDeclarator"
+                        | "ReturnStatement"
+                        | "BlockStatement"
+                        | "IfStatement"
+                        | "EmptyStatement"
+                        | "ThrowStatement"
+                        | "TryStatement"
+                        | "CatchClause"
+                        | "ForStatement"
+                        | "ForInStatement"
+                        | "ForOfStatement"
+                        | "WhileStatement"
+                        | "DoWhileStatement"
+                        | "LabeledStatement"
+                        | "BreakStatement"
+                        | "ContinueStatement"
+                        | "SwitchStatement"
+                        | "SwitchCase"
+                        | "FunctionDeclaration"
+                        | "ClassDeclaration"
+                        | "ClassBody"
+                        | "MethodDefinition"
+                        | "PropertyDefinition"
+                        | "StaticBlock"
+                )
+            {
+                return false;
+            }
+
+            obj.values().all(class_declaration_nodes_are_supported)
+        }
+        _ => true,
+    }
+}
+
 /// Convert a single class body member (`MethodDefinition` / `PropertyDefinition`
 /// / `StaticBlock`) into a `JsClassMember`.
 fn convert_class_member(member: &Value, context: &mut ComponentContext) -> Option<JsClassMember> {
@@ -4476,8 +4572,15 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         "ClassDeclaration" => {
             let start = obj.get("start")?.as_u64()? as usize;
             let end = obj.get("end")?.as_u64()? as usize;
-            let source = context.state.analysis.source.get(start..end)?;
-            Some(JsStatement::Raw(source.into()))
+            let source: CompactString = context.state.analysis.source.get(start..end)?.into();
+            if !class_declaration_has_structured_fallback(stmt, &source) {
+                return Some(JsStatement::Raw(source));
+            }
+            let class = match convert_class_expression(obj, context) {
+                JsExpr::Class(class) => class,
+                _ => unreachable!("class conversion must produce a class expression"),
+            };
+            Some(JsStatement::ClassDeclaration { class, source })
         }
         _ => {
             // For unhandled statement types, try to convert as expression statement if possible
