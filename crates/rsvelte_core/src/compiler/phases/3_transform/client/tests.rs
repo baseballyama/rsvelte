@@ -230,6 +230,21 @@ fn invalidation_single_dependency_keeps_sequence_parentheses() {
 }
 
 #[test]
+fn legacy_each_item_mutation_keeps_empty_invalidation_sequence() {
+    let result = crate::compiler::compile(
+        "<script>let rows = [{ picked: 0 }];</script>{#each rows as row}<button onclick={() => row.picked = 1}>pick</button>{/each}",
+        crate::compiler::CompileOptions {
+            filename: Some("each-empty-invalidation-sequence.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(result.js.code.contains("() => ($.get(row).picked = 1)"));
+}
+
+#[test]
 fn is_argument_inherits_later_complex_scope_bump() {
     let result = crate::compiler::compile(
         "<div class=\"a\"><div class=\"b\"></div></div><style>:is(.a) > .b { color: red; }</style>",

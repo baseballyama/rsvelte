@@ -1131,6 +1131,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     right: context.arena.alloc_expr(conv_right),
                 })
             };
+            let result = preserve_empty_legacy_each_mutation_sequence(
+                result,
+                original_root_name.as_deref(),
+                matches!(left_node, JsNode::MemberExpression { .. }),
+                context,
+            );
 
             wrap_with_ownership_mutation(ownership_info, result, context)
         }
@@ -4669,6 +4675,12 @@ fn convert_assignment_expression(
             right,
         })
     };
+    let result = preserve_empty_legacy_each_mutation_sequence(
+        result,
+        original_root_name.as_deref(),
+        left_obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression"),
+        context,
+    );
 
     // Wrap with ownership validation if needed
     if let Some((prop_alias, path, source_loc)) = ownership_info {
@@ -5133,6 +5145,44 @@ fn try_transform_assignment(
     }
 
     None
+}
+
+/// Preserve the one-element sequence that upstream's legacy each-item `mutate`
+/// transform builds when the each collection has no invalidation dependencies.
+/// A plain assignment is equivalent at runtime, but esrap prints the sequence as
+/// a parenthesized arrow body (`() => ($.get(item).x = value)`).
+fn preserve_empty_legacy_each_mutation_sequence(
+    result: JsExpr,
+    original_root_name: Option<&str>,
+    is_member_assignment: bool,
+    context: &ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    if context.state.analysis.runes || !is_member_assignment {
+        return result;
+    }
+
+    let Some(root_name) = original_root_name else {
+        return result;
+    };
+    let preserves_empty_sequence = context
+        .state
+        .each_binding_context
+        .iter()
+        .rev()
+        .find(|each| each.item_name == root_name)
+        .is_some_and(|each| {
+            each.context_is_identifier
+                && each.invalidation_exprs.is_empty()
+                && each.store_to_invalidate.is_none()
+        });
+
+    if preserves_empty_sequence && !matches!(result, JsExpr::Sequence(_)) {
+        b::sequence(vec![result])
+    } else {
+        result
+    }
 }
 
 /// Wrap a prop-member-mutation expression in
