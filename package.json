@@ -76,6 +76,8 @@
 		"test:napi-csshash": "node scripts/dev/test-napi-css-hash.mjs",
 		"test:napi-preprocess-parity": "node scripts/dev/test-napi-preprocess-parity.mjs",
 		"test:wasm-compile": "node scripts/dev/test-wasm-compile-options.mjs",
+		"test:compare-cli": "node --test apps/npm/compiler/test/compare-cli.test.mjs",
+		"test:compare-cli:e2e": "node apps/npm/compiler/test/compare-cli-e2e.mjs",
 		"test:type-aware-lint": "node scripts/dev/test-type-aware-lint.mjs",
 		"build:oxlint-plugin": "pnpm --filter @rsvelte/oxlint-plugin run build",
 		"build:lint-native": "node scripts/dev/build-lint-native-local.mjs",

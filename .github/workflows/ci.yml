@@ -758,6 +758,12 @@ jobs:
       - name: Build core wasm
         run: pnpm run build:wasm:core
 
+      - name: Finalize @rsvelte/compiler package
+        run: pnpm run finalize-pkg
+
+      - name: Run compare CLI package smoke test
+        run: pnpm run test:compare-cli:e2e
+
       # This job is the only one that builds `pkg/`, and the gate had never been
       # invoked by any workflow since it was written.
       - name: Run wasm compile-options gate
@@ -1244,6 +1250,12 @@ jobs:
 
       - name: Run compatibility report workflow tests
         run: node scripts/ci/test-compatibility-report-workflow.mjs
+
+      # The compare command's compiler calls are injected, so its argument,
+      # discovery, verdict, and reporting contract can be pinned without a WASM
+      # build or corpus checkout.
+      - name: Run compare CLI unit tests
+        run: node --test apps/npm/compiler/test/compare-cli.test.mjs
 
       # The Corpus Compat job filter can skip a gate, and a skipped gate reads as
       # a passing one — so its controls belong with the other trigger guards.

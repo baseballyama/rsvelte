@@ -101,6 +101,43 @@ The exported names and JSON-string return values below are specific to this
 WASM package. They are deliberately not presented as `svelte/compiler`
 equivalents.
 
+## Compare CLI
+
+Projects that already have Svelte installed can compare official and rsvelte
+output before switching compilers:
+
+```bash
+npx --package @rsvelte/compiler rsvelte compare 'src/**/*.svelte'
+```
+
+The command compiles each component with both compilers and strictly compares
+the generated `js.code` and `css.code`. Source maps are not included: their
+segment layouts can differ even when the shipped code is identical. It exits 0
+only when every file matches; a difference or compile failure exits 1.
+
+```text
+.................X.................
+
+35 files scanned, 34 match, 1 difference
+
+Differences:
+* src/components/menu.svelte
+  [client js.code] line 8, column 14
+    official: "..."
+    rsvelte:  "..."
+```
+
+Client production output is the default. Use `--generate server` or
+`--generate both` for SSR, `--dev` for development output, and
+`--options compiler-options.json` to merge JSON-compatible Svelte compiler
+options. The CLI sets `filename` and `generate` per comparison. Directories and
+quoted `*`, `**`, and `?` globs are supported; `node_modules`, `.git`, and
+`target` are skipped during directory walks.
+
+This is a generated-output check, not an application test: preprocessors, Vite
+plugin behavior, runtime-version differences, source maps, and browser/server
+behavior remain outside its comparison key.
+
 ## Why it is fast
 
 - Written in Rust with a memory-efficient AST (`u32` spans, compact strings) and
@@ -121,6 +158,7 @@ MIT
 ---
 
 > **Maintainers:** `@rsvelte/compiler` is published from the wasm-pack output in
-> the repo-root `pkg/` directory, not from this directory. See
+> the repo-root `pkg/` directory. `finalize-pkg.mjs` overlays this README and the
+> hand-written `bin/` + `lib/` files from this directory. See
 > [`PUBLISHING.md`](./PUBLISHING.md) for how the version anchor and README
 > overlay work.

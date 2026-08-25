@@ -31,7 +31,7 @@
 // `workspace:^` consumers (e.g. `@rsvelte/svelte2tsx`) read when pnpm rewrites
 // their dependency range at publish time.
 
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -68,6 +68,31 @@ if (source.repository) generated.repository = source.repository;
 if (source.homepage) generated.homepage = source.homepage;
 if (source.bugs) generated.bugs = source.bugs;
 if (source.keywords) generated.keywords = source.keywords;
+if (source.bin) generated.bin = source.bin;
+if (source.peerDependencies) generated.peerDependencies = source.peerDependencies;
+if (source.peerDependenciesMeta) generated.peerDependenciesMeta = source.peerDependenciesMeta;
+
+// wasm-pack regenerates pkg/ from scratch, so copy the npm-side runtime overlay
+// named by the version anchor's `files` field. Keeping this list explicit makes
+// a missing CLI entry fail the release instead of silently publishing metadata
+// that points at a file absent from the tarball.
+const overlayFiles = source.files ?? [];
+generated.files = [...new Set([...(generated.files ?? []), ...overlayFiles])];
+for (const file of overlayFiles) {
+	const sourcePath = resolve(repoRoot, 'apps/npm/compiler', file);
+	const targetPath = resolve(pkgDir, file);
+	if (!existsSync(sourcePath)) {
+		throw new Error(`finalize-pkg: npm overlay file ${file} is missing`);
+	}
+	mkdirSync(dirname(targetPath), { recursive: true });
+	copyFileSync(sourcePath, targetPath);
+}
+for (const file of Object.values(source.bin ?? {})) {
+	if (!overlayFiles.includes(file)) {
+		throw new Error(`finalize-pkg: bin target ${file} must also be listed in "files"`);
+	}
+	chmodSync(resolve(pkgDir, file), 0o755);
+}
 
 // Synthesise a stable `exports` map. wasm-pack leaves `exports` unset and points
 // `main`/`module`/`types` at the crate-named glue (`rsvelte_lint.js`), so the
@@ -104,11 +129,12 @@ generated.exports = {
 // crate rename or wasm-pack layout change fails the release loudly here rather
 // than publishing an `exports` map that points at missing files. The `./*`
 // passthrough is a wildcard with no single target, so it is not checked.
-const exportTargets = new Set([withDot(jsEntry), withDot(wasmFile), './package.json']);
-if (generated.types) exportTargets.add(withDot(generated.types));
-for (const target of exportTargets) {
+const shippedTargets = new Set([withDot(jsEntry), withDot(wasmFile), './package.json']);
+if (generated.types) shippedTargets.add(withDot(generated.types));
+for (const file of overlayFiles) shippedTargets.add(withDot(file));
+for (const target of shippedTargets) {
 	if (!existsSync(resolve(pkgDir, target))) {
-		throw new Error(`finalize-pkg: exports target ${target} is missing from pkg/`);
+		throw new Error(`finalize-pkg: shipped target ${target} is missing from pkg/`);
 	}
 }
 

@@ -17,6 +17,24 @@
     "rust",
     "wasm"
   ],
+  "bin": {
+    "rsvelte": "bin/rsvelte.mjs"
+  },
+  "files": [
+    "bin/rsvelte.mjs",
+    "lib/compare.mjs"
+  ],
+  "scripts": {
+    "test": "node --test test/compare-cli.test.mjs"
+  },
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
+  },
   "publishConfig": {
     "access": "public",
     "directory": "../../../pkg"
