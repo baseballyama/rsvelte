@@ -265,6 +265,25 @@ fn norm(s: &str) -> String {
         .join("\n")
 }
 
+/// A constant-folded expression is still a rendered template chunk, even when
+/// its value is the empty string. In particular, hoisting the adjacent
+/// `{@const}` must not classify that chunk as removable source whitespace.
+#[test]
+fn folded_empty_expression_keeps_renderer_push() {
+    for source in [
+        "{#if true}{@const c = \"\"}{c}{/if}",
+        "{#if true}{@const c = \"\" + \"\"}{c}{/if}",
+        "{#if true}{@const c = String()}{c}{/if}",
+    ] {
+        let output = run(source);
+        assert_eq!(norm(&output), norm(&oracle_dump(source)), "{source}");
+        assert!(
+            output.contains("$$renderer.push(``);"),
+            "missing empty renderer push for {source}:\n{output}"
+        );
+    }
+}
+
 /// Destructured `$derived` / `$derived.by` SSR expansion (写经
 /// `VariableDeclaration.js:97-156` + `_extract_paths`). Each runtime-runes
 /// fixture below destructures a derived; the AST pipeline must expand it into

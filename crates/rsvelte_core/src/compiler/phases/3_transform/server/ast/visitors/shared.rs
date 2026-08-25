@@ -9,7 +9,10 @@
 //!   pure text). Upstream's `b.literal('<p')` / `b.literal('>')`.
 //! - [`TemplateEntry::Template`] — a `b.template(quasis, expressions)` produced by
 //!   [`process_children`] when a run of text / comment / expression-tag siblings
-//!   is flushed; dynamic `{expr}` interpolations become `${$.escape(expr)}`.
+//!   is flushed; dynamic `{expr}` interpolations become `${$.escape(expr)}`. A
+//!   known expression can fold into a quasi and leave `expressions` empty; it
+//!   must remain a `Template` so an empty rendered chunk is not mistaken for
+//!   removable source whitespace.
 //! - [`TemplateEntry::Stmt`] — an opaque statement (e.g. an `if` for `<textarea>`
 //!   value handling, or an async `$$renderer.push(...)`); these break the
 //!   coalescing run. Not produced by the simple visitors ported so far.
@@ -45,7 +48,8 @@ pub enum TemplateEntry<'a> {
     Literal(String),
     /// A `b.template(quasis, expressions)`: `quasis.len() == expressions.len() + 1`.
     /// `quasis` are cooked strings; `exprs` are already-built oxc expressions
-    /// (typically `$.escape(expr)`).
+    /// (typically `$.escape(expr)`). `exprs` may be empty when every expression
+    /// in the source sequence constant-folded into its surrounding quasi.
     Template {
         quasis: Vec<String>,
         exprs: Vec<OxcExpression<'a>>,
@@ -693,10 +697,11 @@ fn is_plain_identifier(src: &str) -> bool {
     chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
-/// Convert the accumulated `sequence` into one [`TemplateEntry::Template`]
-/// (skipped when empty). Mirrors the inner `flush()` of upstream
-/// `process_children`: cooked text accumulates into the current quasi, and each
-/// dynamic expression splits a new quasi and pushes `$.escape(expr)`.
+/// Convert the accumulated `sequence` into one template entry (skipped when
+/// empty). Mirrors the inner `flush()` of upstream `process_children`: cooked
+/// text accumulates into the current quasi, and each dynamic expression splits
+/// a new quasi and pushes `$.escape(expr)`. A sequence containing an expression
+/// remains a [`TemplateEntry::Template`] even when every expression folds away.
 fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState<'a>) {
     if sequence.is_empty() {
         return;
@@ -704,6 +709,9 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
 
     let mut quasis: Vec<String> = vec![String::new()];
     let mut exprs: Vec<OxcExpression<'a>> = Vec::new();
+    let had_expression_tag = sequence
+        .iter()
+        .any(|node| matches!(node, SeqNode::Expr(..)));
 
     for node in sequence {
         match node {
@@ -819,10 +827,11 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
         }
     }
 
-    if exprs.is_empty() {
-        // Pure-text/comment run: a plain literal (matches upstream where the
-        // template degenerates to a single-quasi literal that build_template
-        // then folds into the surrounding string).
+    if !had_expression_tag {
+        // Pure-text/comment run: a plain literal. Do not use `exprs.is_empty()`
+        // here: upstream still builds a template when every source expression
+        // folds to an empty quasi, and that template must produce an empty
+        // renderer push after an adjacent declaration is hoisted (#3457).
         state
             .template
             .push(TemplateEntry::Literal(quasis.pop().unwrap()));

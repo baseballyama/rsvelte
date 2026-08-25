@@ -46,6 +46,7 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 
 | File | Issue | What it pins |
 |---|---|---|
+| `3457-empty-folded-ssr-chunk.svelte` | [#3457](https://github.com/baseballyama/rsvelte/issues/3457) | An SSR expression chunk that constant-folds to the empty string must remain a template and emit `$$renderer.push(\`\`)` after its adjacent `{@const}` is hoisted. Literal, concatenated and global-call initializers cover the production/dev folding paths; the client targets are controls. |
 | `008-comment-props-destructure.svelte` | [debt 008](../../debt_list/008-mutation-gate-has-behavioral-code-mismatches.md) | A block comment between `=` and `$props()` in a read-only destructure. The AST-confirmed rune call must be lowered despite the trivia, not survive as a runtime reference to `$props`. |
 | `008-comment-shadowed-state.svelte` | [debt 008](../../debt_list/008-mutation-gate-has-behavioral-code-mismatches.md) | A comment containing `}` between a shadowed local `$state` declaration and its reads. The local binding must still win over the outer function of the same name, so reads and updates remain `$.get(multiplier)` / `$.update(multiplier)` rather than becoming plain values. |
 | `1973-derived-ternary-default.svelte` | [#1973](https://github.com/baseballyama/rsvelte/issues/1973) | Destructured `$derived` with a **ternary** default — the property splitter must not mistake the ternary's `:` for the key separator |
