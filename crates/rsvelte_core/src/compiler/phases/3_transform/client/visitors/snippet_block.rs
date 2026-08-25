@@ -357,16 +357,19 @@ fn process_destructured_pattern(
     arg_alias: &str,
     context: &mut ComponentContext,
 ) -> Vec<JsStatement> {
-    let mut declarations = Vec::new();
+    let mut inserts = Vec::new();
+    let mut paths = Vec::new();
     let base = b::optional_call(&context.arena, b::id(arg_alias), vec![]);
     extract_snippet_paths(
         &serde_json::Value::Object(obj.clone()),
         base,
         false,
-        &mut declarations,
+        &mut inserts,
+        &mut paths,
         context,
     );
-    declarations
+    inserts.extend(paths);
+    inserts
 }
 
 /// Emit a leaf binding `let name = needs_derived ? $.derived_safe_equal(() => access)
@@ -421,8 +424,10 @@ fn emit_snippet_path(
 ///
 /// Walks a destructuring `pattern` (JSON), threading the access expression
 /// `base` (the AST that reads the current sub-value). Array patterns push an
-/// intermediate `var $$array = $.derived(() => $.to_array(base, len?))` and read
-/// elements as `$.get($$array)[i]`; object rest emits
+/// intermediate `var $$array = $.derived(() => $.to_array(base, len?))` into
+/// `inserts` and read elements as `$.get($$array)[i]`; leaf declarations go into
+/// `paths`. Upstream returns those collections separately and the caller emits
+/// every insert before every path. Object rest emits
 /// `$.exclude_from_object(base, [keys])`; defaults wrap the access in
 /// `$.fallback(...)`; the whole path collapses to `$.derived_safe_equal(...)`
 /// when any default is involved. (issue #446, H-100..H-103)
@@ -430,7 +435,8 @@ fn extract_snippet_paths(
     pattern: &serde_json::Value,
     base: JsExpr,
     has_default: bool,
-    declarations: &mut Vec<JsStatement>,
+    inserts: &mut Vec<JsStatement>,
+    paths: &mut Vec<JsStatement>,
     context: &mut ComponentContext,
 ) {
     let obj = match pattern.as_object() {
@@ -440,7 +446,7 @@ fn extract_snippet_paths(
     match obj.get("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
             if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                emit_snippet_path(name, base, has_default, declarations, context);
+                emit_snippet_path(name, base, has_default, paths, context);
             }
         }
         Some("ObjectPattern") => {
@@ -472,7 +478,8 @@ fn extract_snippet_paths(
                                 arg,
                                 rest_expr,
                                 has_default,
-                                declarations,
+                                inserts,
+                                paths,
                                 context,
                             );
                         }
@@ -485,7 +492,8 @@ fn extract_snippet_paths(
                                 value,
                                 access,
                                 has_default,
-                                declarations,
+                                inserts,
+                                paths,
                                 context,
                             );
                         }
@@ -517,7 +525,7 @@ fn extract_snippet_paths(
                 b::member_path(&context.arena, "$.to_array"),
                 to_array_args,
             );
-            declarations.push(b::var_decl(
+            inserts.push(b::var_decl(
                 &context.arena,
                 &array_name,
                 Some(b::call(
@@ -555,13 +563,20 @@ fn extract_snippet_paths(
                         vec![b::number(i as f64)],
                     );
                     if let Some(arg) = elem_obj.get("argument") {
-                        extract_snippet_paths(arg, slice_expr, has_default, declarations, context);
+                        extract_snippet_paths(
+                            arg,
+                            slice_expr,
+                            has_default,
+                            inserts,
+                            paths,
+                            context,
+                        );
                     }
                 } else {
                     // `$.get($$array)[i]`
                     let access =
                         b::member_computed(&context.arena, array_get(), b::number(i as f64));
-                    extract_snippet_paths(elem, access, has_default, declarations, context);
+                    extract_snippet_paths(elem, access, has_default, inserts, paths, context);
                 }
             }
         }
@@ -575,7 +590,7 @@ fn extract_snippet_paths(
                     b::member_path(&context.arena, "$.fallback"),
                     fallback_args,
                 );
-                extract_snippet_paths(left, fallback_call, true, declarations, context);
+                extract_snippet_paths(left, fallback_call, true, inserts, paths, context);
             }
         }
         _ => {}
@@ -737,18 +752,21 @@ fn process_assignment_pattern(
         fallback_args,
     );
 
-    let mut declarations = Vec::new();
+    let mut inserts = Vec::new();
+    let mut paths = Vec::new();
     extract_snippet_paths(
         &serde_json::Value::Object(left.clone()),
         fallback_call,
         true,
-        &mut declarations,
+        &mut inserts,
+        &mut paths,
         context,
     );
+    inserts.extend(paths);
 
     Some(ParameterInfo {
         pattern,
-        declarations,
+        declarations: inserts,
     })
 }
 

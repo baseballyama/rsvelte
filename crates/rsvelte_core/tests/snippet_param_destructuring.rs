@@ -88,6 +88,44 @@ fn array_pattern_nested_and_rest() {
 }
 
 #[test]
+fn array_temporaries_precede_every_leaf_binding() {
+    // #3556: upstream collects array materialisation statements separately from
+    // leaf paths, then emits all materialisations first. Cover a leaf before the
+    // first array, a nested array, and a second sibling array so DFS interleaving
+    // cannot accidentally reproduce the expected order.
+    let src = r#"{#snippet foo({ before, xs: [[x]], middle, ys: [y] })}<p>{before}{x}{middle}{y}</p>{/snippet}{@render foo({before:1,xs:[[2]],middle:3,ys:[4]})}"#;
+
+    for dev in [false, true] {
+        let out = compile(
+            src,
+            CompileOptions {
+                filename: Some("T.svelte".to_string()),
+                generate: GenerateMode::Client,
+                dev,
+                css: CssMode::External,
+                runes: Some(true),
+                ..Default::default()
+            },
+        )
+        .expect("compile")
+        .js
+        .code;
+
+        let array = out.find("var $$array =").expect("outer array temporary");
+        let nested = out.find("var $$array_1 =").expect("nested array temporary");
+        let sibling = out
+            .find("var $$array_2 =")
+            .expect("sibling array temporary");
+        let first_leaf = out.find("let before =").expect("first leaf binding");
+
+        assert!(
+            array < nested && nested < sibling && sibling < first_leaf,
+            "all array temporaries must precede every leaf binding (dev={dev}):\n{out}"
+        );
+    }
+}
+
+#[test]
 fn whole_parameter_default_is_applied() {
     // H-103: a whole-parameter default `= { id: 1 }` wraps the base in `$.fallback`.
     assert_contains(
