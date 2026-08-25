@@ -1236,6 +1236,9 @@ jobs:
       - name: Run Tests aggregator verdict tests
         run: node scripts/ci/test-tests-aggregate-verdict.mjs
 
+      - name: Run release verdict waiter tests
+        run: node scripts/release/test-wait-for-release-verdicts.mjs
+
       - name: Run differential corpus workflow tests
         run: node scripts/ci/test-differential-corpus-workflow.mjs
 

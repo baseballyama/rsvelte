@@ -8,6 +8,7 @@ on:
 # write to pull-requests (open the "Version Packages" PR), and id-token: write
 # is left available so we can opt into npm provenance later if desired.
 permissions:
+  actions: read
   contents: write
   pull-requests: write
   id-token: write
@@ -457,6 +458,26 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  verify-release-commit:
+    name: Verify release commit
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # The Version Packages PR is opened with GITHUB_TOKEN, so GitHub normally
+      # leaves its pull_request workflows in action_required. Do not duplicate
+      # the test/corpus matrices here: the merge commit already starts their
+      # push workflows. Wait for those exact-SHA verdicts and make the
+      # irreversible publish job depend on them instead (#3695).
+      - name: Wait for main CI verdicts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/release/wait-for-release-verdicts.mjs
+
   publish:
     name: Publish
     # Publish only runs on the "Version Packages" merge commit, once the
@@ -464,6 +485,9 @@ jobs:
     # changesets consumed. This is the only path that needs staged binaries.
     if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
     runs-on: ubuntu-latest
+    # The five build jobs prove that the release artifacts can be produced;
+    # verify-release-commit separately reuses the ordinary main CI verdicts so
+    # publishing cannot proceed after an unverified Version Packages PR.
     # Deliberately NOT `needs: close-version-cycle`: that job shares the
     # cancel-in-progress group with `version-pr` so it can supersede an
     # in-flight updater, which also means any later push to main cancels it —
@@ -476,6 +500,7 @@ jobs:
         build-rsvelte-fmt,
         build-rsvelte-lint,
         build-rsvelte-language-server,
+        verify-release-commit,
       ]
     timeout-minutes: 30
     # Publishing is non-atomic across packages and must never be interrupted.
