@@ -1938,6 +1938,17 @@ fn build_getter_setter_with_primitive(
             transformed_set
         };
 
+        // EachBlock's mutate transform always returns a SequenceExpression,
+        // even when there are no legacy/store invalidations to append. The
+        // binding path constructs its setter independently of the expression
+        // visitor, so preserve that one-element sequence here as well.
+        let transformed_set = super::expression_converter::preserve_each_mutation_sequence(
+            transformed_set,
+            get_ast_root_identifier(original_expr).as_deref(),
+            original_expr.is_member_expression(),
+            context,
+        );
+
         // In dev mode, apply ownership mutation validation for member expressions on props.
         // This wraps the setter with $$ownership_validator.mutation() when the root of the
         // member expression is a prop or bindable_prop.
