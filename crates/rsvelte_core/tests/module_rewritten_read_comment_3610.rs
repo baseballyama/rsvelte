@@ -26,7 +26,7 @@ fn trailing_line_comment_follows_a_rewritten_derived_read() {
 
     let array = client("return [a, d]; // trailing");
     assert!(
-        array.contains("return [a, // trailing\n\t\t$.get(d)];"),
+        array.contains("return [a, // trailing\n\t$.get(d)];"),
         "comment did not follow esrap's sequence cursor:\n{array}"
     );
 
