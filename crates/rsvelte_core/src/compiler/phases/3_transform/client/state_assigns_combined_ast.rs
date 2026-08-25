@@ -42,7 +42,7 @@
 
 use std::cell::RefCell;
 
-use oxc_allocator::Allocator;
+use oxc_allocator::{Allocator, ArenaVec, ReplaceWith};
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
@@ -442,9 +442,60 @@ fn transform_state_assigns_in_place(
                 changed: false,
             };
             oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
+            if rewriter.changed {
+                restore_legacy_pre_effect_deps(program, allocator);
+            }
             rewriter.changed
         },
     )
+}
+
+/// Preserve the builder-made one-element sequence in a legacy dependency thunk.
+///
+/// This pass receives generated `$.legacy_pre_effect(() => (dep), …)` text. OXC
+/// parses the dependency as a `ParenthesizedExpression`, while upstream's
+/// `b.sequence([dep])` is a `SequenceExpression`; esrap deliberately drops the
+/// former and parenthesizes the latter. Rebuild only this generated slot before
+/// the in-place path prints the whole program.
+fn restore_legacy_pre_effect_deps<'a>(program: &mut Program<'a>, allocator: &'a Allocator) {
+    let ab = oxc_ast::builder::AstBuilder::new(allocator);
+    for stmt in &mut program.body {
+        let Statement::ExpressionStatement(es) = stmt else {
+            continue;
+        };
+        let Expression::CallExpression(call) = &mut es.expression else {
+            continue;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            continue;
+        };
+        if !matches!(&member.object, Expression::Identifier(id) if id.name == "$")
+            || member.property.name != "legacy_pre_effect"
+        {
+            continue;
+        }
+        let Some(Argument::ArrowFunctionExpression(arrow)) = call.arguments.first_mut() else {
+            continue;
+        };
+        let Some(body) = arrow.get_expression_mut() else {
+            continue;
+        };
+        if !matches!(&*body, Expression::ParenthesizedExpression(p)
+            if !matches!(p.expression, Expression::SequenceExpression(_)))
+        {
+            continue;
+        }
+        body.replace_with(|expression| {
+            let Expression::ParenthesizedExpression(paren) = expression else {
+                unreachable!()
+            };
+            Expression::SequenceExpression(SequenceExpression::boxed(
+                oxc_span::SPAN,
+                ArenaVec::from_value_in(paren.unbox().expression, &ab),
+                &ab,
+            ))
+        });
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -696,6 +747,22 @@ mod tests {
         let out =
             transform_state_assigns_ast("let x; x += 5;", &ssv(&["x"]), &[], false, &[]).unwrap();
         assert_eq!(out, "let x;\n\n$.set(x, $.get(x) + 5);");
+    }
+
+    #[test]
+    fn reactive_dependency_thunk_keeps_its_one_element_sequence() {
+        let out = transform_state_assigns_ast(
+            "$.legacy_pre_effect(() => ($.get(d)), () => { d += x; });",
+            &ssv(&["d"]),
+            &[],
+            false,
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            out,
+            "$.legacy_pre_effect(() => ($.get(d)), () => {\n\t$.set(d, $.get(d) + x);\n});"
+        );
     }
 
     #[test]

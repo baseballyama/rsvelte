@@ -55,6 +55,29 @@ fn single_dependency_thunk_keeps_its_parens() {
     );
 }
 
+/// Issue #3579: rewriting a state assignment made the in-place AST pass print
+/// the whole generated reactive block. Its one dependency then ceased to be a
+/// builder-made sequence and lost the otherwise-redundant parentheses.
+#[test]
+fn single_dependency_block_thunk_keeps_its_parens() {
+    let out = client(
+        r#"<script>
+	let d = 0;
+	$: {
+		let x = 1;
+		d += x;
+	}
+</script>
+
+<b>{d}</b>
+"#,
+    );
+    assert!(
+        out.contains("$.legacy_pre_effect(() => ($.get(d)), () => {"),
+        "single-dep block thunk lost its parens:\n{out}"
+    );
+}
+
 /// Parens the *user* wrote must still be dropped, exactly as acorn + esrap do
 /// upstream — the fix must not turn into a blanket "preserve every paren".
 #[test]
