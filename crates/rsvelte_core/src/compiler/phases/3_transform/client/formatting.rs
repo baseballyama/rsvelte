@@ -284,12 +284,27 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
             // A string is a code token, and so — for attachment purposes — is a
             // comment that trails code on the same line: it belongs to the
             // statement above, not to whatever follows.
-            let trails_code = starts_comment && !source[after_last_code..i].contains('\n');
+            //
+            // There is one deliberate exception. Upstream's client declaration
+            // lowering does not flush a trailing `//` comment when its line is
+            // ended by a lone CR or U+2028/U+2029. If the last thing after it is
+            // a rebuilt `$:` statement, the span-less effect kills the cursor and
+            // the comment disappears. CRLF follows the ordinary LF path.
+            let exotic_line_comment_end = starts_comment
+                && bytes.get(i + 1) == Some(&b'/')
+                && has_non_lf_line_comment_end(bytes, next);
+            let trails_code = starts_comment
+                && !source[after_last_code..i].contains('\n')
+                && !exotic_line_comment_end;
             if !starts_comment || trails_code {
                 after_last_code = next;
                 after_last_surviving_code = next;
             }
             i = next;
+            continue;
+        }
+        if let Some(width) = line_terminator_len(bytes, i) {
+            i += width;
             continue;
         }
         let c = bytes[i];
@@ -356,7 +371,7 @@ fn statement_can_begin(scan: &JsScan, bytes: &[u8], after_last_code: usize, at: 
         Some(c) => {
             (c.is_ascii_alphanumeric()
                 || matches!(c, b'_' | b'$' | b')' | b']' | b'\'' | b'"' | b'`'))
-                && bytes[after_last_code..at].contains(&b'\n')
+                && contains_line_terminator(&bytes[after_last_code..at])
         }
     }
 }
@@ -382,16 +397,19 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
             i = next;
             continue;
         }
-        let c = bytes[i];
-        if c == b'\n'
-            && body_started
-            && scan.depth == base_depth
-            && !opened_block
-            && !continues_statement(scan.last_code)
-            && !next_line_continues(source, i + 1)
-        {
-            return i;
+        if let Some(width) = line_terminator_len(bytes, i) {
+            if body_started
+                && scan.depth == base_depth
+                && !opened_block
+                && !continues_statement(scan.last_code)
+                && !next_line_continues(source, i + width)
+            {
+                return i;
+            }
+            i += width;
+            continue;
         }
+        let c = bytes[i];
         if c.is_ascii_whitespace() {
             i += 1;
             continue;
@@ -537,7 +555,7 @@ fn extend_over_trailing_comment(source: &str, end: usize) -> usize {
     match bytes.get(i + 1) {
         Some(b'/') => {
             let mut j = i + 2;
-            while j < bytes.len() && bytes[j] != b'\n' {
+            while j < bytes.len() && line_terminator_len(bytes, j).is_none() {
                 j += 1;
             }
             j
@@ -839,7 +857,7 @@ impl JsScan {
 
         if c == b'/' && bytes.get(i + 1) == Some(&b'/') {
             let mut end = i + 2;
-            while end < len && bytes[end] != b'\n' {
+            while end < len && line_terminator_len(bytes, end).is_none() {
                 end += 1;
             }
             return Some(end);
@@ -866,6 +884,40 @@ impl JsScan {
 
         None
     }
+}
+
+/// Width in bytes of an ECMAScript `LineTerminator` at `i`.
+fn line_terminator_len(bytes: &[u8], i: usize) -> Option<usize> {
+    match bytes.get(i) {
+        Some(b'\n') => Some(1),
+        Some(b'\r') if bytes.get(i + 1) == Some(&b'\n') => Some(2),
+        Some(b'\r') => Some(1),
+        Some(0xE2)
+            if bytes.get(i + 1) == Some(&0x80) && matches!(bytes.get(i + 2), Some(0xA8 | 0xA9)) =>
+        {
+            Some(3)
+        }
+        _ => None,
+    }
+}
+
+fn contains_line_terminator(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytes.len() {
+        if line_terminator_len(bytes, i).is_some() {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// `end` is the first byte after a scanned line comment. Only the three line
+/// endings for which upstream misses the declaration's trailing-comment flush
+/// take the dead-cursor path; CRLF behaves like LF.
+fn has_non_lf_line_comment_end(bytes: &[u8], end: usize) -> bool {
+    (matches!(bytes.get(end), Some(b'\r')) && bytes.get(end + 1) != Some(&b'\n'))
+        || matches!(line_terminator_len(bytes, end), Some(3))
 }
 
 /// Strip `/* $$async_noop... */;` placeholders from script output.
@@ -1517,6 +1569,41 @@ mod reactive_comment_tests {
         assert_kept("/** @type {number} */\nlet x = 1;\n$: y = x;\n");
         assert_kept("let x = 1; // trailing\n$: y = x;\n");
         assert_kept("// leading the whole script\nlet x = 1;\n$: y = x;\n");
+    }
+
+    /// Upstream does not flush the declaration's trailing comment for these
+    /// three line endings. The last reactive statement is rebuilt without a
+    /// location, so its effect kills the still-pending comment cursor.
+    #[test]
+    fn drops_an_exotic_line_comment_before_the_last_reactive_statement() {
+        for terminator in ["\r", "\u{2028}", "\u{2029}"] {
+            let source = format!("let x = 1; // gone{terminator}$: y = x;{terminator}");
+            let out = rehome_reactive_statement_comments(&source);
+            assert!(
+                !out.contains("// gone"),
+                "terminator {terminator:?}: {out:?}"
+            );
+            assert!(
+                out.contains("$: y = x;"),
+                "terminator {terminator:?}: {out:?}"
+            );
+        }
+    }
+
+    /// LF and CRLF take esrap's normal trailing-comment path, and a later
+    /// located statement revives the cursor even after an exotic terminator.
+    #[test]
+    fn keeps_the_controls_for_an_exotic_reactive_comment() {
+        assert_kept("let x = 1; // kept\n$: y = x;\n");
+        assert_kept("let x = 1; // kept\r\n$: y = x;\r\n");
+        for terminator in ["\r", "\u{2028}", "\u{2029}"] {
+            let source = format!("let x = 1; // kept{terminator}$: y = x;{terminator}let z = 2;");
+            assert_eq!(
+                rehome_reactive_statement_comments(&source),
+                source,
+                "terminator {terminator:?}"
+            );
+        }
     }
 
     #[test]
