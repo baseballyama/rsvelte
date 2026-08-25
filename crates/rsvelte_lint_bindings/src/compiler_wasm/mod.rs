@@ -85,7 +85,7 @@ pub fn parse_svelte(source: &str) -> ParseResultWasm {
     // Same as the NAPI entry: upstream strips it before the parser, so every
     // position below is relative to the trimmed source.
     let source = crate::compiler::phases::phase1_parse::remove_bom(source);
-    let options = ParseOptions::default();
+    let options = ParseOptions::public_api();
 
     match parse(source, &oxc_allocator::Allocator::default(), options) {
         Ok(ast) => {

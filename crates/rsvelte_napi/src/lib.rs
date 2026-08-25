@@ -214,10 +214,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
             "skipExpressionLoc",
         )?,
         loose: NapiParseOptions::flag(options.as_ref().and_then(|o| o.loose.as_ref()), "loose")?,
-        // The public AST API mirrors svelte/compiler `parse()`, which keeps
-        // `leadingComments`/`trailingComments` on nodes.
-        capture_comments: true,
-        ..ParseOptions::default()
+        ..ParseOptions::public_api()
     };
     match rust_parse(source, &rsvelte_core::Allocator::default(), parse_options) {
         Ok(ast) => {
@@ -287,7 +284,7 @@ pub fn napi_parse_envelope(
                 .and_then(|o| o.skip_expression_loc.as_ref()),
             "skipExpressionLoc",
         )?,
-        ..ParseOptions::default()
+        ..ParseOptions::public_api()
     };
     let skip_loc = parse_options.skip_expression_loc;
     let skip_css = NapiParseOptions::flag(

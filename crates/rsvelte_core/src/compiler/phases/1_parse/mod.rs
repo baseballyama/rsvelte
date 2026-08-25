@@ -127,6 +127,22 @@ pub struct ParseOptions {
     pub reparse_leading_slash_expression: bool,
 }
 
+impl ParseOptions {
+    /// Options shared by every public `parse()` binding.
+    ///
+    /// Compilation deliberately skips the all-or-nothing JS comment attachment
+    /// walk, but a public AST must retain `leadingComments` and
+    /// `trailingComments` like `svelte/compiler` does. Keeping that decision
+    /// here prevents the NAPI, raw-envelope, and wasm entry points from
+    /// silently drifting apart.
+    pub fn public_api() -> Self {
+        Self {
+            capture_comments: true,
+            ..Self::default()
+        }
+    }
+}
+
 /// Extended parse options with filename (separate to keep ParseOptions Copy).
 #[derive(Debug, Clone, Default)]
 pub struct ParseOptionsWithFilename {
@@ -527,5 +543,15 @@ mod tests {
             "Should parse // in HTML attributes: {:?}",
             result.err()
         );
+    }
+
+    #[test]
+    fn public_parse_options_capture_node_comments() {
+        let public = ParseOptions::public_api();
+        assert!(public.capture_comments);
+
+        // The compiler hot path keeps the expensive whole-program comment
+        // attachment walk disabled; only public AST entry points opt into it.
+        assert!(!ParseOptions::default().capture_comments);
     }
 }
