@@ -4,22 +4,20 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 139 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 125 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `134 + 5`
+Partition of `svelte2tsx-known-failures.json` by verdict: `121 + 4`
 
-- **134 — the emitted TSX differs** (`ts-mismatch`).
-- **5 — one side rejects and the other compiles** (`error-mismatch`): 3 where
-  official compiles and rsvelte errors, 2 the other way round.
+- **121 — the emitted TSX differs** (`ts-mismatch`).
+- **4 — one side rejects and the other compiles** (`error-mismatch`).
 
 ## Wave-2 enrolment (#3130)
 
 The list was **0** before the enrolment and all 139 entries come from one of the
 67 new repositories. The 37 pre-existing *real-world* sources still contribute
 zero, which is the same positive control the compiler ratchets report.
-27 repositories contribute at least one; svelte-lexical (42),
-svelte-tweakpane-ui (16) and svelte-gantt (10) are half of the `ts-mismatch`
-half between them.
+26 repositories contribute at least one; svelte-lexical (42) and
+svelte-gantt (10) are the two largest contributors.
 
 **The first baseline was 173 and was written from a macOS run; Linux CI reports
 the set this file carries.** The 15 it dropped are 14 tiny
@@ -35,6 +33,10 @@ The drop from 158 to 139 is the rebase onto `main` plus the fix for
 `pattern/issues/3200-asi-reactive-block.svelte`: re-measuring removed **19
 entries that already passed**, and the fix removed one more.
 
+The drop from 139 to 125 removes 14 entries that the Linux full-corpus run
+measured as passing after the import-preservation fixes: 13 from
+svelte-tweakpane-ui and sveltepress's `GlobalLayout.svelte`.
+
 The `ts-mismatch` clusters, keyed mechanically by the first differing line
 (the classifier is the one in this file's history, not a hand review — it asks
 what the differing line contains, in this order):
@@ -45,7 +47,6 @@ what the differing line contains, in this order):
 | 8 | rsvelte **omits** an `/*Ωignore_startΩ*/` marker official emits |
 | 16 | `__sveltets_2_ensureType(String, Number, …)` — a text run's interior whitespace is collapsed |
 | 17 | a CSS selector inside a JSDoc comment (` * .demo {`) is truncated |
-| 14 | an `import {` official keeps is emitted as a bare `;` |
 | 38 | a tail, most of it one entry each |
 
 The two marker clusters are the single largest cause and are one question —

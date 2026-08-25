@@ -45,7 +45,7 @@ pub struct LiftedComment {
     pub(crate) has_trailing_newline: bool,
 }
 
-/// A top-level import declaration to hoist above `$$render()`, together with
+/// An import declaration to hoist above `$$render()`, together with
 /// the leading comments `moveNode` relocates alongside it. All positions are
 /// relative to the script content (i.e. `Script::content_offset`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,9 +56,11 @@ pub struct LiftedImport {
     /// A blank line separates the import from the preceding token (upstream
     /// `isNewGroup`), so `moveNode` prefixes the hoisted chunk with a newline.
     pub(crate) new_group: bool,
+    /// The import was declared inside a TypeScript namespace/module body.
+    pub(crate) nested: bool,
 }
 
-/// Find top-level import declarations in an instance script, each with the
+/// Find import declarations in an instance script, each with the
 /// leading comment ranges the JS reference's `moveNode` hoists alongside it.
 pub fn find_instance_imports(
     script: &crate::ast::template::Script,
@@ -112,12 +114,63 @@ impl<'a> InstanceImportCollector<'a> {
     // following import and moves up with it). The parser already tokenised
     // strings/regex correctly, so `// …` inside a string is never misread.
     pub(crate) fn push_statement(&mut self, stmt: &oxc_ast::ast::Statement) {
-        if let oxc_ast::ast::Statement::ImportDeclaration(import) = stmt {
-            self.push_import(import);
+        self.push_statement_at_depth(stmt, false);
+    }
+
+    fn push_statement_at_depth(&mut self, stmt: &oxc_ast::ast::Statement, nested: bool) {
+        use oxc_ast::ast as oxc;
+
+        match stmt {
+            oxc::Statement::ImportDeclaration(import) => self.push_import(import, nested),
+            oxc::Statement::TSNamespaceDeclaration(namespace) => {
+                self.push_namespace_body(&namespace.body);
+            }
+            oxc::Statement::TSExternalModuleDeclaration(module) => {
+                if let Some(body) = &module.body {
+                    self.push_statements(&body.body);
+                }
+            }
+            oxc::Statement::TSGlobalDeclaration(global) => {
+                self.push_statements(&global.body.body);
+            }
+            oxc::Statement::ExportDeclaration(export) => match &export.declaration {
+                oxc::Declaration::TSNamespaceDeclaration(namespace) => {
+                    self.push_namespace_body(&namespace.body);
+                }
+                oxc::Declaration::TSExternalModuleDeclaration(module) => {
+                    if let Some(body) = &module.body {
+                        self.push_statements(&body.body);
+                    }
+                }
+                oxc::Declaration::TSGlobalDeclaration(global) => {
+                    self.push_statements(&global.body.body);
+                }
+                _ => {}
+            },
+            _ => {}
         }
     }
 
-    pub(crate) fn push_import(&mut self, import: &oxc_ast::ast::ImportDeclaration) {
+    fn push_statements(&mut self, statements: &[oxc_ast::ast::Statement]) {
+        for statement in statements {
+            self.push_statement_at_depth(statement, true);
+        }
+    }
+
+    fn push_namespace_body(&mut self, body: &oxc_ast::ast::TSNamespaceDeclarationBody<'_>) {
+        use oxc_ast::ast as oxc;
+
+        match body {
+            oxc::TSNamespaceDeclarationBody::TSNamespaceDeclaration(namespace) => {
+                self.push_namespace_body(&namespace.body);
+            }
+            oxc::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+                self.push_statements(&block.body);
+            }
+        }
+    }
+
+    fn push_import(&mut self, import: &oxc_ast::ast::ImportDeclaration, nested: bool) {
         let start = import.span.start;
         let end = import.span.end;
         while self.comment_cursor < self.comments.len()
@@ -151,6 +204,7 @@ impl<'a> InstanceImportCollector<'a> {
             start,
             end,
             new_group,
+            nested,
         });
     }
 

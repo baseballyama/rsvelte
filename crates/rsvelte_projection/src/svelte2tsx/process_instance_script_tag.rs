@@ -461,7 +461,13 @@ fn lift_imports(
     };
     str.append_right(
         content_start + anchor,
-        if has_module_script { "\n\n" } else { "\n" },
+        if has_module_script {
+            "\n\n"
+        } else if first.nested {
+            ""
+        } else {
+            "\n"
+        },
     );
 
     // Terminate the last import so auto-imports and completions don't attach to

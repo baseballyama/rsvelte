@@ -7,8 +7,8 @@ use oxc_ast::ast as oxc;
 
 use super::ExportedNames;
 use super::ast_utils::{
-    collect_binding_names, extract_all_names_from_binding_pattern,
-    extract_names_from_assignment_target,
+    collect_binding_names, collect_top_level_declared_names,
+    extract_all_names_from_binding_pattern, extract_names_from_assignment_target,
 };
 
 /// The official svelte2tsx `is_rune` quirk: a `$state(...)`/`$derived(...)`/
@@ -164,8 +164,14 @@ fn detect_rune_global_ref_expr(expr: &oxc::Expression, declared_names: &HashSet<
 /// Reference: ExportedNames.ts `checkGlobalsForRunes` + `ImplicitStoreValues.getGlobals()`
 ///   `this.hasRunesGlobals = isSvelte5Plus && globals.some(g => runes.includes(g))`
 fn detect_rune_in_nested_body(stmts: &[oxc::Statement], declared_names: &HashSet<String>) -> bool {
+    // TypeScript's global-reference inventory resolves names against the
+    // complete lexical scope, including declarations that appear after the
+    // reference. Build the current body's scope before walking it so a local
+    // `const $state` / `let $derived` is not mistaken for a rune global.
+    let mut scope = declared_names.clone();
+    scope.extend(collect_top_level_declared_names(stmts));
     for stmt in stmts {
-        if detect_rune_in_stmt(stmt, declared_names) {
+        if detect_rune_in_stmt(stmt, &scope) {
             return true;
         }
     }
@@ -602,5 +608,28 @@ mod tests {
             "Runes mode must not emit `bindings: \"\"`, got:\n{}",
             result.code
         );
+    }
+
+    #[test]
+    fn nested_rune_named_declarations_do_not_enable_runes_mode() {
+        let source = r#"<script>
+export let p = 1;
+let n = 0;
+$: doubled = n * 2;
+function f() {
+    const $state = 1;
+    let $derived = 2;
+    class $inspect {}
+    return $state + $derived + $inspect.name;
+}
+</script>
+<div>{p} {doubled} {f}</div>"#;
+        let result = run_svelte2tsx(source);
+        assert!(
+            !result.code.contains("__sveltets_2_fn_component"),
+            "nested rune-named locals must not enable runes mode:\n{}",
+            result.code
+        );
+        assert!(result.code.contains("__sveltets_2_isomorphic_component"));
     }
 }

@@ -120,6 +120,11 @@ pub fn process_instance_script(
         }
         let mut import_collector = contains_word(raw_content.as_bytes(), b"import")
             .then(|| InstanceImportCollector::new(raw_content, &program.comments));
+        if let Some(collector) = &mut import_collector {
+            for stmt in &program.body {
+                collector.push_statement(stmt);
+            }
+        }
 
         // Pass 1: collect top-level declared names and possible exports
         let mut possible_exports: HashMap<String, PossibleExport> = HashMap::new();
@@ -221,9 +226,6 @@ pub fn process_instance_script(
                     }
                 }
                 oxc::Statement::ImportDeclaration(import) => {
-                    if let Some(collector) = &mut import_collector {
-                        collector.push_import(import);
-                    }
                     if let Some(ref specifiers) = import.specifiers {
                         for spec in specifiers {
                             let name = match spec {
@@ -1224,6 +1226,35 @@ mod tests {
         assert!(result.exported_names.has("name"));
         assert!(result.exported_names.get("name").unwrap().is_prop());
         assert_eq!(result.exported_names.get_prop_names(), vec!["name"]);
+    }
+
+    #[test]
+    fn namespace_type_only_import_is_hoisted() {
+        let source = r#"<script lang="ts">
+namespace Shapes {
+  import type { Point } from './geometry';
+}
+let k = 1;
+</script>
+{k}"#;
+        let result = run_svelte2tsx_ts(source);
+        let import = "import type { Point } from './geometry';";
+        let import_position = result.code.find(import).expect("import is preserved");
+        let render_position = result
+            .code
+            .find("function $$render")
+            .expect("render function is emitted");
+        assert!(
+            import_position < render_position,
+            "namespace import must be hoisted above $$render:\n{}",
+            result.code
+        );
+        assert!(result.code.contains("\n;import type { Point }"));
+        let namespace = result
+            .code
+            .find("namespace Shapes")
+            .expect("namespace is preserved");
+        assert_eq!(result.code[namespace..].matches(import).count(), 0);
     }
 
     #[test]
