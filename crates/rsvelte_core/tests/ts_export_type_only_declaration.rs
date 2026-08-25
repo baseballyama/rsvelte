@@ -135,6 +135,21 @@ fn an_exported_type_only_declaration_adds_no_props_parameter() {
     }
 }
 
+/// The module-script path emits the stripped source text, so its empty export
+/// must disappear there too. The instance path already discarded the typed
+/// empty statement before #3669, which made it an insufficient regression.
+#[test]
+fn an_empty_module_export_is_removed() {
+    for (generate, dev) in TARGETS {
+        let code = module_script("export {};", generate, dev)
+            .unwrap_or_else(|error| panic!("empty export rejected with `{error}`"));
+        assert!(
+            !code.contains("export {};"),
+            "empty export survived ({generate:?}, dev={dev}):\n{code}"
+        );
+    }
+}
+
 /// The control: a real value export still needs the parameter, and a `let` still
 /// becomes a bindable prop. Without this, emptying every export would pass the
 /// test above.

@@ -1344,6 +1344,13 @@ mod ts_removals {
                 self.remove(it.span);
                 return;
             }
+            // Upstream filters the specifier list and then empties the wrapper
+            // when nothing remains. That includes a list written empty in the
+            // source (`export {};`), not only a non-empty type-only list.
+            if it.specifiers.is_empty() {
+                self.remove(it.span);
+                return;
+            }
             let type_specs: Vec<_> = it
                 .specifiers
                 .iter()
