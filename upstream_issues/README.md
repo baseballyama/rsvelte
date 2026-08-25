@@ -90,7 +90,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `svelte-fromcodepoint-rangeerror.md` | sveltejs/svelte | #3617 | unrecorded |
 | `svelte-inspect-with-in-a-declarator.md` | sveltejs/svelte | #3614 | unrecorded |
 | `svelte-snippet-name-colliding-with-an-import.md` | sveltejs/svelte | #3567 | unrecorded |
-| `svelte2tsx-shorthand-style-directive-modifier.md` | sveltejs/language-tools (svelte2tsx) | #3567 | unrecorded |
+| `svelte2tsx-shorthand-style-directive-modifier.md` | sveltejs/language-tools (svelte2tsx) | #3567, #3578 | unrecorded |
 
 The six unnumbered reports came out of the lint-parity campaign rather than from a single rsvelte
 issue, and none of them names one internally — `—` records that, rather than inventing a number.

@@ -89,6 +89,26 @@ fn style_shorthand_directive_uses_ensure_type() {
 }
 
 #[test]
+fn style_shorthand_modifier_does_not_become_an_identifier() {
+    // Deliberate divergence from upstream svelte2tsx: official emits
+    // `color|important`, which TypeScript reads as a bitwise-or with a free
+    // `important` identifier. See
+    // upstream_issues/svelte2tsx-shorthand-style-directive-modifier.md.
+    let out = to_tsx(
+        "<script lang=\"ts\">\n  let color = 'red';\n</script>\n\
+         <div style:color|important>hi</div>",
+    );
+    assert!(
+        out.contains("__sveltets_2_ensureType(String, Number, color);"),
+        "style: shorthand modifier changed the value expression:\n{out}"
+    );
+    assert!(
+        !out.contains("color|important"),
+        "style: modifier leaked into the generated expression:\n{out}"
+    );
+}
+
+#[test]
 fn class_style_alongside_real_attributes() {
     // A real attribute stays in props; the directive does not.
     let out = to_tsx(

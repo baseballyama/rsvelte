@@ -37,10 +37,12 @@ form already ignores the modifier, which is the behaviour the shorthand should
 share — the shorthand's meaning is "use the variable named by the property", and
 the property is `color`, not `color|important`.
 
-rsvelte's port emits `color`, which is the correct TSX and therefore a **byte
-divergence** from official. Byte parity is the goal here, so the shape is held
-out of `compatibility/pattern-corpus` until upstream decides; matching official
-would mean reproducing a spurious diagnostic on valid source.
+rsvelte's port emits `color`, which is the correct TSX and therefore a
+**deliberate byte divergence** from official. Matching official would reproduce
+a spurious diagnostic on valid source, so rsvelte retains and regression-tests
+the correct output under the project's upstream-defect rule. The shape remains
+outside the output-equality corpus until upstream fixes its lowering; otherwise
+the parity gate would require the known semantic defect.
 
 Desired upstream behaviour: strip everything from the first `|` before using a
 shorthand directive's name as an expression, the same way the value-carrying

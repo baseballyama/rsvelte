@@ -808,8 +808,9 @@ carrying `"` has no fmt fixed point because the oracle normalizes the quotes; an
 the `style:x|important` shorthand, #3578 — an upstream svelte2tsx defect recorded
 in `upstream_issues/`, where rsvelte's output is the *correct* TSX and official's
 references a free `important`. The fmt oracle rewrites `style:x|important={x}`
-into that shorthand, so neither spelling of the modifier is landable until it is
-decided.
+into that shorthand. The correct rsvelte output is pinned as a deliberate
+divergence, while both spellings remain outside the equality corpus until
+upstream fixes the semantic defect.
 
 Its third half held back two more, and one of them is the sweep's largest find.
 `elements/nested-namespace-switching` is #3582: an element whose tag name is a JS
