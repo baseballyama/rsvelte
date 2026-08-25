@@ -254,6 +254,12 @@ pub(super) fn content_tag_breakable_doc(
             };
             ("@render ", out.get(s as usize..e as usize)?.trim())
         }
+        TemplateNode::HtmlTag(t) => {
+            let (Some(s), Some(e)) = (t.expression.start(), t.expression.end()) else {
+                return None;
+            };
+            ("@html ", out.get(s as usize..e as usize)?.trim())
+        }
         _ => return None,
     };
     if expr_src.is_empty() {
@@ -337,7 +343,7 @@ fn append_non_text_doc(
     if let Some(options) = options
         && matches!(
             node,
-            TemplateNode::ExpressionTag(_) | TemplateNode::RenderTag(_)
+            TemplateNode::ExpressionTag(_) | TemplateNode::HtmlTag(_) | TemplateNode::RenderTag(_)
         )
         && let Some(doc) = content_tag_breakable_doc(out, node, options)
     {

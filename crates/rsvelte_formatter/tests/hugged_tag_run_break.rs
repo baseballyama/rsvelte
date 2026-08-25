@@ -135,6 +135,14 @@ fn render_tag_first_in_a_run() {
 }
 
 #[test]
+fn html_tag_first_in_a_run() {
+    assert_fmt(
+        "<b>{@html o[\"aaaa\"]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b>\n",
+        "<b\n  >{@html o[\n    \"aaaa\"\n  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b\n>\n",
+    );
+}
+
+#[test]
 fn the_group_that_breaks_is_the_one_that_misses_its_fit() {
     assert_fmt(
         "<b>{o[\"aaaaaaaaaaaa\"]}{o.bbbbbbbb}{o.cccccccc}{p[\"ddddddddddddddd\"]}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b>\n",
