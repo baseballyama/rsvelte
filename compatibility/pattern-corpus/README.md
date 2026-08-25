@@ -940,12 +940,13 @@ non-literal defaults in a `{@const}` and a `{#snippet}` parameter rather than in
 the `{#each}` head.
 
 The eleventh pass held back two, one of them a defect with an unusually small
-target. `legacy/legacy-export-renames-and-const` is #3607: an exported **class
-declaration** needs *two* references to clear `export_let_unused`, where one is
+target that now lands as `legacy/legacy-export-renames-and-const`. #3607 made an
+exported **class declaration** need *two* references to clear `export_let_unused`, where one is
 enough for `function`, `let`, `const`, `var`, an `async function`, a generator
 and a class **expression** assigned to a `const`. Zero references warn on both
 sides and two clear on both sides, so the threshold is off by exactly one and
-only for a `ClassDeclaration` binding. `legacy/legacy-mixed-event-syntaxes` is
+only for a `ClassDeclaration` binding. The remaining hold,
+`legacy/legacy-mixed-event-syntaxes`, is
 not a defect: `mixed_event_handler_syntaxes` is raised per **component**, not
 per element, so splitting the `on:` and `on…` spellings across sibling elements
 does not help — both compilers reject it with the identical code on every

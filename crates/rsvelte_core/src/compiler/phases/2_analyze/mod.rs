@@ -769,17 +769,13 @@ pub(crate) fn analyze_prepared_component_with_retained(
             // Check if the binding has references other than the declaration and ExportSpecifier.
             // Corresponds to the official filter:
             //   binding.references.filter(r => r.node !== binding.node && r.path.at(-1)?.type !== 'ExportSpecifier')
-            // In our implementation, the first reference is typically the self-declaration
-            // (from visiting the VariableDeclarator's id pattern). We count references
-            // that are not ExportSpecifier references and check if there are more than 1
-            // (the self-declaration).
-            let non_export_specifier_refs = binding
+            // Do not infer the declaration reference from the count: variable declarators
+            // record one, while class declarations do not. The explicit flags preserve the
+            // same answer for both shapes.
+            let has_external_reference = binding
                 .references
                 .iter()
-                .filter(|r| !r.is_export_specifier)
-                .count();
-            // More than 1 means there are references beyond the self-declaration
-            let has_external_reference = non_export_specifier_refs > 1;
+                .any(|reference| !reference.is_self_declaration && !reference.is_export_specifier);
             // Also check if there's a store subscription with the same name ($name).
             // The official Svelte compiler checks: instance.scope.declarations.has(`$${name}`)
             // In our implementation, $name bindings may not be created as declarations,
