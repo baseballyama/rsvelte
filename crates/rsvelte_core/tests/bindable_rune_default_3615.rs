@@ -36,7 +36,7 @@ fn prop_line(code: &str) -> &str {
 fn rune_identifier_defaults_are_proxied_lazily() {
     for (declaration, expected_default) in [
         ("let s = $state(1);", "$.proxy(s)"),
-        ("let s = $state.raw(1);", "$.proxy($.get(s))"),
+        ("let s = $state.raw(1);", "$.proxy(s)"),
         ("let s = $derived(1);", "$.proxy($.get(s))"),
         ("let s = $derived.by(() => 1);", "$.proxy($.get(s))"),
     ] {
