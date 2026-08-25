@@ -35,6 +35,14 @@ fn super_is_still_legal_in_a_method_and_await_is_legal_as_a_property() {
     .expect("super in a method must remain valid");
     compile("{obj.await}", CompileOptions::default())
         .expect("await as a property name must remain valid");
+
+    for source in ["{await promise}", "{await (await (value.nested)).one}"] {
+        assert_eq!(
+            error(source).diagnostic().code.as_deref(),
+            Some("experimental_async"),
+            "an await expression must reach analysis: {source}"
+        );
+    }
 }
 
 #[test]

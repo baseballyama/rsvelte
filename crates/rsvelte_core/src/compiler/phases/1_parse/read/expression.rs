@@ -7175,9 +7175,18 @@ fn acorn_only_violation(
             oxc_ast_visit::walk::walk_expression(self, expr);
         }
         fn visit_identifier_reference(&mut self, ident: &oxc_ast::ast::IdentifierReference<'a>) {
-            if ident.name == "await" && self.await_at.is_none() {
+            let next = self.content[ident.span.end as usize..]
+                .bytes()
+                .find(|byte| !byte.is_ascii_whitespace());
+            if ident.name == "await"
+                && self.await_at.is_none()
+                && matches!(next, Some(b')' | b'.' | b'?'))
+            {
                 // Acorn reads `await` as the start of an AwaitExpression in a
-                // module and stops on the token immediately following it.
+                // module and stops on the token immediately following it. OXC
+                // also represents the leading word of Svelte's valid
+                // `await expression` form as an identifier here, so only the
+                // bare/member continuations distinguish the acorn rejection.
                 self.await_at = Some(ident.span.end);
             }
         }
