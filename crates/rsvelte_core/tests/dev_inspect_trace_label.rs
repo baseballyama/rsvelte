@@ -72,3 +72,29 @@ fn arrow_and_class_trace_labels_use_their_own_function_context() {
     assert!(out.contains("'trace (Main.svelte:7:3)'"), "got:\n{out}");
     assert!(out.contains("'trace (Main.svelte:11:13)'"), "got:\n{out}");
 }
+
+#[test]
+fn async_function_trace_awaits_an_async_thunk_and_locates_the_async_keyword() {
+    let out = compile(
+        r#"<script>
+let base = $state(1);
+async function go() { $inspect.trace(); return base; }
+</script>
+{base}
+"#,
+        CompileOptions {
+            filename: Some("C.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: true,
+            ..Default::default()
+        },
+    )
+    .expect("compile")
+    .js
+    .code;
+
+    assert!(
+        out.contains("return await $.trace(() => 'go (C.svelte:3:0)', async () =>"),
+        "got:\n{out}"
+    );
+}

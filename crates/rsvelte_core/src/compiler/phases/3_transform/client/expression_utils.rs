@@ -1957,10 +1957,21 @@ pub(super) fn find_trace_source_location(
 
         // Look for `function` keyword
         if let Some(fn_pos) = memchr::memmem::rfind(trimmed.as_bytes(), b"function ") {
-            let before_pos = &source[..fn_pos];
+            // ESTree's Function span starts at the preceding `async` keyword,
+            // including when whitespace or a comment separates the two.
+            let before_function = before[..fn_pos].trim_end();
+            let fn_start = before_function
+                .strip_suffix("async")
+                .filter(|prefix| {
+                    prefix.as_bytes().last().is_none_or(|byte| {
+                        !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte != b'$'
+                    })
+                })
+                .map_or(fn_pos, |prefix| prefix.len());
+            let before_pos = &source[..fn_start];
             let line = before_pos.matches('\n').count() + 1;
             let last_nl = before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
-            let col = fn_pos - last_nl;
+            let col = fn_start - last_nl;
             return Some((line, col));
         }
     }

@@ -266,6 +266,9 @@ struct StateVarCollector<'a, 's> {
     trace_parent_label: Option<String>,
     /// Upstream's `get_function_label` answer for the current function.
     trace_function_label: Option<String>,
+    /// Whether the current function is async. Upstream reads this from the
+    /// parent Function node when lowering its traced BlockStatement.
+    trace_function_is_async: bool,
     /// Whether the current Function node is the value of a class method.
     trace_in_class_method: bool,
     /// Set by `visit_method_definition` for the Function child it is about to walk.
@@ -420,6 +423,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             filename,
             trace_parent_label: None,
             trace_function_label: None,
+            trace_function_is_async: false,
             trace_in_class_method: false,
             trace_next_function_is_class_method: false,
             async_derived_locations,
@@ -2480,9 +2484,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             }
         };
 
+        let (awaited, asyncness) = if self.trace_function_is_async {
+            ("await ", "async ")
+        } else {
+            ("", "")
+        };
         let replacement = format!(
-            "{{return $.trace({}, () => {{\n{}\n}});\n}}",
-            trace_thunk, remaining_trimmed
+            "{{return {awaited}$.trace({trace_thunk}, {asyncness}() => {{\n{remaining_trimmed}\n}});\n}}"
         );
         self.add_replacement(body.span.start, body.span.end, replacement);
         true
@@ -2977,6 +2985,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // — mirrors upstream `context.state.scope.function_depth > 1`.
         self.function_depth += 1;
         let saved_label = self.trace_function_label.take();
+        let saved_async = self.trace_function_is_async;
         let saved_class_method = self.trace_in_class_method;
         self.trace_in_class_method = self.trace_next_function_is_class_method;
         self.trace_next_function_is_class_method = false;
@@ -2985,8 +2994,10 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             .as_ref()
             .map(|id| id.name.to_string())
             .or_else(|| self.trace_parent_label.clone());
+        self.trace_function_is_async = it.r#async;
         walk::walk_function(self, it, flags);
         self.trace_function_label = saved_label;
+        self.trace_function_is_async = saved_async;
         self.trace_in_class_method = saved_class_method;
         self.function_depth -= 1;
     }
@@ -2994,11 +3005,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     fn visit_arrow_function_expression(&mut self, it: &ArrowFunctionExpression<'ast>) {
         self.function_depth += 1;
         let saved_label = self.trace_function_label.take();
+        let saved_async = self.trace_function_is_async;
         let saved_class_method = self.trace_in_class_method;
         self.trace_in_class_method = false;
         self.trace_function_label = self.trace_parent_label.clone();
+        self.trace_function_is_async = it.r#async;
         walk::walk_arrow_function_expression(self, it);
         self.trace_function_label = saved_label;
+        self.trace_function_is_async = saved_async;
         self.trace_in_class_method = saved_class_method;
         self.function_depth -= 1;
     }
