@@ -675,8 +675,8 @@ pub fn svelte2tsx(
     // i.e. the byte position of the `>` of `<script>`. The script-tag overwrite
     // in Step 10 is split there so the moved snippet chunks land between the
     // imports / `;type` block and the `function $$render() {` declaration.
-    let hoistable_snippet_ranges =
-        hoist_top_level_snippets(&ast, source, &exported_names, &mut str);
+    let (hoistable_snippet_ranges, instance_snippet_ranges) =
+        hoist_top_level_snippets(&ast, source, &exported_names);
 
     // Step 9.5: Collect slot and event information from the template
     let template_info = template::collect_template_info_if_needed(
@@ -804,6 +804,16 @@ pub fn svelte2tsx(
             &hoistable_snippet_ranges,
             &instance_imports,
         );
+
+        // Upstream moves snippets that close over instance bindings only after
+        // `processInstanceScriptContent` has applied the script/type edits.
+        // At the shared render-function anchor, a later MagicString move lands
+        // before those edits. Doing this in Step 9 instead reverses a snippet
+        // and the synthetic `$$ComponentProps` alias (#3461).
+        let render_function_start = ast.instance.as_ref().unwrap().content_offset;
+        for (start, end) in &instance_snippet_ranges {
+            str.move_range(*start, *end, render_function_start);
+        }
     }
 
     // Phase 3: Move scripts to their target positions (after all overwrites)

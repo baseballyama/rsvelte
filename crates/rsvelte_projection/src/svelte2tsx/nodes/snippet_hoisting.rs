@@ -6,7 +6,6 @@ use std::collections::VecDeque;
 use crate::ast::template::{Fragment, Root, TemplateNode};
 use rustc_hash::FxHashMap;
 
-use super::super::magic_string::MagicString;
 use super::super::script::ExportedNames;
 use super::super::svelte2tsx::slice_src;
 use super::super::utils::lexical::{lexical_identifiers, lexical_identifiers_in_expressions};
@@ -33,16 +32,18 @@ fn propagate_blocked_dependencies(dependents: &[Vec<u32>], blocked: &mut [bool])
     }
 }
 
-/// Analyze and relocate top-level `{#snippet}` blocks. Non-hoistable snippets
+/// Analyze top-level `{#snippet}` blocks. Non-hoistable snippets
 /// (those closing over instance-script values, or referencing a non-hoistable
 /// snippet) are moved to the top of the instance script; the returned ranges are
-/// the module-hoistable snippets, which the caller relocates to module scope.
+/// the module-hoistable and instance-hoistable snippets, which the caller
+/// relocates after rewriting the script tags. Upstream performs those moves
+/// after the instance-script edits, and that ordering matters when a moved
+/// snippet and a synthesised declaration share the render-function anchor.
 pub fn hoist_top_level_snippets(
     ast: &Root,
     source: &str,
     exported_names: &ExportedNames,
-    str: &mut MagicString<'_>,
-) -> Vec<(u32, u32)> {
+) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
     let mut hoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
     let mut nonhoistable_snippet_ranges: Vec<(u32, u32)> = Vec::new();
     let module_script_present = ast.module.is_some();
@@ -139,15 +140,7 @@ pub fn hoist_top_level_snippets(
         }
     }
 
-    // Inside-target moves require an instance script to anchor against.
-    if let Some(instance) = ast.instance.as_ref() {
-        let inside_target = instance.content_offset;
-        for (s, e) in &nonhoistable_snippet_ranges {
-            str.move_range(*s, *e, inside_target);
-        }
-    }
-
-    hoistable_snippet_ranges
+    (hoistable_snippet_ranges, nonhoistable_snippet_ranges)
 }
 
 /// Collect the component names a snippet body instantiates (`<Icon />`,
