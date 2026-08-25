@@ -37,3 +37,38 @@ fn a_comment_before_the_trace_call_does_not_move_the_label() {
         "got:\n{out}"
     );
 }
+
+#[test]
+fn arrow_and_class_trace_labels_use_their_own_function_context() {
+    let out = compile(
+        r#"<script>
+	const g = () => {
+		$inspect.trace();
+	};
+
+	class C {
+		m() {
+			$inspect.trace();
+		}
+
+		constructor() {
+			$inspect.trace();
+		}
+	}
+</script>
+"#,
+        CompileOptions {
+            filename: Some("Main.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: true,
+            ..Default::default()
+        },
+    )
+    .expect("compile")
+    .js
+    .code;
+
+    assert!(out.contains("'g (Main.svelte:2:11)'"), "got:\n{out}");
+    assert!(out.contains("'trace (Main.svelte:7:3)'"), "got:\n{out}");
+    assert!(out.contains("'trace (Main.svelte:11:13)'"), "got:\n{out}");
+}

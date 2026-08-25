@@ -9,7 +9,7 @@ use oxc_span::SourceType;
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 use crate::compiler::phases::phase3_transform::shared::offsets::{ByteOffset, CharOffset};
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 
@@ -1881,25 +1881,21 @@ pub(super) fn extract_enclosing_function_name(before_block: &str) -> Option<&str
 /// For `$effect(() => { ... })`, returns `"$effect(...)"`.
 /// For `$.user_effect(() => { ... })`, returns `"$effect(...)"` (maps internal names to user-facing).
 /// Returns None if no call expression context is found.
-pub(super) fn extract_trace_call_label<'a>(
-    _before_block: &str,
-    source: &'a str,
-) -> Option<&'a str> {
-    // Look for the $inspect.trace() call in the source to find its context
-    if let Some(trace_pos) = find_code(source.as_bytes(), b"$inspect.trace(") {
-        // Walk backwards to find the enclosing call expression
-        let before = &source[..trace_pos];
-        // Look for `$effect(` or `$effect.pre(` pattern
-        // The arrow function `() => {` immediately precedes the block containing $inspect.trace
-        for rune in &["$effect.pre", "$effect"] {
-            if memmem::find(before.as_bytes(), rune.as_bytes()).is_some() {
-                // Find the position to compute line/col
-                return Some(if *rune == "$effect.pre" {
-                    "$effect.pre(...)"
-                } else {
-                    "$effect(...)"
-                });
-            }
+pub(super) fn extract_trace_call_label(source: &str, trace_pos: usize) -> Option<&'static str> {
+    // Walk backwards to find the enclosing call expression. This fallback is
+    // retained for transformed programs where the AST parent context is not
+    // available; `trace_pos` identifies the current call rather than always
+    // reading the first `$inspect.trace` in the component.
+    let before = &source[..trace_pos];
+    // Look for `$effect(` or `$effect.pre(` pattern
+    // The arrow function `() => {` immediately precedes the block containing $inspect.trace
+    for rune in &["$effect.pre", "$effect"] {
+        if memmem::find(before.as_bytes(), rune.as_bytes()).is_some() {
+            return Some(if *rune == "$effect.pre" {
+                "$effect.pre(...)"
+            } else {
+                "$effect(...)"
+            });
         }
     }
     None
@@ -1907,12 +1903,11 @@ pub(super) fn extract_trace_call_label<'a>(
 
 /// Find source location for the function/arrow containing $inspect.trace().
 pub(super) fn find_trace_source_location(
-    _before_block: &str,
     source: &str,
-    _label: &str,
+    trace_pos: usize,
+    in_class_method: bool,
 ) -> Option<(usize, usize)> {
-    // Find $inspect.trace() in source and then find the enclosing function/arrow
-    if let Some(trace_pos) = find_code(source.as_bytes(), b"$inspect.trace(") {
+    if trace_pos <= source.len() {
         // The scans below read backwards for code punctuation, so prose in a
         // comment between the function head and the trace call would otherwise
         // answer for it.
@@ -1943,6 +1938,21 @@ pub(super) fn find_trace_source_location(
                 let col = fn_start - last_nl;
                 return Some((line, col));
             }
+        }
+
+        // ESTree represents a class method's value as a FunctionExpression
+        // whose source location begins at the opening parameter paren. It has
+        // neither an arrow nor a `function` keyword for the text fallback to
+        // find, so use the AST-carried host classification to select this arm.
+        if in_class_method
+            && trimmed.ends_with(')')
+            && let Some(open_paren) = rfind_matching_paren(trimmed, trimmed.len() - 1)
+        {
+            let before_pos = &source[..open_paren];
+            let line = before_pos.matches('\n').count() + 1;
+            let last_nl = before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
+            let col = open_paren - last_nl;
+            return Some((line, col));
         }
 
         // Look for `function` keyword

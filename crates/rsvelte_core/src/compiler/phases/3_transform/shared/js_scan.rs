@@ -426,8 +426,7 @@ pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
     find_code_filtered(bytes, needle, 0, |_, _| true)
 }
 
-#[cfg(test)]
-fn find_code_from(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+pub(crate) fn find_code_from(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
     find_code_filtered(bytes, needle, from, |_, _| true)
 }
 

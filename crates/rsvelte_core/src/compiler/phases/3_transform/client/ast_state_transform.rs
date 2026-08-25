@@ -40,6 +40,7 @@ use super::{DERIVED_TMP_COUNTER, SCRIPT_ARRAY_COUNTER, STATE_TMP_COUNTER, VAR_ST
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
+use crate::compiler::phases::phase3_transform::shared::js_scan::find_code_from;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 thread_local! {
@@ -261,6 +262,14 @@ struct StateVarCollector<'a, 's> {
     /// Component filename for `$inspect.trace()` label suffix generation.
     /// See `AstTransformConfig::filename`.
     filename: Option<&'s str>,
+    /// Label inherited by an anonymous function from its immediate AST parent.
+    trace_parent_label: Option<String>,
+    /// Upstream's `get_function_label` answer for the current function.
+    trace_function_label: Option<String>,
+    /// Whether the current Function node is the value of a class method.
+    trace_in_class_method: bool,
+    /// Set by `visit_method_definition` for the Function child it is about to walk.
+    trace_next_function_is_class_method: bool,
     /// See `AstTransformConfig::async_derived_locations`.
     async_derived_locations: Option<&'a AsyncDerivedLocations>,
     /// Var-declared state vars that need $.safe_get() instead of $.get().
@@ -409,6 +418,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             dev,
             analysis_source,
             filename,
+            trace_parent_label: None,
+            trace_function_label: None,
+            trace_in_class_method: false,
+            trace_next_function_is_class_method: false,
             async_derived_locations,
             var_state_vars,
             replacements: Vec::new(),
@@ -2437,18 +2450,26 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             format!("() => {}", arg_txt.trim())
         } else {
             let before_block_post = &self.source[..body.span.start as usize];
-            let default_label_owned = extract_enclosing_function_name(before_block_post)
-                .map(str::to_string)
+            let trace_pos = self.trace_source_position(before_block_post);
+            let default_label_owned = self
+                .trace_function_label
+                .clone()
+                .or_else(|| extract_enclosing_function_name(before_block_post).map(str::to_string))
                 .or_else(|| {
-                    self.analysis_source.and_then(|src| {
-                        extract_trace_call_label(before_block_post, src).map(str::to_string)
-                    })
+                    self.analysis_source
+                        .zip(trace_pos)
+                        .and_then(|(src, trace_pos)| {
+                            extract_trace_call_label(src, trace_pos).map(str::to_string)
+                        })
                 })
                 .unwrap_or_else(|| "trace".to_string());
             let default_label = default_label_owned.as_str();
             let source_pos = self
                 .analysis_source
-                .and_then(|src| find_trace_source_location(before_block_post, src, default_label));
+                .zip(trace_pos)
+                .and_then(|(src, trace_pos)| {
+                    find_trace_source_location(src, trace_pos, self.trace_in_class_method)
+                });
             match (source_pos, self.filename) {
                 (Some((line, col)), Some(filename)) => {
                     // `locate_node()` runs the path through `sanitize_location()`.
@@ -2465,6 +2486,31 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         );
         self.add_replacement(body.span.start, body.span.end, replacement);
         true
+    }
+
+    /// Match the trace call in the transformed script to the same code-only
+    /// occurrence in the original instance script. The original-source offset
+    /// is what `locate_node` measures; transformed AST spans may have shifted.
+    fn trace_source_position(&self, before_block: &str) -> Option<usize> {
+        const TRACE: &[u8] = b"$inspect.trace(";
+        let mut ordinal = 0;
+        let mut from = 0;
+        while let Some(at) = find_code_from(before_block.as_bytes(), TRACE, from) {
+            ordinal += 1;
+            from = at + TRACE.len();
+        }
+
+        let source = self.analysis_source?;
+        let script = self.analysis?.instance_script_content.as_ref()?;
+        let start = script.start as usize;
+        let end = script.end as usize;
+        let bytes = source.get(start..end)?.as_bytes();
+        let mut from = 0;
+        for _ in 0..ordinal {
+            let at = find_code_from(bytes, TRACE, from)?;
+            from = at + TRACE.len();
+        }
+        find_code_from(bytes, TRACE, from).map(|at| start + at)
     }
 
     /// Dev-mode rewrite of the four equality BinaryExpressions into their
@@ -2891,7 +2937,13 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         if self.try_rewrite_derived_call_declarator(declarator) {
             return;
         }
+        let saved = self.trace_parent_label.take();
+        self.trace_parent_label = declarator
+            .id
+            .get_binding_identifier()
+            .map(|id| id.name.to_string());
         walk::walk_variable_declarator(self, declarator);
+        self.trace_parent_label = saved;
     }
 
     fn visit_function_body(&mut self, body: &FunctionBody<'ast>) {
@@ -2924,14 +2976,40 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // `(await $.save($.async_derived(…)))()` (nested function, depth ≥ 1)
         // — mirrors upstream `context.state.scope.function_depth > 1`.
         self.function_depth += 1;
+        let saved_label = self.trace_function_label.take();
+        let saved_class_method = self.trace_in_class_method;
+        self.trace_in_class_method = self.trace_next_function_is_class_method;
+        self.trace_next_function_is_class_method = false;
+        self.trace_function_label = it
+            .id
+            .as_ref()
+            .map(|id| id.name.to_string())
+            .or_else(|| self.trace_parent_label.clone());
         walk::walk_function(self, it, flags);
+        self.trace_function_label = saved_label;
+        self.trace_in_class_method = saved_class_method;
         self.function_depth -= 1;
     }
 
     fn visit_arrow_function_expression(&mut self, it: &ArrowFunctionExpression<'ast>) {
         self.function_depth += 1;
+        let saved_label = self.trace_function_label.take();
+        let saved_class_method = self.trace_in_class_method;
+        self.trace_in_class_method = false;
+        self.trace_function_label = self.trace_parent_label.clone();
         walk::walk_arrow_function_expression(self, it);
+        self.trace_function_label = saved_label;
+        self.trace_in_class_method = saved_class_method;
         self.function_depth -= 1;
+    }
+
+    fn visit_method_definition(&mut self, it: &MethodDefinition<'ast>) {
+        let saved_parent_label = self.trace_parent_label.take();
+        let saved_next_class_method = self.trace_next_function_is_class_method;
+        self.trace_next_function_is_class_method = true;
+        walk::walk_method_definition(self, it);
+        self.trace_next_function_is_class_method = saved_next_class_method;
+        self.trace_parent_label = saved_parent_label;
     }
 
     fn visit_binary_expression(&mut self, expr: &BinaryExpression<'ast>) {
