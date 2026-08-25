@@ -2276,9 +2276,11 @@ fn ast_expr_is_simple(value: &str, analysis: &ComponentAnalysis) -> Option<bool>
 /// `analysis` enables upstream's one-level scope recursion: a bare identifier
 /// default resolves to its (non-reassigned, non-function) binding's initial and
 /// that initial's node type decides proxy-ability — e.g. `= DEFAULT_ALPHA` where
-/// `const DEFAULT_ALPHA = 1` is not proxied. Pass `None` to disable recursion (as
-/// upstream does by threading `null` scope on the recursed call), so it is at
-/// most one level deep.
+/// `const DEFAULT_ALPHA = 1` is not proxied. Rune bindings need special care:
+/// rsvelte stores the rune argument in `binding.initial`, while upstream keeps
+/// the complete `$state(...)` / `$derived(...)` CallExpression, which is always
+/// proxyable. Pass `None` to disable recursion (as upstream does by threading a
+/// null scope on the recursed call), so it is at most one level deep.
 fn ast_should_proxy(value: &str, analysis: Option<&ComponentAnalysis>) -> Option<bool> {
     use oxc_allocator::Allocator;
     use oxc_ast::ast::Statement;
@@ -2334,8 +2336,18 @@ fn expr_should_proxy(
                 && let Some(binding) = analysis.root.bindings.get(idx)
                 && !binding.reassigned
                 && !binding.initial_is_function
-                && let Some(initial) = binding.initial.as_deref()
             {
+                // Upstream recurses into the declaration initializer node. A
+                // rune declaration's initializer is the call itself, not its
+                // argument, so even `$state(1)` is a proxyable CallExpression.
+                // `binding.initial` deliberately stores `1` for other analysis
+                // consumers; `init_rune` preserves the lost outer node shape.
+                if binding.init_rune.is_some() {
+                    return true;
+                }
+                let Some(initial) = binding.initial.as_deref() else {
+                    return true;
+                };
                 // `None` disables further identifier recursion (upstream `null` scope).
                 return ast_should_proxy(initial, None).unwrap_or(true);
             }
