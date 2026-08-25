@@ -7407,8 +7407,7 @@ fn repair_ts_newline_import_assert(content: &str, is_typescript: bool) -> Option
         let Some((keyword_start, keyword_end)) = keyword else {
             return changed.then_some(repaired);
         };
-        if repaired[..keyword_start]
-            .as_bytes()
+        if repaired.as_bytes()[..keyword_start]
             .last()
             .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$'))
         {

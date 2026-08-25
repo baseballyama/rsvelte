@@ -1281,6 +1281,31 @@ fn extract_imports_keeps_an_import_attributes_clause() {
         extract_imports("import d from \"./d.json\"\nconst s = \"with { a: 'b' }\";\n");
     assert_eq!(imports, vec!["import d from \"./d.json\"".to_string()]);
     assert_eq!(rest, "const s = \"with { a: 'b' }\";");
+
+    // Acorn-typescript accepts the deprecated spelling here. The parser repair
+    // proves this is grammar; the client splitter must keep the same statement
+    // together so cleanup can normalize it to `with`.
+    let (imports, rest) =
+        extract_imports("import d from \"./d.json\"\nassert { type: \"json\" };\nlet z = d;\n");
+    assert_eq!(imports.len(), 1);
+    assert!(imports[0].contains("assert { type: \"json\" }"));
+    assert_eq!(rest, "let z = d;");
+}
+
+#[test]
+fn cleanup_import_normalizes_only_the_assert_clause_keyword() {
+    let mut import =
+        "import d from \"./assert { literal }.json\" assert { type: \"assert { value }\" }"
+            .to_string();
+    normalize_import_assert_keyword(&mut import);
+    assert_eq!(
+        import,
+        "import d from \"./assert { literal }.json\" with { type: \"assert { value }\" }"
+    );
+    assert_eq!(
+        cleanup_import_line("import d from \"./d.json\"\nassert { type: \"json\" }"),
+        "import d from \"./d.json\" with { type: \"json\" }"
+    );
 }
 
 #[test]

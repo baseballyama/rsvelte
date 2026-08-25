@@ -54,6 +54,7 @@ use crate::ast::template::Script;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::client::expression_utils::wrap_await_with_save_in_async_derived;
+use oxc_allocator::CloneIn;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
 use oxc_span::{GetSpan, Span};
@@ -943,12 +944,13 @@ fn transform_script<'a>(
                 // inside it, so replaying them in place would put them in the
                 // wrong function.
                 Statement::ImportDeclaration(imp) => {
-                    let slice = &src[imp.span.start as usize..imp.span.end as usize];
-                    if let Some(rehomed) = state.reparse_statement(slice) {
-                        match import_sink.as_deref_mut() {
-                            Some(sink) => sink.push(rehomed),
-                            None => out.push(rehomed),
-                        }
+                    // Keep parser repairs such as deprecated `assert` import
+                    // attributes normalized to `with`; re-parsing the original
+                    // source would either undo the repair or reject the import.
+                    let rehomed = Statement::ImportDeclaration(imp.clone_in(state.allocator));
+                    match import_sink.as_deref_mut() {
+                        Some(sink) => sink.push(rehomed),
+                        None => out.push(rehomed),
                     }
                 }
                 Statement::VariableDeclaration(vd) => {
@@ -3569,12 +3571,13 @@ fn transform_script_legacy<'a>(
                 // inside it, so replaying them in place would put them in the
                 // wrong function.
                 Statement::ImportDeclaration(imp) => {
-                    let slice = &src[imp.span.start as usize..imp.span.end as usize];
-                    if let Some(rehomed) = state.reparse_statement(slice) {
-                        match import_sink.as_deref_mut() {
-                            Some(sink) => sink.push(rehomed),
-                            None => out.push(rehomed),
-                        }
+                    // Keep parser repairs such as deprecated `assert` import
+                    // attributes normalized to `with`; re-parsing the original
+                    // source would either undo the repair or reject the import.
+                    let rehomed = Statement::ImportDeclaration(imp.clone_in(state.allocator));
+                    match import_sink.as_deref_mut() {
+                        Some(sink) => sink.push(rehomed),
+                        None => out.push(rehomed),
                     }
                 }
                 Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_) => {
@@ -4878,7 +4881,6 @@ impl<'a> PipePrint for oxc_ast::ast::Program<'a> {
 /// needs the body as TEXT; cloning lets us print a throwaway copy while keeping
 /// the originals available for the non-async fall-through path.
 fn body_clone<'a>(state: &ServerTransformState<'a>, body: &[Statement<'a>]) -> Vec<Statement<'a>> {
-    use oxc_allocator::CloneIn;
     body.iter().map(|s| s.clone_in(state.allocator)).collect()
 }
 

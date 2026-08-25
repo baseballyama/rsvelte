@@ -3902,7 +3902,8 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
             }
             b'{' => {
                 if out.carry.depth == 0
-                    && (out.carry.expect_attributes || token_before_is_with(bytes, i))
+                    && (out.carry.expect_attributes
+                        || token_before_is_import_attributes_keyword(bytes, i))
                 {
                     out.carry.in_attributes = true;
                     out.carry.expect_attributes = false;
@@ -3926,14 +3927,13 @@ fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> Impo
     out
 }
 
-/// Is the token immediately before `i` the `with` keyword that opens an
-/// import-attributes clause?
+/// Is the token immediately before `i` an import-attributes keyword?
 ///
 /// Called on a `{`, so anything else there — a specifier list's brace, or a
 /// `with` that is the tail of a longer identifier — must answer `false`. A
 /// comment before the brace ends on a byte that cannot be part of an
 /// identifier, so it yields an empty run rather than a false match.
-fn token_before_is_with(bytes: &[u8], at: usize) -> bool {
+fn token_before_is_import_attributes_keyword(bytes: &[u8], at: usize) -> bool {
     let mut end = at;
     while end > 0 && bytes[end - 1].is_ascii_whitespace() {
         end -= 1;
@@ -3942,21 +3942,22 @@ fn token_before_is_with(bytes: &[u8], at: usize) -> bool {
     while start > 0 && is_ident_byte(bytes[start - 1]) {
         start -= 1;
     }
-    &bytes[start..end] == b"with"
+    matches!(&bytes[start..end], b"with" | b"assert")
 }
 
-/// Does `s` begin — after whitespace and comments — with the `with { … }`
-/// import-attributes clause that continues an `import` statement?
+/// Does `s` begin — after whitespace and comments — with an import-attributes
+/// clause that continues an `import` statement?
 ///
 /// The clause carries no `[no LineTerminator here]` restriction, so it may start
-/// on any later line; `with` is a reserved word, so in module code nothing else
-/// can begin there. The deprecated `assert` spelling is deliberately not
-/// accepted: both compilers reject it while parsing, so no such source reaches
-/// this pass, and `assert` is a plain identifier that a call on the next line
-/// would collide with.
+/// on any later line. Acorn-typescript also accepts the deprecated `assert`
+/// spelling after a line terminator (#3198). Requiring the following `{` keeps
+/// an `assert(...)` call or an unrelated identifier from extending the import.
 fn starts_import_attributes(s: &str) -> bool {
     let keyword = skip_js_whitespace_and_comments(s, 0);
-    let Some(after_keyword) = s[keyword..].strip_prefix("with") else {
+    let Some(after_keyword) = s[keyword..]
+        .strip_prefix("with")
+        .or_else(|| s[keyword..].strip_prefix("assert"))
+    else {
         return false;
     };
     if after_keyword
@@ -4151,11 +4152,12 @@ fn cleanup_import_line(import: &str) -> String {
     // that. String literals (the module specifier) are respected.
     let import = props_transforms::strip_js_comments(import);
     // Normalize whitespace (join multi-line imports into a single line)
-    let single_line = import
+    let mut single_line = import
         .lines()
         .map(|l| l.trim())
         .collect::<Vec<_>>()
         .join(" ");
+    normalize_import_assert_keyword(&mut single_line);
 
     // Find the { ... } block
     if let Some(open) = single_line.find('{')
@@ -4193,6 +4195,46 @@ fn cleanup_import_line(import: &str) -> String {
     }
 
     single_line
+}
+
+/// Esrap prints the deprecated `assert` import-attributes spelling as `with`.
+/// The client string pipeline must mirror that normalization without touching
+/// the same bytes in a module specifier or an attribute value.
+fn normalize_import_assert_keyword(import: &mut String) {
+    let assert_start = {
+        let bytes = import.as_bytes();
+        let mut i = 0usize;
+        let mut previous = None;
+        let mut found = None;
+        while i < bytes.len() {
+            if let Some((next, _)) = skip_opaque(bytes, i, previous) {
+                previous = Some(b'x');
+                i = next;
+                continue;
+            }
+            if bytes[i..].starts_with(b"assert")
+                && (i == 0 || !is_ident_byte(bytes[i - 1]))
+                && bytes
+                    .get(i + "assert".len())
+                    .is_none_or(|byte| !is_ident_byte(*byte))
+            {
+                let brace = skip_js_whitespace_and_comments(import, i + "assert".len());
+                if bytes.get(brace) == Some(&b'{') {
+                    found = Some(i);
+                    break;
+                }
+            }
+            if !bytes[i].is_ascii_whitespace() {
+                previous = Some(bytes[i]);
+            }
+            i += 1;
+        }
+        found
+    };
+
+    if let Some(start) = assert_start {
+        import.replace_range(start..start + "assert".len(), "with");
+    }
 }
 
 /// Extract variable names from top-level (non-nested) declarations that are NOT
