@@ -11730,6 +11730,69 @@ fn is_plain_ascii_identifier(s: &str) -> bool {
     bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$')
 }
 
+/// Apply the strict-mode binding-name restrictions that upstream's acorn
+/// parser enforces while reading a template pattern.
+///
+/// A bare reserved word is rejected by Svelte's `read_identifier`, while
+/// `eval` / `arguments` nested in a destructuring pattern reach acorn's
+/// assignment-pattern path and therefore use its "Assigning to …" wording.
+pub fn validate_template_binding_pattern(
+    content: &str,
+    offset: usize,
+    ts: bool,
+) -> Result<(), crate::error::ParseError> {
+    let trimmed = content.trim_ws();
+    let leading_ws = content.len() - content.trim_start_ws().len();
+    let start = offset + leading_ws;
+
+    if is_plain_ascii_identifier(trimmed) && super::super::utils::is_reserved(trimmed) {
+        return Err(crate::error::ParseError::svelte(
+            "unexpected_reserved_word",
+            format!(
+                "'{}' is a reserved word in JavaScript and cannot be used here",
+                trimmed
+            ),
+            (start, start),
+        ));
+    }
+
+    if !(trimmed.starts_with('{') || trimmed.starts_with('['))
+        || (!trimmed.contains("arguments") && !trimmed.contains("eval"))
+    {
+        return Ok(());
+    }
+
+    let source_type = if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    with_oxc_allocator(|allocator| {
+        let wrapped = wrap_for_parse("let ", trimmed, "= null");
+        let result = OxcParser::new(allocator, &wrapped, source_type).parse();
+        if !result.diagnostics.is_empty() {
+            return Ok(());
+        }
+
+        if let Some((at, message)) =
+            super::strict_mode::find_violation(&result.program, &wrapped, ts)
+            && let Some(name) = message
+                .strip_prefix("Binding ")
+                .and_then(|message| message.strip_suffix(" in strict mode"))
+            && matches!(name, "eval" | "arguments")
+        {
+            let at = start + at as usize - 4;
+            return Err(crate::error::ParseError::svelte(
+                "js_parse_error",
+                format!("Assigning to {name} in strict mode"),
+                (at, at),
+            ));
+        }
+
+        Ok(())
+    })
+}
+
 pub fn parse_binding_pattern<'a>(
     arena: &ParseArena,
     content: &str,
@@ -11737,23 +11800,8 @@ pub fn parse_binding_pattern<'a>(
     line_offsets: &[usize],
     ts: bool,
 ) -> Result<Expression<'a>, crate::error::ParseError> {
-    // Check for reserved words in simple identifier contexts
-    // (e.g., {#each cases as case} where "case" is a reserved word)
     let trimmed = content.trim_ws();
-    if !trimmed.is_empty()
-        && !trimmed.starts_with('{')
-        && !trimmed.starts_with('[')
-        && super::super::utils::is_reserved(trimmed)
-    {
-        return Err(crate::error::ParseError::svelte(
-            "unexpected_reserved_word",
-            format!(
-                "'{}' is a reserved word in JavaScript and cannot be used here",
-                trimmed
-            ),
-            (offset, offset),
-        ));
-    }
+    validate_template_binding_pattern(content, offset, ts)?;
 
     // `{#each xs as item}` / `{#await p then v}` bind a bare identifier in the
     // vast majority of cases; skip the `let … = null` wrap + full JS parse.

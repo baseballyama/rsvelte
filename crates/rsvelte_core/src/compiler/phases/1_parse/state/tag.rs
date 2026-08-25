@@ -1402,6 +1402,11 @@ impl<'a> Parser<'a> {
                     self.advance();
                 }
             } else {
+                super::super::expression::validate_template_binding_pattern(
+                    &self.source[idx_start..idx_end],
+                    idx_start,
+                    self.ts,
+                )?;
                 index = Some(CompactString::from(&self.source[idx_start..idx_end]));
                 self.index = idx_end;
             }
@@ -2332,6 +2337,12 @@ impl<'a> Parser<'a> {
                     // For a simple identifier like `area: number`, strip `: number`.
                     // For destructuring like `{ x, y }: Point`, strip `: Point`.
                     let pattern_clean = strip_type_annotation(pattern_str);
+
+                    super::super::read::expression::validate_template_binding_pattern(
+                        &pattern_clean,
+                        expr_start,
+                        self.ts,
+                    )?;
 
                     // Parse the pattern (LHS)
                     // For destructuring patterns ({...} or [...]), use the dedicated
