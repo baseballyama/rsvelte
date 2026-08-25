@@ -263,19 +263,10 @@ fn visit_identifier_inner(
     // Corresponds to Svelte's Identifier.js L104-152
     //
     // The official compiler has `node !== binding.node` check to skip warnings for the
-    // declaration identifier itself. We approximate this by checking if the identifier
-    // is inside a VariableDeclarator's `id` pattern (which is the declaration site).
-    let is_declaration_node = context.js_path.iter().any(|ancestor| {
-        if ancestor.get_type_str() == Some("VariableDeclarator") {
-            // Check if the current node's position falls within the `id` pattern range
-            let id_start = ancestor.get_child_field_start("id", context.parse_arena);
-            let id_end = ancestor.get_child_field_end("id", context.parse_arena);
-            if let (Some(id_s), Some(id_e)) = (id_start, id_end) {
-                return start >= id_s && start < id_e;
-            }
-        }
-        false
-    });
+    // declaration identifier itself. `declaration_start` records that exact node; using the
+    // whole declarator pattern also hides references in computed keys.
+    let is_declaration_node =
+        context.analysis.root.bindings[binding_idx].declaration_start == Some(start);
 
     if context.analysis.runes && !is_declaration_node {
         let binding = &context.analysis.root.bindings[binding_idx];
