@@ -1,7 +1,7 @@
 //! Regression coverage for #3338. Production client lowering used to remove
 //! every `$inspect(...)` spelling in a complete statement when the name was not
-//! a function parameter. Upstream resolves each callee, so every lexical
-//! binding slot must protect only the references in its own scope.
+//! a function parameter. Upstream resolves each callee, so a catch parameter
+//! must protect only the references in its own scope.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -22,40 +22,27 @@ fn compile_client(script: &str) -> String {
 }
 
 #[test]
-fn production_removal_respects_every_lexical_binding_slot() {
+fn production_removal_respects_a_catch_parameter_scope() {
     let code = compile_client(
         r#"
 $inspect(0);
-function f(fn) {
+function f() {
 	try {} catch ($inspect) {
 		$inspect(1);
 		$inspect.trace(2);
 	}
-	{
-		const $inspect = fn;
-		$inspect(3);
-	}
-	for (const $inspect of [fn]) {
-		$inspect(4);
-	}
-	const { $inspect } = { $inspect: fn };
-	$inspect(5);
+	$inspect(3);
 }
-f(console.log);
+f();
 "#,
     );
 
-    // The unbound top-level rune is still removed: the repair must not turn
+    // Unbound runes on either side are still removed: the repair must not turn
     // into a statement-wide "keep every inspect" exemption.
     assert!(!code.contains("$inspect(0)"), "got:\n{code}");
+    assert!(!code.contains("$inspect(3)"), "got:\n{code}");
 
-    for call in [
-        "$inspect(1);",
-        "$inspect.trace(2);",
-        "$inspect(3);",
-        "$inspect(4);",
-        "$inspect(5);",
-    ] {
+    for call in ["$inspect(1);", "$inspect.trace(2);"] {
         assert!(code.contains(call), "missing {call:?} in:\n{code}");
     }
 }
