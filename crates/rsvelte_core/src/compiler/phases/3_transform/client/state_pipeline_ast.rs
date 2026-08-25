@@ -855,8 +855,13 @@ impl<'a> PipelineRewriter<'a> {
         if !self.sites.reads.contains(&(id.span.start, id.span.end)) {
             return;
         }
-        let name = id.name;
-        *expr = self.state_read(name.as_str());
+        // Keep the source identifier node inside the builder-made wrapper.
+        // Upstream does `b.call('$.get', identifier)`, so the identifier's loc
+        // remains the cursor anchor while the synthesized call itself has no
+        // loc. This matters for a same-line trailing comment: esrap flushes it
+        // inside `$.get(...)`, not after the containing statement (#3610).
+        let identifier = std::mem::replace(expr, self.b.void0());
+        *expr = self.b.call("$.get", vec![identifier]);
         self.changed = true;
     }
 
