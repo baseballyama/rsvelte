@@ -33,6 +33,9 @@ fn diagnostic(src: &str) -> Option<(Option<String>, Option<(u32, u32)>)> {
 /// compiler reports for the same input, and `end` equals `start` on all of
 /// them because upstream hands `e()` a bare index at each of these sites.
 const POINT_ERRORS: &[(&str, &str, u32)] = &[
+    // An unknown block type is rejected at its first byte, not deferred until
+    // the matching-looking close tag is encountered.
+    ("{#nope}x{/nope}", "expected_block_type", 2),
     // A continuation or close is located at the marker character, not the `{`.
     ("{:else}<b>x</b>", "block_invalid_continuation_placement", 1),
     (
@@ -64,6 +67,12 @@ const POINT_ERRORS: &[(&str, &str, u32)] = &[
     // A mustache with no `}` anywhere demands one where the expression stopped.
     ("{@html z\n", "expected_token", 8),
     ("{@render f()\n", "expected_token", 12),
+    // Acorn reads the close tag as an unterminated regexp after `<`.
+    ("<p>{v</p>", "js_parse_error", 7),
+    // A mismatched block close is a point at the close keyword.
+    ("{#if a}x{/each}", "expected_token", 10),
+    // The right-trimmed template ends after the final hyphen.
+    ("<!--->", "expected_token", 6),
 ];
 
 #[test]

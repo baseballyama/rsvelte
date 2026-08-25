@@ -686,13 +686,13 @@ impl<'a> Parser<'a> {
             return self.parse_snippet_block(start);
         }
 
-        // Unknown block, skip to closing brace using memchr
-        if let Some(pos) = memchr::memchr(b'}', &self.bytes[self.index..]) {
-            self.index += pos + 1;
-        } else {
-            self.index = self.bytes.len();
-        }
-        Ok(None)
+        // Upstream reports the unknown type immediately, before looking for a
+        // closing brace or allowing a later close tag to replace the diagnosis.
+        Err(crate::error::ParseError::svelte(
+            "expected_block_type",
+            "Expected 'if', 'each', 'await', 'key' or 'snippet'",
+            (self.index, self.index),
+        ))
     }
 
     /// Consume the matching `{/keyword}` close tag for the current block.
