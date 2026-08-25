@@ -78,6 +78,25 @@ fn single_dependency_block_thunk_keeps_its_parens() {
     );
 }
 
+/// Issue #3411 is the statement-form twin: expanding a compound assignment
+/// also makes the state-assignment pass reprint the generated effect.
+#[test]
+fn compound_assignment_dependency_thunk_keeps_its_parens() {
+    let out = client(
+        r#"<script>
+	let q;
+	$: q += 1;
+</script>
+
+<p>{q}</p>
+"#,
+    );
+    assert!(
+        out.contains("$.legacy_pre_effect(() => ($.get(q)), () => {"),
+        "compound-assignment thunk lost its parens:\n{out}"
+    );
+}
+
 /// Parens the *user* wrote must still be dropped, exactly as acorn + esrap do
 /// upstream — the fix must not turn into a blanket "preserve every paren".
 #[test]
