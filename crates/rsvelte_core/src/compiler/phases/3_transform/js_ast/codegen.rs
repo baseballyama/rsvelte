@@ -1346,6 +1346,16 @@ impl<'a> JsCodegen<'a> {
     #[inline]
     fn emit_call_expression(&mut self, call: &JsCallExpression) {
         let callee = self.arena.get_expr(call.callee);
+        if matches!(callee, JsExpr::OpaqueIdentifier(name)
+            if name.as_str() == super::to_oxc::SNIPPET_DEFAULT_PAREN_MARKER)
+            && call.arguments.len() == 1
+            && !call.optional
+        {
+            self.output.push('(');
+            self.emit_expression(&call.arguments[0]);
+            self.output.push(')');
+            return;
+        }
         let needs_parens = matches!(
             callee,
             JsExpr::Arrow(_)

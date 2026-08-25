@@ -230,6 +230,30 @@ fn invalidation_single_dependency_keeps_sequence_parentheses() {
 }
 
 #[test]
+fn snippet_defaults_preserve_parenthesized_expression_nodes() {
+    let result = crate::compiler::compile(
+        "<script>const obj = { a: 1 };</script>{#snippet s(a = obj.a ? (obj.a ? 1 : 2) : 3, b = (obj.a, obj.a))}<span>{a}{b}</span>{/snippet}{@render s()}",
+        crate::compiler::CompileOptions {
+            filename: Some("snippet-default-parentheses.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains("() => obj.a ? (obj.a ? 1 : 2) : 3"),
+        "nested conditional parentheses must match upstream:\n{}",
+        result.js.code
+    );
+    assert!(
+        result.js.code.contains("() => ((obj.a, obj.a))"),
+        "a parenthesized sequence keeps both AST wrappers:\n{}",
+        result.js.code
+    );
+    assert!(!result.js.code.contains('\0'));
+}
+
+#[test]
 fn is_argument_inherits_later_complex_scope_bump() {
     let result = crate::compiler::compile(
         "<div class=\"a\"><div class=\"b\"></div></div><style>:is(.a) > .b { color: red; }</style>",

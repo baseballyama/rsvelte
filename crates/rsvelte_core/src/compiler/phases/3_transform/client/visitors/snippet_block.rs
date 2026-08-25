@@ -798,12 +798,110 @@ fn build_fallback_args(
             let default_expr =
                 convert_expression(&Expression::from_json(default_value.clone()), context);
             let default_expr = apply_transforms_to_expression(&default_expr, context);
+            let default_expr = preserve_default_parentheses(default_value, default_expr, context);
             vec![
                 b::thunk(&context.arena, default_expr),
                 JsExpr::Literal(JsLiteral::Boolean(true)),
             ]
         }
     }
+}
+
+/// Preserve the explicit parentheses that upstream's template parser keeps as
+/// `ParenthesizedExpression` nodes. rsvelte's compact parse AST intentionally
+/// unwraps those nodes, but snippet defaults are later rebuilt as generated
+/// thunks, where esrap's output depends on the wrapper: a nested conditional
+/// consequent keeps one pair and a parenthesized sequence gains the sequence's
+/// own pair as well. Carry only this snippet-local formatting decision through
+/// the IR as a marker call; `to_oxc` restores the real wrapper.
+fn preserve_default_parentheses(
+    value: &serde_json::Value,
+    expr: JsExpr,
+    context: &ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SNIPPET_DEFAULT_PAREN_MARKER;
+
+    let expr = match expr {
+        JsExpr::Spanned(inner, start, end) => {
+            let inner = context.arena.get_expr(inner).clone();
+            let inner = preserve_default_parentheses_inner(value, inner, context);
+            JsExpr::Spanned(context.arena.alloc_expr(inner), start, end)
+        }
+        other => preserve_default_parentheses_inner(value, other, context),
+    };
+
+    let mut expr = expr;
+    for _ in 0..source_parenthesis_depth(value, context.state.options.source.as_ref()) {
+        expr = b::call(
+            &context.arena,
+            JsExpr::OpaqueIdentifier(SNIPPET_DEFAULT_PAREN_MARKER.into()),
+            vec![expr],
+        );
+    }
+    expr
+}
+
+fn preserve_default_parentheses_inner(
+    value: &serde_json::Value,
+    expr: JsExpr,
+    context: &ComponentContext,
+) -> JsExpr {
+    match (value.get("type").and_then(serde_json::Value::as_str), expr) {
+        (Some("ConditionalExpression"), JsExpr::Conditional(mut conditional)) => {
+            for (key, slot) in [
+                ("test", &mut conditional.test),
+                ("consequent", &mut conditional.consequent),
+                ("alternate", &mut conditional.alternate),
+            ] {
+                if let Some(child) = value.get(key) {
+                    let current = context.arena.get_expr(*slot).clone();
+                    *slot = context
+                        .arena
+                        .alloc_expr(preserve_default_parentheses(child, current, context));
+                }
+            }
+            JsExpr::Conditional(conditional)
+        }
+        (Some("SequenceExpression"), JsExpr::Sequence(mut sequence)) => {
+            if let Some(children) = value
+                .get("expressions")
+                .and_then(serde_json::Value::as_array)
+            {
+                for (child, current) in children.iter().zip(sequence.expressions.iter_mut()) {
+                    *current = preserve_default_parentheses(child, current.clone(), context);
+                }
+            }
+            JsExpr::Sequence(sequence)
+        }
+        (_, other) => other,
+    }
+}
+
+/// Count the grouping pairs immediately enclosing the node's source span.
+/// This is only called for a whole default and for conditional/sequence slots,
+/// where the surrounding parentheses cannot be a call or parameter delimiter.
+fn source_parenthesis_depth(value: &serde_json::Value, source: &str) -> usize {
+    let Some(start) = value.get("start").and_then(serde_json::Value::as_u64) else {
+        return 0;
+    };
+    let Some(end) = value.get("end").and_then(serde_json::Value::as_u64) else {
+        return 0;
+    };
+    let (start, end) = (start as usize, end as usize);
+    if start > source.len() || end > source.len() || start >= end {
+        return 0;
+    }
+
+    let left = source[..start]
+        .bytes()
+        .rev()
+        .filter(|byte| !byte.is_ascii_whitespace());
+    let right = source[end..]
+        .bytes()
+        .filter(|byte| !byte.is_ascii_whitespace());
+    left.zip(right)
+        .take_while(|(left, right)| *left == b'(' && *right == b')')
+        .count()
 }
 
 /// Check if a JSON AST expression is "simple" (doesn't need thunking).
