@@ -402,6 +402,7 @@ impl<'a> ComponentContext<'a> {
                     &dummy_element,
                     &element_id_name,
                     class_attr_value,
+                    matches!(&attributes[0], Attribute::Attribute(a) if a.metadata.needs_clsx),
                     &class_directives,
                     self,
                     false, // is_html=false for svelte:element
@@ -444,6 +445,7 @@ impl<'a> ComponentContext<'a> {
                     &dummy_element,
                     &element_id_name,
                     None, // No class attribute
+                    false,
                     &class_directives,
                     self,
                     false, // is_html=false for svelte:element

@@ -1,0 +1,1 @@
+<div inert="a"></div>

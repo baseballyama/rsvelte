@@ -21,36 +21,6 @@ use crate::compiler::phases::phase3_transform::shared::template::sanitize_templa
 
 use super::utils::build_expression;
 
-/// Check if a class attribute value needs to be wrapped in $.clsx().
-///
-/// Corresponds to the condition in Attribute.js for setting needs_clsx:
-/// - The value is a single Expression (not a Sequence or True)
-/// - The expression type is NOT Literal, TemplateLiteral, or BinaryExpression
-///
-/// This is needed for class={x} where x is a variable, array, or object,
-/// because Svelte's clsx function normalizes these to proper class strings.
-fn needs_clsx(attr_value: &AttributeValue) -> bool {
-    // Helper to check if an expression type needs clsx
-    let expr_needs_clsx = |expr_type: &str| -> bool {
-        // Needs clsx if NOT a simple literal, template literal, or binary expression
-        !matches!(
-            expr_type,
-            "Literal" | "TemplateLiteral" | "BinaryExpression"
-        )
-    };
-
-    match attr_value {
-        AttributeValue::Expression(expr_tag) => {
-            // Get expression type - only unquoted class={expr} needs clsx
-            // Quoted class="{expr}" (Sequence) does NOT need clsx per official compiler
-            let expr_type = expr_tag.expression.node_type().unwrap_or("");
-            expr_needs_clsx(expr_type)
-        }
-        // Sequence (quoted attributes), True, or other forms don't need clsx
-        _ => false,
-    }
-}
-
 /// Build an attribute value expression.
 ///
 /// Corresponds to `build_attribute_value` in
@@ -805,6 +775,7 @@ pub fn build_set_class(
     _element: &RegularElementNode,
     node_id: &str,
     class_attribute: Option<&AttributeValue>,
+    needs_clsx: bool,
     class_directives: &[&ClassDirective],
     context: &mut ComponentContext,
     is_html: bool,
@@ -813,9 +784,6 @@ pub fn build_set_class(
 ) {
     // Build the class value from the attribute
     let (mut class_value, mut has_state) = if let Some(attr_value) = class_attribute {
-        // Check if we need to wrap in $.clsx() before building the value
-        let should_clsx = needs_clsx(attr_value);
-
         // In the official compiler, the memoize callback in build_set_class calls
         // `context.state.analysis.memoizer.add(value, metadata)` per-expression.
         // This means each individual expression inside a template literal is memoized
@@ -847,7 +815,7 @@ pub fn build_set_class(
             // In the official compiler, clsx wrapping happens per-expression inside the memoize
             // callback, so the memoized array contains `() => $.clsx(expr)` and the callback
             // parameter `$0` already has the clsx'd value.
-            let expr_to_memoize = if should_clsx {
+            let expr_to_memoize = if needs_clsx {
                 b::call(
                     arena_ref_elem,
                     b::member_path(arena_ref_elem, "$.clsx"),

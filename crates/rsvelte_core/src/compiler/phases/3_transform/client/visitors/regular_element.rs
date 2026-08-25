@@ -246,18 +246,16 @@ pub fn visit_regular_element(
             Attribute::Attribute(attr) => {
                 // `is` attributes need to be part of the template, otherwise they break
                 // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
-                if attr.name == "is"
-                    && context.state.metadata.namespace == "html"
-                    && is_text_attribute(attr)
-                    && let AttributeValue::Sequence(parts) = &attr.value
-                    && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
-                        parts.first()
-                {
-                    context
-                        .state
-                        .template
-                        .set_prop("is".to_string(), Some(text.data.to_string()));
-                    continue;
+                if attr.name == "is" && context.state.metadata.namespace == "html" {
+                    let result =
+                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    if let JsExpr::Literal(JsLiteral::String(value)) = result.value {
+                        context
+                            .state
+                            .template
+                            .set_prop("is".to_string(), Some(value.to_string()));
+                        continue;
+                    }
                 }
 
                 // All attributes (including event attributes like onclick={...}) go into attributes
@@ -591,6 +589,7 @@ pub fn visit_regular_element(
                         node,
                         &node_id_str,
                         Some(&attr.value),
+                        attr.metadata.needs_clsx,
                         &class_directives,
                         context,
                         is_html,
@@ -677,6 +676,7 @@ pub fn visit_regular_element(
                         node,
                         &node_id,
                         Some(&attr.value),
+                        attr.metadata.needs_clsx,
                         &[], // No class directives
                         context,
                         is_html,
@@ -882,6 +882,7 @@ pub fn visit_regular_element(
                 node,
                 &node_id,
                 class_attr_value,
+                class_attribute.is_some_and(|attr| attr.metadata.needs_clsx),
                 &class_directives,
                 context,
                 is_html,
@@ -1875,7 +1876,7 @@ fn cannot_be_set_statically(name: &str) -> bool {
     // based on the element type (see is_static_attribute)
     matches!(
         name,
-        "autofocus" | "muted" | "defaultValue" | "defaultChecked" | "inert"
+        "autofocus" | "muted" | "defaultValue" | "defaultChecked"
     )
 }
 
@@ -2098,7 +2099,9 @@ fn build_element_attribute_update(
     }
 
     // DOM property (name is already normalized, e.g., "async", "defer", "required")
-    if is_dom_property(name) {
+    let is_svg_content_attribute =
+        element.metadata.svg && matches!(name, "innerHTML" | "innerText" | "textContent");
+    if is_dom_property(name) && !is_svg_content_attribute {
         return b::assign(arena, b::member(arena, b::id(node_id), name), value);
     }
 
