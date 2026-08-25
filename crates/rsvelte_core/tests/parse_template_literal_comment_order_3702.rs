@@ -64,3 +64,24 @@ const value = `before ${
         "a later quasi must not claim the expression's leading comment"
     );
 }
+
+#[test]
+fn same_line_comment_after_statement_stays_trailing_in_attribute_expression() {
+    let source = r#"<button onclick={() => {
+    first = 1; // belongs to the first statement
+    second = 2;
+}}>click</button>"#;
+    let value = parse_to_value(source);
+
+    let mut statements = Vec::new();
+    collect_nodes(&value, "ExpressionStatement", &mut statements);
+    assert_eq!(statements.len(), 2);
+    assert_eq!(
+        statements[0]["trailingComments"][0]["value"],
+        " belongs to the first statement"
+    );
+    assert!(
+        statements[1].get("leadingComments").is_none(),
+        "the next statement must not claim the preceding same-line comment"
+    );
+}
