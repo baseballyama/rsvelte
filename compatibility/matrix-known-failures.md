@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 580 entries)
+## Matrix known failures (`matrix-known-failures.json`, 528 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 116 + 0 + 24 + 0 + 0 + 0 + 150 + 0 + 282 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 24 + 0 + 0 + 0 + 140 + 0 + 272 + 8 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -62,33 +62,32 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 116 entries
+### `comment-slot` — 84 entries
 
 All remaining entries are `.svelte` template seeds. The `.svelte.(js|ts)` module-path
 cluster is now empty: location-less Programs discard their top-level and EOF comments while
 located nested bodies can still resynchronize the cursor, matching esrap.
 
-The current partition by target is `26 + 26 + 24 + 40` for `client`, `client-dev`,
+The current partition by target is `26 + 26 + 8 + 24` for `client`, `client-dev`,
 `server`, and `server-dev`. By seed:
 
 | seed | entries |
 |---|---:|
-| `await-block` | 32 |
+| `await-block` | 16 |
 | `class-private-state` | 8 |
 | `class-static-block` | 8 |
 | `const-fold-line-continuation` | 8 |
 | `legacy-reactive` | 20 |
 | `module-script` | 24 |
-| `snippet-render` | 16 |
 
-All 116 are `comment-mismatch`: comparing normalized non-comment lines finds no
+All 84 are `comment-mismatch`: comparing normalized non-comment lines finds no
 codegen-semantic divergence in this cluster. A comment is the one token that may appear
 between any two other tokens, so the matrix crosses eight comment kinds with every line
 boundary instead of relying on published-code frequency.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `116`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `84`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `32 + 8 + 8 + 8 + 20 + 24 + 16`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `16 + 8 + 8 + 8 + 20 + 24`
 
 The location-less cursor port clears 144 entries without adding a failure: all 96 trailing
 module-path rows (`module-class-state`, `module-rune-exports`, and
@@ -96,7 +95,7 @@ module-path rows (`module-class-state`, `module-rune-exports`, and
 rows on `server` and `server-dev`. The latter needed the generated component body to inherit
 the instance-script region while the outer Program remained location-less.
 
-`module-script`'s 40 are unchanged in count and in cause by #3005, and their slots moved
+`module-script`'s 24 are unchanged in cause by #3005, and their slots moved
 (`L07`/`L11` → `L18`/`L22`) because the seed grew the bodies that make the cursor observable:
 a rune class, a static block and a bare block, each followed by a slot outside the body it
 revived from. Those new slots all pass; what still diverges is only the two `</script>` slots,
@@ -144,7 +143,7 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 
 All 189 generated comparisons now match. #2484's three special-element dev setter cases are
 covered by the direct regression tests as well as this zero-residue matrix family.
-### `removed-statement-comment` — 150 entries
+### `removed-statement-comment` — 140 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -157,15 +156,15 @@ Every remaining entry is in one of the clusters below.
 | entries | target | cluster | issue |
 |---|---|---|---|
 | 54 | `server-dev` | `$effect` / `$effect.pre` / `$effect.root` × `instance-top` × `succ-none` | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
-| 96 | `client`, `server`, `server-dev` | `$inspect` across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
+| 86 | `client`, `server`, `server-dev` | `$inspect` across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
 Partition of `matrix-known-failures.json` entries under `removed-statement-comment/` by
-cluster: `54 + 96`
+cluster: `54 + 86`
 
 **[D].** It was reduced to a hand-written repro outside the family and measured against the
 pinned official compiler.
 
 Note the enrolment cost, because it is real: a ratchet entry suppresses everything about the
-entry it lists, so these 150 ids are now blind to any *further* regression on the same shapes
+entry it lists, so these 140 ids are now blind to any *further* regression on the same shapes
 until their issues are fixed.
 
 ---
@@ -174,7 +173,7 @@ until their issues are fixed.
 
 Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `0`
 
-### `async-attribute-slot` — 282 entries
+### `async-attribute-slot` — 272 entries
 
 10 value shapes × 6 attribute slots × 4 hosts = 200 cases / 792 comparisons. The subject is
 which lowering an async attribute value reaches: `Memoizer` hoists a call or an `await` out
@@ -190,16 +189,16 @@ The family reported **310** divergences on its first run. #3621's fix — the cl
 attribute value, whose memoizer call hardcoded `has_await: false` in all three arms of
 `build_style_attribute_value_with_memoization` — clears 28 of them (16 `output-unparseable`
 + 12 `js-mismatch`, both hosts × all four literal-`await` values × `client`/`client-dev`)
-with zero regressions elsewhere in the matrix's 25,836 comparisons. The remaining **282**
+with zero regressions elsewhere in the matrix's 25,836 comparisons. The remaining **272**
 are three causes, none of which is a formatting difference:
 
 | cause | issue | entries | verdicts |
 |---|---|---:|---|
 | the server never hoists an awaited attribute / directive / spread value | [#3648](https://github.com/baseballyama/rsvelte/issues/3648) | 230 | 80 `output-unparseable`, 150 `js-mismatch` |
 | an `await` that is not the last-evaluated expression is not pickled through `$.save` | [#3649](https://github.com/baseballyama/rsvelte/issues/3649) | 36 | `js-mismatch` (client) |
-| `<svelte:element class:x={…}>` emits an unbound `$0` | [#3650](https://github.com/baseballyama/rsvelte/issues/3650) | 16 | `js-mismatch` (client) |
+| `<svelte:element class:x={…}>` emits an unbound `$0` | [#3650](https://github.com/baseballyama/rsvelte/issues/3650) | 6 | `js-mismatch` (client) |
 
-Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `230 + 36 + 16`
+Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `230 + 36 + 6`
 
 **Cause 1 — the server does not hoist.** Upstream wraps an element whose attribute value is
 async in `$$renderer.child(async ($$renderer) => { const $$0 = (await $.save(p))(); … })`
@@ -220,9 +219,10 @@ paying for itself: the same slot with a bare `await` is correct, so a family car
 **Cause 3 — an unbound `$0`.** `<svelte:element class:x={f()}>` memoizes the directive
 object into the `template_effect` `sync` array but builds the arrow with **no parameter
 list**, so the body references a `$0` that is never bound. It parses and throws at run time,
-and **four of the sixteen rows carry no `await` at all** (`call`, `async-iife`) — a
-pre-existing defect on the `<svelte:element>` client path that this family found by
-crossing the host axis, not by the async axis it was written for.
+The remaining six rows are `await-plus-state`, `derived-await-read`, and
+`script-await-read` on `client` / `client-dev`. The five other value shapes (`call`,
+`async-iife`, `await`, `await-in-call`, and `await-literal`) now bind their memoized
+parameter correctly.
 
 **Four cases are narrowed to the server targets** (`custom-element` × `attribute` × a value
 carrying a literal `await`). Under the pinned oracle that cell compiles — on *both*

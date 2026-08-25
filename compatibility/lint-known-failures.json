@@ -1,4 +1,6 @@
 [
+	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte|-svelte/prefer-const\t137:5\t'formatString' is never reassigned. Use 'const' instead.",
+	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-output.svelte|-svelte/prefer-const\t137:11\t'formatString' is never reassigned. Use 'const' instead.",
 	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte|-svelte/no-unused-svelte-ignore\t5:20\tsvelte-ignore comment is used, but not warned",
 	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang04-input.svelte|-svelte/no-unused-svelte-ignore\t5:20\tsvelte-ignore comment is used, but not warned",
 	"eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte|-svelte/no-unused-svelte-ignore\t5:20\tsvelte-ignore comment is used, but not warned"
