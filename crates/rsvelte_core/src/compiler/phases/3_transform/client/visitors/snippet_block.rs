@@ -807,38 +807,38 @@ fn build_fallback_args(
     }
 }
 
-/// Preserve the explicit parentheses that upstream's template parser keeps as
-/// `ParenthesizedExpression` nodes. rsvelte's compact parse AST intentionally
-/// unwraps those nodes, but snippet defaults are later rebuilt as generated
-/// thunks, where esrap's output depends on the wrapper: a nested conditional
-/// consequent keeps one pair and a parenthesized sequence gains the sequence's
-/// own pair as well. Carry only this snippet-local formatting decision through
-/// the IR as a marker call; `to_oxc` restores the real wrapper.
+/// Reproduce the parentheses that esrap adds when upstream rebuilds a snippet
+/// default as a generated thunk. The compact client IR loses the distinction at
+/// these two expression shapes, so carry this snippet-local formatting decision
+/// as a marker call; `to_oxc` restores the real wrapper.
 fn preserve_default_parentheses(
     value: &serde_json::Value,
     expr: JsExpr,
     context: &ComponentContext,
 ) -> JsExpr {
-    use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SNIPPET_DEFAULT_PAREN_MARKER;
+    preserve_default_parentheses_tree(value, expr, context, true)
+}
 
+fn preserve_default_parentheses_tree(
+    value: &serde_json::Value,
+    expr: JsExpr,
+    context: &ComponentContext,
+    root: bool,
+) -> JsExpr {
     let expr = match expr {
         JsExpr::Spanned(inner, start, end) => {
             let inner = context.arena.get_expr(inner).clone();
-            let inner = preserve_default_parentheses_inner(value, inner, context);
+            let inner = preserve_default_parentheses_tree(value, inner, context, root);
             JsExpr::Spanned(context.arena.alloc_expr(inner), start, end)
         }
         other => preserve_default_parentheses_inner(value, other, context),
     };
 
-    let mut expr = expr;
-    for _ in 0..source_parenthesis_depth(value, context.state.options.source.as_ref()) {
-        expr = b::call(
-            &context.arena,
-            JsExpr::OpaqueIdentifier(SNIPPET_DEFAULT_PAREN_MARKER.into()),
-            vec![expr],
-        );
+    if root && value.get("type").and_then(serde_json::Value::as_str) == Some("SequenceExpression") {
+        parenthesize_snippet_default(expr, context)
+    } else {
+        expr
     }
-    expr
 }
 
 fn preserve_default_parentheses_inner(
@@ -855,9 +855,18 @@ fn preserve_default_parentheses_inner(
             ] {
                 if let Some(child) = value.get(key) {
                     let current = context.arena.get_expr(*slot).clone();
-                    *slot = context
-                        .arena
-                        .alloc_expr(preserve_default_parentheses(child, current, context));
+                    let mut child_expr =
+                        preserve_default_parentheses_tree(child, current, context, false);
+                    // esrap parenthesises a conditional used as another
+                    // conditional's consequent even though the grammar's
+                    // right-associativity makes the grouping optional.
+                    if key == "consequent"
+                        && child.get("type").and_then(serde_json::Value::as_str)
+                            == Some("ConditionalExpression")
+                    {
+                        child_expr = parenthesize_snippet_default(child_expr, context);
+                    }
+                    *slot = context.arena.alloc_expr(child_expr);
                 }
             }
             JsExpr::Conditional(conditional)
@@ -868,7 +877,8 @@ fn preserve_default_parentheses_inner(
                 .and_then(serde_json::Value::as_array)
             {
                 for (child, current) in children.iter().zip(sequence.expressions.iter_mut()) {
-                    *current = preserve_default_parentheses(child, current.clone(), context);
+                    *current =
+                        preserve_default_parentheses_tree(child, current.clone(), context, false);
                 }
             }
             JsExpr::Sequence(sequence)
@@ -877,31 +887,14 @@ fn preserve_default_parentheses_inner(
     }
 }
 
-/// Count the grouping pairs immediately enclosing the node's source span.
-/// This is only called for a whole default and for conditional/sequence slots,
-/// where the surrounding parentheses cannot be a call or parameter delimiter.
-fn source_parenthesis_depth(value: &serde_json::Value, source: &str) -> usize {
-    let Some(start) = value.get("start").and_then(serde_json::Value::as_u64) else {
-        return 0;
-    };
-    let Some(end) = value.get("end").and_then(serde_json::Value::as_u64) else {
-        return 0;
-    };
-    let (start, end) = (start as usize, end as usize);
-    if start > source.len() || end > source.len() || start >= end {
-        return 0;
-    }
+fn parenthesize_snippet_default(expr: JsExpr, context: &ComponentContext) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SNIPPET_DEFAULT_PAREN_MARKER;
 
-    let left = source[..start]
-        .bytes()
-        .rev()
-        .filter(|byte| !byte.is_ascii_whitespace());
-    let right = source[end..]
-        .bytes()
-        .filter(|byte| !byte.is_ascii_whitespace());
-    left.zip(right)
-        .take_while(|(left, right)| *left == b'(' && *right == b')')
-        .count()
+    b::call(
+        &context.arena,
+        JsExpr::OpaqueIdentifier(SNIPPET_DEFAULT_PAREN_MARKER.into()),
+        vec![expr],
+    )
 }
 
 /// Check if a JSON AST expression is "simple" (doesn't need thunking).
