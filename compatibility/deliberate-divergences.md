@@ -284,3 +284,31 @@ uncoded panic instead of a diagnostic.
   compiler at all, so no published source carries the shape.
 - **Output-parseability gate**: rsvelte's output is valid JavaScript either way — the divergence is
   whether the input is accepted, which that gate does not ask.
+
+---
+
+## Module `$inspect(…).with(fn)` in a declarator initializer
+
+**Pinned by** `crates/rsvelte_core/tests/module_inspect_slot_3611.rs`
+(`an_inspect_with_declarator_keeps_its_binding_and_value`).
+**Reported upstream** in `upstream_issues/svelte-inspect-with-in-a-declarator.md`.
+
+Official omits `'$inspect().with'` from the rune allow-list used by both client and server
+`VariableDeclaration` visitors. The outer call therefore bypasses the inspect visitor and falls
+through to a state-shaped declarator path:
+
+| target | official | rsvelte |
+|---|---|---|
+| client prod/dev | drops the declarator, leaving later `t` reads free | keeps `const t = undefined` in prod and the `$.inspect(...)` result in dev |
+| server prod/dev | emits `const t = fn`, binding the inspector instead of the rune result | keeps `const t = undefined` in prod and the inspector call result in dev |
+
+Both official outputs parse, so this is not covered by the invalid-JavaScript exception alone.
+They are nevertheless runtime-wrong: the client turns a declared local into a `ReferenceError`,
+and the server changes the value from the callback's return value (or `undefined` in prod) to the
+callback function itself. rsvelte keeps the semantics of the same rune in every other expression
+slot. Exported declarators follow the same decision.
+
+No collected corpus source binds an inspect rune's result, and the #3611 generated slot grid
+compares official output rather than evaluating the later reference. Remove this entry and change
+the eight pinned expectations to byte parity when upstream includes `'$inspect().with'` in both
+declarator allow-lists.

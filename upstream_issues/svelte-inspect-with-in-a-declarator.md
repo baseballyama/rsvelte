@@ -49,3 +49,16 @@ Related: the same file's prod output for a plain `$inspect` in a declarator, `co
 itself unparseable — that is the separate report in
 `3441-svelte-inspect-in-an-operand-slot.md`. This one is different because the output *parses*
 and means something else.
+
+## rsvelte decision
+
+rsvelte does not reproduce either runtime-wrong result. In prod, where `$inspect` evaluates to
+nothing, it keeps the declaration as `const t = undefined`; in dev it keeps the normal rune
+lowering (`$.inspect(...)` on the client and the inspector callback on the server). This also
+applies to an exported declarator.
+
+The eight cells — `{declarator, export-declarator}` × `{client, client-dev, server, server-dev}`
+— are pinned by
+`module_inspect_slot_3611.rs::an_inspect_with_declarator_keeps_its_binding_and_value` for #3627.
+Delete the deliberate-divergence entry and change those expectations to parity if upstream adds
+`'$inspect().with'` to both declarator allow-lists.

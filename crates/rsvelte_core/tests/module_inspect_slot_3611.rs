@@ -158,6 +158,47 @@ fn the_server_lowers_a_module_inspect_in_dev() {
     }
 }
 
+/// Official omits `$inspect().with` from the rune allow-list used for a
+/// declarator initializer. The client drops the declaration (making `t` a
+/// free reference), while the server binds the inspector itself. Both are
+/// runtime-wrong, so rsvelte deliberately keeps the rune's actual result.
+#[test]
+fn an_inspect_with_declarator_keeps_its_binding_and_value() {
+    for (declaration, prefix) in [
+        ("const t = $inspect(a).with(console.log);", "const t"),
+        (
+            "export const t = $inspect(a).with(console.log);",
+            "export const t",
+        ),
+    ] {
+        let body = format!("{declaration}\nexport function read_t() {{ return t; }}");
+        for generate in [GenerateMode::Client, GenerateMode::Server] {
+            for dev in [false, true] {
+                let code = compile_mod(&body, generate, dev);
+                let value = match (generate, dev) {
+                    (_, false) => "undefined",
+                    (GenerateMode::Client, true) => {
+                        "$.inspect(() => [a], (...$$args) => console.log(...$$args))"
+                    }
+                    (GenerateMode::Server, true) => "console.log('init', a)",
+                };
+                assert!(
+                    code.contains(&format!("{prefix} = {value};")),
+                    "({generate:?} dev={dev}) in:\n{code}"
+                );
+                assert!(
+                    code.contains("return t;"),
+                    "({generate:?} dev={dev}) in:\n{code}"
+                );
+                assert!(
+                    !code.contains("$inspect"),
+                    "({generate:?} dev={dev}) in:\n{code}"
+                );
+            }
+        }
+    }
+}
+
 /// A derived argument is read through its call, the same as any other server
 /// read — the lowering happens before the read rewriting, not after it.
 #[test]
