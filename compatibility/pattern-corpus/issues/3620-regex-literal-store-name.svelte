@@ -7,4 +7,4 @@
 	let count = 0;
 </script>
 
-<b>{count}{re.source}{inClass.source}{escaped.source}{afterDivision}</b>
+<b>{mystore}{count}{re.source}{inClass.source}{escaped.source}{afterDivision}</b>
