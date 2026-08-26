@@ -3817,9 +3817,7 @@ fn convert_ts_function_like_params(
     out
 }
 
-/// Convert a member of a `TSTypeLiteral` / interface body. Currently models
-/// `TSPropertySignature` exactly (the common inline-props case); other
-/// signature kinds degrade to a span-bearing node.
+/// Convert a member of a `TSTypeLiteral` / interface body.
 fn convert_ts_signature(
     arena: &ParseArena,
     sig: &oxc_ast::ast::TSSignature,
@@ -3856,23 +3854,130 @@ fn convert_ts_signature(
             }
             Value::Object(obj)
         }
-        // Index / method / call / construct signatures: span-bearing node so
-        // the member is still addressable even though it isn't fully modelled.
-        _ => {
-            let span = sig.span();
-            let start = offset + span.start as usize;
-            let end = offset + span.end as usize;
-            let type_name = match sig {
-                TSSignature::TSIndexSignature(_) => "TSIndexSignature",
-                TSSignature::TSCallSignatureDeclaration(_) => "TSCallSignatureDeclaration",
-                TSSignature::TSConstructSignatureDeclaration(_) => {
-                    "TSConstructSignatureDeclaration"
-                }
-                TSSignature::TSMethodSignature(_) => "TSMethodSignature",
-                TSSignature::TSPropertySignature(_) => "TSPropertySignature",
-            };
+        TSSignature::TSMethodSignature(method) => {
+            use oxc_ast::ast::TSMethodSignatureKind;
+
+            let start = offset + method.span.start as usize;
+            let end = offset + method.span.end as usize;
             let mut obj = Map::new();
-            obj.set_field("type", Value::String(type_name.to_string()));
+            obj.set_field("type", Value::String("TSMethodSignature".to_string()));
+            push_span_fields(&mut obj, start, end, line_offsets);
+            obj.set_field("computed", Value::Bool(method.computed));
+            obj.set_field(
+                "key",
+                convert_ts_property_key(&method.key, offset, line_offsets),
+            );
+            obj.set_field(
+                "kind",
+                Value::String(
+                    match method.kind {
+                        TSMethodSignatureKind::Method => "method",
+                        TSMethodSignatureKind::Get => "get",
+                        TSMethodSignatureKind::Set => "set",
+                    }
+                    .to_string(),
+                ),
+            );
+            obj.set_field(
+                "parameters",
+                Value::Array(convert_ts_function_like_params(
+                    arena,
+                    method.this_param.as_deref(),
+                    &method.params,
+                    offset,
+                    line_offsets,
+                )),
+            );
+            if method.optional {
+                obj.set_field("optional", Value::Bool(true));
+            }
+            if let Some(parameters) = &method.type_parameters {
+                obj.set_field(
+                    "typeParameters",
+                    convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+                );
+            }
+            if let Some(return_type) = &method.return_type {
+                obj.set_field(
+                    "typeAnnotation",
+                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+        TSSignature::TSCallSignatureDeclaration(call) => {
+            let start = offset + call.span.start as usize;
+            let end = offset + call.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field(
+                "type",
+                Value::String("TSCallSignatureDeclaration".to_string()),
+            );
+            push_span_fields(&mut obj, start, end, line_offsets);
+            obj.set_field(
+                "parameters",
+                Value::Array(convert_ts_function_like_params(
+                    arena,
+                    call.this_param.as_deref(),
+                    &call.params,
+                    offset,
+                    line_offsets,
+                )),
+            );
+            if let Some(parameters) = &call.type_parameters {
+                obj.set_field(
+                    "typeParameters",
+                    convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+                );
+            }
+            if let Some(return_type) = &call.return_type {
+                obj.set_field(
+                    "typeAnnotation",
+                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+        TSSignature::TSConstructSignatureDeclaration(constructor) => {
+            let start = offset + constructor.span.start as usize;
+            let end = offset + constructor.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field(
+                "type",
+                Value::String("TSConstructSignatureDeclaration".to_string()),
+            );
+            push_span_fields(&mut obj, start, end, line_offsets);
+            obj.set_field(
+                "parameters",
+                Value::Array(convert_ts_function_like_params(
+                    arena,
+                    None,
+                    &constructor.params,
+                    offset,
+                    line_offsets,
+                )),
+            );
+            if let Some(parameters) = &constructor.type_parameters {
+                obj.set_field(
+                    "typeParameters",
+                    convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+                );
+            }
+            if let Some(return_type) = &constructor.return_type {
+                obj.set_field(
+                    "typeAnnotation",
+                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+        // Index signatures remain span-bearing until their parameter/modifier
+        // fields have an exact public-AST conversion.
+        TSSignature::TSIndexSignature(index) => {
+            let start = offset + index.span.start as usize;
+            let end = offset + index.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TSIndexSignature".to_string()));
             push_span_fields(&mut obj, start, end, line_offsets);
             Value::Object(obj)
         }
@@ -8823,14 +8928,12 @@ fn convert_ts_type_alias_declaration_as_node(
             line_offsets,
         ),
     );
-    obj.set_field(
-        "typeParameters",
-        decl.type_parameters
-            .as_ref()
-            .map_or(Value::Null, |parameters| {
-                convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets)
-            }),
-    );
+    if let Some(parameters) = &decl.type_parameters {
+        obj.set_field(
+            "typeParameters",
+            convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+        );
+    }
     obj.set_field(
         "typeAnnotation",
         convert_ts_type(arena, &decl.type_annotation, offset, line_offsets),
@@ -8865,14 +8968,12 @@ fn convert_ts_interface_declaration_as_node(
             line_offsets,
         ),
     );
-    obj.set_field(
-        "typeParameters",
-        decl.type_parameters
-            .as_ref()
-            .map_or(Value::Null, |parameters| {
-                convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets)
-            }),
-    );
+    if let Some(parameters) = &decl.type_parameters {
+        obj.set_field(
+            "typeParameters",
+            convert_ts_type_parameter_declaration(arena, parameters, offset, line_offsets),
+        );
+    }
     // Interface heritage is uncommon in the comment residue, but keeping the
     // expressions here makes the declaration structurally walkable rather than
     // dropping the whole `extends` branch.

@@ -58,14 +58,37 @@ type Alias<T> = T | null;
     let interface = find_node(&ast, "TSInterfaceDeclaration").expect("interface declaration");
     assert_eq!(comment_count(interface, "leadingComments"), 1);
     assert!(interface.get("loc").is_some(), "interface loc must survive");
-    assert_eq!(interface.get("typeParameters"), Some(&Value::Null));
+    assert!(
+        interface.get("typeParameters").is_none(),
+        "Acorn omits absent interface type parameters"
+    );
     assert!(
         interface.get("extends").is_none(),
         "Acorn omits an empty interface heritage list"
     );
 
     let property = find_node(interface, "TSPropertySignature").expect("property signature");
-    assert_eq!(comment_count(property, "trailingComments"), 1);
+    let type_annotation = property
+        .get("typeAnnotation")
+        .expect("property type annotation");
+    assert_eq!(comment_count(type_annotation, "trailingComments"), 1);
+
+    let method = find_node(interface, "TSMethodSignature").expect("method signature");
+    assert_eq!(method.get("computed"), Some(&Value::Bool(false)));
+    assert_eq!(method.get("kind").and_then(Value::as_str), Some("method"));
+    assert_eq!(
+        method
+            .get("parameters")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(0)
+    );
+    assert_eq!(
+        method
+            .pointer("/typeAnnotation/typeAnnotation/type")
+            .and_then(Value::as_str),
+        Some("TSVoidKeyword")
+    );
 
     let alias = find_node(&ast, "TSTypeAliasDeclaration").expect("type alias declaration");
     assert_eq!(comment_count(alias, "leadingComments"), 1);
