@@ -93,16 +93,20 @@ check('a workspace package is inspected too', () => {
 });
 
 // The lockfile is where the range actually bit: it resolved to a version the
-// manifest never named.
-check('every lockfile specifier for svelte is exact', () => {
+// manifest never named. Match only non-peer declarations here. pnpm records an
+// optional peer under an importer's `dependencies`, so a flat scan cannot tell
+// that its range is intentionally exempt.
+check('every non-peer manifest pin is reflected in the lockfile', () => {
 	const lock = readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8');
-	const specs = [...lock.matchAll(/^      svelte:\n        specifier: (.+)$/gm)].map((m) => m[1]);
-	assert.ok(specs.length > 0, 'no svelte importer entry found in pnpm-lock.yaml');
-	assert.deepEqual(
-		specs.filter((s) => !/^\d+\.\d+\.\d+/.test(s)),
-		[],
-		'pnpm-lock.yaml records a range specifier for svelte',
-	);
+	const found = declarations(manifests());
+	for (const declaration of found) {
+		const importer = declaration.file === 'package.json' ? '.' : dirname(declaration.file);
+		const escaped = importer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const block = lock.match(new RegExp(`^  ${escaped}:\\n([\\s\\S]*?)(?=^  \\S|\\s*$)`, 'm'))?.[1];
+		assert.ok(block, `no lockfile importer found for ${importer}`);
+		const spec = block.match(/^      svelte:\n        specifier: (.+)$/m)?.[1];
+		assert.equal(spec, declaration.spec, `${declaration.file} is not reflected in pnpm-lock.yaml`);
+	}
 });
 
 check('ci.yml runs the guard and this control', () => {

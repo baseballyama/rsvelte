@@ -62,7 +62,11 @@ async function loadCompilers() {
 	const require = createRequire(import.meta.url);
 	const wasmPath = require.resolve('@rsvelte/compiler/wasm');
 	rsvelte.initSync({ module: readFileSync(wasmPath) });
-	return { officialCompile: official.compile, rsvelteCompile: rsvelte.compile };
+	const officialCompile = official.compile ?? official.default?.compile;
+	if (typeof officialCompile !== 'function') {
+		throw new UsageError('Loaded svelte/compiler does not export compile()');
+	}
+	return { officialCompile, rsvelteCompile: rsvelte.compile };
 }
 
 try {
