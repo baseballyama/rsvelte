@@ -1,7 +1,7 @@
 # Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **490 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **480 entries**.
 
 ## The question it asks
 
@@ -34,11 +34,11 @@ Acceptance divergences are the one exception: "official rejects this document an
 not" is a fact about the document, so those keys carry the entry id. A single shared key could not
 tell two such entries from one, which is the whole shrink the ratchet exists to observe.
 
-## Why the baseline is 490 and not 0
+## Why the baseline is 480 and not 0
 
 Because the API was never compared. The current full run measured **66,513 compared pairs** over
 33,685 corpus components — 9,415 modern-axis and 9,729 legacy-axis entries are byte-identical,
-and the remainder produce these 490 field-level keys.
+and the remainder produce these 480 field-level keys.
 
 The modern-axis identical count was **1,075** when this ratchet was first baselined. #3386
 (`Root.end`) accounted for the other 4,177 on its own: it diverged on 12,324 of 14,102 entries, so
@@ -56,15 +56,15 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 74 + 68 + 25 + 24 + 22 + 10 + 5 + 4 + 2`
+Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 68 + 64 + 25 + 24 + 22 + 10 + 5 + 4 + 2`
 
 | cluster | keys | what it is |
 |---|---|---|
 | `span` | 92 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 90 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 74 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
-| `comment-attachment` | 74 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. |
 | `unclustered` | 68 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `comment-attachment` | 64 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 25 | 12 corpus entries × 2 axes, plus one loose source. See below. |
 | `css-shape` | 24 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 22 | an array of children with a different length. |
