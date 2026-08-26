@@ -8876,7 +8876,7 @@ fn convert_ts_interface_declaration_as_node(
     // Interface heritage is uncommon in the comment residue, but keeping the
     // expressions here makes the declaration structurally walkable rather than
     // dropping the whole `extends` branch.
-    let extends = decl
+    let extends: Vec<Value> = decl
         .extends
         .iter()
         .map(|heritage| {
