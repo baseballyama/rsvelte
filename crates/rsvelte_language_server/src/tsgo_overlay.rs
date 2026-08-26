@@ -185,7 +185,6 @@ struct ShadowState {
     tokens: Vec<MappingToken>,
     generated_ranges: Vec<std::ops::Range<usize>>,
     identity: bool,
-    fallback_source_range: Option<std::ops::Range<usize>>,
     plain_insertions: Vec<(usize, std::ops::Range<usize>)>,
 }
 
@@ -322,33 +321,21 @@ impl TsgoOverlay {
         };
 
         let options = self.projection_options(&source_path, &shadow_path, preprocessed_text);
-        let (
-            original_generated,
-            projection_source_map,
-            mut exact_map,
-            mut tokens,
-            fallback_source_range,
-        ) = match self.engine.project(preprocessed_text, options) {
-            Ok(artifact) => {
-                let exact_map = if preprocess_status == PreprocessStatus::Identity {
-                    artifact.exact_mappings.unwrap_or_default()
-                } else {
-                    ProjectionMap::default()
-                };
-                let tokens = parse_mapping_tokens(&source_path, artifact.source_map.as_deref())?;
-                (artifact.code, artifact.source_map, exact_map, tokens, None)
-            }
-            Err(_) => {
-                let range = fallback_script_range(original_text);
-                (
-                    original_text[range.clone()].to_string(),
-                    None,
-                    ProjectionMap::default(),
-                    Vec::new(),
-                    Some(range),
-                )
-            }
+        let artifact = self
+            .engine
+            .project(preprocessed_text, options)
+            .map_err(|error| TsgoOverlayError::Projection {
+                path: source_path.clone(),
+                message: error.to_string(),
+            })?;
+        let mut exact_map = if preprocess_status == PreprocessStatus::Identity {
+            artifact.exact_mappings.unwrap_or_default()
+        } else {
+            ProjectionMap::default()
         };
+        let projection_source_map = artifact.source_map;
+        let mut tokens = parse_mapping_tokens(&source_path, projection_source_map.as_deref())?;
+        let original_generated = artifact.code;
         let original_index = LineIndex::new(&original_generated);
         let (generated_text, import_insertions) = rewrite_plain_svelte_imports(&original_generated);
         let insertion_positions = import_insertions
@@ -374,21 +361,17 @@ impl TsgoOverlay {
             exact_map.insert_generated(generated_range.start as u32, generated_range.len() as u32);
         }
         let generated_index = LineIndex::new(&generated_text);
-        let source_map = if fallback_source_range.is_some() {
-            None
-        } else {
-            compose_source_map(
-                &source_path,
-                original_text,
-                projection_source_map.as_deref(),
-                &tokens,
-                &preprocess_mappings,
-                preprocess_status,
-                &generated_text,
-                &generated_index,
-                &import_insertions,
-            )?
-        };
+        let source_map = compose_source_map(
+            &source_path,
+            original_text,
+            projection_source_map.as_deref(),
+            &tokens,
+            &preprocess_mappings,
+            preprocess_status,
+            &generated_text,
+            &generated_index,
+            &import_insertions,
+        )?;
         let document = ShadowDocument {
             source_uri: path_to_uri(&source_path)?,
             shadow_uri: path_to_uri(&shadow_path)?,
@@ -420,8 +403,7 @@ impl TsgoOverlay {
             tokens,
             generated_ranges,
             identity: false,
-            fallback_source_range,
-            plain_insertions: import_insertions,
+            plain_insertions: Vec::new(),
             document: document.clone(),
         };
         if let Some(old) = self.entries.insert(source_path.clone(), state) {
@@ -473,7 +455,6 @@ impl TsgoOverlay {
             source_map: None,
             generated_ranges: Vec::new(),
             identity: true,
-            fallback_source_range: None,
             plain_insertions,
             document: document.clone(),
         };
@@ -683,18 +664,6 @@ impl TsgoOverlay {
             return Some(utf8_position(&entry.document.text, generated_offset));
         }
 
-        if let Some(range) = &entry.fallback_source_range {
-            let relative_offset = source_offset.clamp(range.start, range.end) - range.start;
-            let generated_offset = relative_offset
-                + entry
-                    .plain_insertions
-                    .iter()
-                    .filter(|(source, _)| *source <= relative_offset)
-                    .map(|(_, generated)| generated.len())
-                    .sum::<usize>();
-            return Some(utf8_position(&entry.document.text, generated_offset));
-        }
-
         if entry.preprocess_status == PreprocessStatus::Identity
             && let Some(generated) = exact_source_offset(&entry.exact_map, source_offset)
         {
@@ -758,28 +727,6 @@ impl TsgoOverlay {
                     .filter(|(_, generated)| generated.end <= generated_offset)
                     .map(|(_, generated)| generated.len())
                     .sum::<usize>();
-            return Some(
-                entry
-                    .source_index
-                    .position(&entry.source_text, source_offset),
-            );
-        }
-        if let Some(range) = &entry.fallback_source_range {
-            if entry
-                .plain_insertions
-                .iter()
-                .any(|(_, generated)| generated.contains(&generated_offset))
-            {
-                return None;
-            }
-            let relative_offset = generated_offset
-                - entry
-                    .plain_insertions
-                    .iter()
-                    .filter(|(_, generated)| generated.end <= generated_offset)
-                    .map(|(_, generated)| generated.len())
-                    .sum::<usize>();
-            let source_offset = range.start + relative_offset.min(range.len());
             return Some(
                 entry
                     .source_index
@@ -1566,120 +1513,6 @@ fn rewrite_plain_svelte_imports(source: &str) -> (String, Vec<(usize, std::ops::
     (generated, ranges)
 }
 
-fn fallback_script_range(source: &str) -> std::ops::Range<usize> {
-    let lower = source.to_ascii_lowercase();
-    let mut cursor = 0;
-    let mut module = None;
-    while let Some(relative_start) = lower[cursor..].find("<script") {
-        let tag_start = cursor + relative_start;
-        let tag_name_end = tag_start + "<script".len();
-        if lower[tag_name_end..]
-            .chars()
-            .next()
-            .is_some_and(|character| !character.is_ascii_whitespace() && character != '>')
-        {
-            cursor = tag_name_end;
-            continue;
-        }
-        let Some(open_end) = markup_tag_end(source, tag_name_end) else {
-            break;
-        };
-        let content_start = open_end + 1;
-        let Some(relative_close) = lower[content_start..].find("</script") else {
-            break;
-        };
-        let content_end = content_start + relative_close;
-        let range = content_start..content_end;
-        if is_module_script(&lower[tag_name_end..open_end]) {
-            module.get_or_insert(range);
-        } else {
-            return range;
-        }
-        cursor = content_end + "</script".len();
-    }
-    module.unwrap_or(source.len()..source.len())
-}
-
-fn markup_tag_end(source: &str, start: usize) -> Option<usize> {
-    let bytes = source.as_bytes();
-    let mut quote = None;
-    for (index, &byte) in bytes.iter().enumerate().skip(start) {
-        match (quote, byte) {
-            (Some(active), current) if current == active => quote = None,
-            (None, b'\'' | b'"') => quote = Some(byte),
-            (None, b'>') => return Some(index),
-            _ => {}
-        }
-    }
-    None
-}
-
-fn is_module_script(attributes: &str) -> bool {
-    let bytes = attributes.as_bytes();
-    let mut cursor = 0;
-    while cursor < bytes.len() {
-        while bytes
-            .get(cursor)
-            .is_some_and(|byte| byte.is_ascii_whitespace())
-        {
-            cursor += 1;
-        }
-        let name_start = cursor;
-        while bytes
-            .get(cursor)
-            .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b':'))
-        {
-            cursor += 1;
-        }
-        if name_start == cursor {
-            cursor += 1;
-            continue;
-        }
-        let name = &attributes[name_start..cursor];
-        while bytes
-            .get(cursor)
-            .is_some_and(|byte| byte.is_ascii_whitespace())
-        {
-            cursor += 1;
-        }
-        if bytes.get(cursor) != Some(&b'=') {
-            if name == "module" {
-                return true;
-            }
-            continue;
-        }
-        cursor += 1;
-        while bytes
-            .get(cursor)
-            .is_some_and(|byte| byte.is_ascii_whitespace())
-        {
-            cursor += 1;
-        }
-        let quote = bytes
-            .get(cursor)
-            .copied()
-            .filter(|byte| matches!(byte, b'\'' | b'"'));
-        if quote.is_some() {
-            cursor += 1;
-        }
-        let value_start = cursor;
-        while bytes
-            .get(cursor)
-            .is_some_and(|byte| quote.map_or(!byte.is_ascii_whitespace(), |quote| *byte != quote))
-        {
-            cursor += 1;
-        }
-        let value = attributes[value_start..cursor].trim_end_matches('>');
-        if quote.is_some() && cursor < bytes.len() {
-            cursor += 1;
-        }
-        if name == "context" && value == "module" {
-            return true;
-        }
-    }
-    false
-}
-
 fn closest_source_token(tokens: &[MappingToken], source: Position) -> Option<MappingToken> {
     tokens
         .iter()
@@ -2193,55 +2026,6 @@ mod tests {
         assert!(overlay.close(&app).unwrap().is_none());
         assert!(overlay.shadow_for_source(&app).is_none());
         assert!(!overlay.shadow_dir.join("src").exists());
-    }
-
-    #[test]
-    fn malformed_template_without_script_keeps_an_empty_eager_shadow() {
-        let workspace = TestWorkspace::new("malformed-empty-fallback");
-        let app = workspace.0.join("App.svelte");
-        write(&app, "<p>valid</p>");
-        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
-
-        let source = "{#awa.";
-        let shadow = overlay.open_or_update(&app, source, 1).unwrap();
-        let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
-        assert_eq!(shadow.text, "");
-        assert_eq!(overlay.eager_shadows().len(), 1);
-        assert_eq!(
-            overlay.map_source_position(&app, Position::new(0, 6)),
-            Some(Position::new(0, 0))
-        );
-        assert_eq!(
-            overlay.map_generated_position(&shadow_path, Position::new(0, 0)),
-            Some(Position::new(0, 6))
-        );
-    }
-
-    #[test]
-    fn malformed_template_fallback_prefers_the_instance_script() {
-        let workspace = TestWorkspace::new("malformed-script-fallback");
-        let app = workspace.0.join("App.svelte");
-        write(&app, "<p>valid</p>");
-        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
-        let source = concat!(
-            "<script context=\"module\">export const ignored = 1;</script>\n",
-            "<script>\nconst value = 1;\n</script>\n",
-            "{#awa."
-        );
-
-        let shadow = overlay.open_or_update(&app, source, 2).unwrap();
-        let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
-        assert_eq!(shadow.text, "\nconst value = 1;\n");
-        let source_offset = source.find("value").unwrap();
-        let source_position = LineIndex::new(source).position(source, source_offset);
-        let generated = overlay
-            .map_source_position(&app, source_position)
-            .expect("instance script maps into the fallback shadow");
-        assert_eq!(generated, Position::new(1, 6));
-        assert_eq!(
-            overlay.map_generated_position(&shadow_path, generated),
-            Some(source_position)
-        );
     }
 
     #[test]

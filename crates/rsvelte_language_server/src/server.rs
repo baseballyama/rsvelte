@@ -1926,6 +1926,21 @@ impl Server {
             return;
         }
         let completion_site = self.completion_site(&request);
+        if matches!(
+            completion_site,
+            Some(
+                CompletionSite::RawTemplateText
+                    | CompletionSite::Style
+                    | CompletionSite::BlockMarker
+            )
+        ) {
+            // These sites are unconditionally suppressed by `completion_action`.
+            // Do that before source-to-shadow mapping as well: malformed block
+            // openers can make projection fail, but they still need the same
+            // successful `null` response as any other invalid completion site.
+            self.respond_nothing(request.id);
+            return;
+        }
         let component_site = self.component_completion_site(&request);
         let code_action_diagnostic_codes = code_action_diagnostic_codes(&request);
         let Some(runtime) = &self.tsgo else {
