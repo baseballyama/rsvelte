@@ -673,7 +673,7 @@ fn trailing_comment_end(src: &str, all: &[Comment], stmt_end: u32) -> u32 {
             continue;
         }
         let gap = &src[end as usize..comment.span.start as usize];
-        if gap.contains(['\n', '\r']) || !gap.trim().is_empty() {
+        if gap.contains(['\n', '\r', '\u{2028}', '\u{2029}']) || !gap.trim().is_empty() {
             break;
         }
         end = comment.span.end;
@@ -683,7 +683,9 @@ fn trailing_comment_end(src: &str, all: &[Comment], stmt_end: u32) -> u32 {
         return stmt_end;
     }
     let after = &src[end as usize..];
-    let line_end = after.find(['\n', '\r']).unwrap_or(after.len());
+    let line_end = after
+        .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+        .unwrap_or(after.len());
     if after[..line_end].trim().is_empty() {
         end
     } else {
