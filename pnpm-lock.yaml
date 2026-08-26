@@ -43,6 +43,10 @@ importers:
         version: 2.7.3
 
   apps/npm/compiler:
+    dependencies:
+      svelte:
+        specifier: ^5.0.0
+        version: 5.56.10
     publishDirectory: ../../../pkg
 
   apps/npm/fmt:
