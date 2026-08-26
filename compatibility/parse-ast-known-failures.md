@@ -1,7 +1,7 @@
 # Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **856 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **490 entries**.
 
 ## The question it asks
 
@@ -34,11 +34,11 @@ Acceptance divergences are the one exception: "official rejects this document an
 not" is a fact about the document, so those keys carry the entry id. A single shared key could not
 tell two such entries from one, which is the whole shrink the ratchet exists to observe.
 
-## Why the baseline is 856 and not 0
+## Why the baseline is 490 and not 0
 
 Because the API was never compared. The current full run measured **66,513 compared pairs** over
-33,685 corpus components — 9,338 modern-axis and 9,653 legacy-axis entries are byte-identical,
-and the remainder produce these 856 field-level keys.
+33,685 corpus components — 9,415 modern-axis and 9,729 legacy-axis entries are byte-identical,
+and the remainder produce these 490 field-level keys.
 
 The modern-axis identical count was **1,075** when this ratchet was first baselined. #3386
 (`Root.end`) accounted for the other 4,177 on its own: it diverged on 12,324 of 14,102 entries, so
@@ -56,18 +56,18 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `194 + 184 + 136 + 116 + 102 + 54 + 25 + 24 + 10 + 5 + 4 + 2`
+Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 74 + 68 + 25 + 24 + 22 + 10 + 5 + 4 + 2`
 
 | cluster | keys | what it is |
 |---|---|---|
-| `node-type` | 194 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `span` | 184 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
-| `comment-attachment` | 136 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. |
-| `unclustered` | 116 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
-| `estree-fields` | 102 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
-| `child-count` | 54 | an array of children with a different length. |
+| `span` | 92 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `node-type` | 90 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `estree-fields` | 74 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
+| `comment-attachment` | 74 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. |
+| `unclustered` | 68 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `accepts-what-official-rejects` | 25 | 12 corpus entries × 2 axes, plus one loose source. See below. |
 | `css-shape` | 24 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
+| `child-count` | 22 | an array of children with a different length. |
 | `loc-presence` | 10 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `directive-null-fields` | 5 | official keeps `expression: null` / `modifiers: []` on a directive; rsvelte omits the key, so it is absent through the JSON boundary a binding actually uses. |
 | `rejects-what-official-accepts` | 4 | 2 corpus entries × 2 axes. See below. |
@@ -99,3 +99,9 @@ this gate rather than pass it.
 script refuses below 10,000 compared modern-axis pairs, and refuses under `--filter`). The
 ratchet is two-sided: a key that no longer diverges fails the run, so the PR that fixes keys
 re-baselines in the same PR.
+
+#3761 is the first shrink that changed which later program children the comparator could align:
+retaining type aliases and interfaces removed 384 listed keys and exposed 18 keys that an earlier
+missing child or node-type mismatch had stopped the walk before it could observe. The measured
+baseline therefore moved from 856 to 490 keys; the 18 are existing downstream AST-shape residue,
+not a claim that the newly retained declarations match on those fields.
