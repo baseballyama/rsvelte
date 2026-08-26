@@ -27,6 +27,11 @@ struct StoreRef {
     position: usize,
     /// Whether this is in a module script (vs instance or template)
     in_module: bool,
+    /// Whether the identifier's immediate parent is a call expression.
+    ///
+    /// This includes both the callee (`$state()`) and a direct argument
+    /// (`fn($state)`), but not a member/unary wrapper around the reference.
+    parent_is_call_expression: bool,
 }
 
 /// Detect store subscriptions and create synthetic bindings.
@@ -293,27 +298,14 @@ pub fn detect_store_subscriptions(
                 // Corresponds to Svelte's 2-analyze/index.js L398-407
                 //
                 // The official compiler iterates over references for this name and checks
-                // `path.at(-1)?.type === 'CallExpression'` - we approximate by checking if
-                // this specific reference position is followed by `(` in the source.
-                if options_runes != Some(false) {
+                // `path.at(-1)?.type === 'CallExpression'`. The lexical collector records
+                // that immediate-parent fact for both callees and direct arguments.
+                if options_runes != Some(false) && store_ref.parent_is_call_expression {
                     let pos = store_ref.position + ref_name.len();
-                    let source_bytes = analysis.source.as_bytes();
-                    // Skip whitespace after the identifier
-                    let mut check_pos = pos;
-                    while check_pos < source_bytes.len()
-                        && (source_bytes[check_pos] == b' '
-                            || source_bytes[check_pos] == b'\t'
-                            || source_bytes[check_pos] == b'\n'
-                            || source_bytes[check_pos] == b'\r')
-                    {
-                        check_pos += 1;
-                    }
-                    if check_pos < source_bytes.len() && source_bytes[check_pos] == b'(' {
-                        analysis.warnings.push(
-                            warnings::store_rune_conflict(store_name)
-                                .at(store_ref.position as u32, pos as u32),
-                        );
-                    }
+                    analysis.warnings.push(
+                        warnings::store_rune_conflict(store_name)
+                            .at(store_ref.position as u32, pos as u32),
+                    );
                 }
             } else {
                 // No binding in instance scope - skip rune names (it's a real rune)
@@ -1049,6 +1041,11 @@ fn collect_dollar_identifiers_pass(
     // and brace depth matches, we pop back into template literal mode.
     let mut template_stack: Vec<usize> = Vec::new();
     let mut brace_depth: usize = 0;
+    let mut bracket_depth: usize = 0;
+    // `(open char index, is CallExpression arguments, brace depth, bracket depth)`.
+    // This is enough to distinguish a direct call argument from an identifier
+    // wrapped in an object, array, unary expression or grouping expression.
+    let mut paren_stack: Vec<(usize, bool, usize, usize)> = Vec::new();
     // A class member NAME is a declaration slot, never a reference, so upstream's
     // `scope.references` — which this scan stands in for — never holds one.
     // Each entry is the brace depth of one open class body's member level.
@@ -1162,6 +1159,36 @@ fn collect_dollar_identifiers_pass(
             continue;
         }
 
+        if c == '[' {
+            bracket_depth += 1;
+            prev_code = Some(i);
+            i += 1;
+            continue;
+        }
+        if c == ']' {
+            bracket_depth = bracket_depth.saturating_sub(1);
+            prev_code = Some(i);
+            i += 1;
+            continue;
+        }
+        if c == '(' {
+            paren_stack.push((
+                i,
+                paren_opens_call_expression(chars, prev_code),
+                brace_depth,
+                bracket_depth,
+            ));
+            prev_code = Some(i);
+            i += 1;
+            continue;
+        }
+        if c == ')' {
+            paren_stack.pop();
+            prev_code = Some(i);
+            i += 1;
+            continue;
+        }
+
         if c == 'c' && class_keyword_at(chars, i) {
             pending_class_body_at = class_body_open(chars, i + 5);
             prev_code = Some(i + 4);
@@ -1246,6 +1273,15 @@ fn collect_dollar_identifiers_pass(
                         && !is_dollar_ident_jump_label(chars, ident_start)
                         && !is_dollar_ident_type_declaration(chars, ident_start)
                     {
+                        let is_direct_call_argument = paren_stack.last().is_some_and(
+                            |(open, is_call, call_brace_depth, call_bracket_depth)| {
+                                *is_call
+                                    && *call_brace_depth == brace_depth
+                                    && *call_bracket_depth == bracket_depth
+                                    && prev_code.is_some_and(|p| p == *open || chars[p] == ',')
+                            },
+                        );
+                        let is_call_callee = next_code_char(chars, i) == Some('(');
                         let byte_offset = match &char_byte_offsets {
                             Some(offsets) => offsets.get(ident_start).copied(),
                             // ASCII: char index == byte index, with the same
@@ -1256,6 +1292,7 @@ fn collect_dollar_identifiers_pass(
                             name: ident,
                             position: base_offset + byte_offset.unwrap_or(js.len()),
                             in_module,
+                            parent_is_call_expression: is_call_callee || is_direct_call_argument,
                         });
                     }
                 }
@@ -1268,6 +1305,55 @@ fn collect_dollar_identifiers_pass(
         }
         i += 1;
     }
+}
+
+/// Whether `(` after the previous significant token begins call arguments.
+/// Control-flow headers are the important negative case: their preceding token
+/// is also an identifier, but `if ($state)` does not give `$state` a
+/// `CallExpression` parent.
+fn paren_opens_call_expression(chars: &[char], prev_code: Option<usize>) -> bool {
+    let Some(end) = prev_code else {
+        return false;
+    };
+    match chars[end] {
+        ')' | ']' | '}' => true,
+        c if is_identifier_char(c) => {
+            let mut start = end;
+            while start > 0 && is_identifier_char(chars[start - 1]) {
+                start -= 1;
+            }
+            let word = &chars[start..=end];
+            !["if", "for", "while", "switch", "catch", "with"]
+                .iter()
+                .any(|keyword| word.iter().copied().eq(keyword.chars()))
+        }
+        _ => false,
+    }
+}
+
+/// The next significant code character after an identifier. Comments are
+/// opaque just like whitespace, so `$state /* explanation */ ()` is still a
+/// call expression.
+fn next_code_char(chars: &[char], mut i: usize) -> Option<char> {
+    while i < chars.len() {
+        if chars[i].is_whitespace() {
+            i += 1;
+        } else if chars.get(i..i + 2) == Some(&['/', '/']) {
+            i += 2;
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+        } else if chars.get(i..i + 2) == Some(&['/', '*']) {
+            i += 2;
+            while i + 1 < chars.len() && chars[i..i + 2] != ['*', '/'] {
+                i += 1;
+            }
+            i = (i + 2).min(chars.len());
+        } else {
+            return Some(chars[i]);
+        }
+    }
+    None
 }
 
 /// Char index just past the regex literal opening at `at`, or `None` when that
@@ -1709,6 +1795,7 @@ fn push_dollar_directive_name(name: &str, start: u32, refs: &mut Vec<StoreRef>) 
             name: store_name.to_string(),
             position: start as usize,
             in_module: false,
+            parent_is_call_expression: false,
         });
     }
 }

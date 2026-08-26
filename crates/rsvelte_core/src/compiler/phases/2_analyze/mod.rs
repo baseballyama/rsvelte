@@ -370,6 +370,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // visitor runs. The visitors and their identifier metadata have always
     // observed these kinds at entry; delaying the promotion loses reactivity
     // information for references visited before their declarator.
+    let mut deferred_module_rune_promotions = Vec::new();
     if analysis.runes {
         let rune_promotions: Vec<_> = analysis
             .root
@@ -397,7 +398,16 @@ pub(crate) fn analyze_prepared_component_with_retained(
             })
             .collect();
         for (index, kind) in rune_promotions {
-            analysis.root.bindings[index].kind = kind;
+            // Module declarations are classified by the module-script visitor.
+            // Promoting them here changes module `$state` lowering from a proxy
+            // into an instance-style state source (`inspect-derived-2`). Template
+            // and instance bindings, by contrast, must have their kind before
+            // their references are visited.
+            if analysis.root.bindings[index].scope_index == 0 {
+                deferred_module_rune_promotions.push((index, kind));
+            } else {
+                analysis.root.bindings[index].kind = kind;
+            }
         }
     }
 
@@ -528,6 +538,14 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // Instance script starts at function_depth 1 (like Svelte's scope system)
         context.function_depth = 1;
         visitors::visit_script_expr(&instance.content, &mut context)?;
+    }
+
+    // The module visitor normally classifies these itself. Preserve the
+    // fallback for any synthetic/module expression shape it does not visit.
+    for (index, kind) in deferred_module_rune_promotions {
+        if analysis.root.bindings[index].kind == BindingKind::Normal {
+            analysis.root.bindings[index].kind = kind;
+        }
     }
 
     // Check for cyclical reactive statement dependencies ($: a = b + 1; $: b = a + 1;)

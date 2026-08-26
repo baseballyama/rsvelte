@@ -170,6 +170,36 @@ fn conflicted_rune_initializers_do_not_enable_runes_mode() {
     }
 }
 
+/// Upstream warns when the rune-shaped reference's immediate parent is a call,
+/// including when the reference is a direct argument rather than the callee.
+/// Wrappers around the reference change that parent and must remain quiet.
+#[test]
+fn conflict_warning_uses_the_immediate_call_parent() {
+    for (expression, warning) in [
+        ("consume($state)", true),
+        ("consume(0, $state)", true),
+        ("consume(!$state)", false),
+        ("consume([$state])", false),
+        ("consume({ value: $state })", false),
+        ("$state.raw(1)", false),
+    ] {
+        let src = format!(
+            "<script>\n\tconst state = {{ subscribe() {{}} }};\n\tconst consume = (...args) => args;\n\t{expression};\n</script>\n"
+        );
+        let (_, warnings) = compile_it(&src, GenerateMode::Client);
+        let expected = if warning {
+            vec!["store_rune_conflict"]
+        } else {
+            Vec::new()
+        };
+        assert_eq!(
+            warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
+            expected,
+            "for {expression}"
+        );
+    }
+}
+
 /// Excluding one conflicted rune name must not hide a different, unresolved
 /// rune reference. This is the positive control for the set-difference step.
 #[test]
