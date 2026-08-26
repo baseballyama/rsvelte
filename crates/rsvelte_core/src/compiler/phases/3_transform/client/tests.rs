@@ -261,8 +261,16 @@ fn snippet_defaults_preserve_parenthesized_expression_nodes() {
         unparenthesized
             .js
             .code
-            .contains("() => true ? false ? 1 : 2 : 3"),
+            .contains("$.fallback($$arg0?.(), true ? false ? 1 : 2 : 3)"),
         "source parentheses must not be invented:\n{}",
+        unparenthesized.js.code
+    );
+    assert!(
+        !unparenthesized
+            .js
+            .code
+            .contains("$.fallback($$arg0?.(), (true ? false ? 1 : 2 : 3))"),
+        "an unparenthesized default must stay unparenthesized:\n{}",
         unparenthesized.js.code
     );
 }
