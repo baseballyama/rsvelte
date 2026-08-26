@@ -102,7 +102,9 @@ check('every non-peer manifest pin is reflected in the lockfile', () => {
 	for (const declaration of found) {
 		const importer = declaration.file === 'package.json' ? '.' : dirname(declaration.file);
 		const escaped = importer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-		const block = lock.match(new RegExp(`^  ${escaped}:\\n([\\s\\S]*?)(?=^  \\S|\\s*$)`, 'm'))?.[1];
+		const block = lock.match(
+			new RegExp(`^  ${escaped}:\\n([\\s\\S]*?)(?=^  \\S|(?![\\s\\S]))`, 'm'),
+		)?.[1];
 		assert.ok(block, `no lockfile importer found for ${importer}`);
 		const spec = block.match(/^      svelte:\n        specifier: (.+)$/m)?.[1];
 		assert.equal(spec, declaration.spec, `${declaration.file} is not reflected in pnpm-lock.yaml`);
