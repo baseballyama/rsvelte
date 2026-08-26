@@ -3498,7 +3498,7 @@ it loads, and every assertion then measures a binary that predates the change un
 manifest. Axes: `modern` (`parse(src, { modern: true })`), `legacy` (`parse(src)` — the default
 shape), and `loose` (seven inline sources). Both sides are compared after
 `JSON.parse(JSON.stringify(...))`. Shrink-only ratchet
-`compatibility/parse-ast-known-failures.json`, 652 keys, justified per cluster in the paired
+`compatibility/parse-ast-known-failures.json`, 480 keys, justified per cluster in the paired
 `.md`. Runs as a step in the `corpus` job (~50s over 28,208 compared pairs).
 
 **Why it exists.** `parse()` is a documented export of `svelte/compiler`, distinct from
@@ -3591,6 +3591,23 @@ already disagree: the NAPI one sets `capture_comments: true`
 comments at all. Only the NAPI port is driven here. This is the "two ports of one function, and
 no gate compares the ports" shape from `two-ports-inventory.md`, and the wasm one is what the
 playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build call.
+
+### 39h — aligned comment ownership is strict, but missing structure is outside that assertion — **[S]**
+
+The CI invocation adds `--comment-owners`, which joins a comment by its `(start, end)` range and
+names its owner by `(type, start, end, leading-or-trailing)`. It requires **zero** movements when
+the same comment and the expected owner node both exist on rsvelte's side. The owner index walks
+the complete AST independently of `diffKeys`, so an unrelated ancestor mismatch cannot stop it.
+This closes 39a and 39b for the #3702 class: moving a comment from one aligned node to another can
+no longer hide behind an already-listed field-level key or a stopped field walk.
+
+The assertion deliberately excludes three different classes and prints their counts separately:
+a comment missing from rsvelte, a comment present only in rsvelte, and a difference whose expected
+owner node does not exist in rsvelte's AST. Those remain visible to `diffKeys` and its shrink-only
+ratchet, subject to 39a and 39b; treating them as owner movements would make a structural
+node-presence defect look like comment traversal. The join also uses one `Map` entry per comment
+range, so two independently represented comments with exactly the same range would collapse into
+one observation.
 
 ---
 

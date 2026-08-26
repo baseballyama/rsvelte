@@ -1067,6 +1067,7 @@ node scripts/compat-corpus/binding.mjs --stage
 node scripts/compat-corpus/collect.mjs
 pnpm run corpus:parse-ast                 # gate (~50s, 28k compared pairs)
 pnpm run corpus:parse-ast -- --report-only # every divergence, no ratchet check
+pnpm run corpus:parse-ast -- --comment-owners # also require zero aligned owner movements
 pnpm run corpus:parse-ast:update           # re-baseline (full runs only)
 ```
 
@@ -1075,3 +1076,7 @@ Read `compatibility/parse-ast-known-failures.md` for why — per-entry keys are 
 five-figure file that churns on every submodule bump, and per-divergent-path-set
 keys multiply independent defects into 472 classes over 4,468 files. Entry counts
 are printed but deliberately not ratcheted, because they track corpus size.
+CI also enables `--comment-owners`: comments are joined by source range and the
+same aligned owner node must retain each one. Missing comments, actual-only
+comments, and missing owner nodes stay in the field-level ratchet instead of
+being misclassified as movements.

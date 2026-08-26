@@ -370,14 +370,10 @@ function compareOne(id, source, options) {
 	const actualJson = JSON.parse(actual);
 	const keys = new Set();
 	diffKeys(expectedJson, actualJson, keys, '(root)', '');
-	const hasCommentDiff = [...keys].some((key) =>
-		key.includes('.leadingComments') || key.includes('.trailingComments')
-	);
 	return {
 		compared: true,
 		keys: [...keys],
-		commentOwners:
-			COMMENT_OWNERS && hasCommentDiff ? commentOwnerDiff(expectedJson, actualJson) : [],
+		commentOwners: COMMENT_OWNERS ? commentOwnerDiff(expectedJson, actualJson) : [],
 	};
 }
 
@@ -397,6 +393,7 @@ const agreed = { modern: 0, legacy: 0, loose: 0 };
 const commentOwnerTransitions = new Map();
 /** @type {Map<string, string>} */
 const firstCommentOwnerExample = new Map();
+let commentOwnerMovementTotal = 0;
 const missingCommentOwnerNodes = { modern: 0, legacy: 0, loose: 0 };
 const commentOwnerKinds = {
 	modern: { moved: 0, missing: 0, extra: 0 },
@@ -484,13 +481,13 @@ if (COMMENT_OWNERS) {
 	const transitions = [...commentOwnerTransitions.entries()].sort(
 		(a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)
 	);
-	const total = transitions.reduce((sum, [, count]) => sum + count, 0);
+	commentOwnerMovementTotal = transitions.reduce((sum, [, count]) => sum + count, 0);
 	const axisSummary = AXIS_NAMES.map(
 		(axis) =>
 			`${axis}: ${commentOwnerKinds[axis].moved} moved; excluded ${commentOwnerKinds[axis].missing} missing comments, ${commentOwnerKinds[axis].extra} actual-only comments, and ${missingCommentOwnerNodes[axis]} differences whose expected-owner node is absent`
 	).join('; ');
 	console.log(
-		`[parse-ast] ${total} comment-owner movements between aligned nodes (${axisSummary}):`
+		`[parse-ast] ${commentOwnerMovementTotal} comment-owner movements between aligned nodes (${axisSummary}):`
 	);
 	for (const [key, count] of transitions.slice(0, 50)) {
 		console.log(
@@ -503,6 +500,12 @@ if (COMMENT_OWNERS) {
 }
 
 if (REPORT_ONLY) process.exit(0);
+
+if (COMMENT_OWNERS && commentOwnerMovementTotal > 0) {
+	fail(
+		`${commentOwnerMovementTotal} comments moved between aligned owner nodes; the field-level ratchet cannot distinguish this regression from an already-listed comment-attachment key`
+	);
+}
 
 if (!FILTER && compared.modern < MIN_COMPONENTS) {
 	fail(
