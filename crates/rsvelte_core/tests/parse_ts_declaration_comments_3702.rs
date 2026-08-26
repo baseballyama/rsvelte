@@ -14,6 +14,7 @@ fn parse_to_json(source: &str) -> Value {
         &oxc_allocator::Allocator::default(),
         ParseOptions {
             modern: true,
+            capture_comments: true,
             ..Default::default()
         },
     )
