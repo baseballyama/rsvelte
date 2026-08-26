@@ -2046,6 +2046,16 @@ left a comment-only fallback behind; its final regression therefore constructs a
 an instance comment and checks all four brace-boundary segments, a population this aggregate
 count does not identify.
 
+The final `token` pass exposes a third outcome this gate cannot distinguish. After every named
+client pass was replaced, a diagnostic found **32** generated positions owned only by token
+matching, but all 32 were incomparable because the generated line/source pairing did not match
+official byte-for-byte. A non-zero contribution is therefore not evidence that the contribution
+belongs in the official map. Independently decoding the pinned official maps showed those
+heuristic positions were absent or attached to a different generated token; the token pass was
+deleted with no official segment attributed to it. This is **[D]** for the diagnostic's
+incomparability and an independent-oracle result for the deletion, not a claim derived from the
+aggregate segment count.
+
  There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
  code, and the svelte2tsx map gate (§ 12) covers a different artifact.
 

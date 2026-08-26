@@ -599,7 +599,7 @@ cache/direct, object and map-entry counts, reader sets) lives behind the existin
 `measure-json` feature on branch `tools/measure-json-instrumentation`
 (`e4f47227`), deliberately unmerged.
 
-## Findings (2026-08-18 — the client map is 86% span-carried, and two of the eleven passes delete)
+## Findings (2026-08-18 — the client map is span-carried, and all eleven passes delete)
 
 #2954 rebuilt the client source map by matching generated text back against the
 source, in eleven passes over `transform_component_with_scripts`. #3015 asks for the
@@ -666,7 +666,7 @@ Segments lost when exactly one client pass is disabled, everything else on:
 | --- | ---: | ---: |
 | `default_function_wrapper` | 84 | **0 — deleted** |
 | `effect_callback` | 8 | **0 — deleted** |
-| `token` | 80 | 23 |
+| `token` | 80 | **0 — deleted after the residual-owner audit** |
 | `template_element_runtime` | 25 | **0 — deleted** |
 | `legacy_prop_read` | 16 | **0 — deleted** |
 | `inline_script` | 7 | **0 — deleted** |
@@ -677,8 +677,9 @@ Segments lost when exactly one client pass is disabled, everything else on:
 | `rune` | 0 | **0 — deleted** |
 
 `default_function_wrapper`, `effect_callback`, `template_element_runtime`, `legacy_prop_read`,
-`inline_script`, `bind_value`, `component_bind`, `verbatim_import`, `collapsed_declaration` and
-`rune` are deleted: all ten are now produced by source spans,
+`inline_script`, `bind_value`, `component_bind`, `verbatim_import`, `collapsed_declaration`,
+`rune`, and `token` are deleted: the positions that agree with official are now produced by
+source spans,
 and the before/after column is the attribution.
 The wrapper keeps its block span in comment space and passes its two source-backed brace
 positions separately to the printer, so comment placement no longer requires a fallback pass.
@@ -689,17 +690,24 @@ upstream's reuse of one located identifier for the declaration and all runtime u
 `bind:value` call similarly records a scope on its stable arena ID: only otherwise-unlocated
 copies of the expression's root identifier inherit that span while the completed accessor call
 is printed. Explicitly located children keep their own spans, and no wrapper enters the member
-chain while lowering can still inspect it. Only the token pass stays, and what it still carries
-is a named lowering, not a mystery:
+chain while lowering can still inspect it. Before its deletion, the token pass's remaining
+generated positions came from two named lowering shapes rather than an unknown population:
 
 | still carried by a pass | why the position is lost |
 | --- | --- |
 | `let x = $.prop($$props, …)` and its default | the declaration is written by the *script text* rewriter, which records nothing; the chunk projection has to re-derive it by alignment |
 | the `(deps, $.untrack(…))` sequence tail | builder-made, with no source anchor |
 
-Every row is a `Raw` fragment or a builder call that had a span available and dropped it —
-i.e. #3015's step 1 really is the prerequisite it claims to be, and this measurement names
-which fragments to eradicate first by how many segments they hold.
+Every row was a `Raw` fragment or a builder call that had a span available and dropped it —
+i.e. #3015's step 1 really was the prerequisite it claimed to be, and this measurement named
+which fragments to eradicate first by how many segments they held. After those carriers landed,
+the current diagnostic found **32** generated positions owned only by token matching. Its
+byte-identical-line oracle classified all 32 as incomparable, so that aggregate gate could not
+justify retaining or deleting them. Decoding the pinned official maps independently showed that
+the remaining heuristic positions were absent from official or attached to a different generated
+token; none was an official segment reproduced by the pass. The client token matcher and its
+priority partition therefore delete together. The server has a separate text-generated map and
+is explicitly outside this client-only measurement.
 
 Hoisted imports now pair the extractor's output with the phase-1 import declaration that produced
 it. TypeScript erasure and import cleanup are applied only to prove the pair; the retained
