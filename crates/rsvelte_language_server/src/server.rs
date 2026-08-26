@@ -1926,22 +1926,14 @@ impl Server {
             return;
         }
         let completion_site = self.completion_site(&request);
-        if matches!(
-            completion_site,
-            Some(
-                CompletionSite::RawTemplateText
-                    | CompletionSite::Style
-                    | CompletionSite::BlockMarker
-            )
-        ) {
-            // These sites unconditionally suppress the tsgo result in
-            // `completion_action`. Do that before source-to-shadow mapping as
-            // well, while preserving completions the native worker already
-            // produced (notably block markers and an unfinished `<`).
-            self.respond(Response::new_ok(
-                request.id,
-                fallback_result.unwrap_or(serde_json::Value::Null),
-            ));
+        if completion_site == Some(CompletionSite::BlockMarker)
+            && fallback_result.is_none()
+            && self.is_opening_block_completion(&request)
+        {
+            // An unfinished unknown `{#...` now makes the compiler reject the
+            // projection. Preserve the pre-diagnostic completion response when
+            // the native provider also has nothing to offer.
+            self.respond_nothing(request.id);
             return;
         }
         let component_site = self.component_completion_site(&request);
@@ -2091,6 +2083,33 @@ impl Server {
             });
         }
         Some(CompletionSite::RawTemplateText)
+    }
+
+    fn is_opening_block_completion(&self, request: &Request) -> bool {
+        let uri = request
+            .params
+            .pointer("/textDocument/uri")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|uri| uri.parse::<Uri>().ok());
+        let position = request
+            .params
+            .get("position")
+            .cloned()
+            .and_then(|position| serde_json::from_value(position).ok());
+        let (Some(uri), Some(position)) = (uri, position) else {
+            return false;
+        };
+        let Some(document) = self.documents.get(&uri) else {
+            return false;
+        };
+        let offset = document.offset_at(position);
+        let Some(before) = document.text().get(..offset) else {
+            return false;
+        };
+        before
+            .rfind('{')
+            .and_then(|brace| before.get(brace + 1..))
+            .is_some_and(|marker| marker.trim_start().starts_with('#'))
     }
 
     fn component_completion_site(&self, request: &Request) -> Option<ComponentCompletionSite> {
