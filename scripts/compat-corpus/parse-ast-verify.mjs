@@ -277,7 +277,7 @@ function commentOwnerIndex(root) {
 			nodeKeys.add(nodeKey);
 			for (const field of ['leadingComments', 'trailingComments']) {
 				for (const comment of value[field] ?? []) {
-					const commentKey = `${comment.type}\0${comment.start}\0${comment.end}\0${comment.value}`;
+					const commentKey = `${comment.start}\0${comment.end}`;
 					comments.set(commentKey, {
 						nodeKey,
 						label: `${value.type}.${field}`,
@@ -304,16 +304,32 @@ function commentOwnerDiff(expected, actual) {
 	const out = [];
 	for (const [commentKey, expectedOwner] of a.comments) {
 		const actualOwner = b.comments.get(commentKey);
+		if (!actualOwner) {
+			out.push({
+				transition: `${expectedOwner.label} -> ABSENT`,
+				expectedOwnerMissing: !b.nodeKeys.has(expectedOwner.nodeKey),
+				kind: 'missing',
+			});
+			continue;
+		}
 		if (
-			!actualOwner ||
-			(actualOwner.nodeKey === expectedOwner.nodeKey &&
-				actualOwner.label === expectedOwner.label)
+			actualOwner.nodeKey === expectedOwner.nodeKey &&
+			actualOwner.label === expectedOwner.label
 		) {
 			continue;
 		}
 		out.push({
 			transition: `${expectedOwner.label} -> ${actualOwner.label}`,
 			expectedOwnerMissing: !b.nodeKeys.has(expectedOwner.nodeKey),
+			kind: 'moved',
+		});
+	}
+	for (const [commentKey, actualOwner] of b.comments) {
+		if (a.comments.has(commentKey)) continue;
+		out.push({
+			transition: `ABSENT -> ${actualOwner.label}`,
+			expectedOwnerMissing: false,
+			kind: 'extra',
 		});
 	}
 	return out;
@@ -382,6 +398,11 @@ const commentOwnerTransitions = new Map();
 /** @type {Map<string, string>} */
 const firstCommentOwnerExample = new Map();
 const missingCommentOwnerNodes = { modern: 0, legacy: 0, loose: 0 };
+const commentOwnerKinds = {
+	modern: { moved: 0, missing: 0, extra: 0 },
+	legacy: { moved: 0, missing: 0, extra: 0 },
+	loose: { moved: 0, missing: 0, extra: 0 },
+};
 
 function record(axis, prefix, id, result) {
 	if (!result.compared) {
@@ -394,6 +415,7 @@ function record(axis, prefix, id, result) {
 		commentOwnerTransitions.set(key, (commentOwnerTransitions.get(key) ?? 0) + 1);
 		if (!firstCommentOwnerExample.has(key)) firstCommentOwnerExample.set(key, id);
 		if (owner.expectedOwnerMissing) missingCommentOwnerNodes[axis]++;
+		commentOwnerKinds[axis][owner.kind]++;
 	}
 	if (result.keys.length === 0) {
 		agreed[axis]++;
@@ -459,8 +481,12 @@ if (COMMENT_OWNERS) {
 		(a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)
 	);
 	const total = transitions.reduce((sum, [, count]) => sum + count, 0);
+	const axisSummary = AXIS_NAMES.map(
+		(axis) =>
+			`${axis}: ${commentOwnerKinds[axis].moved} moved, ${commentOwnerKinds[axis].missing} missing, ${commentOwnerKinds[axis].extra} extra, ${missingCommentOwnerNodes[axis]} expected-owner nodes absent`
+	).join('; ');
 	console.log(
-		`[parse-ast] ${total} aligned comment-owner differences (${AXIS_NAMES.map((axis) => `${axis}: ${missingCommentOwnerNodes[axis]} expected-owner nodes absent`).join(', ')}):`
+		`[parse-ast] ${total} aligned comment differences (${axisSummary}):`
 	);
 	for (const [key, count] of transitions.slice(0, 50)) {
 		console.log(
