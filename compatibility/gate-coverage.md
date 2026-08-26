@@ -3597,17 +3597,18 @@ playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build 
 
 ## 40. Wasm compile-option boundary — `scripts/dev/test-wasm-compile-options.mjs`
 
-**Unit.** Six invalid option objects are compiled by the wasm binding and official Svelte; the
-error `code` and first message line must agree. Independent assertions cover the six legacy
-warning codes, truthy non-boolean `runes`, the three parametric options, `warningFilter`, and
-`cssHash` callback arguments, fallback and throws. Hard gate, no ratchet.
+**Unit.** Six invalid option objects are compiled by the wasm binding and the
+workspace-pinned official `svelte/compiler`; the error `code` and first message line must
+agree. Independent assertions cover the six legacy warning codes, truthy non-boolean `runes`,
+the three parametric options, `warningFilter`, and `cssHash` callback arguments, fallback and
+throws. Hard gate, no ratchet.
 
 **Sharpest blind spots [S].** The rejection grid samples six of the declared keys and only one
 invalid value per key. It does not compare error positions, two-invalid-key ordering, most
 successful scalar values, or any C ABI/NAPI result. Callback parity is mostly property-based
 rather than full output equality, and all cases compile one small component. The key list is
 manually mirrored in the binding, so adding the same option to every list without a behavioural
-case can still pass.
+case can still pass. The npm oracle version can briefly lead or lag the Svelte submodule pin.
 
 ---
 

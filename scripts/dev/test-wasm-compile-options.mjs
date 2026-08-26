@@ -12,7 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { compile as officialCompile } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
+import { compile as officialCompile } from 'svelte/compiler';
 
 const jsUrl = new URL('../../pkg/rsvelte_lint.js', import.meta.url).href;
 const wasmPath = fileURLToPath(new URL('../../pkg/rsvelte_lint_bg.wasm', import.meta.url));
