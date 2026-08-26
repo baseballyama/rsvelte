@@ -93,12 +93,12 @@ pub(crate) fn compute_eval_inputs(
         }
     }
 
+    let instance_excluded = analysis
+        .map(|analysis| top_level_excluded_names(analysis, instance_scope_index))
+        .unwrap_or_default();
+
     // Then from instance script (both let and const)
     if let Some(script) = instance_script {
-        let instance_excluded = analysis
-            .map(|analysis| top_level_excluded_names(analysis, instance_scope_index))
-            .unwrap_or_default();
-
         // An instance declaration shadows a module declaration even when its value is
         // not constant. Remove the module value before harvesting the instance script.
         for name in &instance_names {
@@ -191,6 +191,7 @@ pub(crate) fn compute_eval_inputs(
                         let name = rest[..eq_idx].trim();
                         if name.contains('{')
                             || name.contains('[')
+                            || instance_excluded.contains(name)
                             || constant_vars.contains_key(name)
                         {
                             continue;
@@ -1842,7 +1843,7 @@ mod js_scan_tests {
 
 #[cfg(test)]
 mod eval_input_scope_tests {
-    use super::top_level_excluded_names;
+    use super::{compute_eval_inputs, top_level_excluded_names};
     use crate::compiler::CompileOptions;
     use crate::compiler::phases::{phase1_parse, phase2_analyze};
 
@@ -1903,5 +1904,35 @@ mod eval_input_scope_tests {
         assert!(
             !top_level_excluded_names(&analysis, analysis.root.instance_scope_index).contains("w")
         );
+    }
+
+    #[test]
+    fn an_updated_derived_is_not_harvested_after_exclusions() {
+        let source = r#"<script>
+            let count = $derived(0);
+            count++;
+        </script>
+        <b>{count}</b>"#;
+        let mut ast = phase1_parse::parse(
+            source,
+            &oxc_allocator::Allocator::default(),
+            phase1_parse::ParseOptions::default(),
+        )
+        .expect("parse");
+
+        // SAFETY: `ast` (and therefore its arena) outlives analysis and evaluation.
+        let _guard = unsafe { crate::ast::arena::SerializeArenaGuard::new(&ast.arena as *const _) };
+        let analysis =
+            phase2_analyze::analyze_component(&mut ast, source, &CompileOptions::default())
+                .expect("analyze");
+        let inputs = compute_eval_inputs(
+            Some(&analysis),
+            ast.instance.as_deref(),
+            ast.module.as_deref(),
+            source,
+            false,
+        );
+
+        assert!(!inputs.constant_vars.contains_key("count"));
     }
 }
