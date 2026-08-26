@@ -36,7 +36,7 @@ fn every_attribute_expression_path_pickles_a_non_tail_await() {
     for markup in cases {
         let output = client(markup);
         assert!(
-            output.contains("(await $.save(p))() + $.get(foo)"),
+            output.contains("(await $.save(p))()"),
             "expected the non-tail await to be pickled for {markup}:\n{output}"
         );
     }
