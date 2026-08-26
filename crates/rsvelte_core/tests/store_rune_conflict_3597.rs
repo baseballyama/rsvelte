@@ -181,6 +181,8 @@ fn conflict_warning_uses_the_immediate_call_parent() {
         ("consume(!$state)", false),
         ("consume([$state])", false),
         ("consume({ value: $state })", false),
+        ("consume($state.value)", false),
+        ("consume($state?.value)", false),
         ("$state.raw(1)", false),
     ] {
         let src = format!(
@@ -198,6 +200,25 @@ fn conflict_warning_uses_the_immediate_call_parent() {
             "for {expression}"
         );
     }
+}
+
+/// Module rune declarations use proxy lowering rather than instance state
+/// sources. Leaving a module binding Normal after mode detection is therefore
+/// intentional, even when the same component also has an instance script.
+#[test]
+fn module_state_keeps_module_proxy_lowering() {
+    let src = "<script module>\n\tconst data = $state({ list: [] });\n</script>\n<script>\n\tdata.list.length = 0;\n</script>\n";
+    let (client, warnings) = compile_it(src, GenerateMode::Client);
+
+    assert!(
+        client.contains("const data = $.proxy({"),
+        "module state should use proxy lowering:\n{client}"
+    );
+    assert!(
+        !client.contains("const data = $.state("),
+        "module state must not become an instance state source:\n{client}"
+    );
+    assert!(warnings.is_empty(), "for {src}: {warnings:?}");
 }
 
 /// Excluding one conflicted rune name must not hide a different, unresolved

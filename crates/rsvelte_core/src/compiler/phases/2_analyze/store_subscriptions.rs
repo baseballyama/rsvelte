@@ -1279,6 +1279,7 @@ fn collect_dollar_identifiers_pass(
                                     && *call_brace_depth == brace_depth
                                     && *call_bracket_depth == bracket_depth
                                     && prev_code.is_some_and(|p| p == *open || chars[p] == ',')
+                                    && matches!(next_code_char(chars, i), Some(',' | ')'))
                             },
                         );
                         let is_call_callee = next_code_char(chars, i) == Some('(');
