@@ -202,12 +202,13 @@ fn conflict_warning_uses_the_immediate_call_parent() {
     }
 }
 
-/// Module rune declarations use proxy lowering rather than instance state
-/// sources. Leaving a module binding Normal after mode detection is therefore
-/// intentional, even when the same component also has an instance script.
+/// A module rune can also contribute synthetic store metadata for an instance
+/// reference. The module binding must nevertheless keep its rune kind: that is
+/// what makes `$state` proxy-only while making the `$derived` getter reactive.
+/// This is the discriminating shape from upstream's `inspect-derived-2` fixture.
 #[test]
 fn module_state_keeps_module_proxy_lowering() {
-    let src = "<script module>\n\tconst data = $state({ list: [] });\n</script>\n<script>\n\tdata.list.length = 0;\n</script>\n";
+    let src = "<script module>\n\tconst data = $state({ list: [] });\n\tconst derived = $derived(data.list.filter(() => true));\n\tconst state = { data, get derived() { return derived } };\n</script>\n<script>\n\tdata.list.length = 0;\n\t$inspect(state);\n</script>\n";
     let (client, warnings) = compile_it(src, GenerateMode::Client);
 
     assert!(
@@ -218,7 +219,22 @@ fn module_state_keeps_module_proxy_lowering() {
         !client.contains("const data = $.state("),
         "module state must not become an instance state source:\n{client}"
     );
-    assert!(warnings.is_empty(), "for {src}: {warnings:?}");
+    assert!(
+        client.contains("const derived = $.derived(() => data.list.filter(() => true));"),
+        "module derived must retain its reactive source:\n{client}"
+    );
+    assert!(
+        client.contains("return $.get(derived);"),
+        "the module getter must read the derived value:\n{client}"
+    );
+    assert!(
+        client.contains("store_get(state, '$state'"),
+        "the synthetic store metadata must remain:\n{client}"
+    );
+    assert_eq!(
+        warnings.iter().map(|w| w.code.as_str()).collect::<Vec<_>>(),
+        ["store_rune_conflict"]
+    );
 }
 
 /// Excluding one conflicted rune name must not hide a different, unresolved

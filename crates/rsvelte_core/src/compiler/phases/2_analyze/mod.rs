@@ -366,9 +366,11 @@ pub(crate) fn analyze_prepared_component_with_retained(
 
     // Scope construction is intentionally mode-neutral until the synthetic
     // store subscriptions above have been removed from rune detection. Once
-    // the mode is known, promote genuine instance/template rune initializers
-    // before any analysis visitor runs. Module declarations deliberately stay
-    // Normal: module `$state` lowers to a proxy, not an instance state source.
+    // the mode is known, promote genuine rune initializers before any analysis
+    // visitor runs. `store_sub_names` only disqualifies instance/template
+    // initializers: a module rune can also create the synthetic store metadata
+    // used by an instance reference (`inspect-derived-2`), but it must still be
+    // classified so module `$state`/`$derived` lowering sees its reactivity.
     if analysis.runes {
         let rune_promotions: Vec<_> = analysis
             .root
@@ -379,14 +381,11 @@ pub(crate) fn analyze_prepared_component_with_retained(
                 if binding.kind != BindingKind::Normal {
                     return None;
                 }
-                if binding.scope_index == 0 {
-                    return None;
-                }
                 let init_rune = binding.init_rune.as_deref()?;
                 let rune_root = init_rune
                     .split_once('.')
                     .map_or(init_rune, |(root, _)| root);
-                if store_sub_names.contains(rune_root) {
+                if binding.scope_index != 0 && store_sub_names.contains(rune_root) {
                     return None;
                 }
                 let kind = match init_rune {
