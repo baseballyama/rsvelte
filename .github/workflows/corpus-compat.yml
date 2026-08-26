@@ -239,7 +239,7 @@ jobs:
       # 28k compared pairs, against ~59 minutes for one shard of the job that
       # currently costs the most.
       - name: Verify public parse() AST parity (ratchet)
-        run: node scripts/compat-corpus/parse-ast-verify.mjs
+        run: node scripts/compat-corpus/parse-ast-verify.mjs --comment-owners
 
       # Asserts a PROPERTY of the transform rather than comparing its output, so
       # it sees the #3026 class on inputs whose output is byte-perfect: un-seal
