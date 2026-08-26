@@ -58,7 +58,7 @@ fn keyed_each_item_mutation_keeps_the_bare_item_sequence() {
 	let rows = $state([{ id: 1, picked: [] }]);
 </script>
 
-{#each rows as row (row.id)}
+{#each rows as row (row)}
 	<button onclick={() => row.picked = 1}>x</button>
 {/each}
 "#,
@@ -103,8 +103,8 @@ fn indexed_collection_access_is_not_mistaken_for_an_each_item_mutation() {
     );
 
     assert!(
-        output.contains("() => $.get(rows)[i].picked = 1"),
+        output.contains("() => rows[i].picked = 1"),
         "the indexed collection negative control changed:\n{output}"
     );
-    assert!(!output.contains("() => ($.get(rows)[i].picked = 1)"));
+    assert!(!output.contains("() => (rows[i].picked = 1)"));
 }
