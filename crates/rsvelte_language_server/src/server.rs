@@ -1934,11 +1934,14 @@ impl Server {
                     | CompletionSite::BlockMarker
             )
         ) {
-            // These sites are unconditionally suppressed by `completion_action`.
-            // Do that before source-to-shadow mapping as well: malformed block
-            // openers can make projection fail, but they still need the same
-            // successful `null` response as any other invalid completion site.
-            self.respond_nothing(request.id);
+            // These sites unconditionally suppress the tsgo result in
+            // `completion_action`. Do that before source-to-shadow mapping as
+            // well, while preserving completions the native worker already
+            // produced (notably block markers and an unfinished `<`).
+            self.respond(Response::new_ok(
+                request.id,
+                fallback_result.unwrap_or(serde_json::Value::Null),
+            ));
             return;
         }
         let component_site = self.component_completion_site(&request);
