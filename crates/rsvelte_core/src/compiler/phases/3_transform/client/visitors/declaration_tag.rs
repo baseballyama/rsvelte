@@ -118,26 +118,37 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     );
 
     // The instance-script pipeline wraps instance-state reads but is unaware of
-    // the enclosing each block's item bindings. Inside `{#each boxes as box}` a
-    // `{const area = box.width}` must read the reactive item as `$.get(box)`
-    // (mirroring the template-expression transform's each-item handling). Only
-    // REACTIVE each-items qualify — a non-reactive item (e.g. keyed by itself,
-    // `{#each xs as n (n)}`) stays bare. Reactive items are exactly those with a
-    // registered read transform in `context.state.transform` (each_block.rs only
-    // inserts one when `EACH_ITEM_REACTIVE` is set).
-    let reactive_each_names: Vec<String> = context
+    // reactive bindings introduced by the surrounding template scope. Inside
+    // `{#each boxes as box}`, `{const area = box.width}` must read the reactive
+    // item as `$.get(box)`. Likewise, inside
+    // `{#await promise then { default: value }}`, `{const rows = use(value)}`
+    // must read the derived await binding as `$.get(value)`. Without the latter,
+    // the declaration receives the signal object instead of the resolved value.
+    //
+    // Only reactive each-items qualify — a non-reactive item (e.g. keyed by
+    // itself, `{#each xs as n (n)}`) stays bare. Await bindings always have a
+    // registered read transform and are recorded in `await_binding_names` by
+    // await_block.rs. The OXC semantic rewrite below preserves shadowing inside
+    // callbacks declared by the initializer.
+    let mut template_get_names: Vec<String> = context
         .state
         .each_item_names
         .iter()
         .filter(|n| context.state.transform.contains_key(n.as_str()))
         .map(|n| n.to_string())
         .collect();
-    let transformed = if reactive_each_names.is_empty() {
+    for name in context.state.await_binding_names.keys() {
+        if context.state.transform.contains_key(name.as_str()) && !template_get_names.contains(name)
+        {
+            template_get_names.push(name.clone());
+        }
+    }
+    let transformed = if template_get_names.is_empty() {
         transformed
     } else {
         crate::compiler::phases::phase3_transform::client::expression_utils::wrap_state_vars_in_expr(
             &transformed,
-            &reactive_each_names,
+            &template_get_names,
             &[],
             &[],
         )

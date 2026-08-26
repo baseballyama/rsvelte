@@ -169,6 +169,7 @@ pub fn fragment(
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: fragment_transform,
         transform_deep_read: fragment_transform_deep_read,
+        await_binding_names: context.state.await_binding_names.clone(),
         each_shadowing_names: context.state.each_shadowing_names.clone(),
         events: indexmap::IndexSet::default(), // Start empty, merge back later
         metadata: ComponentMetadata {

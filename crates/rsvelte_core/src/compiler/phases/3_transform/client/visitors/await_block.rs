@@ -205,6 +205,7 @@ fn build_block_with_argument(
     // const then_context = { ...context, state: { ...context.state, transform: { ...context.state.transform } } };
     let saved_transform = context.state.transform.clone();
     let saved_transform_deep_read = context.state.transform_deep_read.clone();
+    let saved_await_binding_names = context.state.await_binding_names.clone();
 
     // Build the argument and declarations
     let (arg_pattern, declarations) = if let Some(pattern) = argument_pattern {
@@ -230,6 +231,7 @@ fn build_block_with_argument(
     // Restore the transform state
     context.state.transform = saved_transform;
     context.state.transform_deep_read = saved_transform_deep_read;
+    context.state.await_binding_names = saved_await_binding_names;
 
     // Log for debugging if needed
     let _ = block_type;
@@ -278,6 +280,7 @@ fn create_derived_block_argument(
         // Await then/catch bindings are template-kind in the official
         // compiler and need deep_read_state wrapping in legacy reactivity.
         context.state.transform_deep_read.insert(name.clone(), ());
+        context.state.await_binding_names.insert(name.clone(), ());
         return (Some(JsPattern::Identifier(name.into())), vec![]);
     }
 
@@ -355,6 +358,7 @@ fn create_derived_block_argument(
         );
         // Destructured await then/catch values are template-kind.
         context.state.transform_deep_read.insert(id.clone(), ());
+        context.state.await_binding_names.insert(id.clone(), ());
 
         // Build: var id = $.derived(() => $.get($$value).id)
         let get_value_call = b::call(

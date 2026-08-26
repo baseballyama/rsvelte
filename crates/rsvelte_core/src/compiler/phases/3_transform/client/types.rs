@@ -1684,6 +1684,11 @@ pub struct ComponentClientTransformState<'a> {
     /// inside a sibling `{#if}`).
     pub transform_deep_read: ImHashMap<String, ()>,
 
+    /// Await then/catch bindings whose active read transform is `$.get(name)`.
+    /// Await fragments scope these alongside `transform`; text-based template
+    /// declaration lowering uses the set to apply the same scoped reads.
+    pub await_binding_names: ImHashMap<String, ()>,
+
     /// Names a nested template construct (`{@const}`, a snippet parameter) binds
     /// in the block being visited, shadowing an enclosing `{#each}`'s item or
     /// index of the same name. The reactivity probe and the index-usage tracker
@@ -2035,6 +2040,7 @@ impl<'a> ComponentClientTransformState<'a> {
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
             transform_deep_read: ImHashMap::new(),
+            await_binding_names: ImHashMap::new(),
             each_shadowing_names: ImHashMap::new(),
             events: indexmap::IndexSet::default(),
             metadata: ComponentMetadata::default(),
