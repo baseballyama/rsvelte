@@ -134,12 +134,6 @@ jobs:
       - name: Run cargo tests (envelope, options, header, module, memory)
         run: cargo test -p rsvelte_capi --profile dist-capi
 
-      # Temporary #3761 verification while the pull_request CI run is not
-      # being registered for the updated branch head.
-      - name: Verify TypeScript declaration comment capture
-        if: runner.os == 'macOS' && (github.head_ref == 'fix/typescript-declaration-comments' || github.ref_name == 'fix/typescript-declaration-comments')
-        run: cargo test -p rsvelte_core --test parse_ts_declaration_comments_3702
-
       # ---------------- C smoke ----------------
       - name: C smoke (Unix)
         if: runner.os != 'Windows'
