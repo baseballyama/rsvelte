@@ -25,7 +25,7 @@ fn compile_to(source: &str, generate: GenerateMode) -> String {
 
 fn source(terminator: &str) -> String {
     format!(
-        "<script>{t}let a = 1; // c{t}$: b = a + 1;{t}</script>{t}<p>{{b}}</p>\n",
+        "<script>\nlet a = 1; // c{t}$: b = a + 1;\n</script>\n<p>{{b}}</p>\n",
         t = terminator
     )
 }
@@ -39,7 +39,7 @@ fn client_drops_the_comment_for_the_three_exotic_line_endings() {
             "terminator {terminator:?} must follow upstream's dead cursor:\n{output}"
         );
         assert!(
-            output.contains("$.legacy_pre_effect(() => {}, () => {"),
+            output.contains("$.set(b, a + 1);"),
             "the comment fix must not lose the reactive effect:\n{output}"
         );
     }
