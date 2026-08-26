@@ -7370,7 +7370,10 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
 /// after ASI it reports the `{` following an `assert` expression statement.
 /// Re-parsing after each replacement proves the token was grammar, rather than
 /// the same bytes in a string, comment, regex, or unrelated identifier.
-fn repair_ts_newline_import_assert(content: &str, is_typescript: bool) -> Option<String> {
+pub(crate) fn repair_ts_newline_import_assert(
+    content: &str,
+    is_typescript: bool,
+) -> Option<String> {
     if !is_typescript || !content.contains("assert") {
         return None;
     }

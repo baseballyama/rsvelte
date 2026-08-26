@@ -848,6 +848,20 @@ fn record_classification_failure(
     ));
 }
 
+/// Prepare a TypeScript script for the server's independent JavaScript
+/// classification parse. Phase 1 accepts one deprecated import-attributes
+/// spelling through a same-length parser-only repair, so every server port must
+/// apply that repair before erasing types as well.
+fn strip_typescript_for_classification(source: &str) -> String {
+    let repaired =
+        crate::compiler::phases::phase1_parse::expression::repair_ts_newline_import_assert(
+            source, true,
+        );
+    crate::compiler::phases::phase2_analyze::types::strip_typescript(
+        repaired.as_deref().unwrap_or(source),
+    )
+}
+
 fn transform_script<'a>(
     script: &Script,
     state: &mut ServerTransformState<'a>,
@@ -871,21 +885,21 @@ fn transform_script<'a>(
     // index into the local `src`, and the reparse helpers copy the slice text into
     // the state allocator — none of them index `state.source` directly. So binding
     // `src` to the stripped buffer keeps offsets internally consistent.
+    let script_is_typescript =
+        super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript;
+    let source_slice = &state.source[start..end];
     let stripped;
     // TS is detected COMPONENT-wide, not per-script: if EITHER script carries
     // `lang="ts"` the whole component is parsed as TS (upstream `force_typescript`),
     // so a `<script>` with no `lang` attribute can still hold TS syntax
     // (`import type …`, `satisfies …`) when a sibling `<script lang="ts">` exists.
     // Strip in that case too — mirrors the OLD oracle's component-wide `is_ts`.
-    let src: &str =
-        if super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript {
-            stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
-                &state.source[start..end],
-            );
-            &stripped
-        } else {
-            &state.source[start..end]
-        };
+    let src: &str = if script_is_typescript {
+        stripped = strip_typescript_for_classification(source_slice);
+        &stripped
+    } else {
+        source_slice
+    };
 
     // Every decision below reads this text (directly, or through spans into it),
     // so the grouping parens around a rune call have to be gone first.
@@ -3475,21 +3489,21 @@ fn transform_script_legacy<'a>(
 
     // TypeScript components: strip TS from the slice before parsing (see the
     // matching note in `transform_script` for the offset-consistency rationale).
+    let script_is_typescript =
+        super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript;
+    let source_slice = &state.source[start..end];
     let stripped;
     // TS is detected COMPONENT-wide, not per-script: if EITHER script carries
     // `lang="ts"` the whole component is parsed as TS (upstream `force_typescript`),
     // so a `<script>` with no `lang` attribute can still hold TS syntax
     // (`import type …`, `satisfies …`) when a sibling `<script lang="ts">` exists.
     // Strip in that case too — mirrors the OLD oracle's component-wide `is_ts`.
-    let src: &str =
-        if super::super::helpers::script_is_typescript(script) || state.analysis.is_typescript {
-            stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(
-                &state.source[start..end],
-            );
-            &stripped
-        } else {
-            &state.source[start..end]
-        };
+    let src: &str = if script_is_typescript {
+        stripped = strip_typescript_for_classification(source_slice);
+        &stripped
+    } else {
+        source_slice
+    };
 
     // Every decision below reads this text (directly, or through spans into it),
     // so the grouping parens around a rune call have to be gone first.
