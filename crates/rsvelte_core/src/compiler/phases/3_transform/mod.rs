@@ -148,16 +148,6 @@ pub fn transform_component(
     transform_component_with_sourcemap_content(analysis, ast, source, options, true)
 }
 
-fn map_pass_disabled(name: &str) -> bool {
-    static DISABLED: std::sync::LazyLock<Option<String>> =
-        std::sync::LazyLock::new(|| std::env::var("RSVELTE_NO_MAP_PASSES").ok());
-    match DISABLED.as_deref() {
-        None => false,
-        Some("all") => true,
-        Some(list) => list.split(',').any(|n| n.trim() == name),
-    }
-}
-
 pub(crate) fn transform_component_with_sourcemap_content(
     analysis: &ComponentAnalysis,
     ast: &Root,
@@ -239,9 +229,6 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 let append_generated_lines =
                     mark_lines_containing(&result.code, &mapping_starts.generated);
                 let source_line_starts = &mapping_starts.source;
-                // Lowering inserts framework calls between copied source tokens;
-                // token mappings fill those holes before the coarser
-                // emitter anchors are considered.
                 let mut runtime_mappings = Vec::new();
                 let mut template_name_mappings = Vec::new();
                 let mut remaining_result_mappings = Vec::new();
@@ -259,37 +246,12 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         remaining_result_mappings.push(mapping);
                     }
                 }
-                // An exact identifier span is a stronger source carrier than the
-                // token matcher below. Keep those emitter mappings ahead of the
-                // heuristic fallback; otherwise an earlier same-named source token
-                // can claim the generated position (for example the template `foo`
-                // in `$.deep_read_state(foo())` instead of its `export let foo`).
-                let (precise_result_mappings, remaining_result_mappings) =
-                    partition_precise_identifier_mappings(
-                        &result.code,
-                        source,
-                        remaining_result_mappings,
-                    );
-                let token_mappings = if map_pass_disabled("token") {
-                    Vec::new()
-                } else {
-                    generate_token_mappings_with_starts(
-                        &result.code,
-                        source,
-                        &mapping_starts,
-                        source_token_positions,
-                    )
-                };
                 let mapping_capacity = runtime_mappings.len()
                     + template_name_mappings.len()
-                    + precise_result_mappings.len()
-                    + token_mappings.len()
                     + remaining_result_mappings.len();
                 let mut mappings = Vec::with_capacity(mapping_capacity);
                 mappings.extend(runtime_mappings);
                 mappings.extend(template_name_mappings);
-                mappings.extend(precise_result_mappings);
-                mappings.extend(token_mappings);
                 mappings.extend(remaining_result_mappings);
                 mappings
                     .sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
@@ -984,24 +946,7 @@ impl MappingLineStarts {
     }
 }
 
-/// Generate token-level source mappings by matching tokens in generated code
-/// against tokens in the original source.
-///
-/// For each unique token name (identifier or numeric literal), we collect all
-/// positions in the source and all positions in the generated output. Then we
-/// match them 1:1 in order. This avoids the problem of sequential scanning
-/// where framework code tokens (appearing early in the generated output) can
-/// consume source positions intended for user-code tokens that appear later.
 #[cfg(test)]
-fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen::SourceMapping> {
-    generate_token_mappings_with_starts(
-        generated,
-        source,
-        &MappingLineStarts::new(generated, source),
-        None,
-    )
-}
-
 fn generate_token_mappings_with_starts<'source>(
     generated: &str,
     source: &'source str,
@@ -1032,113 +977,6 @@ fn is_template_element_name_mapping(
 
     bytes.get(name_start.wrapping_sub(1)) == Some(&b'<')
         && bytes.get(name_start).is_some_and(u8::is_ascii_lowercase)
-}
-
-/// Split out emitter mappings that bracket one exact identifier in both texts.
-///
-/// Generated-token matching is deliberately a fallback because it has no binding
-/// identity. A `Spanned` identifier does: esrap emits a mapping at both ends of
-/// the node, and equal generated/source slices prove that the pair is the exact
-/// carrier rather than a wider synthesized wrapper.
-fn partition_precise_identifier_mappings(
-    generated: &str,
-    source: &str,
-    mappings: Vec<js_ast::codegen::SourceMapping>,
-) -> (
-    Vec<js_ast::codegen::SourceMapping>,
-    Vec<js_ast::codegen::SourceMapping>,
-) {
-    fn identifier_byte(byte: u8) -> bool {
-        byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
-    }
-
-    fn exact_identifier_slice<'a>(
-        text: &'a str,
-        starts: &[usize],
-        line: u32,
-        start: u32,
-        end: u32,
-    ) -> Option<&'a str> {
-        let line_start = *starts.get(line as usize)?;
-        let line_end = starts.get(line as usize + 1).copied().unwrap_or(text.len());
-        let line = text.get(line_start..line_end)?;
-        // Source-map columns are UTF-16. On an ASCII line they are byte offsets,
-        // which is enough for the identifier carriers this fallback replaces.
-        if !line.is_ascii() {
-            return None;
-        }
-        let start = start as usize;
-        let end = end as usize;
-        let bytes = line.as_bytes();
-        if start >= end
-            || end > bytes.len()
-            || !bytes[start..end].iter().copied().all(identifier_byte)
-            || bytes
-                .get(start.wrapping_sub(1))
-                .is_some_and(|byte| identifier_byte(*byte))
-            || bytes.get(end).is_some_and(|byte| identifier_byte(*byte))
-        {
-            return None;
-        }
-        line.get(start..end)
-    }
-
-    let generated_starts = js_ast::codegen::build_line_starts(generated);
-    let source_starts = js_ast::codegen::build_line_starts(source);
-    let mut precise = vec![false; mappings.len()];
-
-    for (start_index, start_mapping) in mappings.iter().enumerate() {
-        for (end_index, end_mapping) in mappings.iter().enumerate().skip(start_index + 1) {
-            if end_mapping.gen_line != start_mapping.gen_line {
-                break;
-            }
-            let generated_width = end_mapping.gen_col.saturating_sub(start_mapping.gen_col);
-            if generated_width == 0 {
-                continue;
-            }
-            if generated_width > 128 {
-                break;
-            }
-            if end_mapping.orig_line != start_mapping.orig_line
-                || end_mapping.orig_col.saturating_sub(start_mapping.orig_col) != generated_width
-            {
-                continue;
-            }
-
-            let Some(generated_identifier) = exact_identifier_slice(
-                generated,
-                &generated_starts,
-                start_mapping.gen_line,
-                start_mapping.gen_col,
-                end_mapping.gen_col,
-            ) else {
-                continue;
-            };
-            if exact_identifier_slice(
-                source,
-                &source_starts,
-                start_mapping.orig_line,
-                start_mapping.orig_col,
-                end_mapping.orig_col,
-            ) == Some(generated_identifier)
-            {
-                precise[start_index] = true;
-                precise[end_index] = true;
-                break;
-            }
-        }
-    }
-
-    let mut preferred = Vec::new();
-    let mut remaining = Vec::new();
-    for (mapping, is_precise) in mappings.into_iter().zip(precise) {
-        if is_precise {
-            preferred.push(mapping);
-        } else {
-            remaining.push(mapping);
-        }
-    }
-    (preferred, remaining)
 }
 
 /// The generated component function's braces map to the instance script tags.
@@ -1993,7 +1831,7 @@ mod tests {
 
     use super::{
         generate_default_function_wrapper_mappings, generate_server_declaration_mappings,
-        generate_server_token_mappings, generate_server_wrapper_mappings, generate_token_mappings,
+        generate_server_token_mappings, generate_server_wrapper_mappings,
         generate_verbatim_import_mappings, is_template_element_name_mapping,
         typescript_declaration_annotation_end,
     };
@@ -2184,22 +2022,6 @@ mod tests {
                 mapping.orig_line,
                 mapping.orig_col,
             ) == (1, 7, 1, 8)
-        }));
-    }
-
-    #[test]
-    fn client_maps_lowered_prop_declaration_keyword() {
-        let source = "<script>\n\texport let value = 2;\n</script>";
-        let generated = "export default function Input($$anchor, $$props) {\n\tlet value = $.prop($$props, 'value', 8, 2);\n}";
-        let mappings = generate_token_mappings(generated, source);
-
-        assert!(mappings.iter().any(|mapping| {
-            (
-                mapping.gen_line,
-                mapping.gen_col,
-                mapping.orig_line,
-                mapping.orig_col,
-            ) == (1, 1, 1, 8)
         }));
     }
 

@@ -134,20 +134,6 @@ jobs:
       - name: Run cargo tests (envelope, options, header, module, memory)
         run: cargo test -p rsvelte_capi --profile dist-capi
 
-      # Temporary #3015 measurement. The normal macOS test matrix can remain
-      # queued long after this workflow's macOS leg has a runner; keep the
-      # diagnostic branch moving through the pool that is already available.
-      - name: Checkout pinned sourcemap oracle source
-        if: runner.os == 'macOS' && (github.head_ref == 'diagnose/3015-token-map-owners' || github.ref_name == 'diagnose/3015-token-map-owners')
-        run: |
-          git -C submodules/svelte fetch --depth 1 origin 44a7813730579b94004e182e5a67aab27aa9d2a6
-          git -C submodules/svelte checkout --detach 44a7813730579b94004e182e5a67aab27aa9d2a6
-          node -e 'const fs = require("fs"); const p = "submodules/svelte/packages/svelte/package.json"; const v = fs.readFileSync("crates/rsvelte_core/svelte-version.txt", "utf8").trim(); const s = fs.readFileSync(p, "utf8"); fs.writeFileSync(p, s.replace(/("version"\s*:\s*")[^"]+/, `$1${v}`));'
-
-      - name: Diagnose client token-pass mapping owners
-        if: runner.os == 'macOS' && (github.head_ref == 'diagnose/3015-token-map-owners' || github.ref_name == 'diagnose/3015-token-map-owners')
-        run: cargo test -p rsvelte_core --test sourcemaps_gate token_pass_owners_diagnostic -- --exact --nocapture
-
       # ---------------- C smoke ----------------
       - name: C smoke (Unix)
         if: runner.os != 'Windows'
