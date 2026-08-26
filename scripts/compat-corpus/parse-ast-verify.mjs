@@ -411,11 +411,15 @@ function record(axis, prefix, id, result) {
 	}
 	compared[axis]++;
 	for (const owner of result.commentOwners ?? []) {
+		if (owner.expectedOwnerMissing) {
+			missingCommentOwnerNodes[axis]++;
+			continue;
+		}
+		commentOwnerKinds[axis][owner.kind]++;
+		if (owner.kind !== 'moved') continue;
 		const key = `${axis}::${owner.transition}`;
 		commentOwnerTransitions.set(key, (commentOwnerTransitions.get(key) ?? 0) + 1);
 		if (!firstCommentOwnerExample.has(key)) firstCommentOwnerExample.set(key, id);
-		if (owner.expectedOwnerMissing) missingCommentOwnerNodes[axis]++;
-		commentOwnerKinds[axis][owner.kind]++;
 	}
 	if (result.keys.length === 0) {
 		agreed[axis]++;
@@ -483,10 +487,10 @@ if (COMMENT_OWNERS) {
 	const total = transitions.reduce((sum, [, count]) => sum + count, 0);
 	const axisSummary = AXIS_NAMES.map(
 		(axis) =>
-			`${axis}: ${commentOwnerKinds[axis].moved} moved, ${commentOwnerKinds[axis].missing} missing, ${commentOwnerKinds[axis].extra} extra, ${missingCommentOwnerNodes[axis]} expected-owner nodes absent`
+			`${axis}: ${commentOwnerKinds[axis].moved} moved; excluded ${commentOwnerKinds[axis].missing} missing comments, ${commentOwnerKinds[axis].extra} actual-only comments, and ${missingCommentOwnerNodes[axis]} differences whose expected-owner node is absent`
 	).join('; ');
 	console.log(
-		`[parse-ast] ${total} aligned comment differences (${axisSummary}):`
+		`[parse-ast] ${total} comment-owner movements between aligned nodes (${axisSummary}):`
 	);
 	for (const [key, count] of transitions.slice(0, 50)) {
 		console.log(
