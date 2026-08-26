@@ -361,13 +361,18 @@ pub fn process_instance_script_tag(
                 "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {type_text};/*\u{03A9}ignore_end\u{03A9}*/"
             )
         };
-        // `preprendStr` overwrites the source character at `let_pos`, so the
-        // declaration belongs to the chunk starting there. A snippet moved to
-        // that same position later therefore lands before the declaration;
-        // attaching it to the left chunk's outro reverses that order (#3461).
-        // Keeping it on the right also prevents an import ending at `let_pos`
-        // from carrying the declaration away when the import is hoisted.
-        str.append_right(let_pos, &decl);
+        // An inferred props alias is inserted by `preprendStr`, so a snippet
+        // moved to the same position later lands before it (#3461). An explicit
+        // inline annotation is itself moved to the declaration start, however,
+        // and that moved alias stays before a later snippet move. Attach that
+        // one to the left chunk's outro only when the declaration opens the
+        // script; elsewhere the right chunk also prevents a preceding import
+        // from carrying the alias away when it is hoisted.
+        if force_inside_render && let_pos == content_start {
+            str.append_left(let_pos, &decl);
+        } else {
+            str.append_right(let_pos, &decl);
+        }
     }
 
     // Overwrite `</script>` with slot declaration + `async () => {`.

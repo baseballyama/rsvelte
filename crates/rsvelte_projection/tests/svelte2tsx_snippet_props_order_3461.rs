@@ -36,3 +36,36 @@ fn instance_hoisted_snippet_precedes_inferred_component_props() {
         "the later snippet move must precede the props edit at their shared anchor:\n{code}"
     );
 }
+
+#[test]
+fn moved_generic_props_type_precedes_instance_hoisted_snippet() {
+    let source = r#"<script lang="ts" generics="T">
+	let { prop }: { prop?: T } = $props();
+	const promise = Promise.resolve();
+</script>
+
+{#snippet row()}<i>{await promise}</i>{/snippet}
+{@render row()}
+"#;
+    let code = svelte2tsx(
+        source,
+        Svelte2TsxOptions {
+            filename: "generic.svelte".into(),
+            is_ts_file: true,
+            ..Default::default()
+        },
+    )
+    .expect("svelte2tsx")
+    .code;
+
+    let props = code
+        .find("type $$ComponentProps")
+        .unwrap_or_else(|| panic!("moved props type missing:\n{code}"));
+    let snippet = code
+        .find("const row")
+        .unwrap_or_else(|| panic!("hoisted snippet missing:\n{code}"));
+    assert!(
+        props < snippet,
+        "the moved annotation must precede a later snippet move at the shared anchor:\n{code}"
+    );
+}
