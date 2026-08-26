@@ -16,13 +16,14 @@
 //!   Self/Window, `SvelteComponent`, `SvelteElement`), every `Attribute`
 //!   variant (Attribute, `SpreadAttribute`, AttachTag-as-attr, all eight
 //!   directives), `AttributeValue` and `AttributeValuePart`, `Script`,
-//!   `JsComment`, `SourceLocation`, and every one of the **74 `JsNode`
-//!   variants** (estree expressions and statements, plus a handful of
-//!   TS bridge variants).
+//!   `JsComment`, `SourceLocation`, and **74 `JsNode` variants** (estree
+//!   expressions and statements, plus a handful of TS bridge variants).
 //! - **JSON fallback (`TAG_JSON`)**: the entire `StyleSheet` sub-tree,
 //!   `SvelteOptions`, `TransitionDirective`/`AnimateDirective`
-//!   `metadata`, and `Root.js`. These are rare and have many optional
-//!   fields; switching them to dedicated tags is a follow-up.
+//!   `metadata`, `Root.js`, and the two opaque TypeScript declaration
+//!   variants (`TSTypeAliasDeclaration` and `TSInterfaceDeclaration`).
+//!   These are rare and have many optional fields; switching them to
+//!   dedicated tags is a follow-up.
 //!
 //! ## Envelope v1 layout
 //!
@@ -97,7 +98,7 @@ pub const FLAG_CSS_STUB_ONLY: u32 = 1 << 1;
 //   0x40..0x4F  script / options / misc
 //   0x50..0x6F  attributes / directives / attribute values
 //   0x70..0x7F  block variants
-//   0x80..0xCB  JsNode (estree) variants
+//   0x80..0xD1  JsNode (estree) dedicated tags
 //
 // Reserved ranges leave room for future growth without renumbering.
 
@@ -2105,6 +2106,14 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_preamble(w, JS_TS_ENUM_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
         }
+        // These declarations retain their complete ESTree object so nested TS
+        // nodes survive the public parse API. Serialize `node`, rather than the
+        // stored raw value, so the JsNode serializer also restores comments
+        // captured in the arena side table (#3702).
+        JsNode::TSTypeAliasDeclaration { start, end, .. }
+        | JsNode::TSInterfaceDeclaration { start, end, .. } => {
+            write_json_node(w, *start, *end, node)?;
+        }
         JsNode::TSParameterProperty { start, end, loc } => {
             write_preamble(w, JS_TS_PARAMETER_PROPERTY, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -2429,5 +2438,69 @@ mod tests {
         let buf = encode_root_to_vec_with_options(&ast, src, true);
         let flags = u32::from_le_bytes(buf[20..24].try_into().unwrap());
         assert!(flags & FLAG_JSNODE_NO_LOC != 0);
+    }
+
+    #[test]
+    fn opaque_ts_declarations_use_json_fallback_with_captured_comments() {
+        for (node_type, node) in [
+            (
+                "TSTypeAliasDeclaration",
+                JsNode::TSTypeAliasDeclaration {
+                    start: 10,
+                    end: 24,
+                    value: Box::new(serde_json::json!({
+                        "type": "TSTypeAliasDeclaration",
+                        "start": 10,
+                        "end": 24,
+                        "id": { "type": "Identifier", "name": "Alias" }
+                    })),
+                },
+            ),
+            (
+                "TSInterfaceDeclaration",
+                JsNode::TSInterfaceDeclaration {
+                    start: 10,
+                    end: 24,
+                    value: Box::new(serde_json::json!({
+                        "type": "TSInterfaceDeclaration",
+                        "start": 10,
+                        "end": 24,
+                        "id": { "type": "Identifier", "name": "Props" }
+                    })),
+                },
+            ),
+        ] {
+            let arena = ParseArena::new();
+            arena.record_node_comments(
+                node_type,
+                10,
+                24,
+                Some(vec![serde_json::json!({
+                    "type": "Line",
+                    "value": " declaration docs"
+                })]),
+                None,
+            );
+
+            let mut buf = Vec::new();
+            crate::ast::arena::with_serialize_arena(&arena, || {
+                write_js_node(&mut buf, &node, &arena).unwrap();
+            });
+
+            assert_eq!(buf[0], TAG_JSON);
+            let payload_len = u32::from_le_bytes(buf[9..13].try_into().unwrap()) as usize;
+            let value: serde_json::Value =
+                serde_json::from_slice(&buf[13..13 + payload_len]).unwrap();
+            assert_eq!(
+                value.get("type").and_then(serde_json::Value::as_str),
+                Some(node_type)
+            );
+            assert_eq!(
+                value
+                    .pointer("/leadingComments/0/value")
+                    .and_then(serde_json::Value::as_str),
+                Some(" declaration docs")
+            );
+        }
     }
 }

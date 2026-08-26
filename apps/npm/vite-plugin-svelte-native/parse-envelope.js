@@ -80,7 +80,7 @@ const TAG_AWAIT_BLOCK = 0x72;
 const TAG_KEY_BLOCK = 0x73;
 const TAG_SNIPPET_BLOCK = 0x74;
 
-// JsNode (estree) tags — 0x80..0xCC. Mirrors `napi_raw_parse.rs`.
+// JsNode (estree) tags — 0x80..0xD1. Mirrors `napi_raw_parse.rs`.
 const JS_IDENTIFIER = 0x80;
 const JS_PRIVATE_IDENTIFIER = 0x81;
 const JS_LITERAL = 0x82;
