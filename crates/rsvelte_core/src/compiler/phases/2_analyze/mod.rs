@@ -365,14 +365,13 @@ pub(crate) fn analyze_prepared_component_with_retained(
     }
 
     // Scope construction is intentionally mode-neutral until the synthetic
-    // store subscriptions above have been removed from rune detection. Record
-    // the bindings that may need promotion now, while the exclusion set is
-    // available, but defer the mutation until after the script visitors. Those
-    // visitors assign script binding kinds themselves and some of their logic
-    // depends on seeing the neutral kind on entry; only template-expression
-    // declarators remain Normal and need this fallback.
-    let deferred_rune_promotions: Vec<_> = if analysis.runes {
-        analysis
+    // store subscriptions above have been removed from rune detection. Once
+    // the mode is known, promote genuine rune initializers before any analysis
+    // visitor runs. The visitors and their identifier metadata have always
+    // observed these kinds at entry; delaying the promotion loses reactivity
+    // information for references visited before their declarator.
+    if analysis.runes {
+        let rune_promotions: Vec<_> = analysis
             .root
             .bindings
             .iter()
@@ -396,10 +395,11 @@ pub(crate) fn analyze_prepared_component_with_retained(
                 };
                 Some((index, kind))
             })
-            .collect()
-    } else {
-        Vec::new()
-    };
+            .collect();
+        for (index, kind) in rune_promotions {
+            analysis.root.bindings[index].kind = kind;
+        }
+    }
 
     // `<svelte:options>` diagnostics run once over the attribute list, so they
     // come out in source order and each carries its own attribute's span.
@@ -528,15 +528,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // Instance script starts at function_depth 1 (like Svelte's scope system)
         context.function_depth = 1;
         visitors::visit_script_expr(&instance.content, &mut context)?;
-    }
-
-    // Script declarators have now been classified by their visitor. Anything
-    // still Normal is a declarator embedded in a template expression, which
-    // the script walk never reaches.
-    for (index, kind) in deferred_rune_promotions {
-        if analysis.root.bindings[index].kind == BindingKind::Normal {
-            analysis.root.bindings[index].kind = kind;
-        }
     }
 
     // Check for cyclical reactive statement dependencies ($: a = b + 1; $: b = a + 1;)
