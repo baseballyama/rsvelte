@@ -4539,10 +4539,10 @@ fn analyze_props_json(
         "ObjectExpression" => {
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    if let Some(prop_obj) = prop.as_object() {
-                        if let Some(value) = prop_obj.get("value") {
-                            analyze_props_json(value, context, props);
-                        }
+                    if let Some(prop_obj) = prop.as_object()
+                        && let Some(value) = prop_obj.get("value")
+                    {
+                        analyze_props_json(value, context, props);
                     }
                 }
             }

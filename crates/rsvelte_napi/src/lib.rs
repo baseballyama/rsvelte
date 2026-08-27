@@ -2322,7 +2322,6 @@ pub fn napi_compile_buffers(
     options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_compile(Some(&env), options)?;
-    reject_modern_ast_for_binary_result(&opts, "compileBuffers")?;
     let filename = opts.filename.clone();
     match rust_compile_without_ast(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {

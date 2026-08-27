@@ -286,6 +286,7 @@ impl std::fmt::Debug for JsArena {
             unsafe { ((*self.exprs.get()).len, (*self.stmts.get()).len) };
         // SAFETY: only reading the map length, no mutation.
         let identifier_spans_count = unsafe { (*self.identifier_spans.get()).len() };
+        // SAFETY: only reading the map length, no mutation.
         let expression_identifier_spans_count =
             unsafe { (*self.expression_identifier_spans.get()).len() };
         f.debug_struct("JsArena")

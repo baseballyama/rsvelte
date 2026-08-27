@@ -3366,11 +3366,7 @@ impl<'a> ScopeBuilder<'a> {
                             | "$host"
                     );
                     if !is_rune_name {
-                        self.check_store_scoped_subscription(
-                            &name.as_str()[1..],
-                            *start,
-                            *end,
-                        );
+                        self.check_store_scoped_subscription(&name.as_str()[1..], *start, *end);
                     }
                 }
             }

@@ -3392,17 +3392,16 @@ fn attach_import_origins(
             .program()
             .body
             .iter()
-            .filter_map(|statement| {
-                matches!(statement, oxc_ast::ast::Statement::ImportDeclaration(_)).then(|| {
-                    let span = statement.span();
-                    let source = &retained.source()[span.start as usize..span.end as usize];
-                    let comparable = if is_typescript {
-                        crate::compiler::phases::phase2_analyze::types::strip_typescript(source)
-                    } else {
-                        source.to_string()
-                    };
-                    (span.start, source, cleaned_import_code(&comparable))
-                })
+            .filter(|statement| matches!(statement, oxc_ast::ast::Statement::ImportDeclaration(_)))
+            .map(|statement| {
+                let span = statement.span();
+                let source = &retained.source()[span.start as usize..span.end as usize];
+                let comparable = if is_typescript {
+                    crate::compiler::phases::phase2_analyze::types::strip_typescript(source)
+                } else {
+                    source.to_string()
+                };
+                (span.start, source, cleaned_import_code(&comparable))
             })
             .collect::<Vec<_>>()
     });

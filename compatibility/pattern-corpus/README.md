@@ -501,6 +501,7 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 | `3708-3711-template-scan-lexical-state.svelte` | [#3708](https://github.com/baseballyama/rsvelte/issues/3708) / [#3711](https://github.com/baseballyama/rsvelte/issues/3711) | Template boundary scans track regexes, strings, templates, spreads and escaped newlines while preserving division controls. |
 | `3713-sequence-measure-parity.svelte` | [#3713](https://github.com/baseballyama/rsvelte/issues/3713) | Sequence line breaking measures child spaces and UTF-16 widths exactly like esrap. |
 | `3714-template-quoted-property-key.svelte` | [#3714](https://github.com/baseballyama/rsvelte/issues/3714) | Quoted object-property keys in template expressions retain their raw quote spelling through AST conversion. |
+| `3863-await-import-declaration-tag.svelte` | [#3863](https://github.com/baseballyama/rsvelte/issues/3863) | An await block over a dynamic import accepts a `{@const}` declaration whose reducer traverses objects with a `children` property; the property name must not interfere with declaration-tag or block-child handling. |
 
 ## `matrix/` — the axes around those repros
 
