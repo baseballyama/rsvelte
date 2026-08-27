@@ -144,7 +144,12 @@ pub fn wrap_prop_source_reads_ast(
     ast_rewrite::with_program(
         &PROP_READ_ALLOC,
         &parse_source,
-        SourceType::mjs(),
+        // Reactive statements from a `<script lang="ts">` reach this pass before
+        // type erasure. TypeScript is a superset of the JavaScript accepted here,
+        // so use the TS-aware parser for both: otherwise one annotation anywhere
+        // in a block makes the whole scope-aware rewrite fail and sends prop reads
+        // through the heuristic text fallback.
+        SourceType::mjs().with_typescript(true),
         ParseOptions {
             allow_return_outside_function: true,
             ..ParseOptions::default()
@@ -483,6 +488,18 @@ mod tests {
     fn wraps_in_expression() {
         let out = wrap_prop_source_reads_ast("let x = count + 1;", &ssv(&["count"]), &[]).unwrap();
         assert_eq!(out, "let x = count() + 1;");
+    }
+
+    #[test]
+    fn wraps_a_prop_read_in_a_typescript_statement_block() {
+        let src = "{ if (tab) { values.forEach((value: Item) => consume(value)); } }";
+        let out =
+            super::wrap_prop_source_reads_ast(src, &ssv(&["tab"]), &[], ParseGoal::Statements)
+                .unwrap();
+        assert_eq!(
+            out,
+            "{ if (tab()) { values.forEach((value: Item) => consume(value)); } }"
+        );
     }
 
     #[test]

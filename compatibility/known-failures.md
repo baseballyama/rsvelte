@@ -378,9 +378,11 @@ Six of the ten rows above used to be a `$$renderer.push` / template-string
 divergence on appwrite-console, and the largest was 71 pairs; `main` fixed them
 before this branch was rebased onto it. What is left is dominated by two shapes
 that were already diagnosed and are the obvious first burn-down targets: the
-sparrow-app cluster is a prop read inside a legacy `$:` body that rsvelte does
-not unwrap to its getter call — `tab` where upstream writes `tab()` — which is a
-semantic difference, not a spelling one; the huly cluster (four rows, differing
+sparrow-app cluster is a prop read inside a TypeScript legacy `$:` body whose
+nested annotated callback made the scope-aware AST pass fail its JavaScript
+parse and fall back to the heuristic text scanner — `tab` stayed bare where
+upstream writes `tab()`, a semantic difference fixed by #3934; the huly cluster
+(four rows, differing
 only in nesting depth) is a destructuring assignment used as the final statement
 of a query callback or reactive block, plus two parenthesized braceless `if`
 bodies. The text transform did not recognise the block's closing `}` or the
