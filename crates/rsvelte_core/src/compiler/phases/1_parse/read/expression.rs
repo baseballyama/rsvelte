@@ -1847,6 +1847,20 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
                         wrapped_end.saturating_sub(1).min(content.len())
                     })
                     .unwrap_or(0);
+                // OXC recovers an AST for some early errors that acorn reports
+                // more specifically. Keep the OXC diagnostic when it occurs
+                // first, but let an acorn-only restriction at the same or an
+                // earlier byte win. In particular, a legacy octal escape is a
+                // StringLiteral in OXC's recovered tree even though its lexer
+                // also emits a generic diagnostic for the escape.
+                if let Some((at, message)) =
+                    acorn_only_violation(&result.program, &wrapped, source_type.is_typescript())
+                {
+                    let acorn_pos = (at as usize).saturating_sub(1).min(content.len());
+                    if acorn_pos <= pos {
+                        return Some((message, acorn_pos, false));
+                    }
+                }
                 if at_label_start {
                     return Some(("Assigning to rvalue".to_string(), pos, false));
                 }
@@ -13536,6 +13550,14 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn recovered_expression_uses_acorns_strict_mode_error() {
+        assert_eq!(
+            check_js_parse_error_with_pos(r"'abc\251def'", false),
+            Some(("Octal literal in strict mode".to_string(), 4))
+        );
+    }
 
     #[test]
     fn test_parse_destructuring_assignment() {
