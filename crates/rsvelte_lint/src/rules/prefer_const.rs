@@ -1111,7 +1111,7 @@ impl ScriptRule for PreferConst {
         };
         let (excluded, destructuring_all) = prefer_const_options(ctx.option0());
         let mut reports = collect_script_reports(program, &scoped, &excluded, destructuring_all);
-        append_semantic_fallback_reports(ctx.source(), &scoped, &excluded, &mut reports);
+        append_semantic_fallback_reports(ctx.source(), program, &scoped, &excluded, &mut reports);
 
         // Also check template `{let x = …}` declaration tags. The oracle's
         // ESLint core `prefer-const` treats them as ordinary `let` declarations
@@ -1140,11 +1140,41 @@ impl ScriptRule for PreferConst {
 /// fallback rather than a second implementation of the rule.
 fn append_semantic_fallback_reports(
     source: &str,
+    program: &ProgramView<'_>,
     scoped: &ScopedReassigned,
     excluded: &[String],
     reports: &mut Vec<(u32, u32, String, Option<u32>)>,
 ) {
-    let visible: HashSet<(u32, u32)> = reports.iter().map(|r| (r.0, r.1)).collect();
+    // Exclude every initialized plain `let` that the compatibility AST can
+    // represent, including candidates which the normal rule deliberately does
+    // not report (for example one excluded-rune declarator in a multi-declarator
+    // declaration). Using `reports` here made the semantic fallback reintroduce
+    // those intentional exemptions as false positives.
+    let mut visible = HashSet::new();
+    program.walk(|node, _| {
+        if node_type(node) != Some("VariableDeclaration")
+            || node.get("kind").and_then(Value::as_str) != Some("let")
+        {
+            return;
+        }
+        let Some(declarations) = node.get("declarations").and_then(Value::as_array) else {
+            return;
+        };
+        for declaration in declarations {
+            if !declaration.get("init").is_some_and(|init| !init.is_null()) {
+                continue;
+            }
+            let Some(id) = declaration
+                .get("id")
+                .filter(|id| node_type(id) == Some("Identifier"))
+            else {
+                continue;
+            };
+            if let (Some(start), Some(end)) = (node_start(id), node_end(id)) {
+                visible.insert((start, end));
+            }
+        }
+    });
     for candidate in &scoped.writes.semantic_initialized_lets {
         if visible.contains(&(candidate.start, candidate.end))
             || scoped.semantic_candidate_is_reassigned(candidate)
