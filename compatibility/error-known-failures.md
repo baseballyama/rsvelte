@@ -98,10 +98,10 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 7 entries;
-`error-message-known-failures.client-dev.json` holds 7 entries;
-`error-message-known-failures.server.json` holds 7 entries; and
-`error-message-known-failures.server-dev.json` holds 7 entries. All four of
+`error-message-known-failures.client.json` holds 6 entries;
+`error-message-known-failures.client-dev.json` holds 6 entries;
+`error-message-known-failures.server.json` holds 6 entries; and
+`error-message-known-failures.server-dev.json` holds 6 entries. All four of
 `error-position-known-failures.<target>.json` hold 38 entries, all four of
 `error-end-known-failures.<target>.json` hold 51 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
@@ -125,7 +125,7 @@ from before those passes; they are historical evidence about the backlog's shape
 not a decomposition of the current 38/51 files.
 
 The former client-only asymmetry is gone from the current corpus population, so
-all four files now carry the same seven message entries.
+all four files now carry the same six message entries.
 
 ## Error messages
 
@@ -134,9 +134,9 @@ things on a minor bump": both compilers run on the same source, in the same
 process, at the pinned version, so a difference here is rsvelte's — the argument
 settled for warning text in #2403.
 
-Clustered by code (client target, 7 entries):
+Clustered by code (client target, 6 entries):
 
-- **`js_parse_error` — 6, the whole majority.** The Svelte code is right, but the
+- **`js_parse_error` — 5, the whole majority.** The Svelte code is right, but the
   text is oxc's parser message (`Expected `,` or `}` but found `+`) where upstream
   forwards acorn's (`Unexpected token`). This is the one cluster whose fix is not a
   string edit: the two parsers phrase their own diagnostics, and rsvelte's text is
@@ -159,6 +159,8 @@ Clustered by code (client target, 7 entries):
   fixed-message case: both parsers reject it at the same byte, and the program
   diagnostic adapter now translates OXC's wording to acorn's
   `'return' outside of function`.
+  The incomplete `{let }` declaration tag retired by handling acorn's bare
+  reserved-word error before OXC's generic incomplete-declaration diagnostic.
 - **`expected_token` — 1.** `svelte/…/compiler-errors/samples/malformed-snippet-2`
   names the closing token it wanted: rsvelte says `}` where upstream says `)`. The
   two parsers recover from the malformed snippet header at different points, so

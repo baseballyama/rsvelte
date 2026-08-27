@@ -1975,6 +1975,10 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
 /// does not parse as a statement is rethrown in strict mode and surfaces as
 /// `js_parse_error` (e.g. `{let }` → "The keyword 'let' is reserved").
 pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String, usize)> {
+    let leading_ws = content.len() - content.trim_start_ws().len();
+    if content.trim_ws() == "let" {
+        return Some(("The keyword 'let' is reserved".to_string(), leading_ws));
+    }
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
             SourceType::ts()
@@ -13592,6 +13596,14 @@ mod tests {
             panic!("expected a Svelte parse error");
         };
         assert_eq!(message, "'return' outside of function");
+    }
+
+    #[test]
+    fn incomplete_let_statement_uses_acorns_reserved_word_error() {
+        assert_eq!(
+            check_js_statement_parse_error("  let ", false),
+            Some(("The keyword 'let' is reserved".to_string(), 2))
+        );
     }
 
     #[test]
