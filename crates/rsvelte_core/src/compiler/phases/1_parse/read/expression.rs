@@ -7520,7 +7520,7 @@ fn ts_class_modifier_stop(content: &str, from: u32) -> Option<u32> {
 /// and take acorn's wording with it.
 fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize, String) {
     if !message.starts_with("Expected a semicolon or an implicit semicolon") {
-        return (at, message.to_string());
+        return (at, acorn_diagnostic_message(message).to_string());
     }
     let bytes = content.as_bytes();
     let mut i = at;
@@ -7544,6 +7544,17 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
         return (at, message.to_string());
     }
     (i, "Unexpected token".to_string())
+}
+
+/// Translate diagnostics for grammar errors both parsers identify at the same
+/// byte but describe differently. Upstream forwards acorn's text verbatim.
+fn acorn_diagnostic_message(message: &str) -> &str {
+    match message {
+        "A 'return' statement can only be used within a function body." => {
+            "'return' outside of function"
+        }
+        _ => message,
+    }
 }
 
 /// Repair the one import-attributes spelling acorn-typescript accepts and OXC
@@ -13557,6 +13568,30 @@ mod tests {
             check_js_parse_error_with_pos(r"'abc\251def'", false),
             Some(("Octal literal in strict mode".to_string(), 4))
         );
+    }
+
+    #[test]
+    fn program_uses_acorns_top_level_return_error() {
+        let source = "return () => {};";
+        let arena = ParseArena::new();
+        let line_offsets = super::super::super::compute_line_offsets(source, false);
+        let (_, error) = parse_program_with_error(
+            &arena,
+            ProgramParseParams {
+                content: source,
+                offset: 0,
+                line_offsets: &line_offsets,
+                is_typescript: false,
+                is_script: false,
+                leading_comments: &[],
+                script_tag_start: 0,
+                script_tag_end: source.len(),
+            },
+        );
+        let Some(crate::error::ParseError::SvelteError { message, .. }) = error else {
+            panic!("expected a Svelte parse error");
+        };
+        assert_eq!(message, "'return' outside of function");
     }
 
     #[test]
