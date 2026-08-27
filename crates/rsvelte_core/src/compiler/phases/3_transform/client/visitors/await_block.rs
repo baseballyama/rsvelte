@@ -86,7 +86,7 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
 
     let mut built_expr = build_expression(context, &converted_expr, &expr_metadata);
-    let has_header_comments = if let (Some(start), Some(end), Some(header_end)) = (
+    if let (Some(start), Some(end), Some(header_end)) = (
         node.expression.start(),
         node.expression.end(),
         crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
@@ -101,10 +101,7 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
         node.start + 7,
     ) {
         built_expr = region.anchor(&context.arena, built_expr, start, end);
-        true
-    } else {
-        false
-    };
+    }
 
     // Check for blockers before moving built_expr into thunk
     let blocker_exprs = context
@@ -153,14 +150,19 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     if let Some(catch_fn) = catch_block {
         await_args.push(catch_fn);
     }
-    let mut await_callee = b::member_path(&context.arena, "$.await");
-    if has_header_comments {
-        await_callee = JsExpr::Spanned(
-            context.arena.alloc_expr(await_callee),
-            rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
-            rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
-        );
-    }
+    // The promise thunk is the first located node upstream prints after the
+    // await expression. It therefore owns not only comments written inside the
+    // await header, but also a still-pending comment from the instance-script
+    // tail. Mark the argument unconditionally: when no comment is pending this
+    // is output-neutral, while restricting it to header comments lets a
+    // script-tail comment drift into the following pending callback.
+    let await_callee = JsExpr::Spanned(
+        context
+            .arena
+            .alloc_expr(b::member_path(&context.arena, "$.await")),
+        rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
+        rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
+    );
     let await_call = b::call(&context.arena, await_callee, await_args);
 
     // Add svelte metadata

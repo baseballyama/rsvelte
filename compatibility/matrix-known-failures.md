@@ -62,31 +62,30 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 60 entries
+### `comment-slot` — 44 entries
 
 All remaining entries are `.svelte` template seeds. The `.svelte.(js|ts)` module-path
 cluster is now empty: location-less Programs discard their top-level and EOF comments while
 located nested bodies can still resynchronize the cursor, matching esrap.
 
-The current partition by target is `18 + 18 + 0 + 24` for `client`, `client-dev`,
+The current partition by target is `10 + 10 + 0 + 24` for `client`, `client-dev`,
 `server`, and `server-dev`. By seed:
 
 | seed | entries |
 |---|---:|
-| `await-block` | 16 |
 | `class-private-state` | 8 |
 | `class-static-block` | 8 |
 | `const-fold-line-continuation` | 8 |
 | `legacy-reactive` | 20 |
 
-All 60 are `comment-mismatch`: comparing normalized non-comment lines finds no
+All 44 are `comment-mismatch`: comparing normalized non-comment lines finds no
 codegen-semantic divergence in this cluster. A comment is the one token that may appear
 between any two other tokens, so the matrix crosses eight comment kinds with every line
 boundary instead of relying on published-code frequency.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `60`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `44`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `16 + 8 + 8 + 8 + 20`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `8 + 8 + 8 + 20`
 
 The location-less cursor port clears 144 entries without adding a failure: all 96 trailing
 module-path rows (`module-class-state`, `module-rune-exports`, and
@@ -103,6 +102,13 @@ component body, after its parameters have printed. rsvelte now carries that comm
 from the isolated module transform to the component function's final parameter, including the
 line-comment layout and generated source-map adjustment, so the seed is empty. `server-dev`
 continues to drop the comment, as upstream does.
+
+`await-block`'s 16 entries were the same cursor rule on the client side. The inserted
+comment was at the instance-script tail, not inside the await header: upstream's first located
+template node is the promise expression, so the pending comment belongs in that expression's
+generated thunk parameters. The await call now always marks its promise argument as the comment
+owner; the marker is output-neutral when no comment is pending and prevents the comment from
+drifting into the following pending callback.
 
 ### `each-collection` — 0 entries
 

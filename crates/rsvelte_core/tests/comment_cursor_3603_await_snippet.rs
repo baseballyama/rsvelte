@@ -65,6 +65,41 @@ fn client_await_header_comments_stay_with_the_promise_expression() {
 }
 
 #[test]
+fn client_instance_script_tail_comments_stay_with_the_await_promise_thunk() {
+    for dev in [false, true] {
+        let block = compile_to(
+            "<script>\n\tlet p = $state(Promise.resolve(1));\n\t/* tail */\n</script>\n\n{#await p}<p>pending</p>{/await}",
+            GenerateMode::Client,
+            dev,
+        );
+        assert_has(&block, "(/* tail */) => p");
+        assert!(
+            !block.contains("$$anchor /* tail */"),
+            "the block comment drifted into the pending callback:\n{block}"
+        );
+
+        let line = compile_to(
+            "<script>\n\tlet p = $state(Promise.resolve(1));\n\t// tail\n</script>\n\n{#await p}<p>pending</p>{/await}",
+            GenerateMode::Client,
+            dev,
+        );
+        let tail = line.find("// tail").expect("tail comment should survive");
+        let promise_end = line[tail..]
+            .find(") => p")
+            .map(|offset| tail + offset)
+            .expect("line comment should be inside the promise thunk parameters");
+        let pending = line[promise_end..]
+            .find("$$anchor")
+            .map(|offset| promise_end + offset)
+            .expect("pending callback should follow the promise thunk");
+        assert!(
+            tail < promise_end && promise_end < pending,
+            "wrong slot:\n{line}"
+        );
+    }
+}
+
+#[test]
 fn server_await_header_comments_stay_with_the_promise_expression() {
     assert_has(
         &server("{#await /* leading */ pending then value}{value}{/await}"),
