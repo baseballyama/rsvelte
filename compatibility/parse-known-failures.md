@@ -1,8 +1,8 @@
 # Output-parseability ratchet
 
 Gate: the "output parseability" section of `scripts/compat-corpus/verify.mjs`.
-Ratchet: `parse-known-failures.client.json` holds **5 entries**,
-`parse-known-failures.client-dev.json` holds **6 entries**,
+Ratchet: `parse-known-failures.client.json` holds **3 entries**,
+`parse-known-failures.client-dev.json` holds **4 entries**,
 `parse-known-failures.server.json` holds **0 entries** and
 `parse-known-failures.server-dev.json` holds **0 entries**.
 
@@ -24,9 +24,8 @@ sources … an empty baseline here is therefore the expected result, not a measu
 was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
 carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
 ratchet went to **12 entries across two targets on the first run**. The current tree holds
-**6 unique entries across two targets** after retiring the server-dev entry, two
-TypeScript-parameter entries, two store-assignment entries and one private-field assignment
-entry. Five remain shared by both targets and one is client-dev-only. That is the
+**4 unique entries across two targets** after retiring the repaired classes listed below.
+Three remain shared by both targets and one is client-dev-only. That is the
 prediction being paid out, and it is the reason blind spot 19c in
 [`gate-coverage.md`](gate-coverage.md) is now closed for these inputs and for no others.
 

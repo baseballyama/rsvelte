@@ -4,12 +4,12 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 125 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 123 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `121 + 4`
+Partition of `svelte2tsx-known-failures.json` by verdict: `121 + 2`
 
 - **121 — the emitted TSX differs** (`ts-mismatch`).
-- **4 — one side rejects and the other compiles** (`error-mismatch`).
+- **2 — one side rejects and the other compiles** (`error-mismatch`).
 
 ## Wave-2 enrolment (#3130)
 
@@ -36,6 +36,10 @@ entries that already passed**, and the fix removed one more.
 The drop from 139 to 125 removes 14 entries that the Linux full-corpus run
 measured as passing after the import-preservation fixes: 13 from
 svelte-tweakpane-ui and sveltepress's `GlobalLayout.svelte`.
+
+The drop from 125 to 123 removes `chatgpt-web`'s `Home.svelte` and immich's
+`VideoNativeViewer.svelte`, which the Linux full-corpus run measured as passing
+after the parser fix.
 
 The `ts-mismatch` clusters, keyed mechanically by the first differing line
 (the classifier is the one in this file's history, not a hand review — it asks
