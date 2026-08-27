@@ -452,6 +452,7 @@
 	"pattern/issues/3195-style-printed-from-ast.svelte",
 	"pattern/issues/3404-repeated-combinators.svelte",
 	"pattern/issues/3404-unhandled-combinator-scope.svelte",
+	"pattern/issues/3498-class-rune-linebreak-separators.svelte",
 	"pattern/issues/3714-template-quoted-property-key.svelte",
 	"photon/src/lib/app/markdown/renderers/MdCode.svelte",
 	"photon/src/lib/app/render/VirtualList.svelte",

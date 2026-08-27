@@ -8,7 +8,8 @@ use super::expression_needs_proxy;
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::phases::phase3_transform::shared::class_body::{
-    find_class_header, split_class_members_onto_lines,
+    find_assignment_eq, find_class_header, has_rune_after_eq, initializer_starts_later,
+    skip_ws_and_comments, split_class_members_onto_lines,
 };
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 
@@ -19,86 +20,25 @@ fn find_matching_paren_lexical(s: &str) -> Option<usize> {
     find_matching_bracket(s, 0, '(')
 }
 
-/// Byte offset of the first character after `from` that is neither JS whitespace
-/// nor a comment. `parse_state_field` reads the initializer with
-/// `is_whitespace`, so the gate that decides whether to call it has to be at
-/// least as permissive or the field is never seen.
-fn skip_ws_and_comments(s: &str, mut from: usize) -> usize {
-    loop {
-        let rest = &s[from..];
-        let ws = rest.len() - rest.trim_start_matches(is_js_whitespace).len();
-        from += ws;
-        let rest = &s[from..];
-        if let Some(inner) = rest.strip_prefix("/*") {
-            match memmem::find(inner.as_bytes(), b"*/") {
-                Some(end) => from += 2 + end + 2,
-                None => return s.len(),
-            }
-        } else {
-            return from;
-        }
-    }
-}
-
-/// Whether `line` holds `= <rune>(` or `= <rune><` with any run of JS whitespace
-/// and block comments between. Matching two literal spellings (`"= $state("`
-/// and `"=$state("`) missed a tab, a second space, a wrapped initializer and
-/// every non-ASCII JS space.
-fn has_rune_after_eq(line: &str, rune_type: &str) -> bool {
-    let bytes = line.as_bytes();
-    let mut from = 0;
-    while let Some(rel) = memmem::find(&bytes[from..], b"=") {
-        let eq = from + rel;
-        let init = skip_ws_and_comments(line, eq + 1);
-        if let Some(after) = line[init..].strip_prefix(rune_type)
-            && (after.starts_with('(') || after.starts_with('<'))
-        {
-            return true;
-        }
-        from = eq + 1;
-    }
-    false
-}
-
-/// Byte offset of the first `=` in `s` that is an assignment rather than part of
-/// `==`, `===`, `=>`, `!=`, `<=` or `>=`.
-fn find_assignment_eq(s: &str) -> Option<usize> {
-    let bytes = s.as_bytes();
-    let mut from = 0;
-    while let Some(rel) = memmem::find(&bytes[from..], b"=") {
-        let i = from + rel;
-        let prev = i.checked_sub(1).map(|p| bytes[p]);
-        let next = bytes.get(i + 1).copied();
-        if !matches!(prev, Some(b'=' | b'!' | b'<' | b'>')) && !matches!(next, Some(b'=' | b'>')) {
-            return Some(i);
-        }
-        from = i + 1;
-    }
-    None
-}
-
-/// The comment text a source wrote between `=` and the rune, normalised to end
-/// in one space. Whitespace-only separators return empty, so the common case
-/// stays byte-identical to the single-space spelling upstream emits.
+/// The comment text a source wrote between `=` and the rune. Block comments
+/// are normalised to end in one space; line comments retain the newline that
+/// keeps the following rune out of the comment. Whitespace-only separators
+/// return empty, so the common case stays byte-identical to upstream.
 fn separator_comment(between: &str) -> String {
     let t = between.trim_matches(is_js_whitespace);
     if t.is_empty() {
         String::new()
+    } else if t.starts_with("//") {
+        format!("{}\n", t.trim_end_matches(is_js_whitespace))
     } else {
         format!("{} ", t)
     }
 }
 
-/// Whether `line` is the head of a field whose initializer starts on a later
-/// line, so the multi-line accumulator below has to be entered even though this
-/// line names no rune. `==`, `=>`, `!=`, `<=` and `>=` are not assignments.
-fn ends_with_assignment_eq(line: &str) -> bool {
-    let head = line.trim_end_matches(is_js_whitespace);
-    let head = match head.strip_suffix('=') {
-        Some(h) => h,
-        None => return false,
-    };
-    !matches!(head.as_bytes().last(), Some(b'=' | b'!' | b'<' | b'>'))
+/// Indent a rune that follows a retained line comment. Single-line block
+/// comment prefixes pass through unchanged.
+fn render_initializer_prefix(prefix: &str, indent: &str) -> String {
+    prefix.replace('\n', &format!("\n{indent}"))
 }
 
 /// Given `s` positioned just after an opening `<` in a TypeScript generic type
@@ -394,7 +334,7 @@ fn advance_brace_depth(line: &str, depth: &mut i32) {
 /// the `this.#x = …` statements *inside* the block are still rewritten. Grouping
 /// them was the #907 regression on `class-state-constructor-closure`.
 fn is_multiline_assignment_start(line: &str) -> bool {
-    if net_bracket_depth(line) <= 0 {
+    if net_bracket_depth(line) <= 0 && !initializer_starts_later(line) {
         return false;
     }
     let bytes = line.as_bytes();
@@ -567,6 +507,7 @@ pub(super) fn emit_class_field(
     let mut output = String::new();
     let body_indent = format!("{}\t", indent);
     let private_name = format!("#{}", field.private_backing_name);
+    let init_prefix = render_initializer_prefix(&field.init_prefix, indent);
 
     // Upstream `ClassBody.js` rebuilds the field as `b.prop_def(key, value)` and
     // esrap re-attaches the comment to the first node that still carries a source
@@ -619,7 +560,7 @@ pub(super) fn emit_class_field(
         let _ = writeln!(
             output,
             "{}{} = {}{}$.state({});",
-            indent, private_name, comment_infix, field.init_prefix, wrapped_value
+            indent, private_name, comment_infix, init_prefix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -640,7 +581,7 @@ pub(super) fn emit_class_field(
         let _ = writeln!(
             output,
             "{}{} = {}{}$.state({});",
-            indent, private_name, comment_infix, field.init_prefix, field.value
+            indent, private_name, comment_infix, init_prefix, field.value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -683,8 +624,8 @@ pub(super) fn emit_class_field(
         };
         let _ = writeln!(
             output,
-            "{}{} = {}$.derived({});",
-            indent, private_name, derived_infix, wrapped_value
+            "{}{} = {}{}$.derived({});",
+            indent, private_name, derived_infix, init_prefix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -711,7 +652,7 @@ pub(super) fn emit_class_field(
         let _ = writeln!(
             output,
             "{}{} = {}{}$.derived({});",
-            indent, private_name, comment_infix, field.init_prefix, derived_expr
+            indent, private_name, comment_infix, init_prefix, derived_expr
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -1208,7 +1149,7 @@ fn transform_class_fields_client_with_options_at(
                 let mut parsed_as_rune = false;
                 for &(rune_type, _) in &rune_types_list {
                     let has_pattern =
-                        has_rune_after_eq(trimmed, rune_type) || ends_with_assignment_eq(trimmed);
+                        has_rune_after_eq(trimmed, rune_type) || initializer_starts_later(trimmed);
                     if !has_pattern {
                         continue;
                     }
@@ -1346,9 +1287,22 @@ fn transform_class_fields_client_with_options_at(
 
     // Scan constructor body for constructor-declared state/derived assignments
     if !constructor_content.is_empty() {
-        for line in constructor_content.lines() {
-            let trimmed = line.trim();
+        let constructor_lines: Vec<&str> = constructor_content.lines().collect();
+        let mut ci = 0;
+        while ci < constructor_lines.len() {
+            let mut candidate = constructor_lines[ci].trim().to_string();
+            if (candidate.starts_with("this.") || candidate.starts_with("this["))
+                && initializer_starts_later(&candidate)
+            {
+                while ci + 1 < constructor_lines.len() && initializer_starts_later(&candidate) {
+                    ci += 1;
+                    candidate.push('\n');
+                    candidate.push_str(constructor_lines[ci].trim());
+                }
+            }
+            let trimmed = candidate.as_str();
             if trimmed.is_empty() {
+                ci += 1;
                 continue;
             }
             if let Some(mut field) = parse_constructor_state_assignment(trimmed, &fields) {
@@ -1405,6 +1359,7 @@ fn transform_class_fields_client_with_options_at(
                 }
                 fields.push(field);
             }
+            ci += 1;
         }
     }
 
@@ -1585,8 +1540,12 @@ fn transform_class_fields_client_with_options_at(
                             pending_at_ctor_depth = at_ctor_depth;
                             depth = net_bracket_depth(trimmed);
                         } else {
-                            let transformed_line =
-                                transform_constructor_assignment(trimmed, &fields, at_ctor_depth);
+                            let transformed_line = transform_constructor_assignment(
+                                trimmed,
+                                &fields,
+                                at_ctor_depth,
+                                &member_body_indent,
+                            );
                             let _ =
                                 writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                         }
@@ -1595,11 +1554,12 @@ fn transform_class_fields_client_with_options_at(
                         pending.push_str(&member_body_indent);
                         pending.push_str(dedent_line(line, &pending_source_indent));
                         depth += net_bracket_depth(trimmed);
-                        if depth <= 0 {
+                        if depth <= 0 && !initializer_starts_later(&pending) {
                             let transformed_line = transform_constructor_assignment(
                                 &pending,
                                 &fields,
                                 pending_at_ctor_depth,
+                                &member_body_indent,
                             );
                             let _ =
                                 writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
@@ -1618,8 +1578,12 @@ fn transform_class_fields_client_with_options_at(
                     }
                 }
                 if !pending.is_empty() {
-                    let transformed_line =
-                        transform_constructor_assignment(&pending, &fields, pending_at_ctor_depth);
+                    let transformed_line = transform_constructor_assignment(
+                        &pending,
+                        &fields,
+                        pending_at_ctor_depth,
+                        &member_body_indent,
+                    );
                     let _ = writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                 }
 
@@ -2463,6 +2427,7 @@ pub(super) fn transform_constructor_assignment(
     line: &str,
     fields: &[ClassStateField],
     at_ctor_depth: bool,
+    continuation_indent: &str,
 ) -> String {
     let mut result = line.trim().to_string();
 
@@ -2546,10 +2511,9 @@ pub(super) fn transform_constructor_assignment(
                         "$derived.by" => format!("$.derived({})", value),
                         _ => format!("$.state({})", value),
                     };
-                    return format!(
-                        "{} = {}{};",
-                        private_name, field.init_prefix, transformed_rhs
-                    );
+                    let init_prefix =
+                        render_initializer_prefix(&field.init_prefix, continuation_indent);
+                    return format!("{} = {}{};", private_name, init_prefix, transformed_rhs);
                 }
             }
         }
@@ -2723,6 +2687,50 @@ mod tests {
         assert!(!super::is_multiline_assignment_start("if (cond) {"));
         // A complete single-line assignment is not a multiline start.
         assert!(!super::is_multiline_assignment_start("this.#count = 10;"));
+        // An initializer beginning on a later line must also be grouped even
+        // though its head has no unmatched bracket (#3498).
+        assert!(super::is_multiline_assignment_start("this.value ="));
+        assert!(super::is_multiline_assignment_start("this.value = // keep"));
+    }
+
+    #[test]
+    fn class_runes_lower_after_line_comment_separators() {
+        let src = "class Box {\n\tvalue = // state\n\t\t$state(1);\n\traw = // raw\n\t\t$state.raw(2);\n\tdoubled = // derived\n\t\t$derived(this.value * 2);\n\tlazy = // derived by\n\t\t$derived.by(() => this.value + 1);\n}";
+        let out = transform_class_fields_client(src);
+
+        for expected in [
+            "// state\n\t$.state(1)",
+            "// raw\n\t$.state(2)",
+            "// derived\n\t$.derived(() => this.value * 2)",
+            "// derived by\n\t$.derived(() => this.value + 1)",
+        ] {
+            assert!(out.contains(expected), "missing {expected:?}:\n{out}");
+        }
+        assert!(!out.contains("$state("), "raw state rune remains:\n{out}");
+        assert!(
+            !out.contains("$derived("),
+            "raw derived rune remains:\n{out}"
+        );
+    }
+
+    #[test]
+    fn constructor_runes_lower_when_initializer_starts_later() {
+        let src = "class Box {\n\t#hidden;\n\tconstructor() {\n\t\tthis.value =\n\t\t\t$state(1);\n\t\tthis.#hidden = // keep\n\t\t\t$state(2);\n\t}\n}";
+        let out = transform_class_fields_client(src);
+
+        assert!(
+            out.contains("get value()"),
+            "public field was not found:\n{out}"
+        );
+        assert!(
+            out.contains("this.#value = $.state(1);"),
+            "newline initializer was not lowered:\n{out}"
+        );
+        assert!(
+            out.contains("this.#hidden = // keep\n\t\t$.state(2);"),
+            "line-comment initializer was not lowered:\n{out}"
+        );
+        assert!(!out.contains("$state("), "raw state rune remains:\n{out}");
     }
 
     const COUNTER: &str = "\

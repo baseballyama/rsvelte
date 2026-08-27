@@ -15,6 +15,65 @@ use crate::compiler::phases::phase3_transform::shared::js_scan;
 use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_js_ident_continue;
 
+/// Byte offset of the first character after `from` that is neither JavaScript
+/// whitespace nor a line or block comment.
+pub(crate) fn skip_ws_and_comments(s: &str, mut from: usize) -> usize {
+    loop {
+        let rest = &s[from..];
+        let ws = rest.len() - rest.trim_start_matches(is_js_whitespace).len();
+        from += ws;
+        let rest = &s[from..];
+        if let Some(inner) = rest.strip_prefix("/*") {
+            match memmem::find(inner.as_bytes(), b"*/") {
+                Some(end) => from += 2 + end + 2,
+                None => return s.len(),
+            }
+        } else if rest.starts_with("//") {
+            match memchr::memchr(b'\n', rest.as_bytes()) {
+                Some(end) => from += end + 1,
+                None => return s.len(),
+            }
+        } else {
+            return from;
+        }
+    }
+}
+
+/// Whether `text` contains an assignment whose initializer starts with `rune`,
+/// allowing any JavaScript whitespace and comments after `=`.
+pub(crate) fn has_rune_after_eq(text: &str, rune: &str) -> bool {
+    let Some(eq) = find_assignment_eq(text) else {
+        return false;
+    };
+    let init = skip_ws_and_comments(text, eq + 1);
+    text[init..]
+        .strip_prefix(rune)
+        .is_some_and(|after| after.starts_with('(') || after.starts_with('<'))
+}
+
+/// Byte offset of the first assignment `=` rather than one belonging to a
+/// comparison or arrow token.
+pub(crate) fn find_assignment_eq(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = memmem::find(&bytes[from..], b"=") {
+        let i = from + rel;
+        let prev = i.checked_sub(1).map(|p| bytes[p]);
+        let next = bytes.get(i + 1).copied();
+        if !matches!(prev, Some(b'=' | b'!' | b'<' | b'>')) && !matches!(next, Some(b'=' | b'>')) {
+            return Some(i);
+        }
+        from = i + 1;
+    }
+    None
+}
+
+/// Whether an assignment has no initializer token yet because only JavaScript
+/// whitespace and comments follow its `=`.
+pub(crate) fn initializer_starts_later(text: &str) -> bool {
+    find_assignment_eq(text).is_some_and(|eq| skip_ws_and_comments(text, eq + 1) == text.len())
+}
+
 /// Skip a `'`/`"` string literal starting at `i`, returning the index just past
 /// its closing quote (or end of line / input for an unterminated literal).
 fn skip_quoted(s: &str, i: usize) -> usize {
@@ -559,7 +618,51 @@ pub(crate) fn terminate_export_default_class(code: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{brace_opens_class_body, find_class_header, split_class_members_onto_lines};
+    use super::{
+        brace_opens_class_body, find_assignment_eq, find_class_header, has_rune_after_eq,
+        initializer_starts_later, split_class_members_onto_lines,
+    };
+
+    #[test]
+    fn rune_initializer_separator_uses_js_whitespace_and_comments() {
+        for separator in [
+            "",
+            " ",
+            "  ",
+            "\t",
+            "\n\t",
+            " /* c */ ",
+            " // c\n\t",
+            "\u{a0}",
+            "\u{feff}",
+        ] {
+            let field = format!("d ={separator}$derived(1)");
+            assert!(has_rune_after_eq(&field, "$derived"), "{field:?}");
+        }
+    }
+
+    #[test]
+    fn deferred_initializer_accepts_comments_but_not_a_value() {
+        for text in ["d =", "d =\t", "d = /* c */", "d = // c"] {
+            assert!(initializer_starts_later(text), "{text:?}");
+        }
+        assert!(!initializer_starts_later("d = 1"));
+    }
+
+    #[test]
+    fn comparisons_and_arrows_are_not_assignments() {
+        for text in [
+            "x == $derived(1)",
+            "x === $derived(1)",
+            "x != $derived(1)",
+            "x <= $derived(1)",
+            "x >= $derived(1)",
+            "x => $derived(1)",
+        ] {
+            assert_eq!(find_assignment_eq(text), None, "{text:?}");
+            assert!(!has_rune_after_eq(text, "$derived"), "{text:?}");
+        }
+    }
 
     #[test]
     fn conventionally_formatted_class_body_is_not_resplit() {

@@ -10,7 +10,8 @@ use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
 use crate::compiler::phases::phase3_transform::shared::class_body::{
-    find_class_header, split_class_members_onto_lines,
+    find_assignment_eq, find_class_header, initializer_starts_later, skip_ws_and_comments,
+    split_class_members_onto_lines,
 };
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 use memchr::memmem;
@@ -4829,6 +4830,20 @@ fn code_bracket_depth(s: &str) -> i32 {
     depth
 }
 
+/// Return the assignment, rune and rune-call offsets when a rune is the whole
+/// initializer of a class field or constructor assignment. Upstream reads the
+/// initializer AST, so the spelling between `=` and the rune is immaterial.
+fn class_rune_initializer<'a>(text: &str, runes: &'a [&'a str]) -> Option<(usize, usize, &'a str)> {
+    let eq = find_assignment_eq(text)?;
+    let rune_pos = skip_ws_and_comments(text, eq + 1);
+    let rest = &text[rune_pos..];
+    let rune = runes.iter().copied().find(|rune| {
+        rest.strip_prefix(rune)
+            .is_some_and(|after| after.starts_with('('))
+    })?;
+    Some((eq, rune_pos, rune))
+}
+
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let script_bytes = script.as_bytes();
@@ -4986,8 +5001,47 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
 
     while line_idx < all_lines.len() {
         let line = all_lines[line_idx];
-        let trimmed = line.trim();
+        let initial_trimmed = line.trim();
         line_idx += 1;
+
+        // A field initializer may begin on the next physical line. Look ahead
+        // only while the text after its assignment is still entirely whitespace
+        // or comments, and consume those lines only once the first token is a
+        // rune. This leaves ordinary multiline fields to the existing scanner.
+        let mut joined_line = None;
+        if !in_derived_field
+            && !in_state_field
+            && !in_plain_field
+            && !in_block
+            && !in_block_comment
+            && initializer_starts_later(initial_trimmed)
+        {
+            let mut candidate = initial_trimmed.to_string();
+            let mut next_idx = line_idx;
+            while next_idx < all_lines.len() {
+                candidate.push('\n');
+                candidate.push_str(all_lines[next_idx].trim());
+                let Some(eq) = find_assignment_eq(&candidate) else {
+                    break;
+                };
+                let init = skip_ws_and_comments(&candidate, eq + 1);
+                if init == candidate.len() {
+                    next_idx += 1;
+                    continue;
+                }
+                if class_rune_initializer(
+                    &candidate,
+                    &["$derived.by", "$derived", "$state.raw", "$state"],
+                )
+                .is_some()
+                {
+                    line_idx = next_idx + 1;
+                    joined_line = Some(candidate);
+                }
+                break;
+            }
+        }
+        let trimmed = joined_line.as_deref().unwrap_or(initial_trimmed);
 
         // Continue accumulating multiline derived field
         if in_derived_field {
@@ -5295,11 +5349,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        let is_derived_field = memmem::find(trimmed_bytes, b"= $derived(").is_some()
-            || memmem::find(trimmed_bytes, b"=$derived(").is_some()
-            || memmem::find(trimmed_bytes, b"= $derived.by(").is_some()
-            || memmem::find(trimmed_bytes, b"=$derived.by(").is_some();
-        if is_derived_field && let Some(eq_pos) = trimmed.find('=') {
+        if let Some((eq_pos, derived_pos, derived_rune)) =
+            class_rune_initializer(trimmed, &["$derived.by", "$derived"])
+        {
             // Strip TypeScript field modifiers (readonly, public, private, protected, …)
             // so that e.g. `readonly props = $derived.by(…)` yields name="props" not
             // "readonly props". The `#` ergonomic-private prefix is preserved.
@@ -5307,15 +5359,10 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             let is_private = lhs_bare.starts_with('#');
             let name = lhs_bare.trim_start_matches('#').to_string();
 
-            let (derived_pattern, is_derived_by) =
-                if memmem::find(trimmed_bytes, b"$derived.by(").is_some() {
-                    ("$derived.by(", true)
-                } else {
-                    ("$derived(", false)
-                };
-
-            if let Some(derived_pos) = memmem::find(trimmed_bytes, derived_pattern.as_bytes()) {
-                let value_start = derived_pos + derived_pattern.len();
+            let is_derived_by = derived_rune == "$derived.by";
+            let derived_pattern_len = derived_rune.len() + 1;
+            {
+                let value_start = derived_pos + derived_pattern_len;
                 let after_paren = &trimmed[value_start..];
 
                 if let Some(value_end) = find_matching_paren_server(after_paren) {
@@ -5354,22 +5401,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 }
             }
         }
-        let is_state_field = memmem::find(trimmed_bytes, b"= $state(").is_some()
-            || memmem::find(trimmed_bytes, b"=$state(").is_some()
-            || memmem::find(trimmed_bytes, b"= $state.raw(").is_some()
-            || memmem::find(trimmed_bytes, b"=$state.raw(").is_some();
-        if is_state_field && let Some(eq_pos) = trimmed.find('=') {
-            let (state_pattern, state_pos) =
-                if let Some(pos) = memmem::find(trimmed_bytes, b"$state.raw(") {
-                    ("$state.raw(", pos)
-                } else if let Some(pos) = memmem::find(trimmed_bytes, b"$state(") {
-                    ("$state(", pos)
-                } else {
-                    members.push(ClassMember::Field(trimmed.to_string()));
-                    continue;
-                };
+        if let Some((eq_pos, state_pos, state_rune)) =
+            class_rune_initializer(trimmed, &["$state.raw", "$state"])
+        {
             let field_name = trimmed[..eq_pos].trim();
-            let value_start = state_pos + state_pattern.len();
+            let value_start = state_pos + state_rune.len() + 1;
             let after_paren = &trimmed[value_start..];
 
             if let Some(value_end) = find_matching_paren_server(after_paren) {
@@ -5432,31 +5468,21 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             let mut new_lines: Vec<String> = Vec::new();
             for line in lines.iter() {
                 let trimmed = line.trim();
-                let tb = trimmed.as_bytes();
                 // Preserve original indentation prefix
                 let indent_prefix: String =
                     line.chars().take_while(|c| c.is_whitespace()).collect();
 
                 if trimmed.starts_with("this.")
-                    && (memmem::find(tb, b"= $derived(").is_some()
-                        || memmem::find(tb, b"=$derived(").is_some()
-                        || memmem::find(tb, b"= $derived.by(").is_some()
-                        || memmem::find(tb, b"=$derived.by(").is_some())
-                    && let Some(eq_pos) = trimmed.find('=')
+                    && let Some((eq_pos, derived_pos, derived_rune)) =
+                        class_rune_initializer(trimmed, &["$derived.by", "$derived"])
                 {
                     let lhs = trimmed[5..eq_pos].trim();
                     let is_private = lhs.starts_with('#');
                     let name = lhs.trim_start_matches('#').to_string();
 
-                    let (derived_pattern, is_derived_by) =
-                        if memmem::find(tb, b"$derived.by(").is_some() {
-                            ("$derived.by(", true)
-                        } else {
-                            ("$derived(", false)
-                        };
-
-                    if let Some(derived_pos) = memmem::find(tb, derived_pattern.as_bytes()) {
-                        let value_start = derived_pos + derived_pattern.len();
+                    let is_derived_by = derived_rune == "$derived.by";
+                    {
+                        let value_start = derived_pos + derived_rune.len() + 1;
                         let after_paren = &trimmed[value_start..];
 
                         if let Some(value_end) = find_matching_paren_server(after_paren) {
@@ -5496,25 +5522,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 }
 
                 if trimmed.starts_with("this.")
-                    && (memmem::find(tb, b"= $state(").is_some()
-                        || memmem::find(tb, b"=$state(").is_some()
-                        || memmem::find(tb, b"= $state.raw(").is_some()
-                        || memmem::find(tb, b"=$state.raw(").is_some())
-                    && let Some(eq_pos) = trimmed.find('=')
+                    && let Some((eq_pos, state_pos, state_rune)) =
+                        class_rune_initializer(trimmed, &["$state.raw", "$state"])
                 {
                     let lhs = trimmed[5..eq_pos].trim();
-
-                    let (state_pattern, state_pos) =
-                        if let Some(pos) = memmem::find(tb, b"$state.raw(") {
-                            ("$state.raw(", pos)
-                        } else if let Some(pos) = memmem::find(tb, b"$state(") {
-                            ("$state(", pos)
-                        } else {
-                            new_lines.push(line.to_string());
-                            continue;
-                        };
-
-                    let value_start = state_pos + state_pattern.len();
+                    let value_start = state_pos + state_rune.len() + 1;
                     let after_paren = &trimmed[value_start..];
 
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
@@ -6938,6 +6950,37 @@ mod destructure_helper_tests {
 #[cfg(test)]
 mod class_field_server_tests {
     use super::transform_class_fields_server;
+
+    #[test]
+    fn rune_field_separator_does_not_select_the_client_setter_shape() {
+        for separator in [
+            " ",
+            "",
+            "  ",
+            "\t",
+            "\n\t\t\t",
+            " /* c */ ",
+            "\u{a0}",
+            "\u{feff}",
+        ] {
+            let input =
+                format!("class K {{\n\tv = $state(1);\n\td ={separator}$derived(this.v * 2);\n}}");
+            let out = transform_class_fields_server(&input);
+
+            assert!(
+                out.contains("set d($$value)"),
+                "server setter was missed for separator {separator:?}:\n{out}"
+            );
+            assert!(
+                out.contains("return this.#d($$value);"),
+                "server setter return was missed for separator {separator:?}:\n{out}"
+            );
+            assert!(
+                !out.contains("set d(value)"),
+                "client setter leaked for separator {separator:?}:\n{out}"
+            );
+        }
+    }
 
     /// Upstream ClassBody.js emits the setter as:
     ///   b.method('set', b.key(name), [b.id('$$value')],
