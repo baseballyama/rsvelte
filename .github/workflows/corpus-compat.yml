@@ -288,11 +288,16 @@ jobs:
           retention-days: 14
 
       - name: Convert corpus to TSX (official svelte2tsx + rsvelte)
+        # This is an independent compatibility surface. Keep it observable when
+        # an earlier compiler gate fails; otherwise its report and the concrete
+        # error behind a `map-missing` entry are never produced.
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/svelte2tsx-compile.mjs
 
       # One invocation, two ratchets: TSX text parity against official
       # svelte2tsx, and structural validity of the source map each side returns.
       - name: Verify svelte2tsx (oxfmt-normalized TSX + source maps)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/svelte2tsx-verify.mjs
 
       # Synthetic combinatorial sweep of unused-CSS pruning — catches
