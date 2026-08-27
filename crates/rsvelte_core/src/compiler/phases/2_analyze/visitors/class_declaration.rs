@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/ClassDeclaration.js`.
 
-use super::VisitorContext;
+use super::{AstType, VisitorContext};
 use super::shared::utils::validate_identifier_name;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
@@ -35,17 +35,19 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             validate_identifier_name(binding, None)?;
         }
 
-        // Component scripts count their top level as depth 0 in VisitorContext,
-        // so the first nested function is already below top level. Standalone
-        // `.svelte.(js|ts)` modules deliberately allow that first function:
-        // upstream's `analyze_module` leaves `ast_type` null and applies the
-        // component-depth threshold there.
-        let allowed_depth = if context.analysis.is_module_file {
-            1
-        } else {
-            0
-        };
-        if context.function_depth > allowed_depth || context.in_reactive_declaration {
+        // This warning follows the lexical scope depth, not VisitorContext's
+        // separate derived/template traversal counter. Component instance
+        // scope is depth 1, while a component module script is depth 0.
+        // Standalone `.svelte.(js|ts)` modules deliberately use the component
+        // threshold because upstream's `analyze_module` leaves `ast_type` null.
+        let allowed_depth =
+            if context.ast_type == AstType::Module && !context.analysis.is_module_file {
+                0
+            } else {
+                1
+            };
+        let scope_depth = context.analysis.root.all_scopes[context.scope].function_depth;
+        if scope_depth > allowed_depth {
             let mut warning = warnings::perf_avoid_nested_class();
             warning.start = node.start();
             warning.end = node.end();
