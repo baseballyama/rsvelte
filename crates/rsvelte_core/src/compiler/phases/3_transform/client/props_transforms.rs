@@ -1146,6 +1146,11 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     // Handle multiple declarators: export let a, b, c;
     // Split by comma, but be careful of commas inside default values
     let declarators = split_declarators(rest);
+    // Keep the source declarators alongside the comment-free copies used for
+    // semantic decisions. Comments attached to an initializer belong to that
+    // expression in upstream's AST and must survive when it becomes the last
+    // argument of `$.prop(...)`.
+    let raw_declarators = split_declarators(rest_raw);
     let last_declarator_has_initializer = declarators
         .last()
         .is_some_and(|declarator| declarator.contains('='));
@@ -1165,7 +1170,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             .to_string()
     };
 
-    for decl in declarators {
+    for (declarator_index, decl) in declarators.into_iter().enumerate() {
         let decl = decl.trim();
         if decl.is_empty() {
             continue;
@@ -1184,6 +1189,13 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
             // Remove trailing semicolon from value (after comment removal)
             let value = value.trim_end_matches(';').trim();
+            let initializer_comment = raw_declarators
+                .get(declarator_index)
+                .and_then(|raw_decl| raw_decl.find('=').map(|at| &raw_decl[at + 1..]))
+                .and_then(leading_initializer_comments);
+            let rendered_value = initializer_comment
+                .map(|comment| format!("{}{}", comment, value))
+                .unwrap_or_else(|| value.to_string());
 
             // Check if the value is a store accessor (e.g., $foo)
             // Store accessors like $foo become $foo() calls after transformation.
@@ -1208,7 +1220,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                     name,
                     prop_key_for(name),
                     flags,
-                    value
+                    rendered_value
                 ));
             } else {
                 // Check if the value is a "simple expression" that can be passed directly
@@ -1268,7 +1280,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                         name,
                         prop_key_for(name),
                         flags,
-                        value
+                        rendered_value
                     ));
                 } else if is_prop_ref {
                     // Prop/state identifier: pass directly (official compiler unwraps no-arg calls)
@@ -1279,7 +1291,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                         name,
                         prop_key_for(name),
                         flags,
-                        value
+                        rendered_value
                     ));
                 } else {
                     // Wrap non-simple values in a thunk: () => value
@@ -1287,6 +1299,9 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                     // OXC from parsing `() => {...}` as arrow with block body
                     // instead of arrow returning object literal
                     let lazy_arg = make_lazy_prop_arg(value);
+                    let lazy_arg = initializer_comment
+                        .map(|comment| restore_lazy_initializer_comment(&lazy_arg, comment))
+                        .unwrap_or(lazy_arg);
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
                         leading_ws,
@@ -1328,6 +1343,52 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
         results.join("\n")
     } else {
         format!("{}{}", comment_prefix, results.join("\n"))
+    }
+}
+
+/// Return the leading comment trivia of an initializer, including the spacing
+/// after it. The caller concatenates this slice with the comment-free value.
+fn leading_initializer_comments(raw_value: &str) -> Option<&str> {
+    let bytes = raw_value.as_bytes();
+    let mut i = 0;
+    while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+        i += 1;
+    }
+    let start = i;
+    let mut found = false;
+
+    loop {
+        if bytes.get(i..i + 2) == Some(b"/*") {
+            let close = raw_value[i + 2..].find("*/")?;
+            i += close + 4;
+            found = true;
+        } else if bytes.get(i..i + 2) == Some(b"//") {
+            i = raw_value[i + 2..]
+                .find('\n')
+                .map_or(bytes.len(), |newline| i + 2 + newline + 1);
+            found = true;
+        } else {
+            break;
+        }
+        while bytes.get(i).is_some_and(u8::is_ascii_whitespace) {
+            i += 1;
+        }
+    }
+
+    found.then(|| &raw_value[start..i])
+}
+
+/// A non-simple prop default is wrapped in a thunk. Its source comment stays
+/// attached to the original expression, so place it inside that wrapper; the
+/// optimized no-argument-call form has no wrapper and keeps the comment before
+/// the surviving callee.
+fn restore_lazy_initializer_comment(lazy_arg: &str, comment: &str) -> String {
+    if let Some(body) = lazy_arg.strip_prefix("() => (") {
+        format!("() => ({}{}", comment, body)
+    } else if let Some(body) = lazy_arg.strip_prefix("() => ") {
+        format!("() => {}{}", comment, body)
+    } else {
+        format!("{}{}", comment, lazy_arg)
     }
 }
 

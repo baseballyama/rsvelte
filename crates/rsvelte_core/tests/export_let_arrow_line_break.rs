@@ -69,3 +69,28 @@ fn a_trailing_arrow_inside_a_string_is_not_a_continuation() {
         "the two declarations were merged:\n{out}"
     );
 }
+
+#[test]
+fn a_jsdoc_before_a_simple_initializer_survives_prop_lowering() {
+    let source = "<script>\n  export let onSave = /** @param {any} value */ async (value) => {};\n</script>\n";
+    for dev in [false, true] {
+        let out = compile(
+            source,
+            CompileOptions {
+                filename: Some("A.svelte".to_string()),
+                generate: GenerateMode::Client,
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compile failed")
+        .js
+        .code;
+        assert!(
+            out.contains(
+                "$.prop($$props, 'onSave', 8, /** @param {any} value */ async (value) => {})"
+            ),
+            "the initializer JSDoc was lost:\n{out}"
+        );
+    }
+}
