@@ -98,12 +98,12 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 5 entries;
-`error-message-known-failures.client-dev.json` holds 5 entries;
-`error-message-known-failures.server.json` holds 5 entries; and
-`error-message-known-failures.server-dev.json` holds 5 entries. All four of
-`error-position-known-failures.<target>.json` hold 38 entries, all four of
-`error-end-known-failures.<target>.json` hold 51 entries, and all four of
+`error-message-known-failures.client.json` holds 3 entries;
+`error-message-known-failures.client-dev.json` holds 3 entries;
+`error-message-known-failures.server.json` holds 3 entries; and
+`error-message-known-failures.server-dev.json` holds 3 entries. All four of
+`error-position-known-failures.<target>.json` hold 36 entries, all four of
+`error-end-known-failures.<target>.json` hold 49 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
@@ -122,10 +122,10 @@ end entries. The scoped-store diagnostic pass retired another 10 position and 10
 end entries by attaching the offending `$name` identifier range. The detailed
 shape partitions below remain the measured snapshot
 from before those passes; they are historical evidence about the backlog's shape,
-not a decomposition of the current 38/51 files.
+not a decomposition of the current 36/49 files.
 
 The former client-only asymmetry is gone from the current corpus population, so
-all four files now carry the same five message entries.
+all four files now carry the same three message entries.
 
 ## Error messages
 
@@ -134,9 +134,9 @@ things on a minor bump": both compilers run on the same source, in the same
 process, at the pinned version, so a difference here is rsvelte's — the argument
 settled for warning text in #2403.
 
-Clustered by code (client target, 5 entries):
+Clustered by code (client target, 3 entries):
 
-- **`js_parse_error` — 4, the whole majority.** The Svelte code is right, but the
+- **`js_parse_error` — 2.** The Svelte code is right, but the
   text is oxc's parser message (`Expected `,` or `}` but found `+`) where upstream
   forwards acorn's (`Unexpected token`). This is the one cluster whose fix is not a
   string edit: the two parsers phrase their own diagnostics, and rsvelte's text is
@@ -164,6 +164,10 @@ Clustered by code (client target, 5 entries):
   The object-pattern rest-comma fixture retired through the exact diagnostic
   adapter: OXC and acorn reject the same grammar error at the same parse site,
   but acorn reports `Comma is not permitted after the rest element`.
+  The two reserved-word binding patterns retired together: the adapter uses
+  OXC's keyword label for an array pattern and walks back from its missing-colon
+  label to an object shorthand property, matching both acorn's contextual text
+  and its point position.
 - **`expected_token` — 1.** `svelte/…/compiler-errors/samples/malformed-snippet-2`
   names the closing token it wanted: rsvelte says `}` where upstream says `)`. The
   two parsers recover from the malformed snippet header at different points, so

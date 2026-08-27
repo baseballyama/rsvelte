@@ -42,8 +42,6 @@
 	"svelte/packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte",
-	"svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte",
 	"trakt-web/projects/client/src/lib/components/charts/SegmentedBar.svelte",
 	"trakt-web/projects/client/src/lib/sections/profile/leaderboard/_internal/LeaderboardItem.svelte",
 	"trakt-web/projects/client/src/lib/sections/settings/_internal/streaming-services/StreamingServiceBadge.svelte",

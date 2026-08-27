@@ -845,12 +845,7 @@ pub enum ValidatorErrorVerdict {
 /// Validator fixtures whose expected *message* is an acorn diagnostic that
 /// OXC words differently. The code still has to match, and a fixture that
 /// starts matching is reported as a stale entry — the list can only shrink.
-pub const VALIDATOR_MESSAGE_DIVERGENCES: &[&str] = &[
-    // acorn "Unexpected token" vs OXC "Identifier expected. 'case' is a reserved word …"
-    "each-block-invalid-context-destructured",
-    // acorn "Unexpected keyword 'case'" vs OXC "Expected `:` but found `}`"
-    "each-block-invalid-context-destructured-object",
-];
+pub const VALIDATOR_MESSAGE_DIVERGENCES: &[&str] = &[];
 
 /// Compare a resolved `(line, column)` against the fixture's pinned position.
 const fn position_matches(actual: (usize, usize), expected: &ExpectedPosition) -> bool {

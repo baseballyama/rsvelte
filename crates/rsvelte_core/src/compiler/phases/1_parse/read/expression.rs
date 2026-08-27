@@ -7564,6 +7564,46 @@ fn acorn_diagnostic_message(message: &str) -> &str {
     }
 }
 
+/// Recover acorn's diagnostic for reserved words in a destructuring binding.
+/// OXC reports the keyword itself for array patterns, but parses an object
+/// shorthand keyword as a property name and reports the missing `:` at the
+/// following delimiter. The latter therefore has to walk back to the property.
+fn acorn_binding_pattern_diagnostic(
+    content: &str,
+    message: &str,
+    reported: usize,
+) -> Option<(usize, String)> {
+    let trimmed = content.trim_start_ws();
+    if trimmed.starts_with('[')
+        && let Some(rest) = message.strip_prefix("Identifier expected. '")
+        && let Some((word, _)) = rest.split_once("' is a reserved word")
+        && super::super::utils::is_reserved(word)
+    {
+        let at = reported.min(content.len());
+        return content
+            .get(at..)
+            .is_some_and(|tail| tail.starts_with(word))
+            .then(|| (at, "Unexpected token".to_string()));
+    }
+
+    if !trimmed.starts_with('{') || message != "Expected `:` but found `}`" {
+        return None;
+    }
+    let end = content[..reported.min(content.len())].trim_end_ws().len();
+    let start = content[..end]
+        .rfind(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '$')
+        .map_or(0, |at| at + 1);
+    let word = content.get(start..end)?;
+    let before = content[..start].trim_end_ws();
+    if !matches!(before.as_bytes().last(), Some(&b'{') | Some(&b','))
+        || !is_plain_ascii_identifier(word)
+        || !super::super::utils::is_reserved(word)
+    {
+        return None;
+    }
+    Some((start, format!("Unexpected keyword '{word}'")))
+}
+
 /// Repair the one import-attributes spelling acorn-typescript accepts and OXC
 /// rejects: `assert` after a line terminator. Replacing it with `with  ` keeps
 /// the byte length, every span, and the output spelling (upstream normalizes the
@@ -12382,6 +12422,21 @@ pub fn parse_binding_pattern<'a>(
                 let err = &result.diagnostics[0];
                 let msg = format!("{}", err);
                 let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim_ws().to_string();
+                let reported = err
+                    .labels
+                    .first()
+                    .map_or(0, |label| label.offset() as usize)
+                    .saturating_sub(4);
+                if let Some((at, message)) =
+                    acorn_binding_pattern_diagnostic(content, &clean_msg, reported)
+                {
+                    let at = offset + at;
+                    return Err(crate::error::ParseError::svelte(
+                        "js_parse_error",
+                        message,
+                        (at, at),
+                    ));
+                }
                 let clean_msg = acorn_diagnostic_message(&clean_msg);
                 let err_pos = offset;
                 return Err(crate::error::ParseError::svelte(
@@ -13621,6 +13676,24 @@ mod tests {
             panic!("expected a Svelte parse error");
         };
         assert_eq!(message, "Comma is not permitted after the rest element");
+    }
+
+    #[test]
+    fn reserved_binding_words_use_acorns_contextual_errors() {
+        for (source, expected_message, expected_at) in [
+            ("[case]", "Unexpected token", 1),
+            ("{ case }", "Unexpected keyword 'case'", 2),
+        ] {
+            let arena = ParseArena::new();
+            let line_offsets = super::super::super::compute_line_offsets(source, false);
+            let Err(crate::error::ParseError::SvelteError { message, span, .. }) =
+                parse_binding_pattern(&arena, source, 10, &line_offsets, false)
+            else {
+                panic!("expected a Svelte parse error for {source}");
+            };
+            assert_eq!(message, expected_message, "{source}");
+            assert_eq!(span, (10 + expected_at, 10 + expected_at), "{source}");
+        }
     }
 
     #[test]
