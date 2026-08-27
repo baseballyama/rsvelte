@@ -3443,6 +3443,15 @@ fn ast_matches_oracle_read_wrapping() {
             &["$.escape(d()(1))"],
             &[],
         ),
+        // All switch cases share one scope even without braces. The nested
+        // `var value` must shadow the analysis root's same-named derived binding
+        // during the first read-wrap pass; nested-rune lowering then adds the
+        // one optional call that belongs to the local derived value.
+        (
+            "<script>function probe(flag) { switch (flag) { case true: var value = $derived(1); return value; } }</script>",
+            &["return value?.();"],
+            &["return value?.()?.();"],
+        ),
         // multiple derived reads in one expression: both wrapped. Derive
         // from props so the sum doesn't constant-fold to a literal.
         (

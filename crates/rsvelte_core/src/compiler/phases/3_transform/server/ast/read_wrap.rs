@@ -1022,6 +1022,25 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
         self.shadowed.pop();
     }
 
+    fn visit_switch_statement(&mut self, it: &mut oxc_ast::ast::SwitchStatement<'a>) {
+        // A switch's cases share one lexical environment even when a case has no
+        // explicit block. Collect every case's direct declarations before
+        // visiting any consequent, just as the semantic scope does. Without
+        // this frame, a case-local `var value = $derived(...)` can resolve to a
+        // same-named component binding and be getter-wrapped once here, then a
+        // second time by the nested-rune lowering pass.
+        self.visit_expression(&mut it.discriminant);
+        let mut frame = FxHashSet::default();
+        for case in it.cases.iter() {
+            collect_block_decl_names(&case.consequent, &mut frame);
+        }
+        self.shadowed.push(frame);
+        for case in it.cases.iter_mut() {
+            self.visit_switch_case(case);
+        }
+        self.shadowed.pop();
+    }
+
     fn visit_binding_identifier(&mut self, it: &mut oxc_ast::ast::BindingIdentifier<'a>) {
         // `is_reference` is true in binding positions too, so upstream's
         // `$$props` → `$$sanitized_props` short-circuit renames a declaration
