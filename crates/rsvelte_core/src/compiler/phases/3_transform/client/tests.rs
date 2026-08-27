@@ -3031,6 +3031,32 @@ fn expression_blocked_after_await_skips_the_text_content_fast_path() {
     assert!(code.contains("[$$promises[1]]"), "{code}");
 }
 
+#[test]
+fn title_uses_scope_definedness_for_binding_initializers() {
+    let compile_title = |initializer: &str| {
+        crate::compiler::compile(
+            &format!(
+                "<script>\n\texport let a = 1;\n\tlet b = {initializer};\n</script>\n<svelte:head><title>{{b}}</title></svelte:head>\n"
+            ),
+            crate::compiler::CompileOptions {
+                generate: crate::compiler::GenerateMode::Client,
+                filename: Some("title-known-defined.svelte".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code
+    };
+
+    let binary = compile_title("a + 1");
+    assert!(binary.contains("$.document.title = b;"), "{binary}");
+    assert!(!binary.contains("b ?? ''"), "{binary}");
+
+    let alias = compile_title("a");
+    assert!(alias.contains("$.document.title = b ?? '';"), "{alias}");
+}
+
 /// The folded VALUE comes from the server's table rather than a second
 /// implementation of it: JS `Math.round` is half-UP (`Math.round(-0.5)` is
 /// `-0`), which Rust's `f64::round` (half away from zero) gets wrong.

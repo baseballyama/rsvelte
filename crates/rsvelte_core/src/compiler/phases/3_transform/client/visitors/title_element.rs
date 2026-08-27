@@ -319,11 +319,15 @@ fn build_title_content(
                         is_async: has_await,
                     });
                     let param_ref = b::id(&param_name);
-                    return (
-                        b::nullish(&context.arena, param_ref, b::string("")),
-                        has_state,
-                        memo_entries,
-                    );
+                    if !is_expression_defined(&expr.expression, context) {
+                        return (
+                            b::nullish(&context.arena, param_ref, b::string("")),
+                            has_state,
+                            memo_entries,
+                        );
+                    } else {
+                        return (param_ref, has_state, memo_entries);
+                    }
                 }
 
                 if !is_expression_defined(&expr.expression, context) {
