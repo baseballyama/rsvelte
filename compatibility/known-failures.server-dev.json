@@ -77,7 +77,6 @@
 	"threlte/apps/docs/src/examples/geometry/random-placement/basic-random/assets/bush.svelte",
 	"threlte/apps/docs/src/examples/xr/vr-button/assets/bush.svelte",
 	"threlte/packages/extras/src/lib/components/Detailed/Detailed.svelte",
-	"threlte/packages/extras/src/lib/components/SoftShadows/SoftShadows.svelte",
 	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
 	"trakt-web/projects/client/src/lib/components/avatar-pill/AvatarPill.svelte",
 	"trakt-web/projects/client/src/lib/components/buttons/Button.svelte",

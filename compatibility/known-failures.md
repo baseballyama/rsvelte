@@ -91,23 +91,23 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Server dev (`known-failures.server-dev.json`, 125 entries)
+## Server dev (`known-failures.server-dev.json`, 124 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `66 + 36 + 22 + 1`
+Partition of `known-failures.server-dev.json` by verdict: `66 + 36 + 22`
 
 - **66 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **22 — one compiler rejects and the other compiles.**
-- **1 — rsvelte's output is not JavaScript.**
 
-All 125 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it. Its JS count now matches `server`; the one extra entry is output that becomes
-unparseable only with `dev: true`, which is exactly why the target is ratcheted
-separately.
+All 124 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+it. Its counts now match `server`. The one extra entry was SoftShadows output
+that became unparseable only with `dev: true`; #3877 corrected the component
+callback tail-comment insertion point, so both its parse and output entries have
+been retired.
 
 ## Client dev (`known-failures.client-dev.json`, 477 entries)
 

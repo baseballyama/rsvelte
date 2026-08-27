@@ -45,7 +45,7 @@ carrying a key that would absorb the next regression.
 
 ## Matrix known failures (`matrix-known-failures.json`, 0 entries)
 
-Partition of `matrix-known-failures.json` by family: all families are at `0`.
+Partition of `matrix-known-failures.json` by family: `0`
 
 ### `binding-position` — 0 entries
 
@@ -63,6 +63,10 @@ the axis that found #2254 plus `SwitchCase.test`, class-expression field initial
 class-expression computed method keys, all fixed in #2269.
 
 ### `comment-slot` — 0 entries
+
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `0`
+
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `0`
 
 The final 20 `legacy-reactive` entries had two causes on `client` and `client-dev`.
 Leading `svelte-ignore` comments remained in the ordinary script output even though upstream's
