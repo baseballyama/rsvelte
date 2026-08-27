@@ -672,6 +672,18 @@ fn substitute_explicit_nesting(
                     // first parent relative selector.
                     pr.combinator = rel.combinator.clone();
                 }
+                if i + 1 == parent.children.len() {
+                    // These flags belong to the child relative selector, not
+                    // to the parent selector substituted for `&`. Upstream
+                    // keeps the NestingSelector and therefore keeps the
+                    // child's metadata here. Retain a no-op nesting marker as
+                    // well so a fully-global parent is treated as a possible
+                    // match rather than testing its selector against a local
+                    // element.
+                    pr.is_global = rel.is_global;
+                    pr.is_global_like = rel.is_global_like;
+                    pr.selectors.push(CssSimpleSelector::Nesting);
+                }
                 result.push(pr);
             }
             continue;
@@ -698,6 +710,13 @@ fn substitute_explicit_nesting(
                     merged.selectors.push(s.clone());
                 }
             }
+            // The combined relative selector still represents the child
+            // rule. In the upstream AST its metadata remains on `&:...`; it
+            // does not inherit metadata.is_global from the parent expanded
+            // into `&`. Inheriting the parent flag makes truncate_globals
+            // discard the child rule and omits the scope class from markup.
+            merged.is_global = rel.is_global;
+            merged.is_global_like = rel.is_global_like;
             result.push(merged);
         } else {
             // No parent to substitute with — keep the rel as-is minus the nesting
@@ -1236,7 +1255,11 @@ fn element_matches_simple_selectors(
 fn truncate_globals(children: &[CssRelativeSelector]) -> &[CssRelativeSelector] {
     let last_non_global = children
         .iter()
-        .rposition(|rel| !is_relative_selector_global(rel));
+        // This mirrors upstream `truncate`, which deliberately uses the
+        // analysis metadata rather than its recursive `is_global` matcher.
+        // In particular, a nested `&:hover` has non-global child metadata even
+        // when `&` resolves to a fully-global parent.
+        .rposition(|rel| !rel.is_global && !rel.is_global_like);
     match last_non_global {
         Some(idx) => &children[..=idx],
         None => &[],
