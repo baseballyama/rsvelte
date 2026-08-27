@@ -9464,6 +9464,22 @@ fn convert_declaration_for_program_as_node(
         Declaration::TSInterfaceDeclaration(decl) => {
             convert_ts_interface_declaration_as_node(arena, decl, offset, line_offsets)
         }
+        // `export import x = require('m')` has value export-kind in oxc, but
+        // upstream's TypeScript visitor still removes the declaration before
+        // legacy component exports are counted. Represent only the declaration
+        // inside the export as empty so the wrapper follows the existing
+        // strip_export_named_declaration_typed path. The unexported spelling is
+        // deliberately untouched: what either compiler should print for it is
+        // an upstream question (both currently emit invalid JavaScript).
+        Declaration::TSImportEqualsDeclaration(decl) => {
+            let start = offset + decl.span.start as usize;
+            let end = offset + decl.span.end as usize;
+            JsNode::EmptyStatement {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+            }
+        }
         _ => JsNode::from_value(convert_declaration_for_program(
             arena,
             decl,

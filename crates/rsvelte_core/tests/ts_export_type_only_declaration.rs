@@ -150,6 +150,24 @@ fn an_empty_module_export_is_removed() {
     }
 }
 
+/// `TSImportEqualsDeclaration` is reported as a value export by oxc, unlike the
+/// other declarations above. Upstream's TypeScript visitor nevertheless erases
+/// it before the component-export pass, so it must not change the production
+/// component calling signature. The emitted declaration text is not asserted:
+/// official currently leaves invalid TypeScript in the function body too. The
+/// server transform deliberately rejects that invalid erased source at its
+/// classification reparse, so the shared `needs_props` result is observed
+/// through the client signature here.
+#[test]
+fn an_exported_import_equals_adds_no_props_parameter() {
+    let body = "export import ie = require('m');";
+    let client = instance(body, GenerateMode::Client, false).expect("client compile");
+    assert!(
+        client.contains("function C($$anchor)"),
+        "exported import-equals produced a client props parameter:\n{client}"
+    );
+}
+
 /// The control: a real value export still needs the parameter, and a `let` still
 /// becomes a bindable prop. Without this, emptying every export would pass the
 /// test above.
