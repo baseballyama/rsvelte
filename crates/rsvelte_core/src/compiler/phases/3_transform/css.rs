@@ -7714,6 +7714,25 @@ fn transform_complex_selector(
                                 );
                             }
                         } else {
+                            // A bare universal which is itself the scoping point is
+                            // replaced by the modifier, just like in the regular scoped
+                            // branch below. Keeping the `*` here would turn
+                            // `*:global(.g)` into `*.svelte-hash.g`, while upstream emits
+                            // `.svelte-hash.g`. A universal earlier in the compound (for
+                            // example `*.a:global(.g)`) is not the scoping point and must
+                            // remain in the output.
+                            if needs_scoping
+                                && !has_nesting
+                                && Some(idx) == last_non_pseudo_idx
+                                && sel_type == "TypeSelector"
+                                && is_bare_universal(sel)
+                            {
+                                let modifier = get_modifier(selector, &local_specificity_bumped);
+                                append_modifier(&mut selector_parts, &modifier);
+                                local_specificity_bumped = true;
+                                continue;
+                            }
+
                             selector_parts.push_str(&format_simple_selector_with_scope(
                                 sel,
                                 selector,
