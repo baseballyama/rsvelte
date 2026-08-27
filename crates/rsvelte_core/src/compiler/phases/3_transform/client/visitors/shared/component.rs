@@ -39,6 +39,22 @@ impl<'a> ComponentNode<'_, 'a> {
             ComponentNode::SvelteSelf(c) => c.start,
         }
     }
+
+    /// Source range of a regular component's tag name.
+    ///
+    /// Upstream attaches this range to the callee identifier itself. Keeping it
+    /// off the surrounding call is important: esrap emits one segment at the
+    /// identifier start and another at its end, while a call span would claim
+    /// the generated anchor and props as source text too.
+    fn callee_name_span(&self) -> Option<(u32, u32)> {
+        let ComponentNode::Component(component) = self else {
+            return None;
+        };
+        component
+            .name_loc
+            .as_ref()
+            .map(|loc| (loc.start.character, loc.end.character))
+    }
 }
 
 /// Props entry in the props object.
@@ -106,6 +122,7 @@ pub fn build_component(
         ComponentNode::SvelteSelf(_) => false,
     };
     let is_svelte_self = matches!(node, ComponentNode::SvelteSelf(_));
+    let callee_name_span = node.callee_name_span();
 
     // Generate intermediate name for dynamic components
     let intermediate_name = if let ComponentNode::Component(comp) = &node {
@@ -431,6 +448,12 @@ pub fn build_component(
                     b::member_path(arena, component_name)
                 }
             }
+        };
+        let callee = match (callee, callee_name_span) {
+            (JsExpr::Identifier(name), Some((start, end))) => {
+                JsExpr::Spanned(arena.alloc_expr(JsExpr::Identifier(name)), start, end)
+            }
+            (callee, _) => callee,
         };
 
         let call = b::call(arena, callee, vec![anchor_expr, props.clone()]);
