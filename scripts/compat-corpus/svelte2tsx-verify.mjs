@@ -101,9 +101,20 @@ const readMap = (dir) => {
 	const json = readIf(path.join(dir, 'map.json'));
 	return json == null ? null : JSON.parse(json);
 };
+const readErrorMessage = (dir) => {
+	const json = readIf(path.join(dir, 'error.json'));
+	if (json == null) return null;
+	try {
+		return JSON.parse(json).message ?? json;
+	} catch {
+		return json;
+	}
+};
 for (const { id } of manifest) {
-	const expected = readMap(path.join(EXPECTED, id));
-	const actual = readMap(path.join(ACTUAL, id));
+	const expectedDir = path.join(EXPECTED, id);
+	const actualDir = path.join(ACTUAL, id);
+	const expected = readMap(expectedDir);
+	const actual = readMap(actualDir);
 	const source = readIf(path.join(CORPUS, 'sources', id)) ?? '';
 
 	let verdict;
@@ -112,6 +123,8 @@ for (const { id } of manifest) {
 		// Official emitting a map while rsvelte emits none is the regression that
 		// would follow from dropping the map from the NAPI surface again.
 		verdict = expected == null ? 'map-absent' : 'map-missing';
+		const error = readErrorMessage(actualDir);
+		if (error != null) details.push({ kind: 'conversion-error', actual: error });
 	} else if (expected != null) {
 		const expectedDetails = mappingViolations(expected.mappings, expected.generatedLines, source);
 		if (expectedDetails.length) {
@@ -228,8 +241,8 @@ for (const { id } of manifest) {
 			verdict = 'error-mismatch';
 			details.push({
 				kind: 'error-presence',
-				expected: expErr ? 'error' : 'compiles',
-				actual: actErr ? 'error' : 'compiles',
+				expected: expErr ? readErrorMessage(expDir) : 'compiles',
+				actual: actErr ? readErrorMessage(actDir) : 'compiles',
 			});
 		}
 	} else {
