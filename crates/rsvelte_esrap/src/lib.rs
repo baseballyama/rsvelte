@@ -47,6 +47,11 @@ use oxc_span::Span;
 
 const UNLOCATED_OFFSET: u32 = u32::MAX;
 
+/// First reserved callee offset used to tell the printer which call argument
+/// owns comments from a source-backed template region. The argument index is
+/// added to this value; these offsets can never be real source locations.
+pub const COMMENT_ARGUMENT_CALLEE_BASE: u32 = u32::MAX - 256;
+
 /// Span reserved for synthesized nodes that carry no source location.
 pub const UNLOCATED_SPAN: Span = Span::new(UNLOCATED_OFFSET, UNLOCATED_OFFSET);
 

@@ -112,16 +112,14 @@ fn a_component_with_no_instance_script_drops_the_comment() {
     }
 }
 
-/// The expression is stamped at ONE address, so a comment written *inside* it
-/// cannot be placed where upstream puts it. It is dropped rather than pushed
-/// past the node it was written in — the pre-existing behaviour, recorded here
-/// as the boundary of the fix.
+/// Interior expression comments now travel with the rebuilt expression rather
+/// than being lost when the server wraps it for escaping.
 #[test]
-fn an_interior_comment_is_still_dropped() {
+fn interior_comments_survive_expression_rewrites() {
     let out = server(&format!("{SCRIPT}\n<p>{{f(n) /* c */ + 1}}</p>\n"));
-    assert!(out.contains("$.escape(f(n) + 1)"), "{out}");
+    assert!(out.contains("$.escape(f(n) + 1 /* c */)"), "{out}");
     let out = server(&format!("{SCRIPT}\n<p>{{f(/* c */ n)}}</p>\n"));
-    assert!(out.contains("$.escape(f(n))"), "{out}");
+    assert!(out.contains("$.escape(f(/* c */ n))"), "{out}");
 }
 
 /// A statement that owns no comment still has to hold its position, or the

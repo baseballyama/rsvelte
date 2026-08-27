@@ -8,6 +8,7 @@
 
 use crate::ast::js::Expression;
 use crate::ast::template::RenderTag;
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
@@ -54,6 +55,9 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     // Extract arguments and wrap them in thunks
     // Reference: RenderTag.js lines 22-33
     let raw_args = extract_call_arguments(&call_expr, context.state.parse_arena);
+    let comment_region = node.expression.end().and_then(|end| {
+        CommentRegion::between(&context.state, node.start + 9, end, node.start + 9)
+    });
 
     // Track async values for $.async() wrapping
     let mut async_values: Vec<JsExpr> = Vec::new();
@@ -82,7 +86,12 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             let template_metadata = node.metadata.arguments.get(i).cloned().unwrap_or_default();
             let metadata = ExpressionMetadata::from_template_metadata(&template_metadata);
             // Apply transforms ($.get() wrapping for reactive state variables)
-            let built = build_expression(context, &converted, &metadata);
+            let mut built = build_expression(context, &converted, &metadata);
+            if let (Some(region), Some(start), Some(end)) =
+                (comment_region.as_ref(), arg.start(), arg.end())
+            {
+                built = region.anchor(&context.arena, built, start, end);
+            }
 
             // Check if this argument has await
             let arg_has_await =

@@ -40,6 +40,7 @@
 use crate::ast::template::AwaitBlock;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::BindingPattern;
+use oxc_span::GetSpanMut;
 
 use super::shared::{
     BLOCK_CLOSE, TemplateEntry, build_fragment_block, create_child_block, expr_text_blockers,
@@ -75,6 +76,23 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
         save_wrap_expr_text(state, expr_text.as_deref().unwrap_or(""))
     } else {
         state.visit_expr_claiming(&node.expression)
+    };
+    let has_header_comments = if let (Some(start), Some(end), Some(header_end)) = (
+        node.expression.start(),
+        node.expression.end(),
+        crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            state.source,
+            node.start as usize + 1,
+            '{',
+        ),
+    ) {
+        state.place_template_expression_comments(
+            (node.start + 7, header_end as u32),
+            (start, end),
+            &mut expression,
+        )
+    } else {
+        false
     };
     // `has_await` → async-IIFE-wrap so `$.await` receives a promise (the inner
     // await is not eagerly awaited).
@@ -136,10 +154,16 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
     let then_body = b.body(unwrap_block(then_block, state));
     let then_arrow = b.arrow(b.params(then_params, None), then_body, false, false);
 
-    let call = b.call(
+    let mut call = b.call(
         "$.await",
         vec![b.id("$$renderer"), expression, pending_thunk, then_arrow],
     );
+    if has_header_comments && let oxc_ast::ast::Expression::CallExpression(call) = &mut call {
+        *call.callee.span_mut() = oxc_span::Span::new(
+            rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
+            rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
+        );
+    }
 
     // create_child_block: blockers → `$$renderer.async_block([…], …)`, an inline
     // await → `$$renderer.child_block(async …)`, else the statement verbatim.

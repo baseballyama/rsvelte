@@ -173,6 +173,14 @@ pub enum Place {
     /// it, so comments interior to the statement land where the source put
     /// them (upstream keeps the original nodes' `loc` for the same effect).
     Shift(u32),
+    /// Remap original absolute source spans into a registered template region.
+    /// Generated wrappers use the empty span and remain location-less, while
+    /// retained descendants keep the cursor positions upstream sees.
+    Remap {
+        source_start: u32,
+        source_end: u32,
+        base: u32,
+    },
 }
 
 impl VisitMut<'_> for Place {
@@ -186,6 +194,18 @@ impl VisitMut<'_> for Place {
             // no re-parsed node is empty at offset 0.
             Place::Shift(_) if span.start == 0 && span.end == 0 => {}
             Place::Shift(by) => *span = Span::new(span.start + by, span.end + by),
+            Place::Remap { .. } if span.start == 0 && span.end == 0 => {}
+            Place::Remap {
+                source_start,
+                source_end,
+                base,
+            } if span.start >= source_start && span.end <= source_end => {
+                *span = Span::new(
+                    base + span.start - source_start,
+                    base + span.end - source_start,
+                );
+            }
+            Place::Remap { .. } => {}
         }
     }
 }

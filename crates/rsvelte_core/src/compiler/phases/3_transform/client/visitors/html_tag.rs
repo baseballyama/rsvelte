@@ -4,6 +4,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/HtmlTag.js`.
 
 use crate::ast::template::HtmlTag;
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
@@ -52,7 +53,13 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     // reactivity wrapping (deep_read_state/untrack) based on metadata from phase 2.
     // This matches the official compiler's: build_expression(context, node.expression, node.metadata.expression)
     let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
-    let built_expression = build_expression(context, &expression, &metadata);
+    let mut built_expression = build_expression(context, &expression, &metadata);
+    if let (Some(start), Some(end)) = (node.expression.start(), node.expression.end())
+        && let Some(region) =
+            CommentRegion::between(&context.state, node.start + 7, end, node.start + 7)
+    {
+        built_expression = region.anchor(&context.arena, built_expression, start, end);
+    }
 
     // Check blocker_map for blocked identifiers referenced in the built expression
     let blocker_exprs_for_html = context

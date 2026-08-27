@@ -338,7 +338,7 @@ fn store_sub_assign(
     b::call(
         arena,
         b::member_path(arena, "$.store_set"),
-        vec![store_source(transform, &node), value],
+        vec![store_source(transform, arena, &node), value],
     )
 }
 
@@ -378,7 +378,7 @@ fn store_sub_mutate(
         arena,
         b::member_path(arena, "$.store_mutate"),
         vec![
-            store_source(transform, &node),
+            store_source(transform, arena, &node),
             transformed_mutation,
             untracked,
         ],
@@ -453,7 +453,7 @@ fn store_sub_update(
     argument: JsExpr,
     prefix: bool,
 ) -> JsExpr {
-    let store = store_source(transform, &argument);
+    let store = store_source(transform, arena, &argument);
 
     let method = if prefix {
         "$.update_pre_store"

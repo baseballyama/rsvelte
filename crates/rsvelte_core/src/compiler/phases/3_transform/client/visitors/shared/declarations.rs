@@ -351,11 +351,19 @@ fn store_sub_read(arena: &JsArena, node: JsExpr) -> JsExpr {
 /// Upstream's `get_store()`: how the store variable behind a `$store`
 /// subscription reads. Resolved once per transform map, so a single pass
 /// already produces the final form instead of relying on a second visit.
-pub(crate) fn store_source(transform: &IdentifierTransform, node: &JsExpr) -> JsExpr {
+pub(crate) fn store_source(
+    transform: &IdentifierTransform,
+    arena: &JsArena,
+    node: &JsExpr,
+) -> JsExpr {
     if let Some(ref resolved) = transform.store_source {
         return resolved.clone();
     }
-    let name = match node {
+    let mut unspanned = node;
+    while let JsExpr::Spanned(inner, _, _) = unspanned {
+        unspanned = arena.get_expr(*inner);
+    }
+    let name = match unspanned {
         JsExpr::Identifier(name) => name.strip_prefix('$').unwrap_or(name).to_string(),
         _ => "unknown".to_string(),
     };
@@ -386,7 +394,7 @@ fn store_sub_assign(
     b::svelte_call(
         arena,
         "store_set",
-        vec![store_source(transform, &node), value],
+        vec![store_source(transform, arena, &node), value],
     )
 }
 
@@ -427,7 +435,7 @@ fn store_sub_mutate(
         arena,
         b::member_path(arena, "$.store_mutate"),
         vec![
-            store_source(transform, &node),
+            store_source(transform, arena, &node),
             transformed_mutation,
             untracked,
         ],
@@ -510,7 +518,7 @@ fn store_sub_update(
 
     // Build args: store, $store()
     let mut args = vec![
-        store_source(transform, &argument),
+        store_source(transform, arena, &argument),
         b::call(arena, argument.clone(), vec![]), // $store()
     ];
 
@@ -840,6 +848,18 @@ mod tests {
             replacement_id: None,
             store_source: None,
         }
+    }
+
+    #[test]
+    fn store_source_reads_through_a_source_span() {
+        let arena = JsArena::new();
+        let inner = arena.alloc_expr(b::id("$count"));
+        let node = JsExpr::Spanned(inner, 10, 16);
+
+        assert!(matches!(
+            store_source(&noop_transform(), &arena, &node),
+            JsExpr::Identifier(name) if name == "count"
+        ));
     }
 
     #[test]

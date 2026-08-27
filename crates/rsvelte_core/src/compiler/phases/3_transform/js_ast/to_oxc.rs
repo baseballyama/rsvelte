@@ -68,6 +68,7 @@ use oxc_syntax::operator::{
 };
 use rsvelte_esrap::{BraceMapping, LocRange};
 use std::cell::RefCell;
+use std::collections::HashSet;
 
 /// A converted program plus the comment coordinate space it needs to be printed
 /// in (see the module docs). `comment_source` is `None` for the common
@@ -422,6 +423,11 @@ struct Synth {
     source: String,
     loc_base: u32,
     comments: Vec<Comment>,
+    /// Original-source comment ranges already copied into an anchored region.
+    /// Overlapping [`JsSourceAnchor`] regions share the upstream comment
+    /// cursor, so the same source comment must only enter the synthetic buffer
+    /// once even when their `region_start`s differ.
+    source_comments: HashSet<(u32, u32)>,
     /// Comment-space ranges resolving back to original-source offsets, for
     /// source maps: one per chunk region, plus one per reserved anchor.
     loc_map: Vec<LocRange>,
@@ -457,6 +463,7 @@ impl Synth {
             source,
             loc_base,
             comments: Vec::new(),
+            source_comments: HashSet::new(),
             loc_map: Vec::new(),
             pending_region: None,
             last_region_source: None,
@@ -688,55 +695,67 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// which is what upstream measures, its whole client output sharing one
     /// cursor over that file. `None` on the probe pass, or when the region
     /// carries nothing to place.
-    fn open_source_region(&self, anchor: &JsSourceAnchor) -> Option<Span> {
-        if anchor.at < anchor.region_start || anchor.at_end < anchor.at {
+    fn open_source_region_parts(
+        &self,
+        region_start: u32,
+        region: &str,
+        comments: &[(u32, u32, bool)],
+        at: u32,
+        at_end: u32,
+    ) -> Option<Span> {
+        if at < region_start || at_end < at {
             return None;
         }
-        let offset = anchor.at - anchor.region_start;
-        let offset_end = anchor.at_end - anchor.region_start;
-        if offset_end as usize > anchor.region.len() {
+        let offset = at - region_start;
+        let offset_end = at_end - region_start;
+        if offset_end as usize > region.len() {
             return None;
         }
-        if !anchor.comments.is_empty() {
+        if !comments.is_empty() {
             self.synth.borrow_mut().saw_comments = true;
         }
         let mut synth = self.synth.borrow_mut();
         if !synth.enabled {
             return None;
         }
-        if synth.open_source_region != Some(anchor.region_start) {
+        if synth.open_source_region != Some(region_start) {
             let base = synth.cursor();
-            synth.source.push_str(&anchor.region);
+            synth.source.push_str(region);
             synth.source.push('\n');
-            let region_start = anchor.region_start;
-            synth.comments.extend(
-                anchor
-                    .comments
-                    .iter()
-                    .map(|&(start, end, line)| -> Comment {
-                        let start = base + (start - region_start);
-                        let end = base + (end - region_start);
-                        let kind = if line {
-                            CommentKind::Line
-                        } else if anchor.region[(start - base) as usize..(end - base) as usize]
-                            .contains('\n')
-                        {
-                            CommentKind::MultiLineBlock
-                        } else {
-                            CommentKind::SingleLineBlock
-                        };
-                        let mut comment = Comment::new(start, end, kind);
-                        comment.attached_to = end;
-                        comment
-                    }),
-            );
-            synth.open_source_region = Some(anchor.region_start);
+            for &(source_start, source_end, line) in comments {
+                if !synth.source_comments.insert((source_start, source_end)) {
+                    continue;
+                }
+                let start = base + (source_start - region_start);
+                let end = base + (source_end - region_start);
+                let kind = if line {
+                    CommentKind::Line
+                } else if region[(start - base) as usize..(end - base) as usize].contains('\n') {
+                    CommentKind::MultiLineBlock
+                } else {
+                    CommentKind::SingleLineBlock
+                };
+                let mut comment = Comment::new(start, end, kind);
+                comment.attached_to = end;
+                synth.comments.push(comment);
+            }
+            synth.open_source_region = Some(region_start);
             synth.open_source_base = base;
         }
         Some(Span::new(
             synth.open_source_base + offset,
             synth.open_source_base + offset_end,
         ))
+    }
+
+    fn open_source_region(&self, anchor: &JsSourceAnchor) -> Option<Span> {
+        self.open_source_region_parts(
+            anchor.region_start,
+            &anchor.region,
+            &anchor.comments,
+            anchor.at,
+            anchor.at_end,
+        )
     }
 
     /// Append a retained island's own source to the comment buffer, so the
@@ -1362,6 +1381,19 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     &self.ab,
                 ))
             }
+            JsPattern::SourceAnchored(anchor) => {
+                let mut pattern = self.binding_pattern(&anchor.inner)?;
+                if let Some(span) = self.open_source_region_parts(
+                    anchor.region_start,
+                    &anchor.region,
+                    &anchor.comments,
+                    anchor.at,
+                    anchor.at_end,
+                ) {
+                    *pattern.span_mut() = span;
+                }
+                Some(pattern)
+            }
             JsPattern::Object(obj) => {
                 let mut props = ArenaVec::with_capacity_in(obj.properties.len(), &self.ab);
                 let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::BindingRestElement<'a>>> =
@@ -1654,13 +1686,16 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 )))
             }
             JsExpr::Class(class) => self.class(class),
-            // `Spanned` wraps a real inner expression with the original-source
-            // byte span (start, end). Convert the inner expression and stamp its
-            // span so esrap's `print_with_map` maps it back to the user source.
+            // `Spanned` normally wraps a real inner expression with the
+            // original-source byte span (start, end). The reserved callee
+            // range is printer metadata, not a source position, so it must not
+            // raise the boundary below which source spans live.
             JsExpr::Spanned(inner, start, end) => {
                 let mut e = self.expr_id(*inner)?;
                 *e.span_mut() = Span::new(*start, *end);
-                self.note_span(*end);
+                if *start < rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE {
+                    self.note_span(*end);
+                }
                 Some(e)
             }
             // `Raw` carries opaque JS expression text. Parse it into a real oxc
@@ -1671,7 +1706,21 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             JsExpr::SourceAnchored(anchor) => {
                 let mut e = self.expr_id(anchor.inner)?;
                 if let Some(span) = self.open_source_region(anchor) {
-                    *e.span_mut() = span;
+                    if anchor.preserve_inner_spans {
+                        let base = span.start - (anchor.at - anchor.region_start);
+                        let mut remap = SourceRegionRemap {
+                            source_start: anchor.region_start,
+                            source_end: anchor.region_start + anchor.region.len() as u32,
+                            base,
+                            remapped: false,
+                        };
+                        remap.visit_expression(&mut e);
+                        if !remap.remapped {
+                            *e.span_mut() = span;
+                        }
+                    } else {
+                        *e.span_mut() = span;
+                    }
                 }
                 Some(e)
             }
@@ -2734,6 +2783,25 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             out.push(argument);
         }
         Some(out)
+    }
+}
+
+struct SourceRegionRemap {
+    source_start: u32,
+    source_end: u32,
+    base: u32,
+    remapped: bool,
+}
+
+impl<'a> VisitMut<'a> for SourceRegionRemap {
+    fn visit_span(&mut self, span: &mut Span) {
+        if span.start >= self.source_start && span.end <= self.source_end && span.start < span.end {
+            *span = Span::new(
+                self.base + span.start - self.source_start,
+                self.base + span.end - self.source_start,
+            );
+            self.remapped = true;
+        }
     }
 }
 

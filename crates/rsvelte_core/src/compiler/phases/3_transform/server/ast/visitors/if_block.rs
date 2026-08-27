@@ -190,12 +190,29 @@ fn build_test<'a>(
     node: &IfBlock,
     state: &mut ServerTransformState<'a>,
 ) -> oxc_ast::ast::Expression<'a> {
-    if let Some(text) = state.expr_source(&node.test)
+    let mut test = if let Some(text) = state.expr_source(&node.test)
         && text_has_await(text)
     {
-        return save_wrap_expr_text(state, text);
+        save_wrap_expr_text(state, text)
+    } else {
+        state.visit_expr_claiming(&node.test)
+    };
+    if let (Some(start), Some(end)) = (node.test.start(), node.test.end()) {
+        // Upstream's cursor drops a leading line comment in an if header: the
+        // newline ends that comment before the rebuilt test is encountered.
+        let header = state
+            .source
+            .get((node.start + 5) as usize..end as usize)
+            .unwrap_or_default();
+        if !header.contains("//") {
+            state.place_template_expression_comments(
+                (node.start + 5, end),
+                (start, end),
+                &mut test,
+            );
+        }
     }
-    state.visit_expr_claiming(&node.test)
+    test
 }
 
 /// Build the `else` arm. If `frag` is a single FLATTENABLE `{:else if}` (nested

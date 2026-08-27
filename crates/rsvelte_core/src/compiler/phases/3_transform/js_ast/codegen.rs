@@ -1001,7 +1001,11 @@ impl<'a> JsCodegen<'a> {
                 self.output.push_str(code);
             }
             JsExpr::Spanned(inner_id, start, end) => {
-                self.record_span_start(*start, *end);
+                let is_comment_argument_marker =
+                    *start >= rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE;
+                if !is_comment_argument_marker {
+                    self.record_span_start(*start, *end);
+                }
                 let suppress_scope = matches!(
                     self.arena.get_expr(*inner_id),
                     JsExpr::Identifier(name) | JsExpr::OpaqueIdentifier(name)
@@ -1014,7 +1018,9 @@ impl<'a> JsCodegen<'a> {
                 } else {
                     self.emit_expression_id(*inner_id);
                 }
-                self.record_span_start(*end, *end);
+                if !is_comment_argument_marker {
+                    self.record_span_start(*end, *end);
+                }
             }
             // The comment coordinates only reach the oxc printer; the text
             // fallback has no comment channel to place them in.
@@ -1934,6 +1940,7 @@ impl<'a> JsCodegen<'a> {
                 self.output.push_str(name);
                 self.record_span_start(*end, *end);
             }
+            JsPattern::SourceAnchored(anchor) => self.emit_pattern(&anchor.inner),
             JsPattern::Array(arr) => {
                 self.output.push('[');
                 for (i, elem) in arr.elements.iter().enumerate() {

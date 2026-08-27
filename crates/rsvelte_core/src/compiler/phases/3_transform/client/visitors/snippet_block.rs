@@ -46,6 +46,7 @@
 
 use crate::ast::js::Expression;
 use crate::ast::template::{Fragment, SnippetBlock};
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -114,8 +115,20 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
     }
 
     // Process each parameter
+    let mut parameter_region_start = node.expression.end().unwrap_or(node.start + 9);
     for (i, param) in node.parameters.iter().enumerate() {
-        if let Some(arg_info) = process_parameter(param, i, context) {
+        if let Some(mut arg_info) = process_parameter(param, i, context) {
+            if let (Some(start), Some(end)) = (param.start(), param.end()) {
+                if let Some(region) = CommentRegion::lexical_between(
+                    &context.state,
+                    parameter_region_start,
+                    end,
+                    parameter_region_start,
+                ) {
+                    arg_info.pattern = region.anchor_pattern(arg_info.pattern, start, end);
+                }
+                parameter_region_start = end;
+            }
             args.push(arg_info.pattern);
             declarations.extend(arg_info.declarations);
         }

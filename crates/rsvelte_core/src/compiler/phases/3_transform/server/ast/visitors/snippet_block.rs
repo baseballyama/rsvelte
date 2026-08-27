@@ -117,10 +117,21 @@ pub(super) fn build_snippet_function<'a>(
             param_srcs.push(s);
         }
     }
-    let params = state
+    let mut params = state
         .reparse_params(&param_srcs)
         // Fallback (unreachable for valid input): `($$renderer)` only.
         .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
+    let mut parameter_region_start = node.expression.end().unwrap_or(node.start + 9);
+    for (param, formal) in node.parameters.iter().zip(params.items.iter_mut().skip(1)) {
+        if let (Some(start), Some(end)) = (param.start(), param.end()) {
+            state.place_template_pattern_comments(
+                (parameter_region_start, end),
+                (start, end),
+                &mut formal.pattern,
+            );
+            parameter_region_start = end;
+        }
+    }
 
     // The snippet PARAMETERS shadow any same-named component-level `$derived` /
     // `$store` binding inside the body (upstream `context.state.scope` resolves a

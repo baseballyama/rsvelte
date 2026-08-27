@@ -4,6 +4,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Attribute.js`.
 
 use crate::ast::template::{Attribute, AttributeNode};
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::client::types::Memoizer;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
@@ -187,12 +188,18 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     // Only generate a name if the handler is actually an arrow function, to avoid consuming
     // names from the conflicts set unnecessarily.
     // Reference: events.js build_event(): `if (dev && handler.type === 'ArrowFunctionExpression')`
-    let handler = if context.state.options.dev && matches!(handler, JsExpr::Arrow(_)) {
+    let mut handler = if context.state.options.dev && matches!(handler, JsExpr::Arrow(_)) {
         let name = context.state.memoizer.generate_id(event_name);
         convert_arrow_to_named_function(handler, name.into())
     } else {
         handler
     };
+
+    if let (Some(start), Some(end)) = (expr_tag.expression.start(), expr_tag.expression.end())
+        && let Some(region) = CommentRegion::of(&context.state, expr_tag, expr_tag.start + 1)
+    {
+        handler = region.anchor_inner(&context.arena, handler, start, end);
+    }
 
     let mut statement = b::stmt(
         &context.arena,

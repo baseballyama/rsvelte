@@ -28,10 +28,11 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
 use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
+use crate::compiler::phases::phase3_transform::shared::js_scan;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
+use oxc_ast::ast::{BindingPattern, Comment, CommentKind, Expression as OxcExpression, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_span::{SPAN, Span};
+use oxc_span::{GetSpan, GetSpanMut, SPAN, Span};
 use visitors::shared::TemplateEntry;
 
 /// Mutable state threaded through the AST-based server transform.
@@ -398,7 +399,8 @@ impl<'a> ServerTransformState<'a> {
             oxc_span::SourceType::mjs().with_typescript(true),
         )
         .parse();
-        ret.program
+        let mut comments: Vec<_> = ret
+            .program
             .comments
             .iter()
             .map(|comment| {
@@ -407,7 +409,38 @@ impl<'a> ServerTransformState<'a> {
                 comment.attached_to = comment.span.end;
                 comment
             })
-            .collect()
+            .collect();
+        // A template region can include Svelte punctuation between otherwise
+        // valid JavaScript fragments. The parser may stop at that punctuation
+        // before reaching a later comment, so supplement its comments with a
+        // lexical pass that skips strings, templates, regexes and comments.
+        // Retain the parser results as well because it sees comments inside
+        // `${...}`, while the scanner deliberately treats templates as opaque.
+        for (comment_start, comment_end) in js_scan::comment_ranges(slice.as_bytes()) {
+            let comment_start = comment_start as u32 + start;
+            let comment_end = comment_end as u32 + start;
+            if comments
+                .iter()
+                .any(|comment| comment.span == Span::new(comment_start, comment_end))
+            {
+                continue;
+            }
+            let relative_start = (comment_start - start) as usize;
+            let relative_end = (comment_end - start) as usize;
+            let raw = &slice[relative_start..relative_end];
+            let kind = if raw.starts_with("//") {
+                CommentKind::Line
+            } else if raw.contains('\n') || raw.contains('\r') {
+                CommentKind::MultiLineBlock
+            } else {
+                CommentKind::SingleLineBlock
+            };
+            let mut comment = Comment::new(comment_start, comment_end, kind);
+            comment.attached_to = comment_end;
+            comments.push(comment);
+        }
+        comments.sort_unstable_by_key(|comment| comment.span.start);
+        comments
     }
 
     /// Restrict a template expression's interior to the part reachable by
@@ -441,9 +474,9 @@ impl<'a> ServerTransformState<'a> {
         region: (u32, u32),
         expr_span: (u32, u32),
         expr: &mut OxcExpression<'a>,
-    ) {
+    ) -> bool {
         let Some((start, end)) = self.live_template_region(region) else {
-            return;
+            return false;
         };
         let (expr_start, expr_end) = expr_span;
         let own = self.template_region_comments(start, end);
@@ -452,25 +485,22 @@ impl<'a> ServerTransformState<'a> {
             _ => None,
         };
         if own.is_empty() && carried.is_none() {
-            return;
+            return false;
         }
         let region_start = carried.as_ref().map_or(start, |pending| pending.start);
         let region_end = end.max(expr_end);
         if expr_start < region_start || region_end as usize > self.source.len() {
-            return;
+            return false;
         }
         let mut comments = carried.map(|pending| pending.comments).unwrap_or_default();
         comments.extend(own);
-        comments.retain(|comment| {
-            comment.span.start >= region_start
-                && comment.span.end <= region_end
-                && (comment.span.end <= expr_start || comment.span.start >= expr_end)
-        });
+        comments
+            .retain(|comment| comment.span.start >= region_start && comment.span.end <= region_end);
         if comments.is_empty() {
-            return;
+            return false;
         }
         let Some(text) = self.source.get(region_start as usize..region_end as usize) else {
-            return;
+            return false;
         };
         for comment in &mut comments {
             comment.span = Span::new(
@@ -480,8 +510,59 @@ impl<'a> ServerTransformState<'a> {
             comment.attached_to = comment.span.end;
         }
         if let Some(base) = self.comments.register_expression(text, &comments) {
-            let mut place = comments::Place::At(base + (expr_start - region_start));
+            let mut place = comments::Place::Remap {
+                source_start: region_start,
+                source_end: region_end,
+                base,
+            };
             place.visit_expression(expr);
+            // A wholly synthesized replacement carries no original descendant
+            // span. Give its root the expression's source position so the
+            // region is still reached and preceding comments are retained.
+            if expr.span().start < base || expr.span().start >= base + (region_end - region_start) {
+                *expr.span_mut() = Span::new(
+                    base + (expr_start - region_start),
+                    base + (expr_end - region_start),
+                );
+            }
+            return true;
+        }
+        false
+    }
+
+    pub fn place_template_pattern_comments(
+        &mut self,
+        region: (u32, u32),
+        pattern_span: (u32, u32),
+        pattern: &mut BindingPattern<'a>,
+    ) {
+        let Some((start, end)) = self.live_template_region(region) else {
+            return;
+        };
+        let (pattern_start, pattern_end) = pattern_span;
+        let mut comments = self.template_region_comments(start, end);
+        comments.retain(|comment| {
+            comment.span.start >= start
+                && comment.span.end <= end
+                && (comment.span.end <= pattern_start || comment.span.start >= pattern_end)
+        });
+        if comments.is_empty()
+            || pattern_start < start
+            || pattern_end < pattern_start
+            || end as usize > self.source.len()
+        {
+            return;
+        }
+        let Some(text) = self.source.get(start as usize..end as usize) else {
+            return;
+        };
+        for comment in &mut comments {
+            comment.span = Span::new(comment.span.start - start, comment.span.end - start);
+            comment.attached_to = comment.span.end;
+        }
+        if let Some(base) = self.comments.register_expression(text, &comments) {
+            let mut place = comments::Place::At(base + (pattern_start - start));
+            place.visit_binding_pattern(pattern);
         }
     }
 

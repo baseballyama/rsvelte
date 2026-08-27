@@ -4,6 +4,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/KeyBlock.js`.
 
 use crate::ast::template::KeyBlock;
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
@@ -38,7 +39,13 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
     // This applies both transforms AND legacy $.untrack() wrapping
     let expression = convert_expression(&node.expression, context);
     let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
-    let transformed_expression = build_expression(context, &expression, &expr_metadata);
+    let mut transformed_expression = build_expression(context, &expression, &expr_metadata);
+    if let (Some(start), Some(end)) = (node.expression.start(), node.expression.end())
+        && let Some(region) =
+            CommentRegion::between(&context.state, node.start + 6, end, node.start + 6)
+    {
+        transformed_expression = region.anchor(&context.arena, transformed_expression, start, end);
+    }
 
     // Check blocker_map for blocked identifiers referenced in the expression
     let blocker_exprs_for_key = context

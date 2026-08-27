@@ -475,6 +475,9 @@ pub struct JsSourceAnchor {
     /// Absolute source span this node claims as its location.
     pub at: u32,
     pub at_end: u32,
+    /// Preserve source spans carried by descendants, remapping them into the
+    /// synthetic comment region. Generated wrappers stay location-less.
+    pub preserve_inner_spans: bool,
 }
 
 /// Literal value.
@@ -985,6 +988,10 @@ pub enum JsPattern {
         start: u32,
         end: u32,
     },
+    /// A binding pattern whose COMMENT-space coordinates come from a slice of
+    /// the original source. Boxed so the rare template-comment carrier does
+    /// not increase the size paid by every pattern.
+    SourceAnchored(Box<JsSourcePatternAnchor>),
     /// Array destructuring
     Array(JsArrayPattern),
     /// Object destructuring
@@ -993,6 +1000,19 @@ pub enum JsPattern {
     Rest(Box<JsPattern>),
     /// Assignment pattern (default value)
     Assignment(JsAssignmentPattern),
+}
+
+/// Pattern counterpart of [`JsSourceAnchor`]. Template snippet parameters keep
+/// their source location upstream even when the client wraps an identifier in
+/// a generated assignment pattern (`value = $.noop`).
+#[derive(Debug, Clone)]
+pub struct JsSourcePatternAnchor {
+    pub inner: Box<JsPattern>,
+    pub region_start: u32,
+    pub region: CompactString,
+    pub comments: Vec<(u32, u32, bool)>,
+    pub at: u32,
+    pub at_end: u32,
 }
 
 /// Array pattern.

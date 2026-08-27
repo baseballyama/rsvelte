@@ -44,12 +44,14 @@ use crate::compiler::phases::phase3_transform::client::types::{
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
 // Note: get_value from declarations is available if needed for reactive index/item access
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     add_svelte_meta, apply_transforms_to_expression, build_expression,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::js_scan::find_code;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 use rustc_hash::FxHashMap;
 use std::cell::Cell;
@@ -88,7 +90,13 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Expression should be evaluated in the parent scope, not the scope
     // created by the each block itself
     // Build the collection expression
-    let collection = build_collection_expression(node, context);
+    let mut collection = build_collection_expression(node, context);
+    if let (Some(start), Some(end)) = (node.expression.start(), node.expression.end())
+        && let Some(region) =
+            CommentRegion::between(&context.state, node.start + 7, end, node.start + 7)
+    {
+        collection = region.anchor_inner(&context.arena, collection, start, end);
+    }
 
     // Add comment placeholder for uncontrolled blocks
     if !is_controlled {
@@ -509,6 +517,20 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Build render arguments: ($$anchor, item, [index], [collection_id])
     let render_args = build_render_args(&index, &item, uses_index, collection_id.as_ref());
+    let const_comment_region = if let Some(TemplateNode::ConstTag(tag)) = node.body.nodes.first()
+        && let (Some(item_start), Some(item_end), Some(comment_start), Some(comment_end)) = (
+            node.context.as_ref().and_then(|e| e.start()),
+            node.context.as_ref().and_then(|e| e.end()),
+            tag.declaration.start(),
+            tag.declaration.end(),
+        )
+        && let Some(region) =
+            CommentRegion::between(&context.state, comment_start, comment_end, node.start + 7)
+    {
+        Some((region, item_start, item_end))
+    } else {
+        None
+    };
 
     // Combine declarations and body statements
     // This matches JS: b.arrow(render_args, b.block(declarations.concat(block.body)))
@@ -516,13 +538,20 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     render_body.extend(body_block.body);
 
     // Build the render function
-    let render_fn = b::arrow_block(
+    let mut render_fn = b::arrow_block(
         render_args
             .iter()
             .map(|expr| convert_expr_to_pattern(expr, &context.arena))
             .collect(),
         render_body,
     );
+    if let Some((region, item_start, item_end)) = const_comment_region {
+        // The source position belongs to the callback identifier. Anchor the
+        // completed arrow so conversion can remap that parameter's existing
+        // `SpannedIdentifier`; wrapping the render argument itself changes its
+        // variant before `convert_expr_to_pattern` and loses the parameter.
+        render_fn = region.anchor_inner(&context.arena, render_fn, item_start, item_end);
+    }
 
     // Handle async expressions
     let has_await = node.metadata.expression.has_await();
@@ -1971,8 +2000,17 @@ fn build_key_function(
             LocalScope, apply_transforms_to_expression_with_shadowed,
         };
         let local_scope = LocalScope::from_shadowed(shadowed_names.into_iter());
-        let key_expr =
+        let mut key_expr =
             apply_transforms_to_expression_with_shadowed(&key_expr, context, &local_scope);
+        if let (Some(start), Some(end), Some((region_start, region_end))) = (
+            key.start(),
+            key.end(),
+            each_key_region(node, &context.state.options.source),
+        ) && let Some(region) =
+            CommentRegion::between(&context.state, region_start, region_end, region_start)
+        {
+            key_expr = region.anchor(&context.arena, key_expr, start, end);
+        }
 
         if let Some(context_expr) = &node.context {
             // 写经 upstream #18521 `context.visit(node.context, key_state)`: the
@@ -1994,6 +2032,19 @@ fn build_key_function(
     }
 
     b::member_path(&context.arena, "$.index")
+}
+
+/// The source inside the keyed-each parentheses. `EachBlock::key` starts at
+/// the expression, after leading trivia, so recover the opening delimiter from
+/// the code-only suffix after the item pattern. This deliberately ignores a
+/// `(` written inside a comment.
+fn each_key_region(node: &EachBlock<'_>, source: &str) -> Option<(u32, u32)> {
+    let context_end = node.context.as_ref()?.end()?;
+    let key_start = node.key.as_ref()?.start()?;
+    let key_end = node.key.as_ref()?.end()?;
+    let between = source.get(context_end as usize..key_start as usize)?;
+    let open = find_code(between.as_bytes(), b"(")? as u32;
+    Some((context_end + open + 1, key_end))
 }
 
 /// Collect all identifier names bound by a pattern (Identifier / ObjectPattern / ArrayPattern).

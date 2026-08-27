@@ -142,6 +142,7 @@ fn extract_pattern_names(pattern: &JsPattern, names: &mut FxHashSet<String>) {
         JsPattern::Identifier(name) | JsPattern::SpannedIdentifier { name, .. } => {
             names.insert(name.to_string());
         }
+        JsPattern::SourceAnchored(anchor) => extract_pattern_names(&anchor.inner, names),
         JsPattern::Array(array) => {
             for p in array.elements.iter().flatten() {
                 extract_pattern_names(p, names);
@@ -211,6 +212,9 @@ fn collect_pattern_evaluations(
             }
         }
         JsPattern::Identifier(_) | JsPattern::SpannedIdentifier { .. } => {}
+        JsPattern::SourceAnchored(anchor) => {
+            collect_pattern_evaluations(&anchor.inner, context, getters, seen)
+        }
     }
 }
 

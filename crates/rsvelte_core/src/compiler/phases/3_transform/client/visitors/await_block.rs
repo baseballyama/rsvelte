@@ -42,6 +42,7 @@
 
 use crate::ast::js::Expression;
 use crate::ast::template::{AwaitBlock, Fragment};
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::{
     ComponentContext, ExpressionMetadata,
 };
@@ -84,7 +85,26 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     // Build expression with metadata
     let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
 
-    let built_expr = build_expression(context, &converted_expr, &expr_metadata);
+    let mut built_expr = build_expression(context, &converted_expr, &expr_metadata);
+    let has_header_comments = if let (Some(start), Some(end), Some(header_end)) = (
+        node.expression.start(),
+        node.expression.end(),
+        crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
+            &context.state.options.source,
+            node.start as usize + 1,
+            '{',
+        ),
+    ) && let Some(region) = CommentRegion::lexical_between(
+        &context.state,
+        node.start + 7,
+        header_end as u32,
+        node.start + 7,
+    ) {
+        built_expr = region.anchor(&context.arena, built_expr, start, end);
+        true
+    } else {
+        false
+    };
 
     // Check for blockers before moving built_expr into thunk
     let blocker_exprs = context
@@ -133,11 +153,15 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     if let Some(catch_fn) = catch_block {
         await_args.push(catch_fn);
     }
-    let await_call = b::call(
-        &context.arena,
-        b::member_path(&context.arena, "$.await"),
-        await_args,
-    );
+    let mut await_callee = b::member_path(&context.arena, "$.await");
+    if has_header_comments {
+        await_callee = JsExpr::Spanned(
+            context.arena.alloc_expr(await_callee),
+            rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
+            rsvelte_esrap::COMMENT_ARGUMENT_CALLEE_BASE + 1,
+        );
+    }
+    let await_call = b::call(&context.arena, await_callee, await_args);
 
     // Add svelte metadata
     let stmt = if context.state.dev {

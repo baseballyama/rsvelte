@@ -1195,7 +1195,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                     update_transform,
                     &context.arena,
                     update_op,
-                    JsExpr::Identifier(name_str.into()),
+                    source_spanned(arg_node, JsExpr::Identifier(name_str.into()), context),
                     prefix,
                 );
             }
@@ -3769,6 +3769,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
 pub fn pattern_to_string(pattern: &JsPattern) -> String {
     match pattern {
         JsPattern::Identifier(name) | JsPattern::SpannedIdentifier { name, .. } => name.to_string(),
+        JsPattern::SourceAnchored(anchor) => pattern_to_string(&anchor.inner),
         JsPattern::Array(arr) => {
             let mut s = String::from("[");
             for (i, elem) in arr.elements.iter().enumerate() {

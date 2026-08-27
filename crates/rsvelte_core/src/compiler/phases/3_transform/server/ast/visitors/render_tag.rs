@@ -105,6 +105,7 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
     // each argument is also read-wrapped (a `$derived` arg becomes `arg()`) and
     // routed through the optimiser so a blocked argument makes the tag async.
     let mut args = vec![state.b.id("$$renderer")];
+    let mut comment_cursor = c_end as u32;
     if let Some(arg_list) = call_json.get("arguments").and_then(Value::as_array) {
         for arg in arg_list {
             if let (Some(a_start), Some(a_end)) = (
@@ -117,6 +118,12 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
                 if let Some(t) = source_slice(state, a_start, a_end) {
                     arg_expr = optimiser.transform(state, &t, arg_expr);
                 }
+                state.place_template_expression_comments(
+                    (comment_cursor, a_end as u32),
+                    (a_start as u32, a_end as u32),
+                    &mut arg_expr,
+                );
+                comment_cursor = a_end as u32;
                 args.push(arg_expr);
             }
         }

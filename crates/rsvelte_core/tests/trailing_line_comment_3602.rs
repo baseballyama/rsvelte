@@ -78,10 +78,7 @@ fn const_tag_destructuring_initializer_survives() {
 #[test]
 fn await_head_expression_survives() {
     let out = server("{#await Promise.resolve(1) // c\nthen v}\n\t<b>{v}</b>\n{/await}");
-    assert!(
-        out.contains("$.await($$renderer, Promise.resolve(1), "),
-        "in:\n{out}"
-    );
+    assert!(out.contains("Promise.resolve(1), // c"), "in:\n{out}");
 }
 
 /// A leading comment always worked; it is here so a fix that stops trimming
