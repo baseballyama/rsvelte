@@ -179,7 +179,7 @@ fn dev_inspect_keeps_a_leading_comment_before_the_generated_call() {
         "<script>\n\tlet a = 1;\n\n\tfunction f() {\n\t\t/* ) c */\n\t\t$inspect(a);\n\t\tconsole.log(2);\n\t}\n\n\tf();\n</script>\n<p>{a}</p>\n",
     );
     assert!(
-        out.contains("\n\t\t\t/* ) c */\n\t\t\tconsole.log('$inspect(', a, ')');"),
+        out.contains("\n\t\t\t\t/* ) c */\n\t\t\t\tconsole.log('$inspect(', a, ')');"),
         "leading comment moved into an inspect argument:\n{out}"
     );
 }

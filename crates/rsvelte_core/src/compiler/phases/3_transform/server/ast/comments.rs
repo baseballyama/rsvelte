@@ -50,6 +50,7 @@ struct Chunk {
     expression_anchor: bool,
     component_tail: bool,
     component_tail_nested: bool,
+    component_tail_dev_layout: bool,
 }
 
 /// The per-compile registry of comment regions.
@@ -95,6 +96,7 @@ impl ChunkRegistry {
             expression_anchor,
             component_tail: false,
             component_tail_nested: false,
+            component_tail_dev_layout: false,
         });
         super::comment_stats::bump::REGISTERED_CHUNKS(1);
         super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
@@ -118,6 +120,7 @@ impl ChunkRegistry {
             expression_anchor: false,
             component_tail: false,
             component_tail_nested: false,
+            component_tail_dev_layout: false,
         });
         Some(prov_base)
     }
@@ -138,6 +141,7 @@ impl ChunkRegistry {
             expression_anchor: true,
             component_tail: false,
             component_tail_nested: false,
+            component_tail_dev_layout: false,
         });
         Some(prov_base)
     }
@@ -154,11 +158,13 @@ impl ChunkRegistry {
         text: &str,
         comments: &[Comment],
         nested: bool,
+        dev_layout: bool,
     ) -> Option<u32> {
         let base = self.register_inner(text, comments, true)?;
         let chunk = self.chunks.last_mut()?;
         chunk.component_tail = true;
         chunk.component_tail_nested = nested;
+        chunk.component_tail_dev_layout = dev_layout;
         Some(base)
     }
 }
@@ -469,14 +475,13 @@ pub fn print_with_comments<'a>(
         .code
     };
     for chunk in registry.chunks.iter().filter(|chunk| chunk.component_tail) {
-        // The last line closing the component body — `\t\t},` for the
-        // `$$renderer.component` callback, `}` for the exported function itself.
-        // In dev the call is multiline: the exported function owns one indent,
-        // the callback close owns two, and the callback body owns three.
-        let (close, indent) = if chunk.component_tail_nested {
-            ("\n\t\t}", "\n\t\t\t")
-        } else {
-            ("\n}", "\n\t")
+        // The last line closing the component body. Production keeps the
+        // nested callback's `});` at one indent, while dev prints a multiline
+        // call whose callback close owns two indents.
+        let (close, indent) = match (chunk.component_tail_nested, chunk.component_tail_dev_layout) {
+            (true, true) => ("\n\t\t}", "\n\t\t\t"),
+            (true, false) => ("\n\t}", "\n\t\t"),
+            (false, _) => ("\n}", "\n\t"),
         };
         for comment in &chunk.comments {
             let raw = &chunk.text[comment.span.start as usize..comment.span.end as usize];

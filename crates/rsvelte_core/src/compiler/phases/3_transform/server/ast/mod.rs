@@ -652,9 +652,9 @@ impl<'a> ServerTransformState<'a> {
             // Mirrors the `should_inject_context` decision below, which is what
             // puts the component body one level deeper.
             let nested = self.options.dev || self.analysis.needs_context;
-            if let Some(base) = self
-                .comments
-                .register_component_tail(&text, &comments, nested)
+            if let Some(base) =
+                self.comments
+                    .register_component_tail(&text, &comments, nested, self.options.dev)
             {
                 let mut place = comments::Place::At(base);
                 place.visit_statement(last);
