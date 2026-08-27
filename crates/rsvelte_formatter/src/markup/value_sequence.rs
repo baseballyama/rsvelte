@@ -42,9 +42,11 @@ fn attr_text_chunk_doc(raw: &str, tw: usize) -> (Doc, usize) {
 ///  - any literal text spanning multiple source lines (a multi-line string
 ///    value — Cluster 7, handled by the legacy reindent path);
 ///  - a breakable interpolation with a block-bodied expansion (object / array /
-///    arrow, or a call whose broken first line ends with `(` / `{` / `[`) —
+///    arrow, or a complex call whose broken first line ends with `(` / `{`) —
 ///    its continuation lines sit at the attribute indent with full width, not
-///    the +2 relative indent this `RawExpr` model assumes;
+///    the +2 relative indent this `RawExpr` model assumes. A simple three-line
+///    call (`fn(` / one argument / `)`) has exactly the shape `RawExpr` models
+///    and remains eligible;
 ///  - no breakable interpolation at all (the value can only render flat, and
 ///    the legacy path's flat output is authoritative).
 fn render_value_sequence_doc(
@@ -117,24 +119,29 @@ fn render_value_sequence_doc(
                 let broken = if broken_inner.contains('\n') {
                     breakable_count += 1;
                     // A block-bodied breakable value — an object / array / arrow
-                    // literal (`is_shallow_value` false), or a call that expands
-                    // its argument list into a bracket block (first line ends
-                    // with an opening `(` / `{`) — keeps its continuation lines
-                    // at the attribute indent with full width, not the +2
-                    // relative indent this RawExpr model assumes, and OXC may
-                    // over-expand it at the forced-break width. Leave those to
-                    // the legacy path. A computed member access (`x[y]`, first
-                    // line ends with `[`) is NOT block-bodied — it breaks cleanly
-                    // as `x[` / `  y` / `]`, so it is allowed.
-                    let first_line = broken_inner.lines().next().unwrap_or("").trim_end();
+                    // literal (`is_shallow_value` false), or a complex call that
+                    // expands its argument list into a bracket block — keeps its
+                    // continuation lines at the attribute indent with full width,
+                    // not the +2 relative indent this RawExpr model assumes, and
+                    // OXC may over-expand it at the forced-break width. Leave those
+                    // to the legacy path. A simple three-line call has precisely
+                    // the `fn(` / `  arg,` / `)` shape RawExpr can carry, so keep it
+                    // in the whole-value model; otherwise the legacy path ignores
+                    // later expressions while choosing which interpolation breaks.
+                    // A computed member access (`x[y]`, first line ends with `[`) is
+                    // also allowed because it breaks cleanly as `x[` / `  y` / `]`.
+                    let mut lines: Vec<String> =
+                        broken_inner.split('\n').map(str::to_string).collect();
+                    let first_line = lines.first().map_or("", String::as_str).trim_end();
+                    let simple_call_expansion = first_line.ends_with('(')
+                        && lines.len() == 3
+                        && lines.last().is_some_and(|line| line.trim() == ")");
                     if !is_shallow_value(inner)
-                        || first_line.ends_with('(')
                         || first_line.ends_with('{')
+                        || (first_line.ends_with('(') && !simple_call_expansion)
                     {
                         return Ok(None);
                     }
-                    let mut lines: Vec<String> =
-                        broken_inner.split('\n').map(str::to_string).collect();
                     let first = std::mem::take(&mut lines[0]);
                     lines[0] = format!("{{{first}");
                     let li = lines.len() - 1;

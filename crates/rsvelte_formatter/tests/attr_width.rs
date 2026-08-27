@@ -168,6 +168,21 @@ fn multi_breakable_value_keeps_first_flat_when_later_absorbs() {
 }
 
 #[test]
+fn multi_call_value_breaks_first_when_later_call_cannot_absorb() {
+    // Simple call expressions are breakable groups too. The whole-value model
+    // must account for the first line of the later `local(title)` call while
+    // deciding whether `String(title)` stays flat. Ignoring the later expression
+    // keeps `String(title)` flat and breaks the wrong (last) interpolation.
+    let src = "<Widget --single={local(title)} --pure={globalThis.make()} --mixed=\"pure:{globalThis.make()};dependent-global:{String(title)};local:{local(title)}\" />\n";
+    let want = "<Widget\n  --single={local(title)}\n  --pure={globalThis.make()}\n  --mixed=\"pure:{globalThis.make()};dependent-global:{String(\n    title,\n  )};local:{local(title)}\"\n/>\n";
+    assert_eq!(
+        fmt80(src),
+        want,
+        "first call interpolation should break when the later call cannot absorb the overflow"
+    );
+}
+
+#[test]
 fn interp_led_value_continuation_indents_relative_to_attr_column() {
     // An INTERPOLATION-led quoted value (`value="{…}"`, not text-led) whose
     // second interpolation breaks, on a DEEPLY NESTED element. Unlike a text-led
