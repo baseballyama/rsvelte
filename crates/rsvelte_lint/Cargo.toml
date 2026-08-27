@@ -34,13 +34,16 @@ default = ["cli"]
 cli = ["native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
 # Native product surface (CLI diagnostics, validation, and source-scan rules).
 # Compiler parallelism is an independent opt-in owned by binary callers.
-native = []
+native = ["dep:rsvelte_preprocess"]
 # `--config-from-eslint` importer (OXC). Off in the wasm build.
 eslint-import = []
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
+rsvelte_preprocess = { path = "../rsvelte_preprocess", default-features = false, features = [
+    "svelte-preprocess",
+], optional = true }
 anyhow = "1.0"
 bytecount = "0.6"
 compact_str = { version = "0.10", features = ["serde"] }

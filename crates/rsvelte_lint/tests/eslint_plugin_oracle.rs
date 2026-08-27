@@ -235,17 +235,11 @@ const SKIP: &[&str] = &[
     "no-unused-props/invalid/unused-index-signature",
     "no-unused-props/invalid/custom-config-combination",
     // ── svelte/no-unused-svelte-ignore skips ──────────────────────────────
-    // A `<style lang="…">` block in a non-CSS dialect (postcss/scss/sass/less/
-    // stylus/…) needs that preprocessor to turn its source into the CSS the
-    // compiler analyses. These *invalid* fixtures expect the leading CSS-ignore
-    // to be reported unused — but that expectation was recorded with the
-    // preprocessor installed (the transformed CSS yields no warning ⇒ ignore
-    // unused). rsvelte can't run a preprocessor, so — like the live plugin with
-    // no preprocessor — it strips the block and treats the CSS-ignore as used
-    // (see `no_unused_svelte_ignore`'s module docs). The *valid* counterparts
-    // (`valid/style-lang*`) still pass, and plain-CSS `<style>` is covered.
-    // (`style-lang0` matches `invalid/style-lang01`…`style-lang06`.)
-    "no-unused-svelte-ignore/invalid/style-lang0",
+    // PostCSS and Stylus need their JavaScript preprocessors. SCSS/Sass/Less
+    // use rsvelte's native Sass-compatible probe and therefore participate.
+    "no-unused-svelte-ignore/invalid/style-lang01",
+    "no-unused-svelte-ignore/invalid/style-lang02",
+    "no-unused-svelte-ignore/invalid/style-lang06",
     // `transform-test` / `transform-test-svelte4` mix that same non-CSS
     // (`lang="postcss"`) CSS-ignore with a11y ignores; rsvelte matches the a11y
     // reports, but the CSS-ignore (line 16) can't be reported for the reason

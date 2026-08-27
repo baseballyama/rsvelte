@@ -2750,6 +2750,7 @@ dependencies = [
  "regex",
  "rsvelte_core",
  "rsvelte_diagnostics",
+ "rsvelte_preprocess",
  "serde",
  "serde_json",
  "serde_yaml",

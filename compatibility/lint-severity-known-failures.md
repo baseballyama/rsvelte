@@ -14,7 +14,7 @@ preset leaves `off`. Gate 33 (`lint-preset.mjs`) pins the two presets, but it
 reads them through `--list-rules` and upstream's exported config object — the
 declared tables, never a run (gate-coverage blind spot 33b).
 
-`lint-severity-known-failures.json` holds 62 entries.
+`lint-severity-known-failures.json` holds 60 entries.
 
 Key classes:
 
@@ -25,7 +25,7 @@ Key classes:
 | `exit` | `exit\|<id>\|<oracle>-><rsvelte>\|<causes>` | the process exit codes differ |
 | `oracle-crash` | `oracle-crash\|<id>\|<rule>` | an upstream rule threw and took the file's whole report with it |
 
-Partition of `lint-severity-known-failures.json` by cause: `55 + 4 + 1 + 1 + 1`
+Partition of `lint-severity-known-failures.json` by cause: `55 + 4 + 1`
 
 Two of those addends are a `4` and they are unrelated: the standalone `4` is the
 `exit` 1→0 class below (a type-aware rule `lint-universe.mjs` excludes, which
@@ -36,7 +36,7 @@ reads 55 rather than 59.
 ## `severity` — zero entries, and that is the measurement
 
 Not a blank row. Over the 33 rules both presets enable by default, the run
-compares 1,179 oracle findings against 1,178 rsvelte findings and **no pair
+compares 1,179 oracle findings against 1,179 rsvelte findings and **no pair
 differs in level**. The 21 rules gate 33 found at `error` upstream and `warn`
 here are confirmed aligned through an actual run, not only in the table
 `--list-rules` prints.
@@ -45,7 +45,7 @@ A zero is only worth reading if the measurand could have moved, so the gate
 refuses to pass unless **both** `warn` and `error` appear among each side's
 findings — a run in which every finding carries one level cannot tell a severity
 divergence from agreement. It currently sees 402 `warn` / 1,035 `error` from the
-oracle and 2,504 / 1,034 from rsvelte. The control was also exercised directly:
+oracle and 2,504 / 1,035 from rsvelte. The control was also exercised directly:
 re-running the subject with `--error svelte/no-at-debug-tags` moves 38 findings
 and the gate reports **76** `severity` keys.
 
@@ -93,21 +93,6 @@ this gate's comparison population, as they are outside gate 28's. The **exit
 code is not**, because it is a property of the whole run: excluding a rule from a
 finding comparison cannot exclude it from the process's exit status. That is the
 one thing this class records, and it is why an `EXCLUDE` entry is not free.
-
-## `exit` 1→0, 1 entry — `no-unused-svelte-ignore/10-style-scss-css-ignore.svelte`
-
-The exit-code consequence of the `missing` entry below; the same single finding,
-which upstream defaults to `error`.
-
-## `missing`, 1 entry — `svelte/no-unused-svelte-ignore 2:20`
-
-Not an independent divergence: it restates the entry of the same name in
-[`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md).
-`svelte-eslint-parser` builds no `SvelteStyleElement` for a `</style⏎⏎>` end tag,
-so the two tools disagree about whether the `svelte-ignore` comment above it is
-used. It appears here as well because this gate compares the same finding under a
-different configuration, and suppressing it would mean special-casing one gate's
-population against another's ratchet.
 
 ## `oracle-crash`, 1 entry — `no-target-blank/02-rel-dynamic.svelte`
 

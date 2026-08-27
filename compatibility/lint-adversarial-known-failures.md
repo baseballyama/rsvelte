@@ -9,15 +9,15 @@ to separate two plausible implementations of one rule, so a divergence is a
 deliberate probe coming back positive rather than an accident of what published
 code happens to contain.
 
-**The expectation is that `lint-adversarial-known-failures.json` stays at 4 entries.**
+**The expectation is that `lint-adversarial-known-failures.json` stays at 3 entries.**
 It is not a burndown backlog: a new entry needs a reason that is *not*
-"rsvelte is wrong here", and the four below are the only such reasons found
+"rsvelte is wrong here", and the three below are the only such reasons found
 across 1365 patterns and 74 rules. Everything else the corpus surfaced (330
 divergences on the first run, 35 more when it grew past 1000 patterns) was fixed.
 
 `+` = rsvelte reports, oracle silent. `-` = oracle reports, rsvelte silent.
 
-## The four accepted entries
+## The three accepted entries
 
 ### 1. `html-closing-bracket-new-line/05-script-style-tags.svelte` `+svelte/block-lang 7:1`
 
@@ -45,18 +45,7 @@ because eslint-plugin-svelte's own bundled fixtures — the authority the
 exact-fixture oracle gate enforces — expect exactly that report for this class.
 The two upstream artefacts disagree; rsvelte follows the fixtures.
 
-### 3. `no-unused-svelte-ignore/10-style-scss-css-ignore.svelte` `-svelte/no-unused-svelte-ignore 2:20`
-
-A `<!-- svelte-ignore css_unused_selector -->` in front of `<style lang="scss">`.
-Neither linter can run a preprocessor here, but they draw opposite conclusions
-from that: the oracle blanks the block, sees no CSS warning, and calls the ignore
-unused; rsvelte deliberately treats a CSS ignore on a non-CSS dialect as **used**,
-because reporting it would be a false positive for every project that does have
-the preprocessor configured. This is the same reasoning the exact-fixture gate
-records for `no-unused-svelte-ignore/invalid/style-lang0*`, whose expectations
-upstream recorded *with* the preprocessor installed.
-
-### 4. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
+### 3. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
 
 `<Style />` — a component whose name differs from `style` only in case. Upstream
 reports `html-self-closing` on it; rsvelte does not, and **rsvelte is right**.

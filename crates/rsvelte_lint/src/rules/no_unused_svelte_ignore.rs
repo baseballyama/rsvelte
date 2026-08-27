@@ -25,22 +25,18 @@
 //! into [`crate::runner::lint_source`], not a per-node hook.
 //!
 //! ### Non-CSS `<style>` blocks
-//! A `<style lang="scss|postcss|…">` block needs a real preprocessor to turn its
-//! source into the CSS the compiler analyses. rsvelte can't run one, so it mirrors
-//! upstream's no-preprocessor path (`getSvelteCompileWarnings`'s
-//! `stripStyleElements`): the block's content is blanked out of the compiled copy
-//! (so non-CSS syntax can't break the compile) and any **CSS-warning** ignore
-//! (`css-unused-selector`, `css-invalid-global`, …) that leads such a block is
-//! treated as *used* — its CSS warnings are undeterminable, so reporting it unused
-//! would be a false positive. Plain CSS (`<style>` with no `lang`, or `lang="css"`)
-//! is compiled and matched normally.
+//! A `<style lang="scss|sass|less">` block is first compiled through the native
+//! Sass-compatible backend, matching upstream when its optional style transform
+//! is installed. The transformed component is compiled only to determine which
+//! CSS warning codes fire; ordinary warning positions still come from the
+//! unchanged-source compile below. Unsupported or failed transforms follow
+//! upstream's no-preprocessor path: the style is blanked and a leading CSS ignore
+//! is conservatively treated as used. Plain CSS is compiled normally.
 //!
 //! ### Out of scope (skipped in the oracle)
-//! - The *invalid* `style-lang*` / `transform-test` fixtures expect the CSS-ignore
-//!   to be reported unused; that expectation was recorded with the preprocessor
-//!   installed (so the transformed CSS yields no warning → ignore unused). rsvelte
-//!   can't reproduce that environment, so those fixtures are skipped. The *valid*
-//!   counterparts pass: the ignore is treated as used either way.
+//! - The PostCSS/Stylus `style-lang*` and `transform-test` fixtures require their
+//!   JavaScript preprocessors and remain skipped. SCSS/Sass/Less are native and
+//!   participate in the exact oracle.
 //! - The Svelte-4-only fixtures exercise legacy compiler semantics; rsvelte runs
 //!   Svelte-5 semantics, so they are out of scope (skipped in the oracle).
 
@@ -144,9 +140,9 @@ pub fn no_unused_svelte_ignore_diagnostics(
     .flatten()
     .collect();
 
-    // A `<style lang="…">` block in a non-CSS dialect can't be preprocessed here;
-    // mirror upstream's strip path — blank its content from the compiled copy and
-    // treat a leading CSS-warning ignore as used (see the module docs).
+    // A `<style lang="…">` block must not be fed to the compiler as raw CSS.
+    // Probe the native transforms upstream can load, then blank the original
+    // content for the ordinary warning-position pass (see the module docs).
     let non_css_style = non_css_style_block(&root, source);
 
     let mut missing: Vec<(u32, u32)> = Vec::new();
@@ -163,8 +159,12 @@ pub fn no_unused_svelte_ignore_diagnostics(
 
     // Blank the non-CSS style content so the compile can't choke on non-CSS syntax
     // (`stripStyleTokens` in upstream `buildStrippedText`).
-    if let Some((_, content)) = non_css_style {
-        strip_ranges.push(content);
+    let transformed_style_warnings = non_css_style.as_ref().and_then(|style| {
+        transformed_style_warning_codes(source, file, base_options, &strip_ranges, style)
+    });
+
+    if let Some((_, content, _)) = non_css_style.as_ref() {
+        strip_ranges.push(*content);
     }
 
     let dsev = to_dsev(severity);
@@ -225,11 +225,18 @@ pub fn no_unused_svelte_ignore_diagnostics(
         .map(|item| {
             positionless.contains(item.code.as_str())
                 || positionless.contains(item.code_for_v5.as_str())
-                // A CSS-warning ignore leading the stripped non-CSS `<style>` is
-                // used — its warnings are undeterminable without a preprocessor
-                // (upstream's `stripStyleElements` loop in `processIgnore`).
-                || non_css_style
-                    .is_some_and(|(elem, _)| is_css_warn_code(item) && item.scope == Some(elem))
+                // A CSS-warning ignore leading a transformed non-CSS `<style>` is
+                // used only when the transform produced that warning. If no
+                // transform is available, conservatively mirror upstream's
+                // `stripStyleElements` fallback and treat it as used.
+                || non_css_style.as_ref().is_some_and(|(elem, _, _)| {
+                    is_css_warn_code(item)
+                        && item.scope == Some(*elem)
+                        && transformed_style_warnings.as_ref().map_or(true, |warnings| {
+                            warnings.contains(item.code.as_str())
+                                || warnings.contains(item.code_for_v5.as_str())
+                        })
+                })
         })
         .collect();
 
@@ -525,12 +532,12 @@ fn is_css_warn_code(item: &CodedItem) -> bool {
 }
 
 /// If the component's `<style>` uses a non-CSS dialect (`lang` attribute present
-/// and not `css`), return `(element_range, content_range)`: the element range a
-/// leading ignore scopes to, and the inner-content range to blank from the
-/// compiled copy. Plain CSS (`<style>` with no `lang`, or `lang="css"`) returns
-/// `None` and is analysed normally. Mirrors upstream's
+/// and not `css`), return `(element_range, content_range, language)`: the element
+/// range a leading ignore scopes to, the inner-content range to transform or
+/// blank, and its normalized dialect. Plain CSS (`<style>` with no `lang`, or
+/// `lang="css"`) returns `None` and is analysed normally. Mirrors upstream's
 /// `extractStyleElementsWithLangOtherThanCSS`.
-fn non_css_style_block(root: &Root, source: &str) -> Option<((u32, u32), (u32, u32))> {
+fn non_css_style_block(root: &Root, source: &str) -> Option<((u32, u32), (u32, u32), String)> {
     let css = root.css.as_ref()?;
     // The opening tag spans from `<style` to just before the inner content.
     let open_tag = source.get(css.start as usize..css.content.start as usize)?;
@@ -539,7 +546,68 @@ fn non_css_style_block(root: &Root, source: &str) -> Option<((u32, u32), (u32, u
     if lang.is_empty() || lang == "css" {
         return None;
     }
-    Some(((css.start, css.end), (css.content.start, css.content.end)))
+    Some((
+        (css.start, css.end),
+        (css.content.start, css.content.end),
+        lang,
+    ))
+}
+
+#[cfg(feature = "native")]
+fn transformed_style_warning_codes(
+    source: &str,
+    file: &Path,
+    base_options: &CompileOptions,
+    ignore_ranges: &[(u32, u32)],
+    style: &((u32, u32), (u32, u32), String),
+) -> Option<std::collections::HashSet<String>> {
+    let (_, (content_start, content_end), lang) = style;
+    let indented = lang == "sass";
+    if !matches!(lang.as_str(), "scss" | "sass" | "less") {
+        return None;
+    }
+
+    let content = source.get(*content_start as usize..*content_end as usize)?;
+    // Less nesting used by the oracle fixtures is accepted by the SCSS grammar.
+    // Less-only syntax fails closed below and retains the conservative stripped
+    // style behaviour instead of inventing a partial Less transform.
+    let transformed = rsvelte_preprocess::svelte_preprocess::scss::transform(
+        Default::default(),
+        indented,
+        file.to_str(),
+        content,
+    )
+    .ok()?;
+
+    let mut candidate = blank_ranges(source, ignore_ranges);
+    candidate.replace_range(
+        *content_start as usize..*content_end as usize,
+        &transformed.code,
+    );
+    let options = CompileOptions {
+        generate: GenerateMode::None,
+        filename: Some(file.display().to_string()),
+        ..base_options.clone()
+    };
+    let result = compile(&candidate, options).ok()?;
+    Some(
+        result
+            .warnings
+            .into_iter()
+            .map(|warning| warning.code)
+            .collect(),
+    )
+}
+
+#[cfg(not(feature = "native"))]
+fn transformed_style_warning_codes(
+    _source: &str,
+    _file: &Path,
+    _base_options: &CompileOptions,
+    _ignore_ranges: &[(u32, u32)],
+    _style: &((u32, u32), (u32, u32), String),
+) -> Option<std::collections::HashSet<String>> {
+    None
 }
 
 /// Match `^\s*svelte-ignore\s+`, returning the byte index just past it (where the
@@ -824,6 +892,17 @@ mod tests {
             out.is_empty(),
             "non-CSS style ignore must be used, got {out:?}"
         );
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn transformed_scss_unused_ignore_is_reported() {
+        let src = "<div class=\"foo\"><div class=\"bar\" /></div>\n\
+                   <!-- svelte-ignore css-unused-selector -->\n\
+                   <style lang=\"scss\">.foo { .bar { color: red; } }</style>";
+        let out = findings(src);
+        assert_eq!(out.len(), 1, "transformed SCSS has no warning: {out:?}");
+        assert_eq!(out[0].0, 2);
     }
 
     #[test]

@@ -12,25 +12,15 @@ The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.r
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: `lint-known-failures.json`, 3 entries — 3 divergences (0 FP, 3 FN)
+## Current baseline: `lint-known-failures.json`, 0 entries
 
-Three are one shape: a `<!-- svelte-ignore css_unused_selector -->` in front of a
-`<style lang="scss">` block, on `no-unused-svelte-ignore/invalid/style-lang0{3,4,5}`
-in the eslint-plugin-svelte fixtures the corpus collects. Neither linter can run a
-preprocessor here, and they draw opposite conclusions from that: the oracle blanks the
-block, sees no CSS warning, and calls the ignore **unused**; rsvelte deliberately treats
-a CSS ignore on a non-CSS dialect as **used**, because reporting it is a false positive
-for every project that does have the preprocessor configured. Upstream recorded those
-fixtures' own expectations *with* the preprocessor installed — which is why
-`eslint_plugin_oracle.rs` skips the same three files, citing the same reason.
-
-**They are ratcheted rather than excluded because they are not stable across the oracle
-install.** They appeared with no rsvelte change at all: rsvelte's output on all three is
-byte-identical between the pre-campaign binary and HEAD, so the only thing that moved was
-a floating dependency of the oracle. The oracle's versions are now exact
-(`scripts/compat-corpus/lint-oracle/package.json`) so this cannot recur silently, and the
-adversarial corpus carries a committed repro of the same class
-(`compatibility/lint-adversarial/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte`).
+The last three entries were one shape: a CSS-warning ignore in front of an
+SCSS/Sass/Less style block. Upstream tries an installed style transform before
+deciding whether the ignore is unused; rsvelte had only implemented its conservative
+fallback for unavailable transforms and therefore treated every such ignore as used.
+The native lint path now probes those dialects through the Sass-compatible backend,
+uses the transformed warning-code set for the decision, and falls back conservatively
+when a transform is unavailable or fails. PostCSS and Stylus remain on that fallback.
 
 The input/output pair for eslint-plugin-svelte's TypeScript decorator indent fixture
 previously added two `prefer-const` misses: the compatibility AST keeps a decorated
@@ -39,11 +29,11 @@ its existing OXC semantic pass as a narrow fallback for initialized `let` bindin
 that the JSON walk did not see; `prefer-const/22-decorated-class-method.svelte` keeps
 that boundary in the constructed corpus.
 
-Partition of `lint-known-failures.json` by rule: `3`
-Partition of `lint-known-failures.json` by direction: `3`
-Partition of `lint-known-failures.json` by repo: `3`
+Partition of `lint-known-failures.json` by rule: `0`
+Partition of `lint-known-failures.json` by direction: `0`
+Partition of `lint-known-failures.json` by repo: `0`
 
-### How it got here — 104 → 45 → 3 → 5 → 3
+### How it got here — 104 → 45 → 3 → 5 → 3 → 0
 
 The entries this file used to describe were not burned down one at a time; they were a
 side effect of the adversarial campaign documented in `AGENTS.md` under `rsvelte_lint`.

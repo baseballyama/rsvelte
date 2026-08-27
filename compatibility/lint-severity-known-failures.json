@@ -47,7 +47,6 @@
 	"exit|no-target-blank/07-bind-href.svelte|0->1|bind_invalid_name",
 	"exit|no-unnecessary-state-wrap/08-not-declarator.svelte|0->1|state_invalid_placement",
 	"exit|no-unused-class-name/16-hosts.svelte|0->1|svelte_fragment_invalid_placement",
-	"exit|no-unused-svelte-ignore/10-style-scss-css-ignore.svelte|1->0|svelte/no-unused-svelte-ignore",
 	"exit|no-useless-children-snippet/15-params-forms.svelte|0->1|snippet_invalid_rest_parameter",
 	"exit|prefer-attribute-interpolation/19-special-element-hosts.svelte|0->1|illegal_element_attribute",
 	"exit|prefer-derived-over-derived-by/05-computed-negative.svelte|0->1|rune_invalid_computed_property",
@@ -59,6 +58,5 @@
 	"exit|shorthand-directive/09-non-binding-kinds.svelte|0->1|animation_invalid_placement",
 	"exit|shorthand-directive/opt-key-prefer-always-explicit.svelte|0->1|bind_invalid_value",
 	"exit|valid-prop-names-in-kit-pages/src/routes/05-module-decoy/+page.svelte|0->1|props_invalid_placement",
-	"missing|no-unused-svelte-ignore/10-style-scss-css-ignore.svelte|svelte/no-unused-svelte-ignore\t2:20\tsvelte-ignore comment is used, but not warned",
 	"oracle-crash|no-target-blank/02-rel-dynamic.svelte|svelte/no-navigation-without-resolve"
 ]
