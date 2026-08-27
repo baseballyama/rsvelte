@@ -451,6 +451,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     let has_export = memchr::memmem::find(source.as_bytes(), b"export").is_some();
     if !analysis.runes && has_export {
         process_legacy_exports(ast, &mut analysis);
+        promote_legacy_export_const_state_bindings(ast, &mut analysis);
     }
 
     // Validate and analyze scripts (JavaScript AST)
@@ -1870,6 +1871,74 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+/// Promote a directly declared legacy `export const` before script validation
+/// when it is updated and referenced by the template.
+///
+/// Upstream builds the complete scope reference graph before analysis, then
+/// performs legacy state promotion before visiting the export declaration. Its
+/// `state_invalid_export` diagnostic therefore outranks a later
+/// `constant_assignment` at the write. Our full reference lists are populated
+/// visitor-time, so the scope builder carries this narrow, scope-resolved fact
+/// forward to preserve the same precedence without a name-only pre-scan.
+fn promote_legacy_export_const_state_bindings(ast: &Root, analysis: &mut ComponentAnalysis) {
+    use crate::ast::typed_expr::JsNode;
+
+    let Some(instance) = &ast.instance else {
+        return;
+    };
+    let content = instance.content.as_node();
+    let JsNode::Program { body, .. } = content.as_ref() else {
+        return;
+    };
+    let instance_scope = analysis.root.instance_scope_index;
+    let arena = &ast.arena;
+
+    for statement in arena.get_js_children(*body) {
+        let JsNode::ExportNamedDeclaration {
+            declaration: Some(declaration),
+            ..
+        } = statement
+        else {
+            continue;
+        };
+        let JsNode::VariableDeclaration {
+            kind, declarations, ..
+        } = arena.get_js_node(*declaration)
+        else {
+            continue;
+        };
+        if kind != "const" {
+            continue;
+        }
+
+        for declarator in arena.get_js_children(*declarations) {
+            let JsNode::VariableDeclarator { id, .. } = declarator else {
+                continue;
+            };
+            let mut names = Vec::new();
+            pattern_ids::collect_pattern_identifiers(arena.get_js_node(*id), arena, &mut names);
+            for name in names {
+                let Some(&binding_idx) = analysis.root.all_scopes[instance_scope]
+                    .declarations
+                    .get(&name)
+                else {
+                    continue;
+                };
+                let binding = &analysis.root.bindings[binding_idx];
+                if binding.kind == BindingKind::Normal
+                    && binding.is_updated()
+                    && analysis
+                        .root
+                        .preanalysis_template_references
+                        .contains(&binding_idx)
+                {
+                    analysis.root.bindings[binding_idx].kind = BindingKind::State;
+                }
+            }
         }
     }
 }

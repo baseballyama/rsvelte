@@ -12,7 +12,7 @@ use crate::ast::template::{
     SnippetBlock, TemplateNode,
 };
 use crate::ast::typed_expr::{JsNode, LiteralValue};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
@@ -100,6 +100,10 @@ pub struct ScopeBuilder<'a> {
     /// Scope indices created for `{#snippet …}` bodies (see
     /// `ScopeRoot::snippet_scope_indices`).
     snippet_scope_indices: rustc_hash::FxHashSet<usize>,
+    /// Scope-resolved binding indices read or written by template expressions.
+    /// This is deliberately separate from `Binding` so its cost is paid once
+    /// per component rather than once per binding.
+    preanalysis_template_references: FxHashSet<usize>,
     /// Identifier names found in template expression arrow function parameters.
     /// These need to be in the conflicts set so that generated variable names
     /// (like `node`, `$$array`, etc.) don't collide with them.
@@ -155,6 +159,7 @@ impl<'a> ScopeBuilder<'a> {
             root_fragment_scope_index: 0,
             each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: rustc_hash::FxHashSet::default(),
+            preanalysis_template_references: FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
@@ -372,6 +377,7 @@ impl<'a> ScopeBuilder<'a> {
                 root_fragment_scope_index: self.root_fragment_scope_index,
                 each_fallback_scope_map: self.each_fallback_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
+                preanalysis_template_references: self.preanalysis_template_references,
                 conflicts,
                 bindings_by_name: self.bindings_by_name,
                 reference_bindings: std::cell::OnceCell::new(),
@@ -2781,6 +2787,23 @@ impl<'a> ScopeBuilder<'a> {
             }
             TemplateNode::ConstTag(tag) => self.visit_const_tag(tag),
             TemplateNode::DeclarationTag(tag) => self.visit_declaration_tag(tag),
+            TemplateNode::ExpressionTag(tag) => {
+                self.process_template_expression(&tag.expression);
+            }
+            TemplateNode::HtmlTag(tag) => {
+                self.process_template_expression(&tag.expression);
+            }
+            TemplateNode::DebugTag(tag) => {
+                for identifier in &tag.identifiers {
+                    self.process_template_expression(identifier);
+                }
+            }
+            TemplateNode::RenderTag(tag) => {
+                self.process_template_expression(&tag.expression);
+            }
+            TemplateNode::AttachTag(tag) => {
+                self.process_template_expression(&tag.expression);
+            }
             // SvelteBoundary gets its own scope so that {@const} declarations
             // inside separate <svelte:boundary> blocks don't conflict.
             TemplateNode::SvelteBoundary(elem) => {
@@ -3006,6 +3029,9 @@ impl<'a> ScopeBuilder<'a> {
                         transition_dir.start,
                         transition_dir.end,
                     );
+                    if let Some(expression) = &transition_dir.expression {
+                        self.process_template_expression(expression);
+                    }
                 }
                 Attribute::AnimateDirective(animate_dir) => {
                     // "animate:".len() == 8
@@ -3016,6 +3042,9 @@ impl<'a> ScopeBuilder<'a> {
                         animate_dir.start,
                         animate_dir.end,
                     );
+                    if let Some(expression) = &animate_dir.expression {
+                        self.process_template_expression(expression);
+                    }
                 }
                 Attribute::SpreadAttribute(spread) => {
                     // Process spread attribute expression
@@ -3069,6 +3098,18 @@ impl<'a> ScopeBuilder<'a> {
         let binding = &mut self.bindings[binding_idx];
         binding.add_reference(start, end, true, false, false);
         binding.has_direct_template_read = true;
+        self.preanalysis_template_references.insert(binding_idx);
+    }
+
+    /// Record the binding a template identifier resolves to before the Phase 2
+    /// visitors populate the full reference lists.
+    fn record_preanalysis_template_reference(&mut self, name: &str) {
+        if !self.in_template {
+            return;
+        }
+        if let Some(binding_idx) = self.find_binding_in_scope_chain(name) {
+            self.preanalysis_template_references.insert(binding_idx);
+        }
     }
 
     /// Process a template expression (from attributes, event handlers, etc.) to track updates.
@@ -3105,6 +3146,7 @@ impl<'a> ScopeBuilder<'a> {
 
             // For direct Identifier (bind:value={x}), mark as reassigned
             JsNode::Identifier { name, .. } => {
+                self.record_preanalysis_template_reference(name);
                 self.updates.push(Update {
                     name: name.to_string(),
                     is_direct_assignment: true,
@@ -3123,6 +3165,7 @@ impl<'a> ScopeBuilder<'a> {
                             current_id = *object;
                         }
                         JsNode::Identifier { name, .. } => {
+                            self.record_preanalysis_template_reference(name);
                             self.updates.push(Update {
                                 name: name.to_string(),
                                 is_direct_assignment: false, // mutation, not reassignment
@@ -3304,13 +3347,14 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::Identifier {
                 name, start, end, ..
-            }
+            } => {
+                self.record_preanalysis_template_reference(name);
                 // Check for store subscription scoping errors
                 if name.starts_with('$')
                     && !name.starts_with("$$")
                     && name.len() > 1
                     && self.function_depth > 0
-                => {
+                {
                     let is_rune_name = matches!(
                         name.as_str(),
                         "$state"
@@ -3329,6 +3373,7 @@ impl<'a> ScopeBuilder<'a> {
                         );
                     }
                 }
+            }
             JsNode::ClassExpression { body, .. } => {
                 let body_id = *body;
                 // Walk class body looking for method/property updates
@@ -3383,6 +3428,7 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::Identifier {
                 name, start, end, ..
             } => {
+                self.record_preanalysis_template_reference(name);
                 // Check for store subscription errors in assignment targets
                 if name.starts_with('$')
                     && !name.starts_with("$$")
@@ -3413,6 +3459,7 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(name) =
                     base_identifier_name(self.arena.get_js_node(*object), self.arena)
                 {
+                    self.record_preanalysis_template_reference(&name);
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
@@ -3450,6 +3497,7 @@ impl<'a> ScopeBuilder<'a> {
     fn track_node_simple_assignment_target(&mut self, node: &JsNode) {
         match node {
             JsNode::Identifier { name, .. } => {
+                self.record_preanalysis_template_reference(name);
                 self.updates.push(Update {
                     name: name.to_string(),
                     is_direct_assignment: true,
@@ -3460,6 +3508,7 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(name) =
                     base_identifier_name(self.arena.get_js_node(*object), self.arena)
                 {
+                    self.record_preanalysis_template_reference(&name);
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,

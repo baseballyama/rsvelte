@@ -61,6 +61,11 @@ pub struct ScopeRoot {
     /// bindings to lexically reachable scopes (mirrors upstream
     /// `scope.evaluate`, which resolves identifiers through the scope chain).
     pub snippet_scope_indices: FxHashSet<usize>,
+    /// Binding indices resolved from template expressions while scopes are
+    /// built. Unlike `Binding::references`, this is available before the
+    /// analysis visitors run, which is needed for diagnostics whose precedence
+    /// depends on upstream's already-complete scope reference graph.
+    pub(crate) preanalysis_template_references: FxHashSet<usize>,
     /// All declaration names from all scopes, used for unique name generation.
     /// Mirrors the `conflicts` set in the official Svelte compiler's ScopeRoot.
     /// Every `declare()` call adds the name here.
@@ -95,6 +100,7 @@ impl ScopeRoot {
             root_fragment_scope_index: 0,
             each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: FxHashSet::default(),
+            preanalysis_template_references: FxHashSet::default(),
             conflicts: FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
             reference_bindings: std::cell::OnceCell::new(),

@@ -948,8 +948,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           base_run_id="$(gh run list --workflow ci.yml --branch "$GITHUB_BASE_REF" --commit "$BASE_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          if [ -n "$base_run_id" ]; then
-            gh run download "$base_run_id" --name "compatibility-report-$BASE_SHA" --dir base-report
+          if [ -n "$base_run_id" ] && \
+            gh run download "$base_run_id" --name "compatibility-report-$BASE_SHA" --dir base-report; then
             exit 0
           fi
 

@@ -541,6 +541,11 @@ pub fn visit<'a, 'b: 'a>(
         let binding = &context.analysis.root.bindings[binding_idx];
         if binding.declaration_kind == super::super::DeclarationKind::Import
             && binding.references.is_empty()
+            && !context
+                .analysis
+                .root
+                .preanalysis_template_references
+                .contains(&binding_idx)
         {
             context.emit_warning(
                 warnings::component_name_lowercase(&element.name).at(element.start, element.end),

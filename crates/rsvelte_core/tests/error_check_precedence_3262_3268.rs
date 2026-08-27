@@ -9,11 +9,12 @@
 //!   their whole "does this element take arbitrary attributes at all" loop before
 //!   `context.next()` descends into any `bind:`. rsvelte validated the `bind:`
 //!   target first.
-//! - #3262 (**open**, pinned in `KNOWN_3262` below): upstream promotes a legacy
+//! - #3262 (**fixed here**): upstream promotes a legacy
 //!   `export const` that the template writes to `state` (`2-analyze/index.js`
 //!   L627-645) and then rejects the **export** from `ExportNamedDeclaration`
-//!   during the *instance* walk. rsvelte cannot do that yet — see the comment on
-//!   `KNOWN_3262` for the measurement that says why.
+//!   during the *instance* walk. The scope builder now carries its already
+//!   resolved template-reference set into analysis so the export diagnostic has
+//!   the same precedence.
 //!
 //! Every expectation was measured on the official compiler in a fresh process,
 //! and is compared on `(code, message, start, end)` for an error and on the full
@@ -58,50 +59,7 @@ fn observed(src: &str, generate: GenerateMode) -> Observed {
     }
 }
 
-/// Cells rsvelte still gets wrong, recorded with the answer it produces today.
-/// A two-sided pin: if rsvelte's answer changes at all — including to upstream's —
-/// the assertion fails and the row has to move into the grid proper.
-///
-/// #3262 stays open because closing it needs binding **references** to be
-/// collected before the visitor walk, the way upstream's `create_scopes` does.
-/// rsvelte collects them *during* the walk (`visitors/identifier.rs`), so when
-/// `ExportNamedDeclaration` is visited a legacy `export const` the template writes
-/// to is still `Normal` — `promote_legacy_state_bindings` cannot have run yet — and
-/// `state_invalid_export` therefore cannot fire. The template-reference half of
-/// upstream's criterion is load-bearing rather than incidental: the
-/// `export_const_written_not_in_template` row is `constant_assignment` on both
-/// sides, so "is it updated" alone does not decide it.
-#[rustfmt::skip]
-const KNOWN_3262: &[(&str, &str, (u32, u32))] = &[
-    ("export_const/handler_assign", "constant_assignment", (63, 68)),
-    ("export_const/handler_update", "constant_assignment", (63, 66)),
-    ("export_const/script_fn_assign", "constant_assignment", (46, 51)),
-    ("export_const/bind_value", "constant_binding", (47, 61)),
-    ("export_const_destructured/handler_assign", "constant_assignment", (74, 79)),
-    ("export_const_destructured/handler_update", "constant_assignment", (74, 77)),
-    ("export_const_destructured/script_fn_assign", "constant_assignment", (57, 62)),
-    ("export_const_destructured/bind_value", "constant_binding", (58, 72)),
-    ("export_const_array/handler_assign", "constant_assignment", (67, 72)),
-    ("export_const_array/handler_update", "constant_assignment", (67, 70)),
-    ("export_const_array/script_fn_assign", "constant_assignment", (50, 55)),
-    ("export_const_array/bind_value", "constant_binding", (51, 65)),
-];
-
 fn check(id: &str, src: &str, expect: &Expect) {
-    if let Some((_, want_code, want_span)) = KNOWN_3262.iter().find(|(i, _, _)| *i == id) {
-        for generate in [GenerateMode::Client, GenerateMode::Server] {
-            let Err((code, _, span)) = observed(src, generate) else {
-                panic!("[{id}] generate={generate:?}: #3262 row unexpectedly compiles");
-            };
-            assert_eq!(code, *want_code, "[{id}] generate={generate:?} #3262 code");
-            assert_eq!(
-                span,
-                Some(*want_span),
-                "[{id}] generate={generate:?} #3262 span"
-            );
-        }
-        return;
-    }
     for generate in [GenerateMode::Client, GenerateMode::Server] {
         match (observed(src, generate), expect) {
             (Ok(warnings), Expect::Ok(want)) => {
