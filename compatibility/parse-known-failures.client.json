@@ -3,8 +3,5 @@
 	"adventurelog/frontend/src/lib/components/collections/CollectionStats.svelte",
 	"huly/packages/ui/src/components/ModernEditbox.svelte",
 	"huly/plugins/card-resources/src/components/navigator-next/NavigatorCardsSection.svelte",
-	"svelte-tweakpane-ui/src/examples/docs/HomeDemo.svelte",
-	"svelte-tweakpane-ui/src/examples/tests/TweakpaneDemo.svelte",
-	"sveltekit/packages/kit/src/runtime/client/remote-functions/query/instance.svelte.js",
 	"threlte/packages/theatre/src/lib/sequence/Sequence.svelte"
 ]

@@ -1,6 +1,93 @@
 use super::*;
 
 #[test]
+fn leading_semicolon_exposes_the_following_statement_boundary() {
+    let source = "const point3 = derived(\n\tpoint4,\n\t($point4) => $point4.slice(0, 3)\n)\n;(point3).set = () => { $point4 = [] }";
+    let separated = separate_same_line_top_level_statements(source, false);
+
+    assert_eq!(
+        separated,
+        "const point3 = derived(\n\tpoint4,\n\t($point4) => $point4.slice(0, 3)\n)\n;\n(point3).set = () => { $point4 = [] }"
+    );
+}
+
+#[test]
+fn leading_semicolon_does_not_extend_arrow_parameter_shadow_to_store_write() {
+    let source = r#"<script>
+        import { writable, derived } from 'svelte/store';
+        const point4 = writable([0, 0, 0, 0])
+        const point3 = derived(
+            point4,
+            ($point4) => $point4.slice(0, 3)
+        )
+        ;(point3).set = (newItems) => {
+            $point4 = [...newItems, $point4[3]]
+        }
+    </script>"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("leading-semicolon-store.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("$.store_set(point4, [...newItems, $point4()[3]])"),
+            "store write must be lowered in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("$point4() ="),
+            "store getter must not become an assignment target in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
+fn module_raw_state_private_nullish_assignment_inside_untrack_is_lowered() {
+    let source = r#"
+        import { untrack } from 'svelte';
+        export class Query {
+            #promise = $state.raw(null);
+            #run() { return Promise.resolve(); }
+            #get_promise() {
+                void untrack(() => (this.#promise ??= this.#run()));
+                return this.#promise;
+            }
+        }
+    "#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile_module(
+            source,
+            crate::compiler::ModuleCompileOptions {
+                filename: Some("instance.svelte.js".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("$.get(this.#promise) ?? $.set(this.#promise, this.#run())"),
+            "private raw-state assignment must be lowered in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("$.get(this.#promise) ??="),
+            "wrapped private read must not remain an assignment target in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn retained_instance_statements_match_a_normalized_script_after_import_hoisting() {
     let source =
         "\n\timport { onMount } from 'svelte';\n\n\tonMount(() => {\n\t\tconsole.log(42);\n\t});\n";

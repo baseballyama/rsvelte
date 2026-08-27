@@ -5693,7 +5693,17 @@ fn separate_same_line_top_level_statements<'a>(
 
     let has_export = script.contains("export let ") || script.contains("export var ");
     let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
-    if !has_export && !has_label {
+    // A semicolon at the start of a physical line belongs to the statement
+    // before it in the parser span, while everything after it belongs to the
+    // next statement. The line-oriented pipeline cannot express that boundary
+    // unless we make it a physical one. Without the cut, a store name shadowed
+    // by an arrow parameter in the first statement suppresses real store writes
+    // in the second one (for example `derived(..., ($point4) => ...)` followed
+    // by `;(point3).set = () => { $point4 = ... }`).
+    let has_leading_semicolon = script
+        .lines()
+        .any(|line| line.trim_start().starts_with(';'));
+    if !has_export && !has_label && !has_leading_semicolon {
         return Cow::Borrowed(script);
     }
 
@@ -5716,9 +5726,17 @@ fn separate_same_line_top_level_statements<'a>(
         let gap = &script[previous.end as usize..next.start as usize];
         let export_declaration = previous_text.trim_start().starts_with("export let ")
             || previous_text.trim_start().starts_with("export var ");
+        let previous_end = previous.end as usize;
+        let leading_semicolon = previous_end.checked_sub(1).is_some_and(|semicolon| {
+            script.as_bytes().get(semicolon) == Some(&b';')
+                && script[..semicolon]
+                    .rsplit_once('\n')
+                    .is_some_and(|(_, before)| before.trim().is_empty())
+        });
         if (export_declaration
             || is_legacy_reactive_label(&pair[0])
-            || is_legacy_reactive_label(&pair[1]))
+            || is_legacy_reactive_label(&pair[1])
+            || leading_semicolon)
             && !gap.contains('\n')
             && gap.chars().all(char::is_whitespace)
         {
