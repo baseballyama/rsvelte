@@ -467,6 +467,7 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 | `3617-globals-table-arity.svelte` | [#3617](https://github.com/baseballyama/rsvelte/issues/3617) | Built-in folding honors JavaScript arity, missing arguments, extra arguments and floating-point edge cases. |
 | `3617-globals-table-entries.svelte` | [#3617](https://github.com/baseballyama/rsvelte/issues/3617) | Less-common `Math`, `Number` and `String` globals share upstream's fold table and coercions. |
 | `3618-inspect-trace-function-label.svelte` | [#3618](https://github.com/baseballyama/rsvelte/issues/3618), [#3544](https://github.com/baseballyama/rsvelte/issues/3544) | Dev trace labels inherit an arrow declarator's name, retain each class method or constructor's own source position, and async functions await an async trace thunk located from the `async` keyword. |
+| `3619-console-wrap-scope.svelte` | [#3619](https://github.com/baseballyama/rsvelte/issues/3619) | Dev console wrapping resolves function parameters in their lexical scope and treats regex literals as known values. |
 | `3647-store-read-in-regex.svelte` | [#3647](https://github.com/baseballyama/rsvelte/issues/3647) | `$store` text inside regex bodies and character classes stays opaque while real reads after division still transform. |
 | `3650-svelte-element-class-memo.svelte` | [#3650](https://github.com/baseballyama/rsvelte/issues/3650) | Memoized class directives on `<svelte:element>` bind their own effect parameters across nesting and each blocks. |
 | `3652-template-keyword-head.svelte` | [#3652](https://github.com/baseballyama/rsvelte/issues/3652) | Template expressions beginning with `import.meta`, dynamic `import` or `this` are parsed as their real node kinds. |
@@ -1004,6 +1005,17 @@ no comment, the comment on its own line, or no rewritten read on the line all
 agree, so the divergence needs a rewrite **and** a same-line comment. The other
 eight comment positions in that file match, as do all nine delimiter-bearing
 rune arguments and every rune position a module admits.
+
+The fifteenth pass held back one file from the dev-only console transform.
+`issues/3619-console-wrap-scope` is #3619: a function parameter that shadows a
+same-named component binding must be evaluated in the function's lexical scope,
+not as the outer `$state` binding. Upstream therefore wraps `console.log(a)` for
+`function f(a)`, while rsvelte skipped it. The regex declaration in the same
+file is the opposite-direction control: a regex literal is a known value, so
+`console.log(r)` must stay unwrapped even though its source text contains a rune
+spelling. Together the two rows pin both answers of the console-wrap predicate;
+the corpus file itself is a provenance repro because the normal corpus targets
+do not enable `dev`.
 
 ## Adding a file
 

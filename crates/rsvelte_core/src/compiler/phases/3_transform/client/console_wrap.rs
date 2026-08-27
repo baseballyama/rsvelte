@@ -21,13 +21,14 @@
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    ArrayExpressionElement, BindingIdentifier, BindingPattern, Program, Statement,
-    VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
+    ArrayExpressionElement, BindingIdentifier, BindingPattern, IdentifierReference, Program,
+    Statement, VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -136,12 +137,18 @@ pub(super) struct LocalConsts {
     /// declared more than once is absent: the text alone cannot say which
     /// declaration a reference reaches.
     verdicts: FxHashMap<String, bool>,
+    /// Identifier-reference starts that resolve below the generated program's
+    /// root scope. These must not fall through to a same-named instance binding:
+    /// a parameter or local declaration shadows it exactly as it does upstream.
+    local_references: FxHashSet<u32>,
 }
 
 pub(super) fn collect_local_consts(
     program: &Program<'_>,
     analysis: Option<&ComponentAnalysis>,
 ) -> LocalConsts {
+    let semantic_ret = SemanticBuilder::new().build(program);
+    let semantic = &semantic_ret.semantic;
     let mut collector = ConstCollector {
         analysis,
         counts: FxHashMap::default(),
@@ -154,7 +161,35 @@ pub(super) fn collect_local_consts(
         ..
     } = collector;
     verdicts.retain(|name, _| counts.get(name) == Some(&1));
-    LocalConsts { verdicts }
+    let mut references = LocalReferenceCollector {
+        semantic,
+        starts: FxHashSet::default(),
+    };
+    references.visit_program(program);
+    LocalConsts {
+        verdicts,
+        local_references: references.starts,
+    }
+}
+
+struct LocalReferenceCollector<'sem> {
+    semantic: &'sem Semantic<'sem>,
+    starts: FxHashSet<u32>,
+}
+
+impl<'a> Visit<'a> for LocalReferenceCollector<'_> {
+    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+        let Some(reference_id) = it.reference_id.get() else {
+            return;
+        };
+        let scoping = self.semantic.scoping();
+        let Some(symbol_id) = scoping.get_reference(reference_id).symbol_id() else {
+            return;
+        };
+        if scoping.symbol_scope_id(symbol_id) != scoping.root_scope_id() {
+            self.starts.insert(it.span.start);
+        }
+    }
 }
 
 struct ConstCollector<'an> {
@@ -199,11 +234,21 @@ impl<'a> Visit<'a> for ConstCollector<'_> {
 /// upstream emits.
 fn identifier_can_be_unknown(
     name: &str,
+    reference_start: u32,
     analysis: Option<&ComponentAnalysis>,
     locals: Option<&LocalConsts>,
 ) -> bool {
     if name == "undefined" {
         return false;
+    }
+    if locals.is_some_and(|l| l.local_references.contains(&reference_start)) {
+        // A unique const retains the value verdict collected below. Every
+        // other local binding (parameters, lets, duplicate const names) is
+        // UNKNOWN to upstream's evaluator.
+        return locals
+            .and_then(|l| l.verdicts.get(name))
+            .copied()
+            .unwrap_or(true);
     }
     if let Some(&verdict) = locals.and_then(|l| l.verdicts.get(name)) {
         return verdict;
@@ -248,7 +293,7 @@ pub(super) fn shape_can_be_unknown(
         | E::ArrowFunctionExpression(_)
         | E::FunctionExpression(_)
         | E::ClassExpression(_) => false,
-        E::Identifier(id) => identifier_can_be_unknown(&id.name, analysis, locals),
+        E::Identifier(id) => identifier_can_be_unknown(&id.name, id.span.start, analysis, locals),
         E::UnaryExpression(u) => !matches!(
             u.operator,
             UnaryOperator::LogicalNot
@@ -270,7 +315,7 @@ pub(super) fn shape_can_be_unknown(
         // has already evaluated the original `BinaryExpression` to `{true,
         // false}`, and reads of a `$state` declaration to `$.get(name)`.
         E::CallExpression(call) => match state_read_operand(call) {
-            Some(name) => identifier_can_be_unknown(name, analysis, locals),
+            Some(id) => identifier_can_be_unknown(&id.name, id.span.start, analysis, locals),
             None => !is_never_unknown_call(&call.callee),
         },
         _ => true,
@@ -279,7 +324,9 @@ pub(super) fn shape_can_be_unknown(
 
 /// The declaration name behind a lowered reactive read (`$.get(count)` /
 /// `$.safe_get(count)`), which upstream evaluated as the bare identifier.
-fn state_read_operand<'a>(call: &'a oxc_ast::ast::CallExpression<'_>) -> Option<&'a str> {
+fn state_read_operand<'a>(
+    call: &'a oxc_ast::ast::CallExpression<'_>,
+) -> Option<&'a IdentifierReference<'a>> {
     use oxc_ast::ast::Expression as E;
     let E::StaticMemberExpression(member) = &call.callee else {
         return None;
@@ -294,7 +341,7 @@ fn state_read_operand<'a>(call: &'a oxc_ast::ast::CallExpression<'_>) -> Option<
         return None;
     };
     match arg.as_expression()? {
-        E::Identifier(id) => Some(id.name.as_str()),
+        E::Identifier(id) => Some(id),
         _ => None,
     }
 }
