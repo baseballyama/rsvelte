@@ -5,8 +5,12 @@
 
 use crate::ast::template::{Attribute, AttributeNode};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
+use crate::compiler::phases::phase3_transform::client::types::Memoizer;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::{
     build_event, convert_arrow_to_named_function,
+};
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    build_render_statement_with_memoizer, expression_has_await,
 };
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::utils::locate_in_source;
@@ -154,7 +158,14 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     // Extract the expression tag from the attribute value
     let expr_tag = extract_expression_tag(&node.value);
 
-    let handler = build_event_handler(expr_tag, context);
+    // Upstream currently leaves an `await` inside the non-async event wrapper.
+    // Resolve async handlers through a local template-effect memoizer instead,
+    // so the awaited expression lives only in an `async () => ...` thunk.
+    let has_await =
+        expr_tag.metadata.expression.has_await() || expression_has_await(&expr_tag.expression);
+    let mut local_memoizer =
+        has_await.then(|| Memoizer::with_parent_conflicts(&context.state.memoizer));
+    let handler = build_event_handler(expr_tag, context, local_memoizer.as_mut());
 
     // Determine if this event should be delegated.
     //
@@ -183,7 +194,7 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
         handler
     };
 
-    let statement = b::stmt(
+    let mut statement = b::stmt(
         &context.arena,
         build_event(
             &context.arena,
@@ -195,6 +206,20 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
             delegated,
         ),
     );
+
+    if let Some(memoizer) = &local_memoizer {
+        statement = b::stmt(
+            &context.arena,
+            build_render_statement_with_memoizer(
+                &context.arena,
+                vec![statement],
+                memoizer.get_params(),
+                memoizer.sync_values(&context.arena),
+                memoizer.async_values(&context.arena),
+                None,
+            ),
+        );
+    }
 
     // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
     let is_special_element = context.current_parent().is_some_and(|parent| {
@@ -254,6 +279,7 @@ pub fn extract_expression_tag<'a>(
 pub fn build_event_handler(
     expr_tag: &crate::ast::template::ExpressionTag,
     context: &mut ComponentContext,
+    async_memoizer: Option<&mut Memoizer>,
 ) -> crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
     use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
@@ -265,6 +291,12 @@ pub fn build_event_handler(
     // Apply state transforms (e.g., count++ -> $.update(count))
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
     let js_expr = apply_transforms_to_expression(&js_expr, context);
+    let is_async_memoized = async_memoizer.is_some();
+    let js_expr = if let Some(memoizer) = async_memoizer {
+        memoizer.add(js_expr, false, true, false, false)
+    } else {
+        js_expr
+    };
 
     // Check if it's already a function
     let mut unspanned = &js_expr;
@@ -308,8 +340,11 @@ pub fn build_event_handler(
     // Memoisation here uses the same broad "any CallExpression in the tree"
     // semantics as the rest of Phase 3 — see `expression_tag_has_call` in
     // `shared/element.rs` for why we don't read Phase 2's narrower flag.
-    let has_call =
-        crate::compiler::phases::phase3_transform::client::visitors::shared::element::expression_tag_has_call(
+    // An awaited call is already represented by the local memoizer's `$0`.
+    // Deriving that identifier in component init would put `$0` outside the
+    // template-effect callback that binds it (visible specifically in dev).
+    let has_call = !is_async_memoized
+        && crate::compiler::phases::phase3_transform::client::visitors::shared::element::expression_tag_has_call(
             expr_tag,
         );
 

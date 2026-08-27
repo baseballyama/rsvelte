@@ -655,17 +655,40 @@ pub fn visit_regular_element(
                     }
                 } else if name == "autofocus" {
                     // Special case: autofocus needs $.autofocus() call
-                    let result =
-                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    // Upstream currently emits a bare `await` as the call argument.
+                    // Keep the synchronous path byte-identical, but resolve an async
+                    // value through a local template-effect memoizer.
+                    let mut local_memoizer =
+                        Memoizer::with_parent_conflicts(&context.state.memoizer);
+                    let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                        if metadata.has_await() {
+                            local_memoizer.add(expr, false, true, false, metadata.has_state())
+                        } else {
+                            expr
+                        }
+                    });
                     let node_id = extract_node_id(&context.state.node);
-                    context.state.init.push(b::stmt(
+                    let call = b::call(
                         &context.arena,
-                        b::call(
+                        b::member_path(&context.arena, "$.autofocus"),
+                        vec![b::id(&node_id), result.value],
+                    );
+
+                    if local_memoizer.has_memoized() {
+                        context.state.init.push(b::stmt(
                             &context.arena,
-                            b::member_path(&context.arena, "$.autofocus"),
-                            vec![b::id(&node_id), result.value],
-                        ),
-                    ));
+                            build_render_statement_with_memoizer(
+                                &context.arena,
+                                vec![b::stmt(&context.arena, call)],
+                                local_memoizer.get_params(),
+                                local_memoizer.sync_values(&context.arena),
+                                local_memoizer.async_values(&context.arena),
+                                None,
+                            ),
+                        ));
+                    } else {
+                        context.state.init.push(b::stmt(&context.arena, call));
+                    }
                 } else if name == "class" {
                     // Dynamic class attribute without class directives
                     let is_html = context.state.metadata.namespace == "html" && node.name != "svg";

@@ -1531,7 +1531,7 @@ fn extract_event_handler(
         build_event_handler, extract_expression_tag,
     };
     let expr_tag = extract_expression_tag(value);
-    build_event_handler(expr_tag, context)
+    build_event_handler(expr_tag, context, None)
 }
 
 /// Check if an event is passive.
