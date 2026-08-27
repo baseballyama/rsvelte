@@ -1762,7 +1762,12 @@ pub fn walk_js_expression_node(
             super::super::literal::visit_typed(expression, context)?;
         }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
-            walk_js_expression_node(arena.get_js_node(*tag), context, metadata)?;
+            let tag_node = arena.get_js_node(*tag);
+            if !is_pure_node(tag_node, context) {
+                metadata.set_has_call(true);
+                metadata.set_has_state(true);
+            }
+            walk_js_expression_node(tag_node, context, metadata)?;
             walk_js_expression_node(arena.get_js_node(*quasi), context, metadata)?;
         }
         JsNode::NewExpression {

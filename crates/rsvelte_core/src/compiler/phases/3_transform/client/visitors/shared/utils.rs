@@ -1456,6 +1456,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
         }
 
         JsExpr::Sequence(seq) => {
+            // JavaScript source cannot contain a one-element SequenceExpression;
+            // this shape is synthesized by transforms such as the each-item
+            // mutation path. Its child has already been transformed, so walking
+            // it again would wrap the same mutation in another sequence.
+            if seq.expressions.len() == 1 {
+                return JsExpr::Sequence(seq.clone());
+            }
+
             let transformed_exprs: Vec<JsExpr> =
                 seq.expressions.iter().map(|e| recurse!(e)).collect();
 

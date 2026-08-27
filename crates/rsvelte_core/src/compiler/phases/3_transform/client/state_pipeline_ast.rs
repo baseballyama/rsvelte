@@ -251,10 +251,11 @@ impl<'a, 'sem> PipelineVisitor<'a, 'sem> {
         )
     }
 
-    /// `var` rune declarations are function-scoped and may be read before
-    /// initialization. Resolve the reference's own symbol instead of reducing
-    /// this decision to a name: a same-named `let`/`const` in another scope
-    /// must continue to use `$.get`.
+    /// Nested `var` rune declarations are function-scoped and may be read
+    /// before initialization. Root-scope module/component declarations keep
+    /// the ordinary getter used by upstream. Resolve the reference's own
+    /// symbol instead of reducing this decision to a name: a same-named
+    /// `let`/`const` in another scope must continue to use `$.get`.
     fn reference_needs_safe_get(&self, ident: &IdentifierReference) -> bool {
         let Some(reference_id) = ident.reference_id.get() else {
             return false;
@@ -263,9 +264,10 @@ impl<'a, 'sem> PipelineVisitor<'a, 'sem> {
         let Some(symbol_id) = scoping.get_reference(reference_id).symbol_id() else {
             return false;
         };
-        scoping
-            .symbol_flags(symbol_id)
-            .contains(SymbolFlags::FunctionScopedVariable)
+        scoping.symbol_scope_id(symbol_id) != scoping.root_scope_id()
+            && scoping
+                .symbol_flags(symbol_id)
+                .contains(SymbolFlags::FunctionScopedVariable)
     }
 
     fn getter_for_reference(&self, ident: &IdentifierReference) -> &'static str {
@@ -634,6 +636,21 @@ mod tests {
         .unwrap();
         assert!(out.contains("return $.safe_get(value);"));
         assert!(out.ends_with("$.get(value);"));
+    }
+
+    #[test]
+    fn root_var_reads_use_get() {
+        let out = transform_state_pipeline_ast(
+            "var value = $.derived(() => 1); value;",
+            &ssv(&["value"]),
+            &[],
+            false,
+            &[],
+            &[],
+        )
+        .unwrap();
+        assert!(out.ends_with("$.get(value);"));
+        assert!(!out.contains("$.safe_get(value)"));
     }
 
     #[test]
