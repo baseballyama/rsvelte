@@ -2819,10 +2819,44 @@ pub(super) fn transform_props_destructuring(
     read_only_props: &[(String, String)],
     dev: bool,
 ) -> Option<String> {
+    // A comment between the declarator's `=` and `$props()` is not part of the
+    // object pattern, but it still participates in esrap's comment cursor.
+    // Save it before canonicalization removes that whole separator. The byte
+    // positions are relative to the original trimmed declaration so we can
+    // distinguish a same-line comment (which may trail a default value inside
+    // `$.prop(...)`) from one that has already crossed a line boundary.
+    let original_trimmed = line.trim();
+    let props_call = original_trimmed.rfind("$props")?;
+    let assignment = code_bytes(&original_trimmed.as_bytes()[..props_call])
+        .filter_map(|(offset, byte)| (byte == b'=').then_some(offset))
+        .last()?;
+    let initializer_comments: Vec<(usize, usize, String)> =
+        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(
+            &original_trimmed[assignment + 1..props_call],
+        )
+        .into_iter()
+        .map(|(start, comment)| {
+            let start = assignment + 1 + start;
+            let end = start + comment.len();
+            (start, end, comment)
+        })
+        .collect();
+
+    // The comments above have to survive in their output slots, but the text
+    // helper's existing shape matchers need to see the declaration as
+    // `= $props()`. Remove only the saved initializer separator from the copy
+    // that is parsed below; all placement decisions keep using offsets into
+    // `original_trimmed`.
+    let mut transform_input = original_trimmed.to_string();
+    if !initializer_comments.is_empty() {
+        transform_input.replace_range(assignment + 1..props_call, " ");
+    }
+
     // Canonicalise spacing in the `$props()` call (`= $props ()` → `= $props()`)
     // so the byte matchers below recognise whitespace variants. The AST detector
     // that gates this helper already confirmed it is a `$props()` rune call.
-    let line = crate::compiler::phases::phase3_transform::utils::canonicalize_props_call(line);
+    let line =
+        crate::compiler::phases::phase3_transform::utils::canonicalize_props_call(&transform_input);
     let trimmed = line.trim();
 
     // Determine the original declaration keyword (let or const) to preserve it
@@ -2944,6 +2978,40 @@ pub(super) fn transform_props_destructuring(
             prev_value_end,
             &mut trail_broken,
         );
+    }
+
+    // The original initializer comments come after every pattern node. Feed
+    // them through the same trailing-comment rule as comments inside the
+    // pattern. A default value is the final located output node, so a same-line
+    // comment lands before the generated call's `)`; a plain/rest binding has
+    // no located generated initializer and the comment remains pending until
+    // after the declaration statement.
+    for (start, end, text) in initializer_comments {
+        let value_end = prev_value_end.map(|offset| open_brace + 1 + offset);
+        let attachable = pending.is_empty()
+            && !trail_broken
+            && value_end.is_some_and(|value_end| {
+                value_end <= start
+                    && !original_trimmed[value_end..start]
+                        .contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+            });
+        if attachable
+            && let Some(last) = declarators.last_mut()
+            && let Some(pos) = last.rfind(')')
+        {
+            let is_line = text.starts_with("//");
+            let insert = if is_line {
+                format!(" {}\n", text)
+            } else {
+                format!(" {}", text)
+            };
+            last.insert_str(pos, &insert);
+            if is_line {
+                trail_broken = true;
+            }
+        } else {
+            pending.push((end, text));
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

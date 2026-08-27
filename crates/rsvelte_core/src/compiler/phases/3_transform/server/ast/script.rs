@@ -2466,8 +2466,16 @@ fn lower_variable_declaration<'a>(
         // Per-source-declarator pair accumulator.
         let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
             Vec::new();
+        // Upstream rebuilds rune declarators with `b.declarator`, so the
+        // wrapper has no `loc` even though the binding pattern it contains
+        // still does. This distinction is observable for `$props()`: a line or
+        // multiline block comment between `=` and the rune must remain pending
+        // past the location-less `$$props` initializer. Keep the original
+        // wrapper location only on a declarator that upstream visits verbatim.
+        let mut declarator_keeps_source_span = false;
         match declarator_rune(d, is_instance, state) {
             None => {
+                declarator_keeps_source_span = true;
                 // Non-rune declarator: re-parse the whole declarator span as a
                 // `let <decl>;` so the pattern + init survive verbatim, then
                 // read-wrap the INIT so derived / store reads & updates inside it
@@ -2586,10 +2594,12 @@ fn lower_variable_declaration<'a>(
                     } else {
                         d.span
                     };
-                    // One declarator in, one out: locating it is what puts a
-                    // comment between the keyword and the name in that slot
-                    // instead of ahead of the whole statement.
-                    if v.declarations.len() == 1
+                    // A verbatim declarator retains its own source location.
+                    // Rune declarators are builder-made upstream and stay
+                    // location-less; their retained pattern loc is sufficient
+                    // to place a comment between the keyword and binding name.
+                    if declarator_keeps_source_span
+                        && v.declarations.len() == 1
                         && let Some(only) = v.declarations.first_mut()
                     {
                         only.span = d.span;

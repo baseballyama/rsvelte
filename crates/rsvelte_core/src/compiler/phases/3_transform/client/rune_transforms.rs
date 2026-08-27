@@ -10,7 +10,7 @@ use super::{
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    find_rune_code_from, skip_opaque,
+    code_bytes, find_rune_code, find_rune_code_from, skip_opaque,
 };
 use crate::compiler::phases::phase3_transform::shared::rune_shadow::RuneShadows;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
@@ -50,13 +50,13 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     _skip_state_vars: &[String],
     _state_vars: &[String],
     _non_reactive_vars: &[String],
-    _prop_source_vars: &[String],
-    _exported_names: &[String],
+    prop_source_vars: &[String],
+    exported_names: &[String],
     _proxy_vars: &[String],
     dev: bool,
     analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
-    _read_only_props: &[(String, String)],
+    read_only_props: &[(String, String)],
     pre_class_script: &str,
 ) -> Cow<'a, str> {
     // Quick pre-check: if no rune-like pattern (`$` followed by letter) appears, skip
@@ -96,6 +96,32 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
         !dev && !inspect_is_store_sub && memmem::find(line.as_bytes(), b"$inspect").is_some(),
         analysis.is_typescript,
     );
+
+    // A comment between a destructured assignment's `=` and `$props()` can
+    // split the source projection used by the later whole-script AST pass.
+    // Handle only that comment-straddled shape while it is still one complete
+    // source statement. The ordinary `$props()` population remains on the AST
+    // path below, so this does not restore its former per-statement scan.
+    if !store_sub_vars.iter().any(|name| name == "$props")
+        && let Some(props_at) = find_rune_code(result.as_bytes(), b"$props(")
+        && let Some(assignment) = code_bytes(&result.as_bytes()[..props_at])
+            .filter_map(|(offset, byte)| (byte == b'=').then_some(offset))
+            .last()
+        && !crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet(
+            &result[assignment + 1..props_at],
+        )
+        .is_empty()
+        && let Some(transformed) = super::props_transforms::transform_props_destructuring(
+            &result,
+            prop_source_vars,
+            exported_names,
+            analysis,
+            read_only_props,
+            dev,
+        )
+    {
+        result = Cow::Owned(transformed);
+    }
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {

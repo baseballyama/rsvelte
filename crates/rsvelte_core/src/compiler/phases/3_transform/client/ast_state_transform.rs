@@ -5119,6 +5119,24 @@ fn projected_state_transform_requires_fallback(
             let Some(init) = &declarator.init else {
                 return;
             };
+
+            // A line comment between `=` and `$props()` can make the script
+            // projection omit part of the declaration while still mapping
+            // later identifier replacements. Silently dropping the whole-
+            // declaration replacement then returns a partially transformed
+            // script. Reparse the emitted script whenever that replacement
+            // cannot be projected as one source range.
+            if let Expression::CallExpression(call) = init.get_inner_expression()
+                && matches!(
+                    &call.callee,
+                    Expression::Identifier(identifier) if identifier.name == "$props"
+                )
+                && self.target_crosses_omitted_source(declarator.span.start, declarator.span.end)
+            {
+                self.found = true;
+                return;
+            }
+
             if !matches!(
                 init,
                 Expression::TSAsExpression(_)

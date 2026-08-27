@@ -6,7 +6,7 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 26 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 29 entries.**
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -95,3 +95,8 @@ aligning `oxc_formatter`'s break heuristics with prettier upstream.
 - Template-literal `${}` substitution indentation inside `<script>` (`flowbite range/+page`).
 - Member-chain-only vs `&&`/call-args break priority in an `{#if}` header
   (`flowbite forms/tags/Tags`).
+- Line-comment attachment between a destructuring assignment and its initializer:
+  prettier keeps `= // comment\n $props()` in that separator slot (and inserts a
+  blank line), while oxc emits `= $props(); // comment`. Both are valid, but the
+  original slot is deliberately retained in the three `3515-props-*-line-comment`
+  pattern fixtures because it distinguishes the compiler comment-cursor defect.

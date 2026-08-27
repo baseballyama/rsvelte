@@ -128,5 +128,20 @@
 		"id": "pattern/adversarial/css/rejected-global-keyframes-selector.svelte",
 		"class": "invalid-input",
 		"reason": "`:global(@keyframes shared)` is rejected by both compilers (css_expected_identifier, #3120); rsvelte-fmt falls back to raw passthrough for a stylesheet its CSS parser rejects, so the block keeps its source indentation while the oracle formats it anyway without validating"
+	},
+	{
+		"id": "pattern/issues/3515-props-default-line-comment.svelte",
+		"class": "engine-divergence",
+		"reason": "prettier preserves a line comment between a destructuring assignment and its `$props()` initializer as a leading separator (and inserts a blank line), while oxc attaches the same valid comment after the initializer expression; compiler parity needs the original separator slot to distinguish #3515"
+	},
+	{
+		"id": "pattern/issues/3515-props-plain-line-comment.svelte",
+		"class": "engine-divergence",
+		"reason": "prettier preserves a line comment between a destructuring assignment and its `$props()` initializer as a leading separator (and inserts a blank line), while oxc attaches the same valid comment after the initializer expression; compiler parity needs the original separator slot to distinguish #3515"
+	},
+	{
+		"id": "pattern/issues/3515-props-rest-line-comment.svelte",
+		"class": "engine-divergence",
+		"reason": "prettier preserves a line comment between a destructuring assignment and its `$props()` initializer as a leading separator (and inserts a blank line), while oxc attaches the same valid comment after the initializer expression; compiler parity needs the original separator slot to distinguish #3515"
 	}
 ]

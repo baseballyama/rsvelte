@@ -447,6 +447,11 @@ pub(crate) fn find_rune_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
 /// lexing from the beginning. Starting the lexer at `from` would lose whether
 /// that byte sits inside a string, comment, template or regex literal.
 pub(crate) fn find_rune_code_from(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+    debug_assert_eq!(
+        needle.last(),
+        Some(&b'('),
+        "find_rune_code needs a call needle ending in `(`"
+    );
     debug_assert!(
         !needle
             .iter()
