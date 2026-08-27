@@ -231,7 +231,7 @@ pub(super) fn declares_binding_in_statement(statement: &str, name: &str) -> bool
         if finder.found {
             return true;
         }
-        if parsed.errors.is_empty() {
+        if parsed.diagnostics.is_empty() {
             return false;
         }
     }
