@@ -1341,6 +1341,7 @@ impl<'a> Parser<'a> {
                         start: start as u32,
                         end: self.index as u32,
                         expression,
+                        metadata: Default::default(),
                     },
                 )));
             }
@@ -1979,6 +1980,7 @@ impl<'a> Parser<'a> {
                 name_loc,
                 value,
                 modifiers,
+                metadata: Box::default(),
             },
         )))
     }

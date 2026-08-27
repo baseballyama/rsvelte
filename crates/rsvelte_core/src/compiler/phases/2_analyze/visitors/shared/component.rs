@@ -233,10 +233,10 @@ pub fn visit_component<'a, 'b: 'a>(
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                super::attribute::walk_template_expression(&spread.expression, context)?;
+                super::super::spread_attribute::visit(spread, context, false)?;
             }
             Attribute::AttachTag(attach) => {
-                super::attribute::walk_template_expression(&attach.expression, context)?;
+                super::super::attach_tag::visit(attach, context)?;
             }
             Attribute::LetDirective(_) => {
                 // Let directives don't have expressions to visit for needs_context

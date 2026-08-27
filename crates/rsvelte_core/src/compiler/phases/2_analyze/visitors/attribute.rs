@@ -158,7 +158,7 @@ fn is_text_attribute(attribute: &AttributeNode) -> bool {
 ///
 /// Walks each inner `ExpressionTag` expression with
 /// `walk_js_expression_node`, populating `expr_tag.metadata.expression` so
-/// Phase 3 (`build_attribute_value`, `extract_metadata_from_tag`, etc.) can
+/// Phase 3 attribute builders can
 /// read `has_call` / `has_state` / `has_await` / dependencies / references
 /// without re-walking the JSON.
 pub fn visit_attribute_value_expressions(

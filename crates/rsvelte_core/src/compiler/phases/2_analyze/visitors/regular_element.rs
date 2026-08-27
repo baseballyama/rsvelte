@@ -446,9 +446,9 @@ pub fn visit<'a, 'b: 'a>(
             super::shared::element::collect_css_attribute_facts(&element.attributes, context);
     }
 
-    for attr in &element.attributes {
+    for attr in &mut element.attributes {
         if let Attribute::SpreadAttribute(spread) = attr {
-            spread_attribute::visit(spread, context)?;
+            spread_attribute::visit(spread, context, true)?;
         }
     }
 
@@ -807,8 +807,8 @@ pub fn visit<'a, 'b: 'a>(
                 // `class_directive::visit` can populate `directive.metadata`.
             }
             Attribute::StyleDirective(_) => {
-                // Re-borrow the style directive for the visit call
-                if let Attribute::StyleDirective(style_dir) = &element.attributes[i] {
+                // Re-borrow the style directive mutably so analysis can populate metadata.
+                if let Attribute::StyleDirective(style_dir) = &mut element.attributes[i] {
                     super::style_directive::visit(style_dir, context)?;
                 }
             }

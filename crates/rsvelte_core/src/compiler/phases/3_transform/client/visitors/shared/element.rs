@@ -3,13 +3,10 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/element.js`.
 
-use crate::ast::arena::ParseArena;
 use crate::ast::template::{
     AttributeValue, AttributeValuePart, ClassDirective, ExpressionTag,
     RegularElement as RegularElementNode, StyleDirective,
 };
-use crate::ast::typed_expr::JsNode;
-use crate::compiler::phases::phase2_analyze::for_each_js_child;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 #[cfg(test)]
@@ -52,7 +49,8 @@ where
         AttributeValue::Expression(expr_tag) => {
             // Extract the expression from the ExpressionTag using the full expression converter
             let expression = extract_expression_from_tag_with_context(expr_tag, context);
-            let mut metadata = extract_metadata_from_tag(expr_tag);
+            let mut metadata =
+                ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
 
             // Check for reactive state using the comprehensive check that considers transforms
             let has_reactive_state =
@@ -64,11 +62,7 @@ where
             // `build_attribute_value`, so feeding it the broad walk would
             // wrap pure calls like `<Child prop={encodeURIComponent('x')}>`
             // in `$.derived(...)` (regresses the `purity` snapshot fixture).
-            let has_call = expr_tag.metadata.expression.has_call();
-            // `build_expression` reads the same flag upstream does, so a pure
-            // call (`String(1)`) must not be wrapped just because the phase-3
-            // walk saw a `CallExpression`.
-            metadata.set_has_call(has_call);
+            let has_call = metadata.has_call();
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
@@ -106,7 +100,8 @@ where
 
                 AttributeValuePart::ExpressionTag(expr_tag) => {
                     let expression = extract_expression_from_tag_with_context(expr_tag, context);
-                    let mut metadata = extract_metadata_from_tag(expr_tag);
+                    let mut metadata =
+                        ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
 
                     // Check for reactive state using the comprehensive check that considers transforms
                     let has_reactive_state =
@@ -115,8 +110,7 @@ where
                     // Use Phase 2's narrow has_call (matches the official
                     // compiler) — see the matching comment in the
                     // `AttributeValue::Expression` arm above for why.
-                    let has_call = expr_tag.metadata.expression.has_call();
-                    metadata.set_has_call(has_call);
+                    let has_call = metadata.has_call();
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);
@@ -201,12 +195,9 @@ where
 
                 // Build the expression using full context-aware conversion
                 let expression = extract_expression_from_tag_with_context(expr_tag, context);
-                let mut metadata = extract_metadata_from_tag(expr_tag);
-
-                // Phase 3 needs the broad "any CallExpression in the tree" check
-                // for memoisation decisions; see `expression_tag_has_call`.
-                let chunk_has_call = expression_tag_has_call(expr_tag);
-                metadata.set_has_call(chunk_has_call);
+                let mut metadata =
+                    ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
+                let chunk_has_call = metadata.has_call();
 
                 // Update metadata.has_state with comprehensive reactive state check
                 // (the analysis-phase metadata may not account for transforms registered later)
@@ -288,259 +279,6 @@ fn extract_expression_from_tag_with_context(
 
     // Use the expression converter to properly convert the expression
     convert_expression(&expr_tag.expression, context)
-}
-
-/// Extract metadata from an ExpressionTag.
-///
-/// Compute Phase-3 metadata flags by walking the expression's JSON.
-///
-/// `expr_tag.metadata.expression` (set by Phase 2) is **not** reliable
-/// for the ExpressionTags that live inside attribute / style-directive
-/// `AttributeValue::Sequence` parts, because the parent visitors only
-/// walk the inner expression with a scratch `ExpressionMetadata` and
-/// throw it away. Reading the field would yield all-default flags and
-/// silently break things like `<p style:font-size="{settings.fontSize}px">`,
-/// which then loses its `($.get(...), $.untrack(() => ...))` legacy-state
-/// untrack wrapper.
-///
-/// The cheaper "use the cached metadata" path is fine for the
-/// standalone-expression call sites (where the ExpressionTag visitor
-/// did run in Phase 2) but we don't currently distinguish those, so do
-/// the broad walk here for every consumer.
-///
-/// `has_state` / `dynamic` are reset; the caller recomputes `has_state`
-/// via `expression_has_reactive_state(...)` so transforms registered
-/// later in the pipeline are accounted for.
-fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
-    let mut metadata = ExpressionMetadata::default();
-
-    // The typed walk needs the serialize arena to resolve child ids; without one
-    // installed there is nothing to walk but the JSON.
-    let flags = expr_tag
-        .expression
-        .try_as_node_ref()
-        .and_then(|node| {
-            crate::ast::arena::try_with_current_serialize_arena(|arena| {
-                typed_metadata_flags(node, arena)
-            })
-        })
-        .unwrap_or_else(|| json_metadata_flags(expr_tag.expression.as_json()));
-
-    if !flags.is_literal {
-        metadata.set_has_call(flags.has_call);
-        metadata.set_has_member_expression(flags.has_member);
-        metadata.set_has_assignment(flags.has_assignment);
-        metadata.set_has_await(flags.has_await);
-    }
-    metadata
-}
-
-/// The four AST-derived flags `extract_metadata_from_tag` sets, plus the
-/// literal short-circuit that suppresses setting them at all.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-struct MetadataFlags {
-    is_literal: bool,
-    has_call: bool,
-    has_member: bool,
-    has_assignment: bool,
-    has_await: bool,
-}
-
-impl MetadataFlags {
-    #[inline]
-    fn all_found(&self) -> bool {
-        self.has_call && self.has_member && self.has_assignment && self.has_await
-    }
-}
-
-/// JSON form of the flag computation — kept as the oracle the typed walk is
-/// checked against.
-fn json_metadata_flags(val: &serde_json::Value) -> MetadataFlags {
-    let mut flags = MetadataFlags::default();
-    if is_literal_value(val) {
-        flags.is_literal = true;
-        return flags;
-    }
-    walk_metadata_flags(
-        val,
-        &mut flags.has_call,
-        &mut flags.has_member,
-        &mut flags.has_assignment,
-        &mut flags.has_await,
-    );
-    flags
-}
-
-/// Typed equivalent of `json_metadata_flags`, walking `JsNode` children through
-/// `for_each_js_child` instead of materializing the expression as JSON.
-fn typed_metadata_flags(node: &JsNode, arena: &ParseArena) -> MetadataFlags {
-    let mut flags = MetadataFlags::default();
-    if is_literal_node(node) {
-        flags.is_literal = true;
-        return flags;
-    }
-    walk_metadata_flags_typed(node, arena, &mut flags);
-    flags
-}
-
-/// Typed counterpart of `walk_metadata_flags`, node-type for node-type.
-fn walk_metadata_flags_typed(node: &JsNode, arena: &ParseArena, flags: &mut MetadataFlags) {
-    if flags.all_found() {
-        return;
-    }
-    match node {
-        JsNode::CallExpression { .. } => flags.has_call = true,
-        // A spread counts as a call — see `walk_metadata_flags`.
-        JsNode::SpreadElement { .. } => flags.has_call = true,
-        JsNode::MemberExpression { .. } => flags.has_member = true,
-        JsNode::AssignmentExpression { .. } | JsNode::UpdateExpression { .. } => {
-            flags.has_assignment = true
-        }
-        JsNode::AwaitExpression { .. } => flags.has_await = true,
-        JsNode::ArrowFunctionExpression { .. }
-        | JsNode::FunctionExpression { .. }
-        | JsNode::FunctionDeclaration { .. } => return,
-        _ => {}
-    }
-
-    for_each_js_child(node, arena, &mut |child| {
-        if flags.all_found() {
-            return;
-        }
-        walk_metadata_flags_typed(child, arena, flags);
-    });
-}
-
-/// Typed counterpart of `is_literal_value`. The Babel-style aliases that
-/// function also accepts (`NumericLiteral`, `StringLiteral`, `BooleanLiteral`,
-/// `NullLiteral`) have no `JsNode` variant; `JsNode::Null` serializes to a bare
-/// JSON `null`, which `is_literal_value` also reports as a literal.
-fn is_literal_node(node: &JsNode) -> bool {
-    matches!(node, JsNode::Literal { .. } | JsNode::Null)
-}
-
-/// Single-pass walk that sets the four AST-derived flags on which
-/// Phase 3 memoisation / untrack wrapping decisions depend. Mirrors the
-/// pre-bd01699 `ast_extract_metadata_flags` helper.
-fn walk_metadata_flags(
-    val: &serde_json::Value,
-    has_call: &mut bool,
-    has_member: &mut bool,
-    has_assignment: &mut bool,
-    has_await: &mut bool,
-) {
-    if *has_call && *has_member && *has_assignment && *has_await {
-        return;
-    }
-    match val {
-        serde_json::Value::Object(obj) => {
-            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
-                match t {
-                    "CallExpression" => *has_call = true,
-                    // A spread `...x` is treated like `...x.values()` — it may
-                    // invoke a getter/iterator — so it counts as a call. Mirrors
-                    // upstream `2-analyze/visitors/SpreadElement.js`, which sets
-                    // `has_call = true`. This makes a legacy attribute value with a
-                    // spread (`{ ...props }`) get the `(deps, $.untrack(...))`
-                    // dependency wrapping from `build_expression`.
-                    "SpreadElement" => *has_call = true,
-                    "MemberExpression" => *has_member = true,
-                    "AssignmentExpression" | "UpdateExpression" => *has_assignment = true,
-                    "AwaitExpression" => *has_await = true,
-                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
-                        return;
-                    }
-                    _ => {}
-                }
-            }
-            for v in obj.values() {
-                walk_metadata_flags(v, has_call, has_member, has_assignment, has_await);
-                if *has_call && *has_member && *has_assignment && *has_await {
-                    return;
-                }
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for v in arr {
-                walk_metadata_flags(v, has_call, has_member, has_assignment, has_await);
-                if *has_call && *has_member && *has_assignment && *has_await {
-                    return;
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-/// True when the ExpressionTag contains a `CallExpression` somewhere in
-/// its tree (excluding nested function bodies). Phase 3 uses this broad
-/// definition for memoisation decisions; the cached
-/// `expr_tag.metadata.expression.has_call()` set by Phase 2 follows the
-/// official compiler's narrower "non-pure callee" semantics, which is
-/// not yet what the rest of Phase 3 expects.
-pub fn expression_tag_has_call(expr_tag: &ExpressionTag) -> bool {
-    let val = expr_tag.expression.as_json();
-    if is_literal_value(val) {
-        false
-    } else {
-        json_contains_call(val)
-    }
-}
-
-/// True when `val` (or any descendant, except inside function bodies)
-/// contains a `CallExpression`. Mirrors the broad recursive check that
-/// `extract_metadata_from_tag` used before bd01699.
-fn json_contains_call(val: &serde_json::Value) -> bool {
-    match val {
-        serde_json::Value::Object(obj) => {
-            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
-                if t == "CallExpression" {
-                    return true;
-                }
-                // Don't recurse into function bodies — matches Phase 2's
-                // walker, which also stops at function boundaries.
-                if matches!(
-                    t,
-                    "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration"
-                ) {
-                    return false;
-                }
-            }
-            obj.values().any(json_contains_call)
-        }
-        serde_json::Value::Array(arr) => arr.iter().any(json_contains_call),
-        _ => false,
-    }
-}
-
-/// Check if a JSON value represents a literal (non-reactive) value.
-///
-/// Literals include: numbers, strings, booleans, null, undefined.
-/// `extract_metadata_from_tag` short-circuits on these so it never walks
-/// the JSON looking for `CallExpression`.
-fn is_literal_value(val: &serde_json::Value) -> bool {
-    match val {
-        serde_json::Value::Null => true,
-        serde_json::Value::Bool(_) => true,
-        serde_json::Value::Number(_) => true,
-        serde_json::Value::String(_) => true,
-        serde_json::Value::Object(obj) => {
-            // Check if this is a Literal AST node
-            if let Some(serde_json::Value::String(node_type)) = obj.get("type") {
-                matches!(
-                    node_type.as_str(),
-                    "Literal"
-                        | "NumericLiteral"
-                        | "StringLiteral"
-                        | "BooleanLiteral"
-                        | "NullLiteral"
-                )
-            } else {
-                false
-            }
-        }
-        serde_json::Value::Array(_) => false,
-    }
 }
 
 /// Build an object from class directives.
@@ -670,14 +408,19 @@ pub fn build_style_directives_object_with_memoizer(
     let mut has_await = false;
 
     for directive in style_directives {
-        // Track metadata for memoization decision
-        for expr in &get_directive_expressions(directive) {
-            has_call = has_call || super::utils::expression_has_call(expr, context);
-            has_state = has_state
-                || super::utils::expression_has_reactive_state(expr, context)
-                || super::utils::expression_has_call(expr, context);
-            has_await = has_await || super::utils::expression_has_await(expr);
-        }
+        let metadata = &directive.metadata.expression;
+        has_call |= metadata.has_call();
+        has_state |= if matches!(&directive.value, AttributeValue::True(_)) {
+            metadata.has_state()
+        } else {
+            get_directive_expressions(directive)
+                .iter()
+                .any(|expr| super::utils::expression_has_reactive_state(expr, context))
+        };
+        // Upstream treats a call as stateful for style memoization even when
+        // its callee is otherwise pure.
+        has_state |= metadata.has_call();
+        has_await |= metadata.has_await();
 
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
@@ -1015,60 +758,22 @@ pub fn build_set_style(
         // Build style directives object
         next = Some(build_style_directives_object(style_directives, context));
 
-        // Check if any style directive has state, non-pure function calls, or async blockers
-        // In the official compiler, has_call implies has_state for template_effect routing
-        // Also check for async blockers - variables that depend on async promises should be
-        // treated as having state so they end up in template_effect with proper promise deps
-        for directive in style_directives {
-            // Upstream analyzes a SHORTHAND directive by binding KIND alone
-            // (`binding.kind !== 'normal'`, StyleDirective.js) — it never
-            // evaluates the value, so an unmutated `$state` stays reactive
-            // here even though the explicit `style:x={x}` form would fold it
-            // as a known constant via `scope.evaluate`.
-            if matches!(&directive.value, AttributeValue::True(_)) {
-                let name = directive.name.as_str();
-                let shadowed = context.state.each_binding_context.iter().any(|c| {
-                    c.item_name == name || (!c.index_name.is_empty() && c.index_name == name)
-                });
-                let non_normal_binding = context
-                    .state
-                    .scope_root
-                    .binding_at_reference(name, directive.start)
-                    .or_else(|| context.state.get_binding(name))
-                    .is_some_and(|b| {
-                        !matches!(
-                            b.kind,
-                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Normal
-                        )
-                    });
-                if shadowed || non_normal_binding {
-                    has_state = true;
-                    break;
-                }
+        has_state |= style_directives.iter().any(|directive| {
+            let metadata = &directive.metadata.expression;
+            (if matches!(&directive.value, AttributeValue::True(_)) {
+                metadata.has_state()
             } else {
-                if get_directive_expressions(directive).iter().any(|expr| {
-                    super::utils::expression_has_reactive_state(expr, context)
-                        || super::utils::expression_has_call(expr, context)
-                }) {
-                    has_state = true;
-                    break;
-                }
-            }
-            // Check for async blockers: convert directive expression to JS and check blockers
-            let js_expr = if matches!(&directive.value, AttributeValue::True(true)) {
-                b::id(directive.name.as_str())
-            } else {
-                let result = build_attribute_value(&directive.value, context, |expr, _| expr);
-                result.value
-            };
-            if context
-                .state
-                .has_blockers_for_expr(&js_expr, &context.arena)
-            {
-                has_state = true;
-                break;
-            }
-        }
+                metadata.has_call()
+                    || get_directive_expressions(directive)
+                        .iter()
+                        .any(|expr| super::utils::expression_has_reactive_state(expr, context))
+            }) || metadata.has_await()
+                || metadata.dependencies.iter().any(|binding_idx| {
+                    context.state.scope_root.bindings[*binding_idx]
+                        .blocker
+                        .is_some()
+                })
+        });
 
         if has_state {
             let id = context.state.memoizer.generate_id("styles");
@@ -1140,6 +845,32 @@ pub fn build_set_style(
     }
 }
 
+/// Build one style attribute expression from its phase 2 metadata.
+fn build_style_attribute_expression(
+    expr_tag: &ExpressionTag,
+    context: &mut ComponentContext,
+) -> (JsExpr, bool) {
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
+    let converted = convert_expression(&expr_tag.expression, context);
+    let mut metadata = ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
+    let has_call = metadata.has_call();
+    // Phase 2's binding check is deliberately conservative, while this routing
+    // decision follows the client scope evaluator. In particular, an
+    // unmodified `$state('red')` can be known here even though its Phase 2
+    // metadata has the state bit set.
+    let has_state = super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+    metadata.set_has_state(has_state);
+    let has_await = metadata.has_await();
+    let built = build_expression(context, &converted, &metadata);
+    let value = context
+        .state
+        .memoizer
+        .add_memoized(built, has_call, has_await, false, has_state);
+
+    (value, has_state || has_call || has_await)
+}
+
 /// Build a style attribute value with proper memoization of inner expressions.
 ///
 /// This function builds the style value while memoizing expressions that contain
@@ -1154,67 +885,18 @@ fn build_style_attribute_value_with_memoization(
     context: &mut ComponentContext,
 ) -> (JsExpr, bool) {
     use crate::ast::template::AttributeValuePart;
-    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
     match attr_value {
         AttributeValue::True(_) => (b::boolean(true), false),
 
-        AttributeValue::Expression(expr_tag) => {
-            // Single expression value - analyze all properties in one pass
-            let converted = convert_expression(&expr_tag.expression, context);
-            let expr_props =
-                super::utils::analyze_expression_properties(&expr_tag.expression, context);
-            let has_call = expr_props.has_call;
-            let has_state = expr_props.has_state;
-            let has_member = expr_props.has_member;
-            let has_await = expr_props.has_await;
-
-            // Build the expression with transforms applied
-            let mut metadata = ExpressionMetadata::default();
-            metadata.set_has_state(has_state);
-            metadata.set_has_call(has_call);
-            metadata.set_has_member_expression(has_member);
-            metadata.set_has_await(has_await);
-            let built = build_expression(context, &converted, &metadata);
-
-            // Memoize if has call
-            let value = context.state.memoizer.add_memoized(
-                built, has_call, has_await, false, // memoize_if_state
-                has_state,
-            );
-
-            (value, has_state || has_call || has_await)
-        }
+        AttributeValue::Expression(expr_tag) => build_style_attribute_expression(expr_tag, context),
 
         AttributeValue::Sequence(parts) if parts.len() == 1 => {
             // Single part - handle as simple value (avoid wrapping in template literal)
             match &parts[0] {
                 AttributeValuePart::Text(text) => (b::string(text.data.as_ref()), false),
                 AttributeValuePart::ExpressionTag(expr_tag) => {
-                    let converted = convert_expression(&expr_tag.expression, context);
-                    let expr_props =
-                        super::utils::analyze_expression_properties(&expr_tag.expression, context);
-                    let has_call = expr_props.has_call;
-                    let expr_has_state = expr_props.has_state;
-                    let has_member = expr_props.has_member;
-                    let has_await = expr_props.has_await;
-
-                    let mut metadata = ExpressionMetadata::default();
-                    metadata.set_has_state(expr_has_state);
-                    metadata.set_has_call(has_call);
-                    metadata.set_has_member_expression(has_member);
-                    metadata.set_has_await(has_await);
-                    let built = build_expression(context, &converted, &metadata);
-
-                    let value = context.state.memoizer.add_memoized(
-                        built,
-                        has_call,
-                        has_await,
-                        false, // memoize_if_state
-                        expr_has_state,
-                    );
-
-                    (value, expr_has_state || has_call || has_await)
+                    build_style_attribute_expression(expr_tag, context)
                 }
             }
         }
@@ -1255,32 +937,8 @@ fn build_style_attribute_value_with_memoization(
                         quasis.push(b::quasi(sanitize_template_string(&current_text), false));
                         current_text.clear();
 
-                        // Convert and build the expression
-                        let converted = convert_expression(&expr_tag.expression, context);
-                        let expr_props = super::utils::analyze_expression_properties(
-                            &expr_tag.expression,
-                            context,
-                        );
-                        let has_call = expr_props.has_call;
-                        let expr_has_state = expr_props.has_state;
-                        let has_member = expr_props.has_member;
-                        let has_await = expr_props.has_await;
-
-                        let mut metadata = ExpressionMetadata::default();
-                        metadata.set_has_state(expr_has_state);
-                        metadata.set_has_call(has_call);
-                        metadata.set_has_member_expression(has_member);
-                        metadata.set_has_await(has_await);
-                        let built = build_expression(context, &converted, &metadata);
-
-                        // Memoize the expression if it has a function call
-                        let value = context.state.memoizer.add_memoized(
-                            built,
-                            has_call,
-                            has_await,
-                            false, // memoize_if_state
-                            expr_has_state,
-                        );
+                        let (value, expression_has_state) =
+                            build_style_attribute_expression(expr_tag, context);
 
                         // Add ?? '' where necessary (only if not guaranteed to be defined).
                         //
@@ -1312,7 +970,7 @@ fn build_style_attribute_value_with_memoization(
                         };
                         expressions.push(final_value);
 
-                        if has_call || expr_has_state || has_await {
+                        if expression_has_state {
                             has_state = true;
                         }
                     }
@@ -1337,24 +995,20 @@ fn build_style_attribute_value_with_memoization(
     }
 }
 
-/// Helper to get the expressions from a style directive value.
+/// Return the expression chunks whose compile-time-known status still needs
+/// the client scope evaluator.
 ///
-/// Upstream's phase-2 `StyleDirective` visitor merges the metadata of EVERY
-/// `ExpressionTag` chunk, so a directive is reactive when any chunk is.
+/// Phase 2 owns call/await/dependency metadata, but its conservative binding
+/// check cannot yet reproduce `scope.evaluate` for values such as an
+/// unmodified `$state('red')`. Keep this one state-only lookup until that
+/// evaluator is shared; treating the conservative bit as exact changes whether
+/// `$.set_style` runs during init or in a template effect.
 fn get_directive_expressions<'a>(
     directive: &StyleDirective<'a>,
 ) -> Vec<crate::ast::js::Expression<'a>> {
-    use crate::ast::js::Expression;
-
     match &directive.value {
         AttributeValue::Expression(expr_tag) => vec![expr_tag.expression.clone()],
-        AttributeValue::True(_) => {
-            // For style:color shorthand, create an identifier expression
-            vec![Expression::from_json(serde_json::json!({
-                "type": "Identifier",
-                "name": directive.name.to_string()
-            }))]
-        }
+        AttributeValue::True(_) => Vec::new(),
         AttributeValue::Sequence(parts) => parts
             .iter()
             .filter_map(|part| match part {
@@ -1466,9 +1120,8 @@ pub fn build_attribute_effect(
                     super::utils::apply_transforms_to_expression(&spread_expr, context);
 
                 // Check if the spread expression has function calls or reactive state
-                let has_call = super::utils::expression_has_call(&spread.expression, context);
-                let has_state =
-                    super::utils::expression_has_reactive_state(&spread.expression, context);
+                let has_call = spread.metadata.expression.has_call();
+                let has_state = spread.metadata.expression.has_state();
 
                 // Check if spread expression has await
                 let spread_has_await = super::utils::expression_has_await(&spread.expression);
@@ -1694,233 +1347,6 @@ mod tests {
         match result.value {
             JsExpr::Literal(JsLiteral::String(s)) => assert_eq!(s, "hello"),
             _ => panic!("Expected string literal"),
-        }
-    }
-
-    #[test]
-    fn test_is_literal_value_number() {
-        // Number AST node: { "type": "Literal", "value": 5 }
-        let val = serde_json::json!({
-            "type": "Literal",
-            "value": 5
-        });
-        assert!(
-            is_literal_value(&val),
-            "Literal number should be detected as literal"
-        );
-    }
-
-    #[test]
-    fn test_is_literal_value_identifier() {
-        // Identifier AST node: { "type": "Identifier", "name": "foo" }
-        let val = serde_json::json!({
-            "type": "Identifier",
-            "name": "foo"
-        });
-        assert!(
-            !is_literal_value(&val),
-            "Identifier should not be detected as literal"
-        );
-    }
-
-    #[test]
-    fn test_is_literal_value_raw_number() {
-        // Raw JSON number
-        let val = serde_json::json!(5);
-        assert!(
-            is_literal_value(&val),
-            "Raw number should be detected as literal"
-        );
-    }
-
-    #[test]
-    fn test_parse_literal_attribute() {
-        // Test that literal attributes (a={5}) are correctly parsed
-        // and recognized as non-reactive (has_state = false)
-        let input = "<Test a={5} />";
-        let result = crate::parse(
-            input,
-            &oxc_allocator::Allocator::default(),
-            Default::default(),
-        )
-        .unwrap();
-
-        // Find the Component node
-        let mut found_component = false;
-        for node in &result.fragment.nodes {
-            if let crate::ast::template::TemplateNode::Component(comp) = node {
-                found_component = true;
-                assert_eq!(comp.name.to_string(), "Test");
-
-                for attr in &comp.attributes {
-                    if let crate::ast::template::Attribute::Attribute(a) = attr {
-                        assert_eq!(a.name.as_str(), "a");
-
-                        // The attribute value should be an Expression
-                        if let crate::ast::template::AttributeValue::Expression(expr_tag) = &a.value
-                        {
-                            let val = expr_tag.expression.as_json();
-
-                            // Should be recognized as a literal
-                            assert!(
-                                is_literal_value(val),
-                                "Numeric literal should be detected as literal"
-                            );
-
-                            // Metadata should have has_state = false
-                            let metadata = extract_metadata_from_tag(expr_tag);
-                            assert!(!metadata.has_state(), "Literal value should not have state");
-                        } else {
-                            panic!("Expected Expression attribute value");
-                        }
-                    }
-                }
-            }
-        }
-        assert!(found_component, "Should find Component node");
-    }
-
-    /// `(typed, json)` flags for the expression in `<Test a={…} />`.
-    fn both_metadata_flags(expr_src: &str) -> (MetadataFlags, MetadataFlags) {
-        let input = format!("<Test a={{{expr_src}}} />");
-        let allocator = oxc_allocator::Allocator::default();
-        let mut result = crate::parse(&input, &allocator, Default::default()).unwrap();
-        // `parse()` may leave attribute expressions deferred; both walks need
-        // a resolved `Expression::Typed`.
-        assert!(
-            crate::compiler::phases::phase1_parse::resolve_lazy::resolve_lazy_expressions(
-                &mut result,
-                &input,
-            )
-            .is_none(),
-            "`{expr_src}` should parse"
-        );
-
-        let expr_tag = result
-            .fragment
-            .nodes
-            .iter()
-            .find_map(|node| match node {
-                crate::ast::template::TemplateNode::Component(comp) => {
-                    comp.attributes.iter().find_map(|attr| match attr {
-                        crate::ast::template::Attribute::Attribute(a) => match &a.value {
-                            AttributeValue::Expression(tag) => Some(tag),
-                            _ => None,
-                        },
-                        _ => None,
-                    })
-                }
-                _ => None,
-            })
-            .expect("expression attribute");
-
-        crate::ast::arena::with_serialize_arena(&result.arena, || {
-            (
-                typed_metadata_flags(expr_tag.expression.as_node_ref(), &result.arena),
-                json_metadata_flags(expr_tag.expression.as_json()),
-            )
-        })
-    }
-
-    #[test]
-    fn typed_metadata_flags_agree_with_the_json_walk() {
-        // (expression, expected typed flags) — expectations are spelled out as
-        // well as compared, so a walk that silently stops finding anything can't
-        // pass by agreeing with an equally broken oracle.
-        let cases: &[(&str, MetadataFlags)] = &[
-            // Literal short-circuit.
-            (
-                "5",
-                MetadataFlags {
-                    is_literal: true,
-                    ..Default::default()
-                },
-            ),
-            // CallExpression.
-            (
-                "foo()",
-                MetadataFlags {
-                    has_call: true,
-                    ..Default::default()
-                },
-            ),
-            // SpreadElement also counts as a call.
-            (
-                "[...items]",
-                MetadataFlags {
-                    has_call: true,
-                    ..Default::default()
-                },
-            ),
-            // MemberExpression.
-            (
-                "a.b",
-                MetadataFlags {
-                    has_member: true,
-                    ..Default::default()
-                },
-            ),
-            // Computed member — the property is walked here but not above.
-            (
-                "a[b()]",
-                MetadataFlags {
-                    has_call: true,
-                    has_member: true,
-                    ..Default::default()
-                },
-            ),
-            // AssignmentExpression / UpdateExpression.
-            (
-                "(count = 1)",
-                MetadataFlags {
-                    has_assignment: true,
-                    ..Default::default()
-                },
-            ),
-            (
-                "count++",
-                MetadataFlags {
-                    has_assignment: true,
-                    ..Default::default()
-                },
-            ),
-            // AwaitExpression.
-            (
-                "await promise",
-                MetadataFlags {
-                    has_await: true,
-                    ..Default::default()
-                },
-            ),
-            // Function root — the walk stops before looking at the body.
-            ("() => other()", MetadataFlags::default()),
-            ("(function () { other(); })", MetadataFlags::default()),
-            // Function nested inside a walked parent — stops at the boundary,
-            // but the sibling is still seen.
-            (
-                "[() => other(), a.b]",
-                MetadataFlags {
-                    has_member: true,
-                    ..Default::default()
-                },
-            ),
-            // All four flags at once (the short-circuit path).
-            (
-                "(await a.b(c = 1))",
-                MetadataFlags {
-                    has_call: true,
-                    has_member: true,
-                    has_assignment: true,
-                    has_await: true,
-                    ..Default::default()
-                },
-            ),
-        ];
-
-        for (src, expected) in cases {
-            let (typed, json) = both_metadata_flags(src);
-            assert_eq!(typed, json, "typed and JSON walks disagree on `{src}`");
-            assert_eq!(&typed, expected, "unexpected flags for `{src}`");
         }
     }
 }

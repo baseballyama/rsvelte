@@ -369,13 +369,35 @@ picked.
 ### 11. Does this expression contain a call? — [S]
 
 Filed as **#3569**; recorded here so the inventory is complete rather than restated.
-`ast/template.rs:1342` `set_has_call` has seven writers, and phase 3 re-derives the same bit at
-least three more times — `shared/element.rs:518` `json_contains_call`, `shared/element.rs:452`
-`walk_metadata_flags` (which additionally sets `has_call` for a `SpreadElement`, unlike the other
-two), and `shared/utils.rs:5944` `expression_has_call`.
+`ast/template.rs` `set_has_call` has three reachable phase-2 writers. When the issue was filed,
+phase 3 re-derived the same bit in the generic element walker twice — `json_contains_call` and
+`walk_metadata_flags` (the latter additionally counted a `SpreadElement`) — and in
+`shared/utils.rs` `expression_has_call`.
 
 Upstream computes it once in phase 2 into `node.metadata.expression.has_call`; phase 3 only reads
-it. Whether the copies disagree on a reachable input: `未測定` — see #3569.
+it. Whether the reachable copies disagree on an input: `未測定` — see #3569.
+
+Three phase-2 writes listed when #3569 was opened were structurally unreachable and were removed:
+the `SpreadElement` and `TaggedTemplateExpression` arms in the typed script walker, and the typed
+`CallExpression` visitor. `VisitorContext.expression` starts as `None`; the only site that installs
+`Some` is the `{#if}` visitor, and it walks its condition through `walk_js_expression_node`, not the
+typed script walker. This is a static reachability result, not an ablation result: deleting those
+three writes cannot change output while that single producer and consumer remain disjoint. The
+remaining phase-2 writers are the reachable call, object-spread and top-level-spread arms in the
+template-expression walker.
+
+The migration slices now attach and consume that Phase 2 metadata for `AttachTag`,
+`SpreadAttribute`, `StyleDirective`, the expressions inside a regular `style=` attribute, and
+every generic attribute-value chunk, generic event attribute and component CSS custom property.
+The old generic attribute
+`walk_metadata_flags` / `json_contains_call` implementations and the tests that only compared
+those unused walkers were then removed. The component CSS-property migration also removed the
+last production caller and definition of the shared `expression_has_call` helper, so Phase 3 no
+longer independently answers this question for generic attribute values. The shared text
+template-chunk builder now also reads `has_call` from each expression tag's Phase 2 metadata,
+rather than calculating a fourth answer while lowering text content. `shared/events.rs` still
+asks the broader "contains any call" question for `OnDirective`, so the inventory row remains
+open for that separate path.
 
 ### 12. "Selector unused" and "element scoped" are two engines over two element models — [S]
 

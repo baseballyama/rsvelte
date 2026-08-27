@@ -88,9 +88,8 @@ pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> 
 
 /// True when the handler expression (or any descendant outside a function
 /// body) contains a `CallExpression`. Phase 3 memoises any handler that
-/// contains a call, regardless of whether the callee is "pure" — see
-/// `expression_tag_has_call` in `shared/element.rs` for the same broad
-/// semantics applied to `ExpressionTag`.
+/// contains a call, regardless of whether the callee is "pure". This is
+/// deliberately broader than Phase 2's `has_call` metadata.
 fn expression_has_any_call(expr: &Expression) -> bool {
     // The typed walk needs the serialize arena to resolve child ids; without one
     // installed there is nothing to walk but the JSON.
@@ -192,8 +191,7 @@ pub fn build_event_handler(
     let expression = expression.unwrap();
 
     // Check if expression has a call (for memoization). Phase 3 uses the
-    // broad "any CallExpression in the tree" semantics — see
-    // `expression_tag_has_call` in `shared/element.rs` — instead of Phase 2's
+    // broad "any CallExpression in the tree" semantics instead of Phase 2's
     // narrower has_call (which only fires for non-pure calls).
     let _ = node;
     let has_call = expression_has_any_call(expression);

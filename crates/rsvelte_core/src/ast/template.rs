@@ -900,11 +900,20 @@ impl serde::Serialize for AttributeValuePart<'_> {
 }
 
 /// A spread attribute: `{...props}`.
+#[derive(Debug, Clone, Default)]
+pub struct SpreadAttributeMetadata {
+    /// Expression metadata populated during Phase 2 analysis.
+    pub expression: ExpressionMetadata,
+}
+
+/// A spread attribute: `{...props}`.
 #[derive(Debug, Clone)]
 pub struct SpreadAttribute<'a> {
     pub start: u32,
     pub end: u32,
     pub expression: Expression<'a>,
+    /// Internal metadata, omitted from the public AST serialization.
+    pub metadata: SpreadAttributeMetadata,
 }
 
 impl serde::Serialize for SpreadAttribute<'_> {
@@ -1046,6 +1055,13 @@ impl serde::Serialize for ClassDirective<'_> {
 }
 
 /// A style directive: `style:property={expression}`.
+#[derive(Debug, Clone, Default)]
+pub struct StyleDirectiveMetadata {
+    /// Expression metadata merged from every expression chunk in the value.
+    pub expression: ExpressionMetadata,
+}
+
+/// A style directive: `style:property={expression}`.
 #[derive(Debug, Clone)]
 pub struct StyleDirective<'a> {
     pub start: u32,
@@ -1054,6 +1070,9 @@ pub struct StyleDirective<'a> {
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue<'a>,
     pub modifiers: SmallVec<[CompactString; 2]>,
+    /// Internal metadata populated during Phase 2 analysis. Boxed so adding
+    /// analysis-only fields does not enlarge every `Attribute` enum value.
+    pub metadata: Box<StyleDirectiveMetadata>,
 }
 
 impl serde::Serialize for StyleDirective<'_> {

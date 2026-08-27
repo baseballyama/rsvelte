@@ -265,13 +265,10 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             Ok(())
         }
 
-        // SpreadElement: `[...x]` is treated like `[...x.values()]` — the
-        // spread itself is a call/state read for blocker tracking.
+        // SpreadElement children are still walked here, but expression
+        // metadata is populated by the template-expression walker. This
+        // script walker is never entered while `context.expression` is set.
         JsNode::SpreadElement { argument, .. } => {
-            if let Some(expression) = context.current_expression() {
-                expression.set_has_call(true);
-                expression.set_has_state(true);
-            }
             walk_js_node_typed(arena.get_js_node(*argument), context)?;
             Ok(())
         }
@@ -385,17 +382,11 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
             Ok(())
         }
 
-        // TaggedTemplateExpression: tag + quasi (JsNodeId).
-        // `tag\`...\`` invokes `tag(strings, ...exprs)` — counts as a call
-        // and state read unless the tag is a pure reference.
+        // TaggedTemplateExpression: tag + quasi (JsNodeId). Expression
+        // metadata is populated by the template-expression walker; this
+        // script walker is never entered while `context.expression` is set.
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
             let tag_node = arena.get_js_node(*tag);
-            if !super::shared::utils::is_pure_node(tag_node, context)
-                && let Some(expression) = context.current_expression()
-            {
-                expression.set_has_call(true);
-                expression.set_has_state(true);
-            }
             walk_js_node_typed(tag_node, context)?;
             walk_js_node_typed(arena.get_js_node(*quasi), context)?;
             Ok(())

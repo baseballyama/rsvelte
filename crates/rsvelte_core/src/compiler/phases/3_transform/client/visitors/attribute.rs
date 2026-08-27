@@ -344,16 +344,12 @@ pub fn build_event_handler(
         }
     }
 
-    // Memoisation here uses the same broad "any CallExpression in the tree"
-    // semantics as the rest of Phase 3 — see `expression_tag_has_call` in
-    // `shared/element.rs` for why we don't read Phase 2's narrower flag.
-    // An awaited call is already represented by the local memoizer's `$0`.
-    // Deriving that identifier in component init would put `$0` outside the
-    // template-effect callback that binds it (visible specifically in dev).
-    let has_call = !is_async_memoized
-        && crate::compiler::phases::phase3_transform::client::visitors::shared::element::expression_tag_has_call(
-            expr_tag,
-        );
+    // Use the analyzed call classification now that every attribute host
+    // populates it. An awaited call is already represented by the local
+    // memoizer's `$0`; deriving that identifier in component init would put
+    // `$0` outside the template-effect callback that binds it (visible
+    // specifically in dev).
+    let has_call = !is_async_memoized && expr_tag.metadata.expression.has_call();
 
     let mut js_expr = js_expr;
 

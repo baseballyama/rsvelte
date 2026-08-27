@@ -84,7 +84,7 @@ pub fn visit<'a, 'b: 'a>(
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                super::shared::attribute::walk_template_expression(&spread.expression, context)?;
+                super::spread_attribute::visit(spread, context, false)?;
             }
             Attribute::Attribute(a) => {
                 super::shared::attribute::warn_attribute_quoted(context, a);
@@ -92,7 +92,7 @@ pub fn visit<'a, 'b: 'a>(
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             Attribute::AttachTag(attach) => {
-                super::shared::attribute::walk_template_expression(&attach.expression, context)?;
+                super::attach_tag::visit(attach, context)?;
             }
             Attribute::LetDirective(_) => {
                 // Allowed on components (matches the shared component validator)

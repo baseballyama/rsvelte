@@ -279,10 +279,13 @@ pub fn visit<'a, 'b: 'a>(
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                super::spread_attribute::visit(spread, context)?;
+                super::spread_attribute::visit(spread, context, true)?;
             }
             Attribute::OnDirective(on) => {
                 super::on_directive::visit(on, context)?;
+            }
+            Attribute::AttachTag(attach) => {
+                super::attach_tag::visit(attach, context)?;
             }
             other => {
                 super::shared::attribute::walk_remaining_attribute_expressions(other, context)?;

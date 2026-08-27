@@ -48,11 +48,11 @@ pub fn walk_template_expression(
 /// that drops the expression on the floor — which is what made `{@attach await
 /// …}` legal on six hosts and `use:act={await …}` legal on every host.
 pub fn walk_remaining_attribute_expressions(
-    attr: &Attribute,
+    attr: &mut Attribute,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     match attr {
-        Attribute::AttachTag(t) => walk_template_expression(&t.expression, context),
+        Attribute::AttachTag(t) => super::super::attach_tag::visit(t, context),
         Attribute::SpreadAttribute(s) => walk_template_expression(&s.expression, context),
         Attribute::UseDirective(u) => match &u.expression {
             Some(e) => walk_template_expression(e, context),

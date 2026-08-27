@@ -1399,11 +1399,9 @@ pub fn walk_js_expression_node(
             }
 
             // Look up binding
-            if let Some(binding_idx) = context
-                .analysis
-                .root
-                .get_binding(name, context.scope)
-                .or_else(|| context.analysis.root.find_binding_any_scope(name))
+            let scoped_binding = context.analysis.root.get_binding(name, context.scope);
+            if let Some(binding_idx) =
+                scoped_binding.or_else(|| context.analysis.root.find_binding_any_scope(name))
             {
                 let is_template_reference =
                     matches!(context.ast_type, super::super::AstType::Template);
@@ -1425,7 +1423,17 @@ pub fn walk_js_expression_node(
                     metadata.references.insert(binding_idx);
                 }
 
-                if typed_expression_binding_reference_has_state(binding_idx, context) {
+                // A binding resolved from the active scope can use the same
+                // state rule as the JS identifier visitor. The any-scope
+                // fallback is intentionally narrower: it exists for template
+                // bindings that have not been registered in this scope, and
+                // applying the broad rule there misclassifies named-slot reads.
+                let has_state = if scoped_binding.is_some() {
+                    binding_reference_has_state(binding_idx, context)
+                } else {
+                    typed_expression_binding_reference_has_state(binding_idx, context)
+                };
+                if has_state {
                     metadata.set_has_state(true);
                 }
 
@@ -1444,6 +1452,12 @@ pub fn walk_js_expression_node(
                         context,
                     )?;
                 }
+            }
+
+            // These generated legacy bindings are not present in the scope,
+            // but upstream still evaluates their reads as reactive state.
+            if matches!(name.as_str(), "$$props" | "$$restProps") {
+                metadata.set_has_state(true);
             }
         }
         JsNode::MemberExpression {
