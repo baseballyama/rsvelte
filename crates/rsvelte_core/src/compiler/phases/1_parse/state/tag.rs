@@ -2078,6 +2078,16 @@ impl<'a> Parser<'a> {
                 }
             }
 
+            // Upstream immediately requires `)` after this scan. If the
+            // parameter list runs into the end of the component, do not let
+            // the later snippet-header `}` check replace that diagnostic.
+            if depth > 0 && !self.options.loose {
+                return Err(crate::error::ParseError::expected_token(
+                    ")",
+                    self.content_end,
+                ));
+            }
+
             let params_end = self.index;
             let params_content = &self.source[params_start..params_end];
 

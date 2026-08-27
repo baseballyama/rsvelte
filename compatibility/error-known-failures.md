@@ -98,12 +98,12 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 3 entries;
-`error-message-known-failures.client-dev.json` holds 3 entries;
-`error-message-known-failures.server.json` holds 3 entries; and
-`error-message-known-failures.server-dev.json` holds 3 entries. All four of
-`error-position-known-failures.<target>.json` hold 36 entries, all four of
-`error-end-known-failures.<target>.json` hold 49 entries, and all four of
+`error-message-known-failures.client.json` holds 2 entries;
+`error-message-known-failures.client-dev.json` holds 2 entries;
+`error-message-known-failures.server.json` holds 2 entries; and
+`error-message-known-failures.server-dev.json` holds 2 entries. All four of
+`error-position-known-failures.<target>.json` hold 35 entries, all four of
+`error-end-known-failures.<target>.json` hold 48 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
@@ -125,7 +125,7 @@ from before those passes; they are historical evidence about the backlog's shape
 not a decomposition of the current 36/49 files.
 
 The former client-only asymmetry is gone from the current corpus population, so
-all four files now carry the same three message entries.
+all four files now carry the same two message entries.
 
 ## Error messages
 
@@ -134,7 +134,7 @@ things on a minor bump": both compilers run on the same source, in the same
 process, at the pinned version, so a difference here is rsvelte's — the argument
 settled for warning text in #2403.
 
-Clustered by code (client target, 3 entries):
+Clustered by code (client target, 2 entries):
 
 - **`js_parse_error` — 2.** The Svelte code is right, but the
   text is oxc's parser message (`Expected `,` or `}` but found `+`) where upstream
@@ -168,11 +168,10 @@ Clustered by code (client target, 3 entries):
   OXC's keyword label for an array pattern and walks back from its missing-colon
   label to an object shorthand property, matching both acorn's contextual text
   and its point position.
-- **`expected_token` — 1.** `svelte/…/compiler-errors/samples/malformed-snippet-2`
-  names the closing token it wanted: rsvelte says `}` where upstream says `)`. The
-  two parsers recover from the malformed snippet header at different points, so
-  this is the same parser-divergence class as `js_parse_error` rather than a
-  message string.
+  The malformed snippet-header entry retired separately: the parameter scanner
+  now preserves upstream's required `)` diagnostic at the trimmed end of the
+  component instead of falling through to the outer `}` check.
+
 ## Error positions
 
 The codes agree; `start` does not. An editor, a Vite overlay and `rsvelte-check`
