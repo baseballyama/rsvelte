@@ -137,6 +137,28 @@ fn instance_inspect_rehomes_its_leading_comment_past_the_sentinels() {
     assert!(out.contains("// leading"), "leading comment lost:\n{out}");
 }
 
+#[test]
+fn dev_inspect_keeps_a_leading_comment_before_the_generated_call() {
+    let out = ssr_dev(
+        "<script>\n\tlet a = 1;\n\n\tfunction f() {\n\t\t/* ) c */\n\t\t$inspect(a);\n\t\tconsole.log(2);\n\t}\n\n\tf();\n</script>\n<p>{a}</p>\n",
+    );
+    assert!(
+        out.contains("\n\t\t\t/* ) c */\n\t\t\tconsole.log('$inspect(', a, ')');"),
+        "leading comment moved into an inspect argument:\n{out}"
+    );
+}
+
+#[test]
+fn dev_inspect_keeps_a_trailing_line_comment_on_the_argument() {
+    let out = ssr_dev(
+        "<script>\n\tlet a = 1;\n\t$inspect(a); // c\n\tconsole.log(2);\n</script>\n<p>{a}</p>\n",
+    );
+    assert!(
+        out.contains("a, // c\n") && !out.contains("'); // c"),
+        "trailing comment moved outside the generated inspect call:\n{out}"
+    );
+}
+
 /// The counterweight: with nothing after the effect there is no anchor region,
 /// so the comments stay pending and upstream flushes them at the end of the
 /// component body — which here is the `$$renderer.component` callback, not the

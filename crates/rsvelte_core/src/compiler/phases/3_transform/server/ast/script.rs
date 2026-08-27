@@ -57,7 +57,7 @@ use crate::compiler::phases::phase3_transform::client::expression_utils::wrap_aw
 use oxc_allocator::CloneIn;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
-use oxc_span::{GetSpan, Span};
+use oxc_span::{GetSpan, SPAN, Span};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -293,50 +293,17 @@ fn inspect_kind(expr: &OxcExpression, rune_store_subs: bool) -> Option<InspectKi
 }
 
 /// The dev lowering of `expr` when it is an `$inspect(...)` /
-/// `$inspect(...).with(...)` call. `text` renders one argument expression: the
-/// top-level caller slices the component source, so operators and whitespace
-/// survive verbatim, while a NESTED call has already been re-homed by
-/// `reparse_statement` and its spans index the re-parsed slice, not `src`.
+/// `$inspect(...).with(...)` call. The original argument nodes are retained so
+/// their source locations keep comments attached inside the generated call.
 fn dev_inspect_statement<'a>(
     expr: &OxcExpression,
+    stmt_span: Span,
     rune_store_subs: bool,
     wrap_reads: bool,
     state: &ServerTransformState<'a>,
-    text: &dyn Fn(&OxcExpression) -> String,
 ) -> Option<Statement<'a>> {
     let kind = inspect_kind(expr, rune_store_subs)?;
-    let OxcExpression::CallExpression(call) = expr else {
-        unreachable!("inspect_kind matched a CallExpression");
-    };
-    let args = |call: &oxc_ast::ast::CallExpression| {
-        call.arguments
-            .iter()
-            .filter_map(|a| a.as_expression())
-            .map(text)
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    let (args_src, with_fn_src) = match kind {
-        InspectKind::Plain => (args(call), None),
-        InspectKind::With => {
-            // For `<inner>.with(fn)`, the args belong to the INNER `$inspect(...)`
-            // call, and `fn` is this outer call's first argument.
-            let inner_args = match &call.callee {
-                OxcExpression::StaticMemberExpression(m) => match &m.object {
-                    OxcExpression::CallExpression(inner) => args(inner),
-                    _ => String::new(),
-                },
-                _ => String::new(),
-            };
-            let fn_src = call
-                .arguments
-                .first()
-                .and_then(|a| a.as_expression())
-                .map(text);
-            (inner_args, fn_src)
-        }
-    };
-    build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), wrap_reads, state)
+    build_dev_inspect_ast(expr, &kind, stmt_span, wrap_reads, state)
 }
 
 /// Replace every NESTED `$inspect(...)` expression statement in `stmt` with its
@@ -352,12 +319,12 @@ fn lower_nested_dev_inspect<'a>(stmt: &mut Statement<'a>, state: &ServerTransfor
             if let Statement::ExpressionStatement(es) = stmt
                 && let Some(lowered) = dev_inspect_statement(
                     &es.expression,
+                    es.span,
                     self.rune_store_subs,
                     // The enclosing statement was re-homed and read-wrapped
                     // whole, so a derived argument already reads as `d()`.
                     false,
                     self.state,
-                    &|e| self.state.expr_to_string(e),
                 )
             {
                 *stmt = lowered;
@@ -371,6 +338,85 @@ fn lower_nested_dev_inspect<'a>(stmt: &mut Statement<'a>, state: &ServerTransfor
         rune_store_subs: rune_names_are_store_subs(state.analysis),
     };
     v.visit_statement(stmt);
+}
+
+/// Build the dev `$inspect` replacement from the original argument nodes.
+/// Upstream's builder keeps those nodes (and therefore their `loc`) inside a
+/// location-less `console.log` / callback call. Keeping the spans is essential:
+/// comments immediately before or after an argument belong inside the generated
+/// call, while reparsing an interpolated string makes them trail the statement.
+fn build_dev_inspect_ast<'a>(
+    expr: &OxcExpression<'_>,
+    kind: &InspectKind,
+    stmt_span: Span,
+    wrap_reads: bool,
+    state: &ServerTransformState<'a>,
+) -> Option<Statement<'a>> {
+    let OxcExpression::CallExpression(call) = expr else {
+        return None;
+    };
+    let replacement = match kind {
+        InspectKind::Plain => {
+            let mut args = oxc_allocator::ArenaVec::new_in(&state.b.ab());
+            args.push(oxc_ast::ast::Argument::from(state.b.string("$inspect(")));
+            args.extend(
+                call.arguments
+                    .iter()
+                    .map(|arg| arg.clone_in(state.allocator)),
+            );
+            args.push(oxc_ast::ast::Argument::from(state.b.string(")")));
+            OxcExpression::CallExpression(oxc_ast::ast::CallExpression::boxed(
+                SPAN,
+                state.b.id("console.log"),
+                None,
+                args,
+                false,
+                &state.b.ab(),
+            ))
+        }
+        InspectKind::With => {
+            let OxcExpression::StaticMemberExpression(member) = &call.callee else {
+                return None;
+            };
+            let OxcExpression::CallExpression(inner) = &member.object else {
+                return None;
+            };
+            let callback = call
+                .arguments
+                .first()
+                .and_then(|arg| arg.as_expression())?
+                .clone_in(state.allocator);
+            let mut args = oxc_allocator::ArenaVec::new_in(&state.b.ab());
+            args.push(oxc_ast::ast::Argument::from(state.b.string("init")));
+            args.extend(
+                inner
+                    .arguments
+                    .iter()
+                    .map(|arg| arg.clone_in(state.allocator)),
+            );
+            OxcExpression::CallExpression(oxc_ast::ast::CallExpression::boxed(
+                SPAN,
+                callback,
+                None,
+                args,
+                false,
+                &state.b.ab(),
+            ))
+        }
+    };
+    let mut statement = state.b.stmt(replacement);
+    if let Statement::ExpressionStatement(es) = &mut statement {
+        es.span = stmt_span;
+    }
+    if wrap_reads {
+        super::read_wrap::wrap_reads_in_statement(
+            &mut statement,
+            state.b,
+            state.analysis,
+            state.analysis.root.instance_scope_index,
+        );
+    }
+    Some(statement)
 }
 
 /// Give every `$inspect(…)` / `$inspect(…).with(…)` statement BELOW `stmt` the
@@ -482,7 +528,7 @@ fn inspect_residue_local<'a>(
 fn inspect_residue<'a>(
     expr: &OxcExpression<'_>,
     stmt_start: u32,
-    src: &str,
+    _src: &str,
     wrap_reads: bool,
     state: &ServerTransformState<'a>,
 ) -> Option<Vec<Statement<'a>>> {
@@ -497,11 +543,16 @@ fn inspect_residue<'a>(
             state.b.empty_kept(stmt_start + 1),
         ]);
     }
-    let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src);
     Some(
-        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), wrap_reads, state)
-            .into_iter()
-            .collect(),
+        build_dev_inspect_ast(
+            expr,
+            &kind,
+            Span::new(stmt_start, expr.span().end),
+            wrap_reads,
+            state,
+        )
+        .into_iter()
+        .collect(),
     )
 }
 
@@ -1072,12 +1123,18 @@ fn transform_script<'a>(
                     {
                         if let Some(stmt) = dev_inspect_statement(
                             &es.expression,
+                            es.span,
                             rune_store_subs,
                             true,
                             state,
-                            &|e| src[e.span().start as usize..e.span().end as usize].to_string(),
                         ) {
                             out.push(stmt);
+                            // The generated wrappers have dummy spans, while the
+                            // cloned arguments and surviving expression statement
+                            // retain source-absolute spans. Register the complete
+                            // source region so interior/trailing comments can follow
+                            // those original nodes into the replacement call.
+                            carried = true;
                         }
                         break 'emit;
                     }
