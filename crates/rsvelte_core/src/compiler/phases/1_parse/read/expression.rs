@@ -7557,6 +7557,9 @@ fn acorn_diagnostic_message(message: &str) -> &str {
         "A 'return' statement can only be used within a function body." => {
             "'return' outside of function"
         }
+        "A rest element must be last in a destructuring pattern" => {
+            "Comma is not permitted after the rest element"
+        }
         _ => message,
     }
 }
@@ -12379,10 +12382,11 @@ pub fn parse_binding_pattern<'a>(
                 let err = &result.diagnostics[0];
                 let msg = format!("{}", err);
                 let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim_ws().to_string();
+                let clean_msg = acorn_diagnostic_message(&clean_msg);
                 let err_pos = offset;
                 return Err(crate::error::ParseError::svelte(
                     "js_parse_error",
-                    &clean_msg,
+                    clean_msg,
                     (err_pos, err_pos),
                 ));
             }
@@ -13604,6 +13608,19 @@ mod tests {
             check_js_statement_parse_error("  let ", false),
             Some(("The keyword 'let' is reserved".to_string(), 2))
         );
+    }
+
+    #[test]
+    fn binding_rest_comma_uses_acorns_error() {
+        let source = "{ animal, features: { ...rest, eyes } }";
+        let arena = ParseArena::new();
+        let line_offsets = super::super::super::compute_line_offsets(source, false);
+        let Err(crate::error::ParseError::SvelteError { message, .. }) =
+            parse_binding_pattern(&arena, source, 0, &line_offsets, false)
+        else {
+            panic!("expected a Svelte parse error");
+        };
+        assert_eq!(message, "Comma is not permitted after the rest element");
     }
 
     #[test]

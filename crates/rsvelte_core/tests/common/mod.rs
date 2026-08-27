@@ -850,9 +850,6 @@ pub const VALIDATOR_MESSAGE_DIVERGENCES: &[&str] = &[
     "each-block-invalid-context-destructured",
     // acorn "Unexpected keyword 'case'" vs OXC "Expected `:` but found `}`"
     "each-block-invalid-context-destructured-object",
-    // acorn "Comma is not permitted after the rest element" vs OXC
-    // "A rest element must be last in a destructuring pattern"
-    "each-block-destructured-object-rest-comma-after",
 ];
 
 /// Compare a resolved `(line, column)` against the fixture's pinned position.
