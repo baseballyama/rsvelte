@@ -579,14 +579,23 @@ fn snippet(text: &str, line: usize, col: usize, len: usize) -> String {
 
 fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: &str, src: &str) {
     for (line_no, line) in theirs.lines.iter().enumerate() {
+        let mut previous_column = None;
+        let mut occurrence = 0;
         for segment in line {
             if segment.len() < 4 {
                 continue;
             }
-            let mine = ours
-                .lines
-                .get(line_no)
-                .and_then(|l| l.iter().find(|s| s[0] == segment[0] && s.len() >= 4));
+            if previous_column == Some(segment[0]) {
+                occurrence += 1;
+            } else {
+                previous_column = Some(segment[0]);
+                occurrence = 0;
+            }
+            let mine = ours.lines.get(line_no).and_then(|l| {
+                l.iter()
+                    .filter(|s| s.len() >= 4 && s[0] == segment[0])
+                    .nth(occurrence)
+            });
             let gen_text = snippet(generated, line_no, segment[0] as usize, 24);
             let want = snippet(src, segment[2] as usize, segment[3] as usize, 24);
             match mine {
@@ -610,14 +619,23 @@ fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: 
 fn parity(theirs: &DecodedMap, ours: &DecodedMap) -> Parity {
     let mut p = Parity::default();
     for (line_no, line) in theirs.lines.iter().enumerate() {
+        let mut previous_column = None;
+        let mut occurrence = 0;
         for segment in line {
             if segment.len() < 4 {
                 continue;
             }
-            let mine = ours
-                .lines
-                .get(line_no)
-                .and_then(|l| l.iter().find(|s| s[0] == segment[0] && s.len() >= 4));
+            if previous_column == Some(segment[0]) {
+                occurrence += 1;
+            } else {
+                previous_column = Some(segment[0]);
+                occurrence = 0;
+            }
+            let mine = ours.lines.get(line_no).and_then(|l| {
+                l.iter()
+                    .filter(|s| s.len() >= 4 && s[0] == segment[0])
+                    .nth(occurrence)
+            });
             match mine {
                 None => p.missing += 1,
                 Some(m) if m[1..4] == segment[1..4] => p.exact += 1,
@@ -1176,4 +1194,31 @@ fn astral_original_columns_are_in_range_in_utf16_units() {
     };
 
     assert_eq!(out_of_range(&map, source), (0, 1));
+}
+
+#[test]
+fn parity_compares_duplicate_generated_columns_by_occurrence() {
+    let official = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![3, 0, 1, 2], vec![3, 0, 4, 5]]],
+    };
+    let identical = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: official.lines.clone(),
+    };
+    let extra_leading = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![3, 0, 0, 0], vec![3, 0, 1, 2], vec![3, 0, 4, 5]]],
+    };
+
+    let identical_result = parity(&official, &identical);
+    assert_eq!(identical_result.exact, 2);
+    assert_eq!(identical_result.bad(), 0);
+
+    let shifted_result = parity(&official, &extra_leading);
+    assert_eq!(shifted_result.exact, 0);
+    assert_eq!(shifted_result.wrong, 2);
 }

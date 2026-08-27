@@ -15,7 +15,7 @@ each sample's recorded `metadata.json` still says exactly that).
 | `map-parity` | `map-parity\t<sample>\t<target>\t<count>` | budget: official map segments that rsvelte does not reproduce, where the generated code is byte-identical (missing + wrong) |
 | `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: out-of-range segments not also emitted by the official map at the same generated and original position |
 
-**Current baseline: `sourcemap-known-failures.json`, 3 entries.** The
+**Current baseline: `sourcemap-known-failures.json`, 0 entries.** The
 before/after tables further down record what one specific change did at the time
 it landed; they are history, not the current size. Reading the newest number in
 those tables as today's count is the mistake this line exists to prevent — the
@@ -208,20 +208,13 @@ entries to 3, with the `anchor` and `out-of-range` classes eliminated entirely.
 
 No entry is accepted as correct behaviour; all are burndown targets.
 
-- **`map-parity` (3)** — `attached-sourcemap` on `client` and `server`, and
-  `effects` on `server`; one segment each. All three are the same shape: rsvelte
-  emits *two* segments at one generated column, and the one the official map
-  agrees with is the second. The gate compares the first segment at a generated
-  column (upstream's own resolution rule), so the extra leading segment scores as
-  `wrong`. The surplus segment comes from the merge in
-  `3_transform/mod.rs::merge_preferred_mappings`, which interleaves two
-  independently produced mapping lists and can leave both at one position.
+There are currently no known failures.
 
-  Collapsing duplicates at the encoder was tried and rejected: keeping the *last*
-  segment fixes these three and breaks eight server entries that need the first,
-  and keeping the first does the reverse. Neither order is correct, because the
-  merged list combines producers whose emission order does not encode precedence
-  — the fix is to stop emitting the surplus segment at its source, not to pick a
-  winner afterwards. Deliberately *not* worked around by relaxing the comparison
-  to "any segment at this column matches": that would also stop the gate seeing a
-  genuinely mis-anchored token.
+The last three entries were a comparison defect rather than compiler defects.
+The official maps themselves contain two source-backed segments at one generated
+column in `attached-sourcemap` (client and server) and `effects` (server). The gate
+iterated both official segments but compared each one with the first rsvelte
+segment at that column, so even identical ordered pairs necessarily scored one
+`wrong`. Parity now compares the first segment with the first, the second with the
+second, and so on. This is deliberately stricter than accepting any matching
+segment: an extra leading segment shifts every occurrence and remains visible.
