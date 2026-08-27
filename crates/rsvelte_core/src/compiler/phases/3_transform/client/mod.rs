@@ -2175,6 +2175,18 @@ pub(crate) fn transform_client(
             let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
                 trace_lowered.as_deref().unwrap_or(&module_content.raw),
             );
+            // Phase 2 preserves comments from erased TypeScript declarations for
+            // instance scripts, whose located component block lets esrap print
+            // them. A module script is inserted into a synthetic, unlocated
+            // Program, so those comments are dead upstream. Remove them by their
+            // recorded output ranges before a preceding class/body can revive the
+            // cursor and make the origin of the comments indistinguishable.
+            let raw = if trace_lowered.is_none() {
+                strip_module_reemitted_ts_comments(&raw, module_content.source_projection.as_ref())
+                    .unwrap_or(raw)
+            } else {
+                raw
+            };
             // Then the comments the accessors swallow, while the class the scan
             // keys on is still in its source shape — the rune transforms below
             // rewrite it before `strip_module_toplevel_comments` runs.
@@ -3535,6 +3547,31 @@ fn strip_module_toplevel_comments_from_program(
     .unwrap_or_else(|| src.to_string())
 }
 
+fn strip_module_reemitted_ts_comments(
+    src: &str,
+    projection: Option<&crate::compiler::phases::phase2_analyze::types::ScriptProjection>,
+) -> Option<String> {
+    let projection = projection?;
+    if projection.output_len != src.len() as u32 || projection.reemitted_comment_outputs.is_empty()
+    {
+        return None;
+    }
+
+    let mut out = String::with_capacity(src.len());
+    let mut pos = 0usize;
+    for range in &projection.reemitted_comment_outputs {
+        let start = range.start as usize;
+        let end = range.end as usize;
+        if start < pos || end < start || end > src.len() {
+            return None;
+        }
+        out.push_str(&src[pos..start]);
+        pos = end;
+    }
+    out.push_str(&src[pos..]);
+    Some(out)
+}
+
 /// True when `src` contains only line/block comments and whitespace — i.e. no
 /// JS statements. Used to detect a comment-only module `<script module>` body,
 /// which upstream parses to an empty Program and prints as nothing. The scan
@@ -3975,6 +4012,9 @@ fn compose_script_projection(
 
     ScriptProjection {
         copied_chunks,
+        // This projection describes the already-retained body. The marker is
+        // consumed only from ScriptContent's original TypeScript projection.
+        reemitted_comment_outputs: Vec::new(),
         source_len: source_projection.source_len,
         output_len: body_len as u32,
     }

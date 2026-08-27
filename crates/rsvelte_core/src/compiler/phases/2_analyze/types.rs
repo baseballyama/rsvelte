@@ -48,6 +48,12 @@ pub(crate) struct CopiedSourceChunk {
 pub(crate) struct ScriptProjection {
     /// Exact source slices copied into the output, including re-emitted comments.
     pub(crate) copied_chunks: Vec<CopiedSourceChunk>,
+    /// Output ranges of comments copied out of declarations that TypeScript erases.
+    ///
+    /// Instance scripts retain these comments, while a component's synthetic
+    /// module Program drops them. Keeping the ranges separate lets Phase 3 make
+    /// that distinction without trying to infer their origin from stripped JS.
+    pub(crate) reemitted_comment_outputs: Vec<Range<u32>>,
     /// Original script-content length in bytes.
     pub(crate) source_len: u32,
     /// Stripped script-content length in bytes.
@@ -718,6 +724,7 @@ fn strip_typescript_from_program_impl(
     let mut output = String::with_capacity(source.len());
     let mut copied_chunks =
         include_projection.then(|| Vec::with_capacity(merged.len().saturating_add(1)));
+    let mut reemitted_comment_outputs = include_projection.then(Vec::new);
     let mut pos = 0u32;
 
     for (remove_start, remove_end) in &merged {
@@ -769,12 +776,17 @@ fn strip_typescript_from_program_impl(
                     {
                         let comment_start = *remove_start + comment_offset as u32;
                         let comment_end = comment_start + comment.len() as u32;
+                        let output_start = output.len() as u32;
                         push_source_range(
                             source,
                             comment_start..comment_end,
                             &mut output,
                             Some(copied_chunks),
                         );
+                        reemitted_comment_outputs
+                            .as_mut()
+                            .unwrap()
+                            .push(output_start..output.len() as u32);
                         output.push('\n');
                     }
                 } else {
@@ -802,6 +814,7 @@ fn strip_typescript_from_program_impl(
 
     let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
         copied_chunks,
+        reemitted_comment_outputs: reemitted_comment_outputs.unwrap_or_default(),
         source_len: source.len() as u32,
         output_len: output.len() as u32,
     });
@@ -2630,6 +2643,7 @@ const answer: number = 42;
             &output[comment_output.start as usize..comment_output.end as usize],
             "/** Documentation. */"
         );
+        assert_eq!(projection.reemitted_comment_outputs, vec![comment_output]);
 
         let declaration_start = source.find("interface").unwrap() as u32;
         assert!(

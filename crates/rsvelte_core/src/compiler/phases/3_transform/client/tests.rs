@@ -88,6 +88,51 @@ fn module_raw_state_private_nullish_assignment_inside_untrack_is_lowered() {
 }
 
 #[test]
+fn module_interface_comments_after_a_class_do_not_reach_component_parameters() {
+    let source = r#"
+        <script module lang="ts">
+            class Context {
+                value = 0;
+            }
+
+            export interface TransitionProps {
+                /** state of the element */
+                show?: boolean;
+                /** lifecycle events */
+                beforeEnter?: () => void;
+            }
+        </script>
+        <script lang="ts">
+            let { show = false }: TransitionProps = $props();
+        </script>
+        {#if show}<div></div>{/if}
+    "#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("transition.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            !output.contains("state of the element") && !output.contains("lifecycle events"),
+            "comments from an erased module interface must remain dead in dev={dev}:\n{output}"
+        );
+        assert!(
+            output.contains("function Transition($$anchor, $$props)"),
+            "component parameters must remain valid in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn reactive_iife_local_store_spelling_is_not_rewritten() {
     let source = r#"<script>
         import { t } from 'svelte-i18n';
