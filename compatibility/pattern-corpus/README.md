@@ -1035,6 +1035,13 @@ spelling. Together the two rows pin both answers of the console-wrap predicate;
 the corpus file itself is a provenance repro because the normal corpus targets
 do not enable `dev`.
 
+`adversarial/legacy/store-sub-shadowed-local-binding.svelte` pins the lexical
+boundary between template store subscriptions and instance-script locals. The
+template's `$translator` creates a component store-sub binding, while the same
+spelling is deliberately declared inside a function. A name-only script pass
+used to rewrite both the local declaration and its call, producing JavaScript
+with a missing `const` initializer in the AdventureLog corpus.
+
 ## Adding a file
 
 See [Adding a pattern file](../../scripts/compat-corpus/README.md#adding-a-pattern-file).

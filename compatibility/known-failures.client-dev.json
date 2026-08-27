@@ -4,8 +4,6 @@
 	"adventurelog/frontend/src/lib/components/cards/CollectionCard.svelte",
 	"adventurelog/frontend/src/lib/components/cards/NoteCard.svelte",
 	"adventurelog/frontend/src/lib/components/collections/CollectionItineraryPlanner.svelte",
-	"adventurelog/frontend/src/lib/components/collections/CollectionMap.svelte",
-	"adventurelog/frontend/src/lib/components/collections/CollectionStats.svelte",
 	"adventurelog/frontend/src/lib/components/locations/LocationVisits.svelte",
 	"adventurelog/frontend/src/lib/components/lodging/LodgingDetails.svelte",
 	"adventurelog/frontend/src/lib/components/transportation/TransportationDetails.svelte",

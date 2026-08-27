@@ -7893,20 +7893,32 @@ fn transform_instance_script_for_visitors(
                     .iter()
                     .any(|store| transformed.contains(store.as_str()))
             {
-                // Filter out store_sub_vars that appear as function parameters in this statement.
+                // Filter out store-sub spellings shadowed by any local binding in
+                // this top-level statement. The binding may be a function parameter,
+                // a local declaration, a destructuring leaf or a catch parameter.
+                // Template references can create the component StoreSub binding even
+                // when the same spelling resolves to a nested local in the script.
                 let mut filtered_store_sub_vars = Vec::new();
-                let effective_store_sub_vars =
-                    if transformed.contains("=>") || transformed.contains("function") {
-                        filtered_store_sub_vars.extend(
-                            store_sub_vars
-                                .iter()
-                                .filter(|s| !is_function_parameter_in_statement(&transformed, s))
-                                .cloned(),
-                        );
-                        filtered_store_sub_vars.as_slice()
-                    } else {
+                let may_declare_binding = transformed.contains("=>")
+                    || transformed.contains("function")
+                    || transformed.contains("let")
+                    || transformed.contains("const")
+                    || transformed.contains("var")
+                    || transformed.contains("catch");
+                let effective_store_sub_vars = if may_declare_binding {
+                    filtered_store_sub_vars.extend(
                         store_sub_vars
-                    };
+                            .iter()
+                            .filter(|s| {
+                                !is_function_parameter_in_statement(&transformed, s)
+                                    && !declares_binding_in_statement(&transformed, s)
+                            })
+                            .cloned(),
+                    );
+                    filtered_store_sub_vars.as_slice()
+                } else {
+                    store_sub_vars
+                };
 
                 let transformed = stage("store_sub_calls", transformed, |t| {
                     Cow::Owned(transform_store_sub_calls(&t, effective_store_sub_vars))

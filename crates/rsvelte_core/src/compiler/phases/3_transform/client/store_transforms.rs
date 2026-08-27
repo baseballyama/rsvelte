@@ -1,6 +1,11 @@
 //! Store subscription, assignment, and mutation transformations.
 
 use memchr::memmem;
+use oxc_allocator::Allocator;
+use oxc_ast::ast::BindingIdentifier;
+use oxc_ast_visit::Visit;
+use oxc_parser::Parser;
+use oxc_span::SourceType;
 use rustc_hash::FxHashSet;
 
 use super::scan_index::ScanIndex;
@@ -190,6 +195,47 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
 
 fn is_ident_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Whether `statement` declares a binding named `name` anywhere inside it.
+///
+/// The instance-script text pipeline transforms one complete top-level statement
+/// at a time. A nested declaration can therefore shadow a component store-sub
+/// binding that was discovered from the template, even though both have the same
+/// spelling. Upstream resolves every reference through its lexical scope; the
+/// name-only text transform must at least remove that spelling from the whole
+/// statement containing the shadowing declaration.
+pub(super) fn declares_binding_in_statement(statement: &str, name: &str) -> bool {
+    if !statement.contains(name) {
+        return false;
+    }
+
+    struct BindingFinder<'n> {
+        name: &'n str,
+        found: bool,
+    }
+
+    impl<'a> Visit<'a> for BindingFinder<'_> {
+        fn visit_binding_identifier(&mut self, ident: &BindingIdentifier<'a>) {
+            if ident.name == self.name {
+                self.found = true;
+            }
+        }
+    }
+
+    let allocator = Allocator::default();
+    for source_type in [SourceType::mjs(), SourceType::ts()] {
+        let parsed = Parser::new(&allocator, statement, source_type).parse();
+        let mut finder = BindingFinder { name, found: false };
+        finder.visit_program(&parsed.program);
+        if finder.found {
+            return true;
+        }
+        if parsed.errors.is_empty() {
+            return false;
+        }
+    }
+    false
 }
 
 /// The character ending at byte offset `end`, when it satisfies `pred`.
@@ -635,5 +681,33 @@ mod tests {
             transform_store_sub_calls("x = $s(1);", &vars),
             "x = $s()(1);"
         );
+    }
+
+    #[test]
+    fn finds_nested_local_store_spelling_as_a_binding() {
+        assert!(declares_binding_in_statement(
+            "function render() { const $t = getTranslator(); return $t('key'); }",
+            "$t"
+        ));
+    }
+
+    #[test]
+    fn a_store_reference_is_not_a_binding() {
+        assert!(!declares_binding_in_statement(
+            "function render() { return $t('key'); }",
+            "$t"
+        ));
+    }
+
+    #[test]
+    fn finds_binding_names_in_destructuring_and_catch_parameters() {
+        assert!(declares_binding_in_statement(
+            "try { const { value: $t } = source; } catch ($error) {}",
+            "$t"
+        ));
+        assert!(declares_binding_in_statement(
+            "try {} catch ($error) { use($error); }",
+            "$error"
+        ));
     }
 }
