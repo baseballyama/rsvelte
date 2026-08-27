@@ -488,66 +488,74 @@ fn build_component_children<'a, 'b>(
         }
     }
 
-    // Both loops below only *build* their `$$slots` entry; the object is
-    // assembled afterwards in `slot_order`.
+    // Build slot bodies in the order their names first occur in the source.
+    // Generated-name counters (notably `each_array`) are consumed while a body
+    // is built, so sorting only the finished object entries is too late.
     let mut slot_entries: Vec<(String, ObjectPropertyKind<'a>)> = Vec::new();
 
-    // Default slot → `children` prop + `$$slots.default: true`.
-    if !default_children.is_empty() {
-        // The slot's `let:` directive names shadow same-named component-level
-        // bindings inside the slot body — `<Nested let:count>{count}</Nested>`
-        // reads the SLOT parameter `count`, NOT the component `let count = 42`,
-        // so `{count}` must emit `$.escape(count)` and NOT be constant-folded to
-        // `42` (mirrors the snippet-body shadowing). Push the let names for the
-        // body build only.
-        let shadow = let_directive_names(&default_lets, state);
-        state.shadowed_names.push(shadow.clone());
-        state.slot_let_shadows.push(shadow);
-        let body = render_slot_body(&default_children, true, state);
-        state.slot_let_shadows.pop();
-        state.shadowed_names.pop();
-        if !body.is_empty() {
-            let slot_fn = make_slot_fn(body, &default_lets, state);
-            if has_children_prop {
-                // A `children` attribute is already present (`<A children="foo">
-                // bar </A>`): the default-slot CONTENT still becomes the
-                // `$$slots.default` render function (写经 upstream's final `else`
-                // branch — `slot_name === 'default' && has_children_prop` falls
-                // through to `serialized_slots.push(b.init(slot_name, slot_fn))`).
-                // The `children="foo"` attribute keeps its own `children: 'foo'`
-                // prop (emitted from the attribute loop), NOT overwritten here.
-                slot_entries.push(("default".to_string(), state.b.init("default", slot_fn)));
-            } else if default_lets.is_empty() {
-                // No `let:` directives → the usual `children` prop path.
-                let children = if state.options.dev {
-                    state
-                        .b
-                        .call("$.prevent_snippet_stringification", vec![slot_fn])
-                } else {
-                    slot_fn
-                };
-                push_prop(groups, state.b.init("children", children));
-                slot_entries.push((
-                    "default".to_string(),
-                    state.b.init("default", state.b.bool(true)),
-                ));
-            } else {
-                // Scoped default slot (`let:`): expose `$$slots.default` as the
-                // slot function and point `children` at the invalid-snippet guard
-                // (upstream's `else` branch, lines 281-287).
-                slot_entries.push(("default".to_string(), state.b.init("default", slot_fn)));
-                push_prop(
-                    groups,
-                    state
-                        .b
-                        .init("children", state.b.id("$.invalid_default_snippet")),
-                );
+    for slot_name in &slot_order {
+        if slot_name == "default" {
+            if default_children.is_empty() {
+                continue;
             }
+            // The slot's `let:` directive names shadow same-named component-level
+            // bindings inside the slot body — `<Nested let:count>{count}</Nested>`
+            // reads the SLOT parameter `count`, NOT the component `let count = 42`,
+            // so `{count}` must emit `$.escape(count)` and NOT be constant-folded to
+            // `42` (mirrors the snippet-body shadowing). Push the let names for the
+            // body build only.
+            let shadow = let_directive_names(&default_lets, state);
+            state.shadowed_names.push(shadow.clone());
+            state.slot_let_shadows.push(shadow);
+            let body = render_slot_body(&default_children, true, state);
+            state.slot_let_shadows.pop();
+            state.shadowed_names.pop();
+            if !body.is_empty() {
+                let slot_fn = make_slot_fn(body, &default_lets, state);
+                if has_children_prop {
+                    // A `children` attribute is already present (`<A children="foo">
+                    // bar </A>`): the default-slot CONTENT still becomes the
+                    // `$$slots.default` render function (写经 upstream's final `else`
+                    // branch — `slot_name === 'default' && has_children_prop` falls
+                    // through to `serialized_slots.push(b.init(slot_name, slot_fn))`).
+                    // The `children="foo"` attribute keeps its own `children: 'foo'`
+                    // prop (emitted from the attribute loop), NOT overwritten here.
+                    slot_entries.push(("default".to_string(), state.b.init("default", slot_fn)));
+                } else if default_lets.is_empty() {
+                    // No `let:` directives → the usual `children` prop path.
+                    let children = if state.options.dev {
+                        state
+                            .b
+                            .call("$.prevent_snippet_stringification", vec![slot_fn])
+                    } else {
+                        slot_fn
+                    };
+                    push_prop(groups, state.b.init("children", children));
+                    slot_entries.push((
+                        "default".to_string(),
+                        state.b.init("default", state.b.bool(true)),
+                    ));
+                } else {
+                    // Scoped default slot (`let:`): expose `$$slots.default` as the
+                    // slot function and point `children` at the invalid-snippet guard
+                    // (upstream's `else` branch, lines 281-287).
+                    slot_entries.push(("default".to_string(), state.b.init("default", slot_fn)));
+                    push_prop(
+                        groups,
+                        state
+                            .b
+                            .init("children", state.b.id("$.invalid_default_snippet")),
+                    );
+                }
+            }
+            continue;
         }
-    }
 
-    // Named slots → `$$slots.name: ($$renderer, { lets… }) => { ... }`.
-    for (name, nodes, lets) in &named_slots {
+        // Named slot → `$$slots.name: ($$renderer, { lets… }) => { ... }`.
+        let Some((name, nodes, lets)) = named_slots.iter().find(|(name, _, _)| name == slot_name)
+        else {
+            continue;
+        };
         let shadow = let_directive_names(lets, state);
         state.shadowed_names.push(shadow.clone());
         state.slot_let_shadows.push(shadow);
@@ -561,11 +569,7 @@ fn build_component_children<'a, 'b>(
         slot_entries.push((name.clone(), state.b.init(name, slot_fn)));
     }
 
-    for name in &slot_order {
-        if let Some(index) = slot_entries.iter().position(|(n, _)| n == name) {
-            serialized_slots.push(slot_entries.remove(index).1);
-        }
-    }
+    serialized_slots.extend(slot_entries.into_iter().map(|(_, entry)| entry));
 
     if !serialized_slots.is_empty() {
         let slots_obj = state.b.object(serialized_slots);
