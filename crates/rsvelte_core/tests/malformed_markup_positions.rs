@@ -73,6 +73,9 @@ const POINT_ERRORS: &[(&str, &str, u32)] = &[
     ("{@render f()\n", "expected_token", 12),
     // Acorn reads the close tag as an unterminated regexp after `<`.
     ("<p>{v</p>", "js_parse_error", 7),
+    // An enclosing block close must not be mistaken for this mustache's missing brace.
+    ("<b>{v</b>", "js_parse_error", 7),
+    ("{#if flag}{@const c = 1<b>x</b>{/if}", "js_parse_error", 29),
     // A mismatched block close is a point at the close keyword.
     ("{#if a}x{/each}", "expected_token", 10),
     // The right-trimmed template ends after the final hyphen.

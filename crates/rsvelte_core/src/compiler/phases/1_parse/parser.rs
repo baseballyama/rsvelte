@@ -1114,7 +1114,20 @@ impl<'a> Parser<'a> {
             expr_start,
             '{',
         ) {
-            return Ok(end);
+            let candidate = &self.source[expr_start..end];
+            let swallowed_block_close = candidate.rfind('{').is_some_and(|block_open| {
+                let block_name = candidate[block_open + 1..].trim();
+                matches!(block_name, "/if" | "/each" | "/await" | "/key" | "/snippet")
+                    && memchr::memmem::find(&candidate.as_bytes()[..block_open], b"</").is_some()
+            });
+            // In malformed markup such as `{@const c = 1<b>x</b>{/if}`, the
+            // lexical bracket scan reads `</b>` as the start of a regexp and
+            // the slash in `{/if}` as its end. The final `}` then looks like
+            // this mustache's close. Let the recovery below report the HTML
+            // close-tag position Acorn uses instead.
+            if self.options.loose || !swallowed_block_close {
+                return Ok(end);
+            }
         }
         // Loose mode keeps recovering so a half-typed document still yields a tree.
         if self.options.loose {
@@ -1142,13 +1155,6 @@ impl<'a> Parser<'a> {
                 "Unexpected token".to_string(),
                 (at, at),
             ));
-        }
-        // A complete leading expression leaves the brace demanded at the first
-        // token acorn did not consume.
-        if let Some(offset) = trailing_token_offset(rest, self.ts)
-            && check_js_parse_error_with_pos(&rest[..offset], self.ts).is_none()
-        {
-            return Err(ParseError::expected_token("}", from + offset));
         }
         if let Some(self_close) = memchr::memmem::find(rest.as_bytes(), b"/>") {
             let before_self_close = rest[..self_close].trim_matches(is_js_whitespace);
@@ -1180,6 +1186,17 @@ impl<'a> Parser<'a> {
                 "Unexpected token".to_string(),
                 (at, at),
             ));
+        }
+        // A complete leading expression leaves the brace demanded at the first
+        // token acorn did not consume. Check this after the close-tag form:
+        // when a broken mustache is followed by an enclosing `{/block}`, OXC's
+        // recovery can treat the block close as trailing input even though
+        // acorn is still lexing the preceding `</tag>` as an unterminated
+        // regexp and throws there.
+        if let Some(offset) = trailing_token_offset(rest, self.ts)
+            && check_js_parse_error_with_pos(&rest[..offset], self.ts).is_none()
+        {
+            return Err(ParseError::expected_token("}", from + offset));
         }
         // Otherwise acorn never got an expression out of the rest of the file,
         // so upstream reports the JS parser's own error rather than the brace.
