@@ -62,30 +62,33 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 44 entries
+### `comment-slot` — 20 entries
 
 All remaining entries are `.svelte` template seeds. The `.svelte.(js|ts)` module-path
 cluster is now empty: location-less Programs discard their top-level and EOF comments while
 located nested bodies can still resynchronize the cursor, matching esrap.
 
-The current partition by target is `10 + 10 + 0 + 24` for `client`, `client-dev`,
+The current partition by target is `10 + 10 + 0 + 0` for `client`, `client-dev`,
 `server`, and `server-dev`. By seed:
 
 | seed | entries |
 |---|---:|
-| `class-private-state` | 8 |
-| `class-static-block` | 8 |
-| `const-fold-line-continuation` | 8 |
 | `legacy-reactive` | 20 |
 
-All 44 are `comment-mismatch`: comparing normalized non-comment lines finds no
+All 20 are `comment-mismatch`: comparing normalized non-comment lines finds no
 codegen-semantic divergence in this cluster. A comment is the one token that may appear
 between any two other tokens, so the matrix crosses eight comment kinds with every line
 boundary instead of relying on published-code frequency.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `44`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `20`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `8 + 8 + 8 + 20`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `20`
+
+The 24 `server-dev` tail-comment entries for `class-private-state`, `class-static-block`, and
+`const-fold-line-continuation` were the nested component-callback close-position defect fixed by
+#3877. That change made the comment collector search at the generated callback's actual nesting
+depth; the pre-#3877 matrix artifact therefore left stale ratchet entries after the implementation
+was corrected.
 
 The location-less cursor port clears 144 entries without adding a failure: all 96 trailing
 module-path rows (`module-class-state`, `module-rune-exports`, and
