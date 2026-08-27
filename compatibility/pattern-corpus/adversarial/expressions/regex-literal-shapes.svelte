@@ -18,3 +18,11 @@
 <b>{lookahead.source}{lookbehind.source}</b>
 <b>{unicodeProp.source}{braceInside.source}</b>
 <b>{divisionNotRegex}{afterParen}</b>
+
+<!-- Template expressions use the Svelte bracket scanner before the JS parser.
+     A slash inside a regex character class is data, not the literal's end. -->
+<button
+  onclick={() => {
+    v = v.replace(/(^https?:\/\/[^/]+)\/*$/i, '$1');
+  }}>normalize</button
+>

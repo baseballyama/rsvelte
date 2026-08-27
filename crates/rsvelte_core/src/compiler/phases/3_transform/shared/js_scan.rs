@@ -151,6 +151,26 @@ pub(crate) fn slash_starts_regex_at(bytes: &[u8], i: usize, prev: Option<u8>) ->
     if token_visible && end >= 2 && matches!(&bytes[end - 2..end], b"++" | b"--") {
         return false;
     }
+    // In TypeScript, a postfix non-null assertion also ends an operand:
+    // `value! / 2`. A bare byte test reads every slash after `!` as a regex
+    // opener and can make a template-expression scanner swallow the rest of
+    // the component. Distinguish it from prefix logical not (`! /re/.test(x)`)
+    // by asking whether the token before `!` can itself end an operand.
+    if token_visible && bytes[end - 1] == b'!' {
+        let mut before = end - 1;
+        while before > 0 && bytes[before - 1].is_ascii_whitespace() {
+            before -= 1;
+        }
+        if before > 0
+            && matches!(
+                bytes[before - 1],
+                c if c.is_ascii_alphanumeric()
+                    || matches!(c, b'_' | b'$' | b')' | b']' | b'}' | b'\'' | b'"' | b'`')
+            )
+        {
+            return false;
+        }
+    }
     if slash_starts_regex(prev) {
         return true;
     }
@@ -844,6 +864,16 @@ mod tests {
         assert!(!decide("f(x) /"));
         assert!(!decide("arr[0] /"));
         assert!(!decide("1 /"));
+        assert!(!decide("value! /"));
+        assert!(!decide("call()! /"));
+        assert!(!decide("value!\n/"));
+    }
+
+    #[test]
+    fn a_regex_after_prefix_logical_not_is_still_a_regex() {
+        assert!(decide("! /"));
+        assert!(decide("return ! /"));
+        assert!(decide("x && ! /"));
     }
 
     #[test]

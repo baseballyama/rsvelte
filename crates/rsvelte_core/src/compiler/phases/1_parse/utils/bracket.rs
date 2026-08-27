@@ -47,7 +47,32 @@ fn find_string_end(string: &str, search_start_index: usize, string_start_char: u
 /// # Returns
 /// The index of the end of this regex expression, or `usize::MAX` if not found
 fn find_regex_end(string: &str, search_start_index: usize) -> usize {
-    find_unescaped_char(string, search_start_index, b'/')
+    let bytes = string.as_bytes();
+    let mut i = search_start_index;
+    let mut in_character_class = false;
+
+    while i < bytes.len() {
+        match bytes[i] {
+            // An escape consumes the following byte both inside and outside a
+            // character class. In particular, `\]` must not close the class.
+            b'\\' => i += 2,
+            b'[' if !in_character_class => {
+                in_character_class = true;
+                i += 1;
+            }
+            b']' if in_character_class => {
+                in_character_class = false;
+                i += 1;
+            }
+            // A slash inside `[...]` is data, not the regex delimiter.
+            b'/' if !in_character_class => return i,
+            // JavaScript regex literals cannot contain a bare line terminator.
+            b'\n' | b'\r' => return usize::MAX,
+            _ => i += 1,
+        }
+    }
+
+    usize::MAX
 }
 
 /// Find the closing backtick of a template literal, properly handling `${...}`
@@ -378,5 +403,28 @@ mod tests {
         assert_eq!(find_matching_bracket("{width/4}", 1, '{'), Some(8));
         assert_eq!(find_matching_bracket("{width/4*3}", 1, '{'), Some(10));
         assert_eq!(find_matching_bracket("{a + b/c}", 1, '{'), Some(8));
+
+        let non_null = "{asset.duration! / 1000}";
+        assert_eq!(
+            find_matching_bracket(non_null, 1, '{'),
+            Some(non_null.len() - 1)
+        );
+    }
+
+    #[test]
+    fn test_find_matching_bracket_with_slash_in_regex_character_class() {
+        let expression = r#"{v.replace(/(^wss:\/\/[^/]+)\/*$/i, '$1')}"#;
+        assert_eq!(
+            find_matching_bracket(expression, 1, '{'),
+            Some(expression.len() - 1)
+        );
+
+        // Escaped class closers do not expose a following slash as the regex
+        // delimiter either.
+        let escaped_close = r#"{/[[\]/}]+/.test(value)}"#;
+        assert_eq!(
+            find_matching_bracket(escaped_close, 1, '{'),
+            Some(escaped_close.len() - 1)
+        );
     }
 }
