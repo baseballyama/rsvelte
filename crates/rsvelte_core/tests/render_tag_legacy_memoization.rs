@@ -58,3 +58,23 @@ fn runes_render_tag_argument_uses_derived() {
         "runes memoized render-tag argument must not use $.derived_safe_equal, got:\n{out}"
     );
 }
+
+#[test]
+fn pure_render_tag_calls_stay_inline() {
+    const PURE_ARGUMENTS: [&str; 4] = [
+        "'ab'.at(0)",
+        "(1).toFixed(2)",
+        "Math.max(1, 2)",
+        "Math.max(1, 2).toFixed(0)",
+    ];
+
+    for argument in PURE_ARGUMENTS {
+        let src =
+            format!("{{#snippet row(value)}}{{value}}{{/snippet}}\n{{@render row({argument})}}");
+        let out = client(&src);
+        assert!(
+            !out.contains("derived_safe_equal") && !out.contains("$.derived("),
+            "pure render-tag argument {argument:?} was memoized:\n{out}"
+        );
+    }
+}

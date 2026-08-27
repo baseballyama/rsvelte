@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 260 entries)
+## Matrix known failures (`matrix-known-failures.json`, 248 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 24 + 0 + 0 + 0 + 140 + 0 + 4 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 24 + 0 + 0 + 0 + 140 + 0 + 0 + 0 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -173,7 +173,7 @@ until their issues are fixed.
 
 Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `0`
 
-### `async-attribute-slot` — 4 entries
+### `async-attribute-slot` — 0 entries
 
 10 value shapes × 6 attribute slots × 4 hosts = 200 cases / 792 comparisons. The subject is
 which lowering an async attribute value reaches: `Memoizer` hoists a call or an `await` out
@@ -193,21 +193,12 @@ with zero regressions elsewhere in the matrix's 25,836 comparisons. #3649 then c
 38 client rows where a non-tail `await` was not pickled through `$.save`. #3764 routed server
 attribute and directive values through the per-host promise optimiser; its object-expression
 await scan also covers spread values and distinguishes a nested async-IIFE await. That clears
-the remaining 230 server rows. The remaining **4** entries have one cause:
+the remaining 230 server rows. #3650 cleared the final four client rows by giving
+`<svelte:element>` its own memoizer and passing its parameters into the element-local
+`template_effect`. The generated arrow now binds the `$0` used by a `class:` directive,
+including the `derived-await-read` and `script-await-read` shapes.
 
-| cause | issue | entries | verdicts |
-|---|---|---:|---|
-| `<svelte:element class:x={…}>` emits an unbound `$0` | [#3650](https://github.com/baseballyama/rsvelte/issues/3650) | 4 | `js-mismatch` (client) |
-
-Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `4`
-
-**Cause 1 — an unbound `$0`.** `<svelte:element class:x={f()}>` memoizes the directive
-object into the `template_effect` `sync` array but builds the arrow with **no parameter
-list**, so the body references a `$0` that is never bound. It parses and throws at run time,
-The remaining four rows are `derived-await-read` and `script-await-read` on `client` /
-`client-dev`. The six other value shapes (`call`, `await-plus-state`,
-`async-iife`, `await`, `await-in-call`, and `await-literal`) now bind their memoized
-parameter correctly.
+Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `0`
 
 **Four cases are narrowed to the server targets** (`custom-element` × `attribute` × a value
 carrying a literal `await`). Under the pinned oracle that cell compiles — on *both*
@@ -225,32 +216,13 @@ is why the value axis carries sync rows at all. The submodule bump therefore can
 with that port missing: these rows report it. See
 [#3621](https://github.com/baseballyama/rsvelte/issues/3621).
 
-### `constant-fold` — 8 entries
+### `constant-fold` — 0 entries
 
-Four expressions (`'ab'.at(0)`, `(1).toFixed(2)`, `Math.max(1, 2)`,
-`Math.max(1, 2).toFixed(0)`) × `client` / `client-dev`, and **one slot**: the
-`{@render}` argument. Every other slot in the family passes for all four, and
-`server` passes everywhere.
-
-They are not a folding divergence — they are memoisation. Upstream memoises a render
-argument when the expression `has_call`, which its `is_pure` makes **false** for a call
-whose callee and arguments are all pure, so `{@render row(Math.max(1, 2))}` is emitted
-verbatim. rsvelte decides the same question with `render_tag_has_call`
-(`client/visitors/render_tag.rs`), a value-level walk that reports any `CallExpression`
-anywhere and takes no `context`, so it has no notion of purity and wraps the argument in
-a `$.derived_safe_equal`. Both outputs compute the same value; the difference is one
-extra signal.
-
-Pre-existing and newly *measured*, not newly introduced: this family is new, and nothing
-in the change that added it touches the render-tag path. Two of the four
-(`string-literal-call`, `number-literal-call`) were already diverging on the first run of
-the family, before any fix in that PR had landed; the other two were masked by the
-`has_state` divergence that PR fixed and surfaced with it gone.
-
-They clear when `render_tag_has_call` is given the purity rule `has_call_json`
-(`client/visitors/shared/utils.rs`) already implements — which is a change to the
-memoisation path, deliberately left out of the folding fix so that a regression in one
-cannot be read as the other.
+The final eight rows were not folding divergences but `{@render}` memoization divergences:
+four pure call expressions × `client` / `client-dev`. The transform now consumes Phase 2's
+`has_call` metadata, which already applies upstream's purity and dependency rules, instead
+of a second syntax-only walk that treated every call as impure. Pure arguments remain inline;
+impure and reactive calls retain their existing memoization.
 
 ### `fold-value-type` — 0 entries
 

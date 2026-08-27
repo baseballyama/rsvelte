@@ -122,10 +122,11 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                     ),
                 )
             } else {
-                // If the argument expression has a call, memoize it with
-                // $.derived (runes) / $.derived_safe_equal (legacy)
-                let has_call_from_expr = render_tag_has_call(arg);
-                if template_metadata.has_call() || has_call_from_expr {
+                // Phase 2 applies upstream's purity rule while computing
+                // `has_call`: a pure call with pure arguments is left inline,
+                // while an impure or reactive call is memoized. A raw syntax
+                // walk cannot make that distinction.
+                if template_metadata.has_call() {
                     // Draw from the same `$N` counter as async placeholders so a
                     // memoised-call arg never collides with an async callback
                     // param in the same render block (H-099).
@@ -366,44 +367,6 @@ fn extract_call_callee<'a>(
             Some(Expression::from_node(arena.get_js_node(*callee).clone()))
         }
         _ => None,
-    }
-}
-
-/// Wrapper to check if an Expression has a call.
-fn render_tag_has_call(expr: &Expression) -> bool {
-    json_value_has_call(expr.as_json())
-}
-
-/// Recursively check if a JSON value (ESTree node) contains a CallExpression.
-/// Stops recursion at function boundaries (ArrowFunctionExpression, FunctionExpression)
-/// since calls inside those don't affect the outer expression's reactivity.
-///
-/// `SpreadElement` and `TaggedTemplateExpression` also count: the official Phase-2
-/// analyzer sets `expression.has_call = true` for both (SpreadElement.js,
-/// TaggedTemplateExpression.js), because e.g. `[...x]` is treated like
-/// `[...x.values()]`. This makes a render-tag argument such as
-/// `{ props, ...snippetProps }` memoize into a `$.derived`, matching upstream.
-fn json_value_has_call(val: &serde_json::Value) -> bool {
-    match val {
-        serde_json::Value::Object(obj) => {
-            if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
-                if expr_type == "CallExpression"
-                    || expr_type == "SpreadElement"
-                    || expr_type == "TaggedTemplateExpression"
-                {
-                    return true;
-                }
-                if expr_type == "ArrowFunctionExpression"
-                    || expr_type == "FunctionExpression"
-                    || expr_type == "FunctionDeclaration"
-                {
-                    return false;
-                }
-            }
-            obj.values().any(json_value_has_call)
-        }
-        serde_json::Value::Array(arr) => arr.iter().any(json_value_has_call),
-        _ => false,
     }
 }
 
