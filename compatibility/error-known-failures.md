@@ -102,8 +102,8 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-message-known-failures.client-dev.json` holds 10 entries;
 `error-message-known-failures.server.json` holds 10 entries; and
 `error-message-known-failures.server-dev.json` holds 10 entries. All four of
-`error-position-known-failures.<target>.json` hold 40 entries, all four of
-`error-end-known-failures.<target>.json` hold 53 entries, and all four of
+`error-position-known-failures.<target>.json` hold 38 entries, all four of
+`error-end-known-failures.<target>.json` hold 51 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus

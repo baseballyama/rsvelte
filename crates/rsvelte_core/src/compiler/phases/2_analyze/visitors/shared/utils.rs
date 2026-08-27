@@ -923,7 +923,7 @@ pub fn validate_no_const_assignment_node(
                 let binding = &context.analysis.root.bindings[idx];
 
                 if binding.kind == BindingKind::SnippetParam {
-                    return Err(errors::snippet_parameter_assignment());
+                    return Err(errors::snippet_parameter_assignment().at(node_span.0, node_span.1));
                 }
 
                 if context.function_depth > 1 {
@@ -1006,7 +1006,7 @@ pub fn validate_assignment_node(
             }
 
             if matches!(binding.kind, BindingKind::SnippetParam) {
-                return Err(errors::snippet_parameter_assignment());
+                return Err(errors::snippet_parameter_assignment().at(node_span.0, node_span.1));
             }
         }
     }

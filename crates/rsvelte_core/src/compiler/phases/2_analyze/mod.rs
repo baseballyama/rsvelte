@@ -6424,6 +6424,10 @@ mod tests {
     use rustc_hash::{FxHashMap, FxHashSet};
 
     fn analyze(source: &str) -> ComponentAnalysis {
+        try_analyze(source).unwrap()
+    }
+
+    fn try_analyze(source: &str) -> Result<ComponentAnalysis, AnalysisError> {
         let mut ast = parse(
             source,
             &oxc_allocator::Allocator::default(),
@@ -6435,7 +6439,54 @@ mod tests {
         .unwrap();
         // SAFETY: `ast` outlives the guard and analysis call.
         let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
-        analyze_component(&mut ast, source, &CompileOptions::default()).unwrap()
+        analyze_component(&mut ast, source, &CompileOptions::default())
+    }
+
+    #[test]
+    fn each_binding_references_do_not_mark_shadowed_export_as_used() {
+        let source = r#"<script>
+export let value = "outer";
+</script>
+{#each ["inner"] as value (value)}{String(value)}{/each}"#;
+        let analysis = analyze(source);
+        let warnings = analysis
+            .warnings
+            .iter()
+            .filter(|warning| warning.code == "export_let_unused")
+            .collect::<Vec<_>>();
+        let start = source.find("value =").unwrap() as u32;
+
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].start, Some(start));
+        assert_eq!(warnings[0].end, Some(start + "value".len() as u32));
+    }
+
+    #[test]
+    fn snippet_parameter_assignment_uses_the_assignment_or_binding_span() {
+        for (source, marked) in [
+            (
+                r#"{#snippet s(value)}<button onclick={() => { value = "next"; }}>x</button>{/snippet}"#,
+                r#"value = "next""#,
+            ),
+            (
+                r#"{#snippet s(value)}<input bind:value={value}>{/snippet}"#,
+                "bind:value={value}",
+            ),
+        ] {
+            let start = source.find(marked).unwrap() as u32;
+            let error = try_analyze(source).unwrap_err();
+            assert!(matches!(
+                error,
+                AnalysisError::ValidationWithCode {
+                    ref code,
+                    start: Some(actual_start),
+                    end: Some(actual_end),
+                    ..
+                } if code == "snippet_parameter_assignment"
+                    && actual_start == start
+                    && actual_end == start + marked.len() as u32
+            ));
+        }
     }
 
     #[test]
