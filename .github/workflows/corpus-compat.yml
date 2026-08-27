@@ -257,6 +257,12 @@ jobs:
         run: node scripts/compat-corpus/esrap-verify.mjs
 
       - name: Verify (oxfmt-normalized outputs must be identical)
+        # Keep the independent output/diagnostic/parseability gates observable
+        # when the preceding esrap gate fails. In particular, report.json is
+        # the only retained artifact that records the parser error for each
+        # known-unparseable output; skipping this step leaves that burn-down
+        # with ids but no generated-code location.
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/verify.mjs
 
       # Gate 3 (#2281): the corpus entries as a SEED set, not a test set. Runs
