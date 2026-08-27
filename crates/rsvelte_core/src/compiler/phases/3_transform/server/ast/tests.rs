@@ -5091,6 +5091,82 @@ fn ast_matches_oracle_async_blocker_wrap() {
     );
 }
 
+/// Await-bearing server attributes must be consumed by the same per-host
+/// `PromiseOptimiser` as upstream. This matrix keeps the directive carriers,
+/// merged spread object, dynamic-element attribute thunk, and component spread
+/// paths together: each value is hoisted into a `$$N` declaration inside an
+/// async renderer child instead of leaving `await` in a synchronous template.
+#[test]
+fn ast_matches_oracle_async_attribute_hoisting() {
+    let samples = [
+        ("element-attribute", "<div title={await p}></div>"),
+        ("element-class", "<div class={await p}></div>"),
+        ("element-style", "<div style={await p}></div>"),
+        ("element-class-directive", "<div class:on={await p}></div>"),
+        (
+            "element-style-directive",
+            "<div style:color={await p}></div>",
+        ),
+        ("element-spread", "<div {...await p}></div>"),
+        (
+            "element-object-spread-await",
+            "<div {...{ 'data-x': String(await p) }}></div>",
+        ),
+        (
+            "element-object-spread-nested-await",
+            "<div {...{ 'data-x': (async () => await p)() }}></div>",
+        ),
+        (
+            "custom-element-class-directive",
+            "<my-element class:on={await p}></my-element>",
+        ),
+        (
+            "custom-element-style-directive",
+            "<my-element style:color={await p}></my-element>",
+        ),
+        (
+            "dynamic-element-attribute",
+            "<svelte:element this={'div'} title={await p}></svelte:element>",
+        ),
+        (
+            "dynamic-element-class-directive",
+            "<svelte:element this={'div'} class:on={await p}></svelte:element>",
+        ),
+        (
+            "dynamic-element-style-directive",
+            "<svelte:element this={'div'} style:color={await p}></svelte:element>",
+        ),
+        (
+            "dynamic-element-spread",
+            "<svelte:element this={'div'} {...await p}></svelte:element>",
+        ),
+        (
+            "dynamic-element-object-spread-await",
+            "<svelte:element this={'div'} {...{ 'data-x': await 'v' }}></svelte:element>",
+        ),
+        ("component-spread", "<Component {...await p} />"),
+        (
+            "component-object-spread-await",
+            "<Component {...{ x: (await p) + state }} />",
+        ),
+    ];
+
+    let mut mismatches = Vec::new();
+    for (name, source) in samples {
+        let (ours, oracle) = run_async_both(source);
+        if canon_js(&ours) != canon_js(&oracle) {
+            eprintln!(
+                "\n######### {name} DIFFER #########\n=== OURS ===\n{ours}\n=== ORACLE ===\n{oracle}\n"
+            );
+            mismatches.push(name);
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "async attribute output differs from oracle for: {mismatches:?}"
+    );
+}
+
 /// Legacy-misc SSR burn-down cluster: instance-export → prop lowering,
 /// `$:`-reactive topological reordering, destructure declaration / assignment
 /// store-set thunks, single-string-literal attribute inlining, default-slot

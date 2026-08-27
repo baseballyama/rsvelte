@@ -462,12 +462,7 @@ fn runtime_fixtures_path() -> &'static PathBuf {
 /// runtime-runes fixtures still failing on the rsvelte port. Each entry is
 /// audited by `tests/audit_skipped.rs`, which fails the build once a skipped
 /// fixture starts passing. Remove an entry as soon as the port lands.
-pub const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
-    // template_effect double-counts `$$promises` inside an `$.async(...)`
-    // wrapper for the IfBlock branch — the awaited `@const` blocker is not
-    // propagated across the closure boundary.
-    "async-style-after-await",
-];
+pub const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[];
 
 /// runtime-legacy fixtures still failing on the rsvelte port.
 pub const RUNTIME_LEGACY_SKIP_NAMES: &[&str] = &[];

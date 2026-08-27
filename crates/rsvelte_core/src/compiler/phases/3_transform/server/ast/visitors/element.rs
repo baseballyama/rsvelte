@@ -425,6 +425,20 @@ fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformSta
                     return true;
                 }
             }
+            Attribute::ClassDirective(dir) => {
+                if let Some(t) = state.expr_source(&dir.expression)
+                    && is_async_text(t)
+                {
+                    return true;
+                }
+            }
+            Attribute::StyleDirective(dir) => {
+                if let Some(t) = attribute_value_source(&dir.value, state)
+                    && is_async_text(&t)
+                {
+                    return true;
+                }
+            }
             _ => {}
         }
     }
@@ -1378,7 +1392,18 @@ fn build_element_spread_attributes<'a>(
         let members = class_directives
             .iter()
             .map(|dir| {
-                let val = state.visit_expr_claiming(&dir.expression);
+                let text = state.expr_source(&dir.expression).map(str::to_owned);
+                let mut val = if let Some(t) = text.as_deref()
+                    && state.attr_optimiser.is_some()
+                    && super::shared::text_has_await(t)
+                {
+                    super::shared::save_wrap_expr_text(state, t)
+                } else {
+                    state.visit_expr_claiming(&dir.expression)
+                };
+                if let Some(t) = text.as_deref() {
+                    val = state.optimise_attr_value(t, val);
+                }
                 state.b.init(dir.name.as_str(), val)
             })
             .collect();
@@ -1401,11 +1426,15 @@ fn build_element_spread_attributes<'a>(
                 if !sname.starts_with("--") {
                     sname = sname.to_lowercase();
                 }
-                let val = if matches!(dir.value, AttributeValue::True(_)) {
+                let text = attribute_value_source(&dir.value, state);
+                let mut val = if matches!(dir.value, AttributeValue::True(_)) {
                     state.b.id(dir.name.as_str())
                 } else {
                     build_attribute_value(&dir.value, true, state)
                 };
+                if let Some(t) = text.as_deref() {
+                    val = state.optimise_attr_value(t, val);
+                }
                 state.b.init(&sname, val)
             })
             .collect();
@@ -2015,7 +2044,18 @@ fn build_attr_class<'a>(
         let members = class_directives
             .iter()
             .map(|dir| {
-                let val = state.visit_expr_claiming(&dir.expression);
+                let text = state.expr_source(&dir.expression).map(str::to_owned);
+                let mut val = if let Some(t) = text.as_deref()
+                    && state.attr_optimiser.is_some()
+                    && super::shared::text_has_await(t)
+                {
+                    super::shared::save_wrap_expr_text(state, t)
+                } else {
+                    state.visit_expr_claiming(&dir.expression)
+                };
+                if let Some(t) = text.as_deref() {
+                    val = state.optimise_attr_value(t, val);
+                }
                 // QUOTED key (`b.literal(directive.name)`) → string-literal key.
                 state.b.prop(
                     oxc_ast::ast::PropertyKind::Init,
@@ -2071,11 +2111,15 @@ fn build_attr_style<'a>(
         let mut normal: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
         let mut important: Vec<oxc_ast::ast::ObjectPropertyKind<'a>> = Vec::new();
         for dir in style_directives {
-            let val = if matches!(dir.value, AttributeValue::True(_)) {
+            let text = attribute_value_source(&dir.value, state);
+            let mut val = if matches!(dir.value, AttributeValue::True(_)) {
                 state.b.id(dir.name.as_str())
             } else {
                 build_attribute_value(&dir.value, true, state)
             };
+            if let Some(t) = text.as_deref() {
+                val = state.optimise_attr_value(t, val);
+            }
             let mut sname = dir.name.to_string();
             if !sname.starts_with("--") {
                 sname = sname.to_lowercase();

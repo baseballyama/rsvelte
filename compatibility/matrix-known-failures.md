@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 490 entries)
+## Matrix known failures (`matrix-known-failures.json`, 260 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 24 + 0 + 0 + 0 + 140 + 0 + 234 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 24 + 0 + 0 + 0 + 140 + 0 + 4 + 8 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -173,7 +173,7 @@ until their issues are fixed.
 
 Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `0`
 
-### `async-attribute-slot` — 234 entries
+### `async-attribute-slot` — 4 entries
 
 10 value shapes × 6 attribute slots × 4 hosts = 200 cases / 792 comparisons. The subject is
 which lowering an async attribute value reaches: `Memoizer` hoists a call or an `await` out
@@ -190,25 +190,18 @@ attribute value, whose memoizer call hardcoded `has_await: false` in all three a
 `build_style_attribute_value_with_memoization` — clears 28 of them (16 `output-unparseable`
 + 12 `js-mismatch`, both hosts × all four literal-`await` values × `client`/`client-dev`)
 with zero regressions elsewhere in the matrix's 25,836 comparisons. #3649 then cleared the
-38 client rows where a non-tail `await` was not pickled through `$.save`. The remaining
-**234** are two causes, neither of which is a formatting difference:
+38 client rows where a non-tail `await` was not pickled through `$.save`. #3764 routed server
+attribute and directive values through the per-host promise optimiser; its object-expression
+await scan also covers spread values and distinguishes a nested async-IIFE await. That clears
+the remaining 230 server rows. The remaining **4** entries have one cause:
 
 | cause | issue | entries | verdicts |
 |---|---|---:|---|
-| the server never hoists an awaited attribute / directive / spread value | [#3648](https://github.com/baseballyama/rsvelte/issues/3648) | 230 | 80 `output-unparseable`, 150 `js-mismatch` |
 | `<svelte:element class:x={…}>` emits an unbound `$0` | [#3650](https://github.com/baseballyama/rsvelte/issues/3650) | 4 | `js-mismatch` (client) |
 
-Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `230 + 4`
+Partition of `matrix-known-failures.json` entries under `async-attribute-slot/` by cause: `4`
 
-**Cause 1 — the server does not hoist.** Upstream wraps an element whose attribute value is
-async in `$$renderer.child(async ($$renderer) => { const $$0 = (await $.save(p))(); … })`
-and interpolates `$$0`; rsvelte pushes `await p` straight into the template string of a
-**non-async** renderer callback. Where the surrounding function is not async that is a
-`SyntaxError` (80 rows); where an enclosing `child(async …)` happens to exist the text
-parses and only the `$.save` wrapper is missing (150 rows). Every one of the 80 is output no
-JS parser accepts — the loud half of the class the parse oracle exists for.
-
-**Cause 2 — an unbound `$0`.** `<svelte:element class:x={f()}>` memoizes the directive
+**Cause 1 — an unbound `$0`.** `<svelte:element class:x={f()}>` memoizes the directive
 object into the `template_effect` `sync` array but builds the arrow with **no parameter
 list**, so the body references a `$0` that is never bound. It parses and throws at run time,
 The remaining four rows are `derived-await-read` and `script-await-read` on `client` /

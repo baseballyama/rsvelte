@@ -45,7 +45,7 @@ use crate::ast::template::{
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 
 use super::element::build_element_attributes;
-use super::shared::{TemplateEntry, build_fragment_body, build_template};
+use super::shared::{PromiseOptimiser, TemplateEntry, build_fragment_body, build_template};
 
 /// Visit a `<svelte:element this={tag}>…</svelte:element>` element (static path).
 pub fn visit_svelte_element<'a>(
@@ -162,8 +162,15 @@ pub fn visit_svelte_element<'a>(
     };
 
     let saved_template = std::mem::take(&mut state.template);
+    // `SvelteElement.js` gives every dynamic element its own optimiser and its
+    // own attribute state. In particular, do not let a surrounding async
+    // regular element's optimiser consume this element's attributes.
+    let parent_optimiser = state.attr_optimiser.take();
+    state.attr_optimiser = Some(PromiseOptimiser::new());
     build_element_attributes(&adapter, css_hash.as_deref(), state);
     let attr_entries = std::mem::replace(&mut state.template, saved_template);
+    let mut optimiser = state.attr_optimiser.take().unwrap_or_default();
+    state.attr_optimiser = parent_optimiser;
     let attr_body = build_template(attr_entries, state);
 
     let b = state.b;
@@ -199,7 +206,9 @@ pub fn visit_svelte_element<'a>(
         ],
     );
 
-    state.template.push(TemplateEntry::Stmt(b.stmt(call)));
+    for statement in optimiser.render(state, vec![b.stmt(call)]) {
+        state.template.push(TemplateEntry::Stmt(statement));
+    }
     if state.options.dev {
         state
             .template
