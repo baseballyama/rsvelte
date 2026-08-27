@@ -26,10 +26,10 @@ use crate::ast::span::SourceLocation;
 use crate::ast::{
     AnimateDirective, AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart,
     AwaitBlock, BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag, EachBlock,
-    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, LetDirective, OnDirective, RegularElement,
-    RenderTag, Root, Script, SlotElement, SnippetBlock, SpreadAttribute, StyleDirective,
-    SvelteComponentElement, SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement,
-    TransitionDirective, UseDirective,
+    ExpressionTag, Fragment, HtmlTag, IfBlock, JsComment, KeyBlock, LetDirective, OnDirective,
+    RegularElement, RenderTag, Root, Script, SlotElement, SnippetBlock, SpreadAttribute,
+    StyleDirective, SvelteComponentElement, SvelteDynamicElement, SvelteElement, TemplateNode,
+    Text, TitleElement, TransitionDirective, UseDirective,
 };
 
 /// Insert ESTree fields into an existing `Map`, in written order.
@@ -81,6 +81,11 @@ pub struct Utf8ToUtf16 {
     /// (byte offset, utf16 offset) for each line start
     line_starts_byte: Vec<usize>,
     line_starts_utf16: Vec<usize>,
+    /// Compilation omits ESTree locations from the retained typed tree and
+    /// reconstructs them only when the legacy JSON result is requested.
+    /// Public `parse()` trees already carry the exact parser locations,
+    /// including intentional `loc` omissions on loose recovery nodes.
+    rebuild_missing_locs: bool,
 }
 
 impl Utf8ToUtf16 {
@@ -110,6 +115,14 @@ impl Utf8ToUtf16 {
             utf16_pos,
             line_starts_byte,
             line_starts_utf16,
+            rebuild_missing_locs: false,
+        }
+    }
+
+    fn for_legacy(source: &str, rebuild_missing_locs: bool) -> Self {
+        Self {
+            rebuild_missing_locs,
+            ..Self::new(source)
         }
     }
 
@@ -173,6 +186,274 @@ impl Utf8ToUtf16 {
             None => source.len(),
         };
         &source[start..end]
+    }
+
+    fn byte_line_column(&self, byte_offset: usize) -> (u32, u32) {
+        let line = self
+            .line_starts_byte
+            .partition_point(|&start| start <= byte_offset)
+            .saturating_sub(1);
+        let line_start = self.line_starts_byte.get(line).copied().unwrap_or(0);
+        ((line + 1) as u32, (byte_offset - line_start) as u32)
+    }
+
+    fn byte_line_column_for_binding(&self, byte_offset: usize) -> (u32, u32) {
+        let line = self
+            .line_starts_byte
+            .partition_point(|&start| start <= byte_offset)
+            .saturating_sub(1);
+        let line_start = self.line_starts_byte.get(line).copied().unwrap_or(0);
+        let adjusted_start = if line > 0
+            && line_start - self.line_starts_byte.get(line - 1).copied().unwrap_or(0) == 1
+        {
+            self.line_starts_byte[line - 1]
+        } else {
+            line_start
+        };
+        ((line + 1) as u32, (byte_offset - adjusted_start) as u32)
+    }
+}
+
+/// Materialize the ESTree locations which compilation deliberately omits at
+/// parse time. Keep this operation attached to each `as_json()` boundary in
+/// this file: converter-created ESTree nodes (notably `{@const}`'s synthesized
+/// `AssignmentExpression`) must pass through the same operation too.
+fn expression_json(expression: &Expression, positions: &Utf8ToUtf16) -> Value {
+    let mut value = expression.as_json().clone();
+    if positions.rebuild_missing_locs {
+        add_estree_locs(&mut value, positions);
+    }
+    value
+}
+
+fn binding_json(expression: &Expression, positions: &Utf8ToUtf16) -> Value {
+    let mut value = expression.as_json().clone();
+    if positions.rebuild_missing_locs {
+        add_binding_locs(&mut value, positions, true);
+    }
+    value
+}
+
+fn declaration_json(expression: &Expression, positions: &Utf8ToUtf16) -> Value {
+    let mut value = expression.as_json().clone();
+    if !positions.rebuild_missing_locs {
+        return value;
+    }
+    let Value::Object(declaration) = &mut value else {
+        add_estree_locs(&mut value, positions);
+        return value;
+    };
+
+    if let Some(Value::Array(declarators)) = declaration.get_mut("declarations") {
+        for declarator in declarators {
+            let Value::Object(declarator) = declarator else {
+                continue;
+            };
+            if let Some(id) = declarator.get_mut("id") {
+                add_binding_locs(id, positions, true);
+            }
+            if let Some(init) = declarator.get_mut("init") {
+                add_estree_locs(init, positions);
+            }
+            add_loc_to_estree_object(declarator, positions);
+        }
+    }
+    add_loc_to_estree_object(declaration, positions);
+    value
+}
+
+fn add_binding_locs(value: &mut Value, positions: &Utf8ToUtf16, top_level: bool) {
+    let Value::Object(object) = value else {
+        if let Value::Array(items) = value {
+            for item in items {
+                add_binding_locs(item, positions, false);
+            }
+        }
+        return;
+    };
+
+    let node_type = object
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    match node_type.as_str() {
+        "ObjectPattern" => {
+            add_binding_children(object, "properties", positions);
+            add_estree_child(object, "typeAnnotation", positions);
+        }
+        "ArrayPattern" => {
+            add_binding_children(object, "elements", positions);
+            add_estree_child(object, "typeAnnotation", positions);
+        }
+        "RestElement" => add_binding_child(object, "argument", positions),
+        "Property" => {
+            if object
+                .get("computed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                add_estree_child(object, "key", positions);
+            } else {
+                add_binding_child(object, "key", positions);
+            }
+            add_binding_child(object, "value", positions);
+        }
+        "AssignmentPattern" => {
+            add_binding_child(object, "left", positions);
+            if let Some(right) = object.get_mut("right") {
+                add_estree_locs(right, positions);
+            }
+        }
+        "Identifier" => add_estree_child(object, "typeAnnotation", positions),
+        "PrivateIdentifier" | "Literal" => {}
+        _ => {
+            add_estree_locs(value, positions);
+            return;
+        }
+    }
+
+    if !object.contains_key("loc")
+        && let Some((start, end)) = object
+            .get("start")
+            .and_then(Value::as_u64)
+            .zip(object.get("end").and_then(Value::as_u64))
+    {
+        let loc = if top_level && node_type == "Identifier" {
+            estree_loc_with_character(start as usize, end as usize, positions)
+        } else {
+            binding_loc(start as usize, end as usize, positions)
+        };
+        insert_loc_after_end(object, loc);
+    }
+}
+
+fn add_binding_child(object: &mut Map<String, Value>, key: &str, positions: &Utf8ToUtf16) {
+    if let Some(child) = object.get_mut(key) {
+        add_binding_locs(child, positions, false);
+    }
+}
+
+fn add_binding_children(object: &mut Map<String, Value>, key: &str, positions: &Utf8ToUtf16) {
+    if let Some(Value::Array(children)) = object.get_mut(key) {
+        for child in children {
+            add_binding_locs(child, positions, false);
+        }
+    }
+}
+
+fn add_estree_child(object: &mut Map<String, Value>, key: &str, positions: &Utf8ToUtf16) {
+    if let Some(child) = object.get_mut(key) {
+        add_estree_locs(child, positions);
+    }
+}
+
+fn add_loc_to_estree_object(object: &mut Map<String, Value>, positions: &Utf8ToUtf16) {
+    if object.contains_key("loc") {
+        return;
+    }
+    if let Some((start, end)) = object
+        .get("start")
+        .and_then(Value::as_u64)
+        .zip(object.get("end").and_then(Value::as_u64))
+    {
+        insert_loc_after_end(object, estree_loc(start as usize, end as usize, positions));
+    }
+}
+
+fn script_json(script: &Script, positions: &Utf8ToUtf16) -> Value {
+    if !positions.rebuild_missing_locs {
+        return script.content.as_json().clone();
+    }
+    let mut value = expression_json(&script.content, positions);
+    if let Value::Object(program) = &mut value {
+        program.remove("loc");
+        let loc = estree_loc(script.start as usize, script.end as usize, positions);
+        insert_loc_after_end(program, loc);
+    }
+    value
+}
+
+fn estree_loc(start: usize, end: usize, positions: &Utf8ToUtf16) -> Value {
+    let (start_line, start_column) = positions.byte_line_column(start);
+    let (end_line, end_column) = positions.byte_line_column(end);
+    json!({
+        "start": { "line": start_line, "column": start_column },
+        "end": { "line": end_line, "column": end_column }
+    })
+}
+
+fn binding_loc(start: usize, end: usize, positions: &Utf8ToUtf16) -> Value {
+    let point = |offset| {
+        let (line, column) = positions.byte_line_column_for_binding(offset);
+        json!({ "line": line, "column": column })
+    };
+    json!({ "start": point(start), "end": point(end) })
+}
+
+fn estree_loc_with_character(start: usize, end: usize, positions: &Utf8ToUtf16) -> Value {
+    let point = |offset| {
+        let (line, column) = positions.byte_line_column(offset);
+        json!({ "line": line, "column": column, "character": offset })
+    };
+    json!({ "start": point(start), "end": point(end) })
+}
+
+fn comment_json(comment: &JsComment, positions: &Utf8ToUtf16) -> Value {
+    let mut value = serde_json::to_value(comment).unwrap_or(Value::Null);
+    if !positions.rebuild_missing_locs {
+        return value;
+    }
+    if let Value::Object(object) = &mut value {
+        let loc = if comment.loc_has_character {
+            estree_loc_with_character(comment.start as usize, comment.end as usize, positions)
+        } else {
+            estree_loc(comment.start as usize, comment.end as usize, positions)
+        };
+        object.insert("loc".to_string(), loc);
+    }
+    value
+}
+
+fn insert_loc_after_end(object: &mut Map<String, Value>, loc: Value) {
+    let previous = std::mem::take(object);
+    for (key, child) in previous {
+        let insert_after_end = key == "end";
+        object.insert(key, child);
+        if insert_after_end {
+            object.insert("loc".to_string(), loc.clone());
+        }
+    }
+}
+
+fn add_estree_locs(value: &mut Value, positions: &Utf8ToUtf16) {
+    match value {
+        Value::Object(object) => {
+            for child in object.values_mut() {
+                add_estree_locs(child, positions);
+            }
+
+            let span = object
+                .get("start")
+                .and_then(Value::as_u64)
+                .zip(object.get("end").and_then(Value::as_u64));
+            if object.contains_key("type")
+                && !object.contains_key("loc")
+                && let Some((start, end)) = span
+            {
+                let loc = estree_loc(start as usize, end as usize, positions);
+
+                // ESTree serializers place `loc` directly after `end`. JSON
+                // key order is observable on the legacy wire format.
+                insert_loc_after_end(object, loc);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                add_estree_locs(item, positions);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -241,6 +522,7 @@ pub fn convert_to_legacy_ref(source: &str, ast: &Root) -> Value {
 }
 
 fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
+    let pos_conv = Utf8ToUtf16::for_legacy(source, ast.skip_expression_loc);
     let mut result = Map::new();
 
     // Calculate html fragment start/end
@@ -303,13 +585,13 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
         "type": "Fragment",
         "start": start,
         "end": end,
-        "children" => children_json(source, &fragment_nodes, &[]),
+        "children" => children_json(source, &fragment_nodes, &[], &pos_conv),
     };
     estree_fields!(result, "html" => html);
 
     // Convert instance script
     if let Some(instance) = &ast.instance {
-        let mut script = convert_script(instance);
+        let mut script = convert_script(instance, &pos_conv);
         // Remove attributes field from instance
         script.remove("attributes");
         result.insert("instance".to_string(), Value::Object(script));
@@ -317,7 +599,7 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
 
     // Convert module script
     if let Some(module) = &ast.module {
-        let mut script = convert_script(module);
+        let mut script = convert_script(module, &pos_conv);
         // Remove attributes field from module
         script.remove("attributes");
         result.insert("module".to_string(), Value::Object(script));
@@ -335,14 +617,12 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
         let comments_value: Vec<Value> = ast
             .comments
             .iter()
-            .map(serde_json::to_value)
-            .collect::<Result<_, _>>()
-            .unwrap_or_default();
+            .map(|comment| comment_json(comment, &pos_conv))
+            .collect();
         result.insert("_comments".to_string(), Value::Array(comments_value));
     }
 
     // Convert all positions from UTF-8 to UTF-16
-    let pos_conv = Utf8ToUtf16::new(source);
     let mut final_result = Value::Object(result);
     convert_positions_to_utf16(&mut final_result, &pos_conv);
 
@@ -354,7 +634,7 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
 /// Returns a `Map` (not a `Value::Object`) so callers can mutate fields
 /// directly — e.g. removing the `attributes` field for instance/module
 /// scripts — without round-tripping through `as_object_mut().unwrap()`.
-fn convert_script(script: &Script) -> Map<String, Value> {
+fn convert_script(script: &Script, positions: &Utf8ToUtf16) -> Map<String, Value> {
     let mut result = Map::new();
     estree_fields!(
         result,
@@ -362,7 +642,7 @@ fn convert_script(script: &Script) -> Map<String, Value> {
         "start": script.start,
         "end": script.end,
         "context": script.context,
-        "content" => script.content.as_json().clone(),
+        "content" => script_json(script, positions),
     );
     result
 }
@@ -432,36 +712,55 @@ fn convert_css_node(node: &mut Value) {
     }
 }
 
-fn convert_node(source: &str, node: &TemplateNode, path: &[&str]) -> Value {
+fn convert_node(
+    source: &str,
+    node: &TemplateNode,
+    path: &[&str],
+    positions: &Utf8ToUtf16,
+) -> Value {
     match node {
         TemplateNode::Text(text) => convert_text(text, path),
         TemplateNode::Comment(comment) => convert_comment(comment),
-        TemplateNode::ExpressionTag(expr_tag) => convert_expression_tag(expr_tag, path),
-        TemplateNode::HtmlTag(html_tag) => convert_html_tag(html_tag),
-        TemplateNode::ConstTag(const_tag) => convert_const_tag(const_tag),
-        TemplateNode::DeclarationTag(decl_tag) => convert_declaration_tag(decl_tag),
-        TemplateNode::DebugTag(debug_tag) => convert_debug_tag(debug_tag),
-        TemplateNode::RenderTag(render_tag) => convert_render_tag(render_tag),
-        TemplateNode::AttachTag(attach_tag) => convert_attach_tag(attach_tag),
-        TemplateNode::IfBlock(if_block) => convert_if_block(source, if_block),
-        TemplateNode::EachBlock(each_block) => convert_each_block(source, each_block),
-        TemplateNode::AwaitBlock(await_block) => convert_await_block(source, await_block),
-        TemplateNode::KeyBlock(key_block) => convert_key_block(source, key_block),
-        TemplateNode::SnippetBlock(snippet_block) => convert_snippet_block(source, snippet_block),
-        TemplateNode::RegularElement(element) => convert_regular_element(source, element),
-        TemplateNode::Component(component) => convert_component(source, component),
-        TemplateNode::TitleElement(title) => convert_title_element(source, title),
-        TemplateNode::SlotElement(slot) => convert_slot_element(source, slot),
-        TemplateNode::SvelteBody(element) => convert_svelte_body(source, element),
-        TemplateNode::SvelteComponent(element) => convert_svelte_component(source, element),
-        TemplateNode::SvelteDocument(element) => convert_svelte_document(source, element),
-        TemplateNode::SvelteElement(element) => convert_svelte_element(source, element),
-        TemplateNode::SvelteFragment(element) => convert_svelte_fragment(source, element),
-        TemplateNode::SvelteBoundary(element) => convert_svelte_boundary(source, element),
-        TemplateNode::SvelteHead(element) => convert_svelte_head(source, element),
-        TemplateNode::SvelteOptions(element) => convert_svelte_options(element),
-        TemplateNode::SvelteSelf(element) => convert_svelte_self(source, element),
-        TemplateNode::SvelteWindow(element) => convert_svelte_window(source, element),
+        TemplateNode::ExpressionTag(expr_tag) => convert_expression_tag(expr_tag, path, positions),
+        TemplateNode::HtmlTag(html_tag) => convert_html_tag(html_tag, positions),
+        TemplateNode::ConstTag(const_tag) => convert_const_tag(const_tag, positions),
+        TemplateNode::DeclarationTag(decl_tag) => convert_declaration_tag(decl_tag, positions),
+        TemplateNode::DebugTag(debug_tag) => convert_debug_tag(debug_tag, positions),
+        TemplateNode::RenderTag(render_tag) => convert_render_tag(render_tag, positions),
+        TemplateNode::AttachTag(attach_tag) => convert_attach_tag(attach_tag, positions),
+        TemplateNode::IfBlock(if_block) => convert_if_block(source, if_block, positions),
+        TemplateNode::EachBlock(each_block) => convert_each_block(source, each_block, positions),
+        TemplateNode::AwaitBlock(await_block) => {
+            convert_await_block(source, await_block, positions)
+        }
+        TemplateNode::KeyBlock(key_block) => convert_key_block(source, key_block, positions),
+        TemplateNode::SnippetBlock(snippet_block) => {
+            convert_snippet_block(source, snippet_block, positions)
+        }
+        TemplateNode::RegularElement(element) => {
+            convert_regular_element(source, element, positions)
+        }
+        TemplateNode::Component(component) => convert_component(source, component, positions),
+        TemplateNode::TitleElement(title) => convert_title_element(source, title, positions),
+        TemplateNode::SlotElement(slot) => convert_slot_element(source, slot, positions),
+        TemplateNode::SvelteBody(element) => convert_svelte_body(source, element, positions),
+        TemplateNode::SvelteComponent(element) => {
+            convert_svelte_component(source, element, positions)
+        }
+        TemplateNode::SvelteDocument(element) => {
+            convert_svelte_document(source, element, positions)
+        }
+        TemplateNode::SvelteElement(element) => convert_svelte_element(source, element, positions),
+        TemplateNode::SvelteFragment(element) => {
+            convert_svelte_fragment(source, element, positions)
+        }
+        TemplateNode::SvelteBoundary(element) => {
+            convert_svelte_boundary(source, element, positions)
+        }
+        TemplateNode::SvelteHead(element) => convert_svelte_head(source, element, positions),
+        TemplateNode::SvelteOptions(element) => convert_svelte_options(element, positions),
+        TemplateNode::SvelteSelf(element) => convert_svelte_self(source, element, positions),
+        TemplateNode::SvelteWindow(element) => convert_svelte_window(source, element, positions),
     }
 }
 
@@ -509,7 +808,11 @@ fn extract_svelte_ignore(data: &str) -> Vec<String> {
     }
 }
 
-fn convert_expression_tag(expr_tag: &ExpressionTag, path: &[&str]) -> Value {
+fn convert_expression_tag(
+    expr_tag: &ExpressionTag,
+    path: &[&str],
+    positions: &Utf8ToUtf16,
+) -> Value {
     // An expression tag whose parent is an Attribute is the `{id}` shorthand.
     let ty = if path.last() == Some(&"Attribute") {
         "AttributeShorthand"
@@ -521,22 +824,22 @@ fn convert_expression_tag(expr_tag: &ExpressionTag, path: &[&str]) -> Value {
         "type": ty,
         "start": expr_tag.start,
         "end": expr_tag.end,
-        "expression" => expr_tag.expression.as_json().clone(),
+        "expression" => expression_json(&expr_tag.expression, positions),
     }
 }
 
-fn convert_html_tag(html_tag: &HtmlTag) -> Value {
+fn convert_html_tag(html_tag: &HtmlTag, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "RawMustacheTag",
         "start": html_tag.start,
         "end": html_tag.end,
-        "expression" => html_tag.expression.as_json().clone(),
+        "expression" => expression_json(&html_tag.expression, positions),
     }
 }
 
-fn convert_const_tag(const_tag: &ConstTag) -> Value {
+fn convert_const_tag(const_tag: &ConstTag, positions: &Utf8ToUtf16) -> Value {
     // Convert ConstTag to legacy format with AssignmentExpression
-    let declaration = &const_tag.declaration.as_json();
+    let declaration = declaration_json(&const_tag.declaration, positions);
 
     // Extract the declarator from the VariableDeclaration
     if let Some(declarations) = declaration.get("declarations").and_then(|d| d.as_array())
@@ -558,18 +861,21 @@ fn convert_const_tag(const_tag: &ConstTag) -> Value {
             .unwrap_or(0);
         let decl_end = declaration.get("end").and_then(|s| s.as_u64()).unwrap_or(0);
 
+        let mut expression = json!({
+            "type": "AssignmentExpression",
+            "start": decl_start + 6, // Skip 'const '
+            "end": decl_end,
+            "operator": "=",
+            "left": id,
+            "right": init
+        });
+        add_estree_locs(&mut expression, positions);
+
         return estree_obj! {
             "type": "ConstTag",
             "start": const_tag.start,
             "end": const_tag.end,
-            "expression": json!({
-                "type": "AssignmentExpression",
-                "start": decl_start + 6, // Skip 'const '
-                "end": decl_end,
-                "operator": "=",
-                "left": id,
-                "right": init
-            }),
+            "expression" => expression,
         };
     }
 
@@ -578,7 +884,7 @@ fn convert_const_tag(const_tag: &ConstTag) -> Value {
         "type": "ConstTag",
         "start": const_tag.start,
         "end": const_tag.end,
-        "expression": const_tag.declaration.as_json()
+        "expression": declaration_json(&const_tag.declaration, positions)
     })
 }
 
@@ -589,16 +895,19 @@ fn convert_const_tag(const_tag: &ConstTag) -> Value {
 /// `AssignmentExpression` is intentionally NOT emitted because legacy
 /// consumers (svelte2tsx, etc.) expect the declaration kind (`let` / `const`)
 /// and may have multiple declarators.
-fn convert_declaration_tag(decl_tag: &crate::ast::template::DeclarationTag) -> Value {
+fn convert_declaration_tag(
+    decl_tag: &crate::ast::template::DeclarationTag,
+    positions: &Utf8ToUtf16,
+) -> Value {
     estree_obj! {
         "type": "DeclarationTag",
         "start": decl_tag.start,
         "end": decl_tag.end,
-        "declaration" => decl_tag.declaration.as_json().clone(),
+        "declaration" => declaration_json(&decl_tag.declaration, positions),
     }
 }
 
-fn convert_debug_tag(debug_tag: &DebugTag) -> Value {
+fn convert_debug_tag(debug_tag: &DebugTag, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "DebugTag",
         "start": debug_tag.start,
@@ -606,30 +915,30 @@ fn convert_debug_tag(debug_tag: &DebugTag) -> Value {
         "identifiers": debug_tag
             .identifiers
             .iter()
-            .map(|e| e.as_json().clone())
+            .map(|e| expression_json(e, positions))
             .collect::<Vec<_>>(),
     }
 }
 
-fn convert_render_tag(render_tag: &RenderTag) -> Value {
+fn convert_render_tag(render_tag: &RenderTag, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "RenderTag",
         "start": render_tag.start,
         "end": render_tag.end,
-        "expression" => render_tag.expression.as_json().clone(),
+        "expression" => expression_json(&render_tag.expression, positions),
     }
 }
 
-fn convert_attach_tag(attach_tag: &AttachTag) -> Value {
+fn convert_attach_tag(attach_tag: &AttachTag, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "AttachTag",
         "start": attach_tag.start,
         "end": attach_tag.end,
-        "expression" => attach_tag.expression.as_json().clone(),
+        "expression" => expression_json(&attach_tag.expression, positions),
     }
 }
 
-fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
+fn convert_if_block(source: &str, if_block: &IfBlock, positions: &Utf8ToUtf16) -> Value {
     let mut else_block = None;
 
     if let Some(ref alternate) = if_block.alternate {
@@ -659,7 +968,7 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
             "type": "ElseBlock",
             "start": start,
             "end": end,
-            "children" => children_json(source, &alt_nodes, &[]),
+            "children" => children_json(source, &alt_nodes, &[], positions),
         });
     }
 
@@ -685,8 +994,8 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
         "type": "IfBlock",
         "start": start,
         "end": if_block.end,
-        "expression" => if_block.test.as_json().clone(),
-        "children" => children_json(source, &consequent_nodes, &[]),
+        "expression" => expression_json(&if_block.test, positions),
+        "children" => children_json(source, &consequent_nodes, &[], positions),
     );
     if let Some(else_block) = else_block {
         estree_fields!(result, "else" => else_block);
@@ -697,7 +1006,7 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
     Value::Object(result)
 }
 
-fn convert_each_block(source: &str, each_block: &EachBlock) -> Value {
+fn convert_each_block(source: &str, each_block: &EachBlock, positions: &Utf8ToUtf16) -> Value {
     let mut else_block = None;
 
     if let Some(ref fallback) = each_block.fallback {
@@ -715,7 +1024,7 @@ fn convert_each_block(source: &str, each_block: &EachBlock) -> Value {
             "type": "ElseBlock",
             "start": start,
             "end": end,
-            "children" => children_json(source, &fallback_nodes, &[]),
+            "children" => children_json(source, &fallback_nodes, &[], positions),
         });
     }
 
@@ -728,19 +1037,19 @@ fn convert_each_block(source: &str, each_block: &EachBlock) -> Value {
         "type": "EachBlock",
         "start": each_block.start,
         "end": each_block.end,
-        "children" => children_json(source, &body_nodes, &[]),
+        "children" => children_json(source, &body_nodes, &[], positions),
         "context" => each_block
             .context
             .as_ref()
-            .map(|c| c.as_json().clone())
+            .map(|c| binding_json(c, positions))
             .unwrap_or(json!(null)),
-        "expression" => each_block.expression.as_json().clone(),
+        "expression" => expression_json(&each_block.expression, positions),
     );
     if let Some(ref index) = each_block.index {
         estree_fields!(result, "index": index.as_str());
     }
     if let Some(ref key) = each_block.key {
-        estree_fields!(result, "key" => key.as_json().clone());
+        estree_fields!(result, "key" => expression_json(key, positions));
     }
     if let Some(else_block) = else_block {
         estree_fields!(result, "else" => else_block);
@@ -748,11 +1057,10 @@ fn convert_each_block(source: &str, each_block: &EachBlock) -> Value {
     Value::Object(result)
 }
 
-fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
+fn convert_await_block(source: &str, await_block: &AwaitBlock, positions: &Utf8ToUtf16) -> Value {
     // Get expression end position
-    let expr_end = await_block
-        .expression
-        .as_json()
+    let expression = expression_json(&await_block.expression, positions);
+    let expr_end = expression
         .get("end")
         .and_then(|e| e.as_u64())
         .unwrap_or(await_block.start as u64) as usize;
@@ -783,7 +1091,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
             "type": "PendingBlock",
             "start": start,
             "end": end,
-            "children" => children_json(source, &pending.nodes, &[]),
+            "children" => children_json(source, &pending.nodes, &[], positions),
             "skip": false,
         };
     }
@@ -815,7 +1123,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
             "type": "ThenBlock",
             "start": start,
             "end": end,
-            "children" => children_json(source, &then.nodes, &[]),
+            "children" => children_json(source, &then.nodes, &[], positions),
             "skip": false,
         };
     }
@@ -848,7 +1156,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
             "type": "CatchBlock",
             "start": start,
             "end": end,
-            "children" => children_json(source, &catch.nodes, &[]),
+            "children" => children_json(source, &catch.nodes, &[], positions),
             "skip": false,
         };
     }
@@ -857,16 +1165,16 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
         "type": "AwaitBlock",
         "start": await_block.start,
         "end": await_block.end,
-        "expression" => await_block.expression.as_json().clone(),
+        "expression" => expression,
         "value" => await_block
             .value
             .as_ref()
-            .map(|v| v.as_json().clone())
+            .map(|v| binding_json(v, positions))
             .unwrap_or(json!(null)),
         "error" => await_block
             .error
             .as_ref()
-            .map(|e| e.as_json().clone())
+            .map(|e| binding_json(e, positions))
             .unwrap_or(json!(null)),
         "pending" => pending_block,
         "then" => then_block,
@@ -874,7 +1182,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
     }
 }
 
-fn convert_key_block(source: &str, key_block: &KeyBlock) -> Value {
+fn convert_key_block(source: &str, key_block: &KeyBlock, positions: &Utf8ToUtf16) -> Value {
     let mut fragment_nodes = key_block.fragment.nodes.clone();
     remove_surrounding_whitespace_nodes(&mut fragment_nodes);
 
@@ -882,12 +1190,16 @@ fn convert_key_block(source: &str, key_block: &KeyBlock) -> Value {
         "type": "KeyBlock",
         "start": key_block.start,
         "end": key_block.end,
-        "expression" => key_block.expression.as_json().clone(),
-        "children" => children_json(source, &fragment_nodes, &[]),
+        "expression" => expression_json(&key_block.expression, positions),
+        "children" => children_json(source, &fragment_nodes, &[], positions),
     }
 }
 
-fn convert_snippet_block(source: &str, snippet_block: &SnippetBlock) -> Value {
+fn convert_snippet_block(
+    source: &str,
+    snippet_block: &SnippetBlock,
+    positions: &Utf8ToUtf16,
+) -> Value {
     let mut body_nodes = snippet_block.body.nodes.clone();
     remove_surrounding_whitespace_nodes(&mut body_nodes);
 
@@ -897,13 +1209,13 @@ fn convert_snippet_block(source: &str, snippet_block: &SnippetBlock) -> Value {
         "type": "SnippetBlock",
         "start": snippet_block.start,
         "end": snippet_block.end,
-        "expression" => snippet_block.expression.as_json().clone(),
+        "expression" => binding_json(&snippet_block.expression, positions),
         "parameters": snippet_block
             .parameters
             .iter()
-            .map(|p| p.as_json().clone())
+            .map(|p| expression_json(p, positions))
             .collect::<Vec<_>>(),
-        "children" => children_json(source, &body_nodes, &[]),
+        "children" => children_json(source, &body_nodes, &[], positions),
     );
     if let Some(ref type_params) = snippet_block.type_params {
         estree_fields!(result, "typeParams": type_params.as_str());
@@ -925,14 +1237,15 @@ fn convert_element_like(
     attributes: &[Attribute],
     nodes: &[TemplateNode],
     path: &[&str],
+    positions: &Utf8ToUtf16,
 ) -> Value {
     estree_obj! {
         "type": ty,
         "start": start,
         "end": end,
         "name": name,
-        "attributes" => attrs_json(source, attributes),
-        "children" => children_json(source, nodes, path),
+        "attributes" => attrs_json(source, attributes, positions),
+        "children" => children_json(source, nodes, path, positions),
     }
 }
 
@@ -944,18 +1257,23 @@ fn convert_svelte_element_like(
     name: &str,
     element: &SvelteElement,
     nodes: &[TemplateNode],
+    positions: &Utf8ToUtf16,
 ) -> Value {
     estree_obj! {
         "type": ty,
         "name": name,
         "start": element.start,
         "end": element.end,
-        "attributes" => attrs_json(source, &element.attributes),
-        "children" => children_json(source, nodes, &[]),
+        "attributes" => attrs_json(source, &element.attributes, positions),
+        "children" => children_json(source, nodes, &[], positions),
     }
 }
 
-fn convert_regular_element(source: &str, element: &RegularElement) -> Value {
+fn convert_regular_element(
+    source: &str,
+    element: &RegularElement,
+    positions: &Utf8ToUtf16,
+) -> Value {
     let path: &[&str] = if element.name.as_str() == "style" {
         &["style"]
     } else {
@@ -971,10 +1289,11 @@ fn convert_regular_element(source: &str, element: &RegularElement) -> Value {
         &element.attributes,
         &element.fragment.nodes,
         path,
+        positions,
     )
 }
 
-fn convert_component(source: &str, component: &Component) -> Value {
+fn convert_component(source: &str, component: &Component, positions: &Utf8ToUtf16) -> Value {
     convert_element_like(
         source,
         "InlineComponent",
@@ -984,21 +1303,22 @@ fn convert_component(source: &str, component: &Component) -> Value {
         &component.attributes,
         &component.fragment.nodes,
         &[],
+        positions,
     )
 }
 
-fn convert_title_element(source: &str, title: &TitleElement) -> Value {
+fn convert_title_element(source: &str, title: &TitleElement, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "Title",
         "name": "title",
         "start": title.start,
         "end": title.end,
-        "attributes" => attrs_json(source, &title.attributes),
-        "children" => children_json(source, &title.fragment.nodes, &[]),
+        "attributes" => attrs_json(source, &title.attributes, positions),
+        "children" => children_json(source, &title.fragment.nodes, &[], positions),
     }
 }
 
-fn convert_slot_element(source: &str, slot: &SlotElement) -> Value {
+fn convert_slot_element(source: &str, slot: &SlotElement, positions: &Utf8ToUtf16) -> Value {
     convert_element_like(
         source,
         "Slot",
@@ -1008,59 +1328,73 @@ fn convert_slot_element(source: &str, slot: &SlotElement) -> Value {
         &slot.attributes,
         &slot.fragment.nodes,
         &[],
+        positions,
     )
 }
 
-fn convert_svelte_body(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_body(source: &str, element: &SvelteElement, positions: &Utf8ToUtf16) -> Value {
     convert_svelte_element_like(
         source,
         "Body",
         "svelte:body",
         element,
         &element.fragment.nodes,
+        positions,
     )
 }
 
-fn convert_svelte_component(source: &str, element: &SvelteComponentElement) -> Value {
+fn convert_svelte_component(
+    source: &str,
+    element: &SvelteComponentElement,
+    positions: &Utf8ToUtf16,
+) -> Value {
     estree_obj! {
         "type": "InlineComponent",
         "name": "svelte:component",
         "start": element.start,
         "end": element.end,
-        "expression" => element.expression.as_json().clone(),
-        "attributes" => attrs_json(source, &element.attributes),
-        "children" => children_json(source, &element.fragment.nodes, &[]),
+        "expression" => expression_json(&element.expression, positions),
+        "attributes" => attrs_json(source, &element.attributes, positions),
+        "children" => children_json(source, &element.fragment.nodes, &[], positions),
     }
 }
 
-fn convert_svelte_document(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_document(
+    source: &str,
+    element: &SvelteElement,
+    positions: &Utf8ToUtf16,
+) -> Value {
     convert_svelte_element_like(
         source,
         "Document",
         "svelte:document",
         element,
         &element.fragment.nodes,
+        positions,
     )
 }
 
-fn convert_svelte_element(source: &str, element: &SvelteDynamicElement) -> Value {
+fn convert_svelte_element(
+    source: &str,
+    element: &SvelteDynamicElement,
+    positions: &Utf8ToUtf16,
+) -> Value {
     // Check if tag is a literal string and source doesn't have braces
-    let tag_start = element
-        .tag
-        .as_json()
+    let tag_expression = expression_json(&element.tag, positions);
+    let tag_start = tag_expression
         .get("start")
         .and_then(|s| s.as_u64())
         .unwrap_or(0) as usize;
     let has_braces = tag_start > 0 && source.as_bytes().get(tag_start - 1) == Some(&b'{');
 
     let tag = if !has_braces {
-        if let Some(value) = element.tag.as_json().get("value").and_then(|v| v.as_str()) {
+        if let Some(value) = tag_expression.get("value").and_then(|v| v.as_str()) {
             json!(value)
         } else {
-            element.tag.as_json().clone()
+            tag_expression
         }
     } else {
-        element.tag.as_json().clone()
+        tag_expression
     };
 
     estree_obj! {
@@ -1069,22 +1403,31 @@ fn convert_svelte_element(source: &str, element: &SvelteDynamicElement) -> Value
         "start": element.start,
         "end": element.end,
         "tag" => tag,
-        "attributes" => attrs_json(source, &element.attributes),
-        "children" => children_json(source, &element.fragment.nodes, &[]),
+        "attributes" => attrs_json(source, &element.attributes, positions),
+        "children" => children_json(source, &element.fragment.nodes, &[], positions),
     }
 }
 
-fn convert_svelte_fragment(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_fragment(
+    source: &str,
+    element: &SvelteElement,
+    positions: &Utf8ToUtf16,
+) -> Value {
     convert_svelte_element_like(
         source,
         "SlotTemplate",
         "svelte:fragment",
         element,
         &element.fragment.nodes,
+        positions,
     )
 }
 
-fn convert_svelte_boundary(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_boundary(
+    source: &str,
+    element: &SvelteElement,
+    positions: &Utf8ToUtf16,
+) -> Value {
     let mut fragment_nodes = element.fragment.nodes.clone();
     remove_surrounding_whitespace_nodes(&mut fragment_nodes);
 
@@ -1094,20 +1437,22 @@ fn convert_svelte_boundary(source: &str, element: &SvelteElement) -> Value {
         "svelte:boundary",
         element,
         &fragment_nodes,
+        positions,
     )
 }
 
-fn convert_svelte_head(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_head(source: &str, element: &SvelteElement, positions: &Utf8ToUtf16) -> Value {
     convert_svelte_element_like(
         source,
         "Head",
         "svelte:head",
         element,
         &element.fragment.nodes,
+        positions,
     )
 }
 
-fn convert_svelte_options(element: &SvelteElement) -> Value {
+fn convert_svelte_options(element: &SvelteElement, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "Options",
         "name": "svelte:options",
@@ -1118,7 +1463,7 @@ fn convert_svelte_options(element: &SvelteElement) -> Value {
             .iter()
             .filter_map(|a| {
                 if let Attribute::Attribute(attr) = a {
-                    Some(convert_attribute_node(attr))
+                    Some(convert_attribute_node(attr, positions))
                 } else {
                     None
                 }
@@ -1127,44 +1472,48 @@ fn convert_svelte_options(element: &SvelteElement) -> Value {
     }
 }
 
-fn convert_svelte_self(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_self(source: &str, element: &SvelteElement, positions: &Utf8ToUtf16) -> Value {
     convert_svelte_element_like(
         source,
         "InlineComponent",
         "svelte:self",
         element,
         &element.fragment.nodes,
+        positions,
     )
 }
 
-fn convert_svelte_window(source: &str, element: &SvelteElement) -> Value {
+fn convert_svelte_window(source: &str, element: &SvelteElement, positions: &Utf8ToUtf16) -> Value {
     convert_svelte_element_like(
         source,
         "Window",
         "svelte:window",
         element,
         &element.fragment.nodes,
+        positions,
     )
 }
 
-fn convert_attribute(source: &str, attr: &Attribute) -> Value {
+fn convert_attribute(source: &str, attr: &Attribute, positions: &Utf8ToUtf16) -> Value {
     match attr {
-        Attribute::Attribute(node) => convert_attribute_node(node),
-        Attribute::SpreadAttribute(spread) => convert_spread_attribute(spread),
-        Attribute::AttachTag(attach) => convert_attach_tag(attach),
-        Attribute::BindDirective(bind) => convert_bind_directive(bind),
-        Attribute::OnDirective(on) => convert_on_directive(on),
-        Attribute::ClassDirective(class) => convert_class_directive(class),
-        Attribute::StyleDirective(style) => convert_style_directive(source, style),
-        Attribute::TransitionDirective(transition) => convert_transition_directive(transition),
-        Attribute::AnimateDirective(animate) => convert_animate_directive(animate),
-        Attribute::UseDirective(use_dir) => convert_use_directive(use_dir),
-        Attribute::LetDirective(let_dir) => convert_let_directive(let_dir),
+        Attribute::Attribute(node) => convert_attribute_node(node, positions),
+        Attribute::SpreadAttribute(spread) => convert_spread_attribute(spread, positions),
+        Attribute::AttachTag(attach) => convert_attach_tag(attach, positions),
+        Attribute::BindDirective(bind) => convert_bind_directive(bind, positions),
+        Attribute::OnDirective(on) => convert_on_directive(on, positions),
+        Attribute::ClassDirective(class) => convert_class_directive(class, positions),
+        Attribute::StyleDirective(style) => convert_style_directive(source, style, positions),
+        Attribute::TransitionDirective(transition) => {
+            convert_transition_directive(transition, positions)
+        }
+        Attribute::AnimateDirective(animate) => convert_animate_directive(animate, positions),
+        Attribute::UseDirective(use_dir) => convert_use_directive(use_dir, positions),
+        Attribute::LetDirective(let_dir) => convert_let_directive(let_dir, positions),
     }
 }
 
-fn convert_attribute_node(attr: &AttributeNode) -> Value {
-    let value = convert_attribute_value(&attr.value, attr.start, &attr.name);
+fn convert_attribute_node(attr: &AttributeNode, positions: &Utf8ToUtf16) -> Value {
+    let value = convert_attribute_value(&attr.value, attr.start, &attr.name, positions);
 
     let mut result = Map::new();
     estree_fields!(
@@ -1179,7 +1528,12 @@ fn convert_attribute_node(attr: &AttributeNode) -> Value {
     Value::Object(result)
 }
 
-fn convert_attribute_value(value: &AttributeValue, attr_start: u32, _attr_name: &str) -> Value {
+fn convert_attribute_value(
+    value: &AttributeValue,
+    attr_start: u32,
+    _attr_name: &str,
+    positions: &Utf8ToUtf16,
+) -> Value {
     match value {
         AttributeValue::True(true) => json!(true),
         AttributeValue::True(false) => json!(false),
@@ -1192,10 +1546,10 @@ fn convert_attribute_value(value: &AttributeValue, attr_start: u32, _attr_name: 
 
             if is_shorthand {
                 // Shorthand attribute: {id} -> AttributeShorthand
-                json!([convert_expression_tag(expr_tag, &["Attribute"])])
+                json!([convert_expression_tag(expr_tag, &["Attribute"], positions)])
             } else {
                 // Named attribute with expression value: b={''} -> MustacheTag
-                json!([convert_expression_tag(expr_tag, &[])])
+                json!([convert_expression_tag(expr_tag, &[], positions)])
             }
         }
         AttributeValue::Sequence(parts) => {
@@ -1205,7 +1559,7 @@ fn convert_attribute_value(value: &AttributeValue, attr_start: u32, _attr_name: 
                     .map(|part| match part {
                         AttributeValuePart::Text(text) => convert_text(text, &[]),
                         AttributeValuePart::ExpressionTag(expr_tag) => {
-                            convert_expression_tag(expr_tag, &[])
+                            convert_expression_tag(expr_tag, &[], positions)
                         }
                     })
                     .collect::<Vec<_>>()
@@ -1214,16 +1568,16 @@ fn convert_attribute_value(value: &AttributeValue, attr_start: u32, _attr_name: 
     }
 }
 
-fn convert_spread_attribute(spread: &SpreadAttribute) -> Value {
+fn convert_spread_attribute(spread: &SpreadAttribute, positions: &Utf8ToUtf16) -> Value {
     estree_obj! {
         "type": "Spread",
         "start": spread.start,
         "end": spread.end,
-        "expression" => spread.expression.as_json().clone(),
+        "expression" => expression_json(&spread.expression, positions),
     }
 }
 
-fn convert_bind_directive(bind: &BindDirective) -> Value {
+fn convert_bind_directive(bind: &BindDirective, positions: &Utf8ToUtf16) -> Value {
     let mut result = directive_head(
         bind.start,
         bind.end,
@@ -1233,7 +1587,7 @@ fn convert_bind_directive(bind: &BindDirective) -> Value {
     );
 
     // For shorthand bindings (bind:foo), strip the loc field from expression
-    let mut expression = bind.expression.as_json().clone();
+    let mut expression = expression_json(&bind.expression, positions);
     let is_shorthand = expression
         .get("type")
         .and_then(|t| t.as_str())
@@ -1254,7 +1608,7 @@ fn convert_bind_directive(bind: &BindDirective) -> Value {
     Value::Object(result)
 }
 
-fn convert_on_directive(on: &OnDirective) -> Value {
+fn convert_on_directive(on: &OnDirective, positions: &Utf8ToUtf16) -> Value {
     let mut result = directive_head(
         on.start,
         on.end,
@@ -1267,14 +1621,14 @@ fn convert_on_directive(on: &OnDirective) -> Value {
         "expression" => on
             .expression
             .as_ref()
-            .map(|e| e.as_json().clone())
+            .map(|e| expression_json(e, positions))
             .unwrap_or(json!(null)),
         "modifiers": on.modifiers,
     );
     Value::Object(result)
 }
 
-fn convert_class_directive(class: &ClassDirective) -> Value {
+fn convert_class_directive(class: &ClassDirective, positions: &Utf8ToUtf16) -> Value {
     let mut result = directive_head(
         class.start,
         class.end,
@@ -1284,19 +1638,23 @@ fn convert_class_directive(class: &ClassDirective) -> Value {
     );
     estree_fields!(
         result,
-        "expression" => class.expression.as_json().clone(),
+        "expression" => expression_json(&class.expression, positions),
         "modifiers": [] as [Value; 0],
     );
     Value::Object(result)
 }
 
-fn convert_style_directive(_source: &str, style: &StyleDirective) -> Value {
+fn convert_style_directive(
+    _source: &str,
+    style: &StyleDirective,
+    positions: &Utf8ToUtf16,
+) -> Value {
     let mustache = |expr_tag: &ExpressionTag| {
         estree_obj! {
             "type": "MustacheTag",
             "start": expr_tag.start,
             "end": expr_tag.end,
-            "expression" => expr_tag.expression.as_json().clone(),
+            "expression" => expression_json(&expr_tag.expression, positions),
         }
     };
 
@@ -1334,7 +1692,10 @@ fn convert_style_directive(_source: &str, style: &StyleDirective) -> Value {
     Value::Object(result)
 }
 
-fn convert_transition_directive(transition: &TransitionDirective) -> Value {
+fn convert_transition_directive(
+    transition: &TransitionDirective,
+    positions: &Utf8ToUtf16,
+) -> Value {
     let mut result = directive_head(
         transition.start,
         transition.end,
@@ -1344,7 +1705,7 @@ fn convert_transition_directive(transition: &TransitionDirective) -> Value {
     );
     estree_fields!(
         result,
-        "expression" => optional_expression(transition.expression.as_ref()),
+        "expression" => optional_expression(transition.expression.as_ref(), positions),
         "modifiers": transition.modifiers,
         "intro": transition.intro,
         "outro": transition.outro,
@@ -1352,7 +1713,7 @@ fn convert_transition_directive(transition: &TransitionDirective) -> Value {
     Value::Object(result)
 }
 
-fn convert_animate_directive(animate: &AnimateDirective) -> Value {
+fn convert_animate_directive(animate: &AnimateDirective, positions: &Utf8ToUtf16) -> Value {
     let mut result = directive_head(
         animate.start,
         animate.end,
@@ -1362,13 +1723,13 @@ fn convert_animate_directive(animate: &AnimateDirective) -> Value {
     );
     estree_fields!(
         result,
-        "expression" => optional_expression(animate.expression.as_ref()),
+        "expression" => optional_expression(animate.expression.as_ref(), positions),
         "modifiers": [] as [Value; 0],
     );
     Value::Object(result)
 }
 
-fn convert_use_directive(use_dir: &UseDirective) -> Value {
+fn convert_use_directive(use_dir: &UseDirective, positions: &Utf8ToUtf16) -> Value {
     let mut result = directive_head(
         use_dir.start,
         use_dir.end,
@@ -1378,13 +1739,13 @@ fn convert_use_directive(use_dir: &UseDirective) -> Value {
     );
     estree_fields!(
         result,
-        "expression" => optional_expression(use_dir.expression.as_ref()),
+        "expression" => optional_expression(use_dir.expression.as_ref(), positions),
         "modifiers": [] as [Value; 0],
     );
     Value::Object(result)
 }
 
-fn convert_let_directive(let_dir: &LetDirective) -> Value {
+fn convert_let_directive(let_dir: &LetDirective, positions: &Utf8ToUtf16) -> Value {
     let mut result = directive_head(
         let_dir.start,
         let_dir.end,
@@ -1394,27 +1755,32 @@ fn convert_let_directive(let_dir: &LetDirective) -> Value {
     );
     estree_fields!(
         result,
-        "expression" => optional_expression(let_dir.expression.as_ref()),
+        "expression" => optional_expression(let_dir.expression.as_ref(), positions),
     );
     Value::Object(result)
 }
 
 // Helper functions
 
-fn attrs_json(source: &str, attributes: &[Attribute]) -> Value {
+fn attrs_json(source: &str, attributes: &[Attribute], positions: &Utf8ToUtf16) -> Value {
     json!(
         attributes
             .iter()
-            .map(|a| convert_attribute(source, a))
+            .map(|a| convert_attribute(source, a, positions))
             .collect::<Vec<_>>()
     )
 }
 
-fn children_json(source: &str, nodes: &[TemplateNode], path: &[&str]) -> Value {
+fn children_json(
+    source: &str,
+    nodes: &[TemplateNode],
+    path: &[&str],
+    positions: &Utf8ToUtf16,
+) -> Value {
     json!(
         nodes
             .iter()
-            .map(|n| convert_node(source, n, path))
+            .map(|n| convert_node(source, n, path, positions))
             .collect::<Vec<_>>()
     )
 }
@@ -1445,9 +1811,9 @@ fn directive_head(
     obj
 }
 
-fn optional_expression(expression: Option<&Expression>) -> Value {
+fn optional_expression(expression: Option<&Expression>, positions: &Utf8ToUtf16) -> Value {
     expression
-        .map(|e| e.as_json().clone())
+        .map(|e| expression_json(e, positions))
         .unwrap_or(json!(null))
 }
 

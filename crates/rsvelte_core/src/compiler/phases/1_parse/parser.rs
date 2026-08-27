@@ -246,22 +246,18 @@ impl<'a> Parser<'a> {
         // a previous (possibly errored) parse on this thread.
         let _ = crate::compiler::phases::phase1_parse::read::expression::take_expr_comments();
 
-        // Calculate line offsets for location calculation using SIMD-accelerated memchr.
-        // Skip entirely in compilation mode where line/column info is never used.
+        // Calculate line offsets for directive `name_loc` values. Compilation
+        // omits expression locations, but name locations remain part of the
+        // typed AST and are cheap enough to retain unconditionally.
         let bytes = source.as_bytes();
-        let line_offsets = if options.skip_expression_loc {
-            Vec::new()
-        } else {
-            let mut offsets = Vec::with_capacity(bytes.len() / 40 + 1); // rough estimate
-            offsets.push(0);
-            let mut pos = 0;
-            while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
-                let abs = pos + offset;
-                offsets.push(abs + 1);
-                pos = abs + 1;
-            }
-            offsets
-        };
+        let mut line_offsets = Vec::with_capacity(bytes.len() / 40 + 1); // rough estimate
+        line_offsets.push(0);
+        let mut pos = 0;
+        while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+            let abs = pos + offset;
+            line_offsets.push(abs + 1);
+            pos = abs + 1;
+        }
 
         // Detect TypeScript mode by looking for lang="ts" in script tags
         // Corresponds to the TypeScript detection logic in JavaScript Parser constructor.
@@ -311,17 +307,16 @@ impl<'a> Parser<'a> {
         self.stack.clear();
         self.stack.push(StackEntry::Root);
 
-        // Recompute line offsets only if needed
+        // Recompute line offsets for directive name locations. Expression
+        // parsers still receive an empty slice in compilation mode.
         self.line_offsets.clear();
-        if !options.skip_expression_loc {
-            self.line_offsets.push(0);
-            let bytes = source.as_bytes();
-            let mut pos = 0;
-            while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
-                let abs = pos + offset;
-                self.line_offsets.push(abs + 1);
-                pos = abs + 1;
-            }
+        self.line_offsets.push(0);
+        let bytes = source.as_bytes();
+        let mut pos = 0;
+        while let Some(offset) = memchr::memchr(b'\n', &bytes[pos..]) {
+            let abs = pos + offset;
+            self.line_offsets.push(abs + 1);
+            pos = abs + 1;
         }
 
         self.ts = options.force_typescript || Self::detect_typescript_mode(source);
@@ -519,15 +514,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Create name_loc, returning None when skip_expression_loc is enabled (compilation mode).
-    /// This avoids expensive binary searches for line/column when the data is never used.
+    /// Create the directive `name_loc`. Unlike expression locations, this is
+    /// retained in compilation mode because typed consumers read it directly.
     #[inline]
     pub fn create_name_loc_optional(&self, start: usize, end: usize) -> Option<SourceLocation> {
-        if self.options.skip_expression_loc {
-            None
-        } else {
-            Some(self.create_name_loc(start, end))
-        }
+        Some(self.create_name_loc(start, end))
     }
 
     // =========================================================================

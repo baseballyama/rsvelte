@@ -85,3 +85,116 @@ fn a_module_script_and_style_reach_their_legacy_keys() {
     assert_eq!(ast["instance"]["type"], "Script");
     assert_eq!(ast["html"]["type"], "Fragment");
 }
+
+fn assert_loc(node: &Value, start: usize, end: usize, character: bool) {
+    assert_eq!(node["start"], start);
+    assert_eq!(node["end"], end);
+    assert!(node.get("loc").is_some(), "{} has no loc", node["type"]);
+    assert_eq!(node["loc"]["start"]["character"].is_number(), character);
+    assert_eq!(node["loc"]["end"]["character"].is_number(), character);
+    if character {
+        assert_eq!(node["loc"]["start"]["character"], start);
+        assert_eq!(node["loc"]["end"]["character"], end);
+    }
+}
+
+#[test]
+fn compilation_rebuilds_legacy_expression_locations_at_the_json_boundary() {
+    let source = concat!(
+        "{#each items as item}{item}{@const local = item + 1}{local}{/each}",
+        "{#await promise then value}{value}{:catch error}{error}{/await}",
+        "{#snippet snip(param)}{param}{/snippet}",
+    );
+    let ast = ast_of(source, client_options());
+    let children = ast["html"]["children"].as_array().unwrap();
+
+    let each = &children[0];
+    // Skip the `item` substring in the collection name `items`; the remaining
+    // matches are the context binding and its two identifier uses.
+    let item_positions: Vec<_> = source
+        .match_indices("item")
+        .skip(1)
+        .map(|(i, _)| i)
+        .collect();
+    assert_loc(
+        &each["context"],
+        item_positions[0],
+        item_positions[0] + 4,
+        true,
+    );
+    let items = source.find("items").unwrap();
+    assert_loc(&each["expression"], items, items + 5, false);
+    assert_loc(
+        &each["children"][0]["expression"],
+        item_positions[1],
+        item_positions[1] + 4,
+        false,
+    );
+
+    let assignment = &each["children"][1]["expression"];
+    let local = source.find("local =").unwrap();
+    let one = source.find("1}").unwrap();
+    assert_loc(assignment, local, one + 1, false);
+    assert_loc(&assignment["left"], local, local + 5, true);
+    assert_loc(&assignment["right"], item_positions[2], one + 1, false);
+    assert_loc(
+        &assignment["right"]["left"],
+        item_positions[2],
+        item_positions[2] + 4,
+        false,
+    );
+
+    let await_block = &children[1];
+    let promise = source.find("promise").unwrap();
+    assert_loc(&await_block["expression"], promise, promise + 7, false);
+    let value = source.find("value}").unwrap();
+    assert_loc(&await_block["value"], value, value + 5, true);
+    let error = source.find("error}").unwrap();
+    assert_loc(&await_block["error"], error, error + 5, true);
+
+    let snippet = &children[2];
+    let snip = source.find("snip(").unwrap();
+    assert_loc(&snippet["expression"], snip, snip + 4, true);
+    let param = source.find("param)").unwrap();
+    assert_loc(&snippet["parameters"][0], param, param + 5, false);
+}
+
+#[test]
+fn complex_binding_locations_keep_upstreams_empty_line_column_quirk() {
+    let source = "{#each items as\n\n  { value }}{value}{/each}";
+    let ast = ast_of(source, client_options());
+    let context = &ast["html"]["children"][0]["context"];
+    let pattern_start = source.find("{ value }").unwrap();
+
+    assert_loc(context, pattern_start, pattern_start + 9, false);
+    assert_eq!(context["loc"]["start"]["line"], 3);
+    assert_eq!(context["loc"]["start"]["column"], 3);
+    assert_eq!(context["properties"][0]["key"]["loc"]["start"]["column"], 5);
+}
+
+#[test]
+fn compilation_rebuilds_legacy_comment_locations_at_the_json_boundary() {
+    let source = concat!(
+        "<script>\n",
+        "\t// script comment\n",
+        "</script>\n",
+        "<button\n",
+        "\t/* attribute comment */\n",
+        ">ok</button>",
+    );
+    let ast = ast_of(source, client_options());
+    let comments = ast["_comments"].as_array().unwrap();
+    assert_eq!(comments.len(), 2);
+
+    let script_start = source.find("// script comment").unwrap();
+    let script_end = script_start + "// script comment".len();
+    assert_loc(&comments[0], script_start, script_end, false);
+    assert_eq!(comments[0]["loc"]["start"]["line"], 2);
+    assert_eq!(comments[0]["loc"]["start"]["column"], 1);
+
+    let attribute_start = source.find("/* attribute comment */").unwrap();
+    let attribute_end = attribute_start + "/* attribute comment */".len();
+    assert_loc(&comments[1], attribute_start, attribute_end, true);
+    assert_eq!(comments[1]["loc"]["start"]["line"], 5);
+    assert_eq!(comments[1]["loc"]["start"]["column"], 1);
+}

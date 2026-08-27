@@ -2654,21 +2654,22 @@ which build the map in Rust. Neither covers `compileBuffers`, `compileModuleBuff
 `*ZeroCopy` entries, or `compileModule`'s map — and no assertion generalizes: each is a named
 field on a named entry.
 
-### 22g — the legacy `result.ast` is compared as a top-level KEY SET, nothing below it [D]
+### 22g — this gate compares the legacy `result.ast` as a top-level KEY SET only [D]
 
 `modernAst: true` is compared to official as a whole canonicalized tree; the **default** `ast` —
-the Svelte-4 legacy tree, wired in #3295 — is compared only as `Object.keys(ast).sort()`, so
-`{css, html, instance, module, _comments}` agreeing is the entire verdict. Everything inside is
-unobserved here and nowhere else: no gate in this repo compares the legacy tree's contents on
-either shape. Measured over 400 `runtime-legacy` components, **22 are byte-identical to official
-and 378 diverge** in nine classes (`.raw`/`.data` on 199 files from upstream's in-place
+the Svelte-4 legacy tree, wired in #3295 — is compared here only as `Object.keys(ast).sort()`, so
+`{css, html, instance, module, _comments}` agreeing is the entire verdict. The later public
+`parse()` AST gate (§39) now compares the legacy tree recursively over the full corpus, but that
+does not broaden this gate: if §39 is removed or filtered, this check cannot notice any value
+below those root keys. Before §39 existed, a measurement over 400 `runtime-legacy` components
+found **22 byte-identical to official and 378 divergent** in nine classes (`.raw`/`.data` on 199
+files from upstream's in-place
 `clean_nodes` mutation, expression `loc` coverage on 311 files, computed-key positions on 15,
 `.modifiers`, `_comments`/`leadingComments`/`trailingComments`, `name_loc`, `importKind`, an
 extra `attributes`) — every one of which this gate scores as a pass. The byte-exact pin is one
 component in `crates/rsvelte_core/tests/compile_result_legacy_ast_3295.rs`; a differential over
-the corpus is #3295's follow-up, not this gate. Official is round-tripped through JSON before its
-keys are read, because upstream assigns `undefined` to absent blocks and `Object.keys` reports
-those.
+the corpus is §39, not this gate. Official is round-tripped through JSON before its keys are read,
+because upstream assigns `undefined` to absent blocks and `Object.keys` reports those.
 
 ---
 

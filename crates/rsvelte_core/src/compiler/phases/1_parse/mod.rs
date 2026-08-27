@@ -232,6 +232,19 @@ pub fn compute_line_offsets(source: &str, skip: bool) -> Vec<usize> {
     offsets
 }
 
+/// Move comments collected while resolving deferred expressions and scripts
+/// into the public root comment list. The initial parser drains the same sink
+/// when it builds `Root`, but compilation performs these JavaScript parses only
+/// afterward during analysis.
+pub(crate) fn merge_deferred_comments(ast: &mut Root<'_>) {
+    let comments = read::expression::take_expr_comments();
+    if comments.is_empty() {
+        return;
+    }
+    ast.comments.extend(comments);
+    ast.comments.sort_by_key(|comment| comment.start);
+}
+
 /// Parse a standalone JavaScript / TypeScript module source into an
 /// ESTree-compatible JSON program (offsets are byte positions in `source`).
 ///

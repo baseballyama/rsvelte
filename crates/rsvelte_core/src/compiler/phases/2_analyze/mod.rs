@@ -111,6 +111,8 @@ pub fn analyze_component(
         return Err(parse_err.into());
     }
 
+    crate::compiler::phases::phase1_parse::merge_deferred_comments(ast);
+
     analyze_prepared_component(ast, source, options)
 }
 

@@ -42,6 +42,20 @@ fn assert_compile_result_eq(
 }
 
 #[test]
+fn compile_without_ast_preserves_every_encoded_field() {
+    let source = r#"<script>let count = $state(0);</script>
+<button onclick={() => count++}>{count}</button>"#;
+    let compile_options = options(GenerateMode::Client);
+    let normal = rsvelte_core::compile(source, compile_options.clone()).expect("normal compile");
+    let without_ast = rsvelte_core::compiler::compile_without_ast(source, compile_options)
+        .expect("compile without AST");
+
+    assert_compile_result_eq(&without_ast, &normal);
+    assert!(normal.ast.is_some());
+    assert!(without_ast.ast.is_none());
+}
+
+#[test]
 fn prepared_component_reuses_analysis_and_is_repeatable() {
     let source = r#"<script context="module" lang="ts">
   export const answer: number = 42;

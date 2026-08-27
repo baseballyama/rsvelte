@@ -434,10 +434,12 @@ impl<'source> PreparedComponent<'source> {
         let client = self.compile_mode_with_source_token_positions(
             GenerateMode::Client,
             true,
+            true,
             source_token_positions.as_mut(),
         )?;
         let server = self.compile_mode_with_source_token_positions(
             GenerateMode::Server,
+            true,
             true,
             source_token_positions.as_mut(),
         )?;
@@ -456,13 +458,32 @@ impl<'source> PreparedComponent<'source> {
         generate: GenerateMode,
         include_sourcemap_content: bool,
     ) -> Result<CompileResult, CompileError> {
-        self.compile_mode_with_source_token_positions(generate, include_sourcemap_content, None)
+        self.compile_mode_with_source_token_positions(
+            generate,
+            include_sourcemap_content,
+            true,
+            None,
+        )
+    }
+
+    pub(crate) fn compile_mode_without_ast(
+        &mut self,
+        generate: GenerateMode,
+        include_sourcemap_content: bool,
+    ) -> Result<CompileResult, CompileError> {
+        self.compile_mode_with_source_token_positions(
+            generate,
+            include_sourcemap_content,
+            false,
+            None,
+        )
     }
 
     fn compile_mode_with_source_token_positions(
         &mut self,
         generate: GenerateMode,
         include_sourcemap_content: bool,
+        include_ast: bool,
         source_token_positions: Option<&mut SourceTokenPositions<'source>>,
     ) -> Result<CompileResult, CompileError> {
         // SAFETY: `self.ast` cannot move for the duration of this mutable borrow.
@@ -493,10 +514,13 @@ impl<'source> PreparedComponent<'source> {
             options,
             self.runes_mode,
         );
-        // Upstream fills `result.ast` unconditionally — the modern tree under
-        // `modernAst`, the legacy one otherwise — from the same post-analysis
-        // AST this holds.
-        result.ast = Some(self.ast_json().to_string());
+        if include_ast {
+            // Upstream fills `result.ast` unconditionally — the modern tree under
+            // `modernAst`, the legacy one otherwise — from the same post-analysis
+            // AST this holds. Binary-only bindings opt out because their wire
+            // formats deliberately omit this field.
+            result.ast = Some(self.ast_json().to_string());
+        }
         Ok(result)
     }
 

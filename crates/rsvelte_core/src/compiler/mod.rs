@@ -570,7 +570,10 @@ pub(crate) fn parse_component(
     let parse_options = crate::ParseOptions {
         modern: true,
         loose: false,
-        skip_expression_loc: false,
+        // The default legacy result rebuilds ESTree locations only when it is
+        // converted at the JSON boundary. `modernAst`, however, exposes this
+        // tree directly, so its locations still have to be retained here.
+        skip_expression_loc: !modern_ast,
         defer_script_parse: true,
         force_typescript: false,
         lenient_script: false,
@@ -647,6 +650,8 @@ pub(crate) fn prepare_and_analyze<'source>(
         }
     }
 
+    phases::phase1_parse::merge_deferred_comments(ast);
+
     // Remove TypeScript nodes from script content if TypeScript is detected.
     remove_typescript_from_ast(ast, &retained_scripts)?;
 
@@ -699,6 +704,20 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
 }
 
+/// Compile without materializing the public AST for bindings whose wire format
+/// does not expose it.
+#[doc(hidden)]
+pub fn compile_without_ast(
+    source: &str,
+    options: CompileOptions,
+) -> Result<CompileResult, CompileError> {
+    let generate = options.generate;
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
+    crate::toolchain::PreparedComponent::new(source, options)?
+        .compile_mode_without_ast(generate, true)
+}
+
 /// Compile a client component while exposing its generated JS program to an
 /// in-process consumer. The callback must not retain either borrow.
 pub fn compile_client_with_program_sink(
@@ -725,6 +744,18 @@ pub fn compile_with_external_sourcemap_content(
     let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?
         .compile_mode_with_sourcemap_content(generate, false)
+}
+
+#[doc(hidden)]
+pub fn compile_without_ast_with_external_sourcemap_content(
+    source: &str,
+    options: CompileOptions,
+) -> Result<CompileResult, CompileError> {
+    let generate = options.generate;
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
+    crate::toolchain::PreparedComponent::new(source, options)?
+        .compile_mode_without_ast(generate, false)
 }
 
 /// Compile a single component to **both** client (CSR) and server (SSR) output in
@@ -1557,6 +1588,34 @@ pub fn compile_batch_with_external_sourcemap_content(
         .par_iter()
         .map(|(source, options)| {
             catch_compile_panic(|| compile_with_external_sourcemap_content(source, options.clone()))
+        })
+        .collect()
+}
+
+#[doc(hidden)]
+#[cfg(feature = "parallel")]
+pub fn compile_batch_without_ast(
+    inputs: &[(&str, CompileOptions)],
+) -> Vec<Result<CompileResult, CompileError>> {
+    inputs
+        .par_iter()
+        .map(|(source, options)| {
+            catch_compile_panic(|| compile_without_ast(source, options.clone()))
+        })
+        .collect()
+}
+
+#[doc(hidden)]
+#[cfg(feature = "parallel")]
+pub fn compile_batch_without_ast_with_external_sourcemap_content(
+    inputs: &[(&str, CompileOptions)],
+) -> Vec<Result<CompileResult, CompileError>> {
+    inputs
+        .par_iter()
+        .map(|(source, options)| {
+            catch_compile_panic(|| {
+                compile_without_ast_with_external_sourcemap_content(source, options.clone())
+            })
         })
         .collect()
 }

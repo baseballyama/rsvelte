@@ -62,8 +62,8 @@ use serde_json::Value;
 use rsvelte_core::compiler::{
     CompileOptions, CssMode, ExperimentalOptions, GenerateMode, ModuleCompileOptions, Namespace,
     compile as rust_compile, compile_both as rust_compile_both,
-    compile_module as rust_compile_module,
-    compile_with_external_sourcemap_content as rust_compile_with_external_sourcemap_content,
+    compile_module as rust_compile_module, compile_without_ast as rust_compile_without_ast,
+    compile_without_ast_with_external_sourcemap_content as rust_compile_without_ast_external,
 };
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx as rust_svelte2tsx};
 
@@ -2322,8 +2322,9 @@ pub fn napi_compile_buffers(
     options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_compile(Some(&env), options)?;
+    reject_modern_ast_for_binary_result(&opts, "compileBuffers")?;
     let filename = opts.filename.clone();
-    match rust_compile(&source, opts) {
+    match rust_compile_without_ast(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
             js: CompileBuffersJs {
                 code: Buffer::from(result.js.code.into_bytes()),
@@ -2487,9 +2488,9 @@ fn compile_envelope(
 ) -> napi::Result<Buffer> {
     reject_modern_ast_for_binary_result(&options, "compileEnvelope")?;
     let result = if externalize_sourcemap_content {
-        rust_compile_with_external_sourcemap_content(source, options)
+        rust_compile_without_ast_external(source, options)
     } else {
-        rust_compile(source, options)
+        rust_compile_without_ast(source, options)
     };
     match result {
         Ok(result) => {
@@ -2617,7 +2618,7 @@ pub fn napi_compile_envelope_zero_copy(
 ) -> napi::Result<JsBuffer> {
     let opts = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&opts, "compileEnvelopeZeroCopy")?;
-    let result = match rust_compile(&source, opts) {
+    let result = match rust_compile_without_ast(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
     };
@@ -2767,9 +2768,9 @@ fn compile_batch_envelope(
         .map(|(s, o)| (s.as_str(), o.clone()))
         .collect();
     let results = if externalize_sourcemap_content {
-        rsvelte_core::compiler::compile_batch_with_external_sourcemap_content(&borrowed)
+        rsvelte_core::compiler::compile_batch_without_ast_with_external_sourcemap_content(&borrowed)
     } else {
-        rsvelte_core::compiler::compile_batch(&borrowed)
+        rsvelte_core::compiler::compile_batch_without_ast(&borrowed)
     };
 
     // Build the BatchEntry view over the results so the encoder can
@@ -2845,9 +2846,9 @@ impl Task for CompileEnvelopeTask {
         // field has to be re-Arc'd). Clone is fine here — options are
         // small and we only pay it once per call.
         let result = if self.externalize_sourcemap_content {
-            rust_compile_with_external_sourcemap_content(&self.source, self.options.clone())
+            rust_compile_without_ast_external(&self.source, self.options.clone())
         } else {
-            rust_compile(&self.source, self.options.clone())
+            rust_compile_without_ast(&self.source, self.options.clone())
         };
         match result {
             Ok(result) => {
@@ -2943,9 +2944,11 @@ impl Task for CompileBatchTask {
             .map(|(s, o)| (s.as_str(), o.clone()))
             .collect();
         let results = if self.externalize_sourcemap_content {
-            rsvelte_core::compiler::compile_batch_with_external_sourcemap_content(&borrowed)
+            rsvelte_core::compiler::compile_batch_without_ast_with_external_sourcemap_content(
+                &borrowed,
+            )
         } else {
-            rsvelte_core::compiler::compile_batch(&borrowed)
+            rsvelte_core::compiler::compile_batch_without_ast(&borrowed)
         };
         let err_strings: Vec<Option<String>> = results
             .iter()
