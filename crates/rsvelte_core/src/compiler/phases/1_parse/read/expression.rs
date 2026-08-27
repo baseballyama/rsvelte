@@ -7593,6 +7593,101 @@ pub(crate) fn repair_ts_newline_import_assert(
     }
 }
 
+/// The first standalone `word` in executable code inside `range`.
+///
+/// OXC's TS-in-JS diagnostics label the whole construct that it successfully
+/// parsed. Acorn never enters that grammar and stops at the TS token instead,
+/// so the label supplies a narrow, unambiguous search range. Strings, comments,
+/// templates and regular expressions must not donate a lookalike token.
+fn code_word_in(content: &str, word: &[u8], range: std::ops::Range<usize>) -> Option<usize> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, is_ident_byte};
+    let bytes = content.as_bytes();
+    let end = range.end.min(bytes.len());
+    code_bytes(bytes).find_map(|(at, byte)| {
+        if at < range.start || at + word.len() > end || byte != word[0] {
+            return None;
+        }
+        let before = at.checked_sub(1).and_then(|i| bytes.get(i)).copied();
+        let after = bytes.get(at + word.len()).copied();
+        (bytes[at..].starts_with(word)
+            && before.is_none_or(|b| !is_ident_byte(b))
+            && after.is_none_or(|b| !is_ident_byte(b)))
+        .then_some(at)
+    })
+}
+
+/// A standalone `word` is the previous significant token before `at`.
+fn preceded_by_code_word(content: &str, word: &[u8], at: usize) -> Option<usize> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
+    let mut from = 0;
+    let mut previous = None;
+    while let Some(found) = code_word_in(content, word, from..at) {
+        previous = Some(found);
+        from = found + word.len();
+    }
+    let found = previous?;
+    code_bytes(&content.as_bytes()[found + word.len()..at])
+        .all(|(_, byte)| byte.is_ascii_whitespace())
+        .then_some(found)
+}
+
+/// Reproduce where plain acorn stops on TypeScript syntax in a JavaScript
+/// program. OXC understands these constructs and consequently either labels
+/// their enclosing node or emits a TypeScript-aware message; upstream never
+/// enters that grammar and reports the first TS token as `Unexpected token`.
+fn realign_plain_js_typescript_diagnostic(
+    content: &str,
+    at: usize,
+    label_end: usize,
+    message: &str,
+) -> (usize, String) {
+    let range = at..label_end.max(at).min(content.len());
+    if code_word_in(content, b"enum", range.clone()) == Some(at) {
+        return (at, "The keyword 'enum' is reserved".to_string());
+    }
+    if message == "Unexpected token"
+        && let Some(interface) = preceded_by_code_word(content, b"interface", at)
+    {
+        return (interface, "The keyword 'interface' is reserved".to_string());
+    }
+    match message {
+        "Type assertion expressions can only be used in TypeScript files." => (
+            code_word_in(content, b"as", range).unwrap_or(at),
+            "Unexpected token".to_string(),
+        ),
+        "Type satisfaction expressions can only be used in TypeScript files." => (
+            code_word_in(content, b"satisfies", range).unwrap_or(at),
+            "Unexpected token".to_string(),
+        ),
+        "Expected function body" => {
+            use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
+            // OXC labels either an empty span or just the `function` keyword.
+            // Acorn instead stops at the return type annotation, which sits
+            // beyond both forms of label.
+            let colon = code_bytes(content.as_bytes())
+                .find_map(|(i, b)| (i >= range.start && b == b':').then_some(i))
+                .unwrap_or(at);
+            (colon, "Unexpected token".to_string())
+        }
+        "Unexpected JSX expression"
+        | "Expected `,` or `)` but found `:`"
+        | "Expected `,` or `)` but found `?`"
+        | "Expected `(` but found `<`"
+        | "Expected `from` but found `{`"
+        | "'implements' clauses can only be used in TypeScript files." => {
+            (at, "Unexpected token".to_string())
+        }
+        "Parameter modifiers can only be used in TypeScript files." => {
+            let word = content[at..]
+                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+                .next()
+                .unwrap_or_default();
+            (at, format!("The keyword '{word}' is reserved"))
+        }
+        _ => (at, message.to_string()),
+    }
+}
+
 /// The first offset oxc classified as irregular whitespace that ECMAScript does
 /// not admit as whitespace at all. oxc's `is_irregular_whitespace` spans
 /// `U+2000..=U+200B` and includes `U+0085`, while `WhiteSpace` is `Zs` plus the
@@ -7636,12 +7731,24 @@ fn convert_parsed_program<'ast>(
             .iter()
             .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
             .map(|first_error| {
-                let at = first_error
-                    .labels
-                    .first()
+                let label = first_error.labels.first();
+                let at = label
                     .map(|label| (label.offset() as usize).min(content.len()))
                     .unwrap_or(0);
-                realign_missing_semicolon(content, at, &first_error.message)
+                let label_end = label
+                    .map(|label| at.saturating_add(label.len() as usize).min(content.len()))
+                    .unwrap_or(at);
+                let aligned = realign_missing_semicolon(content, at, &first_error.message);
+                if is_typescript {
+                    aligned
+                } else {
+                    // A TS declaration can first look like a missing semicolon
+                    // to OXC. Acorn still stops at the declaration keyword, so
+                    // the plain-JS pass must also see that intermediate result.
+                    realign_plain_js_typescript_diagnostic(
+                        content, aligned.0, label_end, &aligned.1,
+                    )
+                }
             });
         let mut reported_at = reported_at;
         let mut parse_error = reported_at.as_ref().map(|(at, message)| {
