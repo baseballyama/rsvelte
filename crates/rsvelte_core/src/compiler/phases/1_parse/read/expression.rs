@@ -1866,9 +1866,14 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
                 }
                 // `()` is the wrapper's own diagnostic for an empty tag body;
                 // acorn, given the body unwrapped, calls it an unexpected token.
-                let message = match first_error.message.as_ref() {
-                    "Empty parenthesized expression" => "Unexpected token",
-                    other => other,
+                let message = if first_error.message.as_ref() == "Empty parenthesized expression"
+                    || first_error
+                        .message
+                        .starts_with("Expected `,` or `}` but found ")
+                {
+                    "Unexpected token"
+                } else {
+                    first_error.message.as_ref()
                 };
                 // A label which is itself the offending token already has the
                 // acorn position above. Re-parsing it bare can turn that token
@@ -1960,7 +1965,16 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
                         .min(params.len())
                 })
                 .unwrap_or(0);
-            return Some((first_error.message.to_string(), pos));
+            let message = if !ts
+                && matches!(
+                    first_error.message.as_ref(),
+                    "Expected `,` or `)` but found `:`" | "Expected `,` or `)` but found `?`"
+                ) {
+                "Unexpected token"
+            } else {
+                first_error.message.as_ref()
+            };
+            return Some((message.to_string(), pos));
         }
         acorn_only_violation(&result.program, &wrapped, ts)
             .map(|(at, message)| (message, (at as usize).saturating_sub(1).min(params.len())))
@@ -13694,6 +13708,23 @@ mod tests {
             assert_eq!(message, expected_message, "{source}");
             assert_eq!(span, (10 + expected_at, 10 + expected_at), "{source}");
         }
+    }
+
+    #[test]
+    fn malformed_object_expression_uses_acorns_unexpected_token_message() {
+        assert_eq!(
+            check_js_parse_error_with_pos("{a + b}", false).map(|error| error.0),
+            Some("Unexpected token".to_string())
+        );
+    }
+
+    #[test]
+    fn plain_js_snippet_type_annotation_uses_acorns_message() {
+        assert_eq!(
+            check_params_parse_error("error: App.Error", false),
+            Some(("Unexpected token".to_string(), 5))
+        );
+        assert_eq!(check_params_parse_error("error: App.Error", true), None);
     }
 
     #[test]
