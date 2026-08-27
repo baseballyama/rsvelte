@@ -436,8 +436,12 @@ pub(super) fn find_and_transform_one_destructure(
         || before_text.ends_with(';')
         || before_text.ends_with('{')
         || before_text.ends_with('}')
+        || before_text.ends_with(')')
         || before_text.ends_with('\n'))
-        && (after_text.is_empty() || after_text.starts_with(';') || after_text.starts_with('\n'));
+        && (after_text.is_empty()
+            || after_text.starts_with(';')
+            || after_text.starts_with('}')
+            || after_text.starts_with('\n'));
 
     // Check if RHS will become a function call
     let rhs_trimmed = rhs_str.trim();
@@ -1785,6 +1789,36 @@ mod tests {
             &props,
         );
         assert!(out.contains("a = value.café"), "{out}");
+    }
+
+    #[test]
+    fn destructure_at_end_of_callback_block_does_not_return_its_rhs() {
+        let state = vec!["doc".to_string()];
+        let out = transform_destructure_assignments_with_props(
+            "query((res) => { ;[doc] = res }, options);",
+            &state,
+            &[],
+            &[],
+            &[],
+        );
+
+        assert!(out.contains("})(res)"), "{out}");
+        assert!(!out.contains("return res"), "{out}");
+    }
+
+    #[test]
+    fn destructure_as_parenthesized_control_body_does_not_return_its_rhs() {
+        let state = vec!["icon".to_string()];
+        let out = transform_destructure_assignments_with_props(
+            "$: if (value) ({ icon } = priorities[value])",
+            &state,
+            &[],
+            &[],
+            &[],
+        );
+
+        assert!(out.contains("})(priorities[value])"), "{out}");
+        assert!(!out.contains("return $$value"), "{out}");
     }
 
     #[cfg(feature = "measure-destructure-scanner")]
