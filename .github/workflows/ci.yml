@@ -478,6 +478,7 @@ jobs:
         timeout-minutes: 20
         env:
           RUST_MIN_STACK: '33554432'
+          DEBUG_ALL: '1'
 
   test-thread-safety:
     name: Test thread-safety
