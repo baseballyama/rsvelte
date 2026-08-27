@@ -251,9 +251,14 @@ jobs:
         run: node scripts/compat-corpus/idempotency-verify.mjs
 
       - name: Compile corpus (official svelte + rsvelte, CSR + SSR + CSR dev)
+        # The parse-AST and idempotency checks are independent gates. Keep
+        # compiling after either fails so the output, diagnostic, and
+        # parseability reports below still expose their own regressions.
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/compile.mjs
 
       - name: Verify esrap round-trip, comments, and source maps
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/esrap-verify.mjs
 
       - name: Verify (oxfmt-normalized outputs must be identical)
