@@ -87,6 +87,21 @@ fn a_hole_is_kept_at_every_body_position() {
     );
 }
 
+/// Statement position is determined from code tokens, not from the final byte
+/// of a leading comment. Otherwise the comment text turns the removed call into
+/// an `undefined` expression on both module targets.
+#[test]
+fn a_leading_line_comment_does_not_turn_the_hole_into_a_value() {
+    check(
+        "export function f(a) {\n\t// } c\n\t$inspect(a);\n}\n",
+        "\nexport function f(a) {\n\t// } c\n\t;;\n}",
+    );
+    check(
+        "export function f(a) {\n\t// svelte-ignore a11y_no_static_element_interactions\n\t$inspect(a);\n\tconsole.log(2);\n}\n",
+        "\nexport function f(a) {\n\t// svelte-ignore a11y_no_static_element_interactions\n\t;;\n\n\tconsole.log(2);\n}",
+    );
+}
+
 #[test]
 fn the_with_form_is_one_hole_too() {
     check(

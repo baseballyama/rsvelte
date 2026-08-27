@@ -34,14 +34,10 @@ fn find_unbound_rune_code(script: &str, needle: &[u8], shadows: &mut RuneShadows
 /// character answers it: only a terminator, a block delimiter or the `)` of a
 /// bodyless `if`/`for`/`while` head can be followed by a fresh statement.
 pub(super) fn operand_expected_before(before: &str) -> bool {
-    let before = before.trim_end();
-    if before.ends_with("*/") {
-        return false;
-    }
-    !matches!(
-        before.as_bytes().last(),
-        None | Some(b';' | b'{' | b'}' | b')')
-    )
+    let last_code_byte = code_bytes(before.as_bytes())
+        .filter_map(|(_, byte)| (!byte.is_ascii_whitespace()).then_some(byte))
+        .last();
+    !matches!(last_code_byte, None | Some(b';' | b'{' | b'}' | b')'))
 }
 
 /// Transform runes for client-side usage with skip and state variable handling.
@@ -331,9 +327,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                     // semicolon as the second half of upstream's `;;`, even
                     // when another statement follows on the same source line.
                     "/* $$inspect_removed$$ */;"
-                } else if after.starts_with(';')
-                    && matches!(before.as_bytes().last(), Some(b'{' | b'}' | b';'))
-                {
+                } else if after.starts_with(';') && !operand_expected_before(before) {
                     // A NESTED statement-position call prints the same `;;` a
                     // top-level one does: upstream keeps the
                     // `ExpressionStatement` and replaces its expression with

@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 170 entries)
+## Matrix known failures (`matrix-known-failures.json`, 146 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 0 + 0 + 0 + 0 + 86 + 0 + 0 + 0 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 0 + 0 + 0 + 0 + 62 + 0 + 0 + 0 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -139,7 +139,7 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 
 All 189 generated comparisons now match. #2484's three special-element dev setter cases are
 covered by the direct regression tests as well as this zero-residue matrix family.
-### `removed-statement-comment` — 86 entries
+### `removed-statement-comment` — 62 entries
 
 The family crosses statements the SERVER transform removes (`$effect`, `$effect.pre`,
 `$effect.root`, `$inspect`) with the comment slot (leading / interior / trailing), 6 comment
@@ -151,15 +151,21 @@ Every remaining entry is in one of the clusters below.
 
 | entries | target | cluster | issue |
 |---|---|---|---|
-| 86 | `client`, `server`, `server-dev` | `$inspect` across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
+| 62 | `server`, `server-dev` | `$inspect` comment placement across `instance-top`, `instance-fn`, and `module` tails | [#2716](https://github.com/baseballyama/rsvelte/issues/2716) |
 Partition of `matrix-known-failures.json` entries under `removed-statement-comment/` by
-cluster: `86`
+cluster: `62`
+
+The 24 `js-mismatch` entries were one lexical-context bug: non-dev `$inspect` removal read
+the last byte of a leading line comment as JavaScript syntax and emitted `undefined` instead
+of the statement-position `;;`. It now asks the shared code-byte scanner for the last
+significant token, so braces, parentheses and arbitrary text inside comments cannot select
+the lowering.
 
 **[D].** It was reduced to a hand-written repro outside the family and measured against the
 pinned official compiler.
 
 Note the enrolment cost, because it is real: a ratchet entry suppresses everything about the
-entry it lists, so these 86 ids are now blind to any *further* regression on the same shapes
+entry it lists, so these 62 ids are now blind to any *further* regression on the same shapes
 until their issues are fixed.
 
 ---
