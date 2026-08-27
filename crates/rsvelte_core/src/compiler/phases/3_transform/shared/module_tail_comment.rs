@@ -31,7 +31,7 @@ pub(crate) fn rehome(
         return code;
     };
     let close = open + 1 + relative_close;
-    let params = code[open + 1..close].trim();
+    let params = code[open + 1..close].trim().to_owned();
     if params.is_empty() || code[open + 1..close].contains(comment) {
         return code;
     }
