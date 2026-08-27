@@ -139,6 +139,16 @@ fn consume_template_quasi(
     }
 }
 
+fn is_escaped(bytes: &[u8], index: usize) -> bool {
+    bytes[..index]
+        .iter()
+        .rev()
+        .take_while(|byte| **byte == b'\\')
+        .count()
+        % 2
+        == 1
+}
+
 fn consume_code_byte(
     bytes: &[u8],
     byte: u8,
@@ -155,13 +165,13 @@ fn consume_code_byte(
     match byte {
         b'`' => stack.push(Frame::Template),
         b'\'' | b'"' => *string = Some(byte),
-        b'/' if bytes.get(*index + 1) == Some(&b'/') => {
+        b'/' if !is_escaped(bytes, *index) && bytes.get(*index + 1) == Some(&b'/') => {
             *line_comment = true;
             out.extend_from_slice(b"//");
             *index += 2;
             return;
         }
-        b'/' if bytes.get(*index + 1) == Some(&b'*') => {
+        b'/' if !is_escaped(bytes, *index) && bytes.get(*index + 1) == Some(&b'*') => {
             *block_comment = true;
             *is_jsdoc = is_indentable_block_comment(bytes, *index, bytes.len());
             out.extend_from_slice(b"/*");

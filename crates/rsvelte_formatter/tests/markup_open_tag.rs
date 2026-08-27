@@ -297,6 +297,21 @@ fn multiline_attr_forces_multiline_tag_even_when_short() {
 }
 
 #[test]
+fn escaped_regex_slash_does_not_deindent_multiline_attribute_close() {
+    let src = r#"<button
+  onclick={() => {
+    v = v.replace(/(^https?:\/\/[^/]+)\/*$/i, '$1');
+  }}>normalize</button
+>
+"#;
+    let out = fmt(src);
+    assert!(
+        out.contains("\n  }}>normalize</button"),
+        "escaped regex slash was mistaken for a block comment:\n{out}"
+    );
+}
+
+#[test]
 fn multiline_attr_idempotent() {
     let src =
         "<div>\n  <button\n    onclick={() => {\n      foo();\n    }}\n  >x</button>\n</div>\n";
