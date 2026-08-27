@@ -1915,8 +1915,12 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
-                ser_node!(map, "label", label);
+                // Acorn assigns `body` before `label` while finishing a
+                // labeled statement. Zimmerframe walks object fields in
+                // insertion order, and comment ownership depends on that
+                // order (for example `$ /* comment */ : value = 1`).
                 ser_node!(map, "body", body);
+                ser_node!(map, "label", label);
                 ser_comments!(map, "LabeledStatement", *start, *end);
                 map.end()
             }

@@ -85,3 +85,30 @@ fn same_line_comment_after_statement_stays_trailing_in_attribute_expression() {
         "the next statement must not claim the preceding same-line comment"
     );
 }
+
+#[test]
+fn comment_between_reactive_label_and_colon_attaches_to_body() {
+    let source = r#"<script>
+$ /* belongs to the body */ : value = 1;
+</script>"#;
+    let value = parse_to_value(source);
+
+    let mut statements = Vec::new();
+    collect_nodes(&value, "ExpressionStatement", &mut statements);
+    let statement = statements.first().expect("reactive body statement");
+    assert_eq!(
+        statement["leadingComments"][0]["value"],
+        " belongs to the body "
+    );
+
+    let mut identifiers = Vec::new();
+    collect_nodes(&value, "Identifier", &mut identifiers);
+    let label = identifiers
+        .iter()
+        .find(|identifier| identifier["name"] == "$")
+        .expect("reactive label");
+    assert!(
+        label.get("trailingComments").is_none(),
+        "the label must not claim a comment that precedes the body"
+    );
+}

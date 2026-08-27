@@ -279,6 +279,12 @@ function commentOwnerIndex(root) {
 			nodeKeys.add(nodeKey);
 			for (const field of ['leadingComments', 'trailingComments']) {
 				for (const comment of value[field] ?? []) {
+					// HTML comments carried onto a Script Program as
+					// `leadingComments` have no source range. They cannot be
+					// joined by identity: treating every such comment as
+					// `undefined\0undefined` pairs unrelated comments and reports
+					// fabricated owner movements between the two script Programs.
+					if (!Number.isInteger(comment.start) || !Number.isInteger(comment.end)) continue;
 					const commentKey = `${comment.start}\0${comment.end}`;
 					const owners = comments.get(commentKey) ?? [];
 					owners.push({
