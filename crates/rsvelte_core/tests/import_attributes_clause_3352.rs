@@ -155,15 +155,13 @@ fn a_clause_after_a_multi_line_specifier_list_stays_with_the_import() {
     }
 }
 
-/// A side-effect import — no `from`, so a different arm of the same decision.
+/// A side-effect import — no `from`, so a different printer arm.
 ///
-/// esrap's printer returns early when an import has no specifiers and never
-/// writes the clause, so the *official* output drops it here whatever line it
-/// was written on. Parity is therefore "clause absent, nothing left behind": the
-/// defect this file is about is the clause escaping into the component body,
-/// which is what the second assertion pins.
+/// Official esrap returns before writing the clause. That changes whether the
+/// emitted module can load, so rsvelte deliberately keeps the attribute rather
+/// than reproducing the runtime defect (#3635).
 #[test]
-fn a_clause_after_a_side_effect_import_matches_official() {
+fn a_clause_after_a_side_effect_import_stays_with_the_import() {
     let src = format!(
         "<script>\n\timport \"./d.json\"\n\t\twith {{ type: \"json\" }};\n\tlet z = 1;\n{TEMPLATE}"
     );
@@ -175,12 +173,8 @@ fn a_clause_after_a_side_effect_import_matches_official() {
         let out = compile_with(&src, generate, dev);
         assert_parses(&out, &format!("side-effect import ({label})"));
         assert!(
-            out.contains("import \"./d.json\";"),
-            "side-effect import ({label}): the import moved:\n{out}"
-        );
-        assert!(
-            !out.contains("with { type: \"json\" }"),
-            "side-effect import ({label}): the clause was left behind:\n{out}"
+            out.contains("import \"./d.json\" with { type: \"json\" };"),
+            "side-effect import ({label}): clause lost or moved:\n{out}"
         );
     }
 }
