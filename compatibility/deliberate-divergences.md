@@ -312,3 +312,20 @@ No collected corpus source binds an inspect rune's result, and the #3611 generat
 compares official output rather than evaluating the later reference. Remove this entry and change
 the eight pinned expectations to byte parity when upstream includes `'$inspect().with'` in both
 declarator allow-lists.
+
+---
+
+## CSS custom-property block values
+
+**Pinned by** `crates/rsvelte_core/tests/css_custom_property_block_3052.rs`.
+**Reported upstream** in `upstream_issues/3052-svelte-css-custom-property-brace-block.md`.
+
+CSS custom properties accept the `<declaration-value>` grammar, including balanced `{}` and `[]`
+blocks. The official compiler instead parses their values with the ordinary declaration-value
+scanner and raises `css_expected_identifier` at the first `{`. Browsers and general CSS parsers
+accept the value.
+
+rsvelte preserves balanced custom-property blocks and the declarations following them. It does
+not extend that grammar to ordinary properties, which keep the existing rejection. This is an
+intentional error-presence divergence: rejecting valid CSS changes the component's available
+styles, so it is not a byte-only parity choice.

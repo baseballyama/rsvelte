@@ -907,6 +907,24 @@ impl<'a> CssParser<'a> {
     fn peek_block_item_is_rule(&self) -> bool {
         let bytes = self.source.as_bytes();
         let mut i = self.index;
+
+        // A custom property remains a declaration when its value starts with a
+        // block (`--tokens: { ... }`). Without this early classification the
+        // first `{` below makes declaration-taking at-rules parse `--tokens:` as
+        // a nested selector.
+        if bytes.get(i..i + 2) == Some(b"--") {
+            i += 2;
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'\\' if i + 1 < bytes.len() => i += 2,
+                    b':' => return false,
+                    b'{' | b';' | b'}' => break,
+                    _ => i += 1,
+                }
+            }
+            i = self.index;
+        }
+
         let mut paren_depth = 0i32;
         let mut bracket_depth = 0i32;
         let mut in_string: Option<u8> = None;
@@ -1929,8 +1947,14 @@ impl<'a> CssParser<'a> {
         // Read value, respecting parentheses, strings, and CSS escape sequences so
         // values like `content: "{};[]";` or `content: ';'` aren't terminated by
         // a `;`/`}` that lives inside a string literal or after a backslash escape.
+        // A custom property's `<declaration-value>` additionally admits balanced
+        // square- and curly-bracket blocks. The outer rule's `}` only terminates
+        // the value after those blocks close.
+        let is_custom_property = property.starts_with("--");
         let value_start = self.index;
-        let mut depth = 0;
+        let mut paren_depth = 0;
+        let mut bracket_depth = 0;
+        let mut brace_depth = 0;
         let mut in_string: Option<char> = None;
         while !self.is_eof() {
             let c = self.current_char();
@@ -1954,12 +1978,30 @@ impl<'a> CssParser<'a> {
                 self.advance();
                 continue;
             }
-            if c == '(' {
-                depth += 1;
-            } else if c == ')' {
-                depth -= 1;
-            } else if depth == 0 && (c == ';' || c == '}') {
-                break;
+
+            if is_custom_property && self.match_str("/*") {
+                self.skip_block_comment();
+                continue;
+            }
+
+            match c {
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                '[' if is_custom_property => bracket_depth += 1,
+                ']' if is_custom_property && bracket_depth > 0 => bracket_depth -= 1,
+                '{' if is_custom_property => brace_depth += 1,
+                '}' if is_custom_property && brace_depth > 0 => brace_depth -= 1,
+                '}' if paren_depth == 0
+                    && (!is_custom_property || (bracket_depth == 0 && brace_depth == 0)) =>
+                {
+                    break;
+                }
+                ';' if paren_depth == 0
+                    && (!is_custom_property || (bracket_depth == 0 && brace_depth == 0)) =>
+                {
+                    break;
+                }
+                _ => {}
             }
             self.advance();
         }
