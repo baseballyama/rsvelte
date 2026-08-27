@@ -259,7 +259,9 @@ function diffKeys(a, b, out, ctx, rel, depth = 0) {
  * `ArrowFunctionExpression.leadingComments`, so it cannot say whether 200
  * comments or one comment still move between otherwise aligned nodes. The
  * owner index joins comments by their own immutable source range, then names
- * their owner by `(type, start, end)` — the same alignment #3702 uses.
+ * every owner by `(type, start, end)` — the same alignment #3702 uses. A
+ * comment can have more than one owner when upstream replays its shared root
+ * comment list while parsing a later script.
  */
 function commentOwnerIndex(root) {
 	const nodeKeys = new Set();
@@ -278,10 +280,12 @@ function commentOwnerIndex(root) {
 			for (const field of ['leadingComments', 'trailingComments']) {
 				for (const comment of value[field] ?? []) {
 					const commentKey = `${comment.start}\0${comment.end}`;
-					comments.set(commentKey, {
+					const owners = comments.get(commentKey) ?? [];
+					owners.push({
 						nodeKey,
 						label: `${value.type}.${field}`,
 					});
+					comments.set(commentKey, owners);
 				}
 			}
 		}
@@ -302,35 +306,56 @@ function commentOwnerDiff(expected, actual) {
 	const a = commentOwnerIndex(expected);
 	const b = commentOwnerIndex(actual);
 	const out = [];
-	for (const [commentKey, expectedOwner] of a.comments) {
-		const actualOwner = b.comments.get(commentKey);
-		if (!actualOwner) {
+	for (const [commentKey, expectedOwners] of a.comments) {
+		const actualRemaining = [...(b.comments.get(commentKey) ?? [])];
+		const expectedRemaining = [];
+		for (const expectedOwner of expectedOwners) {
+			const exact = actualRemaining.findIndex(
+				(actualOwner) =>
+					actualOwner.nodeKey === expectedOwner.nodeKey &&
+					actualOwner.label === expectedOwner.label
+			);
+			if (exact === -1) expectedRemaining.push(expectedOwner);
+			else actualRemaining.splice(exact, 1);
+		}
+
+		// The official parser can attach one source comment to multiple nodes:
+		// its shared root comment list is replayed when a later <script> is
+		// parsed. Compare all owners, not whichever traversal visits last.
+		const moved = Math.min(expectedRemaining.length, actualRemaining.length);
+		for (let i = 0; i < moved; i++) {
+			const expectedOwner = expectedRemaining[i];
+			const actualOwner = actualRemaining[i];
+			out.push({
+				transition: `${expectedOwner.label} -> ${actualOwner.label}`,
+				expectedOwnerMissing: !b.nodeKeys.has(expectedOwner.nodeKey),
+				kind: 'moved',
+			});
+		}
+		for (const expectedOwner of expectedRemaining.slice(moved)) {
 			out.push({
 				transition: `${expectedOwner.label} -> ABSENT`,
 				expectedOwnerMissing: !b.nodeKeys.has(expectedOwner.nodeKey),
 				kind: 'missing',
 			});
-			continue;
 		}
-		if (
-			actualOwner.nodeKey === expectedOwner.nodeKey &&
-			actualOwner.label === expectedOwner.label
-		) {
-			continue;
+		for (const actualOwner of actualRemaining.slice(moved)) {
+			out.push({
+				transition: `ABSENT -> ${actualOwner.label}`,
+				expectedOwnerMissing: false,
+				kind: 'extra',
+			});
 		}
-		out.push({
-			transition: `${expectedOwner.label} -> ${actualOwner.label}`,
-			expectedOwnerMissing: !b.nodeKeys.has(expectedOwner.nodeKey),
-			kind: 'moved',
-		});
 	}
-	for (const [commentKey, actualOwner] of b.comments) {
+	for (const [commentKey, actualOwners] of b.comments) {
 		if (a.comments.has(commentKey)) continue;
-		out.push({
-			transition: `ABSENT -> ${actualOwner.label}`,
-			expectedOwnerMissing: false,
-			kind: 'extra',
-		});
+		for (const actualOwner of actualOwners) {
+			out.push({
+				transition: `ABSENT -> ${actualOwner.label}`,
+				expectedOwnerMissing: false,
+				kind: 'extra',
+			});
+		}
 	}
 	return out;
 }
