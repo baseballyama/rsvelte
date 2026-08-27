@@ -775,6 +775,22 @@ struct BindingWrites {
     /// compiler analysis's root-binding `reassigned` flag is not usable: the
     /// inner binding's write is what could have set it.
     shadowed: HashSet<String>,
+    /// Initialized, plain-identifier `let` bindings recovered from OXC. The
+    /// compiler's compatibility AST can represent a class containing legacy
+    /// decorators as one opaque node, so the JSON walk above cannot see method
+    /// locals inside it even though this semantic pass can.
+    semantic_initialized_lets: Vec<SemanticLetCandidate>,
+}
+
+struct SemanticLetCandidate {
+    start: u32,
+    end: u32,
+    name: String,
+    init_start: u32,
+    init_end: u32,
+    has_write: bool,
+    is_root: bool,
+    fix_start: Option<u32>,
 }
 
 fn collect_binding_writes(
@@ -807,6 +823,7 @@ fn collect_binding_writes(
     let scoping = semantic.scoping();
     let root_scope = scoping.root_scope_id();
     for id in scoping.symbol_ids() {
+        let declaration_node = semantic.symbol_declaration(id);
         let span = scoping.symbol_span(id);
         let has_write = scoping
             .get_resolved_references(id)
@@ -816,6 +833,25 @@ fn collect_binding_writes(
             out.shadowed.insert(scoping.symbol_name(id).to_string());
         }
         let declaration = (base + span.start, base + span.end);
+        if let AstKind::VariableDeclarator(declarator) = declaration_node.kind()
+            && let oxc_ast::ast::BindingPattern::BindingIdentifier(identifier) = &declarator.id
+            && let Some(init) = &declarator.init
+            && let AstKind::VariableDeclaration(var_decl) =
+                semantic.nodes().parent_kind(declaration_node.id())
+            && var_decl.kind == oxc_ast::ast::VariableDeclarationKind::Let
+        {
+            let init_span = init.span();
+            out.semantic_initialized_lets.push(SemanticLetCandidate {
+                start: base + identifier.span.start,
+                end: base + identifier.span.end,
+                name: identifier.name.to_string(),
+                init_start: base + init_span.start,
+                init_end: base + init_span.end,
+                has_write,
+                is_root,
+                fix_start: (var_decl.declarations.len() == 1).then_some(base + var_decl.span.start),
+            });
+        }
         if let Some(report) = sole_write_report(&semantic, id, component) {
             out.sole_write
                 .insert(declaration, (base + report.0, base + report.1));
@@ -1005,6 +1041,19 @@ impl ScopedReassigned {
         }
         self.prop_names.contains(name) || self.fallback.contains(name)
     }
+
+    fn semantic_candidate_is_reassigned(&self, candidate: &SemanticLetCandidate) -> bool {
+        if candidate.is_root && self.prop_names.contains(&candidate.name) {
+            return true;
+        }
+        if candidate.has_write {
+            return true;
+        }
+        candidate.is_root
+            && (self.template_external.contains(&candidate.name)
+                || (self.external_root.contains(&candidate.name)
+                    && !self.writes.shadowed.contains(&candidate.name)))
+    }
 }
 
 fn collect_external_root(ctx: &LintContext, program: &ProgramView<'_>) -> HashSet<String> {
@@ -1062,6 +1111,7 @@ impl ScriptRule for PreferConst {
         };
         let (excluded, destructuring_all) = prefer_const_options(ctx.option0());
         let mut reports = collect_script_reports(program, &scoped, &excluded, destructuring_all);
+        append_semantic_fallback_reports(ctx.source(), &scoped, &excluded, &mut reports);
 
         // Also check template `{let x = …}` declaration tags. The oracle's
         // ESLint core `prefer-const` treats them as ordinary `let` declarations
@@ -1081,6 +1131,47 @@ impl ScriptRule for PreferConst {
         for (start, end, message, fix_start) in reports {
             emit_prefer_const_report(ctx, start, end, message, fix_start);
         }
+    }
+}
+
+/// Recover initialized `let` bindings hidden inside an opaque compatibility-AST
+/// node (currently decorated TypeScript classes). Candidates already observed
+/// by the regular JSON walk are discarded by span, keeping OXC as a narrow
+/// fallback rather than a second implementation of the rule.
+fn append_semantic_fallback_reports(
+    source: &str,
+    scoped: &ScopedReassigned,
+    excluded: &[String],
+    reports: &mut Vec<(u32, u32, String, Option<u32>)>,
+) {
+    let visible: HashSet<(u32, u32)> = reports.iter().map(|r| (r.0, r.1)).collect();
+    for candidate in &scoped.writes.semantic_initialized_lets {
+        if visible.contains(&(candidate.start, candidate.end))
+            || scoped.semantic_candidate_is_reassigned(candidate)
+        {
+            continue;
+        }
+        let init = source
+            .get(candidate.init_start as usize..candidate.init_end as usize)
+            .unwrap_or_default()
+            .trim_start();
+        if excluded.iter().any(|rune| {
+            init.strip_prefix(rune).is_some_and(|tail| {
+                let tail = tail.trim_start();
+                tail.starts_with('(') || tail.starts_with('.')
+            })
+        }) {
+            continue;
+        }
+        reports.push((
+            candidate.start,
+            candidate.end,
+            format!(
+                "'{}' is never reassigned. Use 'const' instead.",
+                candidate.name
+            ),
+            candidate.fix_start,
+        ));
     }
 }
 

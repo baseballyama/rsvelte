@@ -12,7 +12,7 @@ The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.r
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: `lint-known-failures.json`, 5 entries — 5 divergences (0 FP, 5 FN)
+## Current baseline: `lint-known-failures.json`, 3 entries — 3 divergences (0 FP, 3 FN)
 
 Three are one shape: a `<!-- svelte-ignore css_unused_selector -->` in front of a
 `<style lang="scss">` block, on `no-unused-svelte-ignore/invalid/style-lang0{3,4,5}`
@@ -32,17 +32,18 @@ a floating dependency of the oracle. The oracle's versions are now exact
 adversarial corpus carries a committed repro of the same class
 (`compatibility/lint-adversarial/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte`).
 
-The other two are the input/output pair for eslint-plugin-svelte's TypeScript decorator
-indent fixture. After the pinned parser update, the oracle now reports
-`prefer-const` for `formatString`; rsvelte does not yet recover that binding through
-the decorated class shape. They are kept as one parser-version-induced cluster rather
-than hidden as harness exclusions.
+The input/output pair for eslint-plugin-svelte's TypeScript decorator indent fixture
+previously added two `prefer-const` misses: the compatibility AST keeps a decorated
+class opaque, hiding method-local declarations from the JSON walk. The rule now uses
+its existing OXC semantic pass as a narrow fallback for initialized `let` bindings
+that the JSON walk did not see; `prefer-const/22-decorated-class-method.svelte` keeps
+that boundary in the constructed corpus.
 
-Partition of `lint-known-failures.json` by rule: `3 + 2`
-Partition of `lint-known-failures.json` by direction: `5`
-Partition of `lint-known-failures.json` by repo: `5`
+Partition of `lint-known-failures.json` by rule: `3`
+Partition of `lint-known-failures.json` by direction: `3`
+Partition of `lint-known-failures.json` by repo: `3`
 
-### How it got here — 104 → 45 → 3 → 5
+### How it got here — 104 → 45 → 3 → 5 → 3
 
 The entries this file used to describe were not burned down one at a time; they were a
 side effect of the adversarial campaign documented in `AGENTS.md` under `rsvelte_lint`.
