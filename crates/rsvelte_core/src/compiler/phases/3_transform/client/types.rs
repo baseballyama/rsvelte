@@ -493,6 +493,45 @@ impl<'a> ComponentContext<'a> {
 
         // Add template_effect if there are update statements from attributes/directives
         if !inner_update.is_empty() {
+            // SvelteElement owns this template_effect instead of letting the
+            // surrounding Fragment visitor build it. Collect top-level-await
+            // blockers here for the same reason: a class/style directive may
+            // read a binding whose value is not available until $$promises[n]
+            // resolves.
+            let blockers = {
+                let mut names = Vec::new();
+                for statement in &inner_update {
+                    crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_identifiers_from_statement(
+                        statement,
+                        &self.arena,
+                        &mut names,
+                    );
+                }
+
+                let blocker_map = self.state.blocker_map.borrow();
+                let const_blocker_map = self.state.const_blocker_map.borrow();
+                let mut seen = rustc_hash::FxHashSet::default();
+                let mut expressions = Vec::new();
+
+                for name in names {
+                    if !seen.insert(name.clone()) {
+                        continue;
+                    }
+
+                    if let Some(blocker) = const_blocker_map.get(name.as_str()) {
+                        expressions.push(blocker.clone());
+                    } else if let Some(&index) = blocker_map.get(name.as_str()) {
+                        expressions.push(b::member_computed(
+                            &self.arena,
+                            b::id("$$promises"),
+                            b::number(index as f64),
+                        ));
+                    }
+                }
+
+                (!expressions.is_empty()).then(|| b::array(expressions))
+            };
+
             callback_body.push(b::stmt(
                 &self.arena,
                 crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement_with_memoizer(
@@ -501,7 +540,7 @@ impl<'a> ComponentContext<'a> {
                     memo_params,
                     memo_sync,
                     memo_async,
-                    None,
+                    blockers,
                 ),
             ));
         }
