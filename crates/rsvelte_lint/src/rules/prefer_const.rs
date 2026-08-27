@@ -67,6 +67,19 @@ fn ident_name(node: &Value) -> Option<&str> {
     }
 }
 
+/// The range reported by ESLint's core `prefer-const` rule for a binding
+/// identifier includes its TypeScript annotation (`let value: Type = ...`).
+/// The compatibility AST keeps the identifier's lexical `end` and carries the
+/// wider boundary on `typeAnnotation`, so prefer that boundary when present.
+fn binding_report_end(node: &Value) -> Option<u32> {
+    node.get("typeAnnotation")
+        .filter(|annotation| !annotation.is_null())
+        .and_then(|annotation| annotation.get("end"))
+        .and_then(Value::as_u64)
+        .or_else(|| node.get("end").and_then(Value::as_u64))
+        .and_then(json_offset)
+}
+
 /// The callee identifier name of an init expression that is a rune call:
 /// `$props()` → `$props`, `$derived.by(...)` → `$derived` (member object).
 fn init_rune_callee(init: &Value) -> Option<&str> {
@@ -1363,11 +1376,11 @@ fn collect_script_reports(
         let fix_start = if fixable { node_start(node) } else { None };
 
         for id in decl_idents {
-            if let (Some(s), Some(e)) = (node_start(id), id.get("end").and_then(Value::as_u64)) {
+            if let (Some(s), Some(e)) = (node_start(id), binding_report_end(id)) {
                 let name = ident_name(id).unwrap_or("");
                 reports.push((
                     s,
-                    json_offset(e).expect("AST source offsets are represented as u32"),
+                    e,
                     format!("'{name}' is never reassigned. Use 'const' instead."),
                     fix_start,
                 ));
@@ -1536,5 +1549,24 @@ mod tests {
         collect_pattern_idents(&obj, &mut out);
         let names: Vec<_> = out.iter().filter_map(|n| ident_name(n)).collect();
         assert_eq!(names, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn typed_binding_report_includes_type_annotation() {
+        let typed = json!({
+            "type": "Identifier",
+            "start": 4,
+            "end": 9,
+            "name": "value",
+            "typeAnnotation": {
+                "type": "TSTypeAnnotation",
+                "start": 9,
+                "end": 17
+            }
+        });
+        assert_eq!(binding_report_end(&typed), Some(17));
+
+        let plain = json!({ "type": "Identifier", "start": 4, "end": 9, "name": "value" });
+        assert_eq!(binding_report_end(&plain), Some(9));
     }
 }
