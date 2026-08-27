@@ -349,11 +349,15 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
         })
         .collect();
     // The `$.legacy_pre_effect(…, () => { … })` upstream builds for the last
-    // reactive statement carries a span-less block, and printing it parks esrap's
-    // comment cursor past the end of the list. With no statement left to flush
-    // them first, every comment after that statement dies with it.
+    // reactive statement carries a span-less outer block, and printing it parks
+    // esrap's comment cursor past the end of the list. A source-located block
+    // nested in the reactive body rewinds the cursor again, however, leaving a
+    // script-tail comment pending for the first located template node. Only
+    // extend the dead-cursor span when nothing in the body can revive it.
     if let Some(last) = spans.last_mut()
         && !last.has_successor
+        && (source[last.end..].contains("//") || source[last.end..].contains("/*"))
+        && nested_block_ranges(source, last.label, last.end).is_empty()
     {
         last.end = source.len();
     }
@@ -1722,6 +1726,14 @@ mod reactive_comment_tests {
     #[test]
     fn keeps_a_nested_block_comment_with_no_successor() {
         let source = "$: if (a) {\n\t/* inner */\n\tb = 1;\n}\n";
+        assert_eq!(rehome_reactive_statement_comments(source), source);
+    }
+
+    /// The located `if` consequent revives esrap's cursor after the synthesized
+    /// effect body killed it, so a later template node can flush the tail.
+    #[test]
+    fn keeps_a_tail_comment_after_a_nested_reactive_block() {
+        let source = "$: if (a) {\n\tb = 1;\n}\n/* tail */\n";
         assert_eq!(rehome_reactive_statement_comments(source), source);
     }
 

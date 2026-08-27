@@ -127,6 +127,40 @@ fn client_a_block_bodied_reactive_statement_drops_it_too() {
 }
 
 #[test]
+fn client_a_nested_reactive_block_revives_the_tail_comment() {
+    let out = client(
+        "<script>\n\texport let a = 1;\n\tlet b = 0;\n\t$: if (b > 2) {\n\t\tconsole.log(b);\n\t}\n\t/* tail */\n</script>\n<p>{b}</p>",
+    );
+    assert!(
+        out.contains("var /* tail */ p = root();"),
+        "the located consequent should leave the comment for the root node:\n{out}"
+    );
+    assert_eq!(
+        out.matches("/* tail */").count(),
+        1,
+        "comment duplicated:\n{out}"
+    );
+}
+
+#[test]
+fn client_drops_svelte_ignore_before_rebuilt_reactive_statements() {
+    for reactive in ["$: b = a * 2;", "$: if (b > 2) { console.log(b); }"] {
+        let source = format!(
+            "<script>\n\texport let a = 1;\n\tlet b = 0;\n\t// svelte-ignore a11y_no_static_element_interactions\n\t{reactive}\n</script>\n<p>{{b}}</p>"
+        );
+        let out = client(&source);
+        assert!(
+            !out.contains("svelte-ignore"),
+            "the rebuilt statement retained its ignore comment:\n{out}"
+        );
+        assert!(
+            out.contains("$.legacy_pre_effect("),
+            "the comment cleanup lost the reactive effect:\n{out}"
+        );
+    }
+}
+
+#[test]
 fn client_two_trailing_comments_after_a_reactive_statement_are_both_dropped() {
     let out = client(
         "<script>\n\texport let a = 1;\n\tlet b;\n\t$: b = a * 2;\n\t// one\n\t// two\n</script>\n<div>{b}</div>",

@@ -6313,6 +6313,48 @@ fn has_snapshot_ignore_before(output: &str) -> bool {
     false
 }
 
+/// Remove standalone `svelte-ignore` trivia immediately preceding a rebuilt
+/// legacy reactive statement. Analysis still sees the comment in the source;
+/// upstream then replaces the labeled statement with a synthesized effect, so
+/// the comment has no surviving node to attach to and is not printed.
+fn drop_trailing_svelte_ignore(output: &mut String) {
+    loop {
+        let end = output.trim_end().len();
+        if end == 0 {
+            output.clear();
+            return;
+        }
+
+        let line_start = output[..end].rfind('\n').map_or(0, |newline| newline + 1);
+        let line = &output[line_start..end];
+        let comment_start = if line.trim_start().starts_with("//") {
+            line_start + line.len() - line.trim_start().len()
+        } else if output[..end].ends_with("*/") {
+            let Some(comment_start) = output[..end].rfind("/*") else {
+                return;
+            };
+            let comment_line_start = output[..comment_start]
+                .rfind('\n')
+                .map_or(0, |newline| newline + 1);
+            if !output[comment_line_start..comment_start].trim().is_empty() {
+                return;
+            }
+            comment_start
+        } else {
+            return;
+        };
+
+        if !output[comment_start..end].contains("svelte-ignore") {
+            return;
+        }
+
+        let remove_start = output[..comment_start]
+            .rfind('\n')
+            .map_or(0, |newline| newline + 1);
+        output.truncate(remove_start);
+    }
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -7324,6 +7366,7 @@ fn transform_instance_script_for_visitors(
         if !analysis.runes && first_line_trimmed.starts_with("$:") {
             let _reactive_start = super::profile::timer_start();
             let _reactive_guard = super::profile::ReactiveStmtGuard(_reactive_start);
+            drop_trailing_svelte_ignore(result);
             // AST-derived ordered dependency names for THIS top-level `$:` statement
             // (Phase 2, source-ordinal aligned). Both phases count top-level `$:`
             // in source order, so the ordinal stays in sync.

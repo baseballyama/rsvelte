@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 60 entries)
+## Matrix known failures (`matrix-known-failures.json`, 0 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 60 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: all families are at `0`.
 
 ### `binding-position` — 0 entries
 
@@ -62,27 +62,21 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 20 entries
+### `comment-slot` — 0 entries
 
-All remaining entries are `.svelte` template seeds. The `.svelte.(js|ts)` module-path
-cluster is now empty: location-less Programs discard their top-level and EOF comments while
-located nested bodies can still resynchronize the cursor, matching esrap.
+The final 20 `legacy-reactive` entries had two causes on `client` and `client-dev`.
+Leading `svelte-ignore` comments remained in the ordinary script output even though upstream's
+rebuilt `legacy_pre_effect` has no surviving node for them. Script-tail comments took the
+opposite path: a located block nested in the final reactive body revives esrap's comment cursor,
+so the first located template node prints them. The client transform now removes the former only
+when it collects the reactive statement and preserves the latter whenever the body contains a
+nested source-located block.
 
-The current partition by target is `10 + 10 + 0 + 0` for `client`, `client-dev`,
-`server`, and `server-dev`. By seed:
-
-| seed | entries |
-|---|---:|
-| `legacy-reactive` | 20 |
-
-All 20 are `comment-mismatch`: comparing normalized non-comment lines finds no
-codegen-semantic divergence in this cluster. A comment is the one token that may appear
-between any two other tokens, so the matrix crosses eight comment kinds with every line
-boundary instead of relying on published-code frequency.
-
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `20`
-
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `20`
+The `.svelte.(js|ts)` module-path cluster is also empty: location-less Programs discard their
+top-level and EOF comments while located nested bodies can still resynchronize the cursor,
+matching esrap. A comment is the one token that may appear between any two other tokens, so the
+matrix continues to cross eight comment kinds with every line boundary instead of relying on
+published-code frequency.
 
 The 24 `server-dev` tail-comment entries for `class-private-state`, `class-static-block`, and
 `const-fold-line-continuation` were the nested component-callback close-position defect fixed by
@@ -292,7 +286,7 @@ separately, which is why this section names the merge-order rule at the top of t
 The whole family (5 bindings × 6 hosts × 11 write shapes × 4 targets) now passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
 but bakes one host into each binding's `wrap`, so binding × host has no cell there.
 
-### `class-modifier` — 36 entries
+### `class-modifier` — 0 entries
 
 The family (33 members × 7 hosts × 4 targets) is what #3100 and #3203 needed: its subject is
 what a **plain** `<script>` may contain, and upstream answers that with a different *parser*
@@ -304,33 +298,9 @@ points (instance script, `<script module>`, `compileModule`), and so do the two 
 acorn-typescript enforces in the parser that OXC leaves to a checker (`abstract` outside an
 `abstract class`, `override` with no superclass).
 
-What remains is one cause, and it is upstream's: **OXC's class-modifier table and
-acorn-typescript's are not the same table**, so on the three `lang="ts"` hosts three members
-are refused by both compilers under a different code.
-
-| member | official | rsvelte |
-|---|---|---|
-| `static accessor a = 1;` (`accessor-static`) | `js_parse_error` — `'accessor' modifier cannot be used with 'static' modifier.` | `typescript_invalid_feature` (accessor fields) |
-| `accessor static a = 1;` (`accessor-first`) | `typescript_invalid_feature` (accessor fields) | `js_parse_error` — `'static' modifier must precede 'accessor' modifier.` |
-| `declare accessor a;` (`accessor-declare`) | `typescript_invalid_feature` (accessor fields) | `js_parse_error` — `'accessor' modifier cannot be used with 'declare' modifier.` |
-
-Partition of `matrix-known-failures.json` entries under `class-modifier/` by cause:
-`error-code-mismatch, acorn-typescript modifier table: 36`
-
-The first row is the one that names the cause. `static accessor x` is **legal TypeScript** —
-`tsc` accepts it — and acorn-typescript refuses it from
-`incompatible(startLoc, modifier, 'accessor', 'static')`, at `loc.column` passed to a `raise`
-that takes a *position*, so upstream reports the error at offset 9 of the document, inside the
-`<script lang="ts">` tag. The second row is the same member with the modifiers transposed:
-`incompatible` only fires when the other modifier has already been seen, so upstream accepts
-that spelling and OXC — whose table has the order rule instead — rejects it. Reported in
-[`upstream_issues/3203-acorn-typescript-accessor-modifier-table.md`](../upstream_issues/3203-acorn-typescript-accessor-modifier-table.md).
-
-These are left listed rather than fixed because both compilers *do* refuse all three, the
-divergence is the code and the position only, and matching would mean either reproducing a
-wrong rule at a wrong offset (row 1) or hand-porting acorn-typescript's whole modifier table
-in place of OXC's — which would have to carry its bugs to be worth anything. The rows are
-generated rather than skipped so that the day upstream fixes its table, this gate says so.
+The historical acorn-typescript/OXC modifier-table discrepancy is recorded in
+[`upstream_issues/3203-acorn-typescript-accessor-modifier-table.md`](../upstream_issues/3203-acorn-typescript-accessor-modifier-table.md),
+but the current generated family has no ratcheted divergence.
 
 ### `rune-statement-container` — 0 entries
 
