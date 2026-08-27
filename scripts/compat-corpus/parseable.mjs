@@ -31,9 +31,9 @@ import { Parser } from 'acorn';
 export const OPTIONS = { ecmaVersion: 'latest', sourceType: 'module', allowHashBang: true };
 
 /**
- * `null` when `code` parses, otherwise a one-line reason including the position
- * acorn reported. Never throws: a parser crash is reported as a failure rather
- * than taking the run down.
+ * `null` when `code` parses, otherwise a reason including the position and the
+ * generated source line acorn rejected. Never throws: a parser crash is
+ * reported as a failure rather than taking the run down.
  */
 export function parseFailure(code) {
 	try {
@@ -43,6 +43,17 @@ export function parseFailure(code) {
 		const at = e?.loc ? ` (${e.loc.line}:${e.loc.column})` : '';
 		// acorn already appends `(line:col)`; only add one when it did not.
 		const message = String(e?.message ?? e);
-		return message.includes('(') ? message : message + at;
+		const reason = message.includes('(') ? message : message + at;
+		if (!e?.loc) return reason;
+
+		const line = code.split(/\r?\n/)[e.loc.line - 1];
+		if (line === undefined) return reason;
+
+		const gutter = String(e.loc.line);
+		// Acorn's column is zero-based. Expand tabs in the prefix so the caret
+		// still points at the rejected token in a terminal or CI log.
+		const prefix = line.slice(0, e.loc.column).replaceAll('\t', '  ');
+		const displayedLine = line.replaceAll('\t', '  ');
+		return `${reason}\n${gutter} | ${displayedLine}\n${' '.repeat(gutter.length)} | ${' '.repeat(prefix.length)}^`;
 	}
 }

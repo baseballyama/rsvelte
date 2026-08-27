@@ -175,6 +175,11 @@ console.log('\nthe OUTPUT ratchet does not suppress it (the whole reason for a s
 	check('exit 1 despite e7 being a known output failure', r.status === 1, `status ${r.status}\n${r.stdout.slice(-800)}`);
 	check('names the entry', /e7/.test(r.stdout), r.stdout.slice(-600));
 	check('reported as an output-parseability failure', /NEW output-parseability failures/.test(r.stdout), r.stdout.slice(-600));
+	check(
+		'includes the rejected generated source line and caret',
+		/1 \| export default foo\(bar\n  \| +\^/.test(r.stdout),
+		r.stdout.slice(-600),
+	);
 	restore();
 }
 
