@@ -5291,6 +5291,29 @@ fn try_transform_assignment(
     None
 }
 
+/// Transform an assignment synthesized outside the expression visitor while retaining the
+/// root identifier from the source AST.
+///
+/// Structural conversion can turn a member base such as `options` into `options()`. Once that
+/// happens, recovering the binding from the converted left-hand side is impossible. Ordinary
+/// assignment expressions pass `original_root_name` to `try_transform_assignment`; callers that
+/// manufacture an assignment (notably element `bind:` setters) must do the same.
+pub(crate) fn transform_synthesized_assignment(
+    left: &JsExpr,
+    right: &JsExpr,
+    original_root_name: Option<&str>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use super::shared::utils::apply_transforms_to_expression;
+
+    let assignment = try_transform_assignment("=", left, right, None, original_root_name, context)
+        .unwrap_or_else(|| b::assign(&context.arena, left.clone(), right.clone()));
+
+    // The normal expression path recursively visits the expression returned by the assignment
+    // visitor. Preserve that step for nested reads in both transformed and plain assignments.
+    apply_transforms_to_expression(&assignment, context)
+}
+
 /// Preserve the sequence that upstream's each-item `mutate` transform always
 /// builds, including when its invalidation tail is empty. A plain mutation is
 /// equivalent at runtime, but esrap prints the one-element sequence with

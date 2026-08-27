@@ -1743,7 +1743,7 @@ fn extract_getter_setter(expr: &JsExpr) -> (JsExpr, Option<JsExpr>) {
 fn build_getter_setter(
     original_expr: &Expression,
     expr: &JsExpr,
-    context: &ComponentContext,
+    context: &mut ComponentContext,
 ) -> (JsExpr, Option<JsExpr>) {
     build_getter_setter_with_primitive(original_expr, expr, context, false)
 }
@@ -1751,7 +1751,7 @@ fn build_getter_setter(
 fn build_getter_setter_with_primitive(
     original_expr: &Expression,
     expr: &JsExpr,
-    context: &ComponentContext,
+    context: &mut ComponentContext,
     is_primitive: bool,
 ) -> (JsExpr, Option<JsExpr>) {
     // Check if this is a simple identifier that's a state variable
@@ -1889,20 +1889,28 @@ fn build_getter_setter_with_primitive(
         // like `bind:group={selected[0]}` to use `selected[0]` instead of `selected()[0]`.
         let transformed_read = apply_transforms_to_expression(expr, context);
 
-        // Build the setter by creating an assignment expression and applying transforms.
+        // Build the setter through the same assignment transform as source assignments, retaining
+        // the source AST's root name. The converted member base may already be a getter call
+        // (`selected` -> `selected()`), from which the binding cannot be recovered.
         // This allows store_sub mutate transforms to kick in for patterns like:
         //   $obj.a = $$value -> $.store_mutate(obj, $.untrack($obj).a = $$value, $.untrack($obj))
         // Also applies prop mutation transforms in legacy mode:
         //   selected[0] = $$value -> selected(selected()[0] = $$value, true)
-        let assignment_expr = b::assign(&context.arena, expr.clone(), b::id("$$value"));
-        let transformed_set = apply_transforms_to_expression(&assignment_expr, context);
+        let original_root_name = get_ast_root_identifier(original_expr);
+        let transformed_set = super::expression_converter::transform_synthesized_assignment(
+            expr,
+            &b::id("$$value"),
+            original_root_name.as_deref(),
+            context,
+        );
 
         // Check if the root identifier has legacy_indirect_bindings.
         // If so, wrap the setter in a sequence with $.invalidate_inner_signals().
         // This corresponds to AssignmentExpression.js lines 159-173 in the official compiler.
         let transformed_set = if !context.state.analysis.runes {
-            // Extract root identifier from the original expression
-            let root_name = get_expression_root_identifier(expr, &context.arena);
+            // Reuse the source-AST root. The converted expression can already contain a getter
+            // call, which is precisely why the assignment transform needed this name as well.
+            let root_name = original_root_name.clone();
             if let Some(ref root_name) = root_name {
                 // Look up the binding
                 let binding = context.state.get_binding(root_name);
