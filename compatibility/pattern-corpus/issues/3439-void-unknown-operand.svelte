@@ -3,6 +3,8 @@
 	let s = $state(1);
 </script>
 
+<em>x{void p}</em>
+
 {#if true}
 	{@const known = void p}
 	{@const unknown_not = !p}

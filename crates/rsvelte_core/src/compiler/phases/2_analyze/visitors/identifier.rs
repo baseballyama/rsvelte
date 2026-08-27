@@ -247,12 +247,8 @@ fn visit_identifier_inner(
         expression.references.insert(binding_idx);
 
         // Check if this reference involves state
-        let binding = &context.analysis.root.bindings[binding_idx];
-        let involves_state = binding.kind != BindingKind::Static
-            && (binding.kind == BindingKind::Prop
-                || binding.kind == BindingKind::BindableProp
-                || binding.kind == BindingKind::RestProp
-                || !binding.is_function());
+        let involves_state =
+            super::shared::utils::binding_reference_has_state(binding_idx, context);
 
         if involves_state {
             expression.set_has_state(true);

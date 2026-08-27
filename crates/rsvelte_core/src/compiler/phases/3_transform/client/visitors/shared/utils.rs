@@ -11,10 +11,9 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
-// shared model of a folded JS value; the client fold must agree with it.
+// shared model of a folded JS value used by Phase 2 and both transforms.
 use crate::compiler::phases::phase3_transform::server::evaluate::{
-    EvalScope, EvalValue, Evaluation, eval_binary, eval_unary, evaluate_binding_initial,
-    evaluate_estree, to_js_string,
+    EvalScope, EvalValue, Evaluation, evaluate_binding_initial, evaluate_estree, to_js_string,
 };
 
 /// Local scope information for tracking shadowed variables and their init expression types.
@@ -3991,516 +3990,51 @@ fn eval_value_text(v: &EvalValue) -> Option<Option<String>> {
 
 /// A folded value only when it is a concrete one — a marker (`NUMBER`,
 /// `STRING`, `UNKNOWN`) means the fold failed.
-fn known(v: EvalValue) -> Option<EvalValue> {
-    (!v.is_marker()).then_some(v)
-}
-
-/// Constant-folding evaluator, working on the already-materialized JSON for the
-/// expression.
-///
-/// Recursion stays on `&Value` deliberately: the caller always has the child's
-/// JSON in hand, so descending does not clone the subtree, rebuild a typed
-/// `Expression` from it, and then serialize that copy again on the next level —
-/// which is what the previous `serde_json::from_value::<Expression>(x.clone())`
-/// hops did, once per nesting level.
+/// Fold a template expression through the shared port of upstream
+/// `scope.evaluate`.
 fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) -> Option<EvalValue> {
-    {
-        let expr_type = jv.get("type").and_then(|t| t.as_str())?;
+    let expr_type = jv.get("type").and_then(|t| t.as_str())?;
 
-        // Upstream `build_template_chunk` memoizes the expression FIRST
-        // (`memoizer.add` replaces any `has_call` / `has_await` chunk with an
-        // opaque `$N` identifier) and only THEN runs `scope.evaluate` on the
-        // result. An opaque identifier never evaluates to a known constant, so a
-        // chunk that contains a (non-pure) call is ALWAYS kept reactive — even
-        // when its branches would otherwise fold to a literal (e.g.
-        // `duration ? format(duration) : '--:--'` with `duration === 0`). Mirror
-        // that ordering here by refusing to fold any expression whose
-        // `has_call` flag is set, so the chunk falls through to memoization.
-        // This subsumes the per-`Math.*` state-arg guard below. The depth guard
-        // keeps it to the template expression: `has_call` is that expression's
-        // metadata, and `scope.evaluate` never consults it when it recurses into
-        // a binding's initializer.
-        if matches!(
-            expr_type,
-            "CallExpression"
-                | "BinaryExpression"
-                | "LogicalExpression"
-                | "ConditionalExpression"
-                | "UnaryExpression"
-                | "TemplateLiteral"
-                | "MemberExpression"
-                | "SequenceExpression"
-                | "ChainExpression"
-        ) && INITIAL_EVAL_DEPTH.with(|d| d.get()) == 0
-            && has_call_json(jv, context)
-        {
-            return None;
-        }
-
-        match expr_type {
-            "Literal" => {
-                // A regex literal serializes its `value` as `{}`, so the pattern
-                // and flags have to come from the `regex` entry.
-                if let Some(regex) = jv.get("regex") {
-                    let pattern = regex.get("pattern").and_then(|p| p.as_str())?;
-                    let flags = regex.get("flags").and_then(|f| f.as_str())?;
-                    return Some(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
-                }
-                // A bigint serializes `value` as null; fold it from the digits
-                // (upstream evaluates to a real BigInt, so `typeof 1n` and a
-                // template `{1n}` both fold).
-                if let Some(digits) = jv.get("bigint").and_then(|b| b.as_str()) {
-                    return digits.parse::<i128>().ok().map(EvalValue::BigInt);
-                }
-                match jv.get("value")? {
-                    serde_json::Value::String(s) => Some(EvalValue::Str(s.clone())),
-                    serde_json::Value::Number(n) => Some(EvalValue::Num(n.as_f64()?)),
-                    serde_json::Value::Bool(b_val) => Some(EvalValue::Bool(*b_val)),
-                    serde_json::Value::Null => Some(EvalValue::Null),
-                    _ => None,
-                }
-            }
-            "Identifier" => {
-                let name = jv.get("name").and_then(|n| n.as_str())?;
-                if name == "undefined" {
-                    return Some(EvalValue::Undefined);
-                }
-
-                // If there's a transform registered for this identifier (e.g., from let: directive),
-                // it's been overridden in the current scope and should not be folded as a literal.
-                // That is a fact about the TEMPLATE EXPRESSION, whose transformed form is
-                // `$.get(name)`; once the walk has descended into a binding's initializer
-                // upstream's `scope.evaluate` resolves the binding itself, transform or not.
-                if INITIAL_EVAL_DEPTH.with(|d| d.get()) == 0
-                    && context.state.transform.contains_key(name)
-                {
-                    return None;
-                }
-
-                // An identifier that names an enclosing `{#each … as <item>[, <index>]}`
-                // loop variable shadows any outer `const` of the same name: inside the
-                // block it is the (reactive) loop variable, NOT a foldable constant.
-                // Without this, `const title = '…'; {#each xs as title}{title}{/each}`
-                // wrongly folds `{title}` to the const's value.
-                if context.state.each_binding_context.iter().any(|c| {
-                    c.item_name == name || (!c.index_name.is_empty() && c.index_name == name)
-                }) {
-                    return None;
-                }
-
-                // Check if the identifier is a constant binding
-                let binding = context.state.get_binding(name)?;
-
-                // `{@const}` / `{const}` / `{let}` template declarations made
-                // inside a `{#snippet}` body are local to that snippet's
-                // generated function. Upstream resolves identifiers through
-                // `scope.evaluate`, so a binding declared in a sibling snippet
-                // is simply not reachable and the reference stays a (possibly
-                // global) identifier. `get_binding`'s any-scope fallback would
-                // otherwise leak the binding here and substitute its value
-                // across snippet boundaries.
-                if matches!(
-                    binding.kind,
-                    crate::compiler::phases::phase2_analyze::scope::BindingKind::Template
-                ) && context
-                    .state
-                    .scope_root
-                    .snippet_scope_indices
-                    .contains(&binding.scope_index)
-                    && !context.state.scope_chain_contains(binding.scope_index)
-                {
-                    return None;
-                }
-
-                // Only fold if:
-                // 1. Not updated (reassigned or mutated)
-                // 2. Not a prop (props come from outside and can change)
-                // This matches Svelte's scope.js evaluate() logic:
-                // if (!binding.updated && binding.initial !== null && !is_prop)
-                // Note: reactive bindings like $state('hello') CAN be folded if not updated,
-                // because their initial value is still known at compile time.
-                if binding.is_updated() {
-                    return None;
-                }
-                let is_prop = matches!(
-                    binding.kind,
-                    crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
-                        | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
-                        | crate::compiler::phases::phase2_analyze::scope::BindingKind::RestProp
-                );
-                if is_prop {
-                    return None;
-                }
-
-                // A no-arg `$state()` / `$state.raw()` evaluates to `undefined`
-                // (known), so a read of it omits the `?? ""` fallback. Mirrors
-                // upstream scope.js `$state`/`$state.raw` with no argument.
-                // `$state(foo)` is excluded — it records `initial_node_type` — so
-                // it correctly stays unknown.
-                {
-                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
-                        && binding.initial.is_none()
-                        && binding.initial_node_type.is_none()
-                    {
-                        return Some(EvalValue::Undefined);
-                    }
-                }
-
-                // A non-literal initializer is kept as AST JSON rather than in
-                // `initial`; upstream's `scope.evaluate` recurses into the init
-                // node whatever its shape, so mirror that before giving up.
-                {
-                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                    if binding.initial.is_none()
-                        && !matches!(binding.kind, BindingKind::Derived)
-                        && INITIAL_EVAL_DEPTH.with(|d| d.get()) < MAX_INITIAL_EVAL_DEPTH
-                        && let Some(init_json) = binding.init_expr_json_parsed()
-                    {
-                        INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
-                        let folded = get_literal_value_json(init_json, context);
-                        INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
-                        return folded;
-                    }
-                }
-
-                // Check if we have a known initial value (stored as source string)
-                let init = binding.initial.as_ref()?;
-                // Parse simple string literals like 'world' or "world"
-                let trimmed = init.trim();
-                let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-                    || (trimmed.starts_with('"') && trimmed.ends_with('"'));
-                if is_string_literal && trimmed.len() >= 2 {
-                    return Some(EvalValue::Str(cook_string_literal(
-                        &trimmed[1..trimmed.len() - 1],
-                    )));
-                }
-                // Parse number literals
-                if let Some(n) = parse_js_number_literal(trimmed) {
-                    return Some(EvalValue::Num(n));
-                }
-                // A bigint init folds to its exact value (`String(9n)` → "9")
-                if let Some(v) = parse_js_bigint_text(trimmed) {
-                    return Some(EvalValue::BigInt(v));
-                }
-                // Handle boolean and null literals
-                match trimmed {
-                    "true" => Some(EvalValue::Bool(true)),
-                    "false" => Some(EvalValue::Bool(false)),
-                    "null" => Some(EvalValue::Null),
-                    "undefined" | "void 0" => Some(EvalValue::Undefined),
-                    _ => {
-                        // Check for a JSON `Literal` node form (from binding.initial,
-                        // e.g. a `{const x = 'nested'}` DeclarationTag whose initial is
-                        // stored as `{"type":"Literal",...,"value":"nested","raw":"'nested'"}`).
-                        // Mirrors upstream `scope.evaluate()` returning the literal value.
-                        if init.contains("\"type\":\"Literal\"")
-                            && let Some(parsed) = binding.initial_json()
-                            && parsed.get("type").and_then(|t| t.as_str()) == Some("Literal")
-                        {
-                            // Regex literal: value is null but "regex" field is present.
-                            if parsed.get("regex").is_some() {
-                                let pattern = parsed
-                                    .get("regex")
-                                    .and_then(|r| r.get("pattern"))
-                                    .and_then(|p| p.as_str())
-                                    .unwrap_or("");
-                                let flags = parsed
-                                    .get("regex")
-                                    .and_then(|r| r.get("flags"))
-                                    .and_then(|f| f.as_str())
-                                    .unwrap_or("");
-                                return Some(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
-                            }
-                            if parsed.get("bigint").is_some() {
-                                return None;
-                            }
-                            return match parsed.get("value") {
-                                Some(v) if v.is_string() => {
-                                    Some(EvalValue::Str(v.as_str().unwrap().to_string()))
-                                }
-                                Some(v) if v.is_f64() || v.is_i64() || v.is_u64() => {
-                                    Some(EvalValue::Num(v.as_f64().unwrap()))
-                                }
-                                Some(v) if v.is_boolean() => {
-                                    Some(EvalValue::Bool(v.as_bool().unwrap()))
-                                }
-                                Some(v) if v.is_null() => Some(EvalValue::Null),
-                                _ => None,
-                            };
-                        }
-                        // Check for TemplateLiteral JSON format (from binding.initial)
-                        // Template literals without expressions are known compile-time values
-                        if init.contains("\"type\":\"TemplateLiteral\"")
-                            && init.contains("\"expressions\":[]")
-                        {
-                            // Extract the cooked value from the quasis
-                            // Format: {"type":"TemplateLiteral",...,"quasis":[{"value":{"cooked":"..."}}]}
-                            let quasis = binding.initial_json().and_then(|parsed| {
-                                parsed.get("quasis").and_then(|q| q.as_array().cloned())
-                            });
-
-                            if let Some(quasis) = quasis {
-                                // Collect all cooked values from quasis
-                                let mut result = String::new();
-                                for quasi in quasis {
-                                    if let Some(cooked) = quasi
-                                        .get("value")
-                                        .and_then(|v| v.get("cooked"))
-                                        .and_then(|c| c.as_str())
-                                    {
-                                        result.push_str(cooked);
-                                    }
-                                }
-                                return Some(EvalValue::Str(result));
-                            }
-                        }
-                        // Fix D: binding.initial for declaration tags is stored as a full AST
-                        // JSON node (e.g. CallExpression, BinaryExpression). Parse it and
-                        // recursively evaluate — mirrors upstream scope.js `evaluate()` which
-                        // recurses into `binding.initial`. Skip Derived bindings: their
-                        // runtime value is `$.get(binding)`, not the compile-time init.
-                        {
-                            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                            if !matches!(binding.kind, BindingKind::Derived)
-                                && init.contains("\"type\":")
-                                && INITIAL_EVAL_DEPTH.with(|d| d.get()) < MAX_INITIAL_EVAL_DEPTH
-                                && let Ok(parsed_expr) =
-                                    serde_json::from_str::<crate::ast::js::Expression>(init)
-                            {
-                                INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
-                                let folded = get_literal_value_json(parsed_expr.as_json(), context);
-                                INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
-                                return folded;
-                            }
-                        }
-                        None
-                    }
-                }
-            }
-            "LogicalExpression"
-            | "CallExpression"
+    // `build_template_chunk` memoizes first. A call-bearing chunk is therefore
+    // an opaque temporary by the time upstream evaluates it, while recursion
+    // into a binding initializer is not memoized.
+    if matches!(
+        expr_type,
+        "CallExpression"
             | "BinaryExpression"
+            | "LogicalExpression"
+            | "ConditionalExpression"
             | "UnaryExpression"
-            | "ConditionalExpression" => {
-                let obj = jv.as_object()?;
-                get_literal_value_complex(expr_type, obj, context)
-            }
-            "TemplateLiteral" => {
-                // Mirrors upstream scope.js `TemplateLiteral`: the value is known
-                // when every interpolation is, so quasis and folded expressions
-                // concatenate into one string.
-                let obj = jv.as_object()?;
-                let quasis = obj.get("quasis").and_then(|q| q.as_array())?;
-                let expressions = obj.get("expressions").and_then(|e| e.as_array())?;
-
-                let cooked = |i: usize| -> Option<&str> {
-                    quasis
-                        .get(i)?
-                        .get("value")
-                        .and_then(|v| v.get("cooked"))
-                        .and_then(|c| c.as_str())
-                };
-
-                let mut result = String::from(cooked(0)?);
-                for (i, expression) in expressions.iter().enumerate() {
-                    let folded = get_literal_value_json(expression, context)?;
-                    result.push_str(&to_js_string(&folded)?);
-                    result.push_str(cooked(i + 1)?);
-                }
-                Some(EvalValue::Str(result))
-            }
-            "MemberExpression" => {
-                // Upstream scope.js `MemberExpression` knows exactly one thing: a
-                // global-constant keypath (`Math.PI`). Everything else is UNKNOWN.
-                let (base, keypath) = static_keypath_json(jv)?;
-                if context.state.get_binding(&base).is_some()
-                    || context.state.transform.contains_key(&base)
-                {
-                    return None;
-                }
-                let value =
-                    crate::compiler::phases::phase3_transform::server::evaluate::global_constant(
-                        &keypath,
-                    )?;
-                Some(EvalValue::Num(value))
-            }
-            _ => None,
-        }
-    }
-}
-
-/// The `(base, dotted keypath)` of a non-computed `Identifier`-only member
-/// chain, mirroring upstream `get_global_keypath`.
-fn static_keypath_json(jv: &serde_json::Value) -> Option<(String, String)> {
-    let mut parts: Vec<&str> = Vec::new();
-    let mut node = jv;
-    while node.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-        if node.get("computed").and_then(|c| c.as_bool()) == Some(true) {
-            return None;
-        }
-        let property = node.get("property")?;
-        if property.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
-            return None;
-        }
-        parts.push(property.get("name")?.as_str()?);
-        node = node.get("object")?;
-    }
-    if node.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+            | "TemplateLiteral"
+            | "MemberExpression"
+            | "SequenceExpression"
+            | "ChainExpression"
+    ) && has_call_json(jv, context)
+    {
         return None;
     }
-    let base = node.get("name")?.as_str()?;
-    parts.push(base);
-    parts.reverse();
-    Some((base.to_string(), parts.join(".")))
-}
 
-/// A numeric literal's SOURCE text as a value. `binding.initial` keeps the
-/// spelling, so a radix prefix or a `_` separator has to be read here — an
-/// estree `Literal` node would already carry the cooked number.
-fn parse_js_number_literal(text: &str) -> Option<f64> {
-    let cleaned = if text.contains('_') {
-        text.replace('_', "")
-    } else {
-        text.to_string()
-    };
-    let (radix, digits) = match cleaned.get(..2) {
-        Some("0x") | Some("0X") => (16, &cleaned[2..]),
-        Some("0o") | Some("0O") => (8, &cleaned[2..]),
-        Some("0b") | Some("0B") => (2, &cleaned[2..]),
-        _ => return cleaned.parse::<f64>().ok(),
-    };
-    u128::from_str_radix(digits, radix).ok().map(|n| n as f64)
-}
-
-/// Parse a JS bigint literal SOURCE (`9_007n`, `0x1fn`) to its exact value.
-fn parse_js_bigint_text(text: &str) -> Option<i128> {
-    let t = text.trim().strip_suffix('n')?;
-    let cleaned: String = t.chars().filter(|c| *c != '_').collect();
-    let t = cleaned.as_str();
-    if let Some(h) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
-        return i128::from_str_radix(h, 16).ok();
-    }
-    if let Some(o) = t.strip_prefix("0o").or_else(|| t.strip_prefix("0O")) {
-        return i128::from_str_radix(o, 8).ok();
-    }
-    if let Some(b) = t.strip_prefix("0b").or_else(|| t.strip_prefix("0B")) {
-        return i128::from_str_radix(b, 2).ok();
-    }
-    if t.is_empty() || !t.bytes().all(|b| b.is_ascii_digit()) {
+    // The template converter has already replaced this read. Evaluating its
+    // source binding would evaluate a different expression.
+    if expr_type == "Identifier"
+        && jv
+            .get("name")
+            .and_then(|name| name.as_str())
+            .is_some_and(|name| context.state.transform.contains_key(name))
+    {
         return None;
     }
-    t.parse::<i128>().ok()
-}
 
-/// Mirrors upstream `get_global_keypath`, which yields a rune keypath only when
-/// the name is unbound: in legacy mode `$state` is the store subscription of an
-/// imported `state`, not a rune.
-fn is_rune_callee(name: &str, context: &ComponentContext) -> bool {
-    context.state.analysis.runes && context.state.get_binding(name).is_none()
-}
-
-const MAX_INITIAL_EVAL_DEPTH: u8 = 8;
-
-thread_local! {
-    /// Caps mutually-referential initializers (`const a = b; const b = a;`).
-    static INITIAL_EVAL_DEPTH: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
-}
-
-/// Handle complex expression types for get_literal_value that need JSON access.
-fn get_literal_value_complex(
-    expr_type: &str,
-    obj: &serde_json::Map<String, serde_json::Value>,
-    context: &ComponentContext,
-) -> Option<EvalValue> {
-    match expr_type {
-        "LogicalExpression" => {
-            let operator = obj.get("operator").and_then(|v| v.as_str())?;
-            let left = get_literal_value_json(obj.get("left")?, context)?;
-            let takes_left = match operator {
-                "??" => !left.is_nullish()?,
-                "||" => left.truthy()?,
-                "&&" => !left.truthy()?,
-                _ => return None,
-            };
-            if takes_left {
-                Some(left)
-            } else {
-                get_literal_value_json(obj.get("right")?, context)
-            }
-        }
-        "CallExpression" => {
-            let callee = obj.get("callee")?;
-            let args = obj.get("arguments").and_then(|a| a.as_array())?;
-            let (base, keypath) = static_keypath_json(callee)?;
-
-            // Mirrors upstream scope.js lines 465-481: a rune call evaluates to
-            // its single argument. `$derived.by` takes a thunk, so it is not one.
-            if matches!(keypath.as_str(), "$state" | "$state.raw" | "$derived")
-                && is_rune_callee(&base, context)
-            {
-                return match args.first() {
-                    Some(first_arg) => get_literal_value_json(first_arg, context),
-                    None => Some(EvalValue::Undefined),
-                };
-            }
-
-            // A shadowed name is not the global (`get_global_keypath`).
-            if context.state.get_binding(&base).is_some() {
-                return None;
-            }
-
-            // NOTE: a global call whose argument references a runtime-reactive
-            // State/RawState binding has already been rejected by the top-level
-            // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
-            // adds every binding reference to `expression.dependencies`, so a
-            // pure-callee call with such an argument still gets `has_call = true`).
-            // Only genuinely-constant argument folds reach this point.
-            let mut arg_values = Vec::with_capacity(args.len());
-            for arg in args {
-                arg_values.push(get_literal_value_json(arg, context)?);
-            }
-            known(
-                crate::compiler::phases::phase3_transform::server::evaluate::eval_known_global_call(
-                    &keypath,
-                    &arg_values,
-                )?,
-            )
-        }
-        "BinaryExpression" => {
-            let operator = obj.get("operator").and_then(|v| v.as_str())?;
-
-            // Upstream evaluates the *converted* expression, and in dev the
-            // `BinaryExpression` visitor has already turned an equality into a
-            // `$.strict_equals` / `$.equals` call — which never evaluates to a
-            // known value, so the chunk stays a call instead of folding.
-            if context.state.options.dev && matches!(operator, "===" | "!==" | "==" | "!=") {
-                return None;
-            }
-
-            let left = get_literal_value_json(obj.get("left")?, context)?;
-            let right = get_literal_value_json(obj.get("right")?, context)?;
-            known(eval_binary(operator, &left, &right))
-        }
-        "UnaryExpression" => {
-            let operator = obj.get("operator").and_then(|v| v.as_str())?;
-            let argument = get_literal_value_json(obj.get("argument")?, context)?;
-            known(eval_unary(operator, &argument))
-        }
-        "ConditionalExpression" => {
-            // Fold a ternary when its test folds to a known constant, taking
-            // only the chosen branch (upstream scope.js `ConditionalExpression`
-            // case: evaluate the test; if known, use the matching branch).
-            let test = get_literal_value_json(obj.get("test")?, context)?;
-            let branch = if test.truthy()? {
-                obj.get("consequent")?
-            } else {
-                obj.get("alternate")?
-            };
-            get_literal_value_json(branch, context)
-        }
-        _ => None,
-    }
+    evaluate_estree(
+        &ClientEvalScope {
+            context,
+            converted: true,
+        },
+        jv,
+        0,
+    )
+    .known_value()
+    .cloned()
 }
 
 /// Check if a BUILT JsExpr is guaranteed to be defined (non-null/undefined).
@@ -4595,7 +4129,8 @@ pub(crate) fn is_js_expr_defined(
                 })
         }
         JsExpr::TemplateLiteral(_) => true, // Always a string
-        JsExpr::Binary(_) => true,          // Always produces a result
+        JsExpr::Function(_) | JsExpr::Arrow(_) => true,
+        JsExpr::Binary(_) => true, // Always produces a result
         JsExpr::Unary(u) => !matches!(u.operator, JsUnaryOp::Void),
         JsExpr::Logical(log) => {
             // Check both sides
@@ -4761,101 +4296,15 @@ pub(crate) fn is_expression_defined(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {
-    is_expression_defined_json(expr.as_json(), context)
-}
-
-/// Internal helper for checking if a JSON expression is defined.
-fn is_expression_defined_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
-    let Some(obj) = json_value.as_object() else {
-        return false;
-    };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-        return false;
-    };
-
-    match expr_type {
-        "Identifier" => obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .is_some_and(|name| identifier_is_defined(name, context)),
-        "Literal" => {
-            // Literals are defined unless they're null/undefined
-            if let Some(value) = obj.get("value") {
-                return !value.is_null();
-            }
-            // If no value field but raw exists, it's likely a valid literal
-            obj.get("raw").is_some()
-        }
-        "BinaryExpression" => {
-            // Binary expressions always produce defined results (booleans, numbers, strings)
-            true
-        }
-        "UnaryExpression" => {
-            // Check the operator - most produce defined results
-            if let Some(op) = obj.get("operator").and_then(|v| v.as_str()) {
-                // void operator produces undefined
-                if op == "void" {
-                    return false;
-                }
-            }
-            true
-        }
-        "LogicalExpression" => {
-            // Logical expressions might return undefined if right side is undefined
-            // For safety, check both operands
-            if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
-                return is_expression_defined_json(left, context)
-                    && is_expression_defined_json(right, context);
-            }
-            false
-        }
-        "ConditionalExpression" => {
-            // Ternary: check both consequent and alternate
-            if let (Some(consequent), Some(alternate)) =
-                (obj.get("consequent"), obj.get("alternate"))
-            {
-                return is_expression_defined_json(consequent, context)
-                    && is_expression_defined_json(alternate, context);
-            }
-            false
-        }
-        "TemplateLiteral" => {
-            // Template literals are always strings (defined)
-            true
-        }
-        "ArrayExpression" | "ObjectExpression" => {
-            // Array/object literals are always defined
-            true
-        }
-        "ArrowFunctionExpression" | "FunctionExpression" => {
-            // Functions are always defined
-            true
-        }
-        "CallExpression" => {
-            // A call to a known global (`Math.*` / `Number` / `String` /
-            // `BigInt`) returns a NUMBER/STRING — always defined — mirroring
-            // upstream `scope.evaluate`'s `globals` table.
-            obj.get("callee")
-                .and_then(json_keypath)
-                .as_deref()
-                .is_some_and(|keypath| {
-                    let has_spread = obj
-                        .get("arguments")
-                        .and_then(|args| args.as_array())
-                        .is_some_and(|args| {
-                            args.iter().any(|arg| {
-                                arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
-                            })
-                        });
-                    is_known_defined_global_call(keypath, has_spread)
-                })
-        }
-        "MemberExpression" => {
-            // Member access could be undefined; can't guarantee defined.
-            false
-        }
-        _ => false,
-    }
+    evaluate_estree(
+        &ClientEvalScope {
+            context,
+            converted: false,
+        },
+        expr.as_json(),
+        0,
+    )
+    .is_defined()
 }
 
 /// Dotted keypath of a static estree-JSON callee (`Math.round` → `"Math.round"`).
@@ -5260,37 +4709,10 @@ pub fn is_effect_pending_expr(
     }
 }
 
-// Recursion-depth guard for `initial_is_non_reactive` so cyclic initializers
-// (`const a = `${b}`; const b = `${a}``) cannot loop forever.
-thread_local! {
-    static REACTIVE_INIT_DEPTH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
-}
-
 /// True when a binding's stored initializer (`init_expr_json`, an interpolated
-/// template literal) contains NO reactive state — i.e. its value is compile-time
-/// "known" (approximates `scope.evaluate(node).is_known`, letting
-/// `const url = `…${KNOWN}…`` be treated as non-reactive). Depth-guarded.
+/// template literal) is compile-time known.
 fn initial_is_non_reactive(binding: &Binding, context: &ComponentContext) -> bool {
-    let Some(json) = binding.init_expr_json_parsed() else {
-        return false;
-    };
-    REACTIVE_INIT_DEPTH.with(|d| {
-        if d.get() >= 8 {
-            return false;
-        }
-        d.set(d.get() + 1);
-        // The `has_call` bail in `get_literal_value_json` models upstream
-        // memoizing the TEMPLATE expression before evaluating it; an
-        // initializer is never memoized, so enter at a non-zero depth.
-        INITIAL_EVAL_DEPTH.with(|e| e.set(e.get() + 1));
-        // `is_expression_known_json` is the proper compile-time-known check: it
-        // returns false for calls / awaits / reactive reads, so a template with
-        // an impure or reactive interpolation stays reactive (memoized).
-        let known = is_expression_known_json(json, context);
-        INITIAL_EVAL_DEPTH.with(|e| e.set(e.get() - 1));
-        d.set(d.get() - 1);
-        known
-    })
+    is_binding_initial_known(binding, context)
 }
 
 /// Resolve the binding a template identifier read actually refers to,
@@ -5583,19 +5005,13 @@ fn identifier_has_reactive_state(
             //   (includes undefined identifier: `let x = undefined`)
             //   Note: initial_is_defined is NOT required here because
             //   `undefined` is a compile-time constant even if it's falsy.
-            //   is_initial_value_literal_or_known handles None → false.
+            //   The shared evaluator handles a missing initializer as unknown.
             let decl_known_eligible = matches!(
                 binding.declaration_kind,
                 DeclarationKind::Const | DeclarationKind::Let
             ) && !binding.reassigned
                 && !binding.mutated;
-            let is_known = decl_known_eligible
-                && (is_initial_value_literal_or_known(&binding.initial)
-                    // Recursive `scope.evaluate`-style fallback for an
-                    // interpolated-template-literal initializer whose
-                    // interpolations are themselves non-reactive
-                    // (e.g. `const url = `…${KNOWN_CONST}…``). Depth-guarded.
-                    || initial_is_non_reactive(binding, context));
+            let is_known = decl_known_eligible && initial_is_non_reactive(binding, context);
 
             // has_state is true when the value is NOT known at compile time
             return !is_known;
@@ -6281,11 +5697,11 @@ fn typed_is_pure(
 /// Returns true if the JSON expression tree contains any Identifier that resolves to
 /// a `State` or `RawState` binding.
 ///
-/// Used by `get_literal_value_complex` and `has_call_json` to prevent compile-time
-/// folding of calls like `Math.round(y)` where `y = $state(0)`.  Although the binding
-/// has a known literal initial value, it is runtime-reactive (e.g. updated via
-/// `bind:scrollY={y}`).  Upstream avoids the fold because Phase-2 adds every binding
-/// to `expression.dependencies`, so `dependencies.size > 0` → `has_call = true`.
+/// Used by `has_call_json` to prevent compile-time folding of calls like
+/// `Math.round(y)` where `y = $state(0)`. Although the binding has a known literal
+/// initial value, it is runtime-reactive (e.g. updated via `bind:scrollY={y}`).
+/// Upstream avoids the fold because Phase-2 adds every binding to
+/// `expression.dependencies`, so `dependencies.size > 0` → `has_call = true`.
 fn arg_contains_state_or_raw_state_binding(
     json_value: &serde_json::Value,
     context: &ComponentContext,
@@ -6849,91 +6265,15 @@ fn is_binding_initial_known(
     binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
     context: &ComponentContext,
 ) -> bool {
-    match binding.initial_json().filter(|value| value.is_object()) {
-        Some(json) => is_expression_known_json(json, context),
-        None => is_initial_value_literal_or_known(&binding.initial),
-    }
-}
-
-/// Check if a binding's initial value is a literal or known compile-time constant.
-///
-/// This approximates Svelte's `scope.evaluate(node).is_known` by checking
-/// if the initial value string represents a literal value like:
-/// - Number literals: "5", "3.14"
-/// - String literals: "'hello'", "\"world\""
-/// - Boolean literals: "true", "false"
-/// - null literal: "null"
-/// - Array/Object literals: "[]", "{}"
-///
-/// This is a heuristic since we only have the string representation.
-#[inline]
-fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
-    let Some(s) = initial else {
-        return false;
-    };
-
-    // The initial string can be either:
-    // 1. A raw literal value like "'world'", "42", "true", "null"
-    // 2. An AST JSON string containing "Literal" type
-
-    // Check for AST JSON format (contains "Literal" type)
-    if memchr::memmem::find(s.as_bytes(), b"Literal").is_some()
-        && memchr::memmem::find(s.as_bytes(), b"TemplateLiteral").is_none()
-    {
-        // Literal types (NumericLiteral, StringLiteral, BooleanLiteral, NullLiteral)
-        return true;
-    }
-
-    // Check for `undefined` identifier in AST JSON form:
-    // {"type":"Identifier","name":"undefined",...}
-    if memchr::memmem::find(s.as_bytes(), b"Identifier").is_some()
-        && memchr::memmem::find(s.as_bytes(), b"\"undefined\"").is_some()
-    {
-        return true;
-    }
-
-    // Check for TemplateLiteral without expressions (pure string template)
-    // A TemplateLiteral with no expressions is a known value at compile time
-    if memchr::memmem::find(s.as_bytes(), b"TemplateLiteral").is_some()
-        && memchr::memmem::find(s.as_bytes(), b"\"expressions\":[]").is_some()
-    {
-        return true;
-    }
-
-    // Check for raw literal formats
-    let trimmed = s.trim();
-
-    // String literal: starts and ends with quotes
-    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
-    {
-        return true;
-    }
-
-    // Number literal (separators/bases included) or bigint literal
-    if parse_js_number_literal(trimmed).is_some() || parse_js_bigint_text(trimmed).is_some() {
-        return true;
-    }
-
-    // Boolean/null literals (`void 0` is the undefined a builder spells)
-    if matches!(trimmed, "true" | "false" | "null" | "undefined" | "void 0") {
-        return true;
-    }
-
-    // Empty array/object literals from AST format
-    if memchr::memmem::find(s.as_bytes(), b"ArrayExpression").is_some()
-        || memchr::memmem::find(s.as_bytes(), b"ObjectExpression").is_some()
-    {
-        // These are known but might contain reactive values - be conservative
-        // Only treat empty ones as known
-        if memchr::memmem::find(s.as_bytes(), b"\"elements\":[]").is_some()
-            || memchr::memmem::find(s.as_bytes(), b"\"properties\":[]").is_some()
-        {
-            return true;
-        }
-    }
-
-    false
+    evaluate_binding_initial(
+        &ClientEvalScope {
+            context,
+            converted: false,
+        },
+        binding,
+        0,
+    )
+    .is_known()
 }
 
 /// `EvalScope` for the client transform: the same `scope.evaluate` walk the
@@ -6941,15 +6281,41 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
 /// server's scope-index chain.
 struct ClientEvalScope<'a, 'b> {
     context: &'a ComponentContext<'b>,
+    converted: bool,
 }
 
 impl EvalScope for ClientEvalScope<'_, '_> {
+    fn evaluate_override(&self, node: &serde_json::Value, _depth: u8) -> Option<Evaluation> {
+        if self.converted
+            && self.context.state.options.dev
+            && node.get("type").and_then(|ty| ty.as_str()) == Some("BinaryExpression")
+            && node
+                .get("operator")
+                .and_then(|operator| operator.as_str())
+                .is_some_and(|operator| matches!(operator, "===" | "!==" | "==" | "!="))
+        {
+            // The client visitor has already lowered a dev equality to a
+            // runtime helper call, which upstream's evaluator cannot fold.
+            return Some(Evaluation::unknown());
+        }
+        None
+    }
+
     fn identifier_has_binding(&self, name: &str) -> bool {
         self.context.state.get_binding(name).is_some()
             || self.context.state.transform.contains_key(name)
     }
 
     fn evaluate_identifier(&self, node: &serde_json::Value, name: &str, depth: u8) -> Evaluation {
+        // The converted template expression reads the transform's runtime
+        // value, not the source binding's initializer. Keep this guard inside
+        // the evaluator so it also covers transformed identifiers nested in a
+        // unary, binary or template expression. Initializers are evaluated
+        // with `converted: false` below and therefore still recurse normally.
+        if self.converted && self.context.state.transform.contains_key(name) {
+            return Evaluation::unknown();
+        }
+
         // An enclosing `{#each … as item, index}` shadows any outer binding of
         // the same name, and the loop scope is not on `state.scope`.
         for c in self.context.state.each_binding_context.iter().rev() {
@@ -6960,7 +6326,7 @@ impl EvalScope for ClientEvalScope<'_, '_> {
                 return Evaluation::single(EvalValue::NumberMarker);
             }
         }
-        let binding = node
+        let reference_binding = node
             .get("start")
             .and_then(|v| v.as_u64())
             .and_then(|start| {
@@ -6968,10 +6334,60 @@ impl EvalScope for ClientEvalScope<'_, '_> {
                     .state
                     .scope_root
                     .binding_at_reference(name, start as u32)
-            })
-            .or_else(|| self.context.state.get_binding(name));
+            });
+        let binding = match reference_binding {
+            // Phase 2 resolves children of a component against its `let:`
+            // scope before Phase 3 separates those children by slot. A named
+            // slot does not inherit the component's `let:` binding, which the
+            // client visitor represents by omitting its transform. In that
+            // case the active client scope (typically the instance binding
+            // shadowed by the default slot) is the same scope upstream
+            // evaluates. Keep position-based resolution for active `let:`
+            // transforms and every other template-local binding.
+            Some(binding)
+                if self.converted
+                    && binding.kind
+                        == crate::compiler::phases::phase2_analyze::scope::BindingKind::Let
+                    && !self.context.state.transform.contains_key(name) =>
+            {
+                self.context
+                    .state
+                    .get_binding(name)
+                    .filter(|candidate| {
+                        candidate.kind
+                            != crate::compiler::phases::phase2_analyze::scope::BindingKind::Let
+                    })
+                    .or(Some(binding))
+            }
+            Some(binding) => Some(binding),
+            None => {
+                // A converted/synthesized identifier may have lost its source
+                // position. Name lookup is safe only when there is one binding:
+                // `get_binding` deliberately falls back across every scope and
+                // can otherwise substitute an outer constant for a `let:` or
+                // another same-named template-local binding.
+                self.context
+                    .state
+                    .scope_root
+                    .bindings_by_name
+                    .get(name)
+                    .filter(|bindings| bindings.len() == 1)
+                    .and_then(|_| self.context.state.get_binding(name))
+            }
+        };
         match binding {
-            Some(b) => evaluate_binding_initial(self, b, depth),
+            // `build_expression` converts the template expression, but an
+            // initializer reached through scope resolution is still its source
+            // AST. In particular, dev equality lowering does not apply inside
+            // that initializer (#3570).
+            Some(b) => evaluate_binding_initial(
+                &ClientEvalScope {
+                    context: self.context,
+                    converted: false,
+                },
+                b,
+                depth,
+            ),
             None if name == "undefined" => Evaluation::single(EvalValue::Undefined),
             None => Evaluation::unknown(),
         }
@@ -6984,7 +6400,15 @@ impl EvalScope for ClientEvalScope<'_, '_> {
 
 /// Upstream's `scope.evaluate(node).is_known`.
 fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
-    evaluate_estree(&ClientEvalScope { context }, json_value, 0).is_known()
+    evaluate_estree(
+        &ClientEvalScope {
+            context,
+            converted: false,
+        },
+        json_value,
+        0,
+    )
+    .is_known()
 }
 
 /// Sanitize a template string by escaping special characters.
@@ -7089,51 +6513,6 @@ mod tests {
             }
             _ => panic!("Expected expression statement"),
         }
-    }
-
-    #[test]
-    fn test_is_initial_value_literal_or_known() {
-        // Test string literal
-        assert!(is_initial_value_literal_or_known(&Some(
-            "'hello'".to_string()
-        )));
-        assert!(is_initial_value_literal_or_known(&Some(
-            "\"world\"".to_string()
-        )));
-
-        // Test number literal
-        assert!(is_initial_value_literal_or_known(&Some("42".to_string())));
-        assert!(is_initial_value_literal_or_known(&Some("3.14".to_string())));
-
-        // Test boolean literal
-        assert!(is_initial_value_literal_or_known(&Some("true".to_string())));
-        assert!(is_initial_value_literal_or_known(&Some(
-            "false".to_string()
-        )));
-
-        // Test null/undefined
-        assert!(is_initial_value_literal_or_known(&Some("null".to_string())));
-        assert!(is_initial_value_literal_or_known(&Some(
-            "undefined".to_string()
-        )));
-
-        // Test TemplateLiteral without expressions (JSON format)
-        let template_literal_json = r#"{"type":"TemplateLiteral","expressions":[],"quasis":[{"type":"TemplateElement","value":{"raw":"hello","cooked":"hello"}}]}"#;
-        assert!(is_initial_value_literal_or_known(&Some(
-            template_literal_json.to_string()
-        )));
-
-        // Test TemplateLiteral WITH expressions - should be false
-        let template_literal_with_expr = r#"{"type":"TemplateLiteral","expressions":[{"type":"Identifier","name":"foo"}],"quasis":[]}"#;
-        assert!(!is_initial_value_literal_or_known(&Some(
-            template_literal_with_expr.to_string()
-        )));
-
-        // Test None
-        assert!(!is_initial_value_literal_or_known(&None));
-
-        // Test regular identifier - should be false
-        assert!(!is_initial_value_literal_or_known(&Some("foo".to_string())));
     }
 
     /// A reactive `count`, a compile-time-known `konst`, and a `Static` binding —

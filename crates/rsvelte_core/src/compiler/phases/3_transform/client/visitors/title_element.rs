@@ -319,18 +319,14 @@ fn build_title_content(
                         is_async: has_await,
                     });
                     let param_ref = b::id(&param_name);
-                    if !is_known_defined_expr(&expr.expression) {
-                        return (
-                            b::nullish(&context.arena, param_ref, b::string("")),
-                            has_state,
-                            memo_entries,
-                        );
-                    } else {
-                        return (param_ref, has_state, memo_entries);
-                    }
+                    return (
+                        b::nullish(&context.arena, param_ref, b::string("")),
+                        has_state,
+                        memo_entries,
+                    );
                 }
 
-                if !is_known_defined_expr(&expr.expression) {
+                if !is_expression_defined(&expr.expression, context) {
                     return (
                         b::nullish(&context.arena, value, b::string("")),
                         has_state,
@@ -463,22 +459,4 @@ fn is_single_expression_tag(nodes: &[TemplateNode]) -> bool {
         .any(|n| !matches!(n, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
 
     expr_count == 1 && !non_text_non_expr && nodes.len() == 1
-}
-
-/// Check if an expression is known to be defined (not null/undefined).
-fn is_known_defined_expr(expr: &crate::ast::js::Expression) -> bool {
-    match expr.node_type() {
-        Some("Literal") => {
-            // Check if literal value is not null
-            let node = expr.as_node();
-            match &*node {
-                crate::ast::typed_expr::JsNode::Literal { value, .. } => {
-                    !matches!(value, crate::ast::typed_expr::LiteralValue::Null)
-                }
-                _ => false,
-            }
-        }
-        Some("TemplateLiteral") => true,
-        _ => false,
-    }
 }

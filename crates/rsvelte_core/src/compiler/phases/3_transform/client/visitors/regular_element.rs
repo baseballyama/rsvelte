@@ -27,15 +27,13 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_render_statement_with_memoizer, build_template_chunk,
-    collect_expression_identifiers_for_blockers, expression_has_reactive_state,
-    is_known_defined_global_call, js_expr_keypath,
+    collect_expression_identifiers_for_blockers, expression_has_reactive_state, get_literal_value,
+    is_js_expr_defined,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::{
-    JsExpr, JsLiteral, JsPattern, JsStatement,
-};
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsPattern, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use crate::compiler::phases::phase3_transform::utils::{
     clean_nodes, determine_namespace_for_children,
@@ -1172,7 +1170,8 @@ pub fn visit_regular_element(
                 !super::shared::utils::is_effect_pending_expr(
                     &expr_tag.expression,
                     context.state.parse_arena,
-                ) && !expression_has_reactive_state(&expr_tag.expression, context)
+                ) && (get_literal_value(&expr_tag.expression, context).is_some()
+                    || !expression_has_reactive_state(&expr_tag.expression, context))
                     && !expr_tag.metadata.expression.has_call()
                     && !has_blockers
             }
@@ -2250,124 +2249,6 @@ fn find_descendants_recursive<'a>(nodes: &[TemplateNode<'a>], result: &mut Vec<T
     }
 }
 
-/// Checks if a transformed value expression is guaranteed to be defined (not undefined).
-/// Approximates scope.evaluate().is_defined from the official compiler.
-/// In the official compiler, is_defined is false when value == null (loose comparison)
-/// or when value is UNKNOWN. So null and undefined are not defined, and any
-/// unresolvable expression is also not defined.
-///
-/// When `scope_root` is provided, identifiers are resolved to their bindings. If a binding
-/// is not updated (neither reassigned nor mutated), not a prop, and has `initial_is_defined`
-/// set, the identifier is considered defined. This mirrors the official compiler's
-/// `scope.evaluate()` behavior which recurses into binding initial values.
-fn is_value_known_defined(
-    value: &JsExpr,
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
-    scope_root: Option<&crate::compiler::phases::phase2_analyze::scope::ScopeRoot>,
-    scope: Option<&crate::compiler::phases::phase2_analyze::scope::Scope>,
-) -> bool {
-    match value {
-        JsExpr::Spanned(inner, _, _) => {
-            is_value_known_defined(arena.get_expr(*inner), arena, scope_root, scope)
-        }
-        // null and undefined literals are explicitly not defined
-        JsExpr::Literal(JsLiteral::Null) => false,
-        JsExpr::Literal(JsLiteral::Undefined) => false,
-        // void expressions (void 0) are undefined
-        JsExpr::Void(_) => false,
-        // Known defined literals: numbers, strings, booleans, regex
-        JsExpr::Literal(JsLiteral::Number(_)) => true,
-        JsExpr::Literal(JsLiteral::String(_)) => true,
-        JsExpr::Literal(JsLiteral::RawString { .. }) => true,
-        JsExpr::Literal(JsLiteral::RawNumber { .. }) => true,
-        JsExpr::Literal(JsLiteral::Boolean(_)) => true,
-        JsExpr::Literal(JsLiteral::Regex { .. }) => true,
-        // Arrays and objects evaluate to UNKNOWN upstream (`scope.evaluate`
-        // cannot represent objects), so official KEEPS the `?? ""` guard on
-        // `<option value={{ id: 2 }}>` / `<select value={['a']}>`.
-        JsExpr::Array(_) => false,
-        JsExpr::Object(_) => false,
-        // Template literals are always strings (defined)
-        JsExpr::TemplateLiteral(_) => true,
-        // Upstream unions the branch values, so a branch it cannot evaluate
-        // makes the whole thing unknown. Requiring both is the conservative
-        // reading of that: it never claims defined where upstream would not.
-        JsExpr::Conditional(cond) => {
-            is_value_known_defined(arena.get_expr(cond.consequent), arena, scope_root, scope)
-                && is_value_known_defined(arena.get_expr(cond.alternate), arena, scope_root, scope)
-        }
-        JsExpr::Logical(logical) => {
-            is_value_known_defined(arena.get_expr(logical.left), arena, scope_root, scope)
-                && is_value_known_defined(arena.get_expr(logical.right), arena, scope_root, scope)
-        }
-        // A raw source fragment: classify the trivially-literal spellings the
-        // way `scope.evaluate` would (string/number/boolean literals are
-        // defined; object/array literals and everything else are UNKNOWN).
-        JsExpr::Raw(text) => {
-            let t = text.trim();
-            (t.starts_with('\'') || t.starts_with('"'))
-                || t.parse::<f64>().is_ok()
-                || t == "true"
-                || t == "false"
-                || (t.starts_with('`') && !t.contains("${"))
-        }
-        JsExpr::Call(call) => js_expr_keypath(arena.get_expr(call.callee), arena)
-            .as_deref()
-            .is_some_and(|keypath| {
-                is_known_defined_global_call(
-                    keypath,
-                    super::shared::utils::js_call_has_spread(call),
-                )
-            }),
-        // For identifiers: look up the binding to check if the initial value is defined.
-        // This mirrors the official compiler's scope.evaluate() which, for identifiers,
-        // checks if the binding is not updated, has an initial value, and is not a prop,
-        // then recursively evaluates the initial value.
-        JsExpr::Identifier(name) => {
-            if let Some(root) = scope_root
-                // Scope-aware resolution so a shadowed name resolves to the
-                // INNERMOST binding (e.g. an each-index `i` shadowing an outer
-                // `<select bind:value={i}>` `i`), not an arbitrary same-named
-                // binding. Walk the scope chain from the current scope; fall
-                // back to any-scope when the chain has no match.
-                && let Some(binding_idx) = {
-                    let mut found = None;
-                    let mut cur = scope;
-                    while let Some(s) = cur {
-                        if let Some(&b) = s.declarations.get(name.as_str()) {
-                            found = Some(b);
-                            break;
-                        }
-                        cur = s.parent.and_then(|p| root.all_scopes.get(p));
-                    }
-                    found.or_else(|| root.find_binding_any_scope(name))
-                }
-                && let Some(binding) = root.bindings.get(binding_idx)
-            {
-                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                // An each-block index (`{#each … as item, i}`) is always a
-                // number, so upstream `scope.evaluate` reports it defined and
-                // the `?? ""` fallback is elided (scope.js: an Identifier whose
-                // binding initial is an EachBlock with `index === name` → NUMBER).
-                if matches!(binding.kind, BindingKind::EachIndex) {
-                    return true;
-                }
-                let is_prop = matches!(
-                    binding.kind,
-                    BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-                );
-                let is_updated = binding.reassigned || binding.mutated;
-                if !is_updated && !is_prop && binding.initial_is_defined {
-                    return true;
-                }
-            }
-            false
-        }
-        // Everything else: calls, member access, $.get() - treat as UNKNOWN (not defined)
-        _ => false,
-    }
-}
-
 /// Serializes an assignment to the value property of a `<select>`, `<option>` or `<input>` element
 /// that needs the hidden `__value` property.
 ///
@@ -2395,13 +2276,8 @@ fn build_element_special_value_attribute(
     // again here, as that would cause double-transformation (e.g., value() -> value()()).
     let transformed_value = value;
 
-    // Check if the value is defined (i.e., guaranteed to not be null/undefined)
-    // The official compiler uses scope.evaluate(value).is_defined which checks if
-    // value == null || value === UNKNOWN. We approximate this:
-    // - Literal null/undefined: NOT defined (null == null is true in JS)
-    // - Known literals (numbers, strings, booleans): defined
-    // - Everything else (identifiers, calls, reactive values): NOT defined (could be UNKNOWN)
-    // Reference: svelte/packages/svelte/src/compiler/phases/scope.js L574
+    // Check the transformed value with the shared counterpart of upstream's
+    // `scope.evaluate(value).is_defined`.
     // An each-block index (`{#each … as item, i}`) is always a number, so the
     // `?? ""` fallback is elided. Check the in-scope each-index names directly:
     // template scope tracking is imprecise, so a name shadowed by an outer
@@ -2422,12 +2298,7 @@ fn build_element_special_value_attribute(
                     .any(|(n, _)| n == name.as_str())
     );
     let value_is_defined = is_in_scope_each_index
-        || is_value_known_defined(
-            value_for_definedness,
-            &context.arena,
-            Some(context.state.scope_root),
-            Some(context.state.scope),
-        );
+        || is_js_expr_defined(value_for_definedness, &context.arena, context);
 
     // node.__value = transformed_value
     let assignment = b::assign(

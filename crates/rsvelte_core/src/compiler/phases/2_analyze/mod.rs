@@ -6977,12 +6977,11 @@ mod legacy_reactive_stays_typed {
     fn adding_reactive_statements_serializes_no_json() {
         let without = to_value_calls(WITHOUT_REACTIVE);
         let with = to_value_calls(WITH_REACTIVE);
-        assert_eq!(
-            with,
-            without,
+        assert!(
+            with <= without,
             "three `$:` statements added {} `to_value` call(s); the legacy \
              reactive passes are serializing the instance script again",
-            with as i64 - without as i64
+            with - without
         );
     }
 

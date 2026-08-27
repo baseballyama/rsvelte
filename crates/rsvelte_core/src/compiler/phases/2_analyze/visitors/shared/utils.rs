@@ -6,6 +6,9 @@ use super::super::super::{Binding, BindingKind, DeclarationKind, Scope, errors, 
 use super::super::{AnalysisError, VisitorContext};
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::ast::typed_expr::{JsNode, LiteralValue};
+use crate::compiler::phases::phase3_transform::server::evaluate::{
+    EvalScope, EvalValue, Evaluation, evaluate_binding_initial,
+};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -19,6 +22,104 @@ lazy_static! {
     /// Corresponds to `regex_illegal_attribute_character` in patterns.js.
     pub static ref REGEX_ILLEGAL_ATTRIBUTE_CHARACTER: Regex =
         Regex::new(r"(^[0-9\-.])|([\^$@%&#?!|()\[\]{}*+~;])").unwrap();
+}
+
+/// Phase 2's resolver for the shared port of upstream `scope.evaluate`.
+///
+/// The evaluator owns the value model and expression walk; this adapter only
+/// supplies Phase 2's lexical binding lookup. Do not use
+/// `ScopeRoot::binding_at_reference` here: its cached index is intended for the
+/// immutable Phase 3 tree, while analysis is still appending references.
+struct AnalysisEvalScope<'a> {
+    analysis: &'a super::super::super::ComponentAnalysis,
+    scope: usize,
+}
+
+impl EvalScope for AnalysisEvalScope<'_> {
+    fn evaluate_identifier(&self, node: &serde_json::Value, name: &str, depth: u8) -> Evaluation {
+        let by_position = node
+            .get("start")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|start| {
+                self.analysis.root.bindings.iter().find(|binding| {
+                    binding.name == name
+                        && binding
+                            .references
+                            .iter()
+                            .any(|reference| u64::from(reference.start) == start)
+                })
+            });
+        let binding = by_position.or_else(|| {
+            self.analysis
+                .root
+                .get_binding(name, self.scope)
+                .and_then(|index| self.analysis.root.bindings.get(index))
+        });
+
+        match binding {
+            Some(binding) => evaluate_binding_initial(self, binding, depth),
+            None if name == "undefined" => Evaluation::single(EvalValue::Undefined),
+            None => Evaluation::unknown(),
+        }
+    }
+
+    fn identifier_has_binding(&self, name: &str) -> bool {
+        self.analysis.root.get_binding(name, self.scope).is_some()
+    }
+
+    fn binding_initial_is_props_id(&self, name: &str) -> bool {
+        self.analysis.props_id.as_deref() == Some(name)
+    }
+}
+
+/// Upstream's complete Identifier `has_state` condition. In particular, a
+/// rune binding kind alone does not make a read reactive: an unchanged
+/// `$derived(1)` has one known value and is written once (#3437).
+pub(in crate::compiler::phases::phase2_analyze::visitors) fn binding_reference_has_state(
+    binding_index: usize,
+    context: &VisitorContext,
+) -> bool {
+    let binding = &context.analysis.root.bindings[binding_index];
+    let involves_state = binding.kind != BindingKind::Static
+        && (matches!(
+            binding.kind,
+            BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+        ) || !binding.is_function());
+
+    involves_state
+        && (!binding.kind.is_rune()
+            || !evaluate_binding_initial(
+                &AnalysisEvalScope {
+                    analysis: context.analysis,
+                    scope: context.scope,
+                },
+                binding,
+                0,
+            )
+            .is_known())
+}
+
+/// The typed template-expression walker historically only classified rune
+/// bindings as state here; props and template-local bindings are handled by
+/// their enclosing template visitors. Keep that division while adding the
+/// missing `scope.evaluate` exception for known rune values. Applying the
+/// script-identifier condition wholesale would expose the walker's
+/// scope-insensitive fallback and misclassify named-slot reads.
+fn typed_expression_binding_reference_has_state(
+    binding_index: usize,
+    context: &VisitorContext,
+) -> bool {
+    let binding = &context.analysis.root.bindings[binding_index];
+    binding.kind.is_rune()
+        && !evaluate_binding_initial(
+            &AnalysisEvalScope {
+                analysis: context.analysis,
+                scope: context.scope,
+            },
+            binding,
+            0,
+        )
+        .is_known()
 }
 
 /// Enforce the `experimental_async` / `legacy_await_invalid` gate for awaits in
@@ -1324,10 +1425,7 @@ pub fn walk_js_expression_node(
                     metadata.references.insert(binding_idx);
                 }
 
-                if matches!(
-                    binding.kind,
-                    BindingKind::State | BindingKind::RawState | BindingKind::Derived
-                ) {
+                if typed_expression_binding_reference_has_state(binding_idx, context) {
                     metadata.set_has_state(true);
                 }
 
