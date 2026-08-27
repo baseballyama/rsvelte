@@ -255,7 +255,21 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 mappings.extend(remaining_result_mappings);
                 mappings
                     .sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
-                mappings.dedup_by(|a, b| a.gen_line == b.gen_line && a.gen_col == b.gen_col);
+                // A source map may deliberately carry several segments at the
+                // same generated column. Esrap does this when a container and
+                // its first located child begin together (for example `let`
+                // and the declared identifier), and their order is observable
+                // by source-map consumers. Only remove byte-for-byte duplicate
+                // mappings; collapsing by generated position loses the child's
+                // more precise source location.
+                mappings.dedup_by(|a, b| {
+                    a.gen_line == b.gen_line
+                        && a.gen_col == b.gen_col
+                        && a.source == b.source
+                        && a.orig_line == b.orig_line
+                        && a.orig_col == b.orig_col
+                        && a.name == b.name
+                });
                 (result.code, mappings)
             } else {
                 (result.code, Vec::new())
