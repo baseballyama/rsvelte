@@ -1001,9 +1001,7 @@ impl serde::Serialize for OnDirective<'_> {
         if let Some(ref name_loc) = self.name_loc {
             map.serialize_entry("name_loc", name_loc)?;
         }
-        if let Some(ref expression) = self.expression {
-            map.serialize_entry("expression", expression)?;
-        }
+        map.serialize_entry("expression", &self.expression)?;
         map.serialize_entry("modifiers", &self.modifiers)?;
         map.end()
     }
@@ -1123,9 +1121,7 @@ impl serde::Serialize for TransitionDirective<'_> {
         if let Some(ref name_loc) = self.name_loc {
             map.serialize_entry("name_loc", name_loc)?;
         }
-        if let Some(ref expression) = self.expression {
-            map.serialize_entry("expression", expression)?;
-        }
+        map.serialize_entry("expression", &self.expression)?;
         map.serialize_entry("modifiers", &self.modifiers)?;
         map.serialize_entry("intro", &self.intro)?;
         map.serialize_entry("outro", &self.outro)?;
@@ -1196,9 +1192,7 @@ impl serde::Serialize for AnimateDirective<'_> {
         if let Some(ref name_loc) = self.name_loc {
             map.serialize_entry("name_loc", name_loc)?;
         }
-        if let Some(ref expression) = self.expression {
-            map.serialize_entry("expression", expression)?;
-        }
+        map.serialize_entry("expression", &self.expression)?;
         map.serialize_entry("modifiers", &self.modifiers)?;
         if let Some(ref metadata) = self.metadata {
             map.serialize_entry("metadata", metadata)?;
@@ -1232,9 +1226,7 @@ impl serde::Serialize for UseDirective<'_> {
         if let Some(ref name_loc) = self.name_loc {
             map.serialize_entry("name_loc", name_loc)?;
         }
-        if let Some(ref expression) = self.expression {
-            map.serialize_entry("expression", expression)?;
-        }
+        map.serialize_entry("expression", &self.expression)?;
         map.serialize_entry("modifiers", &self.modifiers)?;
         map.end()
     }
@@ -1265,9 +1257,7 @@ impl serde::Serialize for LetDirective<'_> {
         if let Some(ref name_loc) = self.name_loc {
             map.serialize_entry("name_loc", name_loc)?;
         }
-        if let Some(ref expression) = self.expression {
-            map.serialize_entry("expression", expression)?;
-        }
+        map.serialize_entry("expression", &self.expression)?;
         map.serialize_entry("modifiers", &self.modifiers)?;
         map.end()
     }

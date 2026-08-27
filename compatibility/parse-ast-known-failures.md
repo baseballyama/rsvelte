@@ -1,7 +1,7 @@
 # Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **482 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **477 entries**.
 
 ## The question it asks
 
@@ -56,20 +56,19 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 76 + 68 + 60 + 31 + 24 + 22 + 12 + 5 + 2`
+Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 68 + 64 + 31 + 24 + 22 + 10 + 2`
 
 | cluster | keys | what it is |
 |---|---|---|
 | `span` | 92 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 90 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 76 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
+| `estree-fields` | 74 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
 | `unclustered` | 68 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
-| `comment-attachment` | 60 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
+| `comment-attachment` | 64 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 31 | 15 corpus entries × 2 axes, plus one loose source. See below. |
 | `css-shape` | 24 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 22 | an array of children with a different length. |
-| `loc-presence` | 12 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
-| `directive-null-fields` | 5 | official keeps `expression: null` / `modifiers: []` on a directive; rsvelte omits the key, so it is absent through the JSON boundary a binding actually uses. |
+| `loc-presence` | 10 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | #3385 — the remaining legacy-root shape differences. |
 
 ## The acceptance rows are the interesting ones
