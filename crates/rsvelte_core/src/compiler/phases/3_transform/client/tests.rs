@@ -1,6 +1,42 @@
 use super::*;
 
 #[test]
+fn constant_fold_does_not_resolve_a_binding_from_a_sibling_snippet() {
+    let source = r#"<svelte:boundary>
+    {#snippet children()}
+        {@const foo = 'bar'}
+    {/snippet}
+
+    {#snippet failed()}
+        {foo}
+    {/snippet}
+</svelte:boundary>"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("sibling-snippet-constant.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("text.nodeValue = foo;"),
+            "an unresolved name must not use a sibling snippet's constant in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("text.nodeValue = \"bar\";"),
+            "a sibling snippet's constant must remain unreachable in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn leading_semicolon_exposes_the_following_statement_boundary() {
     let source = "const point3 = derived(\n\tpoint4,\n\t($point4) => $point4.slice(0, 3)\n)\n;(point3).set = () => { $point4 = [] }";
     let separated = separate_same_line_top_level_statements(source, false);

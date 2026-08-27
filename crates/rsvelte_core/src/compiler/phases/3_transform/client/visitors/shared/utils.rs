@@ -6318,6 +6318,7 @@ impl EvalScope for ClientEvalScope<'_, '_> {
                     .get(name)
                     .filter(|bindings| bindings.len() == 1)
                     .and_then(|_| self.context.state.get_binding(name))
+                    .filter(|binding| self.context.state.scope_chain_contains(binding.scope_index))
             }
         };
         match binding {

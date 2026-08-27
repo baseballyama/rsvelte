@@ -651,6 +651,7 @@ read as an element's only child, so the resolution decides between a static
 | `key-block.svelte` | `{@const}` inside `{#key}`, keyed on the shadowed binding |
 | `await-then-body.svelte` | `{@const}` in an `{#await … then}` body |
 | `snippet-body.svelte` | `{@const}` inside a `{#snippet}` |
+| `sibling-snippets.svelte` | a `{@const}` in one snippet is unreachable from its sibling |
 | `boundary-children.svelte` | `{@const}` in `<svelte:boundary>` children |
 | `destructured-const.svelte` | destructuring `{@const { value } = …}` |
 | `shadows-prop.svelte` | the shadowed binding is a **prop** (the read must not become `$$props.x`) |
