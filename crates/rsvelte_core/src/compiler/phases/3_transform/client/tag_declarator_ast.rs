@@ -118,6 +118,16 @@ fn walk_statement_for_declarators<'a>(
                 walk_statement_for_declarators(alt, source, replacements);
             }
         }
+        Statement::LabeledStatement(s) => {
+            walk_statement_for_declarators(&s.body, source, replacements);
+        }
+        Statement::SwitchStatement(s) => {
+            for case in &s.cases {
+                for stmt in &case.consequent {
+                    walk_statement_for_declarators(stmt, source, replacements);
+                }
+            }
+        }
         Statement::ForStatement(s) => {
             walk_statement_for_declarators(&s.body, source, replacements);
             // The init can be a VariableDeclaration too.
@@ -338,6 +348,24 @@ mod tests {
         let src = "for (let x = $.state(0); ; ) {}";
         let out = wrap_state_derived_with_tag_declarators_ast(src, false).unwrap();
         assert_eq!(out, "for (let x = $.tag($.state(0), 'x'); ; ) {}");
+    }
+
+    #[test]
+    fn handles_declarator_inside_labeled_statement() {
+        let src = "declaration: var x = $.state(0);";
+        let out = wrap_state_derived_with_tag_declarators_ast(src, false).unwrap();
+        assert_eq!(out, "declaration: var x = $.tag($.state(0), 'x');");
+    }
+
+    #[test]
+    fn handles_declarators_inside_switch_cases() {
+        let src =
+            "switch (k) { case 1: let x = $.state(0); break; default: { let y = $.derived(1); } }";
+        let out = wrap_state_derived_with_tag_declarators_ast(src, false).unwrap();
+        assert_eq!(
+            out,
+            "switch (k) { case 1: let x = $.tag($.state(0), 'x'); break; default: { let y = $.tag($.derived(1), 'y'); } }"
+        );
     }
 
     #[test]

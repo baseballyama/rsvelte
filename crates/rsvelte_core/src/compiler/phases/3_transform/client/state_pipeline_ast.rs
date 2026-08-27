@@ -45,7 +45,7 @@ use oxc_span::{GetSpan, SourceType};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
-use oxc_syntax::symbol::SymbolId;
+use oxc_syntax::symbol::{SymbolFlags, SymbolId};
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -216,8 +216,11 @@ struct PipelineVisitor<'a, 'sem> {
 #[derive(Default)]
 struct Sites {
     reads: FxHashSet<(u32, u32)>,
+    safe_reads: FxHashSet<(u32, u32)>,
     shorthands: FxHashSet<(u32, u32)>,
-    assigns: FxHashMap<(u32, u32), bool>,
+    safe_shorthands: FxHashSet<(u32, u32)>,
+    /// Assignment span -> (needs proxy, compound read needs `$.safe_get`).
+    assigns: FxHashMap<(u32, u32), (bool, bool)>,
     updates: FxHashSet<(u32, u32)>,
 }
 
@@ -246,6 +249,31 @@ impl<'a, 'sem> PipelineVisitor<'a, 'sem> {
             &self.state_var_symbols,
             self.state_vars,
         )
+    }
+
+    /// `var` rune declarations are function-scoped and may be read before
+    /// initialization. Resolve the reference's own symbol instead of reducing
+    /// this decision to a name: a same-named `let`/`const` in another scope
+    /// must continue to use `$.get`.
+    fn reference_needs_safe_get(&self, ident: &IdentifierReference) -> bool {
+        let Some(reference_id) = ident.reference_id.get() else {
+            return false;
+        };
+        let scoping = self.semantic.scoping();
+        let Some(symbol_id) = scoping.get_reference(reference_id).symbol_id() else {
+            return false;
+        };
+        scoping
+            .symbol_flags(symbol_id)
+            .contains(SymbolFlags::FunctionScopedVariable)
+    }
+
+    fn getter_for_reference(&self, ident: &IdentifierReference) -> &'static str {
+        if self.reference_needs_safe_get(ident) {
+            "$.safe_get"
+        } else {
+            "$.get"
+        }
     }
 
     fn skip(&mut self, ident: &IdentifierReference) {
@@ -330,10 +358,19 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
         if !self.is_state_var_ref(ident) {
             return;
         }
-        self.read_replacements
-            .push((ident.span.start, ident.span.end, format!("$.get({})", name)));
+        let getter = self.getter_for_reference(ident);
+        self.read_replacements.push((
+            ident.span.start,
+            ident.span.end,
+            format!("{}({})", getter, name),
+        ));
         if self.in_place {
             self.sites.reads.insert((ident.span.start, ident.span.end));
+            if getter == "$.safe_get" {
+                self.sites
+                    .safe_reads
+                    .insert((ident.span.start, ident.span.end));
+            }
         }
     }
 
@@ -359,6 +396,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
         if !self.is_state_var_ref(ident_ref) {
             return;
         }
+        let safe_get = self.reference_needs_safe_get(ident_ref);
 
         let rhs_span = expr.right.span();
         let rhs_text = if self.in_place {
@@ -398,7 +436,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
                 if self.in_place {
                     self.sites
                         .assigns
-                        .insert((expr.span.start, expr.span.end), needs_proxy);
+                        .insert((expr.span.start, expr.span.end), (needs_proxy, safe_get));
                 }
             }
             op => {
@@ -421,15 +459,19 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
                     rhs_trimmed.to_string()
                 };
                 let rewrite = format!(
-                    "$.set({}, $.get({}) {} {})",
-                    name, name, op_str, rhs_for_output
+                    "$.set({}, {}({}) {} {})",
+                    name,
+                    if safe_get { "$.safe_get" } else { "$.get" },
+                    name,
+                    op_str,
+                    rhs_for_output
                 );
                 self.assigns_replacements
                     .push((expr.span.start, expr.span.end, rewrite));
                 if self.in_place {
                     self.sites
                         .assigns
-                        .insert((expr.span.start, expr.span.end), false);
+                        .insert((expr.span.start, expr.span.end), (false, safe_get));
                 }
             }
         }
@@ -496,15 +538,26 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
             && self.is_state_var_ref(value_ident)
         {
             let name = key.name.as_str();
+            let safe_get = self.reference_needs_safe_get(value_ident);
             self.read_replacements.push((
                 prop.span.start,
                 prop.span.end,
-                format!("{}: $.get({})", name, name),
+                format!(
+                    "{}: {}({})",
+                    name,
+                    if safe_get { "$.safe_get" } else { "$.get" },
+                    name
+                ),
             ));
             if self.in_place {
                 self.sites
                     .shorthands
                     .insert((prop.span.start, prop.span.end));
+                if safe_get {
+                    self.sites
+                        .safe_shorthands
+                        .insert((prop.span.start, prop.span.end));
+                }
             }
             self.skip(value_ident);
             walk::walk_object_property(self, prop);
@@ -566,6 +619,21 @@ mod tests {
         )
         .unwrap();
         assert_eq!(out, "let count;\nlet r = $.get(count) + 1;");
+    }
+
+    #[test]
+    fn var_reads_use_safe_get_per_resolved_binding() {
+        let out = transform_state_pipeline_ast(
+            "const value = $.derived(() => 1); function f() { var value = $.derived(() => 2); return value; } value;",
+            &ssv(&["value"]),
+            &[],
+            false,
+            &[],
+            &[],
+        )
+        .unwrap();
+        assert!(out.contains("return $.safe_get(value);"));
+        assert!(out.ends_with("$.get(value);"));
     }
 
     #[test]
@@ -844,16 +912,26 @@ struct PipelineRewriter<'a> {
 }
 
 impl<'a> PipelineRewriter<'a> {
-    fn state_read(&self, name: &str) -> Expression<'a> {
-        self.b.call("$.get", vec![self.b.id(name)])
+    fn state_read(&self, name: &str, safe: bool) -> Expression<'a> {
+        self.b.call(
+            if safe { "$.safe_get" } else { "$.get" },
+            vec![self.b.id(name)],
+        )
     }
 
-    fn state_read_with_source_identifier(&self, identifier: Expression<'a>) -> Expression<'a> {
+    fn state_read_with_source_identifier(
+        &self,
+        identifier: Expression<'a>,
+        safe: bool,
+    ) -> Expression<'a> {
         // `SPAN` is a real location to rsvelte_esrap, whereas upstream's
         // builder-created wrapper has `loc: null`. Unlocate the synthesized
         // call first, then put the original located identifier back as its
         // argument so only that identifier advances the comment cursor.
-        let mut call = self.b.call("$.get", vec![self.b.void0()]);
+        let mut call = self.b.call(
+            if safe { "$.safe_get" } else { "$.get" },
+            vec![self.b.void0()],
+        );
         ast_rewrite::mark_synthesized_expression(&mut call);
         let Expression::CallExpression(call_expression) = &mut call else {
             unreachable!("B::call always creates a call expression")
@@ -869,17 +947,19 @@ impl<'a> PipelineRewriter<'a> {
         if !self.sites.reads.contains(&(id.span.start, id.span.end)) {
             return;
         }
+        let span = (id.span.start, id.span.end);
+        let safe = self.sites.safe_reads.contains(&span);
         let identifier = std::mem::replace(expr, self.b.void0());
-        *expr = self.state_read_with_source_identifier(identifier);
+        *expr = self.state_read_with_source_identifier(identifier, safe);
         self.changed = true;
     }
 
     fn rewrite_assignment(&mut self, expr: &mut Expression<'a>) {
-        let (needs_proxy, name, operator) = {
+        let (needs_proxy, safe_get, name, operator) = {
             let Expression::AssignmentExpression(assign) = &*expr else {
                 return;
             };
-            let Some(&needs_proxy) = self
+            let Some(&(needs_proxy, safe_get)) = self
                 .sites
                 .assigns
                 .get(&(assign.span.start, assign.span.end))
@@ -889,7 +969,7 @@ impl<'a> PipelineRewriter<'a> {
             let AssignmentTarget::AssignmentTargetIdentifier(id) = &assign.left else {
                 return;
             };
-            (needs_proxy, id.name, assign.operator)
+            (needs_proxy, safe_get, id.name, assign.operator)
         };
 
         let taken = std::mem::replace(expr, self.b.void0());
@@ -900,10 +980,12 @@ impl<'a> PipelineRewriter<'a> {
         let value = match compound_op(operator) {
             None => right,
             Some(CompoundOp::Binary(op)) => {
-                self.b.binary(op, self.state_read(name.as_str()), right)
+                self.b
+                    .binary(op, self.state_read(name.as_str(), safe_get), right)
             }
             Some(CompoundOp::Logical(op)) => {
-                self.b.logical(op, self.state_read(name.as_str()), right)
+                self.b
+                    .logical(op, self.state_read(name.as_str(), safe_get), right)
             }
         };
         let mut args = vec![self.b.id(name.as_str()), value];
@@ -975,10 +1057,14 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for PipelineRewriter<'a> {
             return;
         };
         let name = key.name;
+        let safe = self
+            .sites
+            .safe_shorthands
+            .contains(&(prop.span.start, prop.span.end));
         // esrap re-derives shorthand from key/value identity, so the value
         // replacement is what expands the property.
         prop.shorthand = false;
-        prop.value = self.state_read(name.as_str());
+        prop.value = self.state_read(name.as_str(), safe);
         self.changed = true;
     }
 }

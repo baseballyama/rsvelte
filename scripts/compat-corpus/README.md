@@ -486,6 +486,13 @@ reported. A 329-case matrix found 21 divergences in seconds.
   output" but "same error code". The valid half carries the counterpart signal
   — a validation that rejects too much — which the invalid rows structurally
   cannot report.
+- `RUNE_STATEMENT_DECLARATIONS` × `RUNE_STATEMENT_CONTAINERS` ×
+  `RUNE_STATEMENT_ENTRIES` → family `rune-statement-container`. This crosses a
+  rune declarator with bare switch, label, `if`, and loop bodies in both a
+  component and `.svelte.js`; the client half of the lexical bare-case row is
+  excluded because official's output computes `NaN` (#3420), while the server
+  half remains an equality comparison and rsvelte's correct client output is
+  pinned independently.
 
 `matrix/mutate.mjs` holds the mutation itself and is shared with the
 corpus-seeded fuzz (Gate 3).

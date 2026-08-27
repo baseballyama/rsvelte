@@ -2258,3 +2258,84 @@ export const KEYWORD_SEPARATOR_ENTRIES = {
 		wrap: (_construct, body) => `${body}\n`,
 	},
 };
+
+/**
+ * Rune declarations used by the statement-container family. `var` is the only
+ * declaration kind JavaScript permits as a bare `if` / loop / labeled body;
+ * the lexical row is retained for the switch-specific shape that exposed
+ * upstream issue #3420 and for its braced controls.
+ */
+export const RUNE_STATEMENT_DECLARATIONS = {
+	'state-var': {
+		declaration: 'var value = $state(1);',
+		use: 'value += 1;\n\treturn value;',
+	},
+	'derived-var': {
+		declaration: 'var value = $derived(1);',
+		use: 'return value;',
+	},
+	'state-let': {
+		declaration: 'let value = $state(1);',
+		use: 'value += 1;\n\treturn value;',
+		containers: ['switch-case-bare', 'switch-case-block', 'labeled-block'],
+	},
+};
+
+/** `%d` is the declaration and `%u` is a read/write that must see its rune transform. */
+export const RUNE_STATEMENT_CONTAINERS = {
+	'switch-case-bare': `switch (flag) {
+	case true:
+		%d
+		%u
+}`,
+	'switch-case-block': `switch (flag) {
+	case true: {
+		%d
+		%u
+	}
+}`,
+	'labeled-statement': `declaration: %d
+	%u`,
+	'labeled-block': `declaration: {
+		%d
+		%u
+	}`,
+	'if-consequent': `if (flag) %d
+	%u`,
+	'if-alternate': `if (!flag) ; else %d
+	%u`,
+	'for-body': `for (let once = 0; once < 1; once += 1) %d
+	%u`,
+	'for-of-body': `for (const item of [flag]) %d
+	%u`,
+	'while-body': `while (flag) %d
+	%u`,
+};
+
+export const RUNE_STATEMENT_ENTRIES = {
+	instance: {
+		ext: '.svelte',
+		wrap: (body) => `<script>
+	function probe(flag) {
+		${body.replaceAll('\n', '\n\t\t')}
+		return 0;
+	}
+</script>
+
+<button onclick={() => probe(true)}>probe</button>
+`,
+	},
+	module: {
+		ext: '.svelte.js',
+		kind: 'module',
+		// Keep the export specifier separate so this family varies the statement
+		// container, not whether a walker descends through an export wrapper.
+		wrap: (body) => `function probe(flag) {
+	${body.replaceAll('\n', '\n\t')}
+	return 0;
+}
+
+export { probe };
+`,
+	},
+};

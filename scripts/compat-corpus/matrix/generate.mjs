@@ -89,6 +89,9 @@ import {
 	KEYWORD_SEPARATORS,
 	KEYWORD_CONSTRUCTS,
 	KEYWORD_SEPARATOR_ENTRIES,
+	RUNE_STATEMENT_DECLARATIONS,
+	RUNE_STATEMENT_CONTAINERS,
+	RUNE_STATEMENT_ENTRIES,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -482,6 +485,33 @@ function asyncDerivedCases() {
 const CLIENT_ONLY = ['client', 'client-dev'];
 const SERVER_ONLY = ['server', 'server-dev'];
 
+function runeStatementContainerCases() {
+	const cases = [];
+	for (const [declarationName, declaration] of Object.entries(RUNE_STATEMENT_DECLARATIONS)) {
+		for (const [containerName, container] of Object.entries(RUNE_STATEMENT_CONTAINERS)) {
+			if (declaration.containers && !declaration.containers.includes(containerName)) continue;
+			const body = container
+				.replaceAll('%d', () => declaration.declaration)
+				.replaceAll('%u', () => declaration.use);
+			for (const [entryName, entry] of Object.entries(RUNE_STATEMENT_ENTRIES)) {
+				const hasBrokenClientOracle =
+					declarationName === 'state-let' && containerName === 'switch-case-bare';
+				cases.push({
+					id: `rune-statement-container/${declarationName}__${containerName}__${entryName}${entry.ext}`,
+					source: entry.wrap(body),
+					...(entry.kind ? { kind: entry.kind } : {}),
+					// Official lowers the declaration but not its references on the
+					// client for this exact row (#3420), producing NaN. Equality is
+					// not an oracle there; the correct client output has a dedicated
+					// invariant test and upstream_issues record.
+					...(hasBrokenClientOracle ? { targets: SERVER_ONLY } : {}),
+				});
+			}
+		}
+	}
+	return cases;
+}
+
 function privateFieldCases() {
 	const cases = [];
 	for (const [kindName, initializer] of Object.entries(PRIVATE_FIELD_KINDS)) {
@@ -677,6 +707,7 @@ export const FAMILIES = {
 	'write-host': writeHostCases,
 	'compiler-option': compilerOptionCases,
 	'keyword-separator': keywordSeparatorCases,
+	'rune-statement-container': runeStatementContainerCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

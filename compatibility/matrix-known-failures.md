@@ -346,6 +346,19 @@ wrong rule at a wrong offset (row 1) or hand-porting acorn-typescript's whole mo
 in place of OXC's — which would have to carry its bugs to be worth anything. The rows are
 generated rather than skipped so that the day upstream fixes its table, this gate says so.
 
+### `rune-statement-container` — 0 entries
+
+The family added for #3146 varies rune declarations across labels, switch cases, branches,
+and loop bodies for component and `compileModule` entry points. Its first run exposed two
+places that had reduced a scoped binding to a name: the client module state pipeline lost
+`var` and emitted `$.get` instead of `$.safe_get`, while the nested SSR rune lowerer lost
+`var` and emitted a required derived call instead of `value?.()`. The SSR path could also
+wrap a call already produced by the script-level read visitor, yielding `value()?.()`.
+
+Those decisions now retain the resolved declaration kind, and the nested SSR pass recognizes
+an existing derived call before descending into its callee. All generated rows are expected
+to pass, so this family adds no ratchet entries.
+
 ## Burn-down
 
 Re-baseline in the same PR as the fix:

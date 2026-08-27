@@ -1332,6 +1332,17 @@ hardcoded `has_await: false`) clears 28; the remaining 282 are three named cause
 last-evaluated expression is not pickled through `$.save`, and `<svelte:element class:x={f()}>`
 emits an unbound `$0` **with no `await` anywhere in the input**. That last one is the host axis
 paying for itself, the way `write-host`'s did. **[D]**
+
+The `rune-statement-container` family makes the same boundary explicit for #3420. It crosses
+`$state` / `$derived` declarations with a brace-less `SwitchCase`, a labeled statement, bare
+`if` / `else`, `for` / `for-of` / `while` bodies, and braced controls, through both `compile`
+and `compileModule`. The lexical brace-less case is compared on `server` and `server-dev`, but
+not on the two client targets: official lowers its declaration to `$.state(1)` while leaving
+`value += 1` and `return value` untransformed, so its client output computes `NaN`. Treating
+those bytes as the oracle would make the gate reward a runtime regression. rsvelte's client
+answer is instead pinned by `case_clause_state_3420.rs`, and the measurement and decision live
+in `upstream_issues/3420-svelte-case-clause-state-references-untransformed.md`. **[D]**
+
 ### Blind spot 5s — CLOSED: no family varied the TAG NAME, so a generated identifier could be a keyword
 
 Every family before this one fixed the element (`<button>`, `<div>`, `<b>`) and varied what was
