@@ -258,18 +258,18 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                             && !is_semantic_role_element(current_role, node.name, &attribute_map)
                             && let Some(required_props) = ROLE_REQUIRED_PROPS.get(current_role)
                         {
-                            let missing_props: Vec<&str> = if !has_spread {
-                                required_props
+                            let has_missing_props = !has_spread
+                                && required_props
                                     .iter()
-                                    .filter(|prop| !attribute_map.contains_key(**prop))
-                                    .copied()
-                                    .collect()
-                            } else {
-                                Vec::new()
-                            };
-                            if !missing_props.is_empty() {
-                                let quoted_props: Vec<String> =
-                                    missing_props.iter().map(|p| format!("\"{}\"", p)).collect();
+                                    .any(|prop| !attribute_map.contains_key(*prop));
+                            if has_missing_props {
+                                // Upstream reports the role's complete required-prop
+                                // contract once any prop is missing, rather than only
+                                // the missing subset.
+                                let quoted_props: Vec<String> = required_props
+                                    .iter()
+                                    .map(|p| format!("\"{}\"", p))
+                                    .collect();
                                 let quoted_refs: Vec<&str> =
                                     quoted_props.iter().map(|s| s.as_str()).collect();
                                 let props_list = list(&quoted_refs, "and");

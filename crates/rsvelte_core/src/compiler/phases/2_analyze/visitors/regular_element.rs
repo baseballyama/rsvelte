@@ -702,7 +702,9 @@ pub fn visit<'a, 'b: 'a>(
                 && !is_mathml(node_name)
             {
                 context.emit_warning(
-                    warnings::element_invalid_self_closing_tag(node_name)
+                    // Void/SVG/MathML classification uses the local name, but
+                    // upstream preserves the source spelling in the message.
+                    warnings::element_invalid_self_closing_tag(&element.name)
                         .at(element.start, element.end),
                 );
             }

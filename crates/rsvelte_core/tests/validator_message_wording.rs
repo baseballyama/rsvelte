@@ -72,6 +72,22 @@ fn aria_token_values_are_quoted_and_joined_with_or() {
 }
 
 #[test]
+fn required_role_props_lists_the_complete_contract() {
+    assert_message(
+        "<div role=\"combobox\" aria-expanded=\"false\"></div>",
+        "Elements with the ARIA role \"combobox\" must have the following attributes defined: \"aria-controls\" and \"aria-expanded\"",
+    );
+}
+
+#[test]
+fn self_closing_warning_preserves_the_namespaced_element_name() {
+    assert_message(
+        "<f:table />",
+        "Self-closing HTML tags for non-void elements are ambiguous — use `<f:table ...></f:table>` rather than `<f:table ... />`",
+    );
+}
+
+#[test]
 fn invalid_placement_under_the_direct_parent_says_child() {
     let msgs = messages("<div><form>{#if foo}<form><input /></form>{/if}</form></div>");
     assert!(
