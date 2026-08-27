@@ -562,9 +562,9 @@ impl Parity {
 }
 
 /// The `map-parity` count says how many segments diverge; burning the backlog
-/// down needs to know *which*. `SOURCEMAP_PARITY_DETAIL=1` on the measurement
-/// run prints one line per divergence, quoting the generated text at the
-/// segment and the source text it should have pointed at.
+/// down needs to know *which*. Failing pairs print one line per divergence,
+/// quoting the generated text at the segment and the source text it should
+/// have pointed at.
 fn snippet(text: &str, line: usize, col: usize, len: usize) -> String {
     let Some(l) = text.lines().nth(line) else {
         return "<oob>".into();
@@ -839,10 +839,11 @@ fn measure() -> Report {
                 report.identical_code.push(key.clone());
                 match theirs.map.as_deref().and_then(decode_map) {
                     Some(their_map) => {
-                        if std::env::var_os("SOURCEMAP_PARITY_DETAIL").is_some() {
+                        let comparison = parity(&their_map, &map);
+                        if comparison.bad() > 0 {
                             explain_parity(&key, &their_map, &map, &ours.code, &input);
                         }
-                        report.parity.insert(key.clone(), parity(&their_map, &map));
+                        report.parity.insert(key.clone(), comparison);
                     }
                     None => report
                         .failures
