@@ -2143,20 +2143,35 @@ mod tests {
             crate::compiler::phases::phase3_transform::js_ast::codegen::decode_vlq_mappings(
                 map["mappings"].as_str().unwrap(),
             );
-        for (line, column, original_line, original_column) in [
-            (16, 14, 4, 0),
-            (16, 19, 4, 6),
-            (16, 27, 4, 19),
-            (16, 30, 4, 22),
-            (16, 55, 4, 19),
-            (16, 58, 4, 22),
-            (16, 59, 4, 19),
-            (16, 62, 4, 22),
-        ] {
+        let line = result
+            .js
+            .code
+            .lines()
+            .position(|line| line.contains("$.bind_value("))
+            .expect("bind_value call is generated");
+        let generated = result.js.code.lines().nth(line).unwrap();
+        let accessor_starts = generated
+            .match_indices("foo().bar.baz")
+            .map(|(start, _)| start)
+            .collect::<Vec<_>>();
+        assert_eq!(accessor_starts.len(), 2, "generated={generated:?}");
+
+        let mut expected = vec![(14, 0), (19, 6)];
+        for start in accessor_starts {
+            expected.extend([
+                (start, 19),
+                (start + 3, 22),
+                (start + 6, 23),
+                (start + 9, 26),
+                (start + 10, 27),
+                (start + 13, 30),
+            ]);
+        }
+        for (column, original_column) in expected {
             assert!(
-                mappings[line]
-                    .iter()
-                    .any(|segment| { segment[..4] == [column, 0, original_line, original_column] }),
+                mappings[line].iter().any(|segment| {
+                    segment[..4] == [column as i64, 0, 4, original_column as i64]
+                }),
                 "missing merged mapping at {line}:{column}: {:?}",
                 mappings[line]
             );

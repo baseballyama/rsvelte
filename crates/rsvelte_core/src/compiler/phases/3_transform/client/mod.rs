@@ -3282,6 +3282,35 @@ fn copied_spans_for_normalized_code(
                 continue;
             }
         }
+        // A lowering can replace a member callee with a shorter generated
+        // identifier (`$state.raw(` -> `$.state(`). The bytes before the
+        // member suffix still form a copied run, but its generated endpoint
+        // belongs to the end of the whole source callee, as in upstream's
+        // `b.id('$.state', init.callee.loc)`. Preserve that non-linear boundary
+        // as a zero-width marker; `RestoreRawMappedSpans` consumes it when it
+        // restores the generated identifier's end span, while the ordinary
+        // copied run beginning at the same byte continues to map the delimiter.
+        if skip_input > 0
+            && skip_output == 0
+            && output > 0
+            && code.as_bytes()[output - 1].is_ascii_alphanumeric()
+            && matches!(code.as_bytes().get(output), Some(b'('))
+            && matches!(stripped.as_bytes().get(input), Some(b'.'))
+            && input_tail.get(..skip_input).is_some_and(|suffix| {
+                suffix[1..]
+                    .iter()
+                    .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'$')
+            })
+        {
+            let source = source_at_output
+                .as_deref()
+                .and_then(|table| table.get(input + skip_input).copied().flatten())
+                .unwrap_or(original_offset + (input + skip_input) as u32);
+            spans.push(RawMappedSpan {
+                code: output as u32..output as u32,
+                source: source..source,
+            });
+        }
         input += skip_input;
         output += skip_output;
     }
