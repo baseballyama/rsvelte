@@ -123,18 +123,54 @@ fn effect_nested_in_a_function_keeps_both_comments() {
     );
 }
 
-/// A removed `$inspect` leaves two kept `EmptyStatement` sentinels behind, and a
-/// sentinel span is exactly what the comment carry-over refuses to rewrite — so
-/// "it emitted something" is not the same question as "it emitted something that
-/// can host a region". Exact bytes are not asserted: the `;;` the sentinels print
-/// as differs from official's in whitespace alone, which every normalizer erases
-/// and which this test is not about.
+/// A removed `$inspect` leaves two kept `EmptyStatement` sentinels behind. Their
+/// end is a keep-marker, while their start is still the removed statement's
+/// comment anchor and must be remapped with the surrounding source region.
 #[test]
 fn instance_inspect_rehomes_its_leading_comment_past_the_sentinels() {
     let out = ssr(
         "<script>\n\tlet a = $state(1);\n\n\t// leading\n\t$inspect(a);\n\n\tconsole.log(2);\n</script>\n\n<p>{a}</p>\n",
     );
     assert!(out.contains("// leading"), "leading comment lost:\n{out}");
+}
+
+#[test]
+fn nested_inspect_keeps_a_leading_block_comment_on_its_own_line() {
+    let out = ssr(
+        "<script>\n\tlet a = 1;\n\n\tfunction f() {\n\t\t/* ) c */\n\t\t$inspect(a);\n\t\tconsole.log(2);\n\t}\n\n\tf();\n</script>\n<p>{a}</p>\n",
+    );
+    assert!(
+        out.find("/* ) c */").is_some_and(|comment| {
+            out.find("console.log(2)")
+                .is_some_and(|successor| comment < successor)
+        }) && !out.contains("/* ) c */ console.log(2)"),
+        "leading comment collapsed onto its successor:\n{out}"
+    );
+}
+
+#[test]
+fn final_inspect_keeps_its_leading_and_trailing_comments_before_markup() {
+    let leading =
+        ssr("<script>\n\tlet a = 1;\n\n\t// leading\n\t$inspect(a);\n</script>\n<p>{a}</p>\n");
+    assert!(
+        leading.find("// leading").is_some_and(|comment| {
+            leading
+                .find("$$renderer.push")
+                .is_some_and(|markup| comment < markup)
+        }),
+        "leading comment moved behind the rendered markup:\n{leading}"
+    );
+
+    let trailing =
+        ssr("<script>\n\tlet a = 1;\n\t$inspect(a); /* trailing */\n</script>\n<p>{a}</p>\n");
+    assert!(
+        trailing.find("/* trailing */").is_some_and(|comment| {
+            trailing
+                .find("$$renderer.push")
+                .is_some_and(|markup| comment < markup)
+        }),
+        "trailing comment moved behind the rendered markup:\n{trailing}"
+    );
 }
 
 #[test]

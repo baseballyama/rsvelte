@@ -30,7 +30,8 @@ const PAD: &str = "\n";
 const COMPONENT_BODY_MARKER: Span = Span::new(u32::MAX - 1, u32::MAX - 1);
 
 /// A deliberately-kept `EmptyStatement` (`B::empty_kept`) encodes itself in its
-/// span end, so neither pass may rewrite it.
+/// span end. Its start still carries the removed source statement's comment
+/// position, so the placement passes remap that half while preserving the tag.
 fn is_sentinel(span: Span) -> bool {
     span.end == u32::MAX
 }
@@ -186,6 +187,18 @@ pub enum Place {
 impl VisitMut<'_> for Place {
     fn visit_span(&mut self, span: &mut Span) {
         if is_sentinel(*span) {
+            span.start = match *self {
+                Place::At(at) => at,
+                Place::Shift(by) => span.start + by,
+                Place::Remap {
+                    source_start,
+                    source_end,
+                    base,
+                } if span.start >= source_start && span.start <= source_end => {
+                    base + span.start - source_start
+                }
+                Place::Remap { .. } => span.start,
+            };
             return;
         }
         match *self {
@@ -238,7 +251,12 @@ impl<'a> VisitMut<'a> for Encounter<'_> {
         // reaching it first inside an expression means the owning statement was
         // dropped and only a fragment of it was rehomed elsewhere. Empty
         // statements are filtered out by the printer, so they cannot host one.
-        self.mark(it.span(), !matches!(it, Statement::EmptyStatement(_)));
+        let span = it.span();
+        if is_sentinel(span) {
+            self.mark(Span::new(span.start, span.start), true);
+        } else {
+            self.mark(span, !matches!(it, Statement::EmptyStatement(_)));
+        }
         walk_mut::walk_statement(self, it);
     }
 
@@ -256,7 +274,14 @@ struct Remap<'m> {
 
 impl VisitMut<'_> for Remap<'_> {
     fn visit_span(&mut self, span: &mut Span) {
-        if is_sentinel(*span) || *span == COMPONENT_BODY_MARKER {
+        if is_sentinel(*span) {
+            let position = Span::new(span.start, span.start);
+            if let Some(delta) = chunk_of(self.bases, position).and_then(|i| self.shift[i]) {
+                span.start = (i64::from(span.start) + delta) as u32;
+            }
+            return;
+        }
+        if *span == COMPONENT_BODY_MARKER {
             return;
         }
         match chunk_of(self.bases, *span).and_then(|i| self.shift[i]) {

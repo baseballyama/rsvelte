@@ -82,19 +82,5 @@
   "comment-slot/module-script__L18__line.svelte [comment-mismatch] (server)",
   "comment-slot/module-script__L18__svelte-ignore.svelte [comment-mismatch] (client)",
   "comment-slot/module-script__L18__svelte-ignore.svelte [comment-mismatch] (client-dev)",
-  "comment-slot/module-script__L18__svelte-ignore.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-block-with-paren__instance-fn__succ-stmt.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-block-with-paren__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-block__instance-fn__succ-stmt.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-block__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-line-with-brace__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-line-with-paren__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-line__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__leading-svelte-ignore__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__trailing-block-with-paren__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__trailing-block__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__trailing-line-with-brace__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__trailing-line-with-paren__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__trailing-line__instance-top__succ-none.svelte [comment-mismatch] (server)",
-  "removed-statement-comment/inspect__trailing-svelte-ignore__instance-top__succ-none.svelte [comment-mismatch] (server)"
+  "comment-slot/module-script__L18__svelte-ignore.svelte [comment-mismatch] (server)"
 ]

@@ -700,12 +700,11 @@ fn register_comment_region(
     registry.register(text, &kept)
 }
 
-/// Whether an emitted statement can carry a comment region. An `EmptyStatement`
-/// cannot: a bare one is filtered out by the printer, and a kept one (`;;`) is a
-/// span sentinel that [`comments::Place`] refuses to rewrite — either way the
-/// region would go unreferenced and its comments die.
+/// Whether an emitted statement can carry a comment region. A bare
+/// `EmptyStatement` is filtered out by the printer, but a kept one (`;;`) keeps
+/// its start as the removed source statement's comment anchor.
 fn anchors_a_region(stmt: &Statement<'_>) -> bool {
-    !matches!(stmt, Statement::EmptyStatement(_))
+    !matches!(stmt, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
 }
 
 /// Source offset the spans of a statement re-parsed from `src[start..end]` are
@@ -1182,6 +1181,10 @@ fn transform_script<'a>(
                             inspect_residue(&es.expression, es.span.start, src, true, state)
                         {
                             out.extend(residue);
+                            // Kept empty statements retain the removed statement's
+                            // source starts. Carry the whole region so their starts
+                            // are remapped alongside ordinary source-backed nodes.
+                            carried = true;
                         }
                         break 'emit;
                     }
