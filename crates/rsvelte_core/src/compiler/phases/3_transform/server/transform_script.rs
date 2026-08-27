@@ -1248,6 +1248,7 @@ fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>)
         script,
         &derived_names,
         &derived_var_names,
+        &derived_declarators,
         extra_derived,
     ) {
         return out;
