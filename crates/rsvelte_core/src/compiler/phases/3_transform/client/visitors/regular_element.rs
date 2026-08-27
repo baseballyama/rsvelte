@@ -33,7 +33,9 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsPattern, JsStatement};
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{
+    JsExpr, JsLiteral, JsPattern, JsStatement,
+};
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use crate::compiler::phases::phase3_transform::utils::{
     clean_nodes, determine_namespace_for_children,
