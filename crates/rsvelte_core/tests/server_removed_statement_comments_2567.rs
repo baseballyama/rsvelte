@@ -29,6 +29,22 @@ fn ssr(source: &str) -> String {
 }
 
 #[track_caller]
+fn ssr_dev(source: &str) -> String {
+    compile(
+        source,
+        CompileOptions {
+            generate: GenerateMode::Server,
+            dev: true,
+            filename: Some("A.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .expect("component should compile")
+    .js
+    .code
+}
+
+#[track_caller]
 fn ssr_module(source: &str) -> String {
     compile_module(
         source,
@@ -133,5 +149,19 @@ fn effect_with_no_successor_lands_at_the_component_body_end() {
     assert_body(
         &out,
         "import * as $ from 'svelte/internal/server';\n\nexport default function A($$renderer, $$props) {\n\t$$renderer.component(($$renderer) => {\n\t\tlet a = 1;\n\n\t\t$$renderer.push(`<p>1</p>`);\n\t\t// leading\n\t\t// interior\n\t});\n}",
+    );
+}
+
+/// Dev prints `$$renderer.component` as a multiline call. Its callback body is
+/// three indentation levels deep, so the tail-comment fallback must find the
+/// two-level callback close rather than the one-level exported-function close.
+#[test]
+fn dev_effect_with_no_successor_lands_inside_the_component_callback() {
+    let out = ssr_dev(
+        "<script>\n\tlet a = 1;\n\n\t// leading\n\t$effect(() => {\n\t\t// interior\n\t\tconsole.log(a);\n\t});\n</script>\n\n<p>{a}</p>\n",
+    );
+    assert!(
+        out.contains("\n\t\t\t// leading\n\t\t\t// interior\n\t\t},\n\t\tA\n"),
+        "comments did not land at the dev callback tail:\n{out}"
     );
 }

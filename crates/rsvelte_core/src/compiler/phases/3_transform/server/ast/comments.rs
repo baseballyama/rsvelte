@@ -444,10 +444,12 @@ pub fn print_with_comments<'a>(
         .code
     };
     for chunk in registry.chunks.iter().filter(|chunk| chunk.component_tail) {
-        // The last line closing the component body — `\t});` for the
+        // The last line closing the component body — `\t\t},` for the
         // `$$renderer.component` callback, `}` for the exported function itself.
+        // In dev the call is multiline: the exported function owns one indent,
+        // the callback close owns two, and the callback body owns three.
         let (close, indent) = if chunk.component_tail_nested {
-            ("\n\t}", "\n\t\t")
+            ("\n\t\t}", "\n\t\t\t")
         } else {
             ("\n}", "\n\t")
         };
