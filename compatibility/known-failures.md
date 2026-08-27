@@ -65,15 +65,15 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](deliberate-divergences.md), each pinned by a test.
 
-## Server (`known-failures.server.json`, 128 entries)
+## Server (`known-failures.server.json`, 124 entries)
 
-Partition of `known-failures.server.json` by verdict: `70 + 36 + 22`
+Partition of `known-failures.server.json` by verdict: `66 + 36 + 22`
 
-- **70 — the generated JS differs.**
+- **66 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **22 — one compiler rejects and the other compiles.**
 
-All 128 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 124 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it. The last pre-enrolment entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
 `watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
@@ -91,20 +91,20 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Server dev (`known-failures.server-dev.json`, 129 entries)
+## Server dev (`known-failures.server-dev.json`, 125 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `70 + 36 + 22 + 1`
+Partition of `known-failures.server-dev.json` by verdict: `66 + 36 + 22 + 1`
 
-- **70 — the generated JS differs.**
+- **66 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **22 — one compiler rejects and the other compiles.**
 - **1 — rsvelte's output is not JavaScript.**
 
-All 129 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 125 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it. Its JS count now matches `server`; the one extra entry is output that becomes
 unparseable only with `dev: true`, which is exactly why the target is ratcheted
 separately.

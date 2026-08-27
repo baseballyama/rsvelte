@@ -374,31 +374,18 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // to avoid getting the wrong binding (e.g., a same-named outer State variable).
     // The EachItem binding will have BindingKind::EachItem and the correct reassigned flag.
     let item_reassigned = if !context.state.analysis.runes {
-        // Find the EachItem binding specifically (not just any binding with that name)
-        let mut found_reassigned = false;
-        for scope in &context.state.scope_root.all_scopes {
-            if let Some(&binding_idx) = scope.declarations.get(item_name.as_str())
-                && let Some(binding) = context.state.scope_root.bindings.get(binding_idx)
-                && binding.kind == BindingKind::EachItem
-            {
-                found_reassigned = binding.reassigned;
-                break;
-            }
-        }
-        // Also check root scope
-        if !found_reassigned
-            && let Some(&binding_idx) = context
-                .state
-                .scope_root
-                .scope
-                .declarations
-                .get(item_name.as_str())
-            && let Some(binding) = context.state.scope_root.bindings.get(binding_idx)
-            && binding.kind == BindingKind::EachItem
-        {
-            found_reassigned = binding.reassigned;
-        }
-        found_reassigned
+        // Resolve this node's declaration directly. Scanning all scopes by name
+        // picks an arbitrary sibling/ancestor when nested each blocks reuse the
+        // same item name.
+        context
+            .state
+            .scope_root
+            .template_scope_map
+            .get(&node.start)
+            .and_then(|scope_idx| context.state.scope_root.all_scopes.get(*scope_idx))
+            .and_then(|scope| scope.declarations.get(item_name.as_str()))
+            .and_then(|binding_idx| context.state.scope_root.bindings.get(*binding_idx))
+            .is_some_and(|binding| binding.kind == BindingKind::EachItem && binding.reassigned)
     } else {
         false
     };

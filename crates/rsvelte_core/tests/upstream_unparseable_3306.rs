@@ -1,8 +1,9 @@
-//! Three inputs make the **official** compiler emit client output no JavaScript
-//! parser accepts: a write to an `{#each}` array-rest or object-rest binding, and
-//! a write to an outer binding whose name a `{:catch}` parameter reuses. Each
+//! Four inputs make the **official** compiler emit client output no JavaScript
+//! parser accepts: a write to an `{#each}` array-rest or object-rest binding, an
+//! update of a destructured `{#each}` binding, and a write to an outer binding
+//! whose name a `{:catch}` parameter reuses. Each
 //! puts the binding's *read* expression on the left of an assignment, so acorn
-//! rejects the module with `Assigning to rvalue`. rsvelte's output for all three
+//! rejects the module with `Assigning to rvalue`. rsvelte's output for all four
 //! parses (issue #3306).
 //!
 //! Byte equality is the goal, and the standing precedent — `client/dead_comments.rs`
@@ -65,6 +66,21 @@ fn an_each_rest_binding_is_written_through_its_name() {
     );
 }
 
+#[test]
+fn a_destructured_each_binding_update_writes_to_its_source_path() {
+    let js = client_js(
+        r#"{#each [{ value: 1 }] as { value }}<button onclick={() => value++}>b</button>{/each}"#,
+    );
+    assert!(
+        js.contains("$$item.value++"),
+        "the update must target the destructured source path:\n{js}"
+    );
+    assert!(
+        !js.contains("value()++"),
+        "the upstream rvalue spelling reached the output:\n{js}"
+    );
+}
+
 /// A `{:catch}` parameter whose name matches an outer binding, plus a write to
 /// that outer binding. Using the parameter is not required and runes mode
 /// reproduces it too — both measured on the official compiler.
@@ -87,7 +103,7 @@ fn a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter() {
 /// The controls. Every other construct that introduces a binding of the same
 /// name leaves the outer write alone on the official compiler, and a plain
 /// `{#each … as v}` item write is byte-identical between the two — so the three
-/// cells above are the rest/`{:catch}` paths, not writes in general. Without
+/// cells above are the destructured/rest/`{:catch}` paths, not writes in general. Without
 /// this the assertions above are equally satisfied by routing every write
 /// through `$.set`, including where upstream does not.
 #[test]

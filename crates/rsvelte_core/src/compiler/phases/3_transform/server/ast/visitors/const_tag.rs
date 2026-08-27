@@ -95,12 +95,7 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
     let init = match span(declarator, "init") {
         Some((s, e)) => {
             let mut init_expr = state.reparse_slice(s, e);
-            super::super::read_wrap::wrap_reads(
-                &mut init_expr,
-                state.b,
-                state.analysis,
-                state.analysis.root.instance_scope_index,
-            );
+            state.wrap_reads_in_place(&mut init_expr);
             // Re-parsing the source slice bypasses `visit_expr`, so the runes
             // it lowers have to be lowered here too or they reach the output
             // verbatim and throw at render.

@@ -1,7 +1,7 @@
 # A binding's read expression lands on the left-hand side of a write
 
-Three inputs make the client compiler emit output no JavaScript parser accepts.
-Each puts the *read* expression of a binding on the left of an assignment, so
+Four inputs make the client compiler emit output no JavaScript parser accepts.
+Each puts the *read* expression of a binding on the left of a write, so
 `acorn` rejects the file with `Assigning to rvalue`. Both compile calls succeed —
 no error, no warning — so the failure surfaces only when the emitted module is
 parsed.
@@ -45,7 +45,20 @@ let v = () => $.exclude_from_object($$item, ['a']);
 
 Same shape with the object-rest read helper.
 
-## 3. A write to an outer binding whose name a `{:catch}` parameter reuses
+## 3. An update of a destructured `{#each}` binding
+
+```svelte
+{#each [{ value: 1 }] as { value }}<button onclick={() => value++}>b</button>{/each}
+```
+
+The each transform registers a `read` callback and `assign`/`mutate` callbacks,
+but no `update` callback. `UpdateExpression` therefore visits the identifier as
+a read before handing the mutation back, producing `value()++`. The compiler
+returns successfully, then the esrap parse oracle rejects the generated client
+module with `Cannot assign to this expression`. rsvelte instead emits the
+writable source path `$$item.value++` and preserves the each invalidation.
+
+## 4. A write to an outer binding whose name a `{:catch}` parameter reuses
 
 ```svelte
 <script>let v = "OUTER";</script>
@@ -98,8 +111,8 @@ write alone:
 
 ## The common shape
 
-`$$array.slice(1)`, `$.exclude_from_object($$item, ['a'])` and `$.get(v)` are
-each what a **read** of that binding compiles to. All three cells reach a write
+`$$array.slice(1)`, `$.exclude_from_object($$item, ['a'])`, `value()` and `$.get(v)`
+are each what a **read** of that binding compiles to. All four cells reach a write
 path that substitutes the read spelling and never converts it to the setter form.
 
 ## Control
@@ -108,15 +121,16 @@ A plain `{#each ["A"] as v}` item write is byte-identical between the two
 compilers (`(["A"][$$index] = "W");` on both), which shows this is the
 rest/`{:catch}` path rather than each-writes in general.
 
-## rsvelte's output for the same three inputs
+## rsvelte's output for the same four inputs
 
 | input | official | rsvelte |
 |---|---|---|
 | array-rest write | `($$array.slice(1) = "W");` | `v = "W";` |
 | object-rest write | `($.exclude_from_object($$item, ['a']) = "W");` | `v = "W";` |
+| destructured each update | `value()++` | `$$item.value++` |
 | `{:catch}` shadow write | `$.get(v) = "W";` | `$.set(v, "W");` |
 
-All three of rsvelte's parse.
+All four of rsvelte's parse.
 
 ## Decision taken in rsvelte
 

@@ -229,12 +229,7 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     if let Statement::VariableDeclaration(vd) = &mut stmt {
         for d in vd.declarations.iter_mut() {
             if let Some(init) = d.init.as_mut() {
-                super::super::read_wrap::wrap_reads(
-                    init,
-                    state.b,
-                    state.analysis,
-                    state.analysis.root.instance_scope_index,
-                );
+                state.wrap_reads_in_place(init);
             }
         }
     }

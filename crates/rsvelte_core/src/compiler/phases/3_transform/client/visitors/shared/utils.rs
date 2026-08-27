@@ -7,6 +7,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::assignment_helpers::build_assignment_value;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -42,6 +43,70 @@ enum JsExprKind {
     Unary,
     Binary,
     Other,
+}
+
+/// Resolve an each binding by lexical ownership, preferring the innermost block.
+/// The optional path is the writable source location for a destructured binding.
+fn find_each_binding_context<'a>(
+    contexts: &'a [EachBindingContext],
+    name: &str,
+) -> Option<(&'a EachBindingContext, Option<&'a str>)> {
+    contexts.iter().rev().find_map(|each_ctx| {
+        if each_ctx.item_name == name {
+            Some((each_ctx, None))
+        } else {
+            each_ctx
+                .destructured_update_paths
+                .get(name)
+                .map(|path| (each_ctx, Some(path.as_str())))
+        }
+    })
+}
+
+/// Mark the lexically owning identifier-context each block as assigned or mutated.
+/// Destructured contexts do not register a flag because their transforms do not
+/// force the callback's index parameter in the official compiler.
+fn mark_each_item_assigned_or_mutated(state: &ComponentClientTransformState<'_>, name: &str) {
+    if let Some((_, flag)) = state
+        .each_item_name_flags
+        .iter()
+        .rev()
+        .find(|(item_name, _)| item_name.as_str() == name)
+    {
+        flag.set(true);
+    }
+}
+
+/// Rest bindings are values computed from the item, not locations within it.
+/// Writing to the generated call expression is both semantically wrong and, for
+/// a direct assignment, invalid JavaScript (upstream issue #3306).
+fn is_writable_destructured_path(path: &str) -> bool {
+    !path.contains(".slice(") && !path.starts_with("$.exclude_from_object(")
+}
+
+fn append_each_invalidation(
+    each_ctx: &EachBindingContext,
+    mutation: JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> JsExpr {
+    let mut expressions = vec![mutation];
+
+    if !each_ctx.invalidation_exprs.is_empty() {
+        expressions.push(build_invalidate_inner_signals(
+            &each_ctx.invalidation_exprs,
+            arena,
+        ));
+    }
+
+    if let Some(store_name) = &each_ctx.store_to_invalidate {
+        expressions.push(b::call(
+            arena,
+            b::member_path(arena, "$.invalidate_store"),
+            vec![b::id("$$stores"), b::string(store_name)],
+        ));
+    }
+
+    b::sequence(expressions)
 }
 
 impl LocalScope {
@@ -674,6 +739,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     .state
                     .each_binding_context
                     .iter()
+                    .rev()
                     .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
             {
                 // Build collection[$$index] access
@@ -1143,13 +1209,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 };
             }
 
-            // Track each item assignment for uses_index detection.
-            // In the official Svelte compiler, the assign transform callback on the each item
-            // sets `uses_index = true`. Since Rust uses fn pointers (not closures), we track
-            // this via a shared flag on the state.
-            //
-            // For legacy mode (non-runes), also transform the assignment to use
-            // collection[$$index] and append $.invalidate_inner_signals().
+            // Transform writes through the lexically owning each item. Identifier contexts
+            // write through collection[$$index] in legacy mode and force the callback index;
+            // destructured contexts write through their path into $$item in both modes.
             // This mirrors the official compiler's `assign` transform registered in EachBlock.js:
             //   assign: (_, value) => {
             //     uses_index = true;
@@ -1159,85 +1221,54 @@ pub fn apply_transforms_to_expression_with_shadowed(
             if let JsExpr::Identifier(name) =
                 unspanned_expr(context.arena.get_expr(assign.left), &context.arena)
                 && !local_scope.contains(name)
-                && context.state.each_item_names.contains(name)
+                && let Some((each_ctx, destructured_path)) =
+                    find_each_binding_context(&context.state.each_binding_context, name)
+                        .map(|(each_ctx, path)| (each_ctx.clone(), path.map(str::to_owned)))
+                && destructured_path
+                    .as_deref()
+                    .is_none_or(is_writable_destructured_path)
             {
-                context.state.each_item_assign_or_mutate.set(true);
+                let transformed_right = recurse!(context.arena.get_expr(assign.right));
 
-                // In legacy mode, transform the assignment to use collection[$$index]
-                // and append the invalidation sequence.
-                if !context.state.analysis.runes
-                    && let Some(each_ctx) = context
+                let (assignment_target, current_value) = if let Some(path) = &destructured_path {
+                    let current_value = context
                         .state
-                        .each_binding_context
-                        .iter()
-                        .rev()
-                        .find(|ctx| ctx.item_name == *name)
-                        .cloned()
-                {
-                    let collection_access = build_reassigned_item_read(&each_ctx, &context.arena);
-
-                    // Build the assignment value. For compound operators (o *= 2),
-                    // we need to expand to: collection[$$index] = collection[$$index] * 2
-                    // For simple assignment (o = 5), just use the right side.
-                    let transformed_right = recurse!(context.arena.get_expr(assign.right));
-                    let assign_value = if matches!(assign.operator, JsAssignmentOp::Assign) {
-                        transformed_right
+                        .transform
+                        .get(name.as_str())
+                        .and_then(|transform| transform.read)
+                        .map_or_else(
+                            || JsExpr::Identifier(name.clone()),
+                            |read| read(&context.arena, b::id(name.as_str())),
+                        );
+                    (b::raw(path.as_str()), current_value)
+                } else {
+                    // Only identifier-context transforms set uses_index. A destructured
+                    // path writes directly through $$item and needs no index argument.
+                    mark_each_item_assigned_or_mutated(&context.state, name);
+                    if context.state.analysis.runes {
+                        (b::id(name.as_str()), b::id(name.as_str()))
                     } else {
-                        // Expand compound assignment: collection[$$index] OP right
-                        // e.g., *= becomes collection[$$index] * right
-                        let binary_op = match assign.operator {
-                            JsAssignmentOp::AddAssign => "+",
-                            JsAssignmentOp::SubAssign => "-",
-                            JsAssignmentOp::MulAssign => "*",
-                            JsAssignmentOp::DivAssign => "/",
-                            JsAssignmentOp::ModAssign => "%",
-                            JsAssignmentOp::PowAssign => "**",
-                            JsAssignmentOp::BitAndAssign => "&",
-                            JsAssignmentOp::BitOrAssign => "|",
-                            JsAssignmentOp::BitXorAssign => "^",
-                            JsAssignmentOp::ShlAssign => "<<",
-                            JsAssignmentOp::ShrAssign => ">>",
-                            JsAssignmentOp::UShrAssign => ">>>",
-                            JsAssignmentOp::OrAssign => "||",
-                            JsAssignmentOp::AndAssign => "&&",
-                            JsAssignmentOp::NullishAssign => "??",
-                            _ => "=",
-                        };
-                        // Generate: collection[$$index] OP right
-                        let collection_read = build_reassigned_item_read(&each_ctx, &context.arena);
-                        let collection_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection_read, &context.arena);
-                        let right_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_right, &context.arena);
-                        JsExpr::Raw(
-                            format!("{} {} {}", collection_str, binary_op, right_str).into(),
+                        (
+                            build_reassigned_item_read(&each_ctx, &context.arena),
+                            build_reassigned_item_read(&each_ctx, &context.arena),
                         )
-                    };
+                    }
+                };
 
-                    // Build: collection[$$index] = value
+                if destructured_path.is_some() || !context.state.analysis.runes {
+                    let value = build_assignment_value(
+                        &context.arena,
+                        assign.operator.as_str(),
+                        &current_value,
+                        &transformed_right,
+                    );
                     let assignment = JsExpr::Assignment(JsAssignmentExpression {
                         operator: JsAssignmentOp::Assign,
-                        left: context.arena.alloc_expr(collection_access),
-                        right: context.arena.alloc_expr(assign_value),
+                        left: context.arena.alloc_expr(assignment_target),
+                        right: context.arena.alloc_expr(value),
                     });
 
-                    // Build the invalidation sequence
-                    let invalidation_exprs = each_ctx.invalidation_exprs.clone();
-                    let mut seq_exprs = vec![assignment];
-                    if !invalidation_exprs.is_empty() {
-                        let invalidate_inner =
-                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
-                        seq_exprs.push(invalidate_inner);
-                    }
-
-                    // Add store invalidation if needed
-                    if let Some(ref store_name) = each_ctx.store_to_invalidate {
-                        seq_exprs.push(b::call(
-                            &context.arena,
-                            b::member_path(&context.arena, "$.invalidate_store"),
-                            vec![b::id("$$stores"), b::string(store_name)],
-                        ));
-                    }
-
-                    return b::sequence(seq_exprs);
+                    return append_each_invalidation(&each_ctx, assignment, &context.arena);
                 }
             }
 
@@ -1255,9 +1286,13 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // Also handle legacy mode each item mutation: append $.invalidate_inner_signals()
                 if let JsExpr::Identifier(name) = &base_object
                     && !local_scope.contains(name)
-                    && context.state.each_item_names.contains(name)
+                    && let Some((each_ctx, destructured_path)) =
+                        find_each_binding_context(&context.state.each_binding_context, name)
+                            .map(|(each_ctx, path)| (each_ctx.clone(), path.map(str::to_owned)))
                 {
-                    context.state.each_item_assign_or_mutate.set(true);
+                    if destructured_path.is_none() {
+                        mark_each_item_assigned_or_mutated(&context.state, name);
+                    }
 
                     // In legacy mode, wrap the mutation with $.invalidate_inner_signals()
                     // This mirrors the official compiler's `mutate` transform on each items:
@@ -1265,16 +1300,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     //     uses_index = true;
                     //     return b.sequence([mutation, ...sequence]);
                     //   }
-                    if !context.state.analysis.runes
-                        && let Some(each_ctx) = context
-                            .state
-                            .each_binding_context
-                            .iter()
-                            .rev()
-                            .find(|ctx| ctx.item_name == *name)
-                            .cloned()
-                        && !each_ctx.invalidation_exprs.is_empty()
-                    {
+                    if destructured_path.is_some() || !context.state.analysis.runes {
                         // Transform the full assignment (apply read transforms to both sides)
                         let transformed_left = recurse!(context.arena.get_expr(assign.left));
                         let transformed_right = recurse!(context.arena.get_expr(assign.right));
@@ -1284,21 +1310,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             right: context.arena.alloc_expr(transformed_right),
                         });
 
-                        let invalidation_exprs = each_ctx.invalidation_exprs.clone();
-                        let mut seq_exprs = vec![mutation];
-                        let invalidate_inner =
-                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
-                        seq_exprs.push(invalidate_inner);
-
-                        if let Some(ref store_name) = each_ctx.store_to_invalidate {
-                            seq_exprs.push(b::call(
-                                &context.arena,
-                                b::member_path(&context.arena, "$.invalidate_store"),
-                                vec![b::id("$$stores"), b::string(store_name)],
-                            ));
-                        }
-
-                        return b::sequence(seq_exprs);
+                        return append_each_invalidation(&each_ctx, mutation, &context.arena);
                     }
                 }
 
@@ -1505,8 +1517,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
             }
 
             // Track each item update (++ or --) for uses_index detection.
-            // For reassigned each items in legacy mode, transform `n++` into
-            // `collection[$$index]++, $.invalidate_inner_signals(() => collection)`
+            // Identifier contexts update collection[$$index] in legacy mode and force the
+            // callback index; destructured contexts update their path into $$item.
             // This mirrors the official Svelte compiler's `mutate` transform on each items:
             //   mutate: (_, mutation) => {
             //     uses_index = true;
@@ -1515,35 +1527,34 @@ pub fn apply_transforms_to_expression_with_shadowed(
             if let JsExpr::Identifier(name) =
                 unspanned_expr(context.arena.get_expr(update.argument), &context.arena)
                 && !local_scope.contains(name)
-                && context.state.each_item_names.contains(name)
+                && let Some((each_ctx, destructured_path)) =
+                    find_each_binding_context(&context.state.each_binding_context, name)
+                        .map(|(each_ctx, path)| (each_ctx.clone(), path.map(str::to_owned)))
+                && destructured_path
+                    .as_deref()
+                    .is_none_or(is_writable_destructured_path)
             {
-                context.state.each_item_assign_or_mutate.set(true);
+                if destructured_path.is_none() {
+                    mark_each_item_assigned_or_mutated(&context.state, name);
+                }
 
                 // For reassigned each items in legacy mode, we need to transform `n++` to
                 // `collection[$$index]++, $.invalidate_inner_signals(() => collection)`
-                if !context.state.analysis.runes
-                    && let Some(binding) = context.state.get_binding(name)
-                    && binding.reassigned
-                    && let Some(each_ctx) = context.state.each_binding_context.last()
-                    && each_ctx.item_name == *name
+                if destructured_path.is_some()
+                    || (!context.state.analysis.runes && each_ctx.item_reassigned)
                 {
-                    let collection_access = build_reassigned_item_read(each_ctx, &context.arena);
+                    let update_target = destructured_path.as_deref().map_or_else(
+                        || build_reassigned_item_read(&each_ctx, &context.arena),
+                        b::raw,
+                    );
                     let update_expr = b::update(
                         &context.arena,
                         update.operator,
-                        collection_access,
+                        update_target,
                         update.prefix,
                     );
 
-                    // Build the invalidation sequence expressions
-                    let invalidation_exprs = each_ctx.invalidation_exprs.clone();
-                    let mut seq_exprs = vec![update_expr];
-                    if !invalidation_exprs.is_empty() {
-                        let invalidate_inner =
-                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
-                        seq_exprs.push(invalidate_inner);
-                    }
-                    return b::sequence(seq_exprs);
+                    return append_each_invalidation(&each_ctx, update_expr, &context.arena);
                 }
             }
 
@@ -1563,21 +1574,16 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // Also handle legacy mode each item mutation: append $.invalidate_inner_signals()
                 if let JsExpr::Identifier(name) = &base_object
                     && !local_scope.contains(name)
-                    && context.state.each_item_names.contains(name)
+                    && let Some((each_ctx, destructured_path)) =
+                        find_each_binding_context(&context.state.each_binding_context, name)
+                            .map(|(each_ctx, path)| (each_ctx.clone(), path.map(str::to_owned)))
                 {
-                    context.state.each_item_assign_or_mutate.set(true);
+                    if destructured_path.is_none() {
+                        mark_each_item_assigned_or_mutated(&context.state, name);
+                    }
 
                     // In legacy mode, wrap the update with $.invalidate_inner_signals()
-                    if !context.state.analysis.runes
-                        && let Some(each_ctx) = context
-                            .state
-                            .each_binding_context
-                            .iter()
-                            .rev()
-                            .find(|ctx| ctx.item_name == *name)
-                            .cloned()
-                        && !each_ctx.invalidation_exprs.is_empty()
-                    {
+                    if destructured_path.is_some() || !context.state.analysis.runes {
                         // Transform the update expression (apply read transforms)
                         let transformed_arg = recurse!(context.arena.get_expr(update.argument));
                         let mutation = JsExpr::Update(JsUpdateExpression {
@@ -1586,21 +1592,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             prefix: update.prefix,
                         });
 
-                        let invalidation_exprs = each_ctx.invalidation_exprs.clone();
-                        let mut seq_exprs = vec![mutation];
-                        let invalidate_inner =
-                            build_invalidate_inner_signals(&invalidation_exprs, &context.arena);
-                        seq_exprs.push(invalidate_inner);
-
-                        if let Some(ref store_name) = each_ctx.store_to_invalidate {
-                            seq_exprs.push(b::call(
-                                &context.arena,
-                                b::member_path(&context.arena, "$.invalidate_store"),
-                                vec![b::id("$$stores"), b::string(store_name)],
-                            ));
-                        }
-
-                        return b::sequence(seq_exprs);
+                        return append_each_invalidation(&each_ctx, mutation, &context.arena);
                     }
                 }
 
@@ -2518,6 +2510,7 @@ fn collect_reactive_references_from_metadata(
                 .state
                 .each_binding_context
                 .iter()
+                .rev()
                 .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
         {
             let reassigned_read = build_reassigned_item_read(each_ctx, &context.arena);
@@ -2752,6 +2745,7 @@ fn collect_reactive_references_inner(
                     .state
                     .each_binding_context
                     .iter()
+                    .rev()
                     .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
             {
                 let reassigned_read = build_reassigned_item_read(each_ctx, &context.arena);
