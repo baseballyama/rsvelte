@@ -4,8 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/ClassDeclaration.js`.
 
-use super::{AstType, VisitorContext};
 use super::shared::utils::validate_identifier_name;
+use super::{AstType, VisitorContext};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 

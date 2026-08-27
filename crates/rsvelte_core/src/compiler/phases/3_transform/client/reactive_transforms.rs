@@ -5,6 +5,7 @@ use std::borrow::Cow;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
+use super::store_transforms::declares_binding_in_statement;
 use super::{
     extract_destructure_targets, extract_member_expression_base, find_assignment_position,
     get_or_compile_regex, is_simple_identifier, lhs_starts_with_keyword,
@@ -414,6 +415,28 @@ pub(super) fn transform_reactive_statement(
         collapsed
     };
     let body = body_owned.trim_end_matches(';').trim();
+
+    // The normal top-level statement pipeline removes store-sub spellings that
+    // are shadowed by a local binding before running its name-based rewrites.
+    // Reactive statements return through this dedicated path before reaching
+    // that guard, so apply the same protection here. A template `$t` reference
+    // can create the component StoreSub binding while an IIFE in `$:` declares
+    // its own `const $t`; rewriting that declaration produced `const $t()`.
+    let mut filtered_store_sub_vars = Vec::new();
+    let store_sub_vars = if store_sub_vars
+        .iter()
+        .any(|name| declares_binding_in_statement(body, name))
+    {
+        filtered_store_sub_vars.extend(
+            store_sub_vars
+                .iter()
+                .filter(|name| !declares_binding_in_statement(body, name))
+                .cloned(),
+        );
+        filtered_store_sub_vars.as_slice()
+    } else {
+        store_sub_vars
+    };
 
     // Dependency membership + ORDER come from the Phase-2 AST reference set
     // (`dep_names`), mirroring `2-analyze/visitors/LabeledStatement.js`. The

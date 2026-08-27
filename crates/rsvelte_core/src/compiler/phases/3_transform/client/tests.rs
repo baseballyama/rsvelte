@@ -88,6 +88,46 @@ fn module_raw_state_private_nullish_assignment_inside_untrack_is_lowered() {
 }
 
 #[test]
+fn reactive_iife_local_store_spelling_is_not_rewritten() {
+    let source = r#"<script>
+        import { t } from 'svelte-i18n';
+        import { get } from 'svelte/store';
+        $: label = (() => {
+            const $t = get(t);
+            return $t('calendar.day');
+        })();
+    </script>
+    <p>{$t('template.day')}</p>"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("reactive-store-shadow.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("const $t = get(t)"),
+            "reactive local binding must remain a binding in dev={dev}:\n{output}"
+        );
+        assert!(
+            output.contains("return $t('calendar.day')"),
+            "reactive local calls must resolve to the local in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("const $t()"),
+            "store read lowering must not rewrite the binding in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn retained_instance_statements_match_a_normalized_script_after_import_hoisting() {
     let source =
         "\n\timport { onMount } from 'svelte';\n\n\tonMount(() => {\n\t\tconsole.log(42);\n\t});\n";
