@@ -2341,6 +2341,12 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         expr: &JsExpr,
     ) -> Option<oxc_ast::ast::SimpleAssignmentTarget<'a>> {
         match expr {
+            JsExpr::Spanned(inner, start, end) => {
+                let mut target = self.simple_assignment_target(self.arena.get_expr(*inner))?;
+                *target.span_mut() = Span::new(*start, *end);
+                self.note_span(*end);
+                Some(target)
+            }
             JsExpr::Identifier(name) => {
                 Some(SimpleAssignmentTarget::new_assignment_target_identifier(
                     self.identifier_span(name),
@@ -2372,6 +2378,12 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// itself bails.
     fn assignment_target(&self, expr: &JsExpr) -> Option<oxc_ast::ast::AssignmentTarget<'a>> {
         match expr {
+            JsExpr::Spanned(inner, start, end) => {
+                let mut target = self.assignment_target(self.arena.get_expr(*inner))?;
+                *target.span_mut() = Span::new(*start, *end);
+                self.note_span(*end);
+                Some(target)
+            }
             JsExpr::Array(arr) => {
                 let mut elements = ArenaVec::with_capacity_in(arr.elements.len(), &self.ab);
                 let mut rest: Option<
@@ -2980,8 +2992,8 @@ mod tests {
     use super::{AstIsland, program_to_oxc, program_to_oxc_with_islands};
     use crate::ast::oxc_program::RetainedProgram;
     use crate::compiler::phases::phase3_transform::js_ast::{
-        JsArena, JsExpr, JsMemberExpression, JsMemberProperty, JsProgram, JsStatement,
-        builders as b,
+        JsArena, JsAssignmentOp, JsExpr, JsMemberExpression, JsMemberProperty, JsProgram,
+        JsStatement, JsUpdateOp, builders as b,
     };
     use oxc_allocator::Allocator;
     use oxc_ast::ast::{Expression, Statement};
@@ -3026,6 +3038,44 @@ mod tests {
             statement.expression.span(),
             oxc_span::Span::new(1_000, 1_003)
         );
+    }
+
+    #[test]
+    fn spanned_identifiers_convert_as_assignment_and_update_targets() {
+        let arena = JsArena::new();
+        let assignment = b::assignment(
+            &arena,
+            JsAssignmentOp::Assign,
+            JsExpr::Spanned(arena.alloc_expr(b::id("assigned")), 7, 15),
+            b::number(1.0),
+        );
+        let update = b::update(
+            &arena,
+            JsUpdateOp::Increment,
+            JsExpr::Spanned(arena.alloc_expr(b::id("updated")), 20, 27),
+            false,
+        );
+        let program =
+            JsProgram::with_body(vec![b::stmt(&arena, assignment), b::stmt(&arena, update)]);
+        let allocator = Allocator::default();
+        let converted = program_to_oxc(&program, &arena, &allocator)
+            .expect("spanned assignment targets are supported");
+
+        let Statement::ExpressionStatement(assignment) = &converted.program.body[0] else {
+            panic!("expected assignment expression statement");
+        };
+        let Expression::AssignmentExpression(assignment) = &assignment.expression else {
+            panic!("expected assignment expression");
+        };
+        assert_eq!(assignment.left.span(), Span::new(7, 15));
+
+        let Statement::ExpressionStatement(update) = &converted.program.body[1] else {
+            panic!("expected update expression statement");
+        };
+        let Expression::UpdateExpression(update) = &update.expression else {
+            panic!("expected update expression");
+        };
+        assert_eq!(update.argument.span(), Span::new(20, 27));
     }
 
     #[test]
