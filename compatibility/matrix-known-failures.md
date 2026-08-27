@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 84 entries)
+## Matrix known failures (`matrix-known-failures.json`, 60 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 60 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -62,13 +62,13 @@ The rest of the family (7 bindings × 47 positions × 3 targets, minus these) pa
 the axis that found #2254 plus `SwitchCase.test`, class-expression field initializers and
 class-expression computed method keys, all fixed in #2269.
 
-### `comment-slot` — 84 entries
+### `comment-slot` — 60 entries
 
 All remaining entries are `.svelte` template seeds. The `.svelte.(js|ts)` module-path
 cluster is now empty: location-less Programs discard their top-level and EOF comments while
 located nested bodies can still resynchronize the cursor, matching esrap.
 
-The current partition by target is `26 + 26 + 8 + 24` for `client`, `client-dev`,
+The current partition by target is `18 + 18 + 0 + 24` for `client`, `client-dev`,
 `server`, and `server-dev`. By seed:
 
 | seed | entries |
@@ -78,16 +78,15 @@ The current partition by target is `26 + 26 + 8 + 24` for `client`, `client-dev`
 | `class-static-block` | 8 |
 | `const-fold-line-continuation` | 8 |
 | `legacy-reactive` | 20 |
-| `module-script` | 24 |
 
-All 84 are `comment-mismatch`: comparing normalized non-comment lines finds no
+All 60 are `comment-mismatch`: comparing normalized non-comment lines finds no
 codegen-semantic divergence in this cluster. A comment is the one token that may appear
 between any two other tokens, so the matrix crosses eight comment kinds with every line
 boundary instead of relying on published-code frequency.
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `84`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by what diverges: `60`
 
-Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `16 + 8 + 8 + 8 + 20 + 24`
+Partition of `matrix-known-failures.json` entries under `comment-slot/` by seed: `16 + 8 + 8 + 8 + 20`
 
 The location-less cursor port clears 144 entries without adding a failure: all 96 trailing
 module-path rows (`module-class-state`, `module-rune-exports`, and
@@ -95,13 +94,15 @@ module-path rows (`module-class-state`, `module-rune-exports`, and
 rows on `server` and `server-dev`. The latter needed the generated component body to inherit
 the instance-script region while the outer Program remained location-less.
 
-`module-script`'s 24 are unchanged in cause by #3005, and their slots moved
+`module-script`'s 24 were unchanged in cause by #3005, and their slots moved
 (`L07`/`L11` → `L18`/`L22`) because the seed grew the bodies that make the cursor observable:
 a rune class, a static block and a bare block, each followed by a slot outside the body it
-revived from. Those new slots all pass; what still diverges is only the two `</script>` slots,
-where upstream attaches a comment sitting at the very end of a script region to the generated
-component function's parameter list. The seed before it could not have failed for the #3005
-reason — every slot in it was one where the real cursor rule and the body-span rule agree.
+revived from. Those new slots all passed; the remaining `L18` slot was a cross-chunk cursor
+effect: upstream leaves the module's standalone EOF comment pending until it opens the generated
+component body, after its parameters have printed. rsvelte now carries that comment explicitly
+from the isolated module transform to the component function's final parameter, including the
+line-comment layout and generated source-map adjustment, so the seed is empty. `server-dev`
+continues to drop the comment, as upstream does.
 
 ### `each-collection` — 0 entries
 

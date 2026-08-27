@@ -2738,6 +2738,17 @@ pub(crate) fn transform_client(
             } else {
                 code
             };
+            let mut mappings = mappings;
+            let code = if let Some(script) = analysis.module_script_content.as_ref() {
+                super::shared::module_tail_comment::rehome(
+                    code,
+                    &script.raw,
+                    &analysis.name,
+                    &mut mappings,
+                )
+            } else {
+                code
+            };
             return Ok(CodegenResult { code, mappings });
         } else if *CLIENT_TO_OXC_DEBUG {
             // Corpus workers share one stderr and a multi-part write interleaves,
@@ -2753,7 +2764,18 @@ pub(crate) fn transform_client(
 
     if options.enable_sourcemap {
         let r = generate_with_sourcemap(&program, source, &context.arena)
-            .map_err(TransformError::CodeGen);
+            .map_err(TransformError::CodeGen)
+            .map(|mut result| {
+                if let Some(script) = analysis.module_script_content.as_ref() {
+                    result.code = super::shared::module_tail_comment::rehome(
+                        result.code,
+                        &script.raw,
+                        &analysis.name,
+                        &mut result.mappings,
+                    );
+                }
+                result
+            });
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         r
     } else {
@@ -2767,6 +2789,11 @@ pub(crate) fn transform_client(
         };
         let code = if let Some(script) = analysis.module_script_content.as_ref() {
             super::shared::async_body::strip_module_async_derived_ignore_comments(&script.raw, code)
+        } else {
+            code
+        };
+        let code = if let Some(script) = analysis.module_script_content.as_ref() {
+            super::shared::module_tail_comment::rehome(code, &script.raw, &analysis.name, &mut [])
         } else {
             code
         };

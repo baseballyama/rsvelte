@@ -1939,12 +1939,23 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
         }
         None => code,
     };
-    Ok(match state.analysis.module_script_content.as_ref() {
+    let code = match state.analysis.module_script_content.as_ref() {
         Some(script) => crate::compiler::phases::phase3_transform::shared::async_body::strip_module_async_derived_ignore_comments(
             &script.raw,
             code,
         ),
         None => code,
+    };
+    Ok(match state.analysis.module_script_content.as_ref() {
+        Some(script) if !options.dev => {
+            crate::compiler::phases::phase3_transform::shared::module_tail_comment::rehome(
+                code,
+                &script.raw,
+                component_name,
+                &mut [],
+            )
+        }
+        _ => code,
     })
 }
 
