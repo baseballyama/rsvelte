@@ -4,8 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/ClassDeclaration.js`.
 
+use super::VisitorContext;
 use super::shared::utils::validate_identifier_name;
-use super::{AstType, VisitorContext};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 
@@ -35,15 +35,16 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             validate_identifier_name(binding, None)?;
         }
 
-        // Only a component's `<script module>` allows top-level module scope only;
-        // upstream's `analyze_module` leaves `ast_type` null, so a standalone
-        // `.svelte.(js|ts)` module gets the component depth instead.
-        let allowed_depth =
-            if context.ast_type == AstType::Module && !context.analysis.is_module_file {
-                0
-            } else {
-                1
-            };
+        // Component scripts count their top level as depth 0 in VisitorContext,
+        // so the first nested function is already below top level. Standalone
+        // `.svelte.(js|ts)` modules deliberately allow that first function:
+        // upstream's `analyze_module` leaves `ast_type` null and applies the
+        // component-depth threshold there.
+        let allowed_depth = if context.analysis.is_module_file {
+            1
+        } else {
+            0
+        };
         if context.function_depth > allowed_depth || context.in_reactive_declaration {
             let mut warning = warnings::perf_avoid_nested_class();
             warning.start = node.start();
@@ -124,8 +125,24 @@ mod tests {
     }
 
     #[test]
+    fn component_instance_script_warns_inside_a_function() {
+        let warnings = component_warnings(
+            "<script>\n\tconst value = (() => { class A {} return A; })();\n</script>\n",
+        );
+        assert_eq!(nested_class(&warnings).len(), 1);
+    }
+
+    #[test]
     fn legacy_reactive_declaration_counts_as_nested_scope() {
         let warnings = component_warnings("<script>\n$: { class A {} }\n</script>\n");
+        assert_eq!(nested_class(&warnings).len(), 1);
+    }
+
+    #[test]
+    fn legacy_reactive_iife_counts_as_nested_scope() {
+        let warnings = component_warnings(
+            "<script>\nexport let v;\nlet k;\n$: k = (() => { class T extends /ab/.constructor { m() { return v; } } return new T().m(); })();\n</script>\n",
+        );
         assert_eq!(nested_class(&warnings).len(), 1);
     }
 
