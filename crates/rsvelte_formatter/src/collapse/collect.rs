@@ -539,9 +539,22 @@ pub(super) fn collect(
                 }
             }
             TemplateNode::IfBlock(blk) => {
-                collect(out, &blk.consequent, line_width, true, options, edits);
-                if let Some(alt) = &blk.alternate {
-                    collect(out, alt, line_width, true, options, edits);
+                if blk.alternate.is_none()
+                    && let Some(edit) = try_hug_block_inline_body(
+                        out,
+                        blk.start,
+                        blk.end,
+                        &blk.consequent,
+                        line_width,
+                        options,
+                    )
+                {
+                    edits.push(edit);
+                } else {
+                    collect(out, &blk.consequent, line_width, true, options, edits);
+                    if let Some(alt) = &blk.alternate {
+                        collect(out, alt, line_width, true, options, edits);
+                    }
                 }
             }
             TemplateNode::EachBlock(blk) => {
@@ -557,14 +570,28 @@ pub(super) fn collect(
                 }
             }
             TemplateNode::AwaitBlock(blk) => {
-                if let Some(f) = &blk.pending {
-                    collect(out, f, line_width, true, options, edits);
-                }
-                if let Some(f) = &blk.then {
-                    collect(out, f, line_width, true, options, edits);
-                }
-                if let Some(f) = &blk.catch {
-                    collect(out, f, line_width, true, options, edits);
+                let sole_fragment = match (&blk.pending, &blk.then, &blk.catch) {
+                    (Some(f), None, None) | (None, Some(f), None) | (None, None, Some(f)) => {
+                        Some(f)
+                    }
+                    _ => None,
+                };
+                if let Some(edit) = sole_fragment.and_then(|fragment| {
+                    try_hug_block_inline_body(
+                        out, blk.start, blk.end, fragment, line_width, options,
+                    )
+                }) {
+                    edits.push(edit);
+                } else {
+                    if let Some(f) = &blk.pending {
+                        collect(out, f, line_width, true, options, edits);
+                    }
+                    if let Some(f) = &blk.then {
+                        collect(out, f, line_width, true, options, edits);
+                    }
+                    if let Some(f) = &blk.catch {
+                        collect(out, f, line_width, true, options, edits);
+                    }
                 }
             }
             TemplateNode::KeyBlock(blk) => {

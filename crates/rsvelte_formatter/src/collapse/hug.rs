@@ -185,11 +185,15 @@ pub(super) fn element_hug_parts(
 
 /// Hug-break the single inline-element body of a block (`{#each …}<span>…</span>{/each}`)
 /// when the whole one-line block overflows. prettier keeps the body inline-adjacent
-/// to the block tags (no whitespace in source) and, on overflow, hugs the element:
-/// the close `>` drops to its own indented line with the block close tag glued
-/// after it —
+/// to the block tags (no whitespace in source) and, on overflow, hugs the element.
+/// If only the final `>` plus block close overflow, the close `>` drops to its
+/// own indented line —
 ///   {#each group.breadcrumbs as breadcrumb}<span>{breadcrumb}</span
 ///     >{/each}
+/// If the line through `</span` already overflows, the open `>` drops too —
+///   {#if flag}<span
+///       >long content</span
+///     >{/if}
 /// Returns the edit when the block currently renders all on one line and overflows.
 pub(super) fn try_hug_block_inline_body(
     out: &str,
@@ -231,7 +235,14 @@ pub(super) fn try_hug_block_inline_body(
     }
     let prefix = out.get(s..elem_start)?; // block open tag (+ no leading ws)
     let (indent_unit, _) = indent_config(options);
-    let hug = format!("{prefix}{open_nb}>{content}</{tag}\n{indent}{indent_unit}>{close}");
+    let through_close_tag = format!("{indent}{prefix}{open_nb}>{content}</{tag}");
+    let hug = if through_close_tag.visual_width(tw) > line_width {
+        format!(
+            "{prefix}{open_nb}\n{indent}{indent_unit}{indent_unit}>{content}</{tag}\n{indent}{indent_unit}>{close}"
+        )
+    } else {
+        format!("{prefix}{open_nb}>{content}</{tag}\n{indent}{indent_unit}>{close}")
+    };
     (hug != whole).then_some((start, end, hug))
 }
 
