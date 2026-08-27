@@ -1124,6 +1124,18 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     // `trimmed` already points past any leading block comment.
     let rest_raw = trimmed[declarator_at..].trim();
 
+    // esrap flushes a same-line comment after the source declaration on the
+    // initializer node. Once that initializer becomes the final `$.prop`
+    // argument, the comment therefore belongs inside the generated call. Keep
+    // it separately while the comment-free declaration is split below.
+    let trailing_line_comment = rest_raw.rsplit('\n').next().and_then(|last_line| {
+        let comment_at = find_line_comment_position(last_line)?;
+        last_line[..comment_at]
+            .trim_end()
+            .ends_with(';')
+            .then(|| last_line[comment_at..].trim_end())
+    });
+
     // Strip trailing `// line comment` and `/* block comment */` from the declaration
     // text BEFORE splitting declarators.  Without this, a declaration like:
     //   `export let name; // comment`
@@ -1134,6 +1146,9 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     // Handle multiple declarators: export let a, b, c;
     // Split by comma, but be careful of commas inside default values
     let declarators = split_declarators(rest);
+    let last_declarator_has_initializer = declarators
+        .last()
+        .is_some_and(|declarator| declarator.contains('='));
 
     let mut results = Vec::new();
 
@@ -1297,6 +1312,16 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                 flags
             ));
         }
+    }
+
+    if last_declarator_has_initializer
+        && let Some(comment) = trailing_line_comment
+        && let Some(last) = results.last_mut()
+        && let Some(close) = last.rfind(')')
+    {
+        // A line comment must terminate before the call's closing paren. The
+        // program printer supplies the final indentation and multiline layout.
+        last.insert_str(close, &format!(" {}\n", comment));
     }
 
     if comment_prefix.is_empty() {

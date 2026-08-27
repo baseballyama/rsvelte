@@ -433,6 +433,45 @@ fn comments_in_removed_props_declarations_are_retained() {
 }
 
 #[test]
+fn legacy_prop_trailing_comment_stays_inside_generated_prop_call() {
+    let source = r#"<script lang="ts">
+	export let value: string | null = null; // trailing prop comment
+
+	function clear() {
+		value = null;
+	}
+</script>
+
+<button onclick={clear}>{value}</button>"#;
+    let result = crate::compiler::compile(source, Default::default()).expect("compiles");
+    let code = &result.js.code;
+    let prop = code
+        .find("let value = $.prop(")
+        .expect("generated prop call");
+    let comment = code
+        .find("// trailing prop comment")
+        .expect("comment retained");
+    let close = code[comment..]
+        .find(");")
+        .map(|offset| comment + offset)
+        .expect("prop call closes after comment");
+
+    assert!(prop < comment && comment < close, "{code}");
+    assert!(code[comment..close].contains('\n'), "{code}");
+    assert!(
+        code[comment + "// trailing prop comment".len()..close]
+            .trim()
+            .is_empty(),
+        "{code}"
+    );
+    assert_eq!(
+        code.matches("// trailing prop comment").count(),
+        1,
+        "{code}"
+    );
+}
+
+#[test]
 fn snapshot_ignore_survives_an_intervening_comment() {
     assert!(has_snapshot_ignore_before(
         "// svelte-ignore state_snapshot_uncloneable\n/* inserted } comment */"
