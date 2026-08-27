@@ -662,6 +662,24 @@ pub(crate) fn transform_client(
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
+        // A comment copied out of a TypeScript-only declaration is first
+        // flushed when upstream enters the located component block. Its
+        // printer then revisits the first generated location and flushes that
+        // first comment once more; later erased comments have already advanced
+        // the cursor and are printed only once. Preserve the exact copied
+        // comment here so the text fallback can reproduce that two-step cursor
+        // behaviour without guessing from comment contents or script mode.
+        let repeated_projection_comment = instance_script
+            .source_projection
+            .as_ref()
+            .filter(|projection| !projection.reemitted_comment_outputs.is_empty())
+            .and_then(|projection| projection.reemitted_comment_outputs.first())
+            .and_then(|range| {
+                instance_script
+                    .raw
+                    .get(range.start as usize..range.end as usize)
+            })
+            .map(str::to_owned);
         let can_borrow_projection = needs_projection
             && memmem::find(instance_raw.as_bytes(), b"import").is_none()
             && !instance_raw.as_bytes().contains(&b'\r');
@@ -712,6 +730,11 @@ pub(crate) fn transform_client(
             retained_instance,
             body_projection,
         );
+        if let Some(comment) = repeated_projection_comment
+            && let Some(start) = transformed.find(&comment)
+        {
+            transformed.insert_str(start + comment.len(), &format!("\n{comment}"));
+        }
         rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
         super::profile::record_parent_site(false);

@@ -354,7 +354,7 @@ gate that found it is the one that compares rsvelte to nothing:
   found it**: applying the transform twice produced the *correct* text, and no
   amount of output comparison names which of the two passes is the defect.
 
-### The ten largest remaining clusters
+### The largest remaining clusters
 
 Counts are `(id, target)` pairs and clusters are keyed by the first differing
 line, so this is a diagnostic ordering, **not a partition** — the tail is 923
@@ -365,7 +365,6 @@ clusters long and most of it is one entry each. `E:` is official, `A:` rsvelte.
 | 20+20 | client, client-dev | `E:if (tab()) {` / `A:if (tab) {` | sparrow-app |
 | 16+16 | client, client-dev | `E:})(res);` / `A:return res;` | huly |
 | 10+10 | client, client-dev | `E:function triggerSetView(val) {` / `A:$: triggerSetView($setView());` | svelte-gantt |
-| 9+8 | client-dev, client | a JSDoc comment body, wrong `@type` block | svelte-material-ui |
 | 7+7 | client, client-dev | `E:})(res);` / `A:return res;` (one level deeper) | huly |
 | 7+7 | client, client-dev | `E:if (apiState()) {` / `A:if (apiState) {` | sparrow-app |
 | 6+6 | client, client-dev | `E:})(result);` / `A:return result;` | huly |

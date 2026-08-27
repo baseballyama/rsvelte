@@ -1,6 +1,47 @@
 use super::*;
 
 #[test]
+fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_output() {
+    let source = r#"<script lang="ts">
+        type OwnProps = {
+            /** First prop. */
+            use?: string;
+            /** Second prop. */
+            class?: string;
+        };
+        const between = 1;
+        let props: OwnProps = { use: '' };
+    </script>
+
+    {between}"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("typescript-declaration-comment-cursor.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert_eq!(
+            output.matches("First prop.").count(),
+            2,
+            "the first erased-type comment follows both upstream cursor flushes in dev={dev}:\n{output}"
+        );
+        assert_eq!(
+            output.matches("Second prop.").count(),
+            1,
+            "later erased-type comments are not repeated in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn constant_fold_does_not_resolve_a_binding_from_a_sibling_snippet() {
     let source = r#"<svelte:boundary>
     {#snippet children()}
