@@ -1116,10 +1116,15 @@ mod ts_removals {
             }
             // `this: T` is a whole parameter, so the following comma goes too.
             if let Some(this_param) = &it.this_param {
-                let end = match it.params.items.first() {
-                    Some(first) => first.span.start,
-                    None => this_param.span.end,
-                };
+                let end = it.params.items.first().map_or_else(
+                    || {
+                        it.params
+                            .rest
+                            .as_ref()
+                            .map_or(this_param.span.end, |rest| rest.span.start)
+                    },
+                    |first| first.span.start,
+                );
                 self.remove_range(this_param.span.start, end);
             }
             walk::walk_function(self, it, flags);
@@ -2491,6 +2496,18 @@ count! += 1;
         assert_eq!(
             strip_typescript("function g(p?: string, q: string) {}\n"),
             "function g(p, q) {}\n"
+        );
+    }
+
+    /// OXC stores a rest parameter separately from `FormalParameters::items`.
+    /// Removing a TypeScript `this` parameter must therefore use the rest
+    /// parameter as the following runtime parameter, including the comma that
+    /// separates them.
+    #[test]
+    fn this_parameter_before_rest_parameter_removes_the_separator() {
+        assert_eq!(
+            strip_typescript("function debounce(this: unknown, ...args: any[]) { return args; }\n"),
+            "function debounce(...args) { return args; }\n"
         );
     }
 

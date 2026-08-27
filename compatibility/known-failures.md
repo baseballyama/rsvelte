@@ -29,14 +29,14 @@ snippet render tag (#2031) by #2057.
 
 ## Client (`known-failures.client.json`, 439 entries)
 
-Partition of `known-failures.client.json` by verdict: `336 + 36 + 20 + 37 + 10`
+Partition of `known-failures.client.json` by verdict: `338 + 36 + 20 + 37 + 8`
 
-- **336 — the generated JS differs** (`js` / `code-differs`).
+- **338 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
 - **37 — the generated CSS differs.**
-- **10 — rsvelte's output is not JavaScript**, ratcheted in full in
+- **8 — rsvelte's output is not JavaScript**, ratcheted in full in
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
@@ -111,13 +111,13 @@ been retired.
 
 ## Client dev (`known-failures.client-dev.json`, 477 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `376 + 36 + 20 + 34 + 11`
+Partition of `known-failures.client-dev.json` by verdict: `378 + 36 + 20 + 34 + 9`
 
-- **376 — the generated JS differs.**
+- **378 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).
-- **11 — rsvelte's output is not JavaScript.**
+- **9 — rsvelte's output is not JavaScript.**
 
 All 477 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 40 JS entries that `client` does not

@@ -1,8 +1,8 @@
 # Output-parseability ratchet
 
 Gate: the "output parseability" section of `scripts/compat-corpus/verify.mjs`.
-Ratchet: `parse-known-failures.client.json` holds **10 entries**,
-`parse-known-failures.client-dev.json` holds **11 entries**,
+Ratchet: `parse-known-failures.client.json` holds **8 entries**,
+`parse-known-failures.client-dev.json` holds **9 entries**,
 `parse-known-failures.server.json` holds **0 entries** and
 `parse-known-failures.server-dev.json` holds **0 entries**.
 
@@ -24,21 +24,22 @@ sources … an empty baseline here is therefore the expected result, not a measu
 was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
 carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
 ratchet went to **12 entries across two targets on the first run**. The current tree holds
-**11 entries across two targets** after retiring the server-dev entry and one client-only entry. That is the
+**9 unique entries across two targets** after retiring the server-dev entry, one client-only
+entry and two TypeScript-parameter entries. That is the
 prediction being paid out, and it is the reason blind spot 19c in
 [`gate-coverage.md`](gate-coverage.md) is now closed for these inputs and for no others.
 
-The 13, by cause — four classes, none of them a formatting difference:
+The remaining entries and repaired classes, none of them a formatting difference:
 
 | id | acorn says | cause |
 |---|---|---|
-| `svelte-bits/…/CircularGallery.svelte` | `Unexpected token (7:19)` | a TypeScript `this` parameter is dropped and its comma left behind: `function (, ...args)` |
+| `svelte-bits/…/CircularGallery.svelte`, `photon/…/Commands.svelte` (fixed) | `Unexpected token` | OXC stores a rest parameter outside the ordinary parameter list, so removing the TypeScript `this` parameter left its comma behind: `function (, ...args)`; the stripper now uses either kind of following runtime parameter |
 | `svelte-tweakpane-ui/…/HomeDemo.svelte`, `…/TweakpaneDemo.svelte` | `Assigning to rvalue` | a store write whose **assignment target** was rewritten to a getter call: `$point4() = […]` |
 | `sveltekit/…/query/instance.svelte.js` | `Assigning to rvalue` | the same class, on `$.get(this.#promise) ??= …` |
-| `adventurelog/…/CollectionMap.svelte`, `…/CollectionStats.svelte`, `huly/…/FilePreviewPopup.svelte`, `huly/…/ModernEditbox.svelte`, `huly/…/NavigatorCardsSection.svelte`, `photon/…/Commands.svelte`, `threlte/…/Sequence.svelte` | `Unexpected token` | **not yet diagnosed** — seven separate spots, recorded here as data rather than as a guess |
+| `adventurelog/…/CollectionMap.svelte`, `…/CollectionStats.svelte`, `huly/…/FilePreviewPopup.svelte`, `huly/…/ModernEditbox.svelte`, `huly/…/NavigatorCardsSection.svelte`, `threlte/…/Sequence.svelte` | `Unexpected token` | **not yet diagnosed** — six separate spots, recorded here as data rather than as a guess |
 | `threlte/…/SoftShadows.svelte` (`server-dev`, fixed by #3877) | ``Expected `,` or `)` but found `Identifier` `` | comments attached to later `$effect` statements were emitted inside the preceding derived template literal; #3877 corrected the dev component-callback tail insertion point |
 
-Ten entries appear on `client` and `client-dev` both; `huly/…/FilePreviewPopup.svelte`
+Eight entries appear on `client` and `client-dev` both; `huly/…/FilePreviewPopup.svelte`
 is `client-dev` only, which is the per-target split earning its keep. Both server targets are
 now at 0. The former target split prevented the dev-only SoftShadows failure from suppressing
 the production SSR output while it remained open.
@@ -81,7 +82,7 @@ closed the hole where a future defect of this class rides in under an existing r
 and it closed one of the two structural blind spots recorded for gate 15 in
 `gate-coverage.md` (oracle shares rsvelte's parser). It could not, by itself, find the 30
 known defects — only enrolling those repositories would. It is now both: a regression gate
-and a 13-entry burn-down.
+and a 9-entry burn-down.
 
 ## Adding an entry
 
