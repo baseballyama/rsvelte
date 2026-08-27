@@ -38,6 +38,7 @@ export function createCurrentArtifact({
   population,
   current,
   counts,
+  diagnosticDetails = {},
 }) {
   const sourceRevisions = {
     "language-tools": revision(path.join(root, "submodules/language-tools")),
@@ -57,6 +58,7 @@ export function createCurrentArtifact({
     population,
     counts,
     current: [...current].sort(),
+    ...(Object.keys(diagnosticDetails).length ? { diagnosticDetails } : {}),
   };
 }
 

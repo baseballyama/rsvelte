@@ -36,6 +36,10 @@ const ROOT = path.resolve(
 );
 const BASELINE = path.join(ROOT, "compatibility/lsp-known-failures.json");
 const REPORT = path.join(ROOT, "compatibility/lsp-report.json");
+const knownBaseline = fs.existsSync(BASELINE)
+  ? JSON.parse(fs.readFileSync(BASELINE, "utf8"))
+  : [];
+const knownBaselineSet = new Set(knownBaseline);
 const args = process.argv.slice(2);
 const argValue = (name) =>
   args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
@@ -307,6 +311,7 @@ const ORACLE_REPRODUCTION_FLOOR = 0.7;
 const oracleCalibration = new Map();
 
 const current = [];
+const newDiagnosticDetails = new Map();
 const counts = {
   total: population.skipped.length,
   compared: 0,
@@ -350,8 +355,26 @@ function record(
         compactCorpusObservation(request.method, request.suffix, differences),
       );
     } else {
-      for (const difference of differences)
-        current.push(`${keyFor(kind, entry, request, phase)}|${difference}`);
+      const requestKey = keyFor(kind, entry, request, phase);
+      for (const difference of differences) {
+        const key = `${requestKey}|${difference}`;
+        current.push(key);
+        // A diagnostic array is collapsed to count + identity hash in the
+        // ratchet key. Keep the normalized values only for a newly observed
+        // fixture key, so CI says which diagnostic appeared instead of merely
+        // saying that the count changed. Corpus responses are intentionally
+        // excluded: they can contain project text and are aggregated before
+        // ratcheting anyway.
+        if (
+          request.method === "textDocument/diagnostic" &&
+          !knownBaselineSet.has(key)
+        ) {
+          newDiagnosticDetails.set(key, {
+            official: left?.items ?? left,
+            rsvelte: right?.items ?? right,
+          });
+        }
+      }
     }
   }
 }
@@ -816,6 +839,7 @@ async function main() {
       population: measuredPopulation,
       current,
       counts,
+      diagnosticDetails: Object.fromEntries(newDiagnosticDetails),
     });
     fs.mkdirSync(path.dirname(path.resolve(WRITE_CURRENT)), {
       recursive: true,
@@ -834,9 +858,7 @@ async function main() {
     );
   }
 
-  const known = fs.existsSync(BASELINE)
-    ? JSON.parse(fs.readFileSync(BASELINE, "utf8"))
-    : [];
+  const known = knownBaseline;
   const currentSet = new Set(current);
   const knownSet = new Set(known);
   const selectedKnown = selectKnownForScope(
@@ -861,6 +883,13 @@ async function main() {
   if (added.length) {
     console.error(`\n[lsp-verify] ${added.length} NEW divergence(s):`);
     for (const entry of added.slice(0, SHOW)) console.error(`  ${entry}`);
+    for (const entry of added.slice(0, SHOW)) {
+      const details = newDiagnosticDetails.get(entry);
+      if (!details) continue;
+      console.error(
+        `\n[lsp-verify] normalized diagnostics for ${entry}:\n${JSON.stringify(details, null, 2)}`,
+      );
+    }
   }
   if (removed.length) {
     console.error(
