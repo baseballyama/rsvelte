@@ -275,9 +275,33 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
         let pattern = format!("{}(", store_sub);
         let mut new_result = String::new();
         let mut search_start = 0;
+        let comment_ranges =
+            crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(
+                result.as_bytes(),
+            );
+        let mut comment_range_index = 0;
 
         while let Some(pos) = result[search_start..].find(&pattern) {
             let abs_pos = search_start + pos;
+
+            while comment_ranges
+                .get(comment_range_index)
+                .is_some_and(|&(_, end)| end <= abs_pos)
+            {
+                comment_range_index += 1;
+            }
+            let is_comment_text = comment_ranges
+                .get(comment_range_index)
+                .is_some_and(|&(start, end)| start <= abs_pos && abs_pos < end);
+            let is_literal_text =
+                super::state_transforms::is_inside_string_literal(&result, abs_pos)
+                    || super::state_transforms::is_inside_regex_literal(&result, abs_pos);
+
+            if is_literal_text || is_comment_text {
+                new_result.push_str(&result[search_start..abs_pos + store_sub.len()]);
+                search_start = abs_pos + store_sub.len();
+                continue;
+            }
 
             // Check if this is a word boundary (not part of a larger identifier)
             let before_ok =
@@ -421,6 +445,11 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
         let chars: Vec<char> = result.chars().collect();
         let index = ScanIndex::new(&chars);
         let char_to_byte = CharToByte::new(&result);
+        let comment_ranges =
+            crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(
+                result.as_bytes(),
+            );
+        let mut comment_range_index = 0;
         let mut i = CharOffset::ZERO;
 
         while i.get() < chars.len() {
@@ -527,10 +556,19 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                 let is_literal_text =
                     super::state_transforms::is_inside_string_literal(&result, byte_i.get())
                         || super::state_transforms::is_inside_regex_literal(&result, byte_i.get());
+                while comment_ranges
+                    .get(comment_range_index)
+                    .is_some_and(|&(_, end)| end <= byte_i.get())
+                {
+                    comment_range_index += 1;
+                }
+                let is_comment_text = comment_ranges
+                    .get(comment_range_index)
+                    .is_some_and(|&(start, end)| start <= byte_i.get() && byte_i.get() < end);
 
                 if before_ok && after_ok {
-                    if is_literal_text {
-                        // Inside a string or regex literal - don't transform
+                    if is_literal_text || is_comment_text {
+                        // Inside a string, regex, or comment - don't transform
                         new_result.push_str(store_sub);
                         i = i + sub_chars;
                         continue;
@@ -621,6 +659,44 @@ mod tests {
         assert_eq!(
             transform_store_reads_client("$\u{540d}\u{524d}();", &vars),
             "$\u{540d}\u{524d}();"
+        );
+    }
+
+    #[test]
+    fn store_read_spelling_inside_comments_is_not_rewritten() {
+        let vars = vec!["$i18n".to_string()];
+        assert_eq!(
+            transform_store_reads_client(
+                "// Assuming $i18n.languages is an array\nconst languages = $i18n.languages;",
+                &vars,
+            ),
+            "// Assuming $i18n.languages is an array\nconst languages = $i18n().languages;"
+        );
+        assert_eq!(
+            transform_store_reads_client(
+                "/* $i18n.languages */ const languages = $i18n.languages;",
+                &vars,
+            ),
+            "/* $i18n.languages */ const languages = $i18n().languages;"
+        );
+    }
+
+    #[test]
+    fn store_sub_call_spelling_inside_opaque_text_is_not_rewritten() {
+        let vars = vec!["$i18n".to_string()];
+        let source = "// $i18n('line')\n/* $i18n('block') */\nconst a = \"$i18n('string')\";\nconst b = /$i18n('regex')/;\nconst c = $i18n('code');";
+        assert_eq!(
+            transform_store_sub_calls(source, &vars),
+            "// $i18n('line')\n/* $i18n('block') */\nconst a = \"$i18n('string')\";\nconst b = /$i18n('regex')/;\nconst c = $i18n()('code');"
+        );
+    }
+
+    #[test]
+    fn store_sub_call_inside_template_expression_is_still_rewritten() {
+        let vars = vec!["$i18n".to_string()];
+        assert_eq!(
+            transform_store_sub_calls("const text = `label: ${$i18n('key')}`;", &vars),
+            "const text = `label: ${$i18n()('key')}`;"
         );
     }
 
