@@ -43,9 +43,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 248 entries)
+## Matrix known failures (`matrix-known-failures.json`, 224 entries)
 
-Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 24 + 0 + 0 + 0 + 140 + 0 + 0 + 0 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `0 + 84 + 0 + 0 + 0 + 0 + 0 + 140 + 0 + 0 + 0 + 0 + 0 + 0`
 
 ### `binding-position` — 0 entries
 
@@ -109,22 +109,18 @@ Every collection shape now matches across all targets.
 
 Partition of `matrix-known-failures.json` entries under `each-collection/` by collection: `0`
 
-### `keyword-regex` — 24 entries
+### `keyword-regex` — 0 entries
 
-Not the family's own axis, and not its author's doing: these appear because this PR added
-warning-**code** comparison to the gate, and `keyword-regex` is the one pre-existing family whose
-inputs reach a warning. All 18 are one cause on all three targets —
-`perf_avoid_nested_class` never fires for a `class` declared inside a legacy `$:` reactive
-statement. The six cases are the `extends` row against every host and body that puts the class
-there (`legacy-reactive`, `legacy-reactive-block`, and the four `body-*` rows, which run against
-`legacy-reactive` by construction).
+These 24 rows were the six `extends` cases × four targets. #2772 fixed their shared cause:
+the class-declaration visitor now treats a legacy `$:` body as nested scope and emits
+`perf_avoid_nested_class`. The entries remained in the ratchet after that fix and are now
+removed, restoring two-sided coverage for those ids.
 
-Partition of `matrix-known-failures.json` entries under `keyword-regex/` by target: `6 + 6 + 6 + 6`
+Partition of `matrix-known-failures.json` entries under `keyword-regex/` by target: `0`
 
 Worth stating because it is the generalization argument for the comparison: a family written for
-a *parser* question, by another author, with no warning intent, contributes 60 warned (case,
-target) pairs and 18 divergences. The comparison earns its place on populations nobody built for
-it.
+a *parser* question, by another author, with no warning intent, originally exposed this warning
+class. The comparison earns its place on populations nobody built for it.
 
 ### `param-pattern` — 0 entries
 
