@@ -213,19 +213,25 @@ pub fn validate_slot_attribute(
 
 /// Check if an attribute is an expression attribute.
 pub fn is_expression_attribute(attribute: &AttributeNode<'_>) -> bool {
-    use crate::ast::template::AttributeValue;
-
-    matches!(&attribute.value, AttributeValue::Expression(_))
+    match &attribute.value {
+        AttributeValue::Expression(_) => true,
+        AttributeValue::Sequence(parts) => {
+            parts.len() == 1 && matches!(parts[0], AttributeValuePart::ExpressionTag(_))
+        }
+        AttributeValue::True(_) => false,
+    }
 }
 
 /// Get the expression tag from an attribute value.
 pub fn get_attribute_expression<'b, 'a>(
     attribute: &'b AttributeNode<'a>,
 ) -> Option<&'b ExpressionTag<'a>> {
-    use crate::ast::template::AttributeValue;
-
     match &attribute.value {
         AttributeValue::Expression(expr) => Some(expr),
+        AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
+            AttributeValuePart::ExpressionTag(expr) => Some(expr),
+            AttributeValuePart::Text(_) => None,
+        },
         _ => None,
     }
 }
@@ -256,7 +262,7 @@ pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &At
     if !is_event_attribute(attribute) {
         return;
     }
-    if let AttributeValue::Expression(tag) = &attribute.value
+    if let Some(tag) = get_attribute_expression(attribute)
         && tag.expression.as_node().node_type() == Some("ArrowFunctionExpression")
         && let Some(start) = tag.expression.as_node().start()
     {

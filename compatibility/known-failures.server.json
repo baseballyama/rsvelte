@@ -50,7 +50,6 @@
 	"svelte-commerce/src/lib/theme/sections/tile-grid.svelte",
 	"svelte-french-toast/src/routes/+page.svelte",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
-	"svelty-picker/src/routes/+layout.svelte",
 	"threlte/apps/docs/src/examples/geometry/random-placement/basic-random/assets/bush.svelte",
 	"threlte/apps/docs/src/examples/xr/vr-button/assets/bush.svelte",
 	"trakt-web/projects/client/src/lib/components/avatar-pill/AvatarPill.svelte",

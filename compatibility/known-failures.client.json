@@ -246,7 +246,6 @@
 	"svelteui/packages/svelteui-core/src/components/Tabs/Tab/Tab.svelte",
 	"svelteui/packages/svelteui-core/src/components/Tabs/Tabs.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
-	"svelty-picker/src/routes/+layout.svelte",
 	"svelvet/src/lib/components/Drawer/DrawerAnchor.svelte",
 	"svelvet/src/lib/components/Drawer/DrawerNode.svelte",
 	"svelvet/src/lib/components/Resizer/Resizer.svelte",

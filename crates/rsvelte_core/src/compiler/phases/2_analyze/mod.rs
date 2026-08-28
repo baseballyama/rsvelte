@@ -6539,6 +6539,22 @@ mod tests {
     }
 
     #[test]
+    fn quoted_lone_expression_is_an_event_handler() {
+        analyze(r#"<button onclick="{handler}">click</button>"#);
+
+        for source in [
+            r#"<button onclick="handler">click</button>"#,
+            r#"<button onclick="before {handler}">click</button>"#,
+        ] {
+            assert!(matches!(
+                try_analyze(source),
+                Err(AnalysisError::ValidationWithCode { ref code, .. })
+                    if code == "attribute_invalid_event_handler"
+            ));
+        }
+    }
+
+    #[test]
     fn meta_property_name_slots_are_not_global_conflicts() {
         let analysis = analyze(
             "<script>const url = import.meta.url; function ctor() { return new.target; }</script>",
