@@ -326,7 +326,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
     let mut has_explicit_default = false;
     let mut has_implicit_default = false;
     let mut implicit_default_span = None;
-    let mut has_children_snippet = false;
+    let mut children_snippet_span = None;
     let mut has_other_content = false;
 
     for node in &component.fragment.nodes {
@@ -346,7 +346,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
             if let TemplateNode::SnippetBlock(snippet) = node
                 && snippet.expression.is_identifier("children")
             {
-                has_children_snippet = true;
+                children_snippet_span.get_or_insert((snippet.start, snippet.end));
             }
 
             // Check if this is implicit default slot content
@@ -376,8 +376,10 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
 
     // Check for snippet_conflict: cannot have both {#snippet children()} and other content
     // Corresponds to SnippetBlock.js lines 59-73
-    if has_children_snippet && has_other_content {
-        return Err(errors::snippet_conflict());
+    if let Some((start, end)) = children_snippet_span
+        && has_other_content
+    {
+        return Err(errors::snippet_conflict().at(start, end));
     }
 
     // Check for slot_default_duplicate error
