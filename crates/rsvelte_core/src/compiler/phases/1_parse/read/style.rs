@@ -323,16 +323,19 @@ impl<'a> Parser<'a> {
     /// `url(...)` is content, not a closing tag.
     ///
     /// Returns the first `<` that could not start a closing tag (used for the
-    /// `css_expected_identifier` diagnostic) and whether the scan ran out of
-    /// input inside a `url(`.
+    /// `css_expected_identifier` diagnostic), whether the scan ran out of
+    /// input inside a `url(`, and the first CSS-invalid `//`. The last value is
+    /// needed because an apostrophe later in an SCSS line comment must not hide
+    /// the earlier identifier error behind `unexpected_eof`.
     ///
     /// `tokenise` is off for a non-CSS `lang` block in lenient (lint) mode: a
     /// SCSS `// don't` would otherwise open a string that never closes.
-    fn scan_to_style_close(&mut self, tokenise: bool) -> (Option<usize>, bool) {
+    fn scan_to_style_close(&mut self, tokenise: bool) -> (Option<usize>, bool, Option<usize>) {
         let content_start = self.index;
         let bytes = self.bytes;
         let len = bytes.len();
         let mut first_invalid_lt: Option<usize> = None;
+        let mut first_line_comment: Option<usize> = None;
         let mut quote: Option<u8> = None;
         let mut in_url = false;
         let mut escaped = false;
@@ -348,7 +351,7 @@ impl<'a> Parser<'a> {
                 i += offset;
                 self.index = i;
                 if self.is_valid_closing_tag("</style") {
-                    return (first_invalid_lt, false);
+                    return (first_invalid_lt, false, None);
                 }
                 if first_invalid_lt.is_none() {
                     first_invalid_lt = Some(i);
@@ -356,7 +359,7 @@ impl<'a> Parser<'a> {
                 i += 1;
             }
             self.index = len;
-            return (first_invalid_lt, false);
+            return (first_invalid_lt, false, None);
         }
 
         while i < len {
@@ -392,6 +395,8 @@ impl<'a> Parser<'a> {
                         i += 2 + off + 2;
                         continue;
                     }
+                } else if ch == b'/' && bytes.get(i + 1) == Some(&b'/') {
+                    first_line_comment.get_or_insert(i);
                 } else if ch == b'<' {
                     if bytes[i..].starts_with(b"<!--")
                         && let Some(off) = memchr::memmem::find(&bytes[i + 4..], b"-->")
@@ -402,7 +407,7 @@ impl<'a> Parser<'a> {
                     if brace_depth == 0 && paren_depth == 0 {
                         self.index = i;
                         if self.is_valid_closing_tag("</style") {
-                            return (first_invalid_lt, false);
+                            return (first_invalid_lt, false, first_line_comment);
                         }
                         if first_invalid_lt.is_none() {
                             first_invalid_lt = Some(i);
@@ -414,7 +419,7 @@ impl<'a> Parser<'a> {
         }
 
         self.index = len;
-        (first_invalid_lt, in_url)
+        (first_invalid_lt, in_url, first_line_comment)
     }
 
     /// Parse a `<style>` tag and store it in stylesheet.
@@ -481,7 +486,8 @@ impl<'a> Parser<'a> {
         // CSS string, comment or `url()` is swallowed by `read_value` /
         // `read_comment` / `allow_comment_or_whitespace`. Mirror that
         // tokenisation instead of a plain byte search.
-        let (first_invalid_lt, unterminated_url) = self.scan_to_style_close(!lenient_non_css);
+        let (first_invalid_lt, unterminated_url, first_line_comment) =
+            self.scan_to_style_close(!lenient_non_css);
 
         let content_end = self.index;
         let style_content = &self.source[content_start..content_end];
@@ -535,6 +541,17 @@ impl<'a> Parser<'a> {
                 i += 1;
             }
             if in_string || unterminated_url {
+                // `//` is not a CSS comment. Upstream reaches that slash and
+                // raises from `read_identifier` before text later on the same
+                // SCSS line (for example `don't`) can look like the start of an
+                // unterminated CSS string to this closing-tag scan.
+                if let Some(pos) = first_line_comment {
+                    return Err(crate::error::ParseError::svelte(
+                        "css_expected_identifier",
+                        "Expected a valid CSS identifier",
+                        (pos, pos),
+                    ));
+                }
                 // Upstream's CSS reader always reports EOF at `parser.template.length`,
                 // and its template is the source with trailing whitespace trimmed.
                 return Err(crate::error::ParseError::svelte(

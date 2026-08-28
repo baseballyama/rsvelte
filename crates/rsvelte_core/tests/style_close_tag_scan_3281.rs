@@ -165,3 +165,22 @@ fn an_unterminated_string_still_reports_eof() {
     .expect_err("expected an EOF error");
     assert!(format!("{err:?}").contains("unexpected_eof"), "{err:?}");
 }
+
+#[test]
+fn an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error() {
+    let source =
+        "<style lang=\"scss\">\n// children don't add margins\n.a { color: red; }\n</style>\n";
+    let err = compile(
+        source,
+        CompileOptions {
+            filename: Some("T.svelte".to_string()),
+            generate: GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect_err("expected a CSS identifier error");
+    assert!(
+        format!("{err:?}").contains("css_expected_identifier"),
+        "{err:?}"
+    );
+}
