@@ -1206,6 +1206,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
 
             let arg_node = pa.get_js_node(*argument);
+            let original_root_name = extract_root_identifier_from_jsnode(arg_node, pa);
 
             // Check if the argument is a simple identifier with an update transform
             if let Some(name_str) = get_jsnode_identifier_name(arg_node)
@@ -1242,6 +1243,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 update_op,
                 prefix,
                 context.arena.get_expr(conv_argument),
+                original_root_name.as_deref(),
                 context,
             ) {
                 transformed
@@ -1254,7 +1256,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
             let result = preserve_each_mutation_sequence(
                 result,
-                extract_root_identifier_from_jsnode(arg_node, pa).as_deref(),
+                original_root_name.as_deref(),
                 matches!(arg_node, JsNode::MemberExpression { .. }),
                 context,
             );
@@ -6886,6 +6888,7 @@ fn convert_update_expression(
     let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
 
     let argument_value = obj.get("argument");
+    let original_root_name = argument_value.and_then(extract_root_identifier_from_json);
 
     // Before converting the argument (which applies read transforms), check if the
     // argument is a simple identifier with an update transform registered. If so,
@@ -6957,9 +6960,13 @@ fn convert_update_expression(
     };
 
     // Try to apply reactive transformations for state variables and store subscriptions
-    let result = if let Some(transformed) =
-        try_transform_update(operator, prefix, context.arena.get_expr(argument), context)
-    {
+    let result = if let Some(transformed) = try_transform_update(
+        operator,
+        prefix,
+        context.arena.get_expr(argument),
+        original_root_name.as_deref(),
+        context,
+    ) {
         transformed
     } else {
         JsExpr::Update(JsUpdateExpression {
@@ -6970,9 +6977,7 @@ fn convert_update_expression(
     };
     let result = preserve_each_mutation_sequence(
         result,
-        argument_value
-            .and_then(extract_root_identifier_from_json)
-            .as_deref(),
+        original_root_name.as_deref(),
         argument_value
             .and_then(|argument| argument.get("type"))
             .and_then(|node_type| node_type.as_str())
@@ -7023,12 +7028,17 @@ fn try_transform_update(
     operator: JsUpdateOp,
     prefix: bool,
     argument: &JsExpr,
+    original_root_name: Option<&str>,
     context: &ComponentContext,
 ) -> Option<JsExpr> {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-    // Extract the root identifier from the argument
-    let root_name = extract_root_identifier_from_expr(&context.arena, argument)?;
+    // Read transforms can turn a prop member base from `p` into `p()` before
+    // this visitor sees the converted argument. Preserve the source root so
+    // member updates still find the prop's mutate transform.
+    let root_name = original_root_name
+        .map(str::to_owned)
+        .or_else(|| extract_root_identifier_from_expr(&context.arena, argument))?;
 
     // Check if there's a transform for this identifier
     let transform = context.state.transform.get(&root_name)?;
@@ -7052,40 +7062,23 @@ fn try_transform_update(
         return Some(result);
     }
 
-    // Case 2: Member expression update (like `$store.prop++` or `$store[0].value++`)
-    // Use the `mutate` transform.
+    // Case 2: Member expression update (like `prop.a++`, `$store.prop++` or
+    // `$store[0].value++`). Use the `mutate` transform.
     // Skip for reactive imports (where replacement_id is set) because
     // apply_transforms_to_expression will handle the mutation wrapping with
     // properly read-transformed arguments.
-    // Case 2: Member expression update (like `$store.prop++` or `$store[0].value++`)
-    // Only apply store-related mutate transforms here.
-    // For prop transforms, the mutate will be applied by apply_transforms_to_expression
-    // to avoid double-wrapping issues.
     if let Some(mutate_fn) = transform.mutate
         && transform.replacement_id.is_none()
     {
-        // Check if this is a prop/bindable_prop - skip those, let apply_transforms handle
-        let binding = context.state.get_binding(&root_name);
-        let is_prop = binding.is_some_and(|b| {
-            matches!(
-                b.kind,
-                crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
-                    | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
-            )
+        let update_expr = JsExpr::Update(JsUpdateExpression {
+            operator,
+            argument: context.arena.alloc_expr(argument.clone()),
+            prefix,
         });
 
-        if !is_prop {
-            // Build the update expression as the mutation
-            let update_expr = JsExpr::Update(JsUpdateExpression {
-                operator,
-                argument: context.arena.alloc_expr(argument.clone()),
-                prefix,
-            });
-
-            let result = mutate_fn(transform, &context.arena, b::id(&root_name), update_expr);
-            let result = apply_store_ref_transform(result, &root_name, context);
-            return Some(result);
-        }
+        let result = mutate_fn(transform, &context.arena, b::id(&root_name), update_expr);
+        let result = apply_store_ref_transform(result, &root_name, context);
+        return Some(result);
     }
 
     None
