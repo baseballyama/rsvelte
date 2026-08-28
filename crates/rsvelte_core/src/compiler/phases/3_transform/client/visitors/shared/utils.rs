@@ -3668,9 +3668,15 @@ pub fn build_template_chunk(
 
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
                     let expr_has_call = expr_tag.metadata.expression.has_call();
-                    let mut expr_metadata = ExpressionMetadata::default();
+                    // Preserve the scope-resolved binding references collected in
+                    // Phase 2. The name-based fallback in `build_expression` cannot
+                    // distinguish a template-local binding from a same-named binding
+                    // in another scope, so rebuilding this metadata from flags alone
+                    // drops the dependency reads that legacy expressions need before
+                    // their `$.untrack(...)` value.
+                    let mut expr_metadata =
+                        ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
                     expr_metadata.set_has_state(expr_has_state);
-                    expr_metadata.set_has_call(expr_has_call);
                     expr_metadata.set_has_member_expression(expr_has_member);
                     expr_metadata.set_has_await(expr_has_await);
 
