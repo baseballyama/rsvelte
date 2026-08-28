@@ -1965,6 +1965,11 @@ pub fn walk_js_statement_node(
             // Walk function declarations like function expressions
             walk_js_expression_node(statement, context, metadata)?;
         }
+        JsNode::ClassDeclaration { .. } => {
+            // Template expressions use this lightweight statement walker rather than
+            // `script::walk_js_node_typed`, so run the class-specific warning here too.
+            super::super::class_declaration::emit_nested_class_warning(statement, context);
+        }
         JsNode::SwitchStatement {
             discriminant,
             cases,

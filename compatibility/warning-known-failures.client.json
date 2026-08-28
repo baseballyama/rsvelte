@@ -38,8 +38,6 @@
 	"networking-toolbox/src/lib/components/tools/DNSSPFBuilder.svelte",
 	"networking-toolbox/src/lib/components/tools/SSHFPGenerator.svelte",
 	"networking-toolbox/src/lib/components/tools/SVCBHTTPSBuilder.svelte",
-	"pattern/issues/2725-template-class-declaration.svelte",
-	"pattern/issues/3482-template-class-indent.svelte",
 	"primo/src/lib/builder/views/modal/BlockEditor.svelte",
 	"primo/src/lib/builder/views/modal/SectionEditor/SectionEditor.svelte",
 	"sparrow-app/packages/@sparrow-support/src/components/CommentCard.svelte",

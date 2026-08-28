@@ -35,24 +35,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             validate_identifier_name(binding, None)?;
         }
 
-        // This warning follows the lexical scope depth, not VisitorContext's
-        // separate derived/template traversal counter. Component instance
-        // scope is depth 1, while a component module script is depth 0.
-        // Standalone `.svelte.(js|ts)` modules deliberately use the component
-        // threshold because upstream's `analyze_module` leaves `ast_type` null.
-        let allowed_depth =
-            if context.ast_type == AstType::Module && !context.analysis.is_module_file {
-                0
-            } else {
-                1
-            };
-        let scope_depth = context.analysis.root.all_scopes[context.scope].function_depth;
-        if scope_depth > allowed_depth {
-            let mut warning = warnings::perf_avoid_nested_class();
-            warning.start = node.start();
-            warning.end = node.end();
-            context.emit_warning(warning);
-        }
+        emit_nested_class_warning(node, context);
 
         // Visit the class body - ClassBody visitor still uses Value,
         // so we walk it via walk_js_node_typed which will convert as needed
@@ -61,6 +44,32 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     }
 
     Ok(())
+}
+
+/// Emit Svelte's nested-class performance warning.
+///
+/// Script traversal has a lexical `Scope` for every function. Template expressions use
+/// the lightweight expression walker instead, where `function_depth` is relative to the
+/// component scope. Add that implicit component depth so both paths implement upstream's
+/// `scope.function_depth > allowed_depth` test.
+pub(super) fn emit_nested_class_warning(node: &JsNode, context: &mut VisitorContext) {
+    let allowed_depth = if context.ast_type == AstType::Module && !context.analysis.is_module_file {
+        0
+    } else {
+        1
+    };
+    let scope_depth = if context.ast_type == AstType::Template {
+        context.function_depth + 1
+    } else {
+        context.analysis.root.all_scopes[context.scope].function_depth
+    };
+
+    if scope_depth > allowed_depth {
+        let mut warning = warnings::perf_avoid_nested_class();
+        warning.start = node.start();
+        warning.end = node.end();
+        context.emit_warning(warning);
+    }
 }
 
 #[cfg(test)]
@@ -132,6 +141,14 @@ mod tests {
             "<script>\n\tconst value = (() => { class A {} return A; })();\n</script>\n",
         );
         assert_eq!(nested_class(&warnings).len(), 1);
+    }
+
+    #[test]
+    fn component_template_expression_warns_inside_functions() {
+        let warnings = component_warnings(
+            "<script>let enabled = true;</script>\n<p>{(() => { class T {} return new T(); })()}</p>\n{#if enabled}<p>{(() => { class U {} return new U(); })()}</p>{/if}\n",
+        );
+        assert_eq!(nested_class(&warnings).len(), 2);
     }
 
     #[test]
