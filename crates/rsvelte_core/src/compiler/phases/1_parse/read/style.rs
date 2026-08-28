@@ -1789,75 +1789,23 @@ impl<'a> CssParser<'a> {
         let start = self.offset + self.index;
         let property_start = self.index;
 
-        // Read property name
+        // Upstream's `read_declaration` reads the property only up to the first
+        // whitespace or `:`. This matters for invalid SCSS `//` comments: the
+        // first word becomes the property and the rest of the comment becomes
+        // the value, so semicolons and quotes in prose determine where the next
+        // block item starts.
         while !self.is_eof() {
             let c = self.current_char();
-            if c == ':' || c == '}' || c == ';' {
+            if is_js_whitespace(c) || c == ':' {
                 break;
             }
             self.advance();
         }
-        let property = self.source[property_start..self.index]
-            .trim_ws()
-            .to_string();
+        let property = self.source[property_start..self.index].to_string();
 
-        // An empty property is not on its own an error: upstream's rule is
-        // `!value && !property.startsWith('--')`, so `{ : red }` is a
-        // declaration with property `''`, and the empty-value half is checked
-        // in phase 2 against the built node.
-        if self.is_eof() || self.current_char() != ':' {
-            // No `property: value` shape. Upstream's `read_declaration` reads
-            // the property up to the first whitespace-or-colon, optionally eats
-            // a `:`, then reads the value up to `;` / `}`. When that value is
-            // empty (and the property is not a `--custom-property`), it raises
-            // `css_empty_declaration` (read/style.js L474-476). Examples:
-            // `div { ... }`, `div { ; }`, `:global { p {...} }`.
-            // A non-empty remainder after the first token (`div { foo bar }`)
-            // parses upstream as a declaration with property `foo` and value
-            // `bar`, so it is NOT an error — keep skipping it silently.
-            let upstream_property = property.split_whitespace().next().unwrap_or("");
-            let upstream_value = property
-                .split_once(is_js_whitespace)
-                .map(|(_, rest)| rest.trim_ws())
-                .unwrap_or("");
-            if upstream_value.is_empty() && !upstream_property.starts_with("--") {
-                // Upstream saves the diagnostic end after reading the property
-                // to the first whitespace-or-colon, consuming whitespace, and
-                // optionally eating `:`. That position can be later than this
-                // parser's declaration scan. In SCSS-shaped `@media #{x} {`,
-                // for example, our scan stops before the interpolation's `}`
-                // while upstream includes it and the following space.
-                let mut upstream_index = property_start;
-                while upstream_index < self.source.len() {
-                    let c = self.source[upstream_index..].chars().next().unwrap_or('\0');
-                    if is_js_whitespace(c) || c == ':' {
-                        break;
-                    }
-                    upstream_index += c.len_utf8();
-                }
-                while upstream_index < self.source.len() {
-                    let c = self.source[upstream_index..].chars().next().unwrap_or('\0');
-                    if !is_js_whitespace(c) {
-                        break;
-                    }
-                    upstream_index += c.len_utf8();
-                }
-                if self.source[upstream_index..].starts_with(':') {
-                    upstream_index += 1;
-                }
-                record_first_error(
-                    &self.error,
-                    crate::error::ParseError::svelte(
-                        "css_empty_declaration",
-                        "Declaration cannot be empty",
-                        (start, self.offset + upstream_index),
-                    ),
-                );
-            }
-            return None;
-        }
-
-        self.advance(); // consume ':'
+        self.skip_whitespace();
+        self.eat_optional(":");
+        let empty_declaration_end = self.offset + self.index;
         self.skip_whitespace();
 
         // Read value, respecting parentheses, strings, and CSS escape sequences so
@@ -1922,6 +1870,17 @@ impl<'a> CssParser<'a> {
             self.advance();
         }
         let value = self.source[value_start..self.index].trim_ws().to_string();
+
+        if value.is_empty() && !property.starts_with("--") {
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_empty_declaration",
+                    "Declaration cannot be empty",
+                    (start, empty_declaration_end),
+                ),
+            );
+        }
 
         // End position is before the semicolon
         let end = self.offset + self.index;

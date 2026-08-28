@@ -19,11 +19,5 @@
 	"svelte/packages/svelte/tests/compiler-errors/samples/snippet-invalid-export/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte",
-	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte",
-	"trakt-web/projects/client/src/lib/components/charts/SegmentedBar.svelte",
-	"trakt-web/projects/client/src/lib/sections/profile/leaderboard/_internal/LeaderboardItem.svelte",
-	"trakt-web/projects/client/src/lib/sections/settings/_internal/streaming-services/StreamingServiceBadge.svelte",
-	"trakt-web/projects/client/src/lib/sections/summary/components/rating/_internal/RatingStars.svelte",
-	"trakt-web/projects/client/src/lib/sections/yir/_internal/YirRatedSection.svelte",
-	"trakt-web/projects/client/src/lib/sections/yir/_internal/YirStatsSection.svelte"
+	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte"
 ]
