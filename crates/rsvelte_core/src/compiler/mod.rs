@@ -1213,9 +1213,12 @@ fn check_module_store_subscriptions(
             if phases::phase2_analyze::visitors::shared::function::is_rune(&binding.name) {
                 continue;
             }
-            return Err(CompileError::Analysis(
-                phases::phase2_analyze::errors::store_invalid_subscription_module(),
-            ));
+            let error = phases::phase2_analyze::errors::store_invalid_subscription_module();
+            let error = match binding.references.first() {
+                Some(reference) => error.at(reference.start, reference.end),
+                None => error,
+            };
+            return Err(CompileError::Analysis(error));
         }
     }
     Ok(())

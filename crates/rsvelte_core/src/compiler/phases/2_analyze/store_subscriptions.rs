@@ -445,7 +445,10 @@ pub fn detect_store_subscriptions(
                 // store_invalid_subscription_module error code.
                 // For <script module> in .svelte files, error with store_invalid_subscription.
                 if !is_module_file {
-                    return Err(errors::store_invalid_subscription());
+                    return Err(errors::store_invalid_subscription().at(
+                        store_ref.position as u32,
+                        (store_ref.position + ref_name.len()) as u32,
+                    ));
                 }
             }
         }
@@ -464,11 +467,18 @@ pub fn detect_store_subscriptions(
         }
 
         // Create a synthetic StoreSub binding
-        let new_binding = Binding::with_declaration_kind(
+        let mut new_binding = Binding::with_declaration_kind(
             ref_name.clone(),
             BindingKind::StoreSub,
             DeclarationKind::Synthetic,
             0, // Root scope
+        );
+        new_binding.add_reference(
+            store_ref.position as u32,
+            (store_ref.position + ref_name.len()) as u32,
+            false,
+            false,
+            false,
         );
         let new_binding_idx = analysis.root.push_binding(new_binding);
         analysis
