@@ -830,6 +830,31 @@ fn is_unused_branch_keeps_its_source_position() {
 }
 
 #[test]
+fn nesting_compound_preserves_comma_separated_parent_alternatives() {
+    let result = crate::compiler::compile(
+        r#"<script>let copy = true; let export_button = true;</script>
+<button class="copy" class:success={copy}></button>
+<button class="export" class:success={export_button}></button>
+<style>.copy, .export { &.success { color: green; } }</style>"#,
+        crate::compiler::CompileOptions {
+            filename: Some("nested-parent-alternatives.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let css = result.css.unwrap().code;
+
+    assert!(
+        css.contains("&.success"),
+        "a matching parent branch must keep the nested compound:\n{css}"
+    );
+    assert!(
+        !css.contains("/* (unused) &.success"),
+        "comma-separated parent branches must not be flattened into an AND:\n{css}"
+    );
+}
+
+#[test]
 fn functional_pseudo_compound_gets_an_outer_scope_class() {
     let result = crate::compiler::compile(
         "<div class=\"a b\"></div><style>:is(.a):is(.b) { color: red; }</style>",

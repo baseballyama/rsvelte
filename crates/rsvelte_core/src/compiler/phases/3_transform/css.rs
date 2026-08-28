@@ -2478,73 +2478,68 @@ fn is_nesting_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool
             // compound selector requires that SAME element to also match the current constraints.
             // We only check the immediate parent because constraints from higher-up ancestors
             // apply to different elements in the DOM chain, not the same element.
-            let mut parent_classes: Vec<String> = Vec::new();
-            let mut parent_ids: Vec<String> = Vec::new();
-            let mut parent_elements: Vec<String> = Vec::new();
-
-            if let Some(immediate_parent) = parent_preludes.last() {
-                extract_selector_constraints(
-                    immediate_parent,
-                    &mut parent_classes,
-                    &mut parent_ids,
-                    &mut parent_elements,
-                );
-            }
-
-            // Combined: the element must satisfy both parent constraints and current constraints
-            let all_required_classes: Vec<&str> = parent_classes
-                .iter()
-                .chain(required_classes.iter())
-                .map(|s| s.as_str())
-                .collect();
-            let all_required_ids: Vec<&str> = parent_ids
-                .iter()
-                .chain(required_ids.iter())
-                .map(|s| s.as_str())
-                .collect();
-            let all_required_elements: Vec<&str> = parent_elements
-                .iter()
-                .chain(required_elements.iter())
-                .map(|s| s.as_str())
-                .collect();
+            let parent_branches = parent_preludes
+                .last()
+                .map(|parent| extract_selector_constraint_branches(parent))
+                .filter(|branches| !branches.is_empty())
+                .unwrap_or_else(|| vec![(Vec::new(), Vec::new(), Vec::new())]);
 
             // If dynamic classes exist, we can't be sure about class constraints
-            if ctx.has_dynamic_classes && !all_required_classes.is_empty() {
+            if ctx.has_dynamic_classes
+                && (!required_classes.is_empty()
+                    || parent_branches
+                        .iter()
+                        .any(|(classes, _, _)| !classes.is_empty()))
+            {
                 continue;
             }
 
             // If dynamic elements exist, we can't be sure about element constraints
-            if ctx.has_dynamic_elements && !all_required_elements.is_empty() {
+            if ctx.has_dynamic_elements
+                && (!required_elements.is_empty()
+                    || parent_branches
+                        .iter()
+                        .any(|(_, _, elements)| !elements.is_empty()))
+            {
                 continue;
             }
 
-            // Check if any DOM element satisfies ALL the combined constraints
-            let any_element_matches = ctx.dom_structure.elements.iter().any(|elem| {
-                // Check all required classes are present on the element. A class may
-                // be carried statically (`class="..."`), via a `class:NAME` directive,
-                // or potentially via a spread (`{...rest}`), which could set anything.
-                let classes_match = all_required_classes.iter().all(|c| {
-                    elem.has_spread
-                        || elem.classes.contains(*c)
-                        || elem.class_directive_names.contains(*c)
-                });
-
-                // Check all required ids match
-                let ids_match = all_required_ids
+            // Each comma-separated parent selector is an alternative. The current
+            // compound is AND-ed with one parent branch, while the branches remain
+            // OR-ed (`.copy, .export { &.success {} }`). Flattening the branches
+            // would incorrectly require one element to have both parent classes.
+            let any_element_matches =
+                parent_branches
                     .iter()
-                    .all(|id| elem.id.as_deref() == Some(*id));
+                    .any(|(parent_classes, parent_ids, parent_elements)| {
+                        ctx.dom_structure.elements.iter().any(|elem| {
+                            // A class may be carried statically (`class="..."`), via a
+                            // `class:NAME` directive, or potentially via a spread.
+                            let classes_match = parent_classes
+                                .iter()
+                                .chain(required_classes.iter())
+                                .all(|class| {
+                                    elem.has_spread
+                                        || elem.classes.contains(class.as_str())
+                                        || elem.class_directive_names.contains(class.as_str())
+                                });
 
-                // Check all required element types match
-                let elements_match = all_required_elements.iter().all(|tag| {
-                    if elem.is_dynamic_tag {
-                        true // Dynamic tag could be anything
-                    } else {
-                        elem.tag_name.eq_ignore_ascii_case(tag)
-                    }
-                });
+                            let ids_match = parent_ids
+                                .iter()
+                                .chain(required_ids.iter())
+                                .all(|id| elem.id.as_deref() == Some(id.as_str()));
 
-                classes_match && ids_match && elements_match
-            });
+                            let elements_match = parent_elements
+                                .iter()
+                                .chain(required_elements.iter())
+                                .all(|tag| {
+                                    elem.is_dynamic_tag
+                                        || elem.tag_name.eq_ignore_ascii_case(tag.as_str())
+                                });
+
+                            classes_match && ids_match && elements_match
+                        })
+                    });
 
             if !any_element_matches {
                 return true;
@@ -2720,6 +2715,53 @@ fn extract_selector_constraints(
             }
         }
     }
+}
+
+/// Extract the subject constraints of each comma-separated complex selector
+/// independently. A selector list is an OR-list, so callers that combine these
+/// constraints with a nested `&` compound must not flatten the branches.
+fn extract_selector_constraint_branches(
+    prelude: &Value,
+) -> Vec<(Vec<String>, Vec<String>, Vec<String>)> {
+    let Some(children) = prelude.get("children").and_then(|c| c.as_array()) else {
+        return Vec::new();
+    };
+
+    children
+        .iter()
+        .filter_map(|complex| {
+            let last_rel = complex.get("children").and_then(|c| c.as_array())?.last()?;
+            let selectors = last_rel.get("selectors").and_then(|s| s.as_array())?;
+            let mut classes = Vec::new();
+            let mut ids = Vec::new();
+            let mut elements = Vec::new();
+
+            for sel in selectors {
+                match sel.get("type").and_then(|t| t.as_str()) {
+                    Some("ClassSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            classes.push(decode_css_escape(name));
+                        }
+                    }
+                    Some("IdSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            ids.push(decode_css_escape(name));
+                        }
+                    }
+                    Some("TypeSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                            && name != "*"
+                        {
+                            elements.push(decode_css_escape(name));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Some((classes, ids, elements))
+        })
+        .collect()
 }
 
 /// This is true when the element after :host > is not a direct child of the component root
