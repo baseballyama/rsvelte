@@ -67,7 +67,6 @@
 	"headscale-ui/src/lib/users/UserCard.svelte",
 	"headscale-ui/src/lib/users/UserCard/PreAuthKeys.svelte",
 	"huly/packages/panel/src/components/Panel.svelte",
-	"huly/packages/presentation/src/components/FilePreviewPopup.svelte",
 	"huly/packages/presentation/src/components/NavLink.svelte",
 	"huly/packages/ui/src/components/FilterCategoryPopup.svelte",
 	"huly/packages/ui/src/components/ModernCheckbox.svelte",

@@ -175,8 +175,30 @@ impl<'a> Collector<'a> {
         let Some(alias) = self.prop(&name).cloned() else {
             return;
         };
-        let expression = &self.generated[span.start as usize..span.end as usize];
-        let (line, column) = self.location(&name, &path, expression);
+        let original_expression =
+            self.generated[span.start as usize..span.end as usize].to_string();
+        let (line, column) = self.location(&name, &path, &original_expression);
+        let mut expression = original_expression;
+
+        // The traversal is child-first, so fold already-wrapped descendants into this
+        // replacement. Leaving overlapping edits for `splice` would apply the outer edit
+        // with offsets from the unmodified program and corrupt the generated JavaScript.
+        let mut inner = Vec::new();
+        self.edits.retain(|edit| {
+            if edit.0 >= span.start && edit.1 <= span.end {
+                inner.push(edit.clone());
+                false
+            } else {
+                true
+            }
+        });
+        inner.sort_by_key(|edit| std::cmp::Reverse(edit.0));
+        for (start, end, replacement) in inner {
+            expression.replace_range(
+                (start - span.start) as usize..(end - span.start) as usize,
+                &replacement,
+            );
+        }
         let alias = alias.map_or_else(|| "null".to_string(), |value| format!("'{value}'"));
         let mut replacement = format!(
             "$$ownership_validator.mutation({}, ['{}', {}], {}",
@@ -247,7 +269,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             return;
         }
 
-        if call.arguments.len() == 2
+        let setter = if call.arguments.len() == 2
             && let Expression::Identifier(callee) = &call.callee
             && self.prop(callee.name.as_str()).is_some()
             && let Argument::BooleanLiteral(flag) = &call.arguments[1]
@@ -256,33 +278,36 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             match &call.arguments[0] {
                 Argument::AssignmentExpression(assignment) => {
                     self.skip.push(assignment.span);
-                    if let Some((name, path)) = self.root_and_path(&assignment.left) {
-                        self.wrap(call.span, name, path);
-                    }
+                    self.root_and_path(&assignment.left)
                 }
                 Argument::UpdateExpression(update) => {
                     self.skip.push(update.span);
-                    if let Some((name, path)) = self.simple_target_root_and_path(&update.argument) {
-                        self.wrap(call.span, name, path);
-                    }
+                    self.simple_target_root_and_path(&update.argument)
                 }
-                _ => {}
+                _ => None,
             }
-        }
+        } else {
+            None
+        };
         walk::walk_call_expression(self, call);
+        if let Some((name, path)) = setter {
+            self.wrap(call.span, name, path);
+        }
     }
 
     fn visit_sequence_expression(&mut self, sequence: &SequenceExpression<'ast>) {
-        if let Some((call_span, assignment_span, name, path)) = sequence
+        let setter = sequence
             .expressions
             .iter()
-            .find_map(|expression| self.setter_path(expression))
-        {
-            self.skip_calls.push(call_span);
-            self.skip.push(assignment_span);
-            self.wrap(self.sequence_span(sequence.span), name, path);
+            .find_map(|expression| self.setter_path(expression));
+        if let Some((call_span, assignment_span, _, _)) = &setter {
+            self.skip_calls.push(*call_span);
+            self.skip.push(*assignment_span);
         }
         walk::walk_sequence_expression(self, sequence);
+        if let Some((_, _, name, path)) = setter {
+            self.wrap(self.sequence_span(sequence.span), name, path);
+        }
     }
 
     fn visit_assignment_expression(&mut self, assignment: &AssignmentExpression<'ast>) {
@@ -344,5 +369,21 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output, "item.value = value;");
+    }
+
+    #[test]
+    fn composes_nested_prop_setter_mutations() {
+        let source = "<script>\nexport let props;\nprops.createDrawing = async () => {\n  props.drawings = [1];\n};\n</script>";
+        let output = wrap_prop_mutation_validation_ast(
+            "props(props().createDrawing = async () => { props(props().drawings = [1], true); }, true);",
+            &[("props".to_string(), None)],
+            source,
+        )
+        .unwrap();
+
+        assert_eq!(
+            output,
+            "$$ownership_validator.mutation(null, ['props', 'createDrawing'], props(props().createDrawing = async () => { $$ownership_validator.mutation(null, ['props', 'drawings'], props(props().drawings = [1], true), 4, 2); }, true), 3, 0);",
+        );
     }
 }
