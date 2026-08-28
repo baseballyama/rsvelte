@@ -184,3 +184,21 @@ fn an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error() {
         "{err:?}"
     );
 }
+
+#[test]
+fn balanced_apostrophes_in_scss_line_comments_do_not_hide_the_css_error() {
+    let source = "<style lang=\"scss\">\n.a {\n// can't\n}\n// isn't\n</style>\n";
+    let err = compile(
+        source,
+        CompileOptions {
+            filename: Some("T.svelte".to_string()),
+            generate: GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .expect_err("expected a CSS identifier error");
+    assert!(
+        format!("{err:?}").contains("css_expected_identifier"),
+        "{err:?}"
+    );
+}

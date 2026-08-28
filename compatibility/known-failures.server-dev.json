@@ -67,7 +67,6 @@
 	"threlte/apps/docs/src/examples/geometry/random-placement/basic-random/assets/bush.svelte",
 	"threlte/apps/docs/src/examples/xr/vr-button/assets/bush.svelte",
 	"trakt-web/projects/client/src/lib/components/avatar-pill/AvatarPill.svelte",
-	"trakt-web/projects/client/src/lib/components/buttons/Button.svelte",
 	"trakt-web/projects/client/src/lib/components/charts/Sparkline.svelte",
 	"trakt-web/projects/client/src/lib/components/dropdown/DropdownItem.svelte",
 	"trakt-web/projects/client/src/lib/components/icons/MediaIcon.svelte",
@@ -85,12 +84,7 @@
 	"trakt-web/projects/client/src/lib/sections/navbar/TopNavbar.svelte",
 	"trakt-web/projects/client/src/lib/sections/profile/components/ProfileItem.svelte",
 	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte",
-	"trakt-web/projects/client/src/lib/sections/stats/_internal/PulseGraphScreenTimeDaily.svelte",
 	"trakt-web/projects/client/src/lib/sections/summary/components/_internal/SummaryTitle.svelte",
 	"trakt-web/projects/client/src/lib/sections/summary/components/comments/_internal/comment-actions/ReactionEmoji.svelte",
-	"trakt-web/projects/client/src/lib/sections/summary/components/rating/_internal/RatingsDistribution.svelte",
-	"trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024Hero.svelte",
-	"trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024MostPlayedCard.svelte",
-	"trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024StatsSection.svelte",
-	"trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024ThanksSection.svelte"
+	"trakt-web/projects/client/src/lib/sections/summary/components/rating/_internal/RatingsDistribution.svelte"
 ]

@@ -582,6 +582,18 @@ impl<'a> Parser<'a> {
                     (lt_pos, lt_pos),
                 ));
             }
+            // A CSS-invalid `//` can make the closing-tag scan treat later
+            // apostrophes as quotes. If two of those apostrophes balance, the
+            // quote check above passes, but braces skipped between them can
+            // still leave the scanner unable to see the real `</style>`.
+            // Upstream stops at the earlier slash instead.
+            if let Some(pos) = first_line_comment {
+                return Err(crate::error::ParseError::svelte(
+                    "css_expected_identifier",
+                    "Expected a valid CSS identifier",
+                    (pos, pos),
+                ));
+            }
             // Style tag was not closed. Upstream's `eat('</style', true)` runs
             // against the right-trimmed template, so the point is its end.
             return Err(crate::error::ParseError::expected_token(
