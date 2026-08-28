@@ -39,3 +39,10 @@ fn an_error_in_the_second_script_precedes_the_duplicate_error() {
 
     assert_eq!(error_code(source), "js_parse_error");
 }
+
+#[test]
+fn a_deferred_script_error_precedes_a_later_unclosed_block() {
+    let source = "<script>let = ;</script>\n{#if true}";
+
+    assert_eq!(error_code(source), "js_parse_error");
+}

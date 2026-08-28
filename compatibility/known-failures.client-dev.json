@@ -280,7 +280,6 @@
 	"svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte",
 	"svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte",
 	"svelte-maplibre-gl/src/content/examples/geolocate/Geolocate.svelte",
-	"svelte-put/sites/docs/src/packages/async-stack/docs.md.svelte",
 	"svelte-put/sites/docs/src/packages/inline-svg/docs.md.svelte",
 	"svelte-spa-router/test/app/src/App.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",

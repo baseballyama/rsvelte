@@ -38,6 +38,32 @@ use super::super::parser::{MAX_NESTING_DEPTH, Parser};
 impl<'a> Parser<'a> {
     /// Parse the source into a Root AST node.
     pub fn parse(&mut self) -> ParseResult<Root<'a>> {
+        let deferred_error = match self.parse_inner() {
+            Ok(root) => return Ok(root),
+            Err(error) if !self.should_defer_template_parse() => return Err(error),
+            Err(error) => error,
+        };
+
+        // Upstream parses scripts and template expressions as it encounters
+        // them. The compile path defers that work, so an immediate later error
+        // (a duplicate script, an unclosed block, and so on) can otherwise hide
+        // the earlier JS error. Replay only this already-failing path eagerly;
+        // successful compilation keeps the deferred fast path unchanged.
+        let mut options = self.options;
+        options.defer_script_parse = false;
+        let mut parser = Parser::new(self.source, options);
+        // SAFETY: `parser.arena` outlives the guard and the replay. The guard
+        // restores the outer parser's arena when it is dropped.
+        let _guard =
+            unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
+
+        match parser.parse_inner() {
+            Err(eager_error) => Err(eager_error),
+            Ok(_) => Err(deferred_error),
+        }
+    }
+
+    fn parse_inner(&mut self) -> ParseResult<Root<'a>> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
 
