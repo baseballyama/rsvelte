@@ -19,3 +19,16 @@ fn empty_css_declaration_span_includes_following_whitespace() {
     assert_eq!(diagnostic.code.as_deref(), Some("css_empty_declaration"));
     assert_eq!(diagnostic.span, Some((start, end)));
 }
+
+#[test]
+fn consecutive_semicolons_span_to_the_following_block_close() {
+    let source = "<style>\n  .search-input {\n    line-height: 143%;;\n  }\n</style>";
+    let diagnostic = compile(source, CompileOptions::default())
+        .expect_err("the second semicolon is an empty CSS declaration")
+        .diagnostic();
+    let start = source.find(";;").unwrap() as u32 + 1;
+    let end = source.find("\n  }").unwrap() as u32 + 3;
+
+    assert_eq!(diagnostic.code.as_deref(), Some("css_empty_declaration"));
+    assert_eq!(diagnostic.span, Some((start, end)));
+}
