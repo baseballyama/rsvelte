@@ -136,6 +136,9 @@ pub enum JsStatement {
 pub struct RawMappedSpan {
     pub code: Range<u32>,
     pub source: Range<u32>,
+    /// This copied run ends with a comment that upstream keeps attached to an
+    /// erased TS declaration before an exported prop.
+    pub erased_comment_before_export_prop: bool,
 }
 
 /// Import declaration.

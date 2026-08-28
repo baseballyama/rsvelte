@@ -294,6 +294,33 @@ fn restore_raw_mapped_spans(stmts: &mut [Statement<'_>], spans: &[RawMappedSpan]
     }
 }
 
+/// Preserve upstream's comment cursor when TypeScript erasure removed the node
+/// a leading comment was attached to immediately before an exported prop.
+///
+/// The prop lowering keeps the source identifier but rebuilds the declaration.
+/// Leaving the reparsed declaration located makes esrap flush the orphaned
+/// comment before `let`; upstream reaches the identifier first and therefore
+/// emits `let // comment` instead. Only the declaration wrapper is unlocated —
+/// its identifier and initializer retain their copied source spans.
+fn unlocate_prop_declarations_after_erased_comments(
+    stmts: &mut [Statement<'_>],
+    spans: &[RawMappedSpan],
+    code_base: u32,
+) {
+    for comment_end in spans
+        .iter()
+        .filter(|span| span.erased_comment_before_export_prop)
+        .map(|span| code_base + span.code.end)
+    {
+        if let Some(Statement::VariableDeclaration(declaration)) = stmts
+            .iter_mut()
+            .find(|statement| statement.span().start >= comment_end)
+        {
+            declaration.span = SPAN;
+        }
+    }
+}
+
 /// The client transform rebuilds effect calls but retains their callback from
 /// the source AST. Keep that split when a raw chunk is reparsed: the callback
 /// remains located for comment placement while the generated call does not.
@@ -2013,10 +2040,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 copied_spans,
             } => {
                 let mut stmts = self.parse_raw_statements(code, false, &[])?;
-                if self
-                    .take_chunk_region(Some(*source_offset), copied_spans)
-                    .is_some()
-                {
+                let region = self.take_chunk_region(Some(*source_offset), copied_spans);
+                if let Some((region_start, _)) = region {
+                    unlocate_prop_declarations_after_erased_comments(
+                        &mut stmts,
+                        copied_spans,
+                        region_start,
+                    );
                     // The chunk's own spans are its comment anchors; the source
                     // offset is carried by the region's `loc_map` entry instead.
                     return Some(stmts);
@@ -2038,6 +2068,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 {
                     *statement.span_mut() = comment_anchor;
                 }
+                unlocate_prop_declarations_after_erased_comments(&mut stmts, copied_spans, 0);
                 self.note_span(*source_offset);
                 Some(stmts)
             }
@@ -2049,12 +2080,16 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 copied_spans,
             } => {
                 let mut stmts = self.parse_raw_statements(code, false, &[])?;
-                if effect_spans.is_empty()
-                    && self
-                        .take_chunk_region(Some(*source_offset), copied_spans)
-                        .is_some()
-                {
-                    return Some(stmts);
+                if effect_spans.is_empty() {
+                    let region = self.take_chunk_region(Some(*source_offset), copied_spans);
+                    if let Some((region_start, _)) = region {
+                        unlocate_prop_declarations_after_erased_comments(
+                            &mut stmts,
+                            copied_spans,
+                            region_start,
+                        );
+                        return Some(stmts);
+                    }
                 }
                 restore_raw_mapped_spans(&mut stmts, copied_spans);
                 erase_generated_effect_call_locs(&mut stmts, effect_spans);
@@ -2070,6 +2105,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 {
                     *statement.span_mut() = comment_anchor;
                 }
+                unlocate_prop_declarations_after_erased_comments(&mut stmts, copied_spans, 0);
                 self.note_span(*source_offset);
                 Some(stmts)
             }

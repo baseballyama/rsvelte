@@ -54,6 +54,14 @@ pub(crate) struct ScriptProjection {
     /// module Program drops them. Keeping the ranges separate lets Phase 3 make
     /// that distinction without trying to infer their origin from stripped JS.
     pub(crate) reemitted_comment_outputs: Vec<Range<u32>>,
+    /// Source ranges of leading comments attached to an erased TypeScript
+    /// declaration when the next surviving statement is an exported prop.
+    ///
+    /// Upstream keeps that attachment through TS erasure. Its generated prop
+    /// declaration therefore prints `let` before advancing to the located
+    /// identifier and flushing the comment. A text projection would otherwise
+    /// reattach the comment to the following `let` declaration.
+    pub(crate) erased_leading_comments_before_export_props: Vec<Range<u32>>,
     /// Original script-content length in bytes.
     pub(crate) source_len: u32,
     /// Stripped script-content length in bytes.
@@ -720,6 +728,24 @@ fn strip_typescript_from_program_impl(
         merged.push((start, end));
     }
 
+    let erased_leading_comments_before_export_props = include_projection
+        .then(|| {
+            program
+                .comments
+                .iter()
+                .filter(|comment| comment.is_leading())
+                .filter_map(|comment| {
+                    let (_, remove_end) = merged.iter().find(|(start, end)| {
+                        *start <= comment.attached_to && comment.attached_to < *end
+                    })?;
+                    let after = source.get(*remove_end as usize..)?.trim_start();
+                    (after.starts_with("export let ") || after.starts_with("export var "))
+                        .then(|| comment.span.start..comment.span.end)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     // Build output by skipping removed regions
     let mut output = String::with_capacity(source.len());
     let mut copied_chunks =
@@ -815,6 +841,7 @@ fn strip_typescript_from_program_impl(
     let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
         copied_chunks,
         reemitted_comment_outputs: reemitted_comment_outputs.unwrap_or_default(),
+        erased_leading_comments_before_export_props,
         source_len: source.len() as u32,
         output_len: output.len() as u32,
     });
@@ -2668,6 +2695,28 @@ const answer: number = 42;
                 .iter()
                 .any(|chunk| chunk.source.start <= declaration_start
                     && declaration_start < chunk.source.end)
+        );
+    }
+
+    #[test]
+    fn projection_records_erased_interface_comment_before_exported_prop() {
+        let source = "\
+interface Props {}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface Events {}
+export let use: string[] = [];
+";
+        let retained = RetainedProgram::parse(source, true);
+        let (_, projection) =
+            strip_typescript_from_program_with_projection(source, retained.program());
+        let projection = projection.expect("interfaces should create a projection");
+
+        let start = source.find("// eslint-disable-next-line").unwrap() as u32;
+        let end =
+            start + "// eslint-disable-next-line @typescript-eslint/no-unused-vars".len() as u32;
+        assert_eq!(
+            projection.erased_leading_comments_before_export_props,
+            vec![start..end]
         );
     }
 

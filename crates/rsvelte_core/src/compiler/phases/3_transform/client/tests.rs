@@ -150,6 +150,37 @@ fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_outpu
 }
 
 #[test]
+fn erased_typescript_interface_comment_keeps_exported_prop_cursor_position() {
+    let source = r#"<script lang="ts">
+        interface $$Props {}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        interface $$Events {}
+        export let use: string[] = [];
+    </script>"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("erased-interface-comment-exported-prop.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains(
+                "let // eslint-disable-next-line @typescript-eslint/no-unused-vars\n\tuse = $.prop"
+            ),
+            "the erased interface keeps ownership of its leading comment in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn constant_fold_does_not_resolve_a_binding_from_a_sibling_snippet() {
     let source = r#"<svelte:boundary>
     {#snippet children()}

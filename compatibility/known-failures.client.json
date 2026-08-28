@@ -236,7 +236,6 @@
 	"svelteui/packages/svelteui-core/src/components/Input/Input.svelte",
 	"svelteui/packages/svelteui-core/src/components/Menu/MenuItem/MenuItem.svelte",
 	"svelteui/packages/svelteui-core/src/components/Tabs/Tab/Tab.svelte",
-	"svelteui/packages/svelteui-core/src/components/Tabs/Tabs.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"svelvet/src/lib/components/Drawer/DrawerAnchor.svelte",
 	"svelvet/src/lib/components/Drawer/DrawerNode.svelte",
