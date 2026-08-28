@@ -633,7 +633,8 @@ impl<'a> Parser<'a> {
                     if !trimmed.contains('{') && !trimmed.contains(';') && !trimmed.starts_with('@')
                     {
                         // Non-empty CSS content with no blocks and no at-rules - invalid
-                        let err_pos = content_start + style_content.len();
+                        let err_pos =
+                            first_line_comment.unwrap_or(content_start + style_content.len());
                         return Err(crate::error::ParseError::svelte(
                             "css_expected_identifier",
                             "Expected a valid CSS identifier",
@@ -677,7 +678,8 @@ impl<'a> Parser<'a> {
                         && !stripped.starts_with('@')
                     {
                         // Non-empty CSS content with no blocks and no at-rules - invalid
-                        let err_pos = content_start + style_content.len();
+                        let err_pos =
+                            first_line_comment.unwrap_or(content_start + style_content.len());
                         return Err(crate::error::ParseError::svelte(
                             "css_expected_identifier",
                             "Expected a valid CSS identifier",
@@ -1699,8 +1701,8 @@ impl<'a> CssParser<'a> {
             }
 
             // Check if this looks like a nested rule (selector followed by {)
-            // Look ahead to see if { comes before : or ;
-            if self.is_nested_rule() {
+            // using the same value scan as upstream's `read_block_item`.
+            if self.peek_block_item_is_rule() {
                 let index_before = self.index;
                 if let Some(rule) = self.parse_rule() {
                     declarations.push(rule);
@@ -1780,145 +1782,6 @@ impl<'a> CssParser<'a> {
             }
             self.advance();
         }
-    }
-
-    /// Check if the current position looks like a nested rule (selector followed by {)
-    /// by looking ahead to see if { comes before a declaration-style : (property: value)
-    fn is_nested_rule(&self) -> bool {
-        let remaining = &self.source[self.index..];
-        let bytes = remaining.as_bytes();
-        let mut depth: i32 = 0;
-        let mut i = 0;
-
-        // If it starts with & (nesting selector), it's always a nested rule
-        // Skip the & and any following selector parts including pseudo-classes
-        if bytes.first() == Some(&b'&') {
-            i = 1;
-            // After &, skip any combination of selector parts
-            // (identifiers, pseudo-classes like :hover, classes like .foo, etc.)
-            // until we find a { which confirms it's a nested rule
-            while i < bytes.len() {
-                let c = bytes[i];
-                match c {
-                    b'(' | b'[' => depth += 1,
-                    b')' | b']' => depth -= 1,
-                    b'{' if depth == 0 => return true,
-                    b';' | b'}' if depth == 0 => return false,
-                    _ => {}
-                }
-                i += 1;
-            }
-            return false;
-        }
-
-        // If it starts with : followed by an identifier and then {, it's a pseudo-class selector
-        // like :global { ... } or :hover { ... }
-        if bytes.first() == Some(&b':') {
-            // Skip past the pseudo-class/pseudo-element
-            i = 1;
-            // Skip any additional ':'
-            while i < bytes.len() && bytes[i] == b':' {
-                i += 1;
-            }
-            // Skip the identifier
-            while i < bytes.len()
-                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'-' || bytes[i] == b'_')
-            {
-                i += 1;
-            }
-        }
-
-        while i < bytes.len() {
-            let c = bytes[i];
-            match c {
-                b'(' | b'[' => depth += 1,
-                b')' | b']' => depth -= 1,
-                b'{' if depth == 0 => return true,
-                b':' if depth == 0 => {
-                    // Distinguish between property: value (declaration) and selector :pseudo-class
-                    // If the ':' follows whitespace, it's likely a pseudo-class in a selector
-                    // (e.g., "p :global", "div :hover")
-                    // If the ':' directly follows a non-whitespace char, check if it's a pseudo-class
-                    // (e.g., "header:has(&)", "div:hover") or a declaration (e.g., "color:", "font-size:")
-                    if i > 0 && bytes[i - 1].is_ascii_whitespace() {
-                        // ':' after whitespace - likely a pseudo-class selector, skip it
-                        // Skip past the pseudo-class name
-                        i += 1;
-                        while i < bytes.len()
-                            && (bytes[i].is_ascii_alphanumeric()
-                                || bytes[i] == b'-'
-                                || bytes[i] == b'_')
-                        {
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    // ':' directly after non-whitespace - could be a declaration OR a pseudo-class
-                    // Check if it's followed by a known CSS pseudo-class pattern
-                    // A pseudo-class is `:<identifier>` optionally followed by `(...)` or `{`
-                    // A declaration is `<property>: <value>`
-                    // Key difference: declarations have whitespace or value after `:`,
-                    // pseudo-classes have an identifier (no whitespace) directly after `:`
-                    let mut j = i + 1;
-                    // Skip any additional ':' (for pseudo-elements like ::before)
-                    while j < bytes.len() && bytes[j] == b':' {
-                        j += 1;
-                    }
-                    // Check if an identifier follows directly (pseudo-class like :has, :hover, :is)
-                    if j < bytes.len()
-                        && (bytes[j].is_ascii_alphabetic() || bytes[j] == b'-' || bytes[j] == b'_')
-                    {
-                        // Skip the identifier
-                        while j < bytes.len()
-                            && (bytes[j].is_ascii_alphanumeric()
-                                || bytes[j] == b'-'
-                                || bytes[j] == b'_')
-                        {
-                            j += 1;
-                        }
-                        // After the identifier, check what follows:
-                        // - '(' means it's a functional pseudo-class like :has(), :is()
-                        // - '{' means it's a selector like div:hover { }
-                        // - whitespace followed by '{' or selector parts means it's a selector
-                        // - ',' means it's a selector list
-                        if j < bytes.len()
-                            && (bytes[j] == b'(' || bytes[j] == b'{' || bytes[j] == b',')
-                        {
-                            // This is a pseudo-class selector, not a declaration
-                            // Skip past the pseudo-class and continue checking
-                            i = j;
-                            continue;
-                        }
-                        // Check if whitespace follows and then eventually a {
-                        if j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                            // Could be "div:hover {" or "font-size: 12px" - look ahead for '{'
-                            let mut k = j;
-                            while k < bytes.len() && bytes[k].is_ascii_whitespace() {
-                                k += 1;
-                            }
-                            if k < bytes.len() && bytes[k] == b'{' {
-                                // "selector:pseudo {" - it's a nested rule
-                                return true;
-                            }
-                            // "selector:pseudo something" or "property: value" - ambiguous
-                            // Continue scanning (could be "div:hover .foo {")
-                            i = j;
-                            continue;
-                        }
-                        // Skip past the pseudo-class content and continue
-                        i = j;
-                        continue;
-                    }
-                    // ':' not followed by identifier - this is a property: value declaration
-                    return false;
-                }
-                b';' | b'}' if depth == 0 => return false,
-                _ => {}
-            }
-            i += 1;
-        }
-
-        false
     }
 
     fn parse_declaration(&mut self) -> Option<Value> {
