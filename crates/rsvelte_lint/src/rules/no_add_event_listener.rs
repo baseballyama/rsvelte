@@ -20,15 +20,15 @@
 //!
 //! ## Suggestion
 //!
-//! When an open parenthesis can be located in the source immediately after the
-//! callee (skipping whitespace and comments), one suggestion is offered:
+//! When a token can be located in the source immediately after the callee
+//! (skipping whitespace and comments), one suggestion is offered:
 //!
 //! - desc: `"Use on from svelte/events instead"`
 //! - edits:
 //!   1. Replace `[callee.start, callee.end)` with `"on"` (i.e. replace the
 //!      whole callee — `window.addEventListener` or bare `addEventListener` —
 //!      with `on`).
-//!   2. Insert `"<target>, "` right after the `(` (at byte position `paren + 1`).
+//!   2. Insert `"<target>, "` right after that token.
 //!      For a `MemberExpression` callee, `<target>` is the source text of the
 //!      object (everything before `.addEventListener`). For a bare `addEventListener`
 //!      identifier, `<target>` is the literal string `"window"`.
@@ -167,23 +167,24 @@ fn emit(ctx: &mut LintContext, mut reports: Vec<Report>) {
                 None => "window".to_string(),
             };
 
-            // Locate the open-paren token: scan forward from callee_end through
-            // whitespace and block-comments until we hit '('. This mirrors
-            // ESLint's `getTokenAfter(callee)`.
-            let paren_pos = find_open_paren(ctx.source(), r.callee_end);
+            // Upstream names this token `openParen`, but does not check its
+            // kind. Match `getTokenAfter(callee)` exactly, including the odd
+            // parenthesised-callee and optional-call cases where it is `)` or
+            // `?.` rather than `(`.
+            let token_end = find_next_token_end(ctx.source(), r.callee_end);
 
-            let suggestions = paren_pos.map_or_else(Vec::new, |paren| {
+            let suggestions = token_end.map_or_else(Vec::new, |insert_at| {
                 // Edit 1: replace the callee with `on`.
                 let edit_callee = TextEdit {
                     start: r.callee_start,
                     end: r.callee_end,
                     new_text: "on".to_string(),
                 };
-                // Edit 2: insert `<target>, ` right after the '('.
-                let after_paren = paren + 1;
+                // Edit 2: insert `<target>, ` after the token returned by
+                // `getTokenAfter(callee)`.
                 let edit_args = TextEdit {
-                    start: after_paren,
-                    end: after_paren,
+                    start: insert_at,
+                    end: insert_at,
                     new_text: format!("{target}, "),
                 };
                 vec![Suggestion {
@@ -239,17 +240,14 @@ fn collect_callee_spans(callee: &Value) -> Option<(u32, u32, Option<(u32, u32)>)
     }
 }
 
-/// Scan `source` forward from byte offset `from` to find the byte offset of the
-/// first `(` character, skipping ASCII whitespace and comments — upstream's
-/// `getTokenAfter(callee)` skips both kinds. A `//` comment can sit between a
-/// callee and its argument list, because `(` continues the expression and so
-/// blocks ASI.
+/// Return the byte offset immediately after the next token, skipping whitespace
+/// and comments like ESLint's `SourceCode#getTokenAfter`.
 ///
-/// Returns `None` when the next token is not `(`. Upstream has no such guard
-/// (`no-add-event-listener.ts:46-58` names the token `openParen` but never
-/// checks it), so on `el?.addEventListener?.(…)` its fixer inserts after the
-/// `?.` and produces text no JS parser accepts; we decline instead.
-fn find_open_paren(source: &str, from: u32) -> Option<u32> {
+/// For a callee accepted by this rule, the token is normally `(`. Parentheses
+/// are not AST nodes, however, so a parenthesised callee can yield `)`, and an
+/// optional call yields `?.`. Upstream inserts after any of the three. This
+/// deliberately preserves that behavior for drop-in suggestion compatibility.
+fn find_next_token_end(source: &str, from: u32) -> Option<u32> {
     let bytes = source.as_bytes();
     let mut i = from as usize;
     while i < bytes.len() {
@@ -277,8 +275,12 @@ fn find_open_paren(source: &str, from: u32) -> Option<u32> {
                     i += 1;
                 }
             }
-            b'(' => return Some(u32::try_from(i).expect("source offsets are represented as u32")),
-            _ => return None, // unexpected character — no open paren found
+            b'?' if bytes.get(i + 1) == Some(&b'.') => {
+                return Some(u32::try_from(i + 2).expect("source offsets are represented as u32"));
+            }
+            _ => {
+                return Some(u32::try_from(i + 1).expect("source offsets are represented as u32"));
+            }
         }
     }
     None
@@ -347,21 +349,23 @@ mod tests {
         assert!(!is_add_event_listener_callee(&callee));
     }
 
-    /// Verify the open-paren scanner handles whitespace and block comments.
+    /// Verify the token scanner handles trivia and upstream's non-paren cases.
     #[test]
-    fn find_open_paren_skips_whitespace_and_comments() {
+    fn find_next_token_end_skips_trivia_and_keeps_token_kind() {
         let src = "fn    /* foo */(arg)";
         // "fn" is 2 bytes; search from offset 2
-        assert_eq!(find_open_paren(src, 2), Some(15));
+        assert_eq!(find_next_token_end(src, 2), Some(16));
 
         let src2 = "fn(arg)";
-        assert_eq!(find_open_paren(src2, 2), Some(2));
+        assert_eq!(find_next_token_end(src2, 2), Some(3));
 
         let src3 = "fn    (arg)";
-        assert_eq!(find_open_paren(src3, 2), Some(6));
+        assert_eq!(find_next_token_end(src3, 2), Some(7));
 
-        // Unexpected character before '(' → None
-        let src4 = "fn.bar(arg)";
-        assert_eq!(find_open_paren(src4, 2), None);
+        let parenthesized = "fn /* alias */)(arg)";
+        assert_eq!(find_next_token_end(parenthesized, 2), Some(15));
+
+        let optional_call = "fn?.(arg)";
+        assert_eq!(find_next_token_end(optional_call, 2), Some(4));
     }
 }

@@ -98,7 +98,7 @@ compute the insertion point from the call's argument list rather than from
 producing text that does not parse — or, worse, text that parses and silently
 drops the listener registration — is worse than offering nothing.
 
-rsvelte declines the suggestion in both shapes (`find_open_paren` in
-`crates/rsvelte_lint/src/rules/no_add_event_listener.rs` returns `None` unless
-the next token is `(`), which is the only divergence in
-`compatibility/lint-adversarial-suggest-known-failures.md`.
+rsvelte originally declined the suggestion in both shapes. For drop-in lint
+compatibility it now reproduces `getTokenAfter(callee)` exactly, including these
+two broken edits; the upstream issue remains the place to fix the behavior for
+both implementations without a compatibility divergence.
