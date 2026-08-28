@@ -62,7 +62,7 @@ pub(crate) fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<Str
                 names.push(name.to_string());
             }
         }
-        Some("ObjectPattern") => {
+        Some("ObjectPattern" | "ObjectExpression") => {
             if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
                 for prop in props {
                     if prop.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
@@ -75,7 +75,7 @@ pub(crate) fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<Str
                 }
             }
         }
-        Some("ArrayPattern") => {
+        Some("ArrayPattern" | "ArrayExpression") => {
             if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
                 for elem in elements {
                     if !elem.is_null() {
@@ -89,7 +89,7 @@ pub(crate) fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<Str
                 collect_pattern_identifiers_json(left, names);
             }
         }
-        Some("RestElement") => {
+        Some("RestElement" | "SpreadElement") => {
             if let Some(arg) = node.get("argument") {
                 collect_pattern_identifiers_json(arg, names);
             }

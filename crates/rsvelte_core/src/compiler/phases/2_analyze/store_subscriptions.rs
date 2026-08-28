@@ -8,6 +8,7 @@
 use super::AnalysisError;
 use super::RESERVED;
 use super::errors;
+use super::pattern_ids::collect_pattern_identifiers_json;
 use super::scope::{Binding, BindingKind, DeclarationKind};
 use super::types::ComponentAnalysis;
 use super::visitors::shared::function::is_rune;
@@ -1588,6 +1589,42 @@ fn collect_dollar_refs_from_fragment(fragment: &Fragment, source: &str, refs: &m
     }
 }
 
+/// Collect references from a fragment while removing names introduced by the
+/// template block that owns it. Upstream reads scope-resolved references, so a
+/// local named `$store` never reaches the store-subscription loop even when an
+/// unrelated top-level `store` binding exists.
+fn collect_dollar_refs_from_scoped_fragment(
+    fragment: &Fragment,
+    source: &str,
+    refs: &mut Vec<StoreRef>,
+    bindings: impl IntoIterator<Item = String>,
+) {
+    let bindings: FxHashSet<String> = bindings.into_iter().collect();
+    let first = refs.len();
+    collect_dollar_refs_from_fragment(fragment, source, refs);
+    remove_scoped_refs(refs, first, &bindings);
+}
+
+fn remove_scoped_refs(refs: &mut Vec<StoreRef>, first: usize, bindings: &FxHashSet<String>) {
+    if bindings.is_empty() {
+        return;
+    }
+    let scoped = refs.split_off(first);
+    refs.extend(
+        scoped
+            .into_iter()
+            .filter(|store_ref| !bindings.contains(&store_ref.name)),
+    );
+}
+
+fn pattern_binding_names(pattern: Option<&crate::ast::js::Expression>) -> Vec<String> {
+    let mut names = Vec::new();
+    if let Some(pattern) = pattern {
+        collect_pattern_identifiers_json(pattern.as_json(), &mut names);
+    }
+    names
+}
+
 /// Collect $xxx identifiers from a template node.
 fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut Vec<StoreRef>) {
     match node {
@@ -1841,10 +1878,17 @@ fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut V
 /// Collect $xxx identifiers from an each block.
 fn collect_dollar_refs_from_each_block(block: &EachBlock, source: &str, refs: &mut Vec<StoreRef>) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
-    if let Some(ref key) = block.key {
-        collect_dollar_refs_from_expression(key, source, refs);
+    let mut bindings = pattern_binding_names(block.context.as_ref());
+    if let Some(index) = &block.index {
+        bindings.push(index.to_string());
     }
-    collect_dollar_refs_from_fragment(&block.body, source, refs);
+    if let Some(ref key) = block.key {
+        let first = refs.len();
+        collect_dollar_refs_from_expression(key, source, refs);
+        let binding_set = bindings.iter().cloned().collect();
+        remove_scoped_refs(refs, first, &binding_set);
+    }
+    collect_dollar_refs_from_scoped_fragment(&block.body, source, refs, bindings);
     if let Some(ref fallback) = block.fallback {
         collect_dollar_refs_from_fragment(fallback, source, refs);
     }
@@ -1861,10 +1905,20 @@ fn collect_dollar_refs_from_await_block(
         collect_dollar_refs_from_fragment(pending, source, refs);
     }
     if let Some(ref then) = block.then {
-        collect_dollar_refs_from_fragment(then, source, refs);
+        collect_dollar_refs_from_scoped_fragment(
+            then,
+            source,
+            refs,
+            pattern_binding_names(block.value.as_ref()),
+        );
     }
     if let Some(ref catch) = block.catch {
-        collect_dollar_refs_from_fragment(catch, source, refs);
+        collect_dollar_refs_from_scoped_fragment(
+            catch,
+            source,
+            refs,
+            pattern_binding_names(block.error.as_ref()),
+        );
     }
 }
 
@@ -1880,7 +1934,11 @@ fn collect_dollar_refs_from_snippet_block(
     source: &str,
     refs: &mut Vec<StoreRef>,
 ) {
-    collect_dollar_refs_from_fragment(&block.body, source, refs);
+    let bindings = block
+        .parameters
+        .iter()
+        .flat_map(|parameter| pattern_binding_names(Some(parameter)));
+    collect_dollar_refs_from_scoped_fragment(&block.body, source, refs, bindings);
 }
 
 #[cfg(test)]
@@ -2138,6 +2196,37 @@ mod tests {
                 "$x".to_string(),
             ],
         );
+    }
+
+    #[test]
+    fn await_destructure_dollar_binding_is_not_a_store_subscription() {
+        let source = r#"<script>
+    import { readable } from 'svelte/store';
+    const gltf = readable(null);
+    const assets = Promise.resolve([]);
+</script>
+
+{#await assets then [$gltf]}
+    <p>{$gltf}</p>
+{/await}
+"#;
+        assert_eq!(store_sub_order(source), Vec::<String>::new());
+    }
+
+    #[test]
+    fn await_destructure_only_shadows_references_in_its_then_fragment() {
+        let source = r#"<script>
+    import { readable } from 'svelte/store';
+    const gltf = readable(null);
+    const assets = Promise.resolve([]);
+</script>
+
+<p>{$gltf}</p>
+{#await assets then [$gltf]}
+    <p>{$gltf}</p>
+{/await}
+"#;
+        assert_eq!(store_sub_order(source), vec!["$gltf".to_string()]);
     }
 
     /// A `$name` destructuring parameter spread across multiple lines
