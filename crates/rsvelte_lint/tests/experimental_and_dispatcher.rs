@@ -132,17 +132,21 @@ fn svelte_3_4_rules_do_not_run_on_svelte_5() {
             DISPATCH,
         ),
     ] {
-        let cfg = LintConfig::empty().with_override(code, Severity::Error);
-        let actual = lint_source(
-            src,
-            &PathBuf::from("Test.svelte"),
-            &CompileOptions::default(),
-            &cfg,
-        );
-        assert!(
-            actual.iter().all(|d| d.code.as_deref() != Some(code)),
-            "Svelte 3/4-only rule {code} ran on Svelte 5"
-        );
+        for cfg in [
+            LintConfig::recommended(),
+            LintConfig::empty().with_override(code, Severity::Error),
+        ] {
+            let actual = lint_source(
+                src,
+                &PathBuf::from("Test.svelte"),
+                &CompileOptions::default(),
+                &cfg,
+            );
+            assert!(
+                actual.iter().all(|d| d.code.as_deref() != Some(code)),
+                "Svelte 3/4-only rule {code} ran on Svelte 5"
+            );
+        }
     }
 }
 

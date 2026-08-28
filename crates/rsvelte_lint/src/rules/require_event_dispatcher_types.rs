@@ -28,7 +28,7 @@ pub static META: RuleMeta = RuleMeta {
     name: "svelte/require-event-dispatcher-types",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Off,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

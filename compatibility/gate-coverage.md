@@ -3111,9 +3111,9 @@ Key is `<upstream sev>-><rsvelte sev>|<id>`, plus `not-ported|<id>` and `rsvelte
 
 It exists for C8: every other lint gate writes an explicit all-rules-`"warn"` config on both sides,
 which is correct for comparing rules and makes the default configuration a constant they cannot
-vary. Shared defaults are expected to match; the ratchet records the two remaining implementation
-gaps and keeps one-sided rule membership visible without pretending those ids have a severity on
-both sides.
+vary. Shared defaults are expected to match; the ratchet records the remaining implementation gap
+and keeps one-sided rule membership visible without pretending those ids have a severity on both
+sides.
 
 ### Severity in the key was worth 21 rules the membership key called equal — **[D]**
 
@@ -3369,8 +3369,8 @@ differences do not reappear here as finding-level entries. The cost is that the 
 rule one side runs by default and the other does not are compared by no gate under default
 configuration: gate 28 compares them with both sides forced to `"warn"`, and gate 33 compares only
 the declared default. A rule that behaves differently *because* of its default severity or options
-would fall between the two. The current shared population for that blind spot is the two
-`error->off` entries; its size is otherwise unmeasured.
+would fall between the two. The current shared population for that blind spot is the remaining
+`error->off` entry; its size is otherwise unmeasured.
 
 ### Blind spot 36b — inline configuration is asserted to exist, not compared — **[D]**
 
@@ -3727,10 +3727,12 @@ default preset (`LintConfig::recommended()`, "every rule at its declared default
 **56** and eslint-plugin-svelte's `flat/recommended` running **36**. Twenty-two rules ran by default
 only in rsvelte (`no-inline-styles`, `no-unused-class-name`, `prefer-const`, `no-target-blank`,
 `block-lang`, `consistent-selector-style`, `require-stores-init`, …); those declared defaults now
-match upstream at `off`. The current shared sets therefore run **34** and **36** rules. The two
-remaining shared differences run in the opposite direction: upstream enables
-`svelte/no-unused-props` and `svelte/require-event-dispatcher-types` at `error`, while rsvelte leaves
-them off pending the implementation work recorded in the gate-33 ratchet.
+match upstream at `off`. The declared shared sets therefore enable **35** and **36** rules. The
+remaining shared default difference runs in the opposite direction: upstream enables
+`svelte/no-unused-props` at `error`, while rsvelte leaves it off pending the implementation work
+recorded in the gate-33 ratchet. `svelte/require-event-dispatcher-types` now declares upstream's
+`error` default too, while the independently ratcheted Svelte-version eligibility model skips that
+Svelte-3/4-only rule on every Svelte 5 input, including when explicitly configured.
 
 Membership was not the whole of it, and that is the part worth carrying forward. Twenty-one further
 rules ran by default on **both** sides at different severities — upstream `error`, rsvelte `warn` —

@@ -6,6 +6,8 @@
 
 - Align the default `recommended` preset with `eslint-plugin-svelte`: 22 shared
   rules that upstream leaves disabled are now opt-in in `rsvelte-lint` as well.
+- Match the declared `error` default for `require-event-dispatcher-types` while
+  retaining its upstream-compatible Svelte 3/4-only runtime eligibility.
 
 ## 0.10.19
 

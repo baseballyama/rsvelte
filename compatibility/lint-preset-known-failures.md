@@ -46,14 +46,15 @@ all 11 of rsvelte's `error` rules are `error` upstream, and both of upstream's
 two `warn` rules are `warn` here, 13 for 13 — while the divergence ran one way in
 all 21 cases, always rsvelte weakening. A deliberate policy does not have that
 shape. `apps/npm/lint/README.md`'s "a handful … default to `error`" describes the
-old set; the alignment makes it 32.
+old set; that alignment made it 32, and matching the independently gated
+`require-event-dispatcher-types` declaration makes it 33.
 
-## `error->off` — the two that could have been bugs
+## `error->off` — the remaining implementation gap
 
-These are the direction that matters most, because a rule upstream defaults to
+This is the direction that matters most, because a rule upstream defaults to
 `error` and rsvelte disables entirely makes rsvelte report **less** than the tool
-it replaces, and exit 0 where it would exit 1. Both were checked individually
-rather than accepted as a class.
+it replaces, and exit 0 where it would exit 1. It was checked individually
+rather than accepted as part of a class.
 
 ### `svelte/no-unused-props`
 
@@ -71,15 +72,6 @@ by `rsvelte_lint_types`'s `type_aware_e2e` tests) is what the CLI uses.
 
 **This entry should disappear** when that happens. The ratchet is two-sided, so
 it will fail rather than rot.
-
-### `svelte/require-event-dispatcher-types`
-
-Upstream marks this rule Svelte-3/4-only, and rsvelte's Svelte-5 eligibility
-model now skips it even when explicitly enabled. The preset-severity comparison
-still records the declared-default mismatch independently: this rule remains
-`off` in rsvelte while that gate's upstream configuration declares another
-severity. Runtime reachability is governed and ratcheted separately by
-`lint-conditions-known-failures.json`.
 
 ## `not-ported` — 2 entries
 
