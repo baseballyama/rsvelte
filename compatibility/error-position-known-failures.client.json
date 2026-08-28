@@ -1,10 +1,4 @@
 [
-	"date-picker-svelte/src/lib/DateInput.svelte",
-	"date-picker-svelte/src/lib/DatePicker.svelte",
-	"date-picker-svelte/src/lib/TimePicker.svelte",
-	"date-picker-svelte/src/routes/+layout.svelte",
-	"date-picker-svelte/src/routes/prop.svelte",
-	"date-picker-svelte/src/routes/split.svelte",
 	"networking-toolbox/src/lib/components/furniture/TopNav.svelte",
 	"networking-toolbox/src/routes/diagnostics/dns/lookup/+page.svelte",
 	"svelte-put/sites/docs/src/packages/popover/docs.md.svelte",

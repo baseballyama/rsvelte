@@ -2609,7 +2609,24 @@ impl<'a> SelectorParser<'a> {
         let start = self.offset + self.index;
         self.advance(); // consume ':'
 
+        let name_start = self.offset + self.index;
         let name = self.read_identifier();
+        if name.is_empty() {
+            // Upstream delegates the name to `read_identifier`, which throws
+            // at the byte immediately after `:` when there is no identifier.
+            // This also matters for unprocessed indented Sass: `color: red`
+            // is first read as a descendant selector, and this is its earliest
+            // syntax error rather than the eventual end of the style block.
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_expected_identifier",
+                    "Expected a valid CSS identifier",
+                    (name_start, name_start),
+                ),
+            );
+            return None;
+        }
         // Check for arguments in parentheses
         let args = if self.current_char() == '(' {
             let args_start = self.offset + self.index + 1;
