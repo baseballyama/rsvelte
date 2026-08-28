@@ -9,29 +9,17 @@ to separate two plausible implementations of one rule, so a divergence is a
 deliberate probe coming back positive rather than an accident of what published
 code happens to contain.
 
-**The expectation is that `lint-adversarial-known-failures.json` stays at 2 entries.**
+**The expectation is that `lint-adversarial-known-failures.json` stays at 1 entry.**
 It is not a burndown backlog: a new entry needs a reason that is *not*
-"rsvelte is wrong here", and the two below are the only such reasons found
+"rsvelte is wrong here", and the entry below is the only such reason found
 across 1365 patterns and 74 rules. Everything else the corpus surfaced (330
 divergences on the first run, 35 more when it grew past 1000 patterns) was fixed.
 
 `+` = rsvelte reports, oracle silent. `-` = oracle reports, rsvelte silent.
 
-## The two accepted entries
+## The accepted entry
 
-### 1. `no-top-level-browser-globals/03-guard-browser.svelte` `+svelte/no-top-level-browser-globals 7:14`
-
-The `globals`-version split already documented as **H4** in
-`compatibility/lint-known-failures.md` and excluded by name in
-`MANUAL_EXCLUSIONS` (`scripts/compat-corpus/lint-verify.mjs`), reproduced here on
-`navigator`. Upstream computes its global set as `globals.browser ∖ globals.node`;
-modern Node declares `navigator`, so upstream can never flag a top-level
-`navigator` no matter what the harness declares. rsvelte keeps flagging it
-because eslint-plugin-svelte's own bundled fixtures — the authority the
-exact-fixture oracle gate enforces — expect exactly that report for this class.
-The two upstream artefacts disagree; rsvelte follows the fixtures.
-
-### 2. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
+### `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
 
 `<Style />` — a component whose name differs from `style` only in case. Upstream
 reports `html-self-closing` on it; rsvelte does not, and **rsvelte is right**.

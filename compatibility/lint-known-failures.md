@@ -84,24 +84,14 @@ the comparison is meaningful. rsvelte's rule logic was correct throughout.
 
 ## Finding-level exclusions (`MANUAL_EXCLUSIONS` in lint-verify.mjs)
 
-- **globals-version skew (×2, `localStorage`/`navigator`).** With `globals@16.5`
-  these are node-available, so upstream's `getBrowserGlobals()` excludes them and the
-  rule does not flag a top-level `localStorage.getItem(…)`. But eslint-plugin-svelte's
-  **own fixtures** (the authoritative gate) still assert the flag, so rsvelte keeps
-  flagging them. The 2 corpus FP are a documented upstream inconsistency (see U1
-  below), not an rsvelte defect.
 - **`comment-directive` on core `no-undef` (×1).** ESLint marks a disable "unused" by
   checking whether the disabled rule fired; for a **core** ESLint rule rsvelte does
   not implement, it always sees zero findings and cannot tell "ran, found nothing"
   from "never ran". Removing the guard introduces a real FP on the next directive
   (FN↔FP trade-off confirmed). An inherent scope boundary of a svelte-only linter.
 
-## Upstream bug (report to sveltejs/eslint-plugin-svelte)
-
-- **U1 — `no-top-level-browser-globals` fixtures disagree with the runtime `globals`
-  version.** The rule computes `globals.browser ∖ globals.node`; in `globals@16.5`
-  `localStorage`/`navigator`/`sessionStorage` are in `globals.node`, so the rule no
-  longer flags them at runtime — yet the plugin's own fixtures/docs still assert it.
-  Suggested upstream fix: keep an explicit browser-only allow/deny list, or
-  regenerate fixtures against the pinned `globals`. rsvelte matches the authoritative
-  fixtures.
+The former `globals`-version exclusions are gone. eslint-plugin-svelte's own lock
+uses `globals@16.4.0`, where `localStorage` and `sessionStorage` are browser-only but
+`navigator` is also a Node global. The isolated oracle now pins that exact transitive
+dependency: rsvelte keeps the two storage globals and excludes `navigator`, matching
+both the live rule and its `localStorage` fixture without an exclusion.

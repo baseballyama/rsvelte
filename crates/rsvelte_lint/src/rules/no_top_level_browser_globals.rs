@@ -65,7 +65,6 @@ const BROWSER_GLOBALS: &[&str] = &[
     "window",
     "document",
     "location",
-    "navigator",
     "history",
     "localStorage",
     "sessionStorage",
@@ -1184,6 +1183,9 @@ mod tests {
         for g in ["window", "document", "location", "localStorage"] {
             assert!(is_browser_global(g), "missing {g}");
         }
+        // Upstream computes this set as `globals.browser - globals.node`.
+        // `navigator` belongs to both sets in its pinned globals@16.4.0.
+        assert!(!is_browser_global("navigator"));
         assert!(!is_browser_global("foo"));
     }
 

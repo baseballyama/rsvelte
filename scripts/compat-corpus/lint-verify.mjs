@@ -58,18 +58,6 @@ const SHOW = args.includes("--show") ? Number(args[args.indexOf("--show") + 1] |
 // `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and MUST carry a
 // documented justification (see compatibility/lint-known-failures.md).
 const MANUAL_EXCLUSIONS = new Set([
-  // H4 — `globals` version split on `localStorage`/`navigator`/`sessionStorage`.
-  // The corpus oracle runs eslint-plugin-svelte against globals@16.5, where
-  // these are node-available, so upstream's `getBrowserGlobals()` (browser ∖
-  // node) EXCLUDES them and the rule does not flag a bare top-level
-  // `localStorage`. rsvelte MUST keep flagging them: eslint-plugin-svelte's
-  // own fixture suite (the `eslint_plugin_oracle` hard gate) declares
-  // `invalid/test03` expecting exactly this report. The two upstream artefacts
-  // (live globals vs bundled fixtures) disagree; rsvelte matches the
-  // authoritative fixtures. Reported upstream — see compatibility/lint-known-failures.md.
-  'eslint-plugin-svelte/docs/rules/no-top-level-browser-globals.md/1.svelte|+svelte/no-top-level-browser-globals\t25:13\tUnexpected top-level browser global variable "localStorage".',
-  'eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/invalid/test03-input.svelte|+svelte/no-top-level-browser-globals\t2:12\tUnexpected top-level browser global variable "localStorage".',
-
   // `comment-directive` reportUnusedDisableDirectives on a CORE ESLint rule.
   // The oracle reports an `eslint-disable-next-line no-undef` as unused because
   // it RAN `no-undef` and it produced no error. rsvelte implements only

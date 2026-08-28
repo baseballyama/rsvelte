@@ -1,4 +1,3 @@
 [
-	"no-nested-style-tag/14-component-lookalike.svelte|-svelte/html-self-closing\t5:8\tDisallow self-closing on HTML elements.",
-	"no-top-level-browser-globals/03-guard-browser.svelte|+svelte/no-top-level-browser-globals\t7:14\tUnexpected top-level browser global variable \"navigator\"."
+	"no-nested-style-tag/14-component-lookalike.svelte|-svelte/html-self-closing\t5:8\tDisallow self-closing on HTML elements."
 ]
