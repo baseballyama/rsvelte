@@ -23,7 +23,6 @@
 	"carbon-components-svelte/src/Notification/NotificationQueue.svelte",
 	"carbon-components-svelte/src/PaginationNav/PaginationOverflow.svelte",
 	"carbon-components-svelte/src/TextInput/TextInput.svelte",
-	"carbon-components-svelte/tests/Checkbox/CheckboxGroupEvents.test.svelte",
 	"chatgpt-web/src/lib/Home.svelte",
 	"gitlight/src/lib/components/dashboard/notifications/NotificationLabels.svelte",
 	"gitlight/src/lib/components/dashboard/sidebar/TypeFilters.svelte",

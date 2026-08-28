@@ -1,5 +1,5 @@
 //! AST-based rewrite of legacy-mode state member-expression
-//! assignments.
+//! assignments and updates.
 //!
 //! Replaces `destructure_transforms.rs::transform_member_mutations`
 //! (lines 1958+). This function is only called in legacy/non-runes
@@ -15,6 +15,8 @@
 //! | `obj[i] = rhs`          | `$.mutate(obj, obj[i] = rhs)`                |
 //! | `obj.prop += rhs`       | `$.mutate(obj, obj.prop += rhs)`             |
 //! | `obj.a.b = rhs`         | `$.mutate(obj, obj.a.b = rhs)`               |
+//! | `obj.prop++`            | `$.mutate(obj, obj.prop++)`                  |
+//! | `--obj[i]`              | `$.mutate(obj, --obj[i])`                    |
 //!
 //! Where `obj` ∈ `state_vars \ non_reactive_state_vars \
 //! raw_state_vars`.
@@ -31,13 +33,9 @@
 //!
 //! Once wrapped, the LHS root is still a bare `obj` identifier —
 //! a naive visitor would re-wrap. The visitor instead detects the
-//! `$.mutate(var, <assignment>)` shape via `visit_call_expression`
-//! and records the inner assignment's span as "skip". On
-//! subsequent passes, `visit_assignment_expression` bails on that
-//! span.
-//!
-//! `UpdateExpression`s on members (`obj.x++`) are intentionally
-//! NOT in this PR — the text version doesn't handle them either.
+//! `$.mutate(var, <mutation>)` shape via `visit_call_expression`
+//! and records the inner assignment/update span as "skip". On
+//! subsequent passes, the corresponding visitor bails on that span.
 
 use std::cell::RefCell;
 
@@ -60,7 +58,14 @@ thread_local! {
         RefCell::new(Allocator::default());
 }
 
-/// AST-based rewrite of `obj.prop = rhs` / `obj[i] = rhs` etc. for
+fn has_mutation_operator(source: &str) -> bool {
+    let bytes = source.as_bytes();
+    memchr::memchr(b'=', bytes).is_some()
+        || memchr::memmem::find(bytes, b"++").is_some()
+        || memchr::memmem::find(bytes, b"--").is_some()
+}
+
+/// AST-based rewrite of `obj.prop = rhs` / `obj[i]++` etc. for
 /// legacy-mode state variables (skipping `non_reactive_state_vars`
 /// and `raw_state_vars`). Returns `None` when there's nothing to
 /// rewrite or the source fails to parse.
@@ -106,7 +111,9 @@ fn transform_legacy_state_member_mutate_spliced(
     if state_vars.is_empty() {
         return None;
     }
-    memchr::memchr(b'=', source.as_bytes())?;
+    if !has_mutation_operator(source) {
+        return None;
+    }
     if !state_vars
         .iter()
         .filter(|v| !non_reactive_state_vars.iter().any(|nr| nr == *v))
@@ -140,6 +147,7 @@ fn transform_legacy_state_member_mutate_spliced(
                     state_var_symbols: find_state_var_symbols(semantic, state_vars),
                     replacements: Vec::new(),
                     skip_assignment_spans: Vec::new(),
+                    skip_update_spans: Vec::new(),
                 };
                 collector.visit_program(program);
                 collector.replacements
@@ -161,6 +169,8 @@ struct LegacyStateMemberMutateCollector<'a, 'sem> {
     /// `$.mutate(var, <assignment>)` wrap call. Skipping these is what
     /// makes the rewrite idempotent.
     skip_assignment_spans: Vec<(u32, u32)>,
+    /// Spans of `UpdateExpression`s that are already wrapped by `$.mutate`.
+    skip_update_spans: Vec<(u32, u32)>,
 }
 
 impl LegacyStateMemberMutateCollector<'_, '_> {
@@ -186,6 +196,17 @@ impl LegacyStateMemberMutateCollector<'_, '_> {
         let object = match target {
             AssignmentTarget::StaticMemberExpression(m) => &m.object,
             AssignmentTarget::ComputedMemberExpression(m) => &m.object,
+            _ => return None,
+        };
+        Self::walk_object_chain_to_root(object)
+    }
+
+    fn root_of_simple_target<'e, 'ast>(
+        target: &'e SimpleAssignmentTarget<'ast>,
+    ) -> Option<&'e IdentifierReference<'ast>> {
+        let object = match target {
+            SimpleAssignmentTarget::StaticMemberExpression(m) => &m.object,
+            SimpleAssignmentTarget::ComputedMemberExpression(m) => &m.object,
             _ => return None,
         };
         Self::walk_object_chain_to_root(object)
@@ -221,10 +242,16 @@ impl<'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'_, '_> {
             && dollar.name.as_str() == "$"
             && let Argument::Identifier(arg0) = &call.arguments[0]
             && self.is_eligible(arg0.name.as_str())
-            && let Argument::AssignmentExpression(inner) = &call.arguments[1]
         {
-            self.skip_assignment_spans
-                .push((inner.span.start, inner.span.end));
+            match &call.arguments[1] {
+                Argument::AssignmentExpression(inner) => self
+                    .skip_assignment_spans
+                    .push((inner.span.start, inner.span.end)),
+                Argument::UpdateExpression(inner) => self
+                    .skip_update_spans
+                    .push((inner.span.start, inner.span.end)),
+                _ => {}
+            }
         }
 
         walk::walk_call_expression(self, call);
@@ -260,6 +287,40 @@ impl<'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'_, '_> {
         // referencing other scope variables, wrap in a sequence with
         // `$.invalidate_inner_signals(() => { … })` so those signals re-read.
         // Mirrors the prop-member-mutation path (`prop_member_mutate_ast`).
+        let rewrite = match self.invalidate_bodies.get(root_name) {
+            Some(body) if !body.is_empty() => {
+                format!(
+                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                    mutate, body
+                )
+            }
+            _ => mutate,
+        };
+        self.replacements
+            .push((expr.span.start, expr.span.end, rewrite));
+    }
+
+    fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
+        walk::walk_update_expression(self, expr);
+
+        if self
+            .skip_update_spans
+            .iter()
+            .any(|(s, e)| *s == expr.span.start && *e == expr.span.end)
+        {
+            return;
+        }
+
+        let Some(root) = Self::root_of_simple_target(&expr.argument) else {
+            return;
+        };
+        let root_name = root.name.as_str();
+        if !self.is_eligible(root_name) || !self.is_state_reference(root) {
+            return;
+        }
+
+        let outer_text = &self.source[expr.span.start as usize..expr.span.end as usize];
+        let mutate = format!("$.mutate({}, {})", root_name, outer_text);
         let rewrite = match self.invalidate_bodies.get(root_name) {
             Some(body) if !body.is_empty() => {
                 format!(
@@ -429,10 +490,48 @@ mod tests {
     }
 
     #[test]
-    fn leaves_update_expression_alone() {
+    fn wraps_postfix_computed_update() {
+        let out = transform_legacy_state_member_mutate_ast(
+            "obj[value]++;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
+        assert_eq!(out, "$.mutate(obj, obj[value]++);");
+    }
+
+    #[test]
+    fn wraps_prefix_static_update() {
+        let out = transform_legacy_state_member_mutate_ast(
+            "--obj.count;",
+            &ssv(&["obj"]),
+            &[],
+            &[],
+            &eb(),
+        )
+        .unwrap();
+        assert_eq!(out, "$.mutate(obj, --obj.count);");
+    }
+
+    #[test]
+    fn wrapped_update_is_idempotent() {
+        let already = "$.mutate(obj, obj.count++);";
         assert!(
-            transform_legacy_state_member_mutate_ast("obj.x++;", &ssv(&["obj"]), &[], &[], &eb())
+            transform_legacy_state_member_mutate_ast(already, &ssv(&["obj"]), &[], &[], &eb())
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn skips_local_update_but_rewrites_captured_state() {
+        let src = "function local(obj) { obj.count++; } function captured() { obj.count++; }";
+        let out =
+            transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb()).unwrap();
+        assert_eq!(
+            out,
+            "function local(obj) { obj.count++; }\nfunction captured() { $.mutate(obj, obj.count++); }"
         );
     }
 
@@ -547,7 +646,7 @@ pub(crate) fn transform_legacy_state_member_mutate_in_place(
     if state_vars.is_empty() {
         return ast_rewrite::Rewrite::Unchanged;
     }
-    if memchr::memchr(b'=', source.as_bytes()).is_none() {
+    if !has_mutation_operator(source) {
         return ast_rewrite::Rewrite::Unchanged;
     }
     if !state_vars
@@ -580,6 +679,7 @@ pub(crate) fn transform_legacy_state_member_mutate_in_place(
                     state_var_symbols: find_state_var_symbols(semantic, state_vars),
                     targets: Vec::new(),
                     skip_assignment_spans: Vec::new(),
+                    skip_update_spans: Vec::new(),
                 };
                 finder.visit_program(program);
                 finder.targets
@@ -596,6 +696,7 @@ pub(crate) fn transform_legacy_state_member_mutate_in_place(
                 invalidate_bodies,
                 targets,
                 skip_assignment_spans: Vec::new(),
+                skip_update_spans: Vec::new(),
                 changed: false,
             };
             oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
@@ -615,6 +716,7 @@ struct LegacyStateMemberMutateRewriter<'a, 'b> {
     /// Assignments already enclosed in a `$.mutate(var, …)` wrap. Recorded on
     /// the way down so the assignment itself is left alone on the way up.
     skip_assignment_spans: Vec<Span>,
+    skip_update_spans: Vec<Span>,
     changed: bool,
 }
 
@@ -626,6 +728,7 @@ struct LegacyStateMemberMutateFinder<'a, 'sem> {
     state_var_symbols: FxHashSet<SymbolId>,
     targets: Vec<Span>,
     skip_assignment_spans: Vec<Span>,
+    skip_update_spans: Vec<Span>,
 }
 
 impl LegacyStateMemberMutateFinder<'_, '_> {
@@ -645,9 +748,14 @@ impl<'ast> Visit<'ast> for LegacyStateMemberMutateFinder<'_, '_> {
             && dollar.name.as_str() == "$"
             && let Argument::Identifier(arg0) = &call.arguments[0]
             && self.is_eligible(arg0.name.as_str())
-            && let Argument::AssignmentExpression(inner) = &call.arguments[1]
         {
-            self.skip_assignment_spans.push(inner.span);
+            match &call.arguments[1] {
+                Argument::AssignmentExpression(inner) => {
+                    self.skip_assignment_spans.push(inner.span);
+                }
+                Argument::UpdateExpression(inner) => self.skip_update_spans.push(inner.span),
+                _ => {}
+            }
         }
 
         walk::walk_call_expression(self, call);
@@ -660,6 +768,29 @@ impl<'ast> Visit<'ast> for LegacyStateMemberMutateFinder<'_, '_> {
             return;
         }
         let Some(root) = LegacyStateMemberMutateCollector::root_of_assignment_target(&expr.left)
+        else {
+            return;
+        };
+        if !self.is_eligible(root.name.as_str())
+            || !is_state_var_reference_or_unresolved(
+                self.semantic,
+                root,
+                &self.state_var_symbols,
+                self.state_vars,
+            )
+        {
+            return;
+        }
+        self.targets.push(expr.span);
+    }
+
+    fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
+        walk::walk_update_expression(self, expr);
+
+        if self.skip_update_spans.contains(&expr.span) {
+            return;
+        }
+        let Some(root) = LegacyStateMemberMutateCollector::root_of_simple_target(&expr.argument)
         else {
             return;
         };
@@ -694,9 +825,14 @@ impl<'a, 'b> LegacyStateMemberMutateRewriter<'a, 'b> {
             && dollar.name.as_str() == "$"
             && let Argument::Identifier(arg0) = &call.arguments[0]
             && self.is_eligible(arg0.name.as_str())
-            && let Argument::AssignmentExpression(inner) = &call.arguments[1]
         {
-            self.skip_assignment_spans.push(inner.span);
+            match &call.arguments[1] {
+                Argument::AssignmentExpression(inner) => {
+                    self.skip_assignment_spans.push(inner.span);
+                }
+                Argument::UpdateExpression(inner) => self.skip_update_spans.push(inner.span),
+                _ => {}
+            }
         }
     }
 
@@ -726,6 +862,34 @@ impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for LegacyStateMemberMutateRewriter<'a,
         // that encloses it, which is what the splice path's `innermost_only`
         // plus fixed-point loop was reaching for.
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
+
+        if let Expression::UpdateExpression(update) = &*expr {
+            if self.skip_update_spans.contains(&update.span) || !self.targets.contains(&update.span)
+            {
+                return;
+            }
+            let Some(root) =
+                LegacyStateMemberMutateCollector::root_of_simple_target(&update.argument)
+            else {
+                return;
+            };
+            let root = root.name.as_str();
+            if !self.is_eligible(root) {
+                return;
+            }
+            let root = root.to_string();
+            let taken = std::mem::replace(expr, self.b.void0());
+            let mutate = self.b.call("$.mutate", vec![self.b.id(&root), taken]);
+            *expr = match self.invalidate_bodies.get(&root) {
+                Some(body) if !body.is_empty() => match self.invalidate_call(body) {
+                    Some(invalidate) => self.b.sequence(vec![mutate, invalidate]),
+                    None => mutate,
+                },
+                _ => mutate,
+            };
+            self.changed = true;
+            return;
+        }
 
         let Expression::AssignmentExpression(assign) = &*expr else {
             return;

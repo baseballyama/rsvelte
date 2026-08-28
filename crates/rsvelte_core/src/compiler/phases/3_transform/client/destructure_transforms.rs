@@ -1665,6 +1665,8 @@ pub(super) fn generate_destructure_iife(
 /// Detects patterns at any nesting level (including inside function bodies) like:
 /// - `var.prop = expr` -> `$.mutate(var, var.prop = expr)`
 /// - `var[idx] = expr` -> `$.mutate(var, var[idx] = expr)`
+/// - `var.prop++` -> `$.mutate(var, var.prop++)`
+/// - `--var[idx]` -> `$.mutate(var, --var[idx])`
 ///
 /// Only applies when the base of the member expression is a state variable in
 /// non-runes (legacy) mode.
@@ -1683,8 +1685,8 @@ pub(super) fn transform_member_mutations<'a>(
         return Cow::Borrowed(line);
     }
 
-    // AST-based pre-pass for `obj.prop = rhs` (legacy state member
-    // mutations). When the AST helper has rewritten, skip the text
+    // AST-based pre-pass for assignments and updates of legacy state members.
+    // When the AST helper has rewritten, skip the text
     // loop below — the AST is a complete replacement, and its
     // idempotency mechanism uses `visit_call_expression` wrap
     // detection (the text loop's `before.ends_with` guard is

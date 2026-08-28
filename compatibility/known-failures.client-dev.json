@@ -23,7 +23,6 @@
 	"carbon-components-svelte/src/Notification/NotificationQueue.svelte",
 	"carbon-components-svelte/src/PaginationNav/PaginationOverflow.svelte",
 	"carbon-components-svelte/src/TextInput/TextInput.svelte",
-	"carbon-components-svelte/tests/Checkbox/CheckboxGroupEvents.test.svelte",
 	"chatgpt-web/src/lib/ChatCompletionResponse.svelte",
 	"chatgpt-web/src/lib/Home.svelte",
 	"cpi-ide/src/routes/[id]/USACOJudgePane.svelte",
