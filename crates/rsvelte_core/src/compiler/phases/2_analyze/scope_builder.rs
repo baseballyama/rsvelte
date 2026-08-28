@@ -3629,7 +3629,7 @@ impl<'a> ScopeBuilder<'a> {
         // Declare the item binding(s) - handle destructuring patterns
         if let Some(context) = block.context.as_ref() {
             let context_node = context.as_node();
-            if let JsNode::Identifier { name, .. } = &context_node
+            if let JsNode::Identifier { name, .. } = context_node.as_ref()
                 && (name.as_str() == "$state" || name.as_str() == "$derived")
             {
                 // Upstream reports this against the entire EachBlock, not the
@@ -3639,7 +3639,7 @@ impl<'a> ScopeBuilder<'a> {
                     .push(super::errors::state_invalid_placement(name).at(block.start, block.end));
             } else {
                 self.declare_bindings_from_pattern_node(
-                    &context_node,
+                    context_node.as_ref(),
                     BindingKind::EachItem,
                     false,
                 );

@@ -216,10 +216,8 @@ fn type_import_value_redeclaration(program: &Program<'_>) -> Option<(u32, String
     for statement in &program.body {
         match statement {
             Statement::ImportDeclaration(import) => collect_import_bindings(import, &mut events),
-            Statement::ExportNamedDeclaration(export) => {
-                if let Some(declaration) = &export.declaration {
-                    collect_value_declaration(declaration, &mut events);
-                }
+            Statement::ExportDeclaration(export) => {
+                collect_value_declaration(&export.declaration, &mut events);
             }
             Statement::ExportDefaultDeclaration(export) => match &export.declaration {
                 ExportDefaultDeclarationKind::FunctionDeclaration(function) => {

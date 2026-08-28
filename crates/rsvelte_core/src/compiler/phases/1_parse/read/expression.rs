@@ -13987,7 +13987,8 @@ mod tests {
             false,
         )
         .expect("arrow should parse");
-        let JsNode::ArrowFunctionExpression { body, .. } = arrow.as_node().as_ref() else {
+        let arrow_node = arrow.as_node();
+        let JsNode::ArrowFunctionExpression { body, .. } = arrow_node.as_ref() else {
             panic!("expected an arrow");
         };
         assert_leading_string_statements(&arrow_arena, arrow_arena.get_js_node(*body));
@@ -14009,7 +14010,8 @@ mod tests {
             },
         );
         assert!(error.is_none());
-        let JsNode::Program { body, .. } = program.as_node().as_ref() else {
+        let program_node = program.as_node();
+        let JsNode::Program { body, .. } = program_node.as_ref() else {
             panic!("expected a program");
         };
         let [

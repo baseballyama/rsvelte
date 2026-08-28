@@ -647,8 +647,10 @@ pub(crate) fn analyze_prepared_component_with_retained(
                         if !is_in_module_scope_or_hoisted(name, &analysis) {
                             // Not in module scope - check if it's a snippet
                             if analysis.template.snippets.contains(name) {
-                                return Err(errors::snippet_invalid_export()
-                                    .at(specifier.start(), specifier.end()));
+                                return Err(errors::snippet_invalid_export().at(
+                                    specifier.start().expect("export specifier has a start"),
+                                    specifier.end().expect("export specifier has an end"),
+                                ));
                             }
                             // If not a snippet and not in any scope at all, export_undefined
                             // is already raised by the export_named_declaration visitor.
