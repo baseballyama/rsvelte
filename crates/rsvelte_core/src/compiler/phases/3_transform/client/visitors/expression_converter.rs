@@ -741,7 +741,16 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 // before removing the wrapper so its identifier remains the
                 // source carrier inside `foo().bar`.
                 let object_node = pa.get_js_node(*object);
-                let converted = convert_js_node(object_node, context);
+                let mut converted = convert_js_node(object_node, context);
+                // A ChainExpression normally stays transparent because several
+                // downstream transforms walk expression variants directly. It
+                // must be materialized in this one parent position, however:
+                // `(a?.b).c` and `a?.b.c` have different short-circuit bounds.
+                if matches!(object_node, JsNode::ChainExpression { .. }) {
+                    converted = JsExpr::Chain(JsChainExpression {
+                        expression: context.arena.alloc_expr(converted),
+                    });
+                }
                 let is_spanned_identifier = matches!(
                     &converted,
                     JsExpr::Spanned(inner, _, _)
@@ -822,7 +831,13 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             };
 
             let conv_callee = {
-                let __tmp = convert_js_node(pa.get_js_node(*callee), context);
+                let callee_node = pa.get_js_node(*callee);
+                let mut __tmp = convert_js_node(callee_node, context);
+                if matches!(callee_node, JsNode::ChainExpression { .. }) {
+                    __tmp = JsExpr::Chain(JsChainExpression {
+                        expression: context.arena.alloc_expr(__tmp),
+                    });
+                }
                 context.arena.alloc_expr(__tmp)
             };
             let conv_arguments: Vec<JsExpr> = arg_children
@@ -846,7 +861,13 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             callee, arguments, ..
         } => {
             let conv_callee = {
-                let __tmp = convert_js_node(pa.get_js_node(*callee), context);
+                let callee_node = pa.get_js_node(*callee);
+                let mut __tmp = convert_js_node(callee_node, context);
+                if matches!(callee_node, JsNode::ChainExpression { .. }) {
+                    __tmp = JsExpr::Chain(JsChainExpression {
+                        expression: context.arena.alloc_expr(__tmp),
+                    });
+                }
                 context.arena.alloc_expr(__tmp)
             };
             let arg_children: Vec<&JsNode> = pa.get_js_children(*arguments).iter().collect();
@@ -1845,6 +1866,24 @@ fn convert_literal(
     }
 }
 
+/// Convert an expression in a parent position where an optional-chain boundary
+/// is semantically observable. ChainExpression stays transparent elsewhere so
+/// existing variant-based transforms can continue walking member roots.
+fn convert_json_chain_boundary(value: &Value, context: &mut ComponentContext) -> ExprId {
+    let is_chain = value
+        .as_object()
+        .and_then(|obj| obj.get("type"))
+        .and_then(Value::as_str)
+        == Some("ChainExpression");
+    let mut converted = convert_json_value(value, context);
+    if is_chain {
+        converted = JsExpr::Chain(JsChainExpression {
+            expression: context.arena.alloc_expr(converted),
+        });
+    }
+    context.arena.alloc_expr(converted)
+}
+
 /// Convert a MemberExpression node.
 ///
 /// This also handles:
@@ -1976,10 +2015,7 @@ fn convert_member_expression(
 
     let object = {
         obj.get("object")
-            .map(|o| {
-                let __tmp = convert_json_value(o, context);
-                context.arena.alloc_expr(__tmp)
-            })
+            .map(|o| convert_json_chain_boundary(o, context))
             .unwrap_or_else(|| {
                 context
                     .arena
@@ -2056,10 +2092,7 @@ fn convert_call_expression(
     if let Some(method) = console_method {
         let callee = obj
             .get("callee")
-            .map(|c| {
-                let __tmp = convert_json_value(c, context);
-                context.arena.alloc_expr(__tmp)
-            })
+            .map(|c| convert_json_chain_boundary(c, context))
             .unwrap_or_else(|| {
                 context
                     .arena
@@ -2079,10 +2112,7 @@ fn convert_call_expression(
 
     let callee = obj
         .get("callee")
-        .map(|c| {
-            let __tmp = convert_json_value(c, context);
-            context.arena.alloc_expr(__tmp)
-        })
+        .map(|c| convert_json_chain_boundary(c, context))
         .unwrap_or_else(|| {
             context
                 .arena
@@ -7134,10 +7164,7 @@ fn convert_new_expression(
 ) -> JsExpr {
     let callee = obj
         .get("callee")
-        .map(|c| {
-            let __tmp = convert_json_value(c, context);
-            context.arena.alloc_expr(__tmp)
-        })
+        .map(|c| convert_json_chain_boundary(c, context))
         .unwrap_or_else(|| {
             context
                 .arena

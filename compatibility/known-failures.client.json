@@ -52,8 +52,6 @@
 	"chatgpt-web/src/lib/Home.svelte",
 	"cobalt/web/src/components/subnav/PageNav.svelte",
 	"cobalt/web/src/routes/updates/+page.svelte",
-	"edra/src/lib/edra/headless/drag-handle.svelte",
-	"edra/src/lib/edra/shadcn/drag-handle.svelte",
 	"gitlight/src/lib/components/common/ScrollbarContainer.svelte",
 	"gitlight/src/lib/components/dashboard/notifications/NotificationLabels.svelte",
 	"gitlight/src/lib/components/dashboard/sidebar/TypeFilters.svelte",

@@ -1933,6 +1933,9 @@ mod tests {
         assert_rt("async () => await f();", "async () => await f();");
         assert_rt("a?.b;", "a?.b;");
         assert_rt("a?.b();", "a?.b();");
+        assert_rt("(a?.b).c;", "(a?.b).c;");
+        assert_rt("(a?.b)();", "(a?.b)();");
+        assert_rt("new (a?.b)();", "new (a?.b)();");
         assert_rt("[...a, b];", "[...a, b];");
     }
 

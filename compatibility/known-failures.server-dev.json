@@ -9,8 +9,6 @@
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"chatgpt-web/src/lib/Home.svelte",
-	"edra/src/lib/edra/headless/drag-handle.svelte",
-	"edra/src/lib/edra/shadcn/drag-handle.svelte",
 	"flare/src/lib/views/grid.svelte.ts",
 	"gitlight/src/lib/components/common/ScrollbarContainer.svelte",
 	"gitlight/src/routes/+page.svelte",

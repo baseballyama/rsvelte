@@ -1503,6 +1503,9 @@ fn peel_ts_wrappers<'a>(
 /// `() => ({ a })`, not become `() => { a }`. esrap re-adds these parens when it
 /// prints from the AST; the text-splice path here has no parent context, so it
 /// keeps the parens (redundant ones are absorbed by downstream normalization).
+/// A `ChainExpression` is deliberately excluded too: in `(a?.b as T).c` the
+/// parens close the optional chain, so dropping them changes whether `.c`
+/// short-circuits.
 fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
     use oxc_ast::ast::Expression as E;
     matches!(
@@ -1522,7 +1525,6 @@ fn is_paren_safe_to_drop(expr: &oxc_ast::ast::Expression) -> bool {
             | E::ParenthesizedExpression(_)
             | E::CallExpression(_)
             | E::NewExpression(_)
-            | E::ChainExpression(_)
             | E::ComputedMemberExpression(_)
             | E::StaticMemberExpression(_)
             | E::PrivateFieldExpression(_)
@@ -2509,6 +2511,20 @@ count! += 1;
         assert_eq!(
             strip_typescript("function g(p?: string, q: string) {}\n"),
             "function g(p, q) {}\n"
+        );
+    }
+
+    #[test]
+    fn type_assertion_keeps_optional_chain_boundary_parens() {
+        assert_eq!(
+            strip_typescript(
+                "const node = first || (editor?.state.selection as NodeSelection).node;\n\
+                 const call = (editor?.method as Method)();\n\
+                 const made = new (editor?.Constructor as Constructor)();\n"
+            ),
+            "const node = first || (editor?.state.selection).node;\n\
+             const call = (editor?.method)();\n\
+             const made = new (editor?.Constructor)();\n"
         );
     }
 
