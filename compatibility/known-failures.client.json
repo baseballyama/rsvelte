@@ -1,8 +1,5 @@
 [
 	"adventurelog/frontend/src/lib/components/StravaActivityCard.svelte",
-	"adventurelog/frontend/src/lib/components/locations/LocationVisits.svelte",
-	"adventurelog/frontend/src/lib/components/lodging/LodgingDetails.svelte",
-	"adventurelog/frontend/src/lib/components/transportation/TransportationDetails.svelte",
 	"adventurelog/frontend/src/routes/calendar/+page.svelte",
 	"adventurelog/frontend/src/routes/collections/[id]/+page.svelte",
 	"adventurelog/frontend/src/routes/dashboard/+page.svelte",
