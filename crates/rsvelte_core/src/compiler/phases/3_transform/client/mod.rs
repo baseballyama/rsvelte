@@ -7391,7 +7391,7 @@ fn transform_instance_script_for_visitors(
     // After collection, these are topologically sorted by dependencies before emission.
     let mut pending_reactive_statements: Vec<(Vec<String>, Vec<String>, String)> = Vec::new();
     // Source-ordinal counter for top-level `$:` statements, aligning each with its
-    // Phase-2 `reactive_statement_dependencies` entry.
+    // Phase-2 typed metadata entry.
     let mut reactive_stmt_ordinal: usize = 0;
 
     // Track if we're inside a multi-line export block
@@ -7445,24 +7445,17 @@ fn transform_instance_script_for_visitors(
             let _reactive_start = super::profile::timer_start();
             let _reactive_guard = super::profile::ReactiveStmtGuard(_reactive_start);
             drop_trailing_svelte_ignore(result);
-            // AST-derived ordered dependency names for THIS top-level `$:` statement
-            // (Phase 2, source-ordinal aligned). Both phases count top-level `$:`
-            // in source order, so the ordinal stays in sync.
-            let dep_names: &[String] = analysis
-                .reactive_statement_dependencies
-                .get(*reactive_ordinal)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]);
+            // AST-derived assignment and dependency names for THIS top-level
+            // `$:` statement (Phase 2, source-ordinal aligned). Both sides of
+            // the topology graph must come from the same traversal: the old
+            // assignment text scan could not see a nested destructuring target
+            // such as `$: if (x) { ;[[mode]] = config }`, so a statement that
+            // depended on `mode` could be emitted before its assigner.
+            let metadata = analysis.legacy_reactive_statements.get(*reactive_ordinal);
+            let dep_names: &[String] = metadata.map(|m| m.dependencies.as_slice()).unwrap_or(&[]);
+            let assigned_vars = metadata.map(|m| m.assignments.clone()).unwrap_or_default();
             *reactive_ordinal += 1;
-            // Assignment targets still decide the topological graph, but its
-            // dependency side was already collected by Phase 2 from the typed AST.
             let _rs_deps_start = super::profile::timer_start();
-            let assigned_vars = extract_reactive_statement_assignments(
-                &statement,
-                state_vars,
-                prop_assignment_transform_vars,
-                store_sub_vars,
-            );
             let dep_vars = dep_names.to_vec();
             super::profile::record_rs_deps(super::profile::timer_elapsed(_rs_deps_start));
             let _rs_body_start = super::profile::timer_start();
