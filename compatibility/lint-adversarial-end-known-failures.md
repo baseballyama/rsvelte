@@ -1,4 +1,4 @@
-# lint-adversarial-end-known-failures.json — why entries are accepted
+# lint-adversarial-end-known-failures.json — history and invariant
 
 `scripts/compat-corpus/lint-adversarial-end.mjs` compares, for every finding
 whose full `(ruleId, line, column, message)` key **already matches** on both
@@ -11,21 +11,17 @@ because an entry listed for one suppresses everything about that entry.
 Entry format: `<pattern>|<ruleId> <start>\t<oracle end>\t<rsvelte end>`.
 
 The first run reported **670 divergences over 4611 compared findings across 20
-rules**. All but the accepted shape below were fixed, and in every case the cause
+rules**. Every divergence is now fixed, and in every ranged case the cause
 was one wrong `ctx.report` argument rather than many separate bugs — four rules
 were passing `end == start`, i.e. a zero-width range, which alone accounted for
 73 rows.
 
-**The expectation is that every entry in this file is of one shape**, described
-next. `lint-adversarial-end-known-failures.json` currently holds 12 entries over
-5519 compared findings; it was at 7
-before ~290 patterns were added, and the growth is the coupling this file's last
-section describes rather than a regression — 5 of the new patterns reach
-`experimental-require-slot-types`, whose report has no upstream end at all.
-Judge this ratchet by whether every entry is the accepted shape, not by its
-count.
+`lint-adversarial-end-known-failures.json` currently holds **0 entries** over
+5519 compared findings. It briefly grew from 7 to 12 when ~290 patterns made
+five more `experimental-require-slot-types` findings comparable; the last
+section explains why fixing the report gate can expose new end comparisons.
 
-## The one accepted shape: upstream has no end at all
+## The last shape closed: upstream has no end at all
 
 ESLint omits `endLine` / `endColumn` entirely when a rule reports a bare
 position (`loc: { line, column }`) instead of a node. Two rules do that:
@@ -44,11 +40,12 @@ condition that arm tests. Neither an HTML comment nor a CSS comment is picked up
 (measured). The arm was checked by hand instead, driving both sides with an
 explicit config: both report at 1:2 with the same message.
 
-`rsvelte_diagnostics::Range` has no way to express an absent end, and giving it
-one would change a type `svelte-check` and the language server share, where a
-diagnostic without an end is meaningless. The gate compares these as the literal
-string `null` rather than skipping them, so an accidental change to the end
-rsvelte invents is still caught.
+The shared `rsvelte_diagnostics::Range` remains unchanged: internal consumers,
+fixes and the language server still receive a concrete range. Lint findings now
+carry separate `omit_end` metadata. The SARIF and engine JSON compatibility
+encoders use it to omit `endLine` / `endColumn`, while consumers that need a
+range fall back to the start. This represents upstream's bare location without
+weakening the shared diagnostic model.
 
 ## Reading this gate next to gate 28
 

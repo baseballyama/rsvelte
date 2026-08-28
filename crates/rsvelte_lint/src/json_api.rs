@@ -27,8 +27,8 @@ struct Entry {
     severity: &'static str,
     line: u32,
     column: u32,
-    end_line: u32,
-    end_column: u32,
+    end_line: Option<u32>,
+    end_column: Option<u32>,
     code: String,
     message: String,
 }
@@ -59,7 +59,7 @@ fn compile_error_code(e: &CompileError) -> String {
 /// Lint source into JSON diagnostics.
 ///
 /// Lint `source`, returning a JSON array of diagnostics:
-/// `[{ "severity", "line", "column", "endLine", "endColumn", "code", "message" }]`.
+/// `[{ "severity", "line", "column", "endLine"?, "endColumn"?, "code", "message" }]`.
 /// Lines are 1-indexed, columns 0-indexed (UTF-16), matching `rsvelte check`.
 #[must_use]
 pub fn lint(source: &str, filename: &str) -> String {
@@ -115,8 +115,8 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
                     severity: sev_str(sev),
                     line: l,
                     column: c,
-                    end_line: el,
-                    end_column: ec,
+                    end_line: Some(el),
+                    end_column: Some(ec),
                     code: w.code,
                     message: w.message,
                 });
@@ -126,8 +126,8 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
             severity: "error",
             line: 1,
             column: 0,
-            end_line: 1,
-            end_column: 0,
+            end_line: Some(1),
+            end_column: Some(0),
             code: compile_error_code(&e),
             message: format!("{e}"),
         }),
@@ -147,8 +147,8 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
             severity: sev_str(d.severity),
             line: l,
             column: c,
-            end_line: el,
-            end_column: ec,
+            end_line: (!d.omit_end).then_some(el),
+            end_column: (!d.omit_end).then_some(ec),
             code: d.rule,
             message: d.message,
         });
@@ -158,15 +158,20 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
     let arr: Vec<_> = entries
         .into_iter()
         .map(|e| {
-            json!({
+            let mut value = json!({
                 "severity": e.severity,
                 "line": e.line,
                 "column": e.column,
-                "endLine": e.end_line,
-                "endColumn": e.end_column,
                 "code": e.code,
                 "message": e.message,
-            })
+            });
+            if let Some(end_line) = e.end_line {
+                value["endLine"] = json!(end_line);
+            }
+            if let Some(end_column) = e.end_column {
+                value["endColumn"] = json!(end_column);
+            }
+            value
         })
         .collect();
     serde_json::to_string(&arr).unwrap_or_else(|_| "[]".to_string())
@@ -279,6 +284,29 @@ mod tests {
             r#"{ "rules": { "svelte/no-at-html-tags": "off" } }"#,
         );
         assert!(!codes(&json).iter().any(|c| c == "svelte/no-at-html-tags"));
+    }
+
+    #[test]
+    fn a_bare_upstream_location_omits_its_end() {
+        let json = lint_with_config(
+            "<div />",
+            "App.svelte",
+            r#"{
+                "extends": ["none"],
+                "rules": {
+                    "svelte/block-lang": ["warn", { "enforceStylePresent": true }]
+                }
+            }"#,
+        );
+        let entries: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+        let entry = entries
+            .iter()
+            .find(|entry| entry["code"] == "svelte/block-lang")
+            .expect("block-lang finding");
+        assert_eq!(entry["line"], 1);
+        assert_eq!(entry["column"], 1);
+        assert!(entry.get("endLine").is_none());
+        assert!(entry.get("endColumn").is_none());
     }
 
     #[test]

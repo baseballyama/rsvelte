@@ -111,6 +111,7 @@ pub fn render_messages(
                 .map(|m| Payload {
                     fix: m.fix.as_ref(),
                     suggestions: &m.suggestions,
+                    omit_end: m.omit_end,
                 })
                 .collect();
             let refs: Vec<Option<&Payload>> = payloads.iter().map(Some).collect();
@@ -145,6 +146,7 @@ pub fn write_sarif(
 pub struct Payload<'a> {
     pub fix: Option<&'a crate::diagnostic::Fix>,
     pub suggestions: &'a [crate::diagnostic::Suggestion],
+    pub omit_end: bool,
 }
 
 fn edits_json(fix: &crate::diagnostic::Fix) -> Value {
@@ -220,12 +222,15 @@ fn sarif_result(d: &Diagnostic, payload: Option<&Payload>, workspace_root: &Path
     if let Some(r) = d.range {
         // SARIF lines and columns are both 1-indexed. Our lines are already
         // 1-indexed; columns are 0-indexed → +1.
-        location["physicalLocation"]["region"] = json!({
+        let mut region = json!({
             "startLine": r.start.line.max(1),
             "startColumn": r.start.column + 1,
-            "endLine": r.end.line.max(1),
-            "endColumn": r.end.column + 1,
         });
+        if !payload.is_some_and(|p| p.omit_end) {
+            region["endLine"] = json!(r.end.line.max(1));
+            region["endColumn"] = json!(r.end.column + 1);
+        }
+        location["physicalLocation"]["region"] = region;
     }
 
     let mut result = json!({
@@ -303,6 +308,32 @@ mod tests {
         let v: Value = serde_json::from_str(&out).unwrap();
         let rules = v["runs"][0]["tool"]["driver"]["rules"].as_array().unwrap();
         assert!(rules.iter().any(|r| r["id"] == "svelte/no-at-html-tags"));
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn sarif_omits_end_for_a_bare_upstream_location() {
+        let message = crate::diagnostic::LintMessage {
+            diagnostic: diag(),
+            span: None,
+            omit_end: true,
+            help: None,
+            fix: None,
+            suggestions: Vec::new(),
+        };
+        let out = render_messages(
+            &[message],
+            Path::new("/work"),
+            1,
+            LintFormat::Sarif,
+            "0.1.0",
+        );
+        let v: Value = serde_json::from_str(&out).unwrap();
+        let region = &v["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"];
+        assert_eq!(region["startLine"], 5);
+        assert_eq!(region["startColumn"], 4);
+        assert!(region.get("endLine").is_none());
+        assert!(region.get("endColumn").is_none());
     }
 
     #[test]

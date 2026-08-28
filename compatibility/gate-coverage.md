@@ -3036,14 +3036,15 @@ here**, as previously-unmatched findings become comparable. A count that grows a
 is expected, not a regression — and a count that shrinks because a finding *stopped* being
 reported is a gate-28 regression wearing this gate's clothes.
 
-### Blind spot 31b — `null` is compared as a value, and rsvelte cannot produce it — **[D]**
+### Closed 31b — `null` is compared as a value, and lint output can represent it — **[D]**
 
 ESLint omits `endLine`/`endColumn` entirely when a rule reports a bare position (`loc: {line,
-column}`). `rsvelte_diagnostics::Range` has no way to express an absent end, and adding one would
-change a type svelte-check and the language server share, so 7 findings (5
-`experimental-require-slot-types`, 2 `block-lang`) are structurally unfixable and ratcheted. The
-gate compares them rather than skipping them, so an accidental change of the invented end is
-still caught.
+column}`). `rsvelte_diagnostics::Range` still requires an end because svelte-check and the
+language server need a concrete range; lint findings carry separate `omit_end` metadata, and the
+SARIF / engine-JSON compatibility encoders omit the two fields when it is set. That closed the
+12 residual `experimental-require-slot-types` / `block-lang` rows without weakening the shared
+type. The gate continues comparing `null` rather than skipping it, so the representation stays
+pinned.
 
 ### Blind spot 31c — no message-independent identity, so a message change hides an end change — **[S]**
 

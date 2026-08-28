@@ -48,7 +48,11 @@ function analyze(fullSource, filename) {
 	const byKey = new Map();
 	for (const d of lintSource(fullSource, filename)) {
 		const startOffset = offsetOf(starts, d.line, d.column);
-		const endOffset = offsetOf(starts, d.endLine, d.endColumn);
+		const endOffset = offsetOf(
+			starts,
+			d.endLine ?? d.line,
+			d.endColumn ?? d.column,
+		);
 		const key = ruleKey(d.code);
 		let list = byKey.get(key);
 		if (!list) byKey.set(key, (list = []));

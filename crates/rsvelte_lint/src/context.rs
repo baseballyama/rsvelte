@@ -244,7 +244,7 @@ impl<'a> LintContext<'a> {
 
     /// Report a finding spanning `[start, end)` (UTF-8 byte offsets).
     pub fn report(&mut self, start: u32, end: u32, message: impl Into<String>) {
-        self.push(start, end, message.into(), None, None, Vec::new());
+        self.push(start, end, message.into(), false, None, None, Vec::new());
     }
 
     /// Report with an attached `help:` note.
@@ -259,6 +259,7 @@ impl<'a> LintContext<'a> {
             start,
             end,
             message.into(),
+            false,
             Some(help.into()),
             None,
             Vec::new(),
@@ -267,7 +268,15 @@ impl<'a> LintContext<'a> {
 
     /// Report with an autofix.
     pub fn report_with_fix(&mut self, start: u32, end: u32, message: impl Into<String>, fix: Fix) {
-        self.push(start, end, message.into(), None, Some(fix), Vec::new());
+        self.push(
+            start,
+            end,
+            message.into(),
+            false,
+            None,
+            Some(fix),
+            Vec::new(),
+        );
     }
 
     /// Report with editor suggestions (code actions never applied by `--fix`).
@@ -280,7 +289,19 @@ impl<'a> LintContext<'a> {
         message: impl Into<String>,
         suggestions: Vec<Suggestion>,
     ) {
-        self.push(start, end, message.into(), None, None, suggestions);
+        self.push(start, end, message.into(), false, None, None, suggestions);
+    }
+
+    /// Report with suggestions when upstream exposes only the start location.
+    /// `end` remains available to fixes and internal range consumers.
+    pub fn report_without_end_with_suggestions(
+        &mut self,
+        start: u32,
+        end: u32,
+        message: impl Into<String>,
+        suggestions: Vec<Suggestion>,
+    ) {
+        self.push(start, end, message.into(), true, None, None, suggestions);
     }
 
     fn push(
@@ -288,6 +309,7 @@ impl<'a> LintContext<'a> {
         start: u32,
         end: u32,
         message: String,
+        omit_end: bool,
         help: Option<String>,
         fix: Option<Fix>,
         suggestions: Vec<Suggestion>,
@@ -298,6 +320,7 @@ impl<'a> LintContext<'a> {
             message,
             start,
             end,
+            omit_end,
             help,
             fix,
             suggestions,

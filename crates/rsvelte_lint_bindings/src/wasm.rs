@@ -13,7 +13,7 @@
 use wasm_bindgen::prelude::*;
 
 /// Lint `source`, returning a JSON array of diagnostics:
-/// `[{ "severity", "line", "column", "endLine", "endColumn", "code", "message" }]`.
+/// `[{ "severity", "line", "column", "endLine"?, "endColumn"?, "code", "message" }]`.
 /// Lines are 1-indexed, columns 0-indexed (UTF-16), matching `rsvelte check`.
 #[wasm_bindgen]
 #[must_use]

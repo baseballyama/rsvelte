@@ -75,6 +75,10 @@ pub struct LintDiagnostic {
     pub start: u32,
     /// Exclusive-end byte offset.
     pub end: u32,
+    /// Upstream reported a bare location rather than a range. Keep `end` for
+    /// internal consumers that require a concrete span, but omit it from
+    /// compatibility output formats.
+    pub omit_end: bool,
     pub help: Option<String>,
     pub fix: Option<Fix>,
     /// Editor-offered suggestions (never auto-applied). Empty for most findings.
@@ -97,6 +101,8 @@ pub struct LintMessage {
     pub diagnostic: Diagnostic,
     /// `(start, end)` UTF-8 byte offsets; `None` for validator-wrap findings.
     pub span: Option<(u32, u32)>,
+    /// Whether compatibility output formats must omit the range end.
+    pub omit_end: bool,
     pub help: Option<String>,
     /// The `--fix` autofix, when the rule offers one.
     pub fix: Option<Fix>,
@@ -119,6 +125,7 @@ impl LintMessage {
         Self {
             diagnostic: d.to_output(file, line_index),
             span: Some((d.start, d.end)),
+            omit_end: d.omit_end,
             help: d.help,
             fix: d.fix,
             suggestions: d.suggestions,
@@ -132,6 +139,20 @@ impl LintMessage {
         Self {
             diagnostic,
             span: None,
+            omit_end: false,
+            help: None,
+            fix: None,
+            suggestions: Vec::new(),
+        }
+    }
+
+    /// Wrap a diagnostic whose upstream rule reports only a start location.
+    #[must_use]
+    pub const fn from_diagnostic_without_end(diagnostic: Diagnostic) -> Self {
+        Self {
+            diagnostic,
+            span: None,
+            omit_end: true,
             help: None,
             fix: None,
             suggestions: Vec::new(),

@@ -394,7 +394,7 @@ impl Rule for BlockLang {
             );
             // Suggestions: only when allowed langs include non-null values.
             let suggestions = build_enforce_script_suggestions(&allowed_script);
-            ctx.report_with_suggestions(1, 2, msg, suggestions);
+            ctx.report_without_end_with_suggestions(1, 2, msg, suggestions);
         }
 
         // Check each script block's lang.
@@ -426,7 +426,7 @@ impl Rule for BlockLang {
                 pretty_print_langs(&allowed_style)
             );
             let suggestions = build_enforce_style_suggestions(&allowed_style, &source);
-            ctx.report_with_suggestions(1, 2, msg, suggestions);
+            ctx.report_without_end_with_suggestions(1, 2, msg, suggestions);
         }
 
         if let Some(css) = css {

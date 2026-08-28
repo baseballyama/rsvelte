@@ -72,8 +72,8 @@ export interface LintDiagnostic {
 	line: number;
 	/** 0-indexed (UTF-16) column. */
 	column: number;
-	endLine: number;
-	endColumn: number;
+	endLine?: number;
+	endColumn?: number;
 	/** Rule id or compiler code, e.g. `svelte/no-at-html-tags` or `a11y_missing_attribute`. */
 	code: string;
 	message: string;

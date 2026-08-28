@@ -55,7 +55,7 @@ export const engineKind = kind;
  *
  * @param {string} source Full component source (markup + script + style).
  * @param {string} filename Absolute path, used for filename-aware rules.
- * @returns {Array<{severity:string,line:number,column:number,endLine:number,endColumn:number,code:string,message:string}>}
+ * @returns {Array<{severity:string,line:number,column:number,endLine?:number,endColumn?:number,code:string,message:string}>}
  */
 export function lintSource(source, filename) {
 	return JSON.parse(binding.lint(source, filename));

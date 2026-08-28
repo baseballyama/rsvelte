@@ -59,12 +59,9 @@ test("missing end falls back to start", () => {
     severity: "error",
     line: 1,
     column: 0,
-    endLine: 0,
-    endColumn: 0,
     code: "parse-error",
     message: "boom",
   });
-  // endLine 0 → falls back to entry.line (1) → 0-idx 0.
   assert.deepEqual(d.range.start, { line: 0, character: 0 });
   assert.deepEqual(d.range.end, { line: 0, character: 0 });
 });

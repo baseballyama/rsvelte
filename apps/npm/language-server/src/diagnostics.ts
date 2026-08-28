@@ -7,9 +7,10 @@
  *   { "severity": "error"|"warning", "line": 1, "column": 0,
  *     "endLine": 1, "endColumn": 5, "code": "...", "message": "..." }
  *
- * `line`/`endLine` are 1-indexed; `column`/`endColumn` are 0-indexed UTF-16
- * offsets (the same encoding LSP uses by default), so the mapping to an LSP
- * `Range` is a straight `line - 1` with `character = column`.
+ * The end fields are omitted for a bare upstream location. `line`/`endLine`
+ * are 1-indexed; `column`/`endColumn` are 0-indexed UTF-16 offsets (the same
+ * encoding LSP uses by default), so the mapping to an LSP `Range` is a straight
+ * `line - 1` with `character = column` and a start fallback for an omitted end.
  *
  * This module is deliberately free of any wasm / `vscode-languageserver`
  * runtime dependency so it can be unit-tested in isolation.
@@ -25,8 +26,8 @@ export interface LintEntry {
   severity: string;
   line: number;
   column: number;
-  endLine: number;
-  endColumn: number;
+  endLine?: number;
+  endColumn?: number;
   code: string;
   message: string;
 }

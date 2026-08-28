@@ -249,6 +249,7 @@ pub fn unused_directive_diagnostics(
                 message: c.message.clone(),
                 start: c.start,
                 end: c.end,
+                omit_end: false,
                 help: None,
                 fix: None,
                 suggestions: Vec::new(),

@@ -195,7 +195,17 @@ pub fn lint_source_messages(
                 ),
             );
 
-            diags.extend(meta.into_iter().map(LintMessage::from_diagnostic));
+            diags.extend(meta.into_iter().map(|diagnostic| {
+                if diagnostic.code.as_deref()
+                    == Some(crate::rules::experimental_require_slot_types::META.name)
+                {
+                    // Upstream reports this rule with a bare `loc`, so its
+                    // public result has a start but no end.
+                    LintMessage::from_diagnostic_without_end(diagnostic)
+                } else {
+                    LintMessage::from_diagnostic(diagnostic)
+                }
+            }));
             diags
         }
     };
