@@ -4,7 +4,6 @@
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/create/+page.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/indexes.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/varchar.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/edit.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",

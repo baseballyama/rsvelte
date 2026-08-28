@@ -1482,6 +1482,8 @@ fn collect_legacy_reactive_statement_metadata(
 }
 
 /// Extract identifier names from a pattern (LHS of assignment) for reactive cycle detection.
+/// This mirrors upstream's `extract_identifiers`: a member expression is not a
+/// binding assignment, even when its object is an identifier.
 fn cycle_extract_pattern_ids(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } => {
@@ -1489,10 +1491,6 @@ fn cycle_extract_pattern_ids(node: &JsNode, arena: &ParseArena, out: &mut Vec<St
             if !out.iter().any(|s| s == name) {
                 out.push(name.to_string());
             }
-        }
-        // For member expressions like `obj.prop`, extract the root object identifier
-        JsNode::MemberExpression { object, .. } => {
-            cycle_extract_pattern_ids(arena.get_js_node(*object), arena, out);
         }
         JsNode::ArrayPattern { elements, .. } => {
             for elem in elements.iter().flatten() {
@@ -1545,16 +1543,32 @@ impl CycleFacts {
         }
     }
 
+    fn push_assignment_name(&mut self, name: &str) {
+        if self.is_local(name) && !self.shadowed_assignments.iter().any(|item| item == name) {
+            self.shadowed_assignments.push(name.to_string());
+        }
+        if !self.assignments.iter().any(|item| item == name) {
+            self.assignments.push(name.to_string());
+        }
+    }
+
     fn push_assignment_targets(&mut self, node: &JsNode, arena: &ParseArena) {
         let mut names = Vec::new();
         cycle_extract_pattern_ids(node, arena, &mut names);
         for name in names {
-            if self.is_local(&name) && !self.shadowed_assignments.contains(&name) {
-                self.shadowed_assignments.push(name.clone());
+            self.push_assignment_name(&name);
+        }
+    }
+
+    /// Upstream treats an update expression differently from an assignment:
+    /// `object.member++` assigns the root `object` binding.
+    fn push_update_target(&mut self, node: &JsNode, arena: &ParseArena) {
+        match node {
+            JsNode::Identifier { name, .. } => self.push_assignment_name(name.as_str()),
+            JsNode::MemberExpression { object, .. } => {
+                self.push_update_target(arena.get_js_node(*object), arena);
             }
-            if !self.assignments.contains(&name) {
-                self.assignments.push(name);
-            }
+            _ => {}
         }
     }
 }
@@ -1582,7 +1596,7 @@ fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: 
         }
         // `x++` / `--x` assigns its argument.
         JsNode::UpdateExpression { argument, .. } => {
-            facts.push_assignment_targets(arena.get_js_node(*argument), arena);
+            facts.push_update_target(arena.get_js_node(*argument), arena);
         }
         JsNode::ArrowFunctionExpression { params, body, .. } => {
             cycle_walk_function(*params, Some(*body), arena, facts);
@@ -6848,6 +6862,28 @@ $: { b++; console.log(a); }
         assert_eq!(second.source_ordinal, 1);
         assert_eq!(second.assignments, ["b"]);
         assert_eq!(second.dependencies, ["b", "console", "a"]);
+    }
+
+    #[test]
+    fn legacy_reactive_member_assignment_and_update_match_upstream_bindings() {
+        let source = r#"<script>
+export let data = { size: 0, count: 0, encrypt: false };
+let size = data.size;
+$: data.size = size;
+$: if (data.encrypt && size < 150) size = 150;
+$: data.count++;
+</script>
+<p>{size}</p>"#;
+        let analysis = analyze(source);
+
+        assert_eq!(analysis.legacy_reactive_statements.len(), 3);
+        assert!(
+            analysis.legacy_reactive_statements[0]
+                .assignments
+                .is_empty()
+        );
+        assert_eq!(analysis.legacy_reactive_statements[1].assignments, ["size"]);
+        assert_eq!(analysis.legacy_reactive_statements[2].assignments, ["data"]);
     }
 
     /// A name declared INSIDE a `$:` statement shadows the instance binding it
