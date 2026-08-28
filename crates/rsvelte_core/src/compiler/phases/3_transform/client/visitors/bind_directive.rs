@@ -1904,61 +1904,6 @@ fn build_getter_setter_with_primitive(
             context,
         );
 
-        // Check if the root identifier has legacy_indirect_bindings.
-        // If so, wrap the setter in a sequence with $.invalidate_inner_signals().
-        // This corresponds to AssignmentExpression.js lines 159-173 in the official compiler.
-        let transformed_set = if !context.state.analysis.runes {
-            // Reuse the source-AST root. The converted expression can already contain a getter
-            // call, which is precisely why the assignment transform needed this name as well.
-            let root_name = original_root_name.clone();
-            if let Some(ref root_name) = root_name {
-                // Look up the binding
-                let binding = context.state.get_binding(root_name);
-                if let Some(binding) = binding {
-                    if !binding.legacy_indirect_bindings.is_empty() {
-                        // Build getter calls for each indirect binding
-                        let mut getter_stmts = Vec::new();
-                        for indirect_name in &binding.legacy_indirect_bindings {
-                            // Build the getter by looking up the transform
-                            let getter = if let Some(transform) =
-                                context.state.transform.get(indirect_name)
-                            {
-                                if let Some(read_fn) = transform.read {
-                                    read_fn(
-                                        &context.arena,
-                                        JsExpr::Identifier(indirect_name.clone().into()),
-                                    )
-                                } else {
-                                    JsExpr::Identifier(indirect_name.clone().into())
-                                }
-                            } else {
-                                JsExpr::Identifier(indirect_name.clone().into())
-                            };
-                            getter_stmts.push(b::stmt(&context.arena, getter));
-                        }
-
-                        // Build: $.invalidate_inner_signals(() => { getter1(); getter2(); ... })
-                        let invalidate_call = b::call(
-                            &context.arena,
-                            b::member_path(&context.arena, "$.invalidate_inner_signals"),
-                            vec![b::arrow_block(vec![], getter_stmts)],
-                        );
-
-                        // Wrap: (mutation, $.invalidate_inner_signals(...))
-                        b::sequence(vec![transformed_set, invalidate_call])
-                    } else {
-                        transformed_set
-                    }
-                } else {
-                    transformed_set
-                }
-            } else {
-                transformed_set
-            }
-        } else {
-            transformed_set
-        };
-
         // EachBlock's mutate transform always returns a SequenceExpression,
         // even when there are no legacy/store invalidations to append. The
         // binding path constructs its setter independently of the expression

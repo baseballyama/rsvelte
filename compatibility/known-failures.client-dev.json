@@ -147,7 +147,6 @@
 	"musicat/src/lib/views/AnalyticsView.svelte",
 	"musicat/src/lib/views/InternetArchiveView.svelte",
 	"musicat/src/lib/your-music/Scrapbook.svelte",
-	"neohtop/src/lib/components/toolbar/FilterToggle.svelte",
 	"neohtop/src/routes/+page.svelte",
 	"networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte",
 	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
