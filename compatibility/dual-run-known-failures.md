@@ -1,6 +1,6 @@
 # Dual-run known failures
 
-`dual-run-known-failures.json` holds **1 entry**.
+`dual-run-known-failures.json` holds **0 entries**.
 
 ## What this ratchet gates
 
@@ -28,38 +28,8 @@ than passing.
 
 ## Entries
 
-### `runtime-legacy/samples/store-auto-resubscribe-immediate/main.svelte` — `store_assign_ast:inplace`
-
-The fixture nests a store write inside its own initializer and hangs a trailing
-prose comment off each closing bracket:
-
-```js
-$value = {
-	one: writable(
-		$value = {
-			two: ({ $value } = { $value: { fred: $value.qux } }) // { fred: 4 }
-		} // { two: { $value: { fred: 4 } } }
-	) // { one: { two: { $value: { fred: 4 } } } }
-};
-```
-
-The two implementations emit **the same program** and attach those two outer
-comments to different nodes: the text path keeps the source's `})` / `)` split,
-the in-place path reprints `}))` and pushes the outer comment onto its own line.
-
-Measured with the repository's own comparator (`rsvelte_ast_equiv::compare_with`)
-on the two outputs plus the official compiler's, under both of its policies:
-
-| policy | in-place vs spliced | in-place vs official | spliced vs official |
-|---|---|---|---|
-| `Ignore` | equivalent | equivalent | equivalent |
-| `Meaningful` | equivalent | equivalent | equivalent |
-
-So this is **not held open by a codegen disagreement**: neither side is wrong
-about the code, and neither matches official's *bytes* either, because official
-drops all three comments at this site while both rsvelte paths keep them.
-Closing it means reproducing official's comment-position rule, which is the
-comment-preservation work tracked separately (#2336, #2399) — not something
-`store_assign_ast` can decide locally. Making the two paths merely agree with
-each other would pick one arbitrary attachment that still does not match
-official, and would retire the entry while the defect stands.
+None. The last divergence was removed by modelling the location-less arrow body
+that upstream synthesizes for a reactive destructuring assignment. That body
+exhausts esrap's comment cursor, so both store-assignment implementations now
+receive the same official-compatible comment stream instead of attaching the
+otherwise-dead comments to different generated nodes.

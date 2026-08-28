@@ -601,32 +601,32 @@ pub(crate) fn transform_client(
     let mut pre_transformed_script = if let Some(instance_script) =
         &analysis.instance_script_content
     {
-        // Drop the comments upstream's synthesized rune accessors swallow. The
-        // splice moves every later offset, so the retained parse and the
-        // TypeScript projection built against the untouched text are dropped
-        // with it.
-        let dead_comments_stripped = analysis
-            .runes
-            .then(|| {
-                match retained_scripts
-                    .and_then(|scripts| scripts.instance.as_ref())
-                    .filter(|retained| {
-                        !retained.panicked()
-                            && retained.diagnostics().is_empty()
-                            && retained.program().source_text == instance_script.raw
-                    }) {
-                    Some(retained) => dead_comments::strip_dead_comments_from_program(
-                        &instance_script.raw,
-                        retained.program(),
-                        dead_comments::Rules::ACCESSORS,
-                    ),
-                    None => dead_comments::strip_dead_comments(
-                        &instance_script.raw,
-                        dead_comments::Rules::ACCESSORS,
-                    ),
-                }
-            })
-            .flatten();
+        // Drop comments swallowed by upstream's unlocated rune accessors and
+        // reactive-destructure IIFE bodies. The splice moves every later offset,
+        // so the retained parse and the TypeScript projection built against the
+        // untouched text are dropped with it.
+        let destructure_iife_targets: Vec<String> = context
+            .state
+            .transform
+            .iter()
+            .filter_map(|(name, transform)| transform.assign.is_some().then(|| name.clone()))
+            .collect();
+        let dead_comment_rules =
+            dead_comments::Rules::component(analysis.runes, &destructure_iife_targets);
+        let dead_comments_stripped = match retained_scripts
+            .and_then(|scripts| scripts.instance.as_ref())
+            .filter(|retained| {
+                !retained.panicked()
+                    && retained.diagnostics().is_empty()
+                    && retained.program().source_text == instance_script.raw
+            }) {
+            Some(retained) => dead_comments::strip_dead_comments_from_program(
+                &instance_script.raw,
+                retained.program(),
+                dead_comment_rules,
+            ),
+            None => dead_comments::strip_dead_comments(&instance_script.raw, dead_comment_rules),
+        };
         // Every lowering below decides what a rune call is from this text, so the
         // grouping parens around one have to be gone before the first of them runs.
         let paren_stripped = super::shared::rune_parens::strip_rune_parens(

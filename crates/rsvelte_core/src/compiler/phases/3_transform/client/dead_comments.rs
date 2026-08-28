@@ -9,17 +9,18 @@
 //! rsvelte carries the same code as source text, where every body is located and the
 //! cursor never dies, so the pass has to remove what upstream drops.
 //!
-//! Two kills exist. `3-transform/client/visitors/ClassBody.js` lowers a public rune
+//! Three kills exist. `3-transform/client/visitors/ClassBody.js` lowers a public rune
 //! field into builder-made `get` / `set` methods whose `BlockStatement` has no `loc`.
-//! And the enclosing `Program` is itself builder-made for a `<script module>`, so its
-//! cursor starts dead — unlike a `.svelte.(js|ts)` module (`print_module_program`
-//! simulates the real cursor) or a component's instance script (upstream assigns
-//! `component_block.loc = instance.loc`). `Rules` selects which apply.
+//! A reactive destructuring assignment with a non-identifier RHS is lowered through a
+//! builder-made arrow-function body. And the enclosing `Program` is itself builder-made
+//! for a `<script module>`, so its cursor starts dead — unlike a `.svelte.(js|ts)` module
+//! (`print_module_program` simulates the real cursor) or a component's instance script
+//! (upstream assigns `component_block.loc = instance.loc`). `Rules` selects which apply.
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BlockStatement, ClassBody, ClassElement, Expression, FunctionBody, MethodDefinitionKind,
-    Program, PropertyKey, Statement, StaticBlock,
+    AssignmentExpression, AssignmentTarget, BlockStatement, ClassBody, ClassElement, Expression,
+    FunctionBody, MethodDefinitionKind, Program, PropertyKey, Statement, StaticBlock,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
@@ -33,21 +34,25 @@ enum Event {
     Kill,
 }
 
-/// Which of the two kills the printed program is subject to.
+/// Which cursor kills the printed program is subject to.
 #[derive(Clone, Copy)]
-pub(crate) struct Rules {
+pub(crate) struct Rules<'a> {
     /// The `Program` upstream prints is builder-made, so the cursor is already
     /// dead when the first statement is flushed.
     pub program_unlocated: bool,
     /// Runes mode, where a public rune field becomes an unlocated accessor pair.
     pub rune_accessors: bool,
+    /// Names whose assignment transform makes a destructuring assignment grow an
+    /// unlocated IIFE body. Empty outside a component instance script.
+    pub destructure_iife_targets: &'a [String],
 }
 
-impl Rules {
+impl Rules<'static> {
     /// A program upstream prints with its own `loc` — only its accessors kill.
     pub(crate) const ACCESSORS: Self = Self {
         program_unlocated: false,
         rune_accessors: true,
+        destructure_iife_targets: &[],
     };
 
     /// A `<script module>`, whose `Program` is builder-made.
@@ -55,6 +60,17 @@ impl Rules {
         Self {
             program_unlocated: true,
             rune_accessors: runes,
+            destructure_iife_targets: &[],
+        }
+    }
+}
+
+impl<'a> Rules<'a> {
+    pub(crate) const fn component(runes: bool, destructure_iife_targets: &'a [String]) -> Self {
+        Self {
+            program_unlocated: false,
+            rune_accessors: runes,
+            destructure_iife_targets,
         }
     }
 }
@@ -62,7 +78,7 @@ impl Rules {
 /// Parse `src` and drop the comments upstream's cursor never reaches. Returns
 /// `None` when nothing is removed (parse failure included), so callers keep the
 /// input untouched.
-pub(crate) fn strip_dead_comments(src: &str, rules: Rules) -> Option<String> {
+pub(crate) fn strip_dead_comments(src: &str, rules: Rules<'_>) -> Option<String> {
     if !may_have_dead_comments(src, rules) {
         return None;
     }
@@ -85,7 +101,7 @@ pub(crate) fn strip_dead_comments(src: &str, rules: Rules) -> Option<String> {
 pub(crate) fn strip_dead_comments_from_program(
     src: &str,
     program: &Program<'_>,
-    rules: Rules,
+    rules: Rules<'_>,
 ) -> Option<String> {
     debug_assert_eq!(program.source_text, src);
     if !may_have_dead_comments(src, rules) {
@@ -99,19 +115,24 @@ pub(crate) fn strip_dead_comments_from_program(
 /// Over-matching (a `class` inside a comment) only costs that parse; the pass itself
 /// reads the AST. An unlocated program kills before the first body, so no such
 /// shortcut exists for it.
-fn may_have_dead_comments(src: &str, rules: Rules) -> bool {
+fn may_have_dead_comments(src: &str, rules: Rules<'_>) -> bool {
     if rules.program_unlocated {
         return true;
     }
     let bytes = src.as_bytes();
-    memchr::memmem::find(bytes, b"class").is_some()
-        && (memchr::memmem::find(bytes, b"$state").is_some()
-            || memchr::memmem::find(bytes, b"$derived").is_some())
-        && (memchr::memmem::find(bytes, b"//").is_some()
-            || memchr::memmem::find(bytes, b"/*").is_some())
+    let has_comment = memchr::memmem::find(bytes, b"//").is_some()
+        || memchr::memmem::find(bytes, b"/*").is_some();
+    has_comment
+        && ((rules.rune_accessors
+            && memchr::memmem::find(bytes, b"class").is_some()
+            && (memchr::memmem::find(bytes, b"$state").is_some()
+                || memchr::memmem::find(bytes, b"$derived").is_some()))
+            || (!rules.destructure_iife_targets.is_empty()
+                && bytes.contains(&b'=')
+                && (bytes.contains(&b'{') || bytes.contains(&b'['))))
 }
 
-fn strip_from_program(src: &str, program: &Program<'_>, rules: Rules) -> Option<String> {
+fn strip_from_program(src: &str, program: &Program<'_>, rules: Rules<'_>) -> Option<String> {
     if program.comments.is_empty() || program.source_text != src {
         return None;
     }
@@ -119,6 +140,7 @@ fn strip_from_program(src: &str, program: &Program<'_>, rules: Rules) -> Option<
     let mut collector = EventCollector {
         events: Vec::new(),
         rune_accessors: rules.rune_accessors,
+        destructure_iife_targets: rules.destructure_iife_targets,
         src,
     };
     collector.visit_program(program);
@@ -175,6 +197,7 @@ fn strip_from_program(src: &str, program: &Program<'_>, rules: Rules) -> Option<
 struct EventCollector<'s> {
     events: Vec<(u32, Event)>,
     rune_accessors: bool,
+    destructure_iife_targets: &'s [String],
     src: &'s str,
 }
 
@@ -191,6 +214,34 @@ impl<'s> EventCollector<'s> {
 }
 
 impl<'a> Visit<'a> for EventCollector<'_> {
+    fn visit_assignment_expression(&mut self, it: &AssignmentExpression<'a>) {
+        // `visit_assignment_expression` in upstream's shared/assignments.js
+        // caches a non-identifier RHS in a generated arrow IIFE whenever at
+        // least one destructured leaf has an assignment transform. Printing
+        // that arrow's unlocated BlockStatement exhausts esrap's comment cursor
+        // before the original RHS is printed as the call argument.
+        let is_pattern = matches!(
+            &it.left,
+            AssignmentTarget::ArrayAssignmentTarget(_)
+                | AssignmentTarget::ObjectAssignmentTarget(_)
+        );
+        if is_pattern && !matches!(&it.right, Expression::Identifier(_)) {
+            let span = it.left.span();
+            let pattern = &self.src[span.start as usize..span.end as usize];
+            let transformed = super::destructure_transforms::extract_destructure_targets(pattern)
+                .iter()
+                .any(|name| {
+                    self.destructure_iife_targets
+                        .iter()
+                        .any(|target| target == name)
+                });
+            if transformed {
+                self.events.push((it.span.start, Event::Kill));
+            }
+        }
+        walk::walk_assignment_expression(self, it);
+    }
+
     fn visit_class_body(&mut self, it: &ClassBody<'a>) {
         self.events.push((it.span.start, Event::Revive));
         if self.rune_accessors
@@ -393,5 +444,32 @@ mod tests {
         assert!(legacy.contains("// kept"));
         // The same input under runes, where the field does grow an accessor.
         assert!(!strip_module(src).unwrap().contains("// kept"));
+    }
+
+    #[test]
+    fn a_reactive_destructure_iife_kills_later_comments() {
+        let targets = vec!["$value".to_string()];
+        let rules = Rules::component(false, &targets);
+        let src = "({ $value } = { $value: 1 }) // gone\n// gone too\n";
+        let out = strip_dead_comments(src, rules).unwrap();
+        assert!(!out.contains("// gone"));
+    }
+
+    #[test]
+    fn a_plain_destructure_grows_no_iife_and_keeps_comments() {
+        let targets = vec!["$value".to_string()];
+        let rules = Rules::component(false, &targets);
+        let src = "({ plain } = { plain: 1 }) // kept\n";
+        assert!(strip_dead_comments(src, rules).is_none());
+    }
+
+    #[test]
+    fn a_located_body_after_a_destructure_iife_revives_the_cursor() {
+        let targets = vec!["$value".to_string()];
+        let rules = Rules::component(false, &targets);
+        let src = "({ $value } = { $value: 1 }) // gone\nfunction f() {\n\t// kept\n}\n";
+        let out = strip_dead_comments(src, rules).unwrap();
+        assert!(!out.contains("// gone"));
+        assert!(out.contains("// kept"));
     }
 }
