@@ -656,6 +656,90 @@ fn dollar_param_body_range(
     None
 }
 
+/// The body range of an ordinary `function` whose parameter list contains the
+/// `$name` starting at `ident_start`. Unlike an arrow parameter, a typed
+/// ordinary-function parameter can be followed by `: Type`, so recognition is
+/// anchored at the enclosing parameter-list opening rather than at the token
+/// following the identifier.
+fn dollar_function_param_body_range(
+    chars: &[char],
+    ident_start: usize,
+    paren_open: Option<usize>,
+) -> Option<(usize, usize)> {
+    let len = chars.len();
+    let open = paren_open?;
+    if ident_start <= open {
+        return None;
+    }
+
+    // `function name(` / `function* name(` / `function (`. The lexical scan
+    // sees TypeScript with annotations blanked, so the same test covers typed
+    // parameters without teaching this scanner TypeScript grammar.
+    let mut k = open as isize - 1;
+    while k >= 0 && is_js_whitespace(chars[k as usize]) {
+        k -= 1;
+    }
+    let token_end = k;
+    while k >= 0 && is_identifier_char(chars[k as usize]) {
+        k -= 1;
+    }
+    if keyword_ends_at(chars, token_end, "function") {
+        k = token_end;
+    } else {
+        while k >= 0 && is_js_whitespace(chars[k as usize]) {
+            k -= 1;
+        }
+        if k >= 0 && chars[k as usize] == '*' {
+            k -= 1;
+            while k >= 0 && is_js_whitespace(chars[k as usize]) {
+                k -= 1;
+            }
+        }
+    }
+    if !keyword_ends_at(chars, k, "function") {
+        return None;
+    }
+
+    let mut paren_depth = 0usize;
+    let mut close = None;
+    for (m, c) in chars.iter().enumerate().skip(open) {
+        match c {
+            '(' => paren_depth += 1,
+            ')' => {
+                paren_depth = paren_depth.saturating_sub(1);
+                if paren_depth == 0 {
+                    close = Some(m);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut body_start = close? + 1;
+    while body_start < len && is_js_whitespace(chars[body_start]) {
+        body_start += 1;
+    }
+    if body_start >= len || chars[body_start] != '{' {
+        return None;
+    }
+
+    let mut brace_depth = 0usize;
+    for (m, c) in chars.iter().enumerate().skip(body_start) {
+        match c {
+            '{' => brace_depth += 1,
+            '}' => {
+                brace_depth = brace_depth.saturating_sub(1);
+                if brace_depth == 0 {
+                    return Some((body_start, m + 1));
+                }
+            }
+            _ => {}
+        }
+    }
+    Some((body_start, len))
+}
+
 /// The `catch (…)` parameter binding, and the range of the block it scopes.
 ///
 /// A catch parameter is a declaration slot, so upstream's `scope.references` —
@@ -1249,6 +1333,13 @@ fn collect_dollar_identifiers_pass(
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
                     let param_range = dollar_param_body_range(chars, ident_start, i)
+                        .or_else(|| {
+                            dollar_function_param_body_range(
+                                chars,
+                                ident_start,
+                                paren_stack.last().map(|(open, _, _, _)| *open),
+                            )
+                        })
                         .or_else(|| dollar_catch_param_body_range(chars, ident_start, i));
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
                         || is_dollar_ident_destructuring_declaration(chars, ident_start);
@@ -1975,6 +2066,21 @@ mod tests {
         );
     }
 
+    #[test]
+    fn ordinary_function_dollar_parameter_has_a_scoped_body_range() {
+        let source = "function compare(value, $work: Models.Row) { return $work.value; }";
+        let chars: Vec<char> = source.chars().collect();
+        let ident_start = chars.iter().position(|&c| c == '$').unwrap();
+        let paren_open = chars.iter().position(|&c| c == '(').unwrap();
+        let (body_start, body_end) =
+            dollar_function_param_body_range(&chars, ident_start, Some(paren_open))
+                .expect("ordinary function parameters must shadow inside their body");
+        assert_eq!(
+            chars[body_start..body_end].iter().collect::<String>(),
+            "{ return $work.value; }"
+        );
+    }
+
     /// The blanked text the lexical scan reads must be reachable without a third
     /// parse of a script the compiler already parsed — and the two routes must
     /// agree byte for byte, since the scan indexes into the result.
@@ -2264,6 +2370,25 @@ mod tests {
             "`$xDomain` is only a multi-line destructuring param: {order:?}"
         );
         assert!(order.contains(&"$extents_d".to_string()));
+    }
+
+    #[test]
+    fn dollar_named_parameters_are_not_outer_store_subscriptions() {
+        let source = r#"<script lang="ts">
+    let work = $state({ value: 1 });
+    function read($work: { value: number }) {
+        return $work.value;
+    }
+
+    const viewport = { update(fn: (value: { width: number }) => void) { fn({ width: 1 }); } };
+    function update() {
+        viewport.update(($viewport) => {
+            $viewport.width += read(work);
+        });
+    }
+</script>
+"#;
+        assert_eq!(store_sub_order(source), Vec::<String>::new());
     }
 
     /// A store in a ternary consequent behind a unary operator

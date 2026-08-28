@@ -473,6 +473,16 @@ impl<'a> ScopeBuilder<'a> {
     /// instance script scope, that is a `store_invalid_scoped_subscription`
     /// error per the official Svelte compiler.
     fn check_store_scoped_subscription(&mut self, store_name: &str, start: u32, end: u32) {
+        // Resolve the identifier as written before interpreting its `$` prefix.
+        // A callback parameter such as `($viewport) => $viewport.width` is an
+        // ordinary local binding even when an outer `viewport` binding exists.
+        // Upstream walks scope references, so it never treats that identifier as
+        // a store subscription in the first place.
+        let prefixed_name = format!("${store_name}");
+        if self.find_binding_in_scope_chain(&prefixed_name).is_some() {
+            return;
+        }
+
         let mut scope_idx = self.current_scope;
         loop {
             let scope = &self.scopes[scope_idx];

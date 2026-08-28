@@ -1373,7 +1373,16 @@ pub fn walk_js_expression_node(
             // Check for store scoped subscription errors
             if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
                 let store_name = &name[1..];
-                if !store_name.is_empty()
+                let resolves_to_local_prefixed_binding = context
+                    .analysis
+                    .root
+                    .get_binding(name, context.scope)
+                    .is_some_and(|idx| {
+                        context.analysis.root.bindings[idx].declaration_kind
+                            != DeclarationKind::Synthetic
+                    });
+                if !resolves_to_local_prefixed_binding
+                    && !store_name.is_empty()
                     && !super::function::is_rune(name)
                     && context.function_depth > 0
                     && let Some(&binding_idx) =

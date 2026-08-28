@@ -46,6 +46,7 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 
 | File | Issue | What it pins |
 |---|---|---|
+| `dollar-function-parameter.svelte` | corpus residue | A `$name` ordinary-function or arrow parameter resolves as that local binding even when an outer `name` binding exists. It must neither create a synthetic store subscription nor trigger `store_invalid_scoped_subscription`. |
 | `reactive-member-assignment-cycle.svelte` | corpus residue | A member assignment such as `data.size = size` does not assign the `data` binding in the legacy reactive dependency graph, avoiding a false `data ↔ size` cycle. A member update such as `data.count++` remains an assignment of the root binding, matching upstream's separate `UpdateExpression` rule. |
 | `title-memo-definedness.svelte` | corpus residue | A `<title>` template with two memoized calls keeps `?? ''` on both generated memo identifiers. Upstream tests definedness after `Memoizer.add` has replaced each call with a fresh `$N`; testing the original call instead incorrectly declares the result defined and changes the generated AST. The separate `title_call_only_memo` Rust test pins the single-expression branch. |
 | `function-body-directive.svelte` | corpus residue | A string-literal statement at the start of an arrow, function expression, or function declaration remains in the ESTree body and generated output. OXC separates these into `FunctionBody.directives`; every Phase 1 body conversion must prepend them to the ordinary statements instead of silently dropping them. |
