@@ -535,22 +535,34 @@ fn validate_rune_usage(
             let full_name = format!("{}.{}", current_rune_name, prop_name);
 
             if !is_rune(&full_name) {
+                // Upstream advances to the member's parent before reporting these
+                // errors. For the usual call shape this includes the parentheses.
+                let error_span = js_path
+                    .get(path_idx - 1)
+                    .and_then(|parent| {
+                        Some((
+                            parent.get_field_u64("start")? as u32,
+                            parent.get_field_u64("end")? as u32,
+                        ))
+                    })
+                    .unwrap_or(current_span);
+
                 // Check for renamed runes
                 if full_name == "$effect.active" {
                     return Err(errors::rune_renamed("$effect.active", "$effect.tracking")
-                        .at(current_span.0, current_span.1));
+                        .at(error_span.0, error_span.1));
                 }
 
                 if full_name == "$state.frozen" {
                     return Err(errors::rune_renamed("$state.frozen", "$state.raw")
-                        .at(current_span.0, current_span.1));
+                        .at(error_span.0, error_span.1));
                 }
 
                 if full_name == "$state.is" {
-                    return Err(errors::rune_removed("$state.is"));
+                    return Err(errors::rune_removed("$state.is").at(error_span.0, error_span.1));
                 }
 
-                return Err(errors::rune_invalid_name(&full_name));
+                return Err(errors::rune_invalid_name(&full_name).at(error_span.0, error_span.1));
             }
 
             current_rune_name = full_name;
