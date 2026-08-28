@@ -1,5 +1,4 @@
 [
 	"sparrow-app/packages/@sparrow-common/src/features/global-search/components/SearchBar/SearchBar.svelte",
-	"svelte-put/sites/docs/src/packages/popover/docs.md.svelte",
-	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte"
+	"svelte-put/sites/docs/src/packages/popover/docs.md.svelte"
 ]

@@ -7675,7 +7675,18 @@ fn acorn_binding_pattern_diagnostic(
     content: &str,
     message: &str,
     reported: usize,
+    reported_end: usize,
 ) -> Option<(usize, String)> {
+    if message == "A rest element must be last in a destructuring pattern" {
+        let at = skip_js_whitespace_and_comments(content, reported_end.min(content.len()));
+        return (content.as_bytes().get(at) == Some(&b',')).then(|| {
+            (
+                at,
+                "Comma is not permitted after the rest element".to_string(),
+            )
+        });
+    }
+
     let trimmed = content.trim_start_ws();
     if trimmed.starts_with('[')
         && let Some(rest) = message.strip_prefix("Identifier expected. '")
@@ -7705,6 +7716,35 @@ fn acorn_binding_pattern_diagnostic(
         return None;
     }
     Some((start, format!("Unexpected keyword '{word}'")))
+}
+
+/// Return the next JavaScript token boundary after whitespace and comments.
+/// Binding-pattern diagnostics use this only after an OXC-labelled AST node,
+/// so a slash here can only begin trivia or be the next token.
+fn skip_js_whitespace_and_comments(content: &str, mut at: usize) -> usize {
+    loop {
+        at += content[at..]
+            .char_indices()
+            .find_map(|(offset, ch)| {
+                (!super::super::parser::is_js_whitespace(ch)).then_some(offset)
+            })
+            .unwrap_or(content.len() - at);
+
+        let tail = &content[at..];
+        if let Some(comment) = tail.strip_prefix("/*") {
+            let Some(end) = comment.find("*/") else {
+                return content.len();
+            };
+            at += 2 + end + 2;
+        } else if tail.starts_with("//") {
+            let Some(end) = tail.find('\n') else {
+                return content.len();
+            };
+            at += end + 1;
+        } else {
+            return at;
+        }
+    }
 }
 
 /// Repair the one import-attributes spelling acorn-typescript accepts and OXC
@@ -12538,13 +12578,13 @@ pub fn parse_binding_pattern<'a>(
                 let err = &result.diagnostics[0];
                 let msg = format!("{}", err);
                 let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim_ws().to_string();
-                let reported = err
-                    .labels
-                    .first()
-                    .map_or(0, |label| label.offset() as usize)
-                    .saturating_sub(4);
+                let (reported, reported_end) = err.labels.first().map_or((0, 0), |label| {
+                    let start = label.offset() as usize;
+                    let end = start + label.len() as usize;
+                    (start.saturating_sub(4), end.saturating_sub(4))
+                });
                 if let Some((at, message)) =
-                    acorn_binding_pattern_diagnostic(content, &clean_msg, reported)
+                    acorn_binding_pattern_diagnostic(content, &clean_msg, reported, reported_end)
                 {
                     let at = offset + at;
                     return Err(crate::error::ParseError::svelte(
@@ -13799,15 +13839,21 @@ mod tests {
 
     #[test]
     fn binding_rest_comma_uses_acorns_error() {
-        let source = "{ animal, features: { ...rest, eyes } }";
-        let arena = ParseArena::new();
-        let line_offsets = super::super::super::compute_line_offsets(source, false);
-        let Err(crate::error::ParseError::SvelteError { message, .. }) =
-            parse_binding_pattern(&arena, source, 0, &line_offsets, false)
-        else {
-            panic!("expected a Svelte parse error");
-        };
-        assert_eq!(message, "Comma is not permitted after the rest element");
+        for source in [
+            "{ animal, features: { ...rest, eyes } }",
+            "{ animal, features: { ...rest /* comma, in comment */, eyes } }",
+        ] {
+            let arena = ParseArena::new();
+            let line_offsets = super::super::super::compute_line_offsets(source, false);
+            let Err(crate::error::ParseError::SvelteError { message, span, .. }) =
+                parse_binding_pattern(&arena, source, 10, &line_offsets, false)
+            else {
+                panic!("expected a Svelte parse error");
+            };
+            assert_eq!(message, "Comma is not permitted after the rest element");
+            let comma = source.rfind(", eyes").unwrap();
+            assert_eq!(span, (10 + comma, 10 + comma));
+        }
     }
 
     #[test]
