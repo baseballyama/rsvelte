@@ -1,4 +1,3 @@
 [
-	"huly/packages/presentation/src/components/FilePreviewPopup.svelte",
-	"huly/plugins/card-resources/src/components/navigator-next/NavigatorCardsSection.svelte"
+	"huly/packages/presentation/src/components/FilePreviewPopup.svelte"
 ]

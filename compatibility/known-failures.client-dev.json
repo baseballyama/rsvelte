@@ -82,7 +82,6 @@
 	"huly/plugins/board-resources/src/components/BoardMenu.svelte",
 	"huly/plugins/calendar-resources/src/components/DateLocalePresenter.svelte",
 	"huly/plugins/calendar-resources/src/components/Day.svelte",
-	"huly/plugins/card-resources/src/components/navigator-next/NavigatorCardsSection.svelte",
 	"huly/plugins/chunter-resources/src/components/JumpToDateSelector.svelte",
 	"huly/plugins/chunter-resources/src/components/chat-message/ChatMessagePresenter.svelte",
 	"huly/plugins/contact-resources/src/components/EmployeeFilter.svelte",

@@ -1,8 +1,8 @@
 # Output-parseability ratchet
 
 Gate: the "output parseability" section of `scripts/compat-corpus/verify.mjs`.
-Ratchet: `parse-known-failures.client.json` holds **1 entry**,
-`parse-known-failures.client-dev.json` holds **2 entries**,
+Ratchet: `parse-known-failures.client.json` holds **0 entries**,
+`parse-known-failures.client-dev.json` holds **1 entry**,
 `parse-known-failures.server.json` holds **0 entries** and
 `parse-known-failures.server-dev.json` holds **0 entries**.
 
@@ -24,8 +24,8 @@ sources … an empty baseline here is therefore the expected result, not a measu
 was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
 carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
 ratchet went to **12 entries across two targets on the first run**. The current tree holds
-**2 unique entries across two targets** after retiring the repaired classes listed below.
-One remains shared by both targets and one is client-dev-only. That is the
+**1 unique entry in one target** after retiring the repaired classes listed below.
+It is client-dev-only. That is the
 prediction being paid out, and it is the reason blind spot 19c in
 [`gate-coverage.md`](gate-coverage.md) is now closed for these inputs and for no others.
 
@@ -37,12 +37,13 @@ The remaining entries and repaired classes, none of them a formatting difference
 | `svelte-tweakpane-ui/…/HomeDemo.svelte`, `…/TweakpaneDemo.svelte` (fixed) | `Assigning to rvalue` | the parser attached a next-line leading `;` to the preceding `derived(..., ($point4) => …)` declaration; the line pipeline therefore put the following setter in the same transform unit and extended the callback parameter's shadow over its real `$point4 = …` write. The boundary normalizer now separates the statement after that explicit terminator. |
 | `sveltekit/…/query/instance.svelte.js` (fixed) | `Assigning to rvalue` | a raw-state private-field `??=` nested in `void untrack(() => (...))` reached the read wrapper as `$.get(this.#promise) ??= …`; the private assignment AST pass lowers it before reads, and the exact module host is now pinned. |
 | `huly/…/ModernEditbox.svelte`, `threlte/…/Sequence.svelte` (fixed) | `Unexpected token` | a standalone `//` comment was folded into the following destructured declaration's transform unit; rewriting a prop read in its initializer re-emitted the comment between the binding pattern and `=`, so the line comment swallowed the initializer |
-| `huly/…/FilePreviewPopup.svelte`, `huly/…/NavigatorCardsSection.svelte` | `Unexpected token` | **not yet diagnosed** — two separate spots, recorded here as data rather than as a guess |
+| `huly/…/NavigatorCardsSection.svelte` (fixed by #3934) | `Unexpected token` | Its TypeScript reactive statement contains `query<Card>`. The prop-read AST pass parsed the whole statement as JavaScript, failed on that type argument, and fell back to the heuristic text scanner; that scanner joined object-spread lines onto the preceding `//` comment, so the comment swallowed all three spreads. Parsing reactive fragments as TypeScript keeps the scope-aware splice path and preserves every original newline. |
+| `huly/…/FilePreviewPopup.svelte` | `Unexpected token` | **not yet diagnosed** — recorded here as data rather than as a guess |
 | `adventurelog/…/CollectionMap.svelte`, `…/CollectionStats.svelte` | `Missing initializer in const declaration` | A template `$t` created the component store-sub binding, then the name-only client script transform rewrote a nested local `const $t` declaration and its calls as store reads. The transform now excludes every store spelling declared as a binding inside the top-level statement, matching lexical shadowing. Covered by `adversarial/legacy/store-sub-shadowed-local-binding.svelte`. |
 | `threlte/…/SoftShadows.svelte` (`server-dev`, fixed by #3877) | ``Expected `,` or `)` but found `Identifier` `` | comments attached to later `$effect` statements were emitted inside the preceding derived template literal; #3877 corrected the dev component-callback tail insertion point |
 
-One entry appears on `client` and `client-dev` both; `huly/…/FilePreviewPopup.svelte`
-is `client-dev` only, which is the per-target split earning its keep. Both server targets are
+No entry remains on `client`; `huly/…/FilePreviewPopup.svelte` is `client-dev` only,
+which is the per-target split earning its keep. Both server targets are
 now at 0. The former target split prevented the dev-only SoftShadows failure from suppressing
 the production SSR output while it remained open.
 
@@ -84,7 +85,7 @@ closed the hole where a future defect of this class rides in under an existing r
 and it closed one of the two structural blind spots recorded for gate 15 in
 `gate-coverage.md` (oracle shares rsvelte's parser). It could not, by itself, find the 30
 known defects — only enrolling those repositories would. It is now both: a regression gate
-and a 9-entry burn-down.
+and a 1-entry burn-down.
 
 ## Adding an entry
 
