@@ -29,7 +29,6 @@
 	"joy-of-code/src/lib/ui/header/preferences/dyslexic.svelte",
 	"layerchart/docs/src/examples/components/Treemap/nested-filter.svelte",
 	"mathesar/mathesar_ui/src/components/breadcrumb/BreadcrumbSelector.svelte",
-	"melt-ui/docs/src/components/motion.svelte",
 	"musicat/src/lib/settings/InfoPopup.svelte",
 	"musicat/src/lib/your-music/Scrapbook.svelte",
 	"networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte",

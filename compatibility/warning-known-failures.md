@@ -46,24 +46,24 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 82 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 81 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 82 entries that still diverge, **21 are
+Not every entry is equally bad. Of the 81 entries that still diverge, **20 are
 under-warnings** — rsvelte stays silent where upstream warns — and **61 are
 over-warnings**, noise the user cannot suppress. No entry diverges in both
 directions at once. A missing diagnostic and an extra one fail
 differently, and the ratchet count alone does not distinguish them:
 
-Partition of `warning-known-failures.<target>.json` by direction: `21 + 61`
+Partition of `warning-known-failures.<target>.json` by direction: `20 + 61`
 
 **73 of the 83 pre-existing entries arrived with the wave-2 enrolment (#3130)**,
 which took the corpus from 37 corpus sources to 104. The remaining per-code
-incidences total 83 across 82 entries (one entry differs on two codes):
-`css_unused_selector` 48, `state_referenced_locally` 22,
+incidences total 82 across 81 entries (one entry differs on two codes):
+`css_unused_selector` 48, `state_referenced_locally` 21,
 `non_reactive_update` 8, `component_name_lowercase` 1,
 `a11y_consider_explicit_label` 4. `css_unused_selector` is half the file and the
 burn-down target; it is the one that is neither over- nor under-warning in a
@@ -75,6 +75,11 @@ same `perf_avoid_nested_class` check as script classes. The template expression
 walker previously discarded `ClassDeclaration` statements before the regular
 class visitor could see them; its relative function depth is now mapped onto
 the component scope depth used by upstream.
+
+The instance-script visitor now starts from the instance scope built in phase
+1 rather than the module/root scope. This restores the missing
+`state_referenced_locally` warning when an instance prop shadows a same-named
+module export, as in melt-ui's `motion.svelte`.
 
 The file was 171 entries before this branch was rebased onto `main`, and this is
 the second re-measurement against a moving `main`: the first removed **81 and

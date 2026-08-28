@@ -529,6 +529,12 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // for the Program node when content is Typed(JsNode::Program)
         let mut context = visitors::VisitorContext::new(&mut analysis, &ast.arena);
         context.ast_type = visitors::AstType::Instance;
+        // Scope building places the instance script in a child of the module
+        // scope. Start the analysis walk in that same scope so an instance
+        // declaration wins over a same-named module declaration. Nested
+        // function visitors temporarily replace this with their own mapped
+        // scope and then restore the instance scope.
+        context.scope = context.analysis.root.instance_scope_index;
         // Instance script starts at function_depth 1 (like Svelte's scope system)
         context.function_depth = 1;
         visitors::visit_script_expr(&instance.content, &mut context)?;
