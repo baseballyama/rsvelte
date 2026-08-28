@@ -2,7 +2,6 @@
 	"svelte-put/sites/docs/src/packages/popover/docs.md.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/export-derived-state-indirect/main.svelte.js",
 	"svelte/packages/svelte/tests/compiler-errors/samples/export-state-indirect/main.svelte.js",
-	"svelte/packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte",
 	"svelte/packages/svelte/tests/runtime-runes/samples/not-actual-runes/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte"
 ]

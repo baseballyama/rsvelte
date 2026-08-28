@@ -3629,7 +3629,21 @@ impl<'a> ScopeBuilder<'a> {
         // Declare the item binding(s) - handle destructuring patterns
         if let Some(context) = block.context.as_ref() {
             let context_node = context.as_node();
-            self.declare_bindings_from_pattern_node(&context_node, BindingKind::EachItem, false);
+            if let JsNode::Identifier { name, .. } = &context_node
+                && (name.as_str() == "$state" || name.as_str() == "$derived")
+            {
+                // Upstream reports this against the entire EachBlock, not the
+                // context identifier. Keep this check here, where that span is
+                // still available, instead of in the generic pattern walker.
+                self.validation_errors
+                    .push(super::errors::state_invalid_placement(name).at(block.start, block.end));
+            } else {
+                self.declare_bindings_from_pattern_node(
+                    &context_node,
+                    BindingKind::EachItem,
+                    false,
+                );
+            }
         }
 
         // Declare the index binding if present
@@ -3712,14 +3726,6 @@ impl<'a> ScopeBuilder<'a> {
     ) {
         match pattern {
             JsNode::Identifier { name, .. } => {
-                // Check for invalid $state/$derived usage in each context
-                if kind == BindingKind::EachItem
-                    && (name.as_str() == "$state" || name.as_str() == "$derived")
-                {
-                    self.validation_errors
-                        .push(super::errors::state_invalid_placement(name));
-                    return;
-                }
                 // A rest element in a parameter list is a `rest_param` upstream.
                 let decl_kind = if inside_rest && decl_kind == DeclarationKind::Param {
                     DeclarationKind::RestParam
