@@ -413,6 +413,30 @@ pub fn transform_async_body_dev(script: &str, runner: &str, dev: bool) -> Option
     transform_async_body_inner(script, runner, dev)
 }
 
+fn separate_restored_async_derived_hoist(transformed: &mut String, hoisted_pos: usize) {
+    if let Some(relative_end) = transformed[hoisted_pos..].find(';') {
+        let statement_end = hoisted_pos + relative_end + 1;
+        let following = &transformed[statement_end..];
+        if following.starts_with('\n')
+            && !following.starts_with("\n\n")
+            && following.trim_start().starts_with("var $$promises")
+        {
+            transformed.insert(statement_end, '\n');
+        }
+    }
+
+    let line_start = transformed[..hoisted_pos]
+        .rfind('\n')
+        .map_or(0, |newline| newline + 1);
+    let previous = transformed[..line_start].trim_end();
+    if !previous.is_empty()
+        && !previous.ends_with('{')
+        && !transformed[..line_start].ends_with("\n\n")
+    {
+        transformed.insert(line_start, '\n');
+    }
+}
+
 /// Reattach `svelte-ignore` comments that an AST lowering has detached before
 /// this text transform can hoist the declaration.
 pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
@@ -476,6 +500,7 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
                 format!("{comment} ")
             };
             transformed.insert_str(pos + "var ".len(), &suffix);
+            separate_restored_async_derived_hoist(&mut transformed, pos);
         } else if let Some(pos) = ["const ", "let ", "var "]
             .iter()
             .find_map(|kind| transformed.find(&format!("{kind}{name} = await $.async_derived")))
@@ -3154,7 +3179,7 @@ mod tests {
 
         assert_eq!(
             restore_async_derived_ignore_comments(source, transformed.to_string()),
-            "var // svelte-ignore await_waterfall\na;\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+            "var // svelte-ignore await_waterfall\na;\n\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
         );
     }
 
@@ -3166,7 +3191,27 @@ mod tests {
 
         assert_eq!(
             restore_async_derived_ignore_comments(source, transformed.to_string()),
-            "var // svelte-ignore state_referenced_locally\na;\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+            "var // svelte-ignore state_referenced_locally\na;\n\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+        );
+    }
+
+    #[test]
+    fn separates_a_restored_hoist_from_a_preceding_statement() {
+        let source = "// svelte-ignore await_waterfall\nconst { a, b } = $derived(await p);";
+        let transformed = concat!(
+            "let { p } = $$props;\n",
+            "var a, b;\n",
+            "var $$promises = $.run([async () => ({ a, b } = await $.async_derived(() => p))]);"
+        );
+
+        assert_eq!(
+            restore_async_derived_ignore_comments(source, transformed.to_string()),
+            concat!(
+                "let { p } = $$props;\n\n",
+                "var // svelte-ignore await_waterfall\n",
+                "a, b;\n\n",
+                "var $$promises = $.run([async () => ({ a, b } = await $.async_derived(() => p))]);"
+            )
         );
     }
 
