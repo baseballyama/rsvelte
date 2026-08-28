@@ -5621,7 +5621,8 @@ fn collect_identifier_names_from_expression(
 ///   `type` / `start` / `end` / `value`, never an `Identifier`.
 /// - the name slots the JSON walker skips explicitly: specifier
 ///   `imported` / `exported`, non-computed `property` / `key`, function and
-///   class `id`, declarator `id`, and statement `label`.
+///   class `id`, declarator `id`, statement `label`, and both halves of a
+///   `MetaProperty` (`import.meta` / `new.target`).
 fn collect_identifier_names_in_node(
     node: &JsNode,
     arena: &ParseArena,
@@ -6003,16 +6004,16 @@ fn collect_identifier_names_in_node(
             expression,
         } => walk(*expression, out),
 
+        // Neither half is an identifier reference. In particular, collecting
+        // `meta` from `import.meta` makes a generated `<meta>` local deconflict
+        // to `meta_1`, unlike upstream's ScopeRoot conflicts set.
         JsNode::MetaProperty {
             start: _,
             end: _,
             loc: _,
-            meta,
-            property,
-        } => {
-            walk(*meta, out);
-            walk(*property, out);
-        }
+            meta: _,
+            property: _,
+        } => {}
 
         JsNode::ObjectPattern {
             start: _,
@@ -6445,6 +6446,7 @@ fn collect_identifier_names_in_json(
             // specifier or `key` of a non-computed object property).
             for (k, v) in obj.iter() {
                 let skip = match node_type {
+                    "MetaProperty" => k == "meta" || k == "property",
                     "ImportSpecifier" | "ExportSpecifier" => k == "imported" || k == "exported",
                     "MemberExpression" => {
                         // For non-computed member expressions, the property is a name slot, not a ref
@@ -6511,6 +6513,16 @@ mod tests {
         // SAFETY: `ast` outlives the guard and analysis call.
         let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
         analyze_component(&mut ast, source, &CompileOptions::default())
+    }
+
+    #[test]
+    fn meta_property_name_slots_are_not_global_conflicts() {
+        let analysis = analyze(
+            "<script>const url = import.meta.url; function ctor() { return new.target; }</script>",
+        );
+
+        assert!(!analysis.root.conflicts.contains("meta"));
+        assert!(!analysis.root.conflicts.contains("target"));
     }
 
     #[test]

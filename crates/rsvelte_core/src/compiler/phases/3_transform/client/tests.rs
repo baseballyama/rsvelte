@@ -1,6 +1,39 @@
 use super::*;
 
 #[test]
+fn meta_property_names_do_not_conflict_with_generated_element_locals() {
+    let source = r#"<script>
+        const is_dev = import.meta.env.DEV;
+        function ctor() { return new.target; }
+    </script>
+
+    <svelte:head><meta name="description" content={is_dev ? 'dev' : ctor.name} /></svelte:head>"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("meta-property-generated-name.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("var meta = root();"),
+            "MetaProperty name slots must not deconflict the generated <meta> local in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("var meta_1 = root();"),
+            "the generated <meta> local must keep upstream's unsuffixed name in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn module_return_jsdoc_cast_parenthesizes_its_arrow() {
     let source = r#"
         /** @returns {TThen} */
