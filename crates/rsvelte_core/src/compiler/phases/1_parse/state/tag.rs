@@ -2716,25 +2716,12 @@ impl<'a> Parser<'a> {
             self.ts,
         )
         .map_err(|(msg, _)| {
-            // The deferred twin of this arm (`LazyKind::Mustache`) classifies
-            // leftover input as a missing `}`; without the same test here the
-            // two disagree whenever the parse is not deferred.
-            if !trimmed.ends_with("?.")
-                && let Some(pos) = leftover_token_offset(trimmed, self.ts)
-            {
-                return crate::error::ParseError::expected_token("}", trimmed_offset + pos);
-            }
-            // Recover the precise failure position from OXC's labeled span,
-            // mirroring upstream Svelte's `js_parse_error(err.pos, ...)` —
-            // a *point* error at the byte where acorn stopped consuming
-            // input. svelte2tsx's `expected.error.json` fixtures rely on
-            // this character-accurate location.
-            let abs_pos =
-                super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
-                    .map_or(trimmed_offset, |(_, content_pos)| {
-                        trimmed_offset + content_pos
-                    });
-            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
+            super::super::read::expression::mustache_parse_error(
+                msg,
+                trimmed,
+                trimmed_offset,
+                self.ts,
+            )
         })
     }
 

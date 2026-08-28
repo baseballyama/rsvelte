@@ -473,23 +473,8 @@ fn lazy_parse_error(
     Some(match kind {
         LazyKind::Lenient => return None,
         LazyKind::AwaitHead => super::state::tag::await_head_parse_error(source, start, msg, ts),
-        // Upstream's `read_expression` parses ONE maximal expression with acorn
-        // and then `eat('}', true)`: a complete leading expression followed by
-        // leftover tokens (e.g. `{foo();}` — the `;` is left over) surfaces as
-        // `expected_token` (Expected token }), while a malformed expression
-        // (e.g. `{42 = nope}`, where the error is *inside* the expression) is a
-        // `js_parse_error`.
         LazyKind::Mustache => {
-            match super::read::expression::trailing_token_offset(content, ts) {
-                Some(offset) => crate::error::ParseError::expected_token("}", start + offset),
-                // Upstream rethrows acorn's `err.pos` as a point error, so the
-                // span is where it stopped consuming, not the whole expression.
-                None => {
-                    let at = super::read::expression::check_js_parse_error_with_pos(content, ts)
-                        .map_or(start + content.len(), |(_, pos)| start + pos);
-                    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
-                }
-            }
+            super::read::expression::mustache_parse_error(msg, content, start, ts)
         }
         // `parse_js_expression_attribute`: leftover input after a complete
         // expression is a missing `}`, anything else a point error at the byte

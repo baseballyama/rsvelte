@@ -2120,9 +2120,10 @@ pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
         .then_some(content_pos)
 }
 
-/// The start of the leftmost TypeScript-only postfix operator (`as`,
-/// `satisfies`, `!`) OXC recovered while parsing a JavaScript file — i.e. the
-/// byte where acorn would have stopped. `None` when the program carries none.
+/// The start of the leftmost TypeScript-only construct (`as`, `satisfies`, `!`,
+/// or a type annotation) OXC recovered while parsing a JavaScript file — i.e.
+/// the byte where acorn would have stopped. `None` when the program carries
+/// none.
 fn typescript_operator_start(program: &OxcProgram<'_>) -> Option<u32> {
     use oxc_ast_visit::Visit;
 
@@ -2150,6 +2151,12 @@ fn typescript_operator_start(program: &OxcProgram<'_>) -> Option<u32> {
         fn visit_ts_non_null_expression(&mut self, node: &oxc_ast::ast::TSNonNullExpression<'a>) {
             self.record(node.expression.span().end);
             oxc_ast_visit::walk::walk_ts_non_null_expression(self, node);
+        }
+        fn visit_ts_type_annotation(&mut self, node: &oxc_ast::ast::TSTypeAnnotation<'a>) {
+            // `node.span.start` points at the colon in the parenthesised probe;
+            // strip the synthetic opening `(` to get the content offset.
+            self.record(node.span.start.saturating_sub(1));
+            oxc_ast_visit::walk::walk_ts_type_annotation(self, node);
         }
     }
 
@@ -2191,6 +2198,30 @@ pub fn close_token_or_parse_error(
         .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
             trimmed_offset + pos
         });
+    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
+}
+
+/// Rebuild the diagnostic raised by a failed mustache expression parse.
+///
+/// Template expressions have eager and deferred entry points. Keep their
+/// classification here so deferring work cannot turn a missing `}` after a
+/// complete expression into a `js_parse_error` (or the reverse).
+pub fn mustache_parse_error(
+    msg: String,
+    content: &str,
+    start: usize,
+    ts: bool,
+) -> crate::error::ParseError {
+    // A dangling optional-chain token is part of the broken expression, not
+    // trailing input that the caller would encounter while eating `}`.
+    if !content.ends_with("?.")
+        && let Some(pos) = trailing_token_offset(content, ts)
+    {
+        return crate::error::ParseError::expected_token("}", start + pos);
+    }
+
+    let at = check_js_parse_error_with_pos(content, ts)
+        .map_or(start, |(_, content_pos)| start + content_pos);
     crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
 }
 
@@ -13717,6 +13748,11 @@ mod tests {
             assert_eq!(trailing_token_offset(source, false), *js, "js: `{source}`");
             assert_eq!(trailing_token_offset(source, true), *ts, "ts: `{source}`");
         }
+
+        // OXC recovers a type annotation in a JavaScript parse. Acorn returns
+        // the complete `src` expression and leaves the colon for Svelte's
+        // close-token check.
+        assert_eq!(trailing_token_offset("src: string;", false), Some(3));
     }
 
     use super::*;

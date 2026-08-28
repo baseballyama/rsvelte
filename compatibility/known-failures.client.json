@@ -246,7 +246,6 @@
 	"svelte-gantt/packages/svelte-gantt/src/Gantt.svelte",
 	"svelte-lexical/packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte",
 	"svelte-maplibre-gl/src/content/examples/geolocate/Geolocate.svelte",
-	"svelte-put/sites/docs/src/packages/inline-svg/docs.md.svelte",
 	"svelte-spa-router/test/app/src/App.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelte-tweakpane-ui/src/lib/internal/ClsPad.svelte",
