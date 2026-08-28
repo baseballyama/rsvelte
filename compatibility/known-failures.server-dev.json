@@ -68,7 +68,6 @@
 	"svelte-put/sites/docs/src/packages/inline-svg/docs.md.svelte",
 	"svelte-put/sites/docs/src/packages/preprocess-external-link/docs.md.svelte",
 	"svelte-put/sites/docs/src/packages/qr/docs.md.svelte",
-	"sveltekit/packages/kit/src/runtime/client/remote-functions/shared.svelte.js",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
 	"svelty-picker/src/routes/+layout.svelte",
 	"syntaxfm-website/src/lib/ComponentWindow.svelte",

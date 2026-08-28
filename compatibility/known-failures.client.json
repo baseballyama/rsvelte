@@ -342,7 +342,6 @@
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelte-tweakpane-ui/src/lib/internal/ClsPad.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/rest-props-delete/App.svelte",
-	"sveltekit/packages/kit/src/runtime/client/remote-functions/shared.svelte.js",
 	"sveltekit/packages/kit/src/runtime/components/root.svelte",
 	"sveltekit/packages/kit/test/apps/basics/src/routes/load/fetch-arraybuffer-b64/+page.svelte",
 	"sveltekit/packages/kit/test/apps/basics/src/routes/load/fetch-body-stream-b64/+page.svelte",

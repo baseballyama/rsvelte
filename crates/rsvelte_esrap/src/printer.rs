@@ -1984,7 +1984,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     let contains_comment = HAS_COMMENTS
                         && self
                             .comment_at(self.comment_index)
-                            .is_some_and(|c| c.start < unparen(arg).span().start);
+                            // A parsed source comment is strictly before its
+                            // argument. Chunk-backed module statements can
+                            // instead give the synthesized comment and rebuilt
+                            // expression the same anchor; upstream still sees
+                            // the comment between `return` and the argument.
+                            .is_some_and(|c| c.start <= unparen(arg).span().start);
                     let start = s.span().start;
                     if contains_comment {
                         self.write_keyword(ctx, start, "return", " (");

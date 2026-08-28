@@ -1,6 +1,47 @@
 use super::*;
 
 #[test]
+fn module_return_jsdoc_cast_parenthesizes_its_arrow() {
+    let source = r#"
+        /** @returns {TThen} */
+        export function pin(then) {
+            return /** @type {TThen} */ (
+                (...args) => then(...args)
+            );
+        }
+    "#;
+
+    for generate in [
+        crate::compiler::GenerateMode::Client,
+        crate::compiler::GenerateMode::Server,
+    ] {
+        for dev in [false, true] {
+            let output = crate::compiler::compile_module(
+                source,
+                crate::compiler::ModuleCompileOptions {
+                    filename: Some("return-jsdoc-cast.svelte.js".to_string()),
+                    generate,
+                    dev,
+                    ..Default::default()
+                },
+            )
+            .expect("compiles")
+            .js
+            .code;
+
+            assert!(
+                output.contains("return (\n\t\t/** @type {TThen} */"),
+                "a return-leading JSDoc cast must retain the upstream safety parentheses in {generate:?}, dev={dev}:\n{output}"
+            );
+            assert!(
+                !output.contains("return /** @type {TThen} */"),
+                "the cast comment must not remain unparenthesized in {generate:?}, dev={dev}:\n{output}"
+            );
+        }
+    }
+}
+
+#[test]
 fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_output() {
     let source = r#"<script lang="ts">
         type OwnProps = {
