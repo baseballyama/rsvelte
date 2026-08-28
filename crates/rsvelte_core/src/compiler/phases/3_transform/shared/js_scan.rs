@@ -155,20 +155,29 @@ pub(crate) fn slash_starts_regex_at(bytes: &[u8], i: usize, prev: Option<u8>) ->
     // `value! / 2`. A bare byte test reads every slash after `!` as a regex
     // opener and can make a template-expression scanner swallow the rest of
     // the component. Distinguish it from prefix logical not (`! /re/.test(x)`)
-    // by asking whether the token before `!` can itself end an operand.
+    // by asking whether the token before `!` can itself end an operand. Read
+    // the whole identifier token: the last byte of `return ! /re/` is `n`, but
+    // `return` cannot end an operand and the `!` is therefore prefix.
     if token_visible && bytes[end - 1] == b'!' {
         let mut before = end - 1;
         while before > 0 && bytes[before - 1].is_ascii_whitespace() {
             before -= 1;
         }
-        if before > 0
-            && matches!(
-                bytes[before - 1],
-                c if c.is_ascii_alphanumeric()
-                    || matches!(c, b'_' | b'$' | b')' | b']' | b'}' | b'\'' | b'"' | b'`')
-            )
-        {
-            return false;
+        if before > 0 {
+            let last = bytes[before - 1];
+            if matches!(last, b')' | b']' | b'}' | b'\'' | b'"' | b'`') {
+                return false;
+            }
+            if is_ident_byte(last) {
+                let mut start = before;
+                while start > 0 && is_ident_byte(bytes[start - 1]) {
+                    start -= 1;
+                }
+                let is_property = start > 0 && matches!(bytes[start - 1], b'.' | b'#');
+                if is_property || !KEYWORDS_BEFORE_REGEX.contains(&&bytes[start..before]) {
+                    return false;
+                }
+            }
         }
     }
     if slash_starts_regex(prev) {
@@ -873,7 +882,14 @@ mod tests {
     fn a_regex_after_prefix_logical_not_is_still_a_regex() {
         assert!(decide("! /"));
         assert!(decide("return ! /"));
+        assert!(decide("typeof ! /"));
         assert!(decide("x && ! /"));
+    }
+
+    #[test]
+    fn a_non_null_assertion_after_a_keyword_named_property_still_divides() {
+        assert!(!decide("obj.return! /"));
+        assert!(!decide("obj.typeof ! /"));
     }
 
     #[test]
