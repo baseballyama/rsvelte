@@ -1023,6 +1023,7 @@ fn transform_script<'a>(
                     let lowered = lower_variable_declaration(
                         vd,
                         src,
+                        &ret.program.comments,
                         is_instance,
                         state,
                         &mut verbatim,
@@ -1059,6 +1060,7 @@ fn transform_script<'a>(
                             let lowered = lower_variable_declaration(
                                 vd,
                                 src,
+                                &ret.program.comments,
                                 is_instance,
                                 state,
                                 &mut verbatim,
@@ -2557,6 +2559,31 @@ fn declarator_rune(
     Some(rune)
 }
 
+/// Return the retained first argument's end when an own-line comment follows it
+/// inside a rune call. The builder-made wrapper must not claim that comment.
+fn own_line_comment_after_rune_argument(
+    init: Option<&OxcExpression<'_>>,
+    comments: &[Comment],
+    src: &str,
+) -> Option<u32> {
+    let OxcExpression::CallExpression(call) = init? else {
+        return None;
+    };
+    let arg = call.arguments.first()?.as_expression()?;
+    let arg_end = arg.span().end;
+
+    comments
+        .iter()
+        .filter(|comment| comment.span.start >= arg_end && comment.span.end <= call.span.end)
+        .find(|comment| {
+            src.get(arg_end as usize..comment.span.start as usize)
+                .is_some_and(|gap| {
+                    gap.trim().is_empty() && gap.contains(['\n', '\r', '\u{2028}', '\u{2029}'])
+                })
+        })
+        .map(|_| arg_end)
+}
+
 /// Lower a single `VariableDeclaration` (runes branch). Returns the rebuilt
 /// statements (ONE per top-level declarator, mirroring upstream's
 /// `VariableDeclaration` visitor), or an empty vec if every declarator
@@ -2565,6 +2592,7 @@ fn declarator_rune(
 fn lower_variable_declaration<'a>(
     vd: &oxc_ast::ast::VariableDeclaration,
     src: &str,
+    comments: &[Comment],
     is_instance: bool,
     state: &mut ServerTransformState<'a>,
     verbatim: &mut Option<Span>,
@@ -2615,6 +2643,10 @@ fn lower_variable_declaration<'a>(
         // past the location-less `$$props` initializer. Keep the original
         // wrapper location only on a declarator that upstream visits verbatim.
         let mut declarator_keeps_source_span = false;
+        // Builder-made rune declarators have no location upstream. The
+        // declaration wrapper therefore ends at the last retained child, not
+        // necessarily at the end of the source declarator.
+        let mut statement_loc_end = d.span.end;
         match declarator_rune(d, is_instance, state) {
             None => {
                 declarator_keeps_source_span = true;
@@ -2677,6 +2709,16 @@ fn lower_variable_declaration<'a>(
             Some(rune) => {
                 // Lower the init from the rune; keep the binding pattern verbatim.
                 let init = d.init.as_ref().map(OxcExpression::without_parentheses);
+                if carry
+                    && let Some(arg_end) = own_line_comment_after_rune_argument(init, comments, src)
+                {
+                    // A comment on its own line after the retained rune
+                    // argument stays pending. Extending the synthesized
+                    // declaration through the removed call wrapper would make
+                    // esrap attach it to this declaration instead of flushing
+                    // it before the next surviving node (or at the body tail).
+                    statement_loc_end = arg_end;
+                }
                 let new_init = lower_decl_init(&rune, init, src, state, carry, &mut poisoned);
                 let pat_span = d.id.span();
                 let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
@@ -2732,9 +2774,9 @@ fn lower_variable_declaration<'a>(
                     // start, so a comment between `let` and the binding name
                     // still sorts after the statement and before the name.
                     v.span = if di == 0 {
-                        Span::new(vd.span.start, d.span.end)
+                        Span::new(vd.span.start, statement_loc_end)
                     } else {
-                        d.span
+                        Span::new(d.span.start, statement_loc_end)
                     };
                     // A verbatim declarator retains its own source location.
                     // Rune declarators are builder-made upstream and stay

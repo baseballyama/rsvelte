@@ -164,3 +164,17 @@ fn server_rune_declaration_keeps_a_comment_before_the_binding_name() {
     );
     assert_has(&output, "let /* c */ x = 2;");
 }
+
+#[test]
+fn server_own_line_rune_comment_stays_pending_past_a_removed_effect() {
+    let source = "<script>\n\tlet d = $state.raw(\n\t\t[1, 2]\n\t\t// trailing\n\t);\n\t$effect(/* fx */ () => {});\n</script>\n";
+
+    assert_has(
+        &compile_to(source, GenerateMode::Server, false),
+        "let d = [1, 2];\n\t\t// trailing\n\t\t/* fx */",
+    );
+    assert_has(
+        &compile_to(source, GenerateMode::Server, true),
+        "let d = [1, 2];\n\t\t\t// trailing\n\t\t\t/* fx */",
+    );
+}
