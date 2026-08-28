@@ -48,11 +48,6 @@ export const EXCLUDE = new Set([
 	// ── Option-required: schema rejects an empty option list, so the rule is a
 	//    no-op without a per-project allowlist. rsvelte defaults it off too.
 	'svelte/no-restricted-html-elements',
-	// ── Svelte 3/4-only (`meta.conditions: svelteVersions: ['3/4']`). The corpus
-	//    declares Svelte 5 (see lint-collect's synthetic package.json), so the
-	//    oracle skips these; rsvelte doesn't version-gate, so it would over-report.
-	'svelte/experimental-require-strict-events',
-	'svelte/require-event-dispatcher-types',
 	// ── `indent`: a stylistic whitespace rule only partially ported (template
 	//    level; the JS/TS-AST script indentation the fixture oracle skips). Full
 	//    real-world parity is a tracked follow-up — see lint-corpus README. It

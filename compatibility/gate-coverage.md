@@ -3177,12 +3177,14 @@ Ratchet: `compatibility/lint-conditions-known-failures.json`, justified per key 
 
 **Unit compared:** whether a rule runs at all, per rule id, on two axes — the runes mode pair
 (`runs-in-runes`, `runs-in-legacy`) reduced from upstream's `meta.conditions` against rsvelte's
-`RuleMeta::conditions`, and separately the SvelteKit-gated *set* against the hard-coded
-`SVELTEKIT_ONLY` list in `crates/rsvelte_lint/src/sveltekit.rs`. Key classes: `gate|<id>`,
-`svelte-3-4-only|<id>`, `kit-gate-missing|<id>`, `kit-gate-extra|<id>`.
+`RuleMeta::conditions`, the Svelte-5-unreachable set against `SVELTE_3_4_ONLY` in
+`crates/rsvelte_lint/src/svelte_version.rs`, and separately the SvelteKit-gated *set* against the
+hard-coded `SVELTEKIT_ONLY` list in `crates/rsvelte_lint/src/sveltekit.rs`. Key classes:
+`gate|<id>`, `svelte-3-4-only-{missing,extra,unknown}|<id>`, `kit-gate-missing|<id>`, and
+`kit-gate-extra|<id>`.
 
-Current: 84 shared rules, 14 runes-gated upstream, 5 SvelteKit-gated (agreeing 5 for 5), 3
-recorded divergences.
+Current: the ratchet is empty. The two Svelte-3/4-only rules and all five SvelteKit-only rules are
+modelled explicitly rather than accepted as divergences.
 
 It exists because **a wrong condition flag is unobservable to every finding-level gate unless the
 corpus contains a file in the mode the flag wrongly excludes** — and for a rule whose patterns are
@@ -3206,10 +3208,10 @@ mismatch from its own reduction is worse than none, because its rows read as sur
 ### Blind spot 34a — the gate reads `meta.conditions`, and upstream does not always put it there — **[D]**
 
 `no-at-const-tags` declares no `runes` condition and enforces `if (runes !== true) return {}` in the
-rule **body** instead, so the comparison reports a mismatch against rsvelte's (behaviourally
-correct) `runes_only: true`. Any rule that moves its gate into `create()` is invisible to this gate
-in the same way, and nothing enumerates which rules do that — the one instance was found by reading
-the source after the gate flagged it.
+rule **body** instead. rsvelte mirrors that placement, so its metadata now agrees, but any other rule
+that hides a gate inside `create()` remains invisible to this comparison; nothing enumerates those
+checks. This instance was found only by reading the source after the first gate run flagged the
+previous duplicated `runes_only: true` representation.
 
 The related worry that rsvelte's boolean pair cannot express upstream's tri-state was **checked and
 retracted**: `'undetermined'` is unreachable for any file either linter parses, because
@@ -3232,7 +3234,7 @@ reads from the *wrong* `RuleMeta` in a file declaring two rules.
 ### Blind spot 34c — two of the five condition axes are not compared — **[S]**
 
 `svelteFileTypes` is uncompared outright. `svelteVersions` is used only as the reachability
-filter, so a rule that became Svelte-5-only would move a `svelte-3-4-only` key, but a narrowing
+filter, so a rule entering or leaving the Svelte-5-reachable set moves a version-gate key, but a narrowing
 *within* 5 would not. Neither axis currently carries a value that separates rsvelte from upstream,
 which is a statement about this plugin version and not a guarantee.
 

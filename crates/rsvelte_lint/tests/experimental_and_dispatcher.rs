@@ -2,10 +2,9 @@
 //! type checker: `experimental-require-slot-types`,
 //! `experimental-require-strict-events`, `require-event-dispatcher-types`.
 //!
-//! `slot-types` is also covered by the oracle, but the other two target Svelte
-//! 3/4 (`strictEvents`, `createEventDispatcher`), so their upstream fixtures are
-//! version-skipped by the oracle. These tests port those fixtures directly so the
-//! rules are still parity-verified.
+//! `slot-types` is also covered by the oracle. The other two target Svelte 3/4,
+//! so their scanners are tested directly below while the public Svelte-5 lint
+//! path is separately pinned to skip them.
 
 use std::path::PathBuf;
 
@@ -14,19 +13,24 @@ use rsvelte_lint::{LintConfig, Severity, lint_source};
 
 fn findings(src: &str, code: &str) -> Vec<(u32, u32, String)> {
     let cfg = LintConfig::empty().with_override(code, Severity::Error);
-    lint_source(
-        src,
-        &PathBuf::from("Test.svelte"),
-        &CompileOptions::default(),
-        &cfg,
-    )
-    .into_iter()
-    .filter(|d| d.code.as_deref() == Some(code))
-    .filter_map(|d| {
-        let r = d.range?;
-        Some((r.start.line, r.start.column + 1, d.message))
-    })
-    .collect()
+    let file = PathBuf::from("Test.svelte");
+    let diagnostics = match code {
+        STRICT => {
+            rsvelte_lint::rules::experimental_require_strict_events::diagnostics(src, &file, &cfg)
+        }
+        DISPATCH => {
+            rsvelte_lint::rules::require_event_dispatcher_types::diagnostics(src, &file, &cfg)
+        }
+        _ => lint_source(src, &file, &CompileOptions::default(), &cfg),
+    };
+    diagnostics
+        .into_iter()
+        .filter(|d| d.code.as_deref() == Some(code))
+        .filter_map(|d| {
+            let r = d.range?;
+            Some((r.start.line, r.start.column + 1, d.message))
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +122,29 @@ fn strict_events_valid_cases() {
 // ---------------------------------------------------------------------------
 
 const DISPATCH: &str = "svelte/require-event-dispatcher-types";
+
+#[test]
+fn svelte_3_4_rules_do_not_run_on_svelte_5() {
+    for (src, code) in [
+        ("<script lang=\"ts\">\n</script>", STRICT),
+        (
+            "<script lang=\"ts\">import { createEventDispatcher } from 'svelte'; createEventDispatcher();</script>",
+            DISPATCH,
+        ),
+    ] {
+        let cfg = LintConfig::empty().with_override(code, Severity::Error);
+        let actual = lint_source(
+            src,
+            &PathBuf::from("Test.svelte"),
+            &CompileOptions::default(),
+            &cfg,
+        );
+        assert!(
+            actual.iter().all(|d| d.code.as_deref() != Some(code)),
+            "Svelte 3/4-only rule {code} ran on Svelte 5"
+        );
+    }
+}
 
 #[test]
 fn dispatcher_reports_missing_type_params() {

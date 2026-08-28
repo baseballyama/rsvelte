@@ -97,6 +97,9 @@ pub(crate) fn run_native_rules_on_root(
             if severity == Severity::Off {
                 return None;
             }
+            if !crate::svelte_version::supports_svelte5(meta.name) {
+                return None;
+            }
             if !sveltekit && crate::sveltekit::is_sveltekit_only(meta.name) {
                 return None;
             }
@@ -198,6 +201,7 @@ fn enabled_script_rules<'a>(
             let meta = r.meta();
             let severity = config.severity_for(meta);
             if severity == Severity::Off
+                || !crate::svelte_version::supports_svelte5(meta.name)
                 || (!sveltekit && crate::sveltekit::is_sveltekit_only(meta.name))
                 || runes_gate_excludes(meta, runes)
             {

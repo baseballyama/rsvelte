@@ -160,12 +160,22 @@ pub fn lint_source_messages(
             meta.extend(crate::rules::experimental_require_slot_types::diagnostics(
                 source, file, config,
             ));
-            meta.extend(
-                crate::rules::experimental_require_strict_events::diagnostics(source, file, config),
-            );
-            meta.extend(crate::rules::require_event_dispatcher_types::diagnostics(
-                source, file, config,
-            ));
+            if crate::svelte_version::supports_svelte5(
+                crate::rules::experimental_require_strict_events::META.name,
+            ) {
+                meta.extend(
+                    crate::rules::experimental_require_strict_events::diagnostics(
+                        source, file, config,
+                    ),
+                );
+            }
+            if crate::svelte_version::supports_svelte5(
+                crate::rules::require_event_dispatcher_types::META.name,
+            ) {
+                meta.extend(crate::rules::require_event_dispatcher_types::diagnostics(
+                    source, file, config,
+                ));
+            }
             meta.extend(crate::rules::require_event_prefix::diagnostics(
                 source, file, config,
             ));

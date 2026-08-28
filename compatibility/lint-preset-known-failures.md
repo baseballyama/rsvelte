@@ -71,19 +71,12 @@ it will fail rather than rot.
 
 ### `svelte/require-event-dispatcher-types`
 
-`createEventDispatcher` is a Svelte 3/4 API, and rsvelte is a Svelte 5 compiler
-port; the rule is dead weight on the code rsvelte is built for. Separately, its
-type-argument detection is a source scan whose documented divergence is that it
-cannot tell a `<` opening type arguments from a `<` comparison
-(`crates/rsvelte_lint/src/rules/require_event_dispatcher_types.rs`, module
-docs). Neither reason alone would be decisive; together they are enough to keep
-a rule about a removed API off by default rather than shipping its scan
-ambiguity to every user.
-
-Note this is **not** the reason upstream's own condition machinery would give:
-the rule carries no `svelteVersions` condition upstream, so ESLint runs it on
-Svelte 5 code too. The divergence is rsvelte's choice, which is why it is
-recorded here rather than modelled in `RuleConditions`.
+Upstream marks this rule Svelte-3/4-only, and rsvelte's Svelte-5 eligibility
+model now skips it even when explicitly enabled. The preset-severity comparison
+still records the declared-default mismatch independently: this rule remains
+`off` in rsvelte while that gate's upstream configuration declares another
+severity. Runtime reachability is governed and ratcheted separately by
+`lint-conditions-known-failures.json`.
 
 ## `off->warn` — one reason, 22 entries
 

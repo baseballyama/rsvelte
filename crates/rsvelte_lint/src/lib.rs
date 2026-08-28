@@ -37,6 +37,7 @@ pub mod scope;
 pub mod script;
 pub mod suppression;
 pub mod svelte_scan;
+pub mod svelte_version;
 pub mod sveltekit;
 pub mod type_backend;
 pub mod visitor;

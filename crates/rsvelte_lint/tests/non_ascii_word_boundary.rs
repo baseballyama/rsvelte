@@ -8,8 +8,8 @@
 //! pins both directions for each of the four callers — `no-unused-props`,
 //! `require-event-prefix`, `require-event-dispatcher-types`, and
 //! `svelte_scan::declares_type_in` (reached through
-//! `experimental-require-strict-events`). All four are `EXCLUDE`d from the lint
-//! output-parity universe, so its ratchet cannot see this class at all.
+//! `experimental-require-strict-events`). The two Svelte-3/4 scanners are
+//! dormant in the public Svelte-5 path, so they are called directly here.
 
 use std::path::PathBuf;
 
@@ -18,16 +18,21 @@ use rsvelte_lint::{LintConfig, Severity, lint_source};
 
 fn findings(src: &str, code: &str) -> Vec<String> {
     let cfg = LintConfig::empty().with_override(code, Severity::Error);
-    lint_source(
-        src,
-        &PathBuf::from("Test.svelte"),
-        &CompileOptions::default(),
-        &cfg,
-    )
-    .into_iter()
-    .filter(|d| d.code.as_deref() == Some(code))
-    .map(|d| d.message)
-    .collect()
+    let file = PathBuf::from("Test.svelte");
+    let diagnostics = match code {
+        DISPATCH => {
+            rsvelte_lint::rules::require_event_dispatcher_types::diagnostics(src, &file, &cfg)
+        }
+        STRICT => {
+            rsvelte_lint::rules::experimental_require_strict_events::diagnostics(src, &file, &cfg)
+        }
+        _ => lint_source(src, &file, &CompileOptions::default(), &cfg),
+    };
+    diagnostics
+        .into_iter()
+        .filter(|d| d.code.as_deref() == Some(code))
+        .map(|d| d.message)
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

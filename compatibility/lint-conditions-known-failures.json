@@ -1,5 +1,1 @@
-[
-	"gate|svelte/no-at-const-tags|upstream runes_only=false legacy_only=false rsvelte runes_only=true legacy_only=false",
-	"svelte-3-4-only|svelte/experimental-require-strict-events",
-	"svelte-3-4-only|svelte/require-event-dispatcher-types"
-]
+[]

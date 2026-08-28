@@ -5,7 +5,8 @@
  * `eslint-plugin-svelte` decides whether a rule runs at all from `meta.conditions`
  * — an array of objects, satisfied if ANY of them matches the file's Svelte
  * version, runes mode, SvelteKit version and file type. rsvelte mirrors the runes
- * axis in `RuleMeta::conditions` (`RuleConditions { runes_only, legacy_only }`).
+ * axis in `RuleMeta::conditions` (`RuleConditions { runes_only, legacy_only }`)
+ * and the constant Svelte-5 axis in `svelte_version.rs`.
  *
  * Nothing compared the two. A wrong flag is invisible to every finding-level gate
  * unless the corpus happens to contain a file in the mode the flag wrongly
@@ -111,6 +112,20 @@ function rsvelteKitOnly() {
   return [...block[1].matchAll(/"(svelte\/[a-z0-9-]+)"/g)].map((m) => m[1]).sort();
 }
 
+/** Rules `crates/rsvelte_lint/src/svelte_version.rs` excludes on Svelte 5. */
+function rsvelteSvelte34Only() {
+  const src = fs.readFileSync(
+    path.join(ROOT, "crates", "rsvelte_lint", "src", "svelte_version.rs"),
+    "utf8",
+  );
+  const block = /const SVELTE_3_4_ONLY: &\[&str\] = &\[([\s\S]*?)\];/.exec(src);
+  if (!block) {
+    console.error("[lint-conditions] ❌ could not read SVELTE_3_4_ONLY from svelte_version.rs");
+    process.exit(2);
+  }
+  return [...block[1].matchAll(/"(svelte\/[a-z0-9-]+)"/g)].map((m) => m[1]).sort();
+}
+
 /** rsvelte's declared `RuleConditions`, read from each rule module's `META`. */
 function rsvelteConditions(bin) {
   const out = {};
@@ -154,6 +169,7 @@ function main() {
   const bin = findBinary();
   const up = upstreamConditions();
   const mine = rsvelteConditions(bin);
+  const mySvelte34Only = rsvelteSvelte34Only();
 
   const shared = Object.keys(mine).filter((id) => id in up);
   if (shared.length === 0) {
@@ -168,10 +184,11 @@ function main() {
     const m = mine[id];
     if (u.runesOnly || u.legacyOnly || !u.reachable) gated++;
     if (!u.reachable) {
-      // Upstream cannot run this rule on Svelte 5 in ANY mode. rsvelte has no
-      // way to express that, so it is a class of its own rather than a flag
-      // mismatch — see the paired .md.
-      diffs.push(`svelte-3-4-only|${id}`);
+      if (!mySvelte34Only.includes(id)) diffs.push(`svelte-3-4-only-missing|${id}`);
+      continue;
+    }
+    if (mySvelte34Only.includes(id)) {
+      diffs.push(`svelte-3-4-only-extra|${id}`);
       continue;
     }
     if (u.runesOnly !== m.runesOnly || u.legacyOnly !== m.legacyOnly) {
@@ -180,6 +197,9 @@ function main() {
           ` rsvelte runes_only=${m.runesOnly} legacy_only=${m.legacyOnly}`,
       );
     }
+  }
+  for (const id of mySvelte34Only) {
+    if (!(id in mine)) diffs.push(`svelte-3-4-only-unknown|${id}`);
   }
   // The SvelteKit axis lives in a hard-coded list rather than in RuleConditions,
   // so it needs its own comparison or a rule joining/leaving upstream's gated set
@@ -209,8 +229,9 @@ function main() {
   }
 
   console.log(
-    `[lint-conditions] ${shared.length} shared rules, ${gated} runes-gated by upstream on Svelte 5, ` +
-      `${upKit.length} SvelteKit-gated; ${diffs.length} divergence(s)`,
+    `[lint-conditions] ${shared.length} shared rules, ${gated} mode/version-gated by upstream, ` +
+      `${mySvelte34Only.length} Svelte-3/4-only and ${upKit.length} SvelteKit-gated; ` +
+      `${diffs.length} divergence(s)`,
   );
 
   const known = fs.existsSync(KNOWN) ? JSON.parse(fs.readFileSync(KNOWN, "utf8")) : [];

@@ -33,7 +33,9 @@ static META: RuleMeta = RuleMeta {
     fixable: Fixable::Code,
     default_severity: Severity::Warn,
     conditions: RuleConditions {
-        runes_only: true,
+        // Upstream declares no runes condition and performs this check in the
+        // rule body. Keep the metadata faithful and do the same below.
+        runes_only: false,
         legacy_only: false,
     },
     type_aware: false,
@@ -68,8 +70,7 @@ impl Rule for NoAtConstTags {
         if tags.is_empty() {
             return;
         }
-        // Upstream declares no `runes` condition and gates in `create()`
-        // instead, so this cannot move to `RuleConditions`.
+        // Upstream declares no `runes` condition and gates in `create()`.
         if !crate::runes_mode::component_runes_mode(root, ctx.source()) {
             return;
         }
