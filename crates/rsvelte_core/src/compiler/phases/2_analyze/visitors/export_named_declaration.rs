@@ -91,6 +91,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 local: local_id,
                 exported: exported_id,
                 export_kind: spec_export_kind,
+                start: specifier_start,
+                end: specifier_end,
                 ..
             } = specifier
             {
@@ -129,7 +131,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                             .declarations
                             .contains_key(local_name.as_str());
                         if !binding_exists {
-                            return Err(errors::export_undefined(local_name.as_str()));
+                            return Err(errors::export_undefined(local_name.as_str())
+                                .at(*specifier_start, *specifier_end));
                         }
                     }
                 }

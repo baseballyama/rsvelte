@@ -209,8 +209,8 @@ Clustered by code, the largest are `expected_token` (19: 12 different-line, 7
 same-line), `css_expected_identifier` (16, all different-line), `js_parse_error`
 (16, all same-line), `store_invalid_scoped_subscription` (10, all no-span),
 `block_invalid_continuation_placement` (6, all same-line), then
-`snippet_invalid_export` (5, all no-span) and `attribute_empty_shorthand` (3) —
-a tail of 21 codes in total, one raising site each, which is why this is a
+`attribute_empty_shorthand` (3) —
+followed by a long tail with one raising site each, which is why this is a
 per-site burn-down and not one edit.
 
 ## Error end positions
