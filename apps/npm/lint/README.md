@@ -237,11 +237,12 @@ default severity, and each rule that `eslint-plugin-svelte`'s own
 exceptions are `no-unused-props` and `require-event-dispatcher-types`, which
 stay `off` for reasons recorded in
 [`compatibility/lint-preset-known-failures.md`](https://github.com/baseballyama/rsvelte/blob/main/compatibility/lint-preset-known-failures.md).
-Rules outside that list default to `warn`, while all pure-formatting rules
-(owned by the sibling [`@rsvelte/fmt`](../fmt)) plus a set of opinionated opt-in
-rules such as `button-has-type`, `no-restricted-html-elements`, and
-`sort-attributes` default to `off` and must be enabled via `rules` in your
-config. Run `--list-rules` to see the full default-severity table.
+Shared rules omitted from upstream's recommended preset likewise default to `off`,
+including all pure-formatting rules (owned by the sibling
+[`@rsvelte/fmt`](../fmt)) and opinionated opt-in rules such as
+`button-has-type`, `no-restricted-html-elements`, and `sort-attributes`; enable
+them via `rules` in your config. Run `--list-rules` to see the full
+default-severity table.
 
 ## Supported platforms
 

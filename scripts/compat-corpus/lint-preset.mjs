@@ -19,11 +19,11 @@
  * CLI's exit code and because a membership-only key hid 21 rules that upstream
  * defaults to `error` and rsvelte to `warn`.
  *
- * This gate deliberately does NOT assert the two sets are equal — rsvelte
- * curates its `recommended` preset differently on purpose (see the paired
- * `.md`). It asserts the divergence is exactly the one recorded, so a rule's
- * default cannot change, and a rule cannot be added or ported, without the
- * decision being made explicitly.
+ * Shared rule defaults are expected to match. Set membership is recorded as a
+ * separate key class because rsvelte also carries standalone rules that ESLint
+ * normally supplies outside eslint-plugin-svelte, while two upstream entries
+ * need facilities the native engine does not yet expose. Any remaining
+ * divergence must be recorded and justified in the paired `.md`.
  *
  * Usage:
  *   node scripts/compat-corpus/lint-preset.mjs           # verify (CI gate)
@@ -169,7 +169,7 @@ function main() {
     console.error("\n  fix: node scripts/compat-corpus/lint-preset.mjs --update");
   }
   if (added.length > 0 || removed.length > 0) process.exit(1);
-  console.log("[lint-preset] ✅ default preset matches the recorded curation");
+  console.log("[lint-preset] ✅ default preset matches the recorded compatibility state");
 }
 
 // `lint-severity.mjs` imports the two preset readers above; importing must not

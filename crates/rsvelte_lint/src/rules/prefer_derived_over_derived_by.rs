@@ -27,7 +27,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-derived-over-derived-by",
     category: RuleCategory::Style,
     fixable: Fixable::Code,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: true,
         legacy_only: false,

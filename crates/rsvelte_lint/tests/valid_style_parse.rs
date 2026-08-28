@@ -22,12 +22,13 @@ fn findings(src: &str, cfg: &LintConfig) -> Vec<(u32, u32, String)> {
 }
 
 #[test]
-fn reports_unsupported_lang() {
+fn reports_unsupported_lang_when_enabled() {
     // An unsupported `lang` is reported at the `<style>` tag, even though the
     // body is not valid CSS (so the main parse would otherwise abort).
     let src = "<script>\n\tlet x = 1;\n</script>\n\n<div>{x}</div>\n\n<style lang=\"invalid-lang\">\n\tclass .div-class/35\n</style>";
+    let cfg = LintConfig::recommended().with_override("svelte/valid-style-parse", Severity::Warn);
     assert_eq!(
-        findings(src, &LintConfig::recommended()),
+        findings(src, &cfg),
         vec![(
             7,
             1,
@@ -52,8 +53,7 @@ fn known_langs_and_plain_css_are_ok() {
 }
 
 #[test]
-fn respects_off() {
-    let cfg = LintConfig::recommended().with_override("svelte/valid-style-parse", Severity::Off);
+fn is_off_by_default() {
     let src = "<style lang=\"nope\">\n\tx\n</style>";
-    assert!(findings(src, &cfg).is_empty());
+    assert!(findings(src, &LintConfig::recommended()).is_empty());
 }

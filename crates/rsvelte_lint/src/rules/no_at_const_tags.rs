@@ -31,7 +31,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-at-const-tags",
     category: RuleCategory::Style,
     fixable: Fixable::Code,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         // Upstream declares no runes condition and performs this check in the
         // rule body. Keep the metadata faithful and do the same below.

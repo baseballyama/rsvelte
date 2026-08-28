@@ -512,7 +512,7 @@ jobs:
 
       # Every gate above configures all shared rules to "warn" on both sides, so
       # the set a user gets with NO config is a constant none of them can vary.
-      - name: Verify lint default-preset curation (ratchet against lint-preset-known-failures.json)
+      - name: Verify lint default-preset parity (ratchet against lint-preset-known-failures.json)
         run: node scripts/compat-corpus/lint-preset.mjs
 
       # And the step above reads the two presets' declared TABLES. What a run

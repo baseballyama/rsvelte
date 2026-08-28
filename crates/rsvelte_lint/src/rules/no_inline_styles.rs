@@ -22,7 +22,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-inline-styles",
     category: RuleCategory::Style,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

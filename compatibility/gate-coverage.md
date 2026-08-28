@@ -3111,8 +3111,9 @@ Key is `<upstream sev>-><rsvelte sev>|<id>`, plus `not-ported|<id>` and `rsvelte
 
 It exists for C8: every other lint gate writes an explicit all-rules-`"warn"` config on both sides,
 which is correct for comparing rules and makes the default configuration a constant they cannot
-vary. It does **not** assert equality — see C8 for why. It asserts the recorded curation is
-unchanged.
+vary. Shared defaults are expected to match; the ratchet records the two remaining implementation
+gaps and keeps one-sided rule membership visible without pretending those ids have a severity on
+both sides.
 
 ### Severity in the key was worth 21 rules the membership key called equal — **[D]**
 
@@ -3136,10 +3137,8 @@ The gate parses the CLI's own table rather than linting a file with no config an
 rules fired. Those are different claims: the table is what `RuleMeta::default_severity` says, and
 what actually runs is that *filtered by* `enabled_script_rules` — which additionally drops
 SvelteKit-only rules (`crates/rsvelte_lint/src/sveltekit.rs`) and rules whose `RuleConditions`
-exclude the file's mode. Two of the 22 `default-on-here` entries are exactly such rules
-(`no-goto-without-base`, `no-navigation-without-base`), so for a non-SvelteKit user the true
-default-on set is smaller than 56 and this gate reports the larger number. Reading the table is
-still the right unit for "did the curation change"; it is the wrong unit for "what does a user see".
+exclude the file's mode. Reading the table is still the right unit for "does the declared preset
+match"; it is the wrong unit for "what does a user see".
 
 **Gate 36 is the run.** `lint-severity.mjs` drives both tools with no rule configuration over all
 1,365 adversarial patterns and compares the findings *with severity in the key*, plus the process
@@ -3365,12 +3364,13 @@ evidence the inline-configuration axis is exercised at all.
 
 ### Blind spot 36a — the finding comparison excludes exactly the rules the presets disagree about — **[S]**
 
-`missing`/`extra` are scoped to the shared default-on set precisely so gate 33's 29-entry curation
-does not reappear here as ~2,100 finding-level entries. The cost is that the **findings** of a rule
-one side runs by default and the other does not are compared by no gate under default
+`missing`/`extra` are scoped to the shared default-on set precisely so gate 33's declared-table
+differences do not reappear here as finding-level entries. The cost is that the **findings** of a
+rule one side runs by default and the other does not are compared by no gate under default
 configuration: gate 28 compares them with both sides forced to `"warn"`, and gate 33 compares only
-that the membership difference is unchanged. A rule that behaves differently *because* of its
-default severity or options would fall between the two. Unmeasured how large that class is.
+the declared default. A rule that behaves differently *because* of its default severity or options
+would fall between the two. The current shared population for that blind spot is the two
+`error->off` entries; its size is otherwise unmeasured.
 
 ### Blind spot 36b — inline configuration is asserted to exist, not compared — **[D]**
 
@@ -3722,30 +3722,24 @@ they write no config at all** — the single largest behavioural difference betw
 for someone switching. Gates 33 and 36 are the two halves of the answer; the rest of this entry is
 what they found.
 
-Measured, not assumed. Over the 84 rule ids the two share, rsvelte's default preset
-(`LintConfig::recommended()`, "every rule at its declared default severity") runs **56** and
-eslint-plugin-svelte's `flat/recommended` runs **36**. The sets differ in both directions: 22 rules
-run by default in rsvelte that upstream's recommended leaves off (`no-inline-styles`,
-`no-unused-class-name`, `prefer-const`, `no-target-blank`, `block-lang`, `consistent-selector-style`,
-`require-stores-init`, …), and **2 that upstream's recommended enables at `error` and rsvelte leaves
-off** — `svelte/no-unused-props` and `svelte/require-event-dispatcher-types`, i.e. a user on defaults
-gets *fewer* checks than eslint-plugin-svelte would give them.
+Measured, not assumed. Over the 84 rule ids the two share, the first measurement found rsvelte's
+default preset (`LintConfig::recommended()`, "every rule at its declared default severity") running
+**56** and eslint-plugin-svelte's `flat/recommended` running **36**. Twenty-two rules ran by default
+only in rsvelte (`no-inline-styles`, `no-unused-class-name`, `prefer-const`, `no-target-blank`,
+`block-lang`, `consistent-selector-style`, `require-stores-init`, …); those declared defaults now
+match upstream at `off`. The current shared sets therefore run **34** and **36** rules. The two
+remaining shared differences run in the opposite direction: upstream enables
+`svelte/no-unused-props` and `svelte/require-event-dispatcher-types` at `error`, while rsvelte leaves
+them off pending the implementation work recorded in the gate-33 ratchet.
 
 Membership was not the whole of it, and that is the part worth carrying forward. Twenty-one further
 rules ran by default on **both** sides at different severities — upstream `error`, rsvelte `warn` —
 which decides the CLI's exit code in both tools. Those were fixed, not recorded; see gate 33.
 
-This is not filed as a divergence because rsvelte's `recommended` is a documented preset of its own
-(`apps/npm/lint/README.md`: "runs every rule at its declared default severity"), not a claimed port
-of upstream's. The hazard was that the *name* is the same and nothing measured the gap, so a drift
-in either direction was invisible.
-
-**Gate 33 now measures it, and the way it does so is the point.** The obvious gate — assert the two
-enabled sets are equal — would encode a product decision (which preset rsvelte's default should be)
-as a correctness claim, and that decision belongs to a person. `lint-preset.mjs` instead ratchets
-the *difference*, two-sided, one key per rule: the curation is whatever it is, but it cannot change,
-and a rule cannot be ported or added, without the decision surfacing as a failing entry that needs a
-written reason.
+**Gate 33 now measures it, and the way it does so is the point.** Shared defaults are compatibility
+claims and are expected to agree. One-sided ids use separate `not-ported` / `rsvelte-only` keys, so
+the gate does not invent a comparable severity where one product has no rule; it still makes every
+addition, port or removal surface as a two-sided ratchet change requiring a written reason.
 
 **Gate 36 closes the other half, and the half it closed was not the rule set.** Gate 33 compares two
 declared tables; `lint-severity.mjs` runs both tools under those tables and compares what they

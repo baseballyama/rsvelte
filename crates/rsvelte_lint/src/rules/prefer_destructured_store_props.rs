@@ -39,7 +39,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-destructured-store-props",
     category: RuleCategory::Style,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

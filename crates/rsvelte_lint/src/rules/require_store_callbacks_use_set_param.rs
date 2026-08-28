@@ -33,7 +33,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/require-store-callbacks-use-set-param",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

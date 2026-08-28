@@ -25,7 +25,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-ignored-unsubscribe",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

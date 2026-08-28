@@ -3,7 +3,8 @@
 `scripts/compat-corpus/lint-preset.mjs` compares **what a user gets when they
 write no configuration at all**: the default severity (`off` / `warn` / `error`)
 that `eslint-plugin-svelte`'s `flat/recommended` and `rsvelte-lint`'s
-`recommended` preset give each of the 84 rule ids the two share.
+`recommended` preset give each shared rule, plus rule ids present on only one
+side.
 
 Every other lint gate this project runs sets all 74 shared rules to `"warn"`
 explicitly on both sides. That is the right key for asking "does this rule
@@ -12,14 +13,16 @@ gates cannot vary** — so a rule that runs out of the box on one side and not t
 other, or at a different severity, is invisible to all of them no matter how
 large the corpus grows.
 
-Unlike the other ratchets here, `lint-preset-known-failures.json` (29 entries) is
-**not a burndown backlog and is not expected to reach zero.** rsvelte curates its `recommended`
-preset deliberately differently (below). What the gate buys is that the curation
-is *recorded*: a rule's default cannot change, and a rule cannot be ported or
-added, without the decision appearing here as a failing two-sided ratchet.
+`lint-preset-known-failures.json` holds **7 entries**. The 22 shared-rule
+severity differences have been removed; the remaining entries are two declared
+defaults that need implementation work and five rule-membership differences.
 
 Key format: `<upstream severity>-><rsvelte severity>|<rule id>`, plus two
 membership classes `not-ported|<id>` and `rsvelte-only|<id>`.
+
+Partition of the 7 entries by cause: **2 + 2 + 3** — two shared defaults still
+blocked on implementation work, two upstream-only ids, and three rsvelte-only
+ids.
 
 ## Severity is in the key, and putting it there is what found the largest class
 
@@ -77,35 +80,6 @@ still records the declared-default mismatch independently: this rule remains
 `off` in rsvelte while that gate's upstream configuration declares another
 severity. Runtime reachability is governed and ratcheted separately by
 `lint-conditions-known-failures.json`.
-
-## `off->warn` — one reason, 22 entries
-
-rsvelte's `recommended` is defined as *"every rule runs at its declared default
-severity"* (`LintConfig::recommended`, `crates/rsvelte_lint/src/config.rs`), with
-formatting rules — owned by the sibling `@rsvelte/fmt` — and opinionated opt-in
-rules such as `button-has-type`, `no-restricted-html-elements` and
-`sort-attributes` declared `off`. Upstream's `flat/recommended` is a
-hand-maintained list instead. Two different curation *mechanisms* cannot be
-expected to agree entry by entry, and this row set is the measured size of that
-disagreement rather than 22 independent decisions. It is documented for users in
-[`apps/npm/lint/README.md`](../apps/npm/lint/README.md#rule-coverage).
-
-Note the severity these land on: `warn`, never `error`. A rule rsvelte runs and
-upstream does not still cannot change the exit code, so this class costs a
-switching user extra output and never a broken build. That asymmetry is why it
-is acceptable as a class while `error->off` above needed rules checked one by
-one.
-
-Listing them individually rather than as one aggregate key is deliberate. Under
-a single `preset-differs` key, flipping any one of these 22 — or porting a 23rd
-rule straight to `warn` — would reproduce an already-listed key and pass.
-
-`svelte/no-goto-without-base` and `svelte/no-navigation-without-base` are in
-this set and are worth reading twice: they are two of the five rules
-`crates/rsvelte_lint/src/sveltekit.rs` disables outside a SvelteKit project, so
-being default-on costs a non-SvelteKit user nothing. `svelte/prefer-const` and
-`svelte/no-unused-class-name` are the two with the widest reach, and both are
-compared finding-for-finding by `lint-adversarial.mjs` and `lint-verify.mjs`.
 
 ## `not-ported` — 2 entries
 

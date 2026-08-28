@@ -2,6 +2,11 @@
 
 ## 0.10.20
 
+### Patch Changes
+
+- Align the default `recommended` preset with `eslint-plugin-svelte`: 22 shared
+  rules that upstream leaves disabled are now opt-in in `rsvelte-lint` as well.
+
 ## 0.10.19
 
 ### Patch Changes

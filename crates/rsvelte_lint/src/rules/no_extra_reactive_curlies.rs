@@ -24,7 +24,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-extra-reactive-curlies",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
