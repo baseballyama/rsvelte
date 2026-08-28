@@ -3220,13 +3220,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// esrap's `ArrowFunctionExpression`: `[async ](params) => body`, wrapping an
     /// object concise body in parens so it isn't read as a block.
     fn arrow_function(&mut self, node: &ArrowFunctionExpression, ctx: &mut Context<DIRECT>) {
-        self.arrow_function_with_comment_body(node, false, ctx);
+        self.arrow_function_with_owned_comments(node, None, ctx);
     }
 
-    fn arrow_function_with_comment_body(
+    fn arrow_function_with_owned_comments(
         &mut self,
         node: &ArrowFunctionExpression,
-        comment_body: bool,
+        owned_comment_until: Option<u32>,
         ctx: &mut Context<DIRECT>,
     ) {
         if node.r#async {
@@ -3239,11 +3239,21 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // esrap runs the params sequence until `(returnType ?? body).loc.start`,
         // so a comment ahead of a located body flushes inside a synthesized
         // arrow's empty parens.
-        let until = (!comment_body).then(|| {
-            node.return_type
-                .as_ref()
-                .map_or_else(|| node.body.span().start, |rt| rt.span().start)
-        });
+        let body_start = node
+            .return_type
+            .as_ref()
+            .map_or_else(|| node.body.span().start, |rt| rt.span().start);
+        // A comment-owning generated arrow can have an original-source body
+        // span, which is below `loc_base` and therefore cannot bound comments
+        // in the synthetic comment buffer. In that case the next call argument
+        // is the boundary upstream's generated arrow effectively gets. A
+        // located body (for example a header-comment carrier) remains the more
+        // precise boundary.
+        let until = if owned_comment_until.is_some() && !self.has_loc(body_start) {
+            owned_comment_until
+        } else {
+            Some(body_start)
+        };
         self.formal_parameters_with_this(&node.params, None, until, ctx);
         ctx.write_ascii(b')');
         if let Some(rt) = &node.return_type {
@@ -4421,7 +4431,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if owns_comments
             && let Some(Expression::ArrowFunctionExpression(arrow)) = arg.as_expression()
         {
-            self.arrow_function_with_comment_body(arrow, true, ctx);
+            self.arrow_function_with_owned_comments(arrow, next, ctx);
         } else {
             self.print_argument(arg, ctx);
         }
@@ -4604,7 +4614,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if owns_comments
                 && let Some(Expression::ArrowFunctionExpression(arrow)) = arg.as_expression()
             {
-                self.arrow_function_with_comment_body(arrow, true, ctx);
+                self.arrow_function_with_owned_comments(arrow, Some(call_end), ctx);
             } else {
                 self.print_argument(arg, ctx);
             }

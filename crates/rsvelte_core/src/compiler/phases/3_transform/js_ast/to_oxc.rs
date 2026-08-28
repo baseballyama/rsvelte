@@ -370,6 +370,34 @@ fn erase_generated_effect_call_locs(
     }
 }
 
+/// Match the locations upstream assigns when it builds a legacy reactive
+/// effect: the call, callee, arrow shells, parameter lists and callback's outer
+/// block are generated, while expressions and statements copied into those
+/// shells retain their source locations.
+fn unlocate_legacy_pre_effect_wrapper(call: &mut CallExpression<'_>) {
+    call.span = SPAN;
+
+    let mut unlocator = SpanUnlocator;
+    unlocator.visit_expression(&mut call.callee);
+
+    for argument in &mut call.arguments {
+        let Argument::ArrowFunctionExpression(arrow) = argument else {
+            continue;
+        };
+        arrow.span = SPAN;
+        unlocator.visit_formal_parameters(&mut arrow.params);
+        if let Some(type_parameters) = &mut arrow.type_parameters {
+            unlocator.visit_ts_type_parameter_declaration(type_parameters);
+        }
+        if let Some(return_type) = &mut arrow.return_type {
+            unlocator.visit_ts_type_annotation(return_type);
+        }
+        if let ArrowFunctionBody::FunctionBody(body) = &mut arrow.body {
+            body.span = SPAN;
+        }
+    }
+}
+
 /// Rebuilds any `SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER(expr)` call — however
 /// deeply nested — into a one-element `SequenceExpression`. See the marker's doc
 /// comment and [`Cx::restore_single_target_destructure_sequences`].
@@ -1774,6 +1802,9 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// as `() => (dep)`. Re-parsing that generated text yields a
     /// `ParenthesizedExpression`, which the printer drops (as esrap must, since
     /// acorn elides source parens); rebuild the sequence so the parens survive.
+    /// Re-parsing also gives locations to the generated call and arrow wrappers;
+    /// erase those while retaining the source-located statements in the effect
+    /// callback, matching the split upstream constructs directly.
     fn restore_legacy_pre_effect_deps(&self, stmts: &mut [Statement<'a>]) {
         for stmt in stmts {
             let Statement::ExpressionStatement(es) = stmt else {
@@ -1785,31 +1816,31 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             if !is_dollar_call(&call.callee, "legacy_pre_effect") {
                 continue;
             }
-            let Some(Argument::ArrowFunctionExpression(arrow)) = call.arguments.first_mut() else {
-                continue;
-            };
-            let Some(body) = arrow.get_expression_mut() else {
-                continue;
-            };
-            // A multi-dependency thunk re-parses as `Paren(Sequence)`, which the
-            // printer already prints with the sequence's own parens.
-            let single = matches!(&*body, Expression::ParenthesizedExpression(p)
-                if !matches!(p.expression, Expression::SequenceExpression(_)));
-            if !single {
-                continue;
+            if let Some(Argument::ArrowFunctionExpression(arrow)) = call.arguments.first_mut()
+                && let Some(body) = arrow.get_expression_mut()
+            {
+                // A multi-dependency thunk re-parses as `Paren(Sequence)`, which
+                // the printer already prints with the sequence's own parens.
+                let single = matches!(&*body, Expression::ParenthesizedExpression(p)
+                    if !matches!(p.expression, Expression::SequenceExpression(_)));
+                if single {
+                    // `SPAN` mirrors upstream, where this node is builder-made
+                    // and so carries no `loc` for comment placement.
+                    body.replace_with(|e| {
+                        let Expression::ParenthesizedExpression(p) = e else {
+                            unreachable!()
+                        };
+                        Expression::SequenceExpression(SequenceExpression::boxed(
+                            SPAN,
+                            ArenaVec::from_value_in(p.unbox().expression, &self.ab),
+                            &self.ab,
+                        ))
+                    });
+                }
             }
-            // `SPAN` mirrors upstream, where this node is builder-made and so
-            // carries no `loc` for the printer to place comments against.
-            body.replace_with(|e| {
-                let Expression::ParenthesizedExpression(p) = e else {
-                    unreachable!()
-                };
-                Expression::SequenceExpression(SequenceExpression::boxed(
-                    SPAN,
-                    ArenaVec::from_value_in(p.unbox().expression, &self.ab),
-                    &self.ab,
-                ))
-            });
+
+            unlocate_legacy_pre_effect_wrapper(call);
+            es.span = SPAN;
         }
     }
 
