@@ -15,23 +15,18 @@
 //! Options (`options[0]`): `{ allowReferrer?: boolean = false,
 //! enforceDynamicLinks?: "always" | "never" = "always" }`.
 //!
-//! The autofix is rsvelte-only — upstream reports without repairing — because
-//! Svelte 5 dropped the `security-anchor-rel-noreferrer` compiler warning, so
-//! this rule is now the only place the repair can live.
-
 use rsvelte_core::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, Component, RegularElement,
     SlotElement, SvelteComponentElement, SvelteDynamicElement, SvelteElement, TitleElement,
 };
 
 use crate::context::LintContext;
-use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-target-blank",
     category: RuleCategory::Style,
-    fixable: Fixable::Code,
+    fixable: Fixable::No,
     default_severity: Severity::Warn,
     conditions: RuleConditions {
         runes_only: false,
@@ -66,26 +61,6 @@ fn is_secure_rel(rel: &str, allow_referrer: bool) -> bool {
     let tags: Vec<String> = rel.to_lowercase().split(' ').map(str::to_string).collect();
     tags.iter().any(|t| t == "noopener")
         && (allow_referrer || tags.iter().any(|t| t == "noreferrer"))
-}
-
-/// The tokens a secure `rel` must carry, in the order the fix writes them.
-const fn required_tags(allow_referrer: bool) -> &'static [&'static str] {
-    if allow_referrer {
-        &["noopener"]
-    } else {
-        &["noopener", "noreferrer"]
-    }
-}
-
-/// The required tokens absent from `rel`. Splits exactly like [`is_secure_rel`]
-/// so the fix always clears the condition that produced the report.
-fn missing_tags(rel: &str, allow_referrer: bool) -> Vec<&'static str> {
-    let present: Vec<String> = rel.to_lowercase().split(' ').map(str::to_string).collect();
-    required_tags(allow_referrer)
-        .iter()
-        .copied()
-        .filter(|tag| !present.iter().any(|p| p == tag))
-        .collect()
 }
 
 /// Whether a static `href` text value is an absolute/protocol URL,
@@ -195,95 +170,6 @@ impl NoTargetBlank {
             _ => false,
         }
     }
-
-    /// The repair: add the missing `rel` tokens. `None` when the existing `rel`
-    /// is dynamic (or otherwise not a single literal), since rewriting a
-    /// mustache would be a guess.
-    fn build_fix(
-        source: &str,
-        attrs: &[Attribute],
-        target: &AttributeNode,
-        allow_referrer: bool,
-    ) -> Option<Fix> {
-        let Some(rel) = Self::rel_attr(attrs) else {
-            let tags = required_tags(allow_referrer).join(" ");
-            return Some(Fix {
-                message: format!("Add rel=\"{tags}\""),
-                edits: vec![TextEdit {
-                    start: target.end,
-                    end: target.end,
-                    new_text: format!(" rel=\"{tags}\""),
-                }],
-            });
-        };
-
-        // A valueless `rel` carries no tokens, so the whole attribute is rewritten.
-        let parts = match &rel.value {
-            AttributeValue::True(_) => {
-                let tags = required_tags(allow_referrer).join(" ");
-                return Some(Fix {
-                    message: format!("Add rel=\"{tags}\""),
-                    edits: vec![TextEdit {
-                        start: rel.start,
-                        end: rel.end,
-                        new_text: format!("rel=\"{tags}\""),
-                    }],
-                });
-            }
-            AttributeValue::Expression(_) => return None,
-            AttributeValue::Sequence(parts) => parts,
-        };
-
-        let (value_start, value_end, existing) = match parts.as_slice() {
-            // An empty `Sequence` is `rel=""`: with no text node to replace, the
-            // tokens go in the empty slot just inside the closing quote.
-            [] => {
-                let slot = rel.end.checked_sub(1)?;
-                if !matches!(source.as_bytes().get(slot as usize), Some(b'"' | b'\'')) {
-                    return None;
-                }
-                (slot, slot, "")
-            }
-            [AttributeValuePart::Text(text)] => (
-                text.start,
-                text.end,
-                source.get(text.start as usize..text.end as usize)?,
-            ),
-            _ => return None,
-        };
-
-        let missing = missing_tags(existing, allow_referrer);
-        if missing.is_empty() {
-            return None;
-        }
-        let added = missing.join(" ");
-        let extended = if existing.is_empty() {
-            added.clone()
-        } else {
-            format!("{existing} {added}")
-        };
-        // An unquoted value cannot hold a space, so extending it needs quotes.
-        let quoted = matches!(
-            value_start
-                .checked_sub(1)
-                .and_then(|i| source.as_bytes().get(i as usize)),
-            Some(b'"' | b'\'')
-        );
-        let new_text = if quoted {
-            extended
-        } else {
-            format!("\"{extended}\"")
-        };
-
-        Some(Fix {
-            message: format!("Add {added} to rel"),
-            edits: vec![TextEdit {
-                start: value_start,
-                end: value_end,
-                new_text,
-            }],
-        })
-    }
 }
 
 impl Rule for NoTargetBlank {
@@ -344,10 +230,7 @@ fn check_attributes(ctx: &mut LintContext, attrs: &[Attribute]) {
         return;
     }
 
-    match NoTargetBlank::build_fix(ctx.source(), attrs, target, allow_referrer) {
-        Some(fix) => ctx.report_with_fix(target.start, target.end, MESSAGE, fix),
-        None => ctx.report(target.start, target.end, MESSAGE),
-    }
+    ctx.report(target.start, target.end, MESSAGE);
 }
 
 #[cfg(test)]
@@ -387,170 +270,5 @@ mod tests {
         assert!(is_secure_rel("noopener", true));
         assert!(is_secure_rel("noopener noreferrer", true));
         assert!(!is_secure_rel("noreferrer", true));
-    }
-
-    #[test]
-    fn missing_tags_reports_only_absent_tokens() {
-        use super::missing_tags;
-        assert_eq!(missing_tags("", false), ["noopener", "noreferrer"]);
-        assert_eq!(missing_tags("noopener", false), ["noreferrer"]);
-        assert_eq!(missing_tags("NOREFERRER", false), ["noopener"]);
-        assert!(missing_tags("noopener noreferrer", false).is_empty());
-        assert!(missing_tags("noopener", true).is_empty());
-        assert_eq!(missing_tags("noreferrer", true), ["noopener"]);
-        // Same splitting as `is_secure_rel`, so the fix always clears the report.
-        assert_eq!(
-            missing_tags("noopenernoreferrer", false),
-            ["noopener", "noreferrer"]
-        );
-    }
-
-    #[cfg(feature = "native")]
-    mod fix {
-        use serde_json::json;
-
-        use crate::config::LintConfig;
-        use crate::rule::Severity;
-        use crate::runner::fix_source;
-
-        fn config(allow_referrer: bool) -> LintConfig {
-            let cfg = LintConfig::empty().with_override("svelte/no-target-blank", Severity::Error);
-            if allow_referrer {
-                cfg.with_options("svelte/no-target-blank", json!([{"allowReferrer": true}]))
-            } else {
-                cfg
-            }
-        }
-
-        #[track_caller]
-        fn fixed(src: &str) -> String {
-            fix_source(src, &config(false)).output
-        }
-
-        #[track_caller]
-        fn fixed_allow_referrer(src: &str) -> String {
-            fix_source(src, &config(true)).output
-        }
-
-        #[test]
-        fn adds_rel_when_absent() {
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank">x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener noreferrer">x</a>"#
-            );
-        }
-
-        #[test]
-        fn inserts_after_target_not_at_tag_end() {
-            assert_eq!(
-                fixed(r#"<a target="_blank" href="https://svelte.dev/">x</a>"#),
-                r#"<a target="_blank" rel="noopener noreferrer" href="https://svelte.dev/">x</a>"#
-            );
-        }
-
-        #[test]
-        fn extends_partial_rel_keeping_existing_tokens() {
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank" rel="noopener">x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener noreferrer">x</a>"#
-            );
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank" rel="noreferrer">x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noreferrer noopener">x</a>"#
-            );
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank" rel="nofollow">x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="nofollow noopener noreferrer">x</a>"#
-            );
-        }
-
-        #[test]
-        fn preserves_quoting_style() {
-            assert_eq!(
-                fixed("<a href=\"https://svelte.dev/\" target=\"_blank\" rel='noopener'>x</a>"),
-                "<a href=\"https://svelte.dev/\" target=\"_blank\" rel='noopener noreferrer'>x</a>"
-            );
-            // An unquoted value cannot hold a space, so the fix adds quotes.
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank" rel=noopener>x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener noreferrer">x</a>"#
-            );
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank" rel="">x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener noreferrer">x</a>"#
-            );
-        }
-
-        #[test]
-        fn rewrites_valueless_rel() {
-            assert_eq!(
-                fixed(r#"<a href="https://svelte.dev/" target="_blank" rel>x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener noreferrer">x</a>"#
-            );
-        }
-
-        #[test]
-        fn leaves_dynamic_rel_alone() {
-            for src in [
-                r#"<a href="https://svelte.dev/" target="_blank" rel={rel}>x</a>"#,
-                r#"<a href="https://svelte.dev/" target="_blank" rel="a {b}">x</a>"#,
-                r#"<a href="https://svelte.dev/" target="_blank" {rel}>x</a>"#,
-            ] {
-                let res = fix_source(src, &config(false));
-                assert_eq!(res.applied, 0, "unexpected fix for {src}");
-                assert_eq!(res.output, src);
-            }
-        }
-
-        #[test]
-        fn allow_referrer_only_adds_noopener() {
-            assert_eq!(
-                fixed_allow_referrer(r#"<a href="https://svelte.dev/" target="_blank">x</a>"#),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener">x</a>"#
-            );
-            assert_eq!(
-                fixed_allow_referrer(
-                    r#"<a href="https://svelte.dev/" target="_blank" rel="noreferrer">x</a>"#
-                ),
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noreferrer noopener">x</a>"#
-            );
-        }
-
-        #[test]
-        fn secure_and_safe_links_are_untouched() {
-            for src in [
-                r#"<a href="https://svelte.dev/" target="_blank" rel="noopener noreferrer">x</a>"#,
-                r#"<a href="/local" target="_blank">x</a>"#,
-                r#"<a href="https://svelte.dev/">x</a>"#,
-            ] {
-                let res = fix_source(src, &config(false));
-                assert_eq!(res.applied, 0, "unexpected fix for {src}");
-                assert_eq!(res.output, src);
-            }
-        }
-
-        #[test]
-        fn fixes_the_whole_upstream_invalid_fixture() {
-            let src = concat!(
-                "<a href=\"https://svelte.dev/\" target=\"_blank\">link</a>\n",
-                "<a href=\"https://svelte.dev/\" target=\"_blank\" rel=\"noopenernoreferrer\">link</a>\n",
-                "<a href={link} target=\"_blank\" rel=\"3\">link</a>\n",
-                "<a href={link} target=\"_blank\">link</a>\n",
-                "<a href=\"https://svelte.dev/\" target=\"_blank\" rel=\"noopener\">link</a>\n",
-            );
-            let out = fix_source(src, &config(false)).output;
-            assert_eq!(
-                out,
-                concat!(
-                    "<a href=\"https://svelte.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">link</a>\n",
-                    "<a href=\"https://svelte.dev/\" target=\"_blank\" rel=\"noopenernoreferrer noopener noreferrer\">link</a>\n",
-                    "<a href={link} target=\"_blank\" rel=\"3 noopener noreferrer\">link</a>\n",
-                    "<a href={link} target=\"_blank\" rel=\"noopener noreferrer\">link</a>\n",
-                    "<a href=\"https://svelte.dev/\" target=\"_blank\" rel=\"noopener noreferrer\">link</a>\n",
-                )
-            );
-            // The fixed source no longer reports.
-            assert_eq!(fix_source(&out, &config(false)).applied, 0);
-        }
     }
 }

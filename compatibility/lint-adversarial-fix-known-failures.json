@@ -1,16 +1,3 @@
 [
-	"no-target-blank/01-basic.svelte|svelte/no-target-blank",
-	"no-target-blank/02-rel-dynamic.svelte|svelte/no-target-blank",
-	"no-target-blank/03-spread-and-shorthand.svelte|svelte/no-target-blank",
-	"no-target-blank/04-dynamic-href.svelte|svelte/no-target-blank",
-	"no-target-blank/05-component.svelte|svelte/no-target-blank",
-	"no-target-blank/06-svelte-element.svelte|svelte/no-target-blank",
-	"no-target-blank/07-bind-href.svelte|svelte/no-target-blank",
-	"no-target-blank/08-external-variants.svelte|svelte/no-target-blank",
-	"no-target-blank/09-options.svelte|svelte/no-target-blank",
-	"no-target-blank/11-svelte-self.svelte|svelte/no-target-blank",
-	"no-target-blank/12-multibyte-crlf.svelte|svelte/no-target-blank",
-	"no-target-blank/opt-key-allow-referrer.svelte|svelte/no-target-blank",
-	"no-target-blank/opt-key-dynamic-never.svelte|svelte/no-target-blank",
 	"shorthand-directive/16-never-mode-modifiers.svelte|svelte/shorthand-directive"
 ]

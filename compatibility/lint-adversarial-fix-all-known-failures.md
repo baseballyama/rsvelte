@@ -23,19 +23,18 @@ uncompared, and both turned out to hold defects:
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-all-known-failures.json` holds **16 entries** over 1364
-compared patterns; the oracle and rsvelte each rewrite 793 files.
+`lint-adversarial-fix-all-known-failures.json` holds **2 entries** over 1364
+compared patterns.
 
 Two verdicts share the file, kept apart by the key so neither can suppress the
 other on the same pattern: a bare `<id>` is a text divergence, and
 `oracle-crash:<id>` is a pattern ESLint threw on while fixing, where there is no
 text to compare.
 
-Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `14 + 1 + 1`
+Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `1 + 1`
 
 | cause | entries |
 |---|---|
-| rsvelte-only autofix (upstream rule is report-only) | 14 |
 | upstream autofix defect we decline to reproduce | 1 |
 | upstream rule crashes on text an earlier pass produced | 1 |
 
@@ -66,36 +65,6 @@ The same shape as the `prefer-class-directive` U+FEFF find one gate over: two
 implementations of one decision, and no gate that compares them to each other.
 
 ## Accepted entries
-
-### `svelte/no-target-blank` — 14 patterns
-
-```
-no-target-blank/{01-basic, 02-rel-dynamic, 03-spread-and-shorthand,
-04-dynamic-href, 05-component, 06-svelte-element, 07-bind-href,
-08-external-variants, 09-options, 10-case-and-decoys, 11-svelte-self,
-12-multibyte-crlf, opt-key-allow-referrer, opt-key-dynamic-never}.svelte
-```
-
-Thirteen of them are the per-rule gate's entries reproduced here, and
-[`lint-adversarial-fix-known-failures.md`](lint-adversarial-fix-known-failures.md)
-carries the mechanism: upstream's rule declares no `fixable` and reports only,
-while rsvelte's port repairs the `rel` attribute, deliberately, because Svelte 5
-dropped the compiler's `security-anchor-rel-noreferrer` warning and this rule is
-the only place left where the repair can live.
-
-**`10-case-and-decoys.svelte` is the fourteenth, and it is here and not there.**
-Its links are all decoys for `no-target-blank`, so with only that rule enabled
-neither side reports and the outputs are identical — which is exactly why the
-per-rule doc names it as the directory's one unlisted pattern. With the universe
-enabled, `svelte/no-useless-mustaches` first rewrites
-
-```svelte
-<a href="https://example.com/" target="_blank{''}">mustache in target, ok</a>
-```
-
-to `target="_blank"`, and the *next* pass hands `no-target-blank` a static
-`_blank` it now flags. Both sides report it in that pass; only rsvelte has a
-fixer. Same cause, reached only through another rule's edit.
 
 ### `shorthand-directive/16-never-mode-modifiers.svelte`
 

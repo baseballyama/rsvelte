@@ -20,17 +20,16 @@ scheduling policy that belongs to ESLint's driver rather than to any rule's
 port. Within a rule both sides multi-pass to a fixpoint (10 passes, ESLint's
 `Linter.verifyAndFix` bound; `runner.rs::fix_all` mirrors it), so an entry here
 can be a difference in what a *later* pass sees rather than in any single edit —
-and one of the four causes below is exactly that.
+and the remaining cause below is exactly that.
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-known-failures.json` holds **14 entries**.
+`lint-adversarial-fix-known-failures.json` holds **1 entry**.
 
-Partition of `lint-adversarial-fix-known-failures.json` by cause: `13 + 1`
+Partition of `lint-adversarial-fix-known-failures.json` by cause: `1`
 
 | cause | entries |
 |---|---|
-| rsvelte-only autofix (upstream rule is report-only) | 13 |
 | upstream autofix defect we decline to reproduce | 1 |
 
 The gate found one defect no other lint gate could have: a rule's *fix* path and
@@ -43,67 +42,6 @@ every gate keyed on `(ruleId, line, column, message)` by construction. Both path
 now go through `js_trim` / `js_trim_start` / `js_trim_end`.
 
 ## Accepted entries
-
-### `svelte/no-target-blank` — 13 patterns
-
-```
-no-target-blank/{01-basic, 02-rel-dynamic, 03-spread-and-shorthand,
-04-dynamic-href, 05-component, 06-svelte-element, 07-bind-href,
-08-external-variants, 09-options, 11-svelte-self, 12-multibyte-crlf,
-opt-key-allow-referrer, opt-key-dynamic-never}.svelte
-```
-
-**Mechanism.** Upstream's rule is report-only. `no-target-blank.ts`'s `meta`
-declares no `fixable` key and its single `context.report({ node, message })`
-carries no `fix`, so the oracle's output on every one of these patterns is the
-source byte-for-byte. rsvelte's port declares `fixable: Fixable::Code` and
-repairs the `rel` attribute, so on every pattern where the rule *fires* the two
-outputs differ.
-
-That is the whole entry set: the directory holds 14 patterns and 13 are listed.
-The unlisted one, `10-case-and-decoys.svelte`, is the file whose shapes are all
-decoys — neither side reports anything, so there is nothing to fix and the
-outputs are identical. The entries track "where does this rule fire", not "which
-files did we give up on".
-
-**What rsvelte writes** (`no_target_blank.rs::build_fix`), with the three arms
-the patterns exercise:
-
-| existing `rel` | edit |
-|---|---|
-| none | insert ` rel="noopener noreferrer"` after the `target` attribute |
-| valueless (`rel`) | replace the whole attribute with `rel="noopener noreferrer"` |
-| a single literal | replace the value with the existing tokens plus the missing ones |
-
-`01-basic.svelte` shows two of them:
-
-```svelte
-<a href="https://example.com/" target="_blank">flag</a>
-<!-- → … target="_blank" rel="noopener noreferrer">              -->
-<a href="https://example.com/" target="_blank" rel="noreferrer">flag</a>
-<!-- → … rel="noreferrer noopener">                              -->
-```
-
-The fix returns `None` — no repair, report only, byte-identical to upstream —
-when the existing `rel` is a mustache or a mixed sequence, because rewriting a
-dynamic value would be a guess. `02-rel-dynamic.svelte` is the control for that:
-its `rel={rel}` and `rel="noopener {extra}"` links are reported and left alone by
-both sides, and the file is listed only because of its `rel` and `rel=""` links,
-which take the valueless and empty-value arms. The superset is bounded by value
-*shape*, not by whether the rule fired.
-
-**Why the divergence is deliberate.** Svelte 5 dropped the compiler's
-`security-anchor-rel-noreferrer` warning, so this rule is the only place left
-where the repair can live, and the repair is mechanical: the rule already knows
-which of `noopener` / `noreferrer` is missing, since that is the test it just
-failed. Adding a token to `rel` cannot change what the link points at.
-
-**Why it is in the ratchet rather than skipped.** An intentional superset still
-has to be *bounded*. Listing each pattern means the gate fails the day the fix
-starts firing on a fourteenth shape, or stops firing on one of these thirteen,
-or writes different text — all of which a `svelte/no-target-blank` skip entry
-would swallow. The two-sided ratchet is what makes "rsvelte-only autofix" a
-claim about 13 named files rather than about a rule.
 
 ### `shorthand-directive/16-never-mode-modifiers.svelte` `svelte/shorthand-directive`
 
