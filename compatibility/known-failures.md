@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 335 entries)
+## Client (`known-failures.client.json`, 334 entries)
 
-Partition of `known-failures.client.json` by verdict: `239 + 36 + 20 + 37 + 3`
+Partition of `known-failures.client.json` by verdict: `238 + 36 + 20 + 37 + 3`
 
-- **239 — the generated JS differs** (`js` / `code-differs`).
+- **238 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -109,11 +109,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-## Client dev (`known-failures.client-dev.json`, 373 entries)
+## Client dev (`known-failures.client-dev.json`, 372 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `279 + 36 + 20 + 34 + 4`
+Partition of `known-failures.client-dev.json` by verdict: `278 + 36 + 20 + 34 + 4`
 
-- **279 — the generated JS differs.**
+- **278 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).
@@ -389,6 +389,10 @@ store scan ignored the await scope and synthesized a root `$gltf` subscription;
 template-block collection now removes each/await/snippet bindings only inside
 the fragment where they shadow, retiring four target-pairs without hiding a
 same-named top-level store reference elsewhere.
+Threlte's `Particle.svelte` binds a component instance into a member of a runes
+mode each item. The synthesized `bind:this={audio.ref}` setter now records the
+same each-item mutation as upstream's transform, retaining the required index
+parameter and retiring its client and client-dev entries.
 The three AdventureLog entries whose same-line legacy-prop comments disappeared
 from the final `$.prop` argument were fixed by #3937's comment-preserving prop
 lowering and are now retired from both client baselines.
