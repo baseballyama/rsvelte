@@ -1,9 +1,9 @@
 # lint-conditions-known-failures.json
 
 `scripts/compat-corpus/lint-conditions.mjs` compares whether each rule can run
-under Svelte 5. The ratchet is empty: rsvelte and eslint-plugin-svelte agree on
-the runes-mode pair, the Svelte-version eligibility, and the SvelteKit-gated
-set for every shared rule.
+under Svelte 5. `lint-conditions-known-failures.json` has 0 entries. rsvelte and
+eslint-plugin-svelte agree on the runes-mode pair, the Svelte-version
+eligibility, and the SvelteKit-gated set for every shared rule.
 
 The gate derives upstream's answer from `meta.conditions`; it does not maintain
 a copied oracle list. `shouldRun` treats condition objects as alternatives, so
