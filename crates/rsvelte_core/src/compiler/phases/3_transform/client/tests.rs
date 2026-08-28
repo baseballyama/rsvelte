@@ -3129,6 +3129,35 @@ export function useInterval(callback, delay) {
 }
 
 #[test]
+fn server_compile_module_dev_inspect_keeps_trailing_comments_on_the_argument() {
+    for (comment, expected) in [
+        ("// ) c", "a, // ) c\n')');"),
+        ("/* ) c */", "a, /* ) c */ ')');"),
+    ] {
+        for successor in ["", "\n\tconsole.log(2);"] {
+            let source =
+                format!("export function f(a) {{\n\t$inspect(a); {comment}{successor}\n}}\n");
+            let result = crate::compiler::compile_module(
+                &source,
+                crate::compiler::ModuleCompileOptions {
+                    generate: crate::compiler::GenerateMode::Server,
+                    dev: true,
+                    filename: Some("inspect.svelte.js".to_string()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+
+            assert!(
+                result.js.code.contains(expected),
+                "the trailing comment must stay attached to the inspected argument:\n{}",
+                result.js.code
+            );
+        }
+    }
+}
+
+#[test]
 fn shadowed_state_updates_do_not_rewrite_literal_tokens() {
     let output = apply_local_state_transforms(
         r#"{

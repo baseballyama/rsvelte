@@ -154,22 +154,24 @@ pub fn transform_server_module(
     )
     .unwrap_or(source_without_effects);
 
-    // The client module transform below runs with `dev: false`, so it would
-    // DROP a `$inspect(…)` the server is supposed to lower. Do the lowering
-    // first; what it leaves behind holds no code-position `$inspect(`.
-    let source_without_effects = if _options.dev {
-        lower_module_dev_inspect(&source_without_effects)
-    } else {
-        source_without_effects
-    };
-
     // Transform rune calls using the same infrastructure as client modules.
     let transformed = super::client::transform_module_source_for_module(
         &source_without_effects,
         analysis,
         false,
         true,
+        _options.dev,
     );
+
+    // Keep dev `$inspect` intact through the shared AST transform, then lower
+    // it once its arguments and comments are already in their final printed
+    // positions. Lowering before that transform makes its reparse attach an
+    // argument's trailing comment to the generated statement instead.
+    let transformed = if _options.dev {
+        lower_module_dev_inspect(&transformed)
+    } else {
+        transformed
+    };
 
     // Post-process: replace client-specific runtime calls with server equivalents
     // $.get(x) -> x() for server (derived signals are callable on server)
@@ -444,6 +446,49 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
 
 /// Dev lowering for a module's `$inspect(...)`, matching the server
 /// `CallExpression` visitor at every expression depth.
+fn module_inspect_args_head_with_trailing_comment(
+    source: &str,
+    end: usize,
+    args: &str,
+) -> (usize, String) {
+    let ordinary_head = || {
+        if args.trim().is_empty() {
+            String::new()
+        } else {
+            format!("{args}, ")
+        }
+    };
+    let tail = &source[end..];
+    let spaces = tail.len() - tail.trim_start_matches([' ', '\t']).len();
+    let tail = &tail[spaces..];
+    let Some(after_semicolon) = tail.strip_prefix(';') else {
+        return (end, ordinary_head());
+    };
+    let spaces_after_semicolon =
+        after_semicolon.len() - after_semicolon.trim_start_matches([' ', '\t']).len();
+    let comment = &after_semicolon[spaces_after_semicolon..];
+    let args_prefix = if args.trim().is_empty() {
+        String::new()
+    } else {
+        format!("{args}, ")
+    };
+    if let Some(line) = comment.strip_prefix("//") {
+        let len = line.find('\n').unwrap_or(line.len());
+        let comment_end = end + spaces + 1 + spaces_after_semicolon + 2 + len;
+        return (comment_end, format!("{args_prefix}//{}\n", &line[..len]));
+    }
+    if let Some(block) = comment.strip_prefix("/*")
+        && let Some(close) = block.find("*/")
+    {
+        let comment_end = end + spaces + 1 + spaces_after_semicolon + 2 + close + 2;
+        return (
+            comment_end,
+            format!("{args_prefix}/*{}*/ ", &block[..close]),
+        );
+    }
+    (end, ordinary_head())
+}
+
 fn lower_module_dev_inspect(source: &str) -> String {
     use super::client::find_matching_paren;
     use super::shared::js_scan::find_rune_code;
@@ -473,12 +518,10 @@ fn lower_module_dev_inspect(source: &str) -> String {
                 format!("({inspector})('init'{tail})"),
             )
         } else {
-            let head = if args.trim().is_empty() {
-                String::new()
-            } else {
-                format!("{args}, ")
-            };
-            (after_call, format!("console.log('$inspect(', {head}')')"))
+            let (end, head) =
+                module_inspect_args_head_with_trailing_comment(&result, after_call, &args);
+            let suffix = if end == after_call { "" } else { ";" };
+            (end, format!("console.log('$inspect(', {head}')'){suffix}"))
         };
         result = format!("{}{}{}", &result[..pos], replacement, &result[end..]);
     }

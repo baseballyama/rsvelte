@@ -465,6 +465,7 @@ pub(crate) fn transform_module_source_for_module(
     analysis: &ComponentAnalysis,
     dev: bool,
     server: bool,
+    preserve_inspect: bool,
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
     transform_module_script_runes_with_target(
@@ -474,6 +475,7 @@ pub(crate) fn transform_module_source_for_module(
         dev,
         server,
         true,
+        preserve_inspect,
     )
 }
 
@@ -5011,6 +5013,7 @@ pub(crate) fn transform_module_script_runes(
         dev,
         false,
         module_entry,
+        false,
     )
 }
 
@@ -5036,6 +5039,9 @@ fn transform_module_script_runes_with_target(
     // `compileModule` only: a component's `<script module>` is printed by the
     // component pipeline, whose text survives to the output as written.
     module_entry: bool,
+    // Server compileModule dev output lowers `$inspect` after this shared AST
+    // transform so comments on its arguments retain their final positions.
+    preserve_inspect: bool,
 ) -> String {
     let mut result = script.to_string();
     let mut shadows = rune_shadow::RuneShadows::new(
@@ -5105,7 +5111,7 @@ fn transform_module_script_runes_with_target(
     // module scripts. Mirrors CallExpression.js `transform_inspect_rune`: `if (!dev)
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
-    if !dev {
+    if !dev && !preserve_inspect {
         while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
