@@ -15,25 +15,4 @@ JS string and rsvelte's are UTF-8 byte offsets, so equal edits have unequal
 coordinates.
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
-`lint-adversarial-suggest-known-failures.json` currently holds 1 entry.
-
-## Accepted entries
-
-### `html-closing-bracket-new-line/05-script-style-tags.svelte` `svelte/block-lang 7:1`
-
-Not an independent divergence: it restates the report-level entry of the same
-name in
-[`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md).
-`svelte-eslint-parser` builds no `SvelteStyleElement` for a `</style⏎⏎>` end
-tag, so upstream's rule never runs and offers no suggestion, while rsvelte's
-parser recognises the block and reports it — with the suggestion its
-`enforceStylePresent` arm carries. The comparison key starts with the finding
-position, so a finding only one side reports lands here as an empty list against
-a one-element list.
-
-It is listed rather than skipped because the alternative — comparing suggestions
-only where the *report* already matches — would silently drop this whole class,
-and the class contains real cases: a rule that reports correctly but attaches a
-suggestion upstream does not attach would look identical to a rule that does not
-report at all. Expect this entry to disappear if the report-level entry is ever
-resolved; the ratchet is two-sided, so it will fail rather than rot.
+`lint-adversarial-suggest-known-failures.json` currently holds 0 entries.

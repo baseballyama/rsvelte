@@ -9,31 +9,17 @@ to separate two plausible implementations of one rule, so a divergence is a
 deliberate probe coming back positive rather than an accident of what published
 code happens to contain.
 
-**The expectation is that `lint-adversarial-known-failures.json` stays at 3 entries.**
+**The expectation is that `lint-adversarial-known-failures.json` stays at 2 entries.**
 It is not a burndown backlog: a new entry needs a reason that is *not*
-"rsvelte is wrong here", and the three below are the only such reasons found
+"rsvelte is wrong here", and the two below are the only such reasons found
 across 1365 patterns and 74 rules. Everything else the corpus surfaced (330
 divergences on the first run, 35 more when it grew past 1000 patterns) was fixed.
 
 `+` = rsvelte reports, oracle silent. `-` = oracle reports, rsvelte silent.
 
-## The three accepted entries
+## The two accepted entries
 
-### 1. `html-closing-bracket-new-line/05-script-style-tags.svelte` `+svelte/block-lang 7:1`
-
-An **upstream parser** artifact, not a rule difference. The pattern closes its
-style block as `</style⏎⏎>`. `svelte-eslint-parser` does not produce a
-`SvelteStyleElement` for that spelling, so `block-lang`'s `SvelteStyleElement`
-visitor never fires and the block is never checked; rsvelte's parser does
-recognise it and reports the `lang="css"` that upstream's own default option
-(`style: null`) disallows.
-
-Measured, not assumed: with the end tag written `</style>` and nothing else
-changed, upstream reports both blocks (`1:1` script and `7:1` style); with
-`</style⏎⏎>` it reports only the script. Matching upstream here would mean
-teaching rsvelte's parser to *drop* a style element Svelte itself accepts.
-
-### 2. `no-top-level-browser-globals/03-guard-browser.svelte` `+svelte/no-top-level-browser-globals 7:14`
+### 1. `no-top-level-browser-globals/03-guard-browser.svelte` `+svelte/no-top-level-browser-globals 7:14`
 
 The `globals`-version split already documented as **H4** in
 `compatibility/lint-known-failures.md` and excluded by name in
@@ -45,7 +31,7 @@ because eslint-plugin-svelte's own bundled fixtures — the authority the
 exact-fixture oracle gate enforces — expect exactly that report for this class.
 The two upstream artefacts disagree; rsvelte follows the fixtures.
 
-### 3. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
+### 2. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
 
 `<Style />` — a component whose name differs from `style` only in case. Upstream
 reports `html-self-closing` on it; rsvelte does not, and **rsvelte is right**.

@@ -156,6 +156,26 @@ fn style_lang_attr_range(css: &StyleSheet) -> Option<(u32, u32)> {
     None
 }
 
+/// Whether `svelte-eslint-parser` exposes this style block to rule visitors.
+///
+/// Its AST can contain a `SvelteStyleElement` for a closing tag with trivia
+/// before `>`, but its traversal keys expose the node only for the exact
+/// `</style>` spelling. Keep this quirk local to lint compatibility rather than
+/// making the compiler parser discard a valid Svelte style block.
+fn eslint_parser_exposes_style(source: &str, content_end: u32) -> bool {
+    let Ok(close_start) = usize::try_from(content_end) else {
+        return true;
+    };
+    let Some(rest) = source.as_bytes().get(close_start..) else {
+        return true;
+    };
+    if !rest.starts_with(b"</style") {
+        // Self-closing styles have no end tag and are exposed by the parser.
+        return true;
+    }
+    rest.get(b"</style".len()) == Some(&b'>')
+}
+
 // ---------------------------------------------------------------------------
 // Pretty-print the allowed languages list
 // ---------------------------------------------------------------------------
@@ -396,7 +416,10 @@ impl Rule for BlockLang {
         }
 
         // Style block.
-        let css = root.css.as_deref();
+        let css = root
+            .css
+            .as_deref()
+            .filter(|css| eslint_parser_exposes_style(&source, css.content.end));
         if css.is_none() && enforce_style {
             let msg = format!(
                 "The <style> block should be present and its lang attribute should be {}.",
@@ -678,5 +701,30 @@ mod tests {
             pretty_print_langs(&[Some("ts".to_string()), Some("js".to_string())]),
             "one of \"ts\", \"js\""
         );
+    }
+
+    #[test]
+    fn style_visibility_matches_eslint_parser_closing_tag_quirk() {
+        let prefix = "<style>div { color: red; }";
+        let end = source_offset(prefix.len());
+
+        assert!(eslint_parser_exposes_style(
+            &format!("{prefix}</style>"),
+            end
+        ));
+        for close in [
+            "</style >",
+            "</style\t>",
+            "</style\n>",
+            "</style\n\n>",
+            "</style/**/>",
+        ] {
+            assert!(!eslint_parser_exposes_style(
+                &format!("{prefix}{close}"),
+                end
+            ));
+        }
+
+        assert!(eslint_parser_exposes_style("<style />", 9));
     }
 }
