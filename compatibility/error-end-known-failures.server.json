@@ -5,6 +5,5 @@
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/98-reference/30-compiler-warnings.md/34.svelte",
 	"svelte/documentation/docs/98-reference/.generated/compile-warnings.md/32.svelte",
 	"svelte/packages/svelte/messages/compile-warnings/style.md/1.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte",
 	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte"
 ]

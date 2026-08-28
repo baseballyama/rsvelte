@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "void_element_invalid_content",
                     "Void elements cannot have children or closing tags",
-                    (close_start, self.index),
+                    (close_start, close_start),
                 ));
             }
 

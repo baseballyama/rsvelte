@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "void_element_invalid_content",
                     "Void elements cannot have children or closing tags",
-                    (close_start, close_start + 2 + tag_name.len()),
+                    (close_start, close_start),
                 ));
             }
         }
@@ -336,7 +336,7 @@ impl<'a> Parser<'a> {
                         return Err(crate::error::ParseError::svelte(
                             "void_element_invalid_content",
                             "Void elements cannot have children or closing tags",
-                            (close_start, close_start + 2 + tag_name.len()),
+                            (close_start, close_start),
                         ));
                     } else {
                         // Non-void closing tag without matching opening tag.
@@ -415,7 +415,7 @@ impl<'a> Parser<'a> {
                         return Err(crate::error::ParseError::svelte(
                             "void_element_invalid_content",
                             "Void elements cannot have children or closing tags",
-                            (close_start, close_start + 2 + tag_name.len()),
+                            (close_start, close_start),
                         ));
                     }
                     if let Some(ref last_auto) = self.last_auto_closed_tag
