@@ -8,10 +8,9 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use super::store_transforms::declares_binding_in_statement;
 use super::{
     extract_destructure_targets, extract_member_expression_base, find_assignment_position,
-    get_or_compile_regex, is_simple_identifier, lhs_starts_with_keyword,
-    transform_destructure_assignments_with_props, transform_prop_assignments,
-    transform_prop_reads_in_expr, transform_store_assignments_client, transform_store_reads_client,
-    transform_store_sub_calls, wrap_state_vars_in_expr,
+    get_or_compile_regex, lhs_starts_with_keyword, transform_destructure_assignments_with_props,
+    transform_prop_assignments, transform_prop_reads_in_expr, transform_store_assignments_client,
+    transform_store_reads_client, transform_store_sub_calls, wrap_state_vars_in_expr,
 };
 
 /// Topologically sort reactive statements based on their dependencies.

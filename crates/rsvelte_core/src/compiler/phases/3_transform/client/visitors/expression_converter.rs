@@ -5334,6 +5334,8 @@ pub(crate) fn transform_synthesized_assignment(
     original_root_name: Option<&str>,
     context: &mut ComponentContext,
 ) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
     use super::shared::utils::apply_transforms_to_expression;
 
     let assignment = try_transform_assignment("=", left, right, None, original_root_name, context)
