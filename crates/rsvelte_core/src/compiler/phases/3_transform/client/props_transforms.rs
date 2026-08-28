@@ -4007,19 +4007,13 @@ impl PropMutationSites {
             {
                 continue;
             }
-            let chain_start = skip_non_null_assertions(bytes, end);
-            if !starts_member_access(bytes, chain_start) {
-                continue;
-            }
-            if let Some((after, chain)) = scan_member_chain_names(source, chain_start)
-                && let Some(value_start) =
-                    mutation_value_start(source, skip_ts_asserted_assignment_target(source, after))
-                        .or_else(|| {
-                            // A PREFIX update (`--p.deep.c`) has its operator before
-                            // the identifier; the site's position stays the identifier.
-                            let head = source[..start].trim_end();
-                            (head.ends_with("++") || head.ends_with("--")).then_some(after)
-                        })
+            if let Some((after, chain)) = scan_prop_mutation_target(source, start, end)
+                && let Some(value_start) = mutation_value_start(source, after).or_else(|| {
+                    // A PREFIX update (`--p.deep.c`) has its operator before
+                    // the identifier; the site's position stays the identifier.
+                    let head = source[..start].trim_end();
+                    (head.ends_with("++") || head.ends_with("--")).then_some(after)
+                })
             {
                 let (line, column) =
                     crate::compiler::phases::phase3_transform::utils::locate_in_source(
@@ -4207,41 +4201,70 @@ fn skip_non_null_assertions(bytes: &[u8], mut pos: usize) -> usize {
     pos
 }
 
-/// Advance from a member chain through a parenthesized TypeScript assertion
-/// when that asserted expression is the assignment target:
-/// `(step.params as any) = params`.
-///
-/// The generated JavaScript no longer carries the assertion, so failing to
-/// collect this source site makes the location matcher fall back to the first
-/// `step.params` read in the file. We stop at the first closing parenthesis
-/// followed by an actual mutation operator; parentheses inside the type are
-/// therefore harmless.
-fn skip_ts_asserted_assignment_target(source: &str, pos: usize) -> usize {
-    let mut cursor = skip_whitespace_chars(source, pos);
-    let tail = &source[cursor..];
-    let keyword_len =
-        if tail.starts_with("as") && tail[2..].chars().next().is_some_and(char::is_whitespace) {
-            2
-        } else if tail.starts_with("satisfies")
-            && tail[9..].chars().next().is_some_and(char::is_whitespace)
-        {
-            9
-        } else {
-            return pos;
-        };
-    cursor += keyword_len;
-
+/// Scan a prop mutation target, including a TypeScript assertion that wraps
+/// either the root or an intermediate member chain:
+/// `(result as any)[key] = value` and `(step.params as any)._id = value`.
+fn scan_prop_mutation_target(
+    source: &str,
+    root_start: usize,
+    root_end: usize,
+) -> Option<(usize, Option<Vec<String>>)> {
     let bytes = source.as_bytes();
-    while cursor < bytes.len() && !matches!(bytes[cursor], b'\n' | b';') {
-        if bytes[cursor] == b')' {
-            let candidate = skip_whitespace_chars(source, cursor + 1);
-            if is_mutation_operator(source, candidate) {
-                return candidate;
-            }
+    let chain_start = skip_non_null_assertions(bytes, root_end);
+    let (mut after, mut chain, mut saw_member) = if starts_member_access(bytes, chain_start) {
+        let (after, chain) = scan_member_chain_names(source, chain_start)?;
+        (after, chain, true)
+    } else {
+        (chain_start, Some(Vec::new()), false)
+    };
+
+    if let Some(assertion_end) = parenthesized_ts_assertion_end(source, root_start, after) {
+        after = skip_whitespace_chars(source, assertion_end);
+        if starts_member_access(bytes, after) {
+            let (tail_end, tail_chain) = scan_member_chain_names(source, after)?;
+            chain = match (chain, tail_chain) {
+                (Some(mut head), Some(tail)) => {
+                    head.extend(tail);
+                    Some(head)
+                }
+                _ => None,
+            };
+            after = tail_end;
+            saw_member = true;
         }
-        cursor += 1;
     }
-    pos
+
+    saw_member.then_some((after, chain))
+}
+
+/// Return the byte after the closing parenthesis when `root_start..expression_end`
+/// is wrapped in a TypeScript `as` or `satisfies` assertion.
+fn parenthesized_ts_assertion_end(
+    source: &str,
+    root_start: usize,
+    expression_end: usize,
+) -> Option<usize> {
+    let (open, ch) = source[..root_start]
+        .char_indices()
+        .rev()
+        .find(|(_, ch)| !ch.is_whitespace())?;
+    if ch != '(' {
+        return None;
+    }
+    let close =
+        crate::compiler::phases::phase1_parse::utils::find_matching_bracket(source, open + 1, '(')?;
+    if expression_end > close {
+        return None;
+    }
+    let assertion = source[expression_end..close].trim_start();
+    let has_keyword = ["as", "satisfies"].into_iter().any(|keyword| {
+        assertion.strip_prefix(keyword).is_some_and(|tail| {
+            tail.chars()
+                .next()
+                .is_some_and(|ch| ch.is_whitespace() && !tail.trim().is_empty())
+        })
+    });
+    has_keyword.then_some(close + 1)
 }
 
 /// Whether a member access — plain, computed or optional — starts at `pos`.

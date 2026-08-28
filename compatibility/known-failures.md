@@ -398,6 +398,11 @@ collector. The collector now crosses that assertion only when its closing
 parenthesis is followed by a mutation operator. The six verified entries are
 retired without suppressing the distinct computed- and mid-chain-assertion
 shapes that remain.
+The remaining computed and mid-chain TypeScript assertion shapes are now
+collected too. The scanner finds the assertion wrapper with the shared
+JavaScript-aware bracket matcher, then resumes the member chain after `)`, so
+nested parentheses in a type cannot terminate the target early. This retires
+the two corresponding client-dev entries.
 The two threlte `bush.svelte` files destructure `[$gltf, $texture1]` in an
 `{:then}` clause while an unrelated top-level `gltf` store exists. The lexical
 store scan ignored the await scope and synthesized a root `$gltf` subscription;

@@ -413,4 +413,18 @@ mod tests {
 
         assert!(output.ends_with(", 4, 0);"));
     }
+
+    #[test]
+    fn locates_typescript_assertions_before_member_accesses() {
+        let source = "<script lang=\"ts\">\nexport let result;\nexport let step;\nlet key = 'done';\n(result as any)[key] = true;\n(step.params as any)._id = 'next';\n</script>";
+        let output = wrap_prop_mutation_validation_ast(
+            "result(result()[key] = true, true);\nstep(step().params._id = 'next', true);",
+            &[("result".to_string(), None), ("step".to_string(), None)],
+            source,
+        )
+        .unwrap();
+
+        assert!(output.contains("result()[key] = true, true), 5, 0)"));
+        assert!(output.contains("step().params._id = 'next', true), 6, 0)"));
+    }
 }

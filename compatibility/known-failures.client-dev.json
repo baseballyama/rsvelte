@@ -93,8 +93,6 @@
 	"huly/plugins/process-resources/src/components/criterias/CriteriasEditor.svelte",
 	"huly/plugins/process-resources/src/components/settings/ParamsEditor.svelte",
 	"huly/plugins/process-resources/src/components/settings/ProcessAttributeEditor.svelte",
-	"huly/plugins/process-resources/src/components/settings/ResultCriteriaEditor.svelte",
-	"huly/plugins/process-resources/src/components/settings/SubProcessEditor.svelte",
 	"huly/plugins/questions-resources/src/components/OrderingQuestionDataEditor.svelte",
 	"huly/plugins/recruit-resources/src/components/CreateApplication.svelte",
 	"huly/plugins/recruit-resources/src/components/OptimizeSkills.svelte",

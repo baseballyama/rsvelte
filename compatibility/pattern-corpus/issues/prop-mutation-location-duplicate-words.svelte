@@ -1,6 +1,7 @@
 <script lang="ts">
 	export let filter;
 	export let step = { params: null };
+	export let result = {};
 
 	const targets = new Set();
 
@@ -16,6 +17,8 @@
 
 	let params = step.params;
 	(step.params as any) = params;
+	(result as any)[params] = true;
+	(step.params as any)._id = params;
 </script>
 
 <button onclick={clean}>clean</button>
