@@ -18,12 +18,12 @@ uncompared, and both turned out to hold defects:
   `eslint-disable-line` against a different line table than its own report path
   (fixed; see below).
 - **what a second pass sees.** A fix by rule A changes the text rule B is handed,
-  which reaches arms no single-rule run can (`no-target-blank/10` below), and can
+  which reaches arms no single-rule run can (`no-target-blank/10` was one), and can
   hand a rule text that crashes it (`no-navigation-without-base/06`).
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-all-known-failures.json` holds **2 entries** over 1364
+`lint-adversarial-fix-all-known-failures.json` holds **1 entry** over 1364
 compared patterns.
 
 Two verdicts share the file, kept apart by the key so neither can suppress the
@@ -31,11 +31,10 @@ other on the same pattern: a bare `<id>` is a text divergence, and
 `oracle-crash:<id>` is a pattern ESLint threw on while fixing, where there is no
 text to compare.
 
-Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `1 + 1`
+Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `1`
 
 | cause | entries |
 |---|---|
-| upstream autofix defect we decline to reproduce | 1 |
 | upstream rule crashes on text an earlier pass produced | 1 |
 
 ## What this gate found on its first run
@@ -65,15 +64,6 @@ The same shape as the `prefer-class-directive` U+FEFF find one gate over: two
 implementations of one decision, and no gate that compares them to each other.
 
 ## Accepted entries
-
-### `shorthand-directive/16-never-mode-modifiers.svelte`
-
-Upstream's `prefer: "never"` fix inserts `={name}` after the directive *name*
-rather than after the *key*, so `style:color|important` becomes
-`style:color={color}|important` — text that parses, compiles, and silently drops
-the `!important`. rsvelte writes `style:color|important={color}`. Reported in
-[`upstream_issues/eslint-plugin-svelte-shorthand-directive-modifier.md`](../upstream_issues/eslint-plugin-svelte-shorthand-directive-modifier.md);
-the full evidence, including the two compiled outputs, is in the per-rule doc.
 
 ### `oracle-crash:no-navigation-without-base/06-template-literals.svelte`
 

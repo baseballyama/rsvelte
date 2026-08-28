@@ -42,6 +42,8 @@ static META: RuleMeta = RuleMeta {
 struct DirectiveInfo<'a> {
     start: u32,
     end: u32,
+    /// End of `node.key.name`, where upstream inserts an explicit value.
+    name_end: u32,
     /// Directive key name (e.g. `value` for `bind:value`).
     name: &'a str,
     /// Already in shorthand form (`bind:value` / `style:color`).
@@ -79,8 +81,8 @@ impl ShorthandDirective {
                     Fix {
                         message: "Use regular directive syntax".to_string(),
                         edits: vec![TextEdit {
-                            start: info.end,
-                            end: info.end,
+                            start: info.name_end,
+                            end: info.name_end,
                             new_text: format!("={{{}}}", info.name),
                         }],
                     },
@@ -131,6 +133,9 @@ impl Rule for ShorthandDirective {
             Attribute::BindDirective(n) => DirectiveInfo {
                 start: n.start,
                 end: n.end,
+                name_end: n.start
+                    + 5
+                    + u32::try_from(n.name.len()).expect("source offsets are represented as u32"),
                 name: n.name.as_str(),
                 is_shorthand: !ctx.slice(n.start, n.end).contains('='),
                 shortenable: n.expression.is_identifier(n.name.as_str()),
@@ -138,6 +143,9 @@ impl Rule for ShorthandDirective {
             Attribute::ClassDirective(n) => DirectiveInfo {
                 start: n.start,
                 end: n.end,
+                name_end: n.start
+                    + 6
+                    + u32::try_from(n.name.len()).expect("source offsets are represented as u32"),
                 name: n.name.as_str(),
                 is_shorthand: !ctx.slice(n.start, n.end).contains('='),
                 shortenable: n.expression.is_identifier(n.name.as_str()),
@@ -145,6 +153,9 @@ impl Rule for ShorthandDirective {
             Attribute::StyleDirective(n) => DirectiveInfo {
                 start: n.start,
                 end: n.end,
+                name_end: n.start
+                    + 6
+                    + u32::try_from(n.name.len()).expect("source offsets are represented as u32"),
                 name: n.name.as_str(),
                 is_shorthand: matches!(n.value, AttributeValue::True(_)),
                 shortenable: value_is_named_identifier(&n.value, n.name.as_str()),
