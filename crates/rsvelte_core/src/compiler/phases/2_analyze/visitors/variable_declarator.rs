@@ -966,7 +966,9 @@ fn visit_non_runes_mode_typed(
 
     // Check for invalid rune usage
     if let Some(init) = init_node
-        && let JsNode::CallExpression { callee, .. } = init
+        && let JsNode::CallExpression {
+            callee, start, end, ..
+        } = init
     {
         let callee_node = arena.get_js_node(*callee);
         if let JsNode::Identifier { name, .. } = callee_node
@@ -983,7 +985,7 @@ fn visit_non_runes_mode_typed(
                 .unwrap_or(false);
 
             if !is_store_sub {
-                return Err(errors::rune_invalid_usage(name));
+                return Err(errors::rune_invalid_usage(name).at(*start, *end));
             }
         }
     }
