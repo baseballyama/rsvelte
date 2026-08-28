@@ -6,7 +6,6 @@
 	"svelte/documentation/docs/98-reference/.generated/compile-warnings.md/32.svelte",
 	"svelte/packages/svelte/messages/compile-warnings/style.md/1.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/export-derived-state-indirect/main.svelte.js",
 	"svelte/packages/svelte/tests/compiler-errors/samples/export-state-indirect/main.svelte.js",
 	"svelte/packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte",

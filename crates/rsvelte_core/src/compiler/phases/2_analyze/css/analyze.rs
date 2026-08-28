@@ -551,7 +551,10 @@ fn validate_single_nesting_selector(
     // and the parent has a lone :global selector
     if let Some(parent_rule) = state.parent_rule {
         if is_parent_lone_global_block(parent_rule) && !state.parent_rule_has_parent {
-            return Err(errors::css_global_block_invalid_modifier_start());
+            return Err(at_node(
+                errors::css_global_block_invalid_modifier_start(),
+                nesting_node,
+            ));
         }
     }
 
