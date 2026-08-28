@@ -6830,12 +6830,18 @@ fn transform_instance_script_for_visitors(
     // These are converted to $.proxy() and don't need $.get() wrapping for property access
     let proxy_vars = extract_proxy_vars(&script_rest);
 
-    // Collect rest_prop variable names (from `let props = $props()`)
+    // Collect rest_prop variable names (from `let props = $props()`). Legacy
+    // analysis also declares synthetic `$$props` and `$$restProps` bindings with
+    // this kind for dependency tracking; they are the backing objects, not
+    // destructured rest bindings, and must never be rewritten to `$$props`.
     let rest_prop_vars: Vec<String> = analysis
         .root
         .bindings
         .iter()
-        .filter(|b| matches!(b.kind, BindingKind::RestProp))
+        .filter(|b| {
+            matches!(b.kind, BindingKind::RestProp)
+                && b.declaration_kind != DeclarationKind::Synthetic
+        })
         .map(|b| b.name.clone())
         .collect();
 
