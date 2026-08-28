@@ -33,7 +33,7 @@ pub static META: RuleMeta = RuleMeta {
     name: "svelte/no-unused-props",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Off,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: true,
         legacy_only: false,
@@ -756,6 +756,10 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
 
     let li = LineIndex::new(source);
     let mut out = Vec::new();
+    let ignore_prop_patterns = compile_matchers(option_str_list(
+        config.options_for(META.name),
+        "ignorePropertyPatterns",
+    ));
 
     for block in script_blocks(source) {
         // Skip <script module> — $props() is never in the module context.
@@ -814,9 +818,10 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
         };
 
         // 4. Parse members; skip if index signature present.
-        let Some(members) = parse_prop_members(&body_text, body_abs_offset) else {
+        let Some(mut members) = parse_prop_members(&body_text, body_abs_offset) else {
             continue;
         };
+        members.retain(|name| !any_match(&ignore_prop_patterns, name));
         if members.is_empty() {
             continue;
         }
@@ -1500,6 +1505,28 @@ mod tests {
         assert!(has_whole_object_spread("bar(...props)", "props"));
         // `...props.foo` is a member spread, not a whole-object spread.
         assert!(!has_whole_object_spread("baz({ ...props.foo })", "props"));
+    }
+
+    #[test]
+    fn native_path_honors_ignore_property_patterns() {
+        let source = r#"<script lang="ts">
+interface Props {
+    _internal: string;
+    $store: boolean;
+    '@decorator': string;
+    '#private': number;
+    '~tilde': boolean;
+    normalUsed: string;
+}
+const { normalUsed }: Props = $props();
+console.log(normalUsed);
+</script>"#;
+        let config = LintConfig::from_json_str(
+            r#"{"rules":{"svelte/no-unused-props":["error",{"ignorePropertyPatterns":["/^[#$@_~]/"]}]}}"#,
+        )
+        .unwrap();
+
+        assert!(diagnostics(source, Path::new("T.svelte"), &config).is_empty());
     }
 
     #[test]

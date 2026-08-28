@@ -1,5 +1,4 @@
 [
-	"error->off|svelte/no-unused-props",
 	"not-ported|svelte/@typescript-eslint/no-unnecessary-condition",
 	"not-ported|svelte/system",
 	"rsvelte-only|svelte/no-companion-module-shadow",

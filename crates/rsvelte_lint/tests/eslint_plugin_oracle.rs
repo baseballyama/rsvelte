@@ -213,14 +213,14 @@ const SKIP: &[&str] = &[
     "indent/valid/declaration-tag",
     // ── svelte/no-unused-props skips ───────────────────────────────────────
     // Requires the TypeScript type checker (extends, intersections, generics,
-    // imported types, index signatures, nested property checking, custom config
-    // options). Skipped on this corsa-free native path; the type-aware path
+    // imported types, index signatures and nested property checking). Skipped
+    // on this corsa-free native path; the type-aware path
     // (`no_unused_props::diagnostics_typed`) is covered end-to-end against a real
     // `tsgo` by `rsvelte_lint_types`'s `type_aware_e2e` tests for the
     // type-resolution cases (extends / intersection / nested). The remaining
     // options-origin edge cases (`checkImportedTypes` symbol-origin,
-    // `ignore*-patterns`, `index-signature` message, `custom-config-combination`)
-    // are tracked as follow-ups.
+    // `ignoreTypePatterns`, `index-signature` message and the invalid
+    // `custom-config-combination`) are tracked as follow-ups.
     "no-unused-props/invalid/extends-unused",
     "no-unused-props/invalid/generic-props-unused",
     "no-unused-props/invalid/ignore-external-type",
@@ -245,9 +245,6 @@ const SKIP: &[&str] = &[
     // reports, but the CSS-ignore (line 16) can't be reported for the reason
     // above, so the exact `errors.yaml` set won't match.
     "no-unused-svelte-ignore/invalid/transform-test",
-    // Valid fixtures that would produce false positives without custom options.
-    "no-unused-props/valid/ignore-property-patterns-custom",
-    "no-unused-props/valid/custom-config-combination",
 ];
 
 /// Upstream fixture directories that are **not** an eslint-plugin-svelte rule and

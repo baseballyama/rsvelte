@@ -13,16 +13,15 @@ gates cannot vary** — so a rule that runs out of the box on one side and not t
 other, or at a different severity, is invisible to all of them no matter how
 large the corpus grows.
 
-`lint-preset-known-failures.json` holds **7 entries**. The 22 shared-rule
-severity differences have been removed; the remaining entries are two declared
-defaults that need implementation work and five rule-membership differences.
+`lint-preset-known-failures.json` holds **5 entries**. All shared-rule severity
+differences have been removed; the remaining entries are rule-membership
+differences.
 
 Key format: `<upstream severity>-><rsvelte severity>|<rule id>`, plus two
 membership classes `not-ported|<id>` and `rsvelte-only|<id>`.
 
-Partition of the 7 entries by cause: **2 + 2 + 3** — two shared defaults still
-blocked on implementation work, two upstream-only ids, and three rsvelte-only
-ids.
+Partition of the 5 entries by cause: **2 + 3** — two upstream-only ids and three
+rsvelte-only ids.
 
 ## Severity is in the key, and putting it there is what found the largest class
 
@@ -46,32 +45,16 @@ all 11 of rsvelte's `error` rules are `error` upstream, and both of upstream's
 two `warn` rules are `warn` here, 13 for 13 — while the divergence ran one way in
 all 21 cases, always rsvelte weakening. A deliberate policy does not have that
 shape. `apps/npm/lint/README.md`'s "a handful … default to `error`" describes the
-old set; that alignment made it 32, and matching the independently gated
-`require-event-dispatcher-types` declaration makes it 33.
+old set; that alignment made it 32, matching the independently gated
+`require-event-dispatcher-types` declaration made it 33, and enabling
+`no-unused-props` after fixing the native path's `ignorePropertyPatterns`
+handling makes the shared default table fully aligned.
 
-## `error->off` — the remaining implementation gap
-
-This is the direction that matters most, because a rule upstream defaults to
-`error` and rsvelte disables entirely makes rsvelte report **less** than the tool
-it replaces, and exit 0 where it would exit 1. It was checked individually
-rather than accepted as part of a class.
-
-### `svelte/no-unused-props`
-
-Kept `off` because rsvelte's **native** path over-reports on shapes upstream's
-own fixtures cover. `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs` skips 13
-`no-unused-props/invalid/*` fixtures for want of a type checker — that direction
-is only an under-report and would be harmless as a default — but it also skips
-`no-unused-props/valid/ignore-property-patterns-custom` and
-`valid/custom-config-combination`, which are recorded there as "valid fixtures
-that would produce false positives without custom options". A default-on rule
-that reports on code upstream accepts is the failure mode users cannot ignore,
-so the conservative default stands until the type-aware path
-(`no_unused_props::diagnostics_typed`, covered end-to-end against a real `tsgo`
-by `rsvelte_lint_types`'s `type_aware_e2e` tests) is what the CLI uses.
-
-**This entry should disappear** when that happens. The ratchet is two-sided, so
-it will fail rather than rot.
+`no-unused-props` still deliberately skips declarations whose property set
+cannot be resolved without a type checker (extends, intersections, generics and
+imported types), rather than guessing and over-reporting. Its type-aware path is
+covered separately against real `tsgo`; this gate only claims that the shared
+rule's declared default now matches upstream.
 
 ## `not-ported` — 2 entries
 

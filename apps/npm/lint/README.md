@@ -232,11 +232,9 @@ need a JS/TS tokenizer or type checker (out of scope for the native engine,
 covered separately) is the oracle test registry at
 [`crates/rsvelte_lint/tests/eslint_plugin_oracle.rs`](https://github.com/baseballyama/rsvelte/blob/main/crates/rsvelte_lint/tests/eslint_plugin_oracle.rs). The default `recommended` preset runs every rule at its declared
 default severity, and each rule that `eslint-plugin-svelte`'s own
-`flat/recommended` runs is given **the same severity it has there** — so
-`rsvelte-lint`'s exit code matches ESLint's on the same source. The two
-exceptions are `no-unused-props` and `require-event-dispatcher-types`, which
-stay `off` for reasons recorded in
-[`compatibility/lint-preset-known-failures.md`](https://github.com/baseballyama/rsvelte/blob/main/compatibility/lint-preset-known-failures.md).
+`flat/recommended` runs is given **the same severity it has there**.
+`require-event-dispatcher-types` remains subject to its independent Svelte
+version eligibility check, so it is skipped on Svelte 5 even when configured.
 Shared rules omitted from upstream's recommended preset likewise default to `off`,
 including all pure-formatting rules (owned by the sibling
 [`@rsvelte/fmt`](../fmt)) and opinionated opt-in rules such as
