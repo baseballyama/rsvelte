@@ -53,7 +53,6 @@
 	"huly/packages/ui/src/components/ModernRadioButton.svelte",
 	"huly/packages/ui/src/components/ModernToggle.svelte",
 	"huly/packages/ui/src/components/Timeline.svelte",
-	"huly/packages/ui/src/components/TooltipInstance.svelte",
 	"huly/plugins/activity-resources/src/components/BasePreview.svelte",
 	"huly/plugins/activity-resources/src/components/FilterPopup.svelte",
 	"huly/plugins/billing-resources/src/components/Chart/XAxis.svelte",

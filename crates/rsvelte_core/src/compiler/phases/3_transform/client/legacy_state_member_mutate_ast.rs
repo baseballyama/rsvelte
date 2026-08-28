@@ -46,10 +46,14 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use oxc_span::Span;
+use oxc_syntax::symbol::SymbolId;
+use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
+use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
 
 thread_local! {
     static MODULE_LEGACY_STATE_MEMBER_MUTATE_ALLOC: RefCell<Allocator> =
@@ -120,12 +124,20 @@ fn transform_legacy_state_member_mutate_spliced(
             ParseOptions::default(),
             true,
             |program| {
+                let semantic_ret = super::super::profile::semantic_build(
+                    super::super::profile::SEM_LEGACY_STATE_MEMBER_MUTATE,
+                    program.source_text.len(),
+                    || SemanticBuilder::new().with_build_nodes(true).build(program),
+                );
+                let semantic = &semantic_ret.semantic;
                 let mut collector = LegacyStateMemberMutateCollector {
                     source: src,
                     state_vars,
                     non_reactive_state_vars,
                     raw_state_vars,
                     invalidate_bodies,
+                    semantic,
+                    state_var_symbols: find_state_var_symbols(semantic, state_vars),
                     replacements: Vec::new(),
                     skip_assignment_spans: Vec::new(),
                 };
@@ -136,12 +148,14 @@ fn transform_legacy_state_member_mutate_spliced(
     })
 }
 
-struct LegacyStateMemberMutateCollector<'a> {
+struct LegacyStateMemberMutateCollector<'a, 'sem> {
     source: &'a str,
     state_vars: &'a [String],
     non_reactive_state_vars: &'a [String],
     raw_state_vars: &'a [String],
     invalidate_bodies: &'a rustc_hash::FxHashMap<String, String>,
+    semantic: &'sem Semantic<'sem>,
+    state_var_symbols: FxHashSet<SymbolId>,
     replacements: Vec<Edit>,
     /// Spans of `AssignmentExpression`s that are the second arg of a
     /// `$.mutate(var, <assignment>)` wrap call. Skipping these is what
@@ -149,14 +163,16 @@ struct LegacyStateMemberMutateCollector<'a> {
     skip_assignment_spans: Vec<(u32, u32)>,
 }
 
-impl<'a> LegacyStateMemberMutateCollector<'a> {
+impl LegacyStateMemberMutateCollector<'_, '_> {
     /// Walk the `object` chain of a member expression down to the
     /// leftmost identifier.
-    fn walk_object_chain_to_root<'e>(expr: &'e Expression<'_>) -> Option<(&'e str, Span)> {
+    fn walk_object_chain_to_root<'e, 'ast>(
+        expr: &'e Expression<'ast>,
+    ) -> Option<&'e IdentifierReference<'ast>> {
         let mut cur = expr;
         loop {
             match cur {
-                Expression::Identifier(id) => return Some((id.name.as_str(), id.span)),
+                Expression::Identifier(id) => return Some(id),
                 Expression::StaticMemberExpression(m) => cur = &m.object,
                 Expression::ComputedMemberExpression(m) => cur = &m.object,
                 _ => return None,
@@ -164,7 +180,9 @@ impl<'a> LegacyStateMemberMutateCollector<'a> {
         }
     }
 
-    fn root_of_assignment_target<'e>(target: &'e AssignmentTarget<'_>) -> Option<(&'e str, Span)> {
+    fn root_of_assignment_target<'e, 'ast>(
+        target: &'e AssignmentTarget<'ast>,
+    ) -> Option<&'e IdentifierReference<'ast>> {
         let object = match target {
             AssignmentTarget::StaticMemberExpression(m) => &m.object,
             AssignmentTarget::ComputedMemberExpression(m) => &m.object,
@@ -178,9 +196,18 @@ impl<'a> LegacyStateMemberMutateCollector<'a> {
             && !self.non_reactive_state_vars.iter().any(|nr| nr == name)
             && !self.raw_state_vars.iter().any(|r| r == name)
     }
+
+    fn is_state_reference(&self, ident: &IdentifierReference<'_>) -> bool {
+        is_state_var_reference_or_unresolved(
+            self.semantic,
+            ident,
+            &self.state_var_symbols,
+            self.state_vars,
+        )
+    }
 }
 
-impl<'a, 'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'a> {
+impl<'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'_, '_> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Detect the wrap shape `$.mutate(var, <assignment>)` we
         // emit. If callee is `$.mutate` (StaticMember $ . mutate),
@@ -214,10 +241,14 @@ impl<'a, 'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'a> {
             return;
         }
 
-        let Some((root_name, _root_span)) = Self::root_of_assignment_target(&expr.left) else {
+        let Some(root) = Self::root_of_assignment_target(&expr.left) else {
             return;
         };
+        let root_name = root.name.as_str();
         if !self.is_eligible(root_name) {
+            return;
+        }
+        if !self.is_state_reference(root) {
             return;
         }
 
@@ -472,6 +503,26 @@ mod tests {
                 .is_none()
         );
     }
+
+    #[test]
+    fn skips_function_local_shadow() {
+        let src = "function fit() { const obj = { prop: 0 }; obj.prop = 5; return obj; }";
+        assert!(
+            transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb())
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn skips_parameter_shadow_but_rewrites_captured_state() {
+        let src = "function local(obj) { obj.prop = 1; } function captured() { obj.prop = 2; }";
+        let out =
+            transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb()).unwrap();
+        assert_eq!(
+            out,
+            "function local(obj) { obj.prop = 1; }\nfunction captured() { $.mutate(obj, obj.prop = 2); }"
+        );
+    }
 }
 
 // ── in-place port ──────────────────────────────────────────────────────
@@ -514,6 +565,28 @@ pub(crate) fn transform_legacy_state_member_mutate_in_place(
         SourceType::mjs(),
         ParseOptions::default(),
         |allocator, program| {
+            let targets = {
+                let semantic_ret = super::super::profile::semantic_build(
+                    super::super::profile::SEM_LEGACY_STATE_MEMBER_MUTATE_IN_PLACE,
+                    program.source_text.len(),
+                    || SemanticBuilder::new().with_build_nodes(true).build(program),
+                );
+                let semantic = &semantic_ret.semantic;
+                let mut finder = LegacyStateMemberMutateFinder {
+                    state_vars,
+                    non_reactive_state_vars,
+                    raw_state_vars,
+                    semantic,
+                    state_var_symbols: find_state_var_symbols(semantic, state_vars),
+                    targets: Vec::new(),
+                    skip_assignment_spans: Vec::new(),
+                };
+                finder.visit_program(program);
+                finder.targets
+            };
+            if targets.is_empty() {
+                return false;
+            }
             let mut rewriter = LegacyStateMemberMutateRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
                 allocator,
@@ -521,6 +594,7 @@ pub(crate) fn transform_legacy_state_member_mutate_in_place(
                 non_reactive_state_vars,
                 raw_state_vars,
                 invalidate_bodies,
+                targets,
                 skip_assignment_spans: Vec::new(),
                 changed: false,
             };
@@ -537,10 +611,70 @@ struct LegacyStateMemberMutateRewriter<'a, 'b> {
     non_reactive_state_vars: &'b [String],
     raw_state_vars: &'b [String],
     invalidate_bodies: &'b rustc_hash::FxHashMap<String, String>,
+    targets: Vec<Span>,
     /// Assignments already enclosed in a `$.mutate(var, …)` wrap. Recorded on
     /// the way down so the assignment itself is left alone on the way up.
     skip_assignment_spans: Vec<Span>,
     changed: bool,
+}
+
+struct LegacyStateMemberMutateFinder<'a, 'sem> {
+    state_vars: &'a [String],
+    non_reactive_state_vars: &'a [String],
+    raw_state_vars: &'a [String],
+    semantic: &'sem Semantic<'sem>,
+    state_var_symbols: FxHashSet<SymbolId>,
+    targets: Vec<Span>,
+    skip_assignment_spans: Vec<Span>,
+}
+
+impl LegacyStateMemberMutateFinder<'_, '_> {
+    fn is_eligible(&self, name: &str) -> bool {
+        self.state_vars.iter().any(|s| s == name)
+            && !self.non_reactive_state_vars.iter().any(|nr| nr == name)
+            && !self.raw_state_vars.iter().any(|r| r == name)
+    }
+}
+
+impl<'ast> Visit<'ast> for LegacyStateMemberMutateFinder<'_, '_> {
+    fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
+        if call.arguments.len() == 2
+            && let Expression::StaticMemberExpression(callee) = &call.callee
+            && callee.property.name.as_str() == "mutate"
+            && let Expression::Identifier(dollar) = &callee.object
+            && dollar.name.as_str() == "$"
+            && let Argument::Identifier(arg0) = &call.arguments[0]
+            && self.is_eligible(arg0.name.as_str())
+            && let Argument::AssignmentExpression(inner) = &call.arguments[1]
+        {
+            self.skip_assignment_spans.push(inner.span);
+        }
+
+        walk::walk_call_expression(self, call);
+    }
+
+    fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
+        walk::walk_assignment_expression(self, expr);
+
+        if self.skip_assignment_spans.contains(&expr.span) {
+            return;
+        }
+        let Some(root) = LegacyStateMemberMutateCollector::root_of_assignment_target(&expr.left)
+        else {
+            return;
+        };
+        if !self.is_eligible(root.name.as_str())
+            || !is_state_var_reference_or_unresolved(
+                self.semantic,
+                root,
+                &self.state_var_symbols,
+                self.state_vars,
+            )
+        {
+            return;
+        }
+        self.targets.push(expr.span);
+    }
 }
 
 impl<'a, 'b> LegacyStateMemberMutateRewriter<'a, 'b> {
@@ -599,11 +733,14 @@ impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for LegacyStateMemberMutateRewriter<'a,
         if self.skip_assignment_spans.contains(&assign.span) {
             return;
         }
-        let Some((root, _)) =
-            LegacyStateMemberMutateCollector::root_of_assignment_target(&assign.left)
+        if !self.targets.contains(&assign.span) {
+            return;
+        }
+        let Some(root) = LegacyStateMemberMutateCollector::root_of_assignment_target(&assign.left)
         else {
             return;
         };
+        let root = root.name.as_str();
         if !self.is_eligible(root) {
             return;
         }
