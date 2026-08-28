@@ -939,23 +939,6 @@ impl<'a> CssParser<'a> {
         let bytes = self.source.as_bytes();
         let mut i = self.index;
 
-        // A custom property remains a declaration when its value starts with a
-        // block (`--tokens: { ... }`). Without this early classification the
-        // first `{` below makes declaration-taking at-rules parse `--tokens:` as
-        // a nested selector.
-        if bytes.get(i..i + 2) == Some(b"--") {
-            i += 2;
-            while i < bytes.len() {
-                match bytes[i] {
-                    b'\\' if i + 1 < bytes.len() => i += 2,
-                    b':' => return false,
-                    b'{' | b';' | b'}' => break,
-                    _ => i += 1,
-                }
-            }
-            i = self.index;
-        }
-
         let mut paren_depth = 0i32;
         let mut bracket_depth = 0i32;
         let mut in_string: Option<u8> = None;

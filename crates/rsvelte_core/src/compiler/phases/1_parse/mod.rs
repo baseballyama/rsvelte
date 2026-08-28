@@ -372,6 +372,29 @@ mod tests {
     }
 
     #[test]
+    fn test_scss_interpolation_in_custom_property_matches_css_error() {
+        let source = r#"<style lang="scss">.x { --value: #{$value}; }</style>"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let error = parser.parse().unwrap_err();
+
+        match error {
+            crate::error::ParseError::SvelteError { code, span, .. } => {
+                assert_eq!(code, "css_expected_identifier");
+                assert_eq!(span, (32, 32));
+            }
+            other => panic!("expected css_expected_identifier, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_standard_custom_property_value_still_parses() {
+        let source = r#"<style>.x { --value: var(--x); }</style>"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+
+        assert!(parser.parse().is_ok());
+    }
+
+    #[test]
     fn test_parse_element() {
         let mut parser = Parser::new("<div>hello</div>", ParseOptions::default());
         let result = parser.parse().unwrap();
