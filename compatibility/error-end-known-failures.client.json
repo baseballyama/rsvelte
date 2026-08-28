@@ -1,10 +1,4 @@
 [
-	"appwrite-console/src/lib/components/consent.svelte",
-	"appwrite-console/src/lib/layout/unauthenticated.svelte",
-	"appwrite-console/src/routes/(authenticated)/mfa/+page.svelte",
-	"appwrite-console/src/routes/(console)/onboarding/create-organization/+page.svelte",
-	"appwrite-console/src/routes/(console)/onboarding/create-project/+page.svelte",
-	"appwrite-console/src/routes/+layout.svelte",
 	"date-picker-svelte/src/lib/DateInput.svelte",
 	"date-picker-svelte/src/lib/DatePicker.svelte",
 	"date-picker-svelte/src/lib/TimePicker.svelte",

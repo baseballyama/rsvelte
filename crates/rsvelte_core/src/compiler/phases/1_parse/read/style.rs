@@ -1924,9 +1924,9 @@ impl<'a> CssParser<'a> {
     fn parse_declaration(&mut self) -> Option<Value> {
         self.skip_whitespace();
         let start = self.offset + self.index;
+        let property_start = self.index;
 
         // Read property name
-        let property_start = self.index;
         while !self.is_eof() {
             let c = self.current_char();
             if c == ':' || c == '}' || c == ';' {
@@ -1958,12 +1958,36 @@ impl<'a> CssParser<'a> {
                 .map(|(_, rest)| rest.trim_ws())
                 .unwrap_or("");
             if upstream_value.is_empty() && !upstream_property.starts_with("--") {
+                // Upstream saves the diagnostic end after reading the property
+                // to the first whitespace-or-colon, consuming whitespace, and
+                // optionally eating `:`. That position can be later than this
+                // parser's declaration scan. In SCSS-shaped `@media #{x} {`,
+                // for example, our scan stops before the interpolation's `}`
+                // while upstream includes it and the following space.
+                let mut upstream_index = property_start;
+                while upstream_index < self.source.len() {
+                    let c = self.source[upstream_index..].chars().next().unwrap_or('\0');
+                    if is_js_whitespace(c) || c == ':' {
+                        break;
+                    }
+                    upstream_index += c.len_utf8();
+                }
+                while upstream_index < self.source.len() {
+                    let c = self.source[upstream_index..].chars().next().unwrap_or('\0');
+                    if !is_js_whitespace(c) {
+                        break;
+                    }
+                    upstream_index += c.len_utf8();
+                }
+                if self.source[upstream_index..].starts_with(':') {
+                    upstream_index += 1;
+                }
                 record_first_error(
                     &self.error,
                     crate::error::ParseError::svelte(
                         "css_empty_declaration",
                         "Declaration cannot be empty",
-                        (start, self.offset + self.index),
+                        (start, self.offset + upstream_index),
                     ),
                 );
             }

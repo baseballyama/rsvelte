@@ -27,6 +27,15 @@ fn empty_block_item_selector_terminates_with_the_upstream_error() {
             )
             .expect_err("upstream rejects this CSS");
             assert_eq!(error.diagnostic().code.as_deref(), Some(code));
+            if code == "css_empty_declaration" {
+                assert_eq!(
+                    error.diagnostic().span,
+                    Some((
+                        source.find("devices.$break1").unwrap(),
+                        source.find(" {\n\t\t.card").unwrap() + 1,
+                    ))
+                );
+            }
         }
     }
 }
