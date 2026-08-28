@@ -149,12 +149,16 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 {
                     let binding = &context.analysis.root.bindings[binding_idx];
                     if binding.kind == BindingKind::Derived {
-                        return Err(errors::derived_invalid_export().at(*start, *end));
+                        return Err(
+                            errors::derived_invalid_export().at(*specifier_start, *specifier_end)
+                        );
                     }
                     if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
                         && binding.reassigned
                     {
-                        return Err(errors::state_invalid_export().at(*start, *end));
+                        return Err(
+                            errors::state_invalid_export().at(*specifier_start, *specifier_end)
+                        );
                     }
                 }
 
