@@ -56,7 +56,7 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 68 + 64 + 31 + 24 + 22 + 10 + 2`
+Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 68 + 64 + 24 + 22 + 13 + 10 + 2`
 
 | cluster | keys | what it is |
 |---|---|---|
@@ -65,7 +65,7 @@ Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 68 + 64
 | `estree-fields` | 74 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
 | `unclustered` | 68 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 64 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
-| `accepts-what-official-rejects` | 31 | 15 corpus entries × 2 axes, plus one loose source. See below. |
+| `accepts-what-official-rejects` | 13 | 6 corpus entries × 2 axes, plus one loose source. See below. |
 | `css-shape` | 24 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 22 | an array of children with a different length. |
 | `loc-presence` | 10 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
@@ -73,8 +73,10 @@ Partition of `parse-ast-known-failures.json` by cluster: `92 + 90 + 74 + 68 + 64
 
 ## The acceptance rows are the interesting ones
 
-**rsvelte's `parse()` accepts 15 collected documents official's `parse()` rejects** (15 ids ×
-2 axes), plus the loose `unclosed-attribute-quote` source. The original two are one cause:
+**rsvelte's `parse()` accepts 6 collected documents official's `parse()` rejects** (6 ids ×
+2 axes), plus the loose `unclosed-attribute-quote` source. Nine TypeScript documents left this
+set when the early-error layer taught OXC's split type/value namespaces about
+acorn-typescript's `import type`/value-declaration collision. The original two are one cause:
 `css-invalid-combinator-selector-4` (`css_selector_invalid`) and
 `invalid-empty-css-declaration` (`css_empty_declaration`) are raised by upstream from `1-parse`
 and by rsvelte from `2-analyze`. That is the class AGENTS.md already records for

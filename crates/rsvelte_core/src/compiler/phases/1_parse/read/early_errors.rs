@@ -16,7 +16,13 @@
 //! that a reworded OXC message silently stops matching, which is what
 //! `early_errors_3243.rs` pins one repro per entry against.
 
-use oxc_ast::ast::{ArrowFunctionExpression, Function, MethodDefinition, ObjectProperty, Program};
+use std::collections::HashMap;
+
+use oxc_ast::ast::{
+    ArrowFunctionExpression, BindingPattern, Declaration, ExportDefaultDeclarationKind, Function,
+    ImportDeclaration, ImportDeclarationSpecifier, ImportOrExportKind, MethodDefinition,
+    ObjectProperty, Program, Statement,
+};
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_semantic::SemanticBuilder;
@@ -187,10 +193,191 @@ pub fn find_early_error(
 ) -> Option<(u32, String)> {
     let diagnostics = SemanticBuilder::new_compiler().build(program).diagnostics;
     let mut functions = None;
-    diagnostics
+    let semantic = diagnostics
         .iter()
         .filter_map(|d| translate(d, source, program, is_script, &mut functions))
+        .min_by_key(|(at, _)| *at);
+    semantic
+        .into_iter()
+        .chain(type_import_value_redeclaration(program))
         .min_by_key(|(at, _)| *at)
+}
+
+/// acorn-typescript puts a type-only import in the same declaration namespace
+/// as runtime declarations. OXC deliberately gives TypeScript types and values
+/// separate semantic namespaces, so its otherwise useful duplicate-binding
+/// diagnostics cannot report this parser-compatibility edge (#3965).
+///
+/// Keep the compensation here instead of teaching phase 2 that a type import is
+/// a runtime binding. The latter would make correct programs resolve a type as
+/// a value and change their generated code.
+fn type_import_value_redeclaration(program: &Program<'_>) -> Option<(u32, String)> {
+    let mut events = Vec::new();
+    for statement in &program.body {
+        match statement {
+            Statement::ImportDeclaration(import) => collect_import_bindings(import, &mut events),
+            Statement::ExportNamedDeclaration(export) => {
+                if let Some(declaration) = &export.declaration {
+                    collect_value_declaration(declaration, &mut events);
+                }
+            }
+            Statement::ExportDefaultDeclaration(export) => match &export.declaration {
+                ExportDefaultDeclarationKind::FunctionDeclaration(function) => {
+                    if let Some(id) = &function.id {
+                        events.push((id.span.start, id.name.to_string(), false));
+                    }
+                }
+                ExportDefaultDeclarationKind::ClassDeclaration(class) => {
+                    if let Some(id) = &class.id {
+                        events.push((id.span.start, id.name.to_string(), false));
+                    }
+                }
+                _ => {}
+            },
+            Statement::VariableDeclaration(declaration) => {
+                collect_variable_names(declaration, &mut events);
+            }
+            Statement::FunctionDeclaration(function) => {
+                if let Some(id) = &function.id {
+                    events.push((id.span.start, id.name.to_string(), false));
+                }
+            }
+            Statement::ClassDeclaration(class) => {
+                if let Some(id) = &class.id {
+                    events.push((id.span.start, id.name.to_string(), false));
+                }
+            }
+            Statement::TSEnumDeclaration(declaration) => {
+                events.push((
+                    declaration.id.span.start,
+                    declaration.id.name.to_string(),
+                    false,
+                ));
+            }
+            Statement::TSImportEqualsDeclaration(declaration) => {
+                events.push((
+                    declaration.id.span.start,
+                    declaration.id.name.to_string(),
+                    declaration.import_kind == ImportOrExportKind::Type,
+                ));
+            }
+            _ => {}
+        }
+    }
+
+    events.sort_unstable_by_key(|(start, _, _)| *start);
+    let mut type_imports = HashMap::new();
+    let mut values = HashMap::new();
+    for (start, name, is_type_import) in events {
+        let already_declared = if is_type_import {
+            values.contains_key(&name)
+        } else {
+            type_imports.contains_key(&name)
+        };
+        if already_declared {
+            return Some((
+                start,
+                format!("Identifier '{name}' has already been declared"),
+            ));
+        }
+        if is_type_import {
+            type_imports.entry(name).or_insert(start);
+        } else {
+            values.entry(name).or_insert(start);
+        }
+    }
+    None
+}
+
+type BindingEvent = (u32, String, bool);
+
+fn collect_import_bindings(import: &ImportDeclaration<'_>, out: &mut Vec<BindingEvent>) {
+    let Some(specifiers) = &import.specifiers else {
+        return;
+    };
+    for specifier in specifiers {
+        let (local, specifier_is_type) = match specifier {
+            ImportDeclarationSpecifier::ImportSpecifier(specifier) => (
+                &specifier.local,
+                specifier.import_kind == ImportOrExportKind::Type,
+            ),
+            ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
+                (&specifier.local, false)
+            }
+            ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => {
+                (&specifier.local, false)
+            }
+        };
+        let is_type_import = import.import_kind == ImportOrExportKind::Type || specifier_is_type;
+        out.push((local.span.start, local.name.to_string(), is_type_import));
+    }
+}
+
+fn collect_value_declaration(declaration: &Declaration<'_>, out: &mut Vec<BindingEvent>) {
+    match declaration {
+        Declaration::VariableDeclaration(declaration) => {
+            collect_variable_names(declaration, out);
+        }
+        Declaration::FunctionDeclaration(function) => {
+            if let Some(id) = &function.id {
+                out.push((id.span.start, id.name.to_string(), false));
+            }
+        }
+        Declaration::ClassDeclaration(class) => {
+            if let Some(id) = &class.id {
+                out.push((id.span.start, id.name.to_string(), false));
+            }
+        }
+        Declaration::TSEnumDeclaration(declaration) => out.push((
+            declaration.id.span.start,
+            declaration.id.name.to_string(),
+            false,
+        )),
+        Declaration::TSImportEqualsDeclaration(declaration) => {
+            out.push((
+                declaration.id.span.start,
+                declaration.id.name.to_string(),
+                declaration.import_kind == ImportOrExportKind::Type,
+            ));
+        }
+        _ => {}
+    }
+}
+
+fn collect_variable_names(
+    declaration: &oxc_ast::ast::VariableDeclaration<'_>,
+    out: &mut Vec<BindingEvent>,
+) {
+    for declarator in &declaration.declarations {
+        collect_pattern_names(&declarator.id, out);
+    }
+}
+
+fn collect_pattern_names(pattern: &BindingPattern<'_>, out: &mut Vec<BindingEvent>) {
+    match pattern {
+        BindingPattern::BindingIdentifier(id) => {
+            out.push((id.span.start, id.name.to_string(), false));
+        }
+        BindingPattern::ObjectPattern(object) => {
+            for property in &object.properties {
+                collect_pattern_names(&property.value, out);
+            }
+            if let Some(rest) = &object.rest {
+                collect_pattern_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::ArrayPattern(array) => {
+            for element in array.elements.iter().flatten() {
+                collect_pattern_names(element, out);
+            }
+            if let Some(rest) = &array.rest {
+                collect_pattern_names(&rest.argument, out);
+            }
+        }
+        BindingPattern::AssignmentPattern(assignment) => {
+            collect_pattern_names(&assignment.left, out);
+        }
+    }
 }
 
 fn translate(
