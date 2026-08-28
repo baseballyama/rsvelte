@@ -8231,6 +8231,22 @@ fn transform_instance_script_for_visitors(
             trimmed = tail.trim();
         }
 
+        // A line comment at a statement boundary is complete trivia, never
+        // part of the statement that follows it. Keep it out of the
+        // per-statement AST rewrites: when a leading comment and a destructured
+        // declaration were parsed as one fragment, a rewrite of the
+        // initializer could re-emit the comment between the binding pattern
+        // and `=`, where `//` swallowed the initializer and produced invalid
+        // JavaScript. The comment must already be present in `result` for the
+        // reactive-statement ignore handling below, so emit it here instead of
+        // merely forcing an accumulator boundary.
+        if at_statement_boundary && trimmed.starts_with("//") {
+            result.push_str(line);
+            result.push('\n');
+            line_idx += 1;
+            continue;
+        }
+
         // Add line to accumulator (zero-copy borrow from script_lines)
         accumulated_lines.push(line);
 

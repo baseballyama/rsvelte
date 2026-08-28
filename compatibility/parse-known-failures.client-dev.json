@@ -1,6 +1,4 @@
 [
 	"huly/packages/presentation/src/components/FilePreviewPopup.svelte",
-	"huly/packages/ui/src/components/ModernEditbox.svelte",
-	"huly/plugins/card-resources/src/components/navigator-next/NavigatorCardsSection.svelte",
-	"threlte/packages/theatre/src/lib/sequence/Sequence.svelte"
+	"huly/plugins/card-resources/src/components/navigator-next/NavigatorCardsSection.svelte"
 ]
