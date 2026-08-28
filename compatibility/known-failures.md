@@ -382,6 +382,12 @@ memo-definedness defect: upstream evaluates the fresh `$N` returned by its
 memoizer and retains `?? ''`, while rsvelte evaluated the original call and
 incorrectly removed the fallback. The single- and multi-expression title paths
 now both preserve it, retiring 28 target-pairs.
+Eight remaining legacy-title entries used a store subscription as the callee
+(`$t('key')` or `$i18n.t('key')`). The title visitor's local copy of
+`build_template_chunk` applied identifier transforms directly and skipped
+`build_expression`, dropping both the coarse-grained store dependency read and
+the `$.untrack` wrapper. Both title paths now use the same expression builder as
+the shared template-chunk path, retiring 16 client target-pairs.
 The two threlte `bush.svelte` files destructure `[$gltf, $texture1]` in an
 `{:then}` clause while an unrelated top-level `gltf` store exists. The lexical
 store scan ignored the await scope and synthesized a root `$gltf` subscription;
@@ -403,9 +409,10 @@ The two svelte-commerce entries whose generated `<meta>` local was unnecessarily
 renamed to `meta_1` were fixed by excluding `import.meta` and `new.target` name
 slots from the Phase 2 global-reference conflict set and are retired from both
 client baselines.
-No remaining first-difference cluster
-in the latest completed report contains more than two entries per target; the
-table records the tied largest signatures so the next pass starts from data.
+The latest completed report is filtered through the current baselines before
+each removal. Its remaining larger normalized signatures are re-audited rather
+than removed as a cluster, because identical first lines can hide different
+later causes.
 
 ### The SCSS custom-property under-rejection cluster
 

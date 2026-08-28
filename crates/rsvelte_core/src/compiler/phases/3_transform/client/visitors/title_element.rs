@@ -10,8 +10,8 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_ids_from_expr;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    apply_transforms_to_expression, expression_has_await, expression_has_reactive_state,
-    get_literal_value, is_expression_defined,
+    build_expression, expression_has_await, expression_has_reactive_state, get_literal_value,
+    is_expression_defined,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -307,7 +307,13 @@ fn build_title_content(
                 }
                 let has_await = expression_has_await(&expr.expression);
                 let raw_value = convert_expression(&expr.expression, context);
-                let value = apply_transforms_to_expression(&raw_value, context);
+                // TitleElement duplicates upstream's `build_template_chunk` flow so it can
+                // keep a local memoizer. It must still use `build_expression`: in legacy
+                // mode this records coarse-grained dependencies before evaluating calls
+                // under `$.untrack(...)` (for example a store-backed `$t('key')`).
+                let metadata =
+                    ExpressionMetadata::from_template_metadata(&expr.metadata.expression);
+                let value = build_expression(context, &raw_value, &metadata);
 
                 // If expression has call or await, memoize it.
                 // Phase 2 already cached has_call on the tag metadata.
@@ -412,7 +418,9 @@ fn build_title_content(
                 // Phase 2 already cached has_call on the tag metadata.
                 let has_call = expr.metadata.expression.has_call();
                 let raw_value = convert_expression(&expr.expression, context);
-                let value = apply_transforms_to_expression(&raw_value, context);
+                let metadata =
+                    ExpressionMetadata::from_template_metadata(&expr.metadata.expression);
+                let value = build_expression(context, &raw_value, &metadata);
 
                 // If expression has call or await, memoize it
                 if has_call || has_await {
