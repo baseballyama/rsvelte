@@ -1,5 +1,4 @@
 [
-	"no-nested-style-tag/14-component-lookalike.svelte",
 	"no-target-blank/01-basic.svelte",
 	"no-target-blank/02-rel-dynamic.svelte",
 	"no-target-blank/03-spread-and-shorthand.svelte",

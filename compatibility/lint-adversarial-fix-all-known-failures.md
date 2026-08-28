@@ -23,22 +23,20 @@ uncompared, and both turned out to hold defects:
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-all-known-failures.json` holds **17 entries** over 1364
-compared patterns; on the run that baselined it the oracle rewrote 793 files and
-rsvelte rewrote 792.
+`lint-adversarial-fix-all-known-failures.json` holds **16 entries** over 1364
+compared patterns; the oracle and rsvelte each rewrite 793 files.
 
 Two verdicts share the file, kept apart by the key so neither can suppress the
 other on the same pattern: a bare `<id>` is a text divergence, and
 `oracle-crash:<id>` is a pattern ESLint threw on while fixing, where there is no
 text to compare.
 
-Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `14 + 1 + 1 + 1`
+Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `14 + 1 + 1`
 
 | cause | entries |
 |---|---|
 | rsvelte-only autofix (upstream rule is report-only) | 14 |
 | upstream autofix defect we decline to reproduce | 1 |
-| a listed upstream-parser defect, surfaced by a fix oscillation | 1 |
 | upstream rule crashes on text an earlier pass produced | 1 |
 
 ## What this gate found on its first run
@@ -107,34 +105,6 @@ rather than after the *key*, so `style:color|important` becomes
 the `!important`. rsvelte writes `style:color|important={color}`. Reported in
 [`upstream_issues/eslint-plugin-svelte-shorthand-directive-modifier.md`](../upstream_issues/eslint-plugin-svelte-shorthand-directive-modifier.md);
 the full evidence, including the two compiled outputs, is in the per-rule doc.
-
-### `no-nested-style-tag/14-component-lookalike.svelte`
-
-Two causes stacked, and the divergence needs both.
-
-The first is already a ratchet entry on the **report** gate, entry 4 in
-[`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md), and
-**rsvelte is the correct side of it**: `svelte-eslint-parser` blanks
-`<(script|style|template)([\s>])` case-insensitively, so `<Style />` is rewritten
-to `<S---- />` before the compiler sees it and comes back a `RegularElement`.
-Upstream's `html-self-closing` therefore treats a component as an HTML element
-and reports; rsvelte classifies from the compiler AST, which says `Component`,
-and does not. Reported in
-[`upstream_issues/svelte-eslint-parser-self-closing-style-lookalike-component.md`](../upstream_issues/svelte-eslint-parser-self-closing-style-lookalike-component.md).
-
-The second is why it is invisible to the per-rule gate. Upstream's
-`html-self-closing` fix expands `<Style />` to `<Style></Style>`, and on the next
-pass it collapses it back: an oscillation, which ESLint's driver stops with its
-`ESLintCircularFixesWarning`. With only `html-self-closing` enabled the loop ends
-on the source text and the per-rule gate sees parity; adding
-`html-closing-bracket-spacing` shifts the loop's parity and it ends on the
-expanded text instead. Leave-one-out over the universe confirms the pair:
-removing either rule makes the file unchanged again.
-
-So the *text* divergence is ESLint driver policy, and the reason rsvelte has
-nothing to oscillate is the listed parser defect. It stays listed here rather
-than being cited only on the report gate, because a two-sided ratchet is what
-makes the pairing fail the day either half moves.
 
 ### `oracle-crash:no-navigation-without-base/06-template-literals.svelte`
 

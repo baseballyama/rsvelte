@@ -325,6 +325,54 @@ fn html_element_type(name: &str) -> ElementType {
     }
 }
 
+/// Mirror svelte-eslint-parser's classification of self-closing block-name
+/// lookalikes. Its case-insensitive block extractor temporarily rewrites
+/// `<Style />` / `<Script />` before parsing, so those component-shaped tags
+/// reach this rule as ordinary HTML elements. Keep the quirk local to this
+/// rule instead of changing the compiler AST's correct component kind.
+fn oracle_component_element_type(
+    source: &str,
+    start: u32,
+    name: &str,
+    attributes: &[Attribute],
+) -> ElementType {
+    if !(name.eq_ignore_ascii_case("style") || name.eq_ignore_ascii_case("script")) {
+        return ElementType::Component;
+    }
+
+    let start = start as usize;
+    let name_end = start + 1 + name.len();
+    let Some(next) = source.get(name_end..).and_then(|rest| rest.chars().next()) else {
+        return ElementType::Component;
+    };
+    if !is_js_whitespace(next) || !oracle_block_start_is_valid(&source[..start]) {
+        return ElementType::Component;
+    }
+
+    let scan_from = attributes
+        .last()
+        .map_or(name_end as u32, attr_end)
+        .max(name_end as u32);
+    let Some(tag_end) = start_tag_end(source.as_bytes(), scan_from) else {
+        return ElementType::Component;
+    };
+    if tag_end >= 2 && source.as_bytes()[(tag_end - 2) as usize] == b'/' {
+        ElementType::Normal
+    } else {
+        ElementType::Component
+    }
+}
+
+/// Port of svelte-eslint-parser's `/>\s*$|^\s*$/m` prefix test.
+fn oracle_block_start_is_valid(prefix: &str) -> bool {
+    prefix
+        .split(['\n', '\r', '\u{2028}', '\u{2029}'])
+        .any(|line| {
+            line.chars().all(is_js_whitespace)
+                || line.trim_end_matches(is_js_whitespace).ends_with('>')
+        })
+}
+
 #[derive(Default)]
 pub struct HtmlSelfClosing;
 
@@ -495,6 +543,8 @@ impl Rule for HtmlSelfClosing {
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
         let opts = Options::resolve(ctx);
+        let ty =
+            oracle_component_element_type(ctx.source(), c.start, c.name.as_str(), &c.attributes);
         Self::check(
             ctx,
             c.start,
@@ -502,7 +552,7 @@ impl Rule for HtmlSelfClosing {
             c.name.as_str(),
             &c.attributes,
             &c.fragment.nodes,
-            ElementType::Component,
+            ty,
             opts,
             None,
         );
@@ -609,5 +659,52 @@ impl Rule for HtmlSelfClosing {
             opts,
             None,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn classify(source: &str, name: &str) -> ElementType {
+        let start = source
+            .find(&format!("<{name}"))
+            .expect("fixture contains the requested element") as u32;
+        oracle_component_element_type(source, start, name, &[])
+    }
+
+    #[test]
+    fn mirrors_oracle_block_lookalike_classification() {
+        for source in [
+            "<Style />",
+            "  <Style />",
+            "<div><Style /></div>",
+            "x\n<Style />",
+            "abc>\nxyz<Style />",
+            "x\u{2028}<Style />",
+        ] {
+            assert!(
+                classify(source, "Style") == ElementType::Normal,
+                "{source:?}"
+            );
+        }
+        assert!(classify("<Script />", "Script") == ElementType::Normal);
+    }
+
+    #[test]
+    fn preserves_component_classification_outside_the_oracle_quirk() {
+        for (source, name) in [
+            ("x<Style />", "Style"),
+            ("<Style/>", "Style"),
+            ("<Style></Style>", "Style"),
+            ("{#if true}<Style />{/if}", "Style"),
+            ("<Styled />", "Styled"),
+            ("<Template />", "Template"),
+        ] {
+            assert!(
+                classify(source, name) == ElementType::Component,
+                "{source:?}"
+            );
+        }
     }
 }

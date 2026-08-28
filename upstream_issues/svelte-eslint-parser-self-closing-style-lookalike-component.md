@@ -39,11 +39,15 @@ reaches.
 | `<Style></Style>` | `component` |
 | `<Template />` | `component` |
 | `<Styled />`, `<Stylex />`, `<Div />`, `<Head />`, `<Slot />` | `component` |
-| `x<Style />` (not at a line start / not after `>`) | `component` |
+| `x<Style />` | `component` |
+| `x\n<Style />` | **`html`** |
+| `<div><Style /></div>` | **`html`** |
 
 So the trigger is: tag name case-insensitively equal to `script` or `style`,
-**self-closing**, **whitespace before the `/>`**, and starting a line or
-following a `>`.
+**self-closing**, **whitespace after the name**, and a prefix satisfying the
+parser's `/>\s*$|^\s*$/m` test.
+Because the regex is multiline, a qualifying earlier line is enough even when
+the tag itself is later on a non-qualifying line.
 
 ## Mechanism
 
@@ -75,19 +79,15 @@ element literally named `Style`.
 `<Template />` escapes because the constructor explicitly skips self-closing
 `template` blocks; `script`/`style` have no such guard.
 
-## Why this matters here rather than being just an upstream bug
+## Compatibility handling in rsvelte
 
 `compatibility/lint-adversarial/no-nested-style-tag/14-component-lookalike.svelte`
-reproduces it, and it is the one divergence on that file. rsvelte classifies
-`<Style />` from the compiler AST, so it agrees with `svelte/compiler` and
-reports nothing — the divergence is upstream being wrong, not rsvelte.
+reproduces it. rsvelte keeps the compiler AST's `Component` classification, then
+mirrors the parser quirk locally in `html_self_closing.rs`. This gives the lint
+rule byte-compatible behavior without leaking the wrong element kind into every
+other template rule.
 
-Reproducing it in rsvelte is not an option worth taking: element kind is shared
-by every template rule, so a deliberate misclassification of `<Style />` would
-have to be threaded through all of them to buy one gate row, and it would make
-rsvelte disagree with the compiler it is a port of.
-
-No adversarial pattern is filed under
-`compatibility/lint-adversarial/html-self-closing/` for this shape: the gate's
-ratchet is expected to stay empty, and a pattern that reproduces an upstream
-defect would only add a row that cannot be fixed here.
+That adapter also reproduces the oracle's multi-pass fix oscillation when the
+whole rule universe is enabled. The report and fix-all ratchet entries are both
+therefore closed, while focused unit tests retain the exact positive and
+negative boundary.
