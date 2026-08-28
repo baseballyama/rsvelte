@@ -4012,12 +4012,14 @@ impl PropMutationSites {
                 continue;
             }
             if let Some((after, chain)) = scan_member_chain_names(source, chain_start)
-                && let Some(value_start) = mutation_value_start(source, after).or_else(|| {
-                    // A PREFIX update (`--p.deep.c`) has its operator before
-                    // the identifier; the site's position stays the identifier.
-                    let head = source[..start].trim_end();
-                    (head.ends_with("++") || head.ends_with("--")).then_some(after)
-                })
+                && let Some(value_start) =
+                    mutation_value_start(source, skip_ts_asserted_assignment_target(source, after))
+                        .or_else(|| {
+                            // A PREFIX update (`--p.deep.c`) has its operator before
+                            // the identifier; the site's position stays the identifier.
+                            let head = source[..start].trim_end();
+                            (head.ends_with("++") || head.ends_with("--")).then_some(after)
+                        })
             {
                 let (line, column) =
                     crate::compiler::phases::phase3_transform::utils::locate_in_source(
@@ -4068,13 +4070,30 @@ impl PropMutationSites {
                     }
             })
             .max_by_key(|(index, site)| {
-                let shared = site
+                // Repeated generic words (`prop`, `value`, callback parameters) must not
+                // outscore the discriminating words in the actual RHS. Without deduping,
+                // a later `filter.value = filter.value.filter(...)` can steal the source
+                // location of an earlier assignment merely by repeating `value` more.
+                let unique_words = site
                     .value_words
                     .iter()
-                    .filter(|word| words.contains(*word))
-                    .count();
-                // Ties keep source order.
-                (shared, std::cmp::Reverse(*index))
+                    .enumerate()
+                    .filter(|(word_index, word)| !site.value_words[..*word_index].contains(word));
+                let (shared, missing) =
+                    unique_words.fold((0, 0), |(shared, missing), (_, word)| {
+                        if words.contains(word) {
+                            (shared + 1, missing)
+                        } else {
+                            (shared, missing + 1)
+                        }
+                    });
+                // Prefer more evidence from the generated RHS, then fewer source-only
+                // words. Ties keep source order.
+                (
+                    shared,
+                    std::cmp::Reverse(missing),
+                    std::cmp::Reverse(*index),
+                )
             })
             .map(|(index, _)| index);
         let index = best.or_else(|| self.sites.iter().position(|site| !site.used))?;
@@ -4184,6 +4203,43 @@ fn identifier_words(text: &str) -> Vec<String> {
 fn skip_non_null_assertions(bytes: &[u8], mut pos: usize) -> usize {
     while bytes.get(pos) == Some(&b'!') && bytes.get(pos + 1) != Some(&b'=') {
         pos += 1;
+    }
+    pos
+}
+
+/// Advance from a member chain through a parenthesized TypeScript assertion
+/// when that asserted expression is the assignment target:
+/// `(step.params as any) = params`.
+///
+/// The generated JavaScript no longer carries the assertion, so failing to
+/// collect this source site makes the location matcher fall back to the first
+/// `step.params` read in the file. We stop at the first closing parenthesis
+/// followed by an actual mutation operator; parentheses inside the type are
+/// therefore harmless.
+fn skip_ts_asserted_assignment_target(source: &str, pos: usize) -> usize {
+    let mut cursor = skip_whitespace_chars(source, pos);
+    let tail = &source[cursor..];
+    let keyword_len =
+        if tail.starts_with("as") && tail[2..].chars().next().is_some_and(char::is_whitespace) {
+            2
+        } else if tail.starts_with("satisfies")
+            && tail[9..].chars().next().is_some_and(char::is_whitespace)
+        {
+            9
+        } else {
+            return pos;
+        };
+    cursor += keyword_len;
+
+    let bytes = source.as_bytes();
+    while cursor < bytes.len() && !matches!(bytes[cursor], b'\n' | b';') {
+        if bytes[cursor] == b')' {
+            let candidate = skip_whitespace_chars(source, cursor + 1);
+            if is_mutation_operator(source, candidate) {
+                return candidate;
+            }
+        }
+        cursor += 1;
     }
     pos
 }

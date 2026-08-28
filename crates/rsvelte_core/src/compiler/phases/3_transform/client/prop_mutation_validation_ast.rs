@@ -386,4 +386,31 @@ mod tests {
             "$$ownership_validator.mutation(null, ['props', 'createDrawing'], props(props().createDrawing = async () => { $$ownership_validator.mutation(null, ['props', 'drawings'], props(props().drawings = [1], true), 4, 2); }, true), 3, 0);",
         );
     }
+
+    #[test]
+    fn repeated_rhs_words_do_not_steal_an_earlier_mutation_location() {
+        let source = "<script>\nexport let filter;\nconst targets = new Set();\nfilter.value = filter.value.filter((p) => targets.has(p));\nfilter.value = filter.value.filter((p) => value ? p !== value.id : p != null);\n</script>";
+        let output = wrap_prop_mutation_validation_ast(
+            "filter(filter().value = filter().value.filter((p) => targets.has(p)), true);\nfilter(filter().value = filter().value.filter((p) => value ? p !== value.id : p != null), true);",
+            &[("filter".to_string(), None)],
+            source,
+        )
+        .unwrap();
+
+        assert!(output.contains("targets.has(p)), true), 4, 0)"));
+        assert!(output.contains("p != null), true), 5, 0)"));
+    }
+
+    #[test]
+    fn locates_parenthesized_typescript_assertion_targets() {
+        let source = "<script lang=\"ts\">\nexport let step;\nlet params = step.params;\n(step.params as any) = params;\n</script>";
+        let output = wrap_prop_mutation_validation_ast(
+            "step(step().params = params, true);",
+            &[("step".to_string(), None)],
+            source,
+        )
+        .unwrap();
+
+        assert!(output.ends_with(", 4, 0);"));
+    }
 }

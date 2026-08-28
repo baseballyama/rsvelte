@@ -388,6 +388,16 @@ Eight remaining legacy-title entries used a store subscription as the callee
 `build_expression`, dropping both the coarse-grained store dependency read and
 the `$.untrack` wrapper. Both title paths now use the same expression builder as
 the shared template-chunk path, retiring 16 client target-pairs.
+Six client-dev entries emitted the correct ownership-validation wrapper but
+reported the wrong source line. One matcher counted every repeated RHS word, so
+a later generic `filter.value.filter(...)` assignment could outscore the actual
+site; source words are now deduplicated before scoring. Five more sites used a
+parenthesized TypeScript assertion target (`(step.params as any) = params`),
+which disappears from generated JavaScript and was skipped by the textual site
+collector. The collector now crosses that assertion only when its closing
+parenthesis is followed by a mutation operator. The six verified entries are
+retired without suppressing the distinct computed- and mid-chain-assertion
+shapes that remain.
 The two threlte `bush.svelte` files destructure `[$gltf, $texture1]` in an
 `{:then}` clause while an unrelated top-level `gltf` store exists. The lexical
 store scan ignored the await scope and synthesized a root `$gltf` subscription;
