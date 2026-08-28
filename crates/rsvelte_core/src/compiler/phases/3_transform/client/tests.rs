@@ -861,6 +861,59 @@ fn reactive_each_collection_still_invalidates_inner_signals() {
 }
 
 #[test]
+fn each_item_member_mutation_is_transformed_before_sequence_marking() {
+    let result = crate::compiler::compile(
+        "<script>let list = [{ v: 0 }];</script>{#each list as item}<button onclick={() => (item.v = 1)}>x</button>{/each}",
+        crate::compiler::CompileOptions {
+            filename: Some("each-member-mutation.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains("$.get(item).v = 1"),
+        "the reactive each item read must be transformed:\n{}",
+        result.js.code
+    );
+    assert!(
+        result.js.code.contains("$.invalidate_inner_signals"),
+        "the member mutation must invalidate the collection dependency:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
+fn event_parameter_shadows_each_item_member_mutation() {
+    let result = crate::compiler::compile(
+        "<script>let list = [{ v: 0 }];</script>{#each list as item}<button onclick={(item) => (item.v = 1)}>x</button>{/each}",
+        crate::compiler::CompileOptions {
+            filename: Some("each-member-mutation-shadowed.svelte".to_string()),
+            runes: Some(false),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains("(item) => (item.v = 1)"),
+        "the event parameter must remain a plain local write:\n{}",
+        result.js.code
+    );
+    assert!(
+        !result.js.code.contains("$.get(item).v = 1"),
+        "the shadowing parameter must not read the each item:\n{}",
+        result.js.code
+    );
+    assert!(
+        !result.js.code.contains("$.invalidate_inner_signals"),
+        "the shadowing parameter must not invalidate the each collection:\n{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn event_handler_identifier_stays_unwrapped_with_source_span() {
     let result = crate::compiler::compile(
         "<script>function run() {} let value = 0; switch (value) { case 1: break; }</script><button onclick={run}>run</button>",

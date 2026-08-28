@@ -5366,12 +5366,27 @@ pub(crate) fn preserve_each_mutation_sequence(
     let Some(root_name) = original_root_name else {
         return result;
     };
-    let is_each_item = context.state.each_binding_context.iter().rev().any(|each| {
-        each.item_name == root_name || each.destructured_update_paths.contains_key(root_name)
-    });
+    let is_each_item = !context.state.shadowed_prop_names.contains(root_name)
+        && context.state.each_binding_context.iter().rev().any(|each| {
+            each.item_name == root_name || each.destructured_update_paths.contains_key(root_name)
+        });
 
     if is_each_item {
-        b::sequence(vec![result])
+        // A one-element sequence is treated by the recursive transform walk as a
+        // synthesized, already-transformed node. Apply the each-item read/mutate
+        // transform before adding that marker; otherwise `item.v = 1` is frozen
+        // inside the sequence and never becomes `$.get(item).v = 1` (nor gains
+        // its legacy invalidation tail). Parameters and block locals are recorded
+        // in `shadowed_prop_names`, so a nested `(item) => item.v = 1` remains a
+        // write to the local parameter rather than the enclosing each item.
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+
+        let transformed = apply_transforms_to_expression(&result, context);
+        if matches!(transformed, JsExpr::Sequence(_)) {
+            transformed
+        } else {
+            b::sequence(vec![transformed])
+        }
     } else {
         result
     }
