@@ -93,7 +93,16 @@ pub fn validate_element(
                                 }
 
                                 if !is_parenthesized {
-                                    return Err(errors::attribute_invalid_sequence_expression());
+                                    let error = errors::attribute_invalid_sequence_expression();
+                                    let error = match expression_tag
+                                        .expression
+                                        .start()
+                                        .zip(expression_tag.expression.end())
+                                    {
+                                        Some((start, end)) => error.at(start, end),
+                                        None => error,
+                                    };
+                                    return Err(error);
                                 }
                             }
                         }

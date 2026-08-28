@@ -136,8 +136,16 @@ pub fn visit_component<'a, 'b: 'a>(
                             &context.analysis.source,
                         )
                     {
-                        return Err(errors::attribute_invalid_sequence_expression()
-                            .at(expression_tag.start, expression_tag.end));
+                        let error = errors::attribute_invalid_sequence_expression();
+                        let error = match expression_tag
+                            .expression
+                            .start()
+                            .zip(expression_tag.expression.end())
+                        {
+                            Some((start, end)) => error.at(start, end),
+                            None => error,
+                        };
+                        return Err(error);
                     }
                 }
                 super::attribute::warn_attribute_quoted(context, attr);

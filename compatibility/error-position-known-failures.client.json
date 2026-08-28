@@ -1,7 +1,5 @@
 [
 	"svelte-put/sites/docs/src/packages/popover/docs.md.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression-2/main.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/export-derived-state-indirect/main.svelte.js",
