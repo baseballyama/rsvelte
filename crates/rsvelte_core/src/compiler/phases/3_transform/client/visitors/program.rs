@@ -228,7 +228,15 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                                 },
                             );
                         }
-                        if matches!(binding.kind, BindingKind::BindableProp) {
+                        // Upstream represents a legacy `export let` as a
+                        // `bindable_prop`, while rsvelte keeps ordinary props
+                        // as `Prop` and reserves `BindableProp` for an explicit
+                        // `$bindable()`. Both are prop sources here and both
+                        // must establish a deep dependency when a legacy
+                        // template expression reads through a member chain.
+                        // Scoped template visitors remove and restore this
+                        // marker when a local binding shadows the prop.
+                        if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
                             context.state.transform_deep_read.insert(name, ());
                         }
                     } else {
