@@ -87,7 +87,11 @@ pub(crate) fn wrap_derived_reads_ast(
             let semantic_ret = super::super::profile::semantic_build(
                 super::super::profile::SEM_SERVER_DERIVED_READS,
                 program.source_text.len(),
-                || SemanticBuilder::new().build(program),
+                // `is_shadowed` resolves a symbol's declaration through the
+                // semantic node table. Building scopes alone is not enough:
+                // crates.io oxc_semantic 0.145 leaves that table empty unless
+                // nodes are requested explicitly.
+                || SemanticBuilder::new().with_build_nodes(true).build(program),
             );
             let semantic = &semantic_ret.semantic;
 
