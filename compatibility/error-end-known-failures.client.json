@@ -1,4 +1,3 @@
 [
-	"sparrow-app/packages/@sparrow-common/src/features/global-search/components/SearchBar/SearchBar.svelte",
-	"svelte-put/sites/docs/src/packages/popover/docs.md.svelte"
+	"sparrow-app/packages/@sparrow-common/src/features/global-search/components/SearchBar/SearchBar.svelte"
 ]

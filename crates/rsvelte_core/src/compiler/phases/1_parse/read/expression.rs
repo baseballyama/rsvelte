@@ -1918,7 +1918,7 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
     // OXC reported describes the `(…)` this probe wrapped it in. Acorn is given
     // the unwrapped text and says `Unexpected token` at the delimiter.
     if is_code_empty(content, ts) {
-        return result.map(|(_, pos)| ("Unexpected token".to_string(), pos));
+        return result.map(|_| ("Unexpected token".to_string(), content.len()));
     }
     result
 }

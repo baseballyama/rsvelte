@@ -85,6 +85,8 @@ fn whitespace_and_comment_only_bodies_are_the_same_verdict() {
     assert_unexpected_token("{\t}", 2);
     assert_unexpected_token("{\u{a0}}", 3);
     assert_unexpected_token("{/* c */}", 8);
+    assert_unexpected_token("{ /* c */ }", 10);
+    assert_unexpected_token("{ /* c */\n}", 10);
 }
 
 /// A body that does carry code keeps the JS parser's own message: the remap
