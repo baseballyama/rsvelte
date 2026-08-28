@@ -75,6 +75,40 @@ fn module_return_jsdoc_cast_parenthesizes_its_arrow() {
 }
 
 #[test]
+fn server_module_var_derived_reads_use_optional_calls() {
+    let source = r#"
+        export function probe(flag) {
+            if (flag) var value = $derived(1);
+            return value;
+        }
+    "#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile_module(
+            source,
+            crate::compiler::ModuleCompileOptions {
+                filename: Some("var-derived-statement-container.svelte.js".to_string()),
+                generate: crate::compiler::GenerateMode::Server,
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("return value?.();"),
+            "a server module must preserve var-derived TDZ safety in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("$.safe_get(value)"),
+            "the client-only safe_get helper must not remain in server output in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_output() {
     let source = r#"<script lang="ts">
         type OwnProps = {

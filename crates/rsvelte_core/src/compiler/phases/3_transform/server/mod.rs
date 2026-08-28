@@ -776,6 +776,20 @@ fn post_process_for_server(source: &str) -> String {
         Some((call_start + content_end + 1, content))
     });
 
+    // The shared client module transform emits `$.safe_get(x)` for a derived
+    // binding declared with `var`, because the declaration may not have run
+    // yet. The server represents derived bindings as callable values, so the
+    // equivalent read is an optional call rather than a client runtime helper.
+    result = rewrite_calls(&result, b"$.safe_get(", false, |s, pos| {
+        let call_start = pos + 11;
+        let content_end = find_matching_paren(&s[call_start..])?;
+        let content = s[call_start..call_start + content_end].trim();
+        Some((
+            call_start + content_end + 1,
+            format!("{content}?.()"),
+        ))
+    });
+
     // Replace $.get(x) for server modules:
     // - Simple identifiers naming a derived: $.get(x) -> x() (callable signal)
     // - Simple identifiers naming state:     $.get(x) -> x
