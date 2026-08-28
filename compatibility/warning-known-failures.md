@@ -34,7 +34,7 @@ compilers already run on every entry.
 
 ## Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 82 entries on all four,
+`warning-known-failures.<target>.json` holds the same 80 entries on all four,
 and `warning-position-known-failures.<target>.json` 0 entries on all four. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all

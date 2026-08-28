@@ -102,8 +102,8 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-message-known-failures.client-dev.json` holds 0 entries;
 `error-message-known-failures.server.json` holds 0 entries; and
 `error-message-known-failures.server-dev.json` holds 0 entries. All four of
-`error-position-known-failures.<target>.json` hold 35 entries, all four of
-`error-end-known-failures.<target>.json` hold 48 entries, and all four of
+`error-position-known-failures.<target>.json` hold 0 entries, all four of
+`error-end-known-failures.<target>.json` hold 0 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
@@ -122,7 +122,7 @@ end entries. The scoped-store diagnostic pass retired another 10 position and 10
 end entries by attaching the offending `$name` identifier range. The detailed
 shape partitions below remain the measured snapshot
 from before those passes; they are historical evidence about the backlog's shape,
-not a decomposition of the current 36/49 files.
+not a decomposition of the current files, which are now empty.
 
 The former client-only asymmetry is gone from the current corpus population, so
 all four files now carry no message entries.

@@ -1,7 +1,7 @@
 # Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **477 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **459 entries**.
 
 ## The question it asks
 

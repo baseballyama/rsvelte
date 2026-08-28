@@ -1,5 +1,5 @@
 ---
-"rsvelte_lint": patch
+"@rsvelte/lint": patch
 ---
 
 Match unused Svelte ignore diagnostics after native SCSS, Sass, and Less-style transforms.
