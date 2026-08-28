@@ -8425,6 +8425,7 @@ fn transform_is_not_args(
                 complex_selector,
                 selector,
                 css_source,
+                css_start,
                 pseudo_name,
                 ctx,
                 use_direct_class,
@@ -8575,6 +8576,7 @@ fn transform_is_not_complex_selector(
     node: &Value,
     selector: &str,
     css_source: &str,
+    css_start: Option<usize>,
     pseudo_name: &str,
     ctx: Option<&CssContext>,
     _use_direct_class: bool,
@@ -8777,7 +8779,9 @@ fn transform_is_not_complex_selector(
                 } else {
                     // For :not() with simple selector, just output without scoping
                     for sel in selectors {
-                        result.push_str(&format_simple_selector(sel));
+                        result.push_str(&format_simple_selector_with_scope(
+                            sel, "", css_source, css_start, 1, ctx, false, false,
+                        ));
                     }
                 }
             }

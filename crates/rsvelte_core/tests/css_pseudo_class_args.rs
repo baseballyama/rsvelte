@@ -233,6 +233,20 @@ fn not_arguments_are_never_pruned() {
     assert!(!out.css.contains("(unused)"), "got {:?}", out.css);
 }
 
+#[test]
+fn nested_functional_pseudo_selector_lists_keep_their_commas() {
+    let markup = "<div class=\"tooltip\"><span class=\"label\">x</span></div>";
+    let src = styled(
+        markup,
+        ".tooltip { &:not(:has(.key, .keys)) span.label { color: red } }",
+    );
+    let css = build(&src).css;
+    assert!(
+        css.contains(":not(:has(.key, .keys)) span.label:where(.svelte-"),
+        "got {css:?}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // #3133 — a subject reached through `:has()` still has to satisfy the chain
 // ---------------------------------------------------------------------------
