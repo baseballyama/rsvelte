@@ -203,8 +203,6 @@
 	"open-webui/src/lib/components/layout/Sidebar.svelte",
 	"open-webui/src/lib/components/layout/Sidebar/ChannelItem.svelte",
 	"open-webui/src/lib/components/layout/Sidebar/PinnedModelList.svelte",
-	"open-webui/src/lib/components/notes/NoteEditor.svelte",
-	"open-webui/src/lib/components/notes/Notes.svelte",
 	"open-webui/src/lib/components/workspace/Knowledge.svelte",
 	"open-webui/src/lib/components/workspace/Models.svelte",
 	"open-webui/src/lib/components/workspace/Prompts.svelte",
