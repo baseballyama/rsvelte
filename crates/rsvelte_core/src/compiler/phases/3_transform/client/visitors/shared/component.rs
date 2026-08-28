@@ -1926,13 +1926,15 @@ fn process_bind_directive<'a>(
     } else {
         // Check if this is a member expression binding where the root is a prop or state
         let member_root_info = if let JsExpr::Member(_) = &raw_expression {
-            // Extract the root identifier from the member expression
-            let mut root = &raw_expression;
-            while let JsExpr::Member(m) = root {
-                root = context.arena.get_expr(m.object);
-            }
-            if let JsExpr::Identifier(name) = root {
-                context.state.get_binding(name).map(|binding| {
+            // Extract the root identifier from the member expression. Identifier
+            // nodes can carry source-map spans, so walking only bare Member and
+            // Identifier variants loses prop roots such as `data().pingEval`.
+            crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_expression_root_identifier(
+                &raw_expression,
+                &context.arena,
+            )
+            .and_then(|name| {
+                context.state.get_binding(&name).map(|binding| {
                     let is_state =
                         crate::compiler::phases::phase3_transform::client::utils::is_state_source(
                             binding,
@@ -1952,11 +1954,9 @@ fn process_bind_directive<'a>(
                                 binding.kind,
                                 crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
                             ));
-                    (name.clone(), is_state, is_prop)
+                    (name, is_state, is_prop)
                 })
-            } else {
-                None
-            }
+            })
         } else {
             None
         };
