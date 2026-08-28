@@ -87,7 +87,6 @@
 	"huly/plugins/tracker-resources/src/components/issues/edit/EditIssue.svelte",
 	"huly/plugins/tracker-resources/src/components/issues/move/SelectReplacement.svelte",
 	"huly/plugins/tracker-resources/src/components/templates/CreateIssueTemplate.svelte",
-	"huly/plugins/training-resources/src/components/TrainingPanelOverview.svelte",
 	"huly/plugins/training-resources/src/components/TrainingRequestDueDateEditor.svelte",
 	"huly/plugins/view-resources/src/components/MarkupDiffPresenter.svelte",
 	"huly/plugins/view-resources/src/components/Move.svelte",

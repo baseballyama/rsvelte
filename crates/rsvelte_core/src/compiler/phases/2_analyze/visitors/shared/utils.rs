@@ -1586,13 +1586,13 @@ pub fn walk_js_expression_node(
         }
         JsNode::ObjectExpression { properties, .. } => {
             for property in arena.get_js_children(*properties) {
-                if let Some(value_id) = property.value_node() {
-                    walk_js_expression_node(arena.get_js_node(value_id), context, metadata)?;
-                }
                 if let Some(key_id) = property.key()
                     && property.computed()
                 {
                     walk_js_expression_node(arena.get_js_node(key_id), context, metadata)?;
+                }
+                if let Some(value_id) = property.value_node() {
+                    walk_js_expression_node(arena.get_js_node(value_id), context, metadata)?;
                 }
                 // Handle SpreadElement in object (rest/spread). Like the
                 // top-level SpreadElement arm, a spread marks the enclosing
