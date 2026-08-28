@@ -46,13 +46,24 @@ export function parseFailure(code) {
 		const reason = message.includes('(') ? message : message + at;
 		if (!e?.loc) return reason;
 
-		const line = code.split(/\r?\n/)[e.loc.line - 1];
+		const lines = code.split(/\r?\n/);
+		let lineIndex = e.loc.line - 1;
+		let column = e.loc.column;
+		// At EOF Acorn locates the error at column zero of the synthetic blank
+		// line after the source. Show the preceding source line and its end so
+		// the frame identifies the incomplete construct instead of an empty row.
+		if (lines[lineIndex] === '' && column === 0 && lineIndex > 0) {
+			lineIndex -= 1;
+			column = lines[lineIndex].length;
+		}
+
+		const line = lines[lineIndex];
 		if (line === undefined) return reason;
 
-		const gutter = String(e.loc.line);
+		const gutter = String(lineIndex + 1);
 		// Acorn's column is zero-based. Expand tabs in the prefix so the caret
 		// still points at the rejected token in a terminal or CI log.
-		const prefix = line.slice(0, e.loc.column).replaceAll('\t', '  ');
+		const prefix = line.slice(0, column).replaceAll('\t', '  ');
 		const displayedLine = line.replaceAll('\t', '  ');
 		return `${reason}\n${gutter} | ${displayedLine}\n${' '.repeat(gutter.length)} | ${' '.repeat(prefix.length)}^`;
 	}

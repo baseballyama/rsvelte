@@ -609,7 +609,8 @@ pub(crate) fn transform_client(
             .state
             .transform
             .iter()
-            .filter_map(|(name, transform)| transform.assign.is_some().then(|| name.clone()))
+            .filter(|(_, transform)| transform.assign.is_some())
+            .map(|(name, _)| name.clone())
             .collect();
         let dead_comment_rules =
             dead_comments::Rules::component(analysis.runes, &destructure_iife_targets);

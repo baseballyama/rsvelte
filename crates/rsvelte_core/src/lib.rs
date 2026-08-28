@@ -49,6 +49,7 @@ pub use compiler::legacy::convert_to_legacy;
 // `phases/1-parse/index.js`. Exported so a test harness can mirror
 // upstream's own `.replace(/\s+$/, '')` exactly.
 pub use compiler::phases::phase1_parse::parser::is_js_whitespace;
+pub use compiler::phases::phase1_parse::resolve_lazy_expressions;
 #[cfg(not(feature = "parallel"))]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "parallel")]
