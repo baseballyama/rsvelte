@@ -127,6 +127,49 @@ fn leading_semicolon_does_not_extend_arrow_parameter_shadow_to_store_write() {
 }
 
 #[test]
+fn store_getter_uses_the_state_bindings_actual_read_transform() {
+    let source = r#"<script>
+        import { writable } from 'svelte/store';
+
+        let stable = $state(writable(false));
+        let reassigned = $state(writable(false));
+        reassigned = writable(true);
+
+        $stable = true;
+        $reassigned = true;
+    </script>
+
+    <p>{$stable} {$reassigned}</p>"#;
+
+    for dev in [false, true] {
+        let output = crate::compiler::compile(
+            source,
+            crate::compiler::CompileOptions {
+                filename: Some("state-store-reference.svelte".to_string()),
+                dev,
+                ..Default::default()
+            },
+        )
+        .expect("compiles")
+        .js
+        .code;
+
+        assert!(
+            output.contains("$.store_get(stable, \"$stable\", $$stores)"),
+            "an unreassigned state binding has no getter transform in dev={dev}:\n{output}"
+        );
+        assert!(
+            output.contains("$.store_get($.get(reassigned), \"$reassigned\", $$stores)"),
+            "a reassigned state store must still be read through its signal in dev={dev}:\n{output}"
+        );
+        assert!(
+            !output.contains("$.store_get($.get(stable),"),
+            "the store object must not receive a getter absent from the binding transform in dev={dev}:\n{output}"
+        );
+    }
+}
+
+#[test]
 fn module_raw_state_private_nullish_assignment_inside_untrack_is_lowered() {
     let source = r#"
         import { untrack } from 'svelte';

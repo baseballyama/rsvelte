@@ -923,18 +923,15 @@ pub(crate) fn transform_client(
         let is_source_prop =
             is_prop_store && store_binding.is_some_and(|b| utils::is_prop_source(b, analysis));
 
-        // Check if the store is a derived or state variable - if so, wrap with $.get()
-        // e.g., $.get(store) instead of store
+        // Resolve the store variable through the same read transform that upstream's
+        // `build_getter` uses. A state binding only has that transform when it is an
+        // actual state source; in runes mode an unreassigned `$state(writable(...))`
+        // is lowered to a plain value and must remain bare here.
         // LegacyReactive bindings (from `$: z = expr`) are also state variables
         // that need $.get() wrapping.
-        let is_derived_or_state = store_binding.is_some_and(|b| {
-            matches!(
-                b.kind,
-                BindingKind::State
-                    | BindingKind::RawState
-                    | BindingKind::Derived
-                    | BindingKind::LegacyReactive
-            )
+        let store_reference_has_getter = store_binding.is_some_and(|b| {
+            utils::is_state_source(b, analysis)
+                || matches!(b.kind, BindingKind::Derived | BindingKind::LegacyReactive)
         });
 
         // Check if the store is a reactive import (mutated instance import in legacy mode)
@@ -943,7 +940,7 @@ pub(crate) fn transform_client(
         // Generate: const $store = () => $.store_get(store, '$store', $$stores);
         // or: const $store = () => $.store_get(store(), '$store', $$stores); for source prop stores
         // or: const $store = () => $.store_get($$props.store, '$store', $$stores); for non-source prop stores
-        // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for derived/state stores
+        // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for reactive store references
         // or: const $store = () => $.store_get($$_import_store(), '$store', $$stores); for reactive imports
         let store_access = if is_source_prop {
             b::call(&context.arena, b::id(store_name), vec![])
@@ -974,7 +971,7 @@ pub(crate) fn transform_client(
                 b::id(format!("$$_import_{}", store_name)),
                 vec![],
             )
-        } else if is_derived_or_state {
+        } else if store_reference_has_getter {
             b::call(
                 &context.arena,
                 b::member_path(&context.arena, "$.get"),
