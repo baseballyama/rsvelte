@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 334 entries)
+## Client (`known-failures.client.json`, 333 entries)
 
-Partition of `known-failures.client.json` by verdict: `238 + 36 + 20 + 37 + 3`
+Partition of `known-failures.client.json` by verdict: `237 + 36 + 20 + 37 + 3`
 
-- **238 — the generated JS differs** (`js` / `code-differs`).
+- **237 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -65,15 +65,15 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](deliberate-divergences.md), each pinned by a test.
 
-## Server (`known-failures.server.json`, 121 entries)
+## Server (`known-failures.server.json`, 120 entries)
 
-Partition of `known-failures.server.json` by verdict: `63 + 36 + 22`
+Partition of `known-failures.server.json` by verdict: `62 + 36 + 22`
 
-- **63 — the generated JS differs.**
+- **62 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **22 — one compiler rejects and the other compiles.**
 
-All 121 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 120 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it. The last pre-enrolment entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
 `watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
@@ -91,29 +91,29 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Server dev (`known-failures.server-dev.json`, 121 entries)
+## Server dev (`known-failures.server-dev.json`, 120 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `63 + 36 + 22`
+Partition of `known-failures.server-dev.json` by verdict: `62 + 36 + 22`
 
-- **63 — the generated JS differs.**
+- **62 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **22 — one compiler rejects and the other compiles.**
 
-All 121 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 120 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it. Its counts now match `server`. The one extra entry was SoftShadows output
 that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-## Client dev (`known-failures.client-dev.json`, 372 entries)
+## Client dev (`known-failures.client-dev.json`, 371 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `278 + 36 + 20 + 34 + 4`
+Partition of `known-failures.client-dev.json` by verdict: `277 + 36 + 20 + 34 + 4`
 
-- **278 — the generated JS differs.**
+- **277 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).

@@ -276,7 +276,6 @@
 	"syntaxfm-website/src/lib/player/Player.svelte",
 	"syntaxfm-website/src/routes/(blank)/embed/[show_number]/+page.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
-	"threlte/packages/extras/src/lib/components/Detailed/Detailed.svelte",
 	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
 	"threlte/packages/flex/src/routes/+page.svelte",
 	"threlte/packages/theatre/src/lib/sequence/Sequence.svelte",

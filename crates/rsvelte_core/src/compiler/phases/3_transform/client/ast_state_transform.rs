@@ -457,15 +457,37 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// Check if a name is a state variable that should be transformed,
     /// considering non-reactive exclusions and scope shadowing.
     fn is_active_state_var(&self, name: &str) -> bool {
-        self.state_vars.contains(name)
-            && !self.non_reactive_vars.contains(name)
-            && !self.is_state_var_shadowed(name)
+        !self.non_reactive_vars.contains(name)
+            && (self.resolves_to_local_state(name)
+                || (self.state_vars.contains(name) && !self.is_state_var_shadowed(name)))
     }
 
     /// Check if a name is a state variable (including non-reactive),
     /// used for assignment transforms which apply to all state vars.
     fn is_any_state_var(&self, name: &str) -> bool {
-        self.state_vars.contains(name) && !self.is_state_var_shadowed(name)
+        self.resolves_to_local_state(name)
+            || (self.state_vars.contains(name) && !self.is_state_var_shadowed(name))
+    }
+
+    /// Resolve a locally declared rune binding independently of the root
+    /// analysis name set. The root declaration map keeps the outer binding on
+    /// a collision, so an inner `$derived` named like an outer prop is absent
+    /// from `state_vars` even though reads in that scope are reactive.
+    fn resolves_to_local_state(&self, name: &str) -> bool {
+        for (state_scope, scope) in self
+            .active_state_vars
+            .iter()
+            .rev()
+            .zip(self.scoped_vars.iter().rev())
+        {
+            if state_scope.contains(name) {
+                return true;
+            }
+            if scope.contains(name) {
+                return false;
+            }
+        }
+        false
     }
 
     fn is_state_var_shadowed(&self, name: &str) -> bool {
@@ -491,6 +513,21 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             .iter()
             .rev()
             .any(|scope| scope.contains(name))
+    }
+
+    /// Check whether a non-state transform binding (prop/store/rest) is hidden
+    /// by a local declaration. Reactive declarations live in
+    /// `active_state_vars`, rather than `scoped_vars`, so that their own reads
+    /// still receive `$.get(...)`. They nevertheless shadow an outer prop (for
+    /// example an inner `const ref = $derived(...)` shadowing a bindable `ref`
+    /// prop), and must participate in resolving every other binding kind.
+    fn is_non_state_binding_shadowed(&self, name: &str) -> bool {
+        self.is_shadowed(name)
+            || self
+                .active_state_vars
+                .iter()
+                .rev()
+                .any(|scope| scope.contains(name))
     }
 
     /// Declare a variable in the current scope.
@@ -537,22 +574,22 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         self.prop_source_vars.contains(name)
             && !self.read_only_prop_names.contains(name)
             && !self.rest_prop_vars.contains(name)
-            && !self.is_shadowed(name)
+            && !self.is_non_state_binding_shadowed(name)
     }
 
     /// Check if a name is a store subscription variable.
     fn is_active_store_sub(&self, name: &str) -> bool {
-        self.store_sub_vars.contains(name) && !self.is_shadowed(name)
+        self.store_sub_vars.contains(name) && !self.is_non_state_binding_shadowed(name)
     }
 
     /// Check if a name is a read-only prop.
     fn is_active_read_only_prop(&self, name: &str) -> bool {
-        self.read_only_prop_names.contains(name) && !self.is_shadowed(name)
+        self.read_only_prop_names.contains(name) && !self.is_non_state_binding_shadowed(name)
     }
 
     /// Check if a name is a rest prop variable.
     fn is_active_rest_prop(&self, name: &str) -> bool {
-        self.rest_prop_vars.contains(name) && !self.is_shadowed(name)
+        self.rest_prop_vars.contains(name) && !self.is_non_state_binding_shadowed(name)
     }
 
     /// If `expr` is a bare single-level `rest.x` StaticMemberExpression on an active
@@ -695,6 +732,32 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             }
         }
         false
+    }
+
+    /// Whether a known transform declaration introduces a reactive binding,
+    /// rather than a prop/store helper binding. This distinction matters when
+    /// root analysis retained an outer same-named prop declaration.
+    fn is_reactive_transform_declaration(&self, declarator: &VariableDeclarator<'_>) -> bool {
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        let init_start = init.span().start as usize;
+        let init_end = init.span().end as usize;
+        if init_end <= self.source.len() {
+            let init_text = &self.source[init_start..init_end];
+            if init_text.starts_with("$.state(")
+                || init_text.starts_with("$.state.raw(")
+                || init_text.starts_with("$.derived(")
+                || init_text.starts_with("$.derived_by(")
+                || init_text.starts_with("await $.async_derived(")
+            {
+                return true;
+            }
+        }
+        self.is_state_call_init(init)
+            || self.is_state_raw_or_frozen_init(init)
+            || self.is_derived_call_init(init)
+            || self.is_derived_by_init(init)
     }
 
     /// Returns true if `init` is a plain `$derived(...)` CallExpression whose
@@ -2786,6 +2849,36 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         self.collect_binding_names_inner(pattern, true);
     }
 
+    fn collect_active_state_binding_names(&mut self, pattern: &BindingPattern<'_>) {
+        match pattern {
+            BindingPattern::BindingIdentifier(id) => {
+                self.active_state_vars
+                    .last_mut()
+                    .expect("scope stacks stay aligned")
+                    .insert(id.name.to_string());
+            }
+            BindingPattern::ObjectPattern(object) => {
+                for property in &object.properties {
+                    self.collect_active_state_binding_names(&property.value);
+                }
+                if let Some(rest) = &object.rest {
+                    self.collect_active_state_binding_names(&rest.argument);
+                }
+            }
+            BindingPattern::ArrayPattern(array) => {
+                for element in array.elements.iter().flatten() {
+                    self.collect_active_state_binding_names(element);
+                }
+                if let Some(rest) = &array.rest {
+                    self.collect_active_state_binding_names(&rest.argument);
+                }
+            }
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.collect_active_state_binding_names(&assignment.left);
+            }
+        }
+    }
+
     /// Check if a name is any known transform variable (state, prop, store, read-only, rest-prop)
     /// that should not be registered as shadowed at program scope.
     fn is_any_known_transform_var(&self, name: &str) -> bool {
@@ -2903,7 +2996,11 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         // `is_shadowed()` true and suppress every transform for them.
         for declarator in &decl.declarations {
             if self.is_known_transform_declaration(declarator) {
-                self.collect_binding_names_skip_state(&declarator.id);
+                if self.is_reactive_transform_declaration(declarator) {
+                    self.collect_active_state_binding_names(&declarator.id);
+                } else {
+                    self.collect_binding_names_skip_state(&declarator.id);
+                }
             } else {
                 self.collect_binding_names(&declarator.id);
             }
@@ -6096,6 +6193,36 @@ mod tests {
         let expected =
             "function wrap(initial) {\nlet _value = $.state(initial);\nreturn $.get(_value);\n}";
         assert_eq!(transform(input, &["_value"]), expected);
+    }
+
+    #[test]
+    fn local_derived_shadows_same_named_outer_prop() {
+        let prop_vars = vec!["ref".to_string()];
+        let config = AstTransformConfig {
+            state_vars: &[],
+            non_reactive_vars: &[],
+            raw_state_vars: &[],
+            derived_vars: &[],
+            non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
+            is_runes: true,
+            dev: false,
+            analysis_source: None,
+            filename: None,
+            async_derived_locations: None,
+            prop_source_vars: &prop_vars,
+            prop_assignment_transform_vars: &prop_vars,
+            non_bindable_prop_vars: &[],
+            store_sub_vars: &[],
+            read_only_props: &[],
+            rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
+        };
+        let input = "function setup(value) { const ref = $derived(value); return ref; } ref;";
+        let expected = "function setup(value) { const ref = $.derived(() => value); return $.get(ref); } ref();";
+
+        assert_eq!(transform_state_vars_ast(input, &config).unwrap(), expected);
     }
 
     #[test]

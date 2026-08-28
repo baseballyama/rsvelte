@@ -1602,10 +1602,11 @@ fn lower_module_export_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransfo
 /// `let` removes it from the derived set for that frame).
 struct NestedRuneLower<'a> {
     b: B<'a>,
-    /// Stack of lexical frames. Each map records a derived binding name and
-    /// whether it was declared with `var`, which needs an optional call before
-    /// its initializer has run.
-    derived: Vec<rustc_hash::FxHashMap<String, bool>>,
+    /// Stack of lexical frames. `Some(is_var)` records a derived binding;
+    /// `None` is an explicit lexical shadow for an outer derived binding.
+    /// Keeping the shadow marker is essential: removing a name only from the
+    /// current frame makes lookup fall through to the outer declaration.
+    derived: Vec<rustc_hash::FxHashMap<String, Option<bool>>>,
     /// Whether we are inside a nested function / block body (i.e. below the
     /// script top level). Lowering only fires when this is `true`, so the
     /// script-level statements already handled by `transform_script` are not
@@ -1626,7 +1627,44 @@ struct NestedRuneLower<'a> {
 impl<'a> NestedRuneLower<'a> {
     /// Whether `name` resolves to a derived binding in any enclosing frame.
     fn derived_is_var(&self, name: &str) -> Option<bool> {
-        self.derived.iter().rev().find_map(|f| f.get(name).copied())
+        for frame in self.derived.iter().rev() {
+            if let Some(binding) = frame.get(name) {
+                return *binding;
+            }
+        }
+        None
+    }
+
+    fn mask_name(&mut self, name: &str) {
+        if let Some(frame) = self.derived.last_mut() {
+            frame.insert(name.to_string(), None);
+        }
+    }
+
+    fn mask_binding_pattern(&mut self, pattern: &oxc_ast::ast::BindingPattern<'a>) {
+        use oxc_ast::ast::BindingPattern;
+        match pattern {
+            BindingPattern::BindingIdentifier(id) => self.mask_name(id.name.as_str()),
+            BindingPattern::ObjectPattern(object) => {
+                for property in &object.properties {
+                    self.mask_binding_pattern(&property.value);
+                }
+                if let Some(rest) = &object.rest {
+                    self.mask_binding_pattern(&rest.argument);
+                }
+            }
+            BindingPattern::ArrayPattern(array) => {
+                for element in array.elements.iter().flatten() {
+                    self.mask_binding_pattern(element);
+                }
+                if let Some(rest) = &array.rest {
+                    self.mask_binding_pattern(&rest.argument);
+                }
+            }
+            BindingPattern::AssignmentPattern(assignment) => {
+                self.mask_binding_pattern(&assignment.left);
+            }
+        }
     }
 
     /// Lower the declarators of a `let/const/var` in place when nested. Records
@@ -1649,11 +1687,7 @@ impl<'a> NestedRuneLower<'a> {
             let Some(rune) = d.init.as_ref().and_then(detect_decl_rune) else {
                 // A plain re-declaration of a name shadows any outer derived
                 // binding for this frame.
-                if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &d.id
-                    && let Some(frame) = self.derived.last_mut()
-                {
-                    frame.remove(id.name.as_str());
-                }
+                self.mask_binding_pattern(&d.id);
                 continue;
             };
             // Only handle the identifier-pattern forms here (the destructured
@@ -1676,6 +1710,7 @@ impl<'a> NestedRuneLower<'a> {
             match rune {
                 DeclRune::State => {
                     d.init = Some(arg.unwrap_or_else(|| b.void0()));
+                    self.mask_binding_pattern(&d.id);
                 }
                 DeclRune::Derived => {
                     d.init = arg.map(|e| {
@@ -1702,7 +1737,7 @@ impl<'a> NestedRuneLower<'a> {
                         && let Some(n) = bind_name
                         && let Some(frame) = self.derived.last_mut()
                     {
-                        frame.insert(n, declaration_is_var);
+                        frame.insert(n, Some(declaration_is_var));
                     }
                 }
                 DeclRune::DerivedBy => {
@@ -1711,13 +1746,13 @@ impl<'a> NestedRuneLower<'a> {
                         && let Some(n) = bind_name
                         && let Some(frame) = self.derived.last_mut()
                     {
-                        frame.insert(n, declaration_is_var);
+                        frame.insert(n, Some(declaration_is_var));
                     }
                 }
                 // `$props` / `$props.id` are not valid in a nested factory body in
                 // any in-scope fixture; leave them untouched (init already taken,
                 // restore is unnecessary because this never matches here).
-                DeclRune::Props | DeclRune::PropsId => {}
+                DeclRune::Props | DeclRune::PropsId => self.mask_binding_pattern(&d.id),
             }
         }
     }
@@ -1804,6 +1839,15 @@ impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
         let prev = self.in_nested_body;
         self.in_nested_body = true;
         self.derived.push(rustc_hash::FxHashMap::default());
+        if let Some(id) = &it.id {
+            self.mask_name(id.name.as_str());
+        }
+        for parameter in &it.params.items {
+            self.mask_binding_pattern(&parameter.pattern);
+        }
+        if let Some(rest) = &it.params.rest {
+            self.mask_binding_pattern(&rest.rest.argument);
+        }
         oxc_ast_visit::walk_mut::walk_function(self, it, flags);
         self.derived.pop();
         self.in_nested_body = prev;
@@ -1816,6 +1860,12 @@ impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
         let prev = self.in_nested_body;
         self.in_nested_body = true;
         self.derived.push(rustc_hash::FxHashMap::default());
+        for parameter in &it.params.items {
+            self.mask_binding_pattern(&parameter.pattern);
+        }
+        if let Some(rest) = &it.params.rest {
+            self.mask_binding_pattern(&rest.rest.argument);
+        }
         oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, it);
         self.derived.pop();
         self.in_nested_body = prev;

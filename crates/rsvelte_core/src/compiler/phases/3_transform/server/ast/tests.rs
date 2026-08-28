@@ -4907,6 +4907,37 @@ fn ast_matches_oracle_derived_readwrap_cluster() {
     );
 }
 
+#[test]
+fn nested_derived_is_shadowed_by_callback_parameters() {
+    let source = r#"<script>
+let { ref = $bindable() } = $props();
+
+function observe(read, apply) {
+    apply(read());
+}
+
+function setup(value) {
+    const ref = $derived(value);
+    const distance = $derived(1);
+    observe(
+        () => [ref, distance],
+        ([ref, distance]) => console.log(ref, distance)
+    );
+}
+
+setup(1);
+</script>
+<div bind:this={ref}></div>"#;
+
+    let ours = run(source);
+    let oracle = oracle_dump(source);
+    assert_eq!(
+        canon(&ours),
+        canon(&oracle),
+        "\nOURS:\n{ours}\nORACLE:\n{oracle}"
+    );
+}
+
 /// SSR async template-shape parity with the (correct) `transform_server`
 /// oracle for the `{#await}` / `{@html await …}` / async-attribute /
 /// async-prop cluster. Compared with [`canon_js`] (the runtime harness
