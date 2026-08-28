@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 407 entries)
+## Client (`known-failures.client.json`, 362 entries)
 
-Partition of `known-failures.client.json` by verdict: `311 + 36 + 20 + 37 + 3`
+Partition of `known-failures.client.json` by verdict: `266 + 36 + 20 + 37 + 3`
 
-- **311 — the generated JS differs** (`js` / `code-differs`).
+- **266 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -40,7 +40,7 @@ Partition of `known-failures.client.json` by verdict: `311 + 36 + 20 + 37 + 3`
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
-Every one of the 407 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 362 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -109,17 +109,17 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-## Client dev (`known-failures.client-dev.json`, 445 entries)
+## Client dev (`known-failures.client-dev.json`, 400 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `351 + 36 + 20 + 34 + 4`
+Partition of `known-failures.client-dev.json` by verdict: `306 + 36 + 20 + 34 + 4`
 
-- **351 — the generated JS differs.**
+- **306 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).
 - **4 — rsvelte's output is not JavaScript.**
 
-All 445 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 400 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 40 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
@@ -357,39 +357,29 @@ gate that found it is the one that compares rsvelte to nothing:
 ### The largest remaining clusters
 
 Counts are `(id, target)` pairs and clusters are keyed by the first differing
-line, so this is a diagnostic ordering, **not a partition** — the tail is 923
-clusters long and most of it is one entry each. `E:` is official, `A:` rsvelte.
+line, so this is a diagnostic ordering, **not a partition** — most of the tail
+is one entry. `E:` is official, `A:` rsvelte.
 
 | n | target | first differing line | example repo |
 |---|---|---|---|
-| 20+20 | client, client-dev | `E:if (tab()) {` / `A:if (tab) {` | sparrow-app |
-| 16+16 | client, client-dev | `E:})(res);` / `A:return res;` | huly |
-| 10+10 | client, client-dev | `E:function triggerSetView(val) {` / `A:$: triggerSetView($setView());` | svelte-gantt |
-| 7+7 | client, client-dev | `E:})(res);` / `A:return res;` (one level deeper) | huly |
-| 7+7 | client, client-dev | `E:if (apiState()) {` / `A:if (apiState) {` | sparrow-app |
-| 6+6 | client, client-dev | `E:})(result);` / `A:return result;` | huly |
-| 4+4 | client, client-dev | `E:[() => ($t(), $.untrack(() => $t()("…")))],` / `A:[() => $t()("…")],` | adventurelog |
-| 4+4 | client, client-dev | `E:})(res);` / `A:return res;` (deeper still) | huly |
-| 4+4 | client, client-dev | `E:})(config());` / `A:return $$value;` | huly |
+| 2+2 | client, client-dev | `E:"click dont save";` / `A:handleForceClosePopupBackdrop(false);` | sparrow-app |
+| 2+2 | client, client-dev | `E:[` / `A:[() => makeSimplePageTitle(...)],` | mathesar |
+| 2+2 | client, client-dev | `E:if (mode === undefined \|\| ...)` / `A:if (mode !== undefined)` | huly |
+| 2+2 | client, client-dev | `E:var meta = root();` / `A:var meta_1 = root();` | svelte-commerce |
+| 2+2 | client, client-dev | comment keeps `$i18n.languages` / comment rewrites `$i18n().languages` | open-webui |
+| 2+2 | client, client-dev | multiline `$.prop` / one-line `$.prop(..., null)` | adventurelog |
+| 2+2 | client, client-dev | `transformData` prop first / `$gltf` store first | threlte |
 
 **Every appwrite-console cluster is gone, and with it both server targets.**
 Six of the ten rows above used to be a `$$renderer.push` / template-string
 divergence on appwrite-console, and the largest was 71 pairs; `main` fixed them
-before this branch was rebased onto it. What is left is dominated by two shapes
-that were already diagnosed and are the obvious first burn-down targets: the
-sparrow-app cluster is a prop read inside a TypeScript legacy `$:` body whose
-nested annotated callback made the scope-aware AST pass fail its JavaScript
-parse and fall back to the heuristic text scanner — `tab` stayed bare where
-upstream writes `tab()`, a semantic difference fixed by #3934; the huly cluster
-(four rows, differing
-only in nesting depth) is a destructuring assignment used as the final statement
-of a query callback or reactive block, plus two parenthesized braceless `if`
-bodies. The text transform did not recognise the block's closing `}` or the
-control header's closing `)` as statement boundaries, misclassified the
-assignment as a value-producing subexpression, and appended `return res` /
-`return $$value` to the generated IIFE. The svelte-gantt and adventurelog rows
-are **not diagnosed**; the signature is recorded so the next person starts from
-data rather than from a guess.
+before this branch was rebased onto it. The TypeScript legacy-reactive prop-read
+clusters were retired by #3934. The 45 huly entries whose first difference was
+a destructuring assignment returning `res`, `result`, or `$$value` from its
+generated IIFE were all the statement-boundary defect fixed by #3933 and are
+now retired from both client baselines. No remaining first-difference cluster
+in the latest completed report contains more than two entries per target; the
+table records the tied largest signatures so the next pass starts from data.
 
 ### The 20 entries where only one compiler rejects
 
