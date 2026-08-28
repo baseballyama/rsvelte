@@ -46,6 +46,7 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 
 | File | Issue | What it pins |
 |---|---|---|
+| `function-body-directive.svelte` | corpus residue | A string-literal statement at the start of an arrow, function expression, or function declaration remains in the ESTree body and generated output. OXC separates these into `FunctionBody.directives`; every Phase 1 body conversion must prepend them to the ordinary statements instead of silently dropping them. |
 | `template-chunk-scope-references.svelte` | corpus residue | A legacy text chunk whose call expression reads an each-local `{@const}` must retain Phase 2's scope-resolved binding references. Rebuilding only the metadata flags forces the dependency builder onto its name-based fallback and drops the getter before `$.untrack(...)`, so the derived text no longer reacts to the local value. |
 | `meta-property-generated-name.svelte` | corpus residue | The `meta` in `import.meta` and both halves of `new.target` are name slots, not identifier references. They must not enter `ScopeRoot.conflicts` and unnecessarily rename the generated local for a `<meta>` element to `meta_1`. |
 | `store-read-comment-text.svelte` | corpus residue | A store-subscription spelling inside a line comment remains comment text while the same `$store.member` expression in code is lowered to `$store().member`. String and regex bodies were already opaque to the client read scanner; comments must be excluded by the same source-range rule. |

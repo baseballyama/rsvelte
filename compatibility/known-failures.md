@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 355 entries)
+## Client (`known-failures.client.json`, 353 entries)
 
-Partition of `known-failures.client.json` by verdict: `259 + 36 + 20 + 37 + 3`
+Partition of `known-failures.client.json` by verdict: `257 + 36 + 20 + 37 + 3`
 
-- **259 — the generated JS differs** (`js` / `code-differs`).
+- **257 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -40,7 +40,7 @@ Partition of `known-failures.client.json` by verdict: `259 + 36 + 20 + 37 + 3`
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
-Every one of the remaining 355 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 353 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -109,17 +109,17 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-## Client dev (`known-failures.client-dev.json`, 393 entries)
+## Client dev (`known-failures.client-dev.json`, 391 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `299 + 36 + 20 + 34 + 4`
+Partition of `known-failures.client-dev.json` by verdict: `297 + 36 + 20 + 34 + 4`
 
-- **299 — the generated JS differs.**
+- **297 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).
 - **4 — rsvelte's output is not JavaScript.**
 
-All remaining 393 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 391 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 40 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
@@ -362,7 +362,6 @@ is one entry. `E:` is official, `A:` rsvelte.
 
 | n | target | first differing line | example repo |
 |---|---|---|---|
-| 2+2 | client, client-dev | `E:"click dont save";` / `A:handleForceClosePopupBackdrop(false);` | sparrow-app |
 | 2+2 | client, client-dev | `E:[` / `A:[() => makeSimplePageTitle(...)],` | mathesar |
 | 2+2 | client, client-dev | `E:if (mode === undefined \|\| ...)` / `A:if (mode !== undefined)` | huly |
 | 2+2 | client, client-dev | `transformData` prop first / `$gltf` store first | threlte |
@@ -380,6 +379,10 @@ comment-aware store-read transform and are now retired from both client baseline
 The three AdventureLog entries whose same-line legacy-prop comments disappeared
 from the final `$.prop` argument were fixed by #3937's comment-preserving prop
 lowering and are now retired from both client baselines.
+The two sparrow-app entries whose callback-leading `"click dont save"` string
+statements disappeared were fixed by restoring OXC's separately stored
+`FunctionBody.directives` before the ordinary statements, and are now retired
+from both client baselines.
 The two svelte-commerce entries whose generated `<meta>` local was unnecessarily
 renamed to `meta_1` were fixed by excluding `import.meta` and `new.target` name
 slots from the Phase 2 global-reference conflict set and are retired from both

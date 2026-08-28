@@ -6251,9 +6251,16 @@ fn convert_arrow_body(
     let end = offset + body.span.end as usize - 1;
 
     let body_stmts: Vec<JsNode> = body
-        .statements
+        .directives
         .iter()
-        .filter_map(|stmt| convert_statement(arena, stmt, offset, line_offsets))
+        .map(|directive| {
+            convert_function_body_directive(arena, directive, offset, 1, line_offsets, false)
+        })
+        .chain(
+            body.statements
+                .iter()
+                .filter_map(|stmt| convert_statement(arena, stmt, offset, line_offsets)),
+        )
         .collect();
 
     JsNode::BlockStatement {
@@ -6261,6 +6268,57 @@ fn convert_arrow_body(
         end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         body: arena.alloc_js_children(body_stmts),
+    }
+}
+
+/// OXC separates a function body's leading string-literal statements into
+/// `FunctionBody::directives`. ESTree (and upstream's acorn tree) exposes them
+/// as ordinary `ExpressionStatement`s, so every function-body conversion must
+/// prepend them before the remaining statements.
+fn convert_function_body_directive(
+    arena: &ParseArena,
+    directive: &oxc_ast::ast::Directive,
+    document_offset: usize,
+    parser_prefix_len: usize,
+    line_offsets: &[usize],
+    binding_loc: bool,
+) -> JsNode {
+    let start = document_offset + directive.span.start as usize - parser_prefix_len;
+    let end = document_offset + directive.span.end as usize - parser_prefix_len;
+    let expression_start =
+        document_offset + directive.expression.span.start as usize - parser_prefix_len;
+    let expression_end =
+        document_offset + directive.expression.span.end as usize - parser_prefix_len;
+    let raw = directive
+        .expression
+        .raw
+        .as_ref()
+        .map(|raw| raw.as_str())
+        .unwrap_or("");
+    let loc = if binding_loc {
+        create_typed_loc_for_binding(start, end, line_offsets)
+    } else {
+        create_typed_loc(start, end, line_offsets)
+    };
+    let expression_loc = if binding_loc {
+        create_typed_loc_for_binding(expression_start, expression_end, line_offsets)
+    } else {
+        create_typed_loc(expression_start, expression_end, line_offsets)
+    };
+    let expression = JsNode::Literal {
+        start: expression_start as u32,
+        end: expression_end as u32,
+        loc: expression_loc,
+        value: LiteralValue::String(CompactString::from(directive.expression.value.as_str())),
+        raw: CompactString::from(raw),
+        regex: None,
+    };
+
+    JsNode::ExpressionStatement {
+        start: start as u32,
+        end: end as u32,
+        loc,
+        expression: arena.alloc_js_node(expression),
     }
 }
 
@@ -11578,10 +11636,18 @@ fn convert_function_body_for_program(
     push_span_fields(&mut obj, start, end, line_offsets);
 
     let statements: Vec<Value> = body
-        .statements
+        .directives
         .iter()
-        .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
-        .map(|n| n.to_value())
+        .map(|directive| {
+            convert_function_body_directive(arena, directive, offset, 0, line_offsets, false)
+                .to_value()
+        })
+        .chain(
+            body.statements
+                .iter()
+                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+                .map(|n| n.to_value()),
+        )
         .collect();
     obj.set_field("body", Value::Array(statements));
 
@@ -11599,11 +11665,16 @@ fn convert_function_body_for_program_as_node(
     let end = offset + body.span.end as usize;
     let loc = create_typed_loc(start, end, line_offsets);
 
-    let statements: Vec<JsNode> = body
-        .statements
-        .iter()
-        .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
-        .collect();
+    let statements: Vec<JsNode> =
+        body.directives
+            .iter()
+            .map(|directive| {
+                convert_function_body_directive(arena, directive, offset, 0, line_offsets, false)
+            })
+            .chain(body.statements.iter().filter_map(|stmt| {
+                convert_statement_for_program(arena, stmt, offset, line_offsets)
+            }))
+            .collect();
 
     JsNode::BlockStatement {
         start: start as u32,
@@ -13428,11 +13499,22 @@ fn convert_function_body_with_adjustment(
     push_binding_span_fields(&mut obj, start, end, line_offsets);
 
     let statements: Vec<Value> = body
-        .statements
+        .directives
         .iter()
-        .filter_map(|stmt| {
-            convert_statement_with_adjustment(arena, stmt, doc_offset, prefix_len, line_offsets)
+        .map(|directive| {
+            convert_function_body_directive(
+                arena,
+                directive,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+                true,
+            )
+            .to_value()
         })
+        .chain(body.statements.iter().filter_map(|stmt| {
+            convert_statement_with_adjustment(arena, stmt, doc_offset, prefix_len, line_offsets)
+        }))
         .collect();
     obj.set_field("body", Value::Array(statements));
 
@@ -13786,5 +13868,77 @@ mod tests {
             let e = expr.unwrap_or_else(|| panic!("`{src}` should parse"));
             assert_eq!(e.node_type(), Some("BinaryExpression"), "`{src}`");
         }
+    }
+
+    fn assert_leading_string_statements(arena: &ParseArena, block: &JsNode) {
+        let JsNode::BlockStatement { body, .. } = block else {
+            panic!("expected a block body");
+        };
+        let statements = arena.get_js_children(*body);
+        assert_eq!(statements.len(), 3);
+
+        for (statement, expected_value, expected_raw) in [
+            (&statements[0], "first", "'first'"),
+            (&statements[1], "sec\\ond", "\"sec\\\\ond\""),
+        ] {
+            let JsNode::ExpressionStatement { expression, .. } = statement else {
+                panic!("expected a leading string expression statement");
+            };
+            let JsNode::Literal { value, raw, .. } = arena.get_js_node(*expression) else {
+                panic!("expected a string literal");
+            };
+            assert_eq!(value, &LiteralValue::String(expected_value.into()));
+            assert_eq!(raw.as_str(), expected_raw);
+        }
+    }
+
+    #[test]
+    fn function_body_directives_remain_expression_statements() {
+        let arrow_source = "() => { 'first'; \"sec\\\\ond\"; work(); }";
+        let arrow_arena = ParseArena::new();
+        let arrow_line_offsets = super::super::super::compute_line_offsets(arrow_source, false);
+        let arrow = parse_expression_with_typescript(
+            &arrow_arena,
+            arrow_source,
+            0,
+            &arrow_line_offsets,
+            false,
+        )
+        .expect("arrow should parse");
+        let JsNode::ArrowFunctionExpression { body, .. } = arrow.as_node().as_ref() else {
+            panic!("expected an arrow");
+        };
+        assert_leading_string_statements(&arrow_arena, arrow_arena.get_js_node(*body));
+
+        let program_source = "function f() { 'first'; \"sec\\\\ond\"; work(); }";
+        let program_arena = ParseArena::new();
+        let program_line_offsets = super::super::super::compute_line_offsets(program_source, false);
+        let (program, error) = parse_program_with_error(
+            &program_arena,
+            ProgramParseParams {
+                content: program_source,
+                offset: 0,
+                line_offsets: &program_line_offsets,
+                is_typescript: false,
+                is_script: false,
+                leading_comments: &[],
+                script_tag_start: 0,
+                script_tag_end: program_source.len(),
+            },
+        );
+        assert!(error.is_none());
+        let JsNode::Program { body, .. } = program.as_node().as_ref() else {
+            panic!("expected a program");
+        };
+        let [
+            JsNode::FunctionDeclaration {
+                body: Some(function_body),
+                ..
+            },
+        ] = program_arena.get_js_children(*body)
+        else {
+            panic!("expected one function declaration");
+        };
+        assert_leading_string_statements(&program_arena, program_arena.get_js_node(*function_body));
     }
 }
