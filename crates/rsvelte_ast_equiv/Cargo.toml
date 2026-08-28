@@ -9,13 +9,13 @@ repository = "https://github.com/baseballyama/rsvelte"
 publish = false
 
 [dependencies]
-oxc_allocator = "0.145"
-oxc_ast = "0.145"
-oxc_ast_visit = "0.145"
-oxc_codegen = "0.145"
-oxc_parser = "0.145"
-oxc_span = "0.145"
-oxc_syntax = "0.145"
+oxc_allocator = "0.146"
+oxc_ast = "0.146"
+oxc_ast_visit = "0.146"
+oxc_codegen = "0.146"
+oxc_parser = "0.146"
+oxc_span = "0.146"
+oxc_syntax = "0.146"
 
 [lints]
 workspace = true

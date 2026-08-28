@@ -21,15 +21,15 @@ wasm = ["rsvelte_core/wasm-target"]
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
-oxc_allocator = "0.145"
-oxc_ast = "0.145"
-oxc_ast_visit = "0.145"
-oxc_parser = "0.145"
-oxc_span = "0.145"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
-oxc_formatter_json = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
-oxc_formatter_css = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
+oxc_allocator = "0.146"
+oxc_ast = "0.146"
+oxc_ast_visit = "0.146"
+oxc_parser = "0.146"
+oxc_span = "0.146"
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
+oxc_formatter_json = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
+oxc_formatter_css = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
 thiserror = "2.0"
 unicode-width = "0.2"
 

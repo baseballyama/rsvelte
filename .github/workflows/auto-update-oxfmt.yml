@@ -4,9 +4,8 @@ name: Auto-update oxfmt
 # inline `<style>` CSS (and standalone md/yaml/toml/html) to, pinned with a
 # caret range in the workspace package.json files. When a newer version is
 # published on npm than the one pinned, this opens a PR that bumps every caret
-# pin, syncs the pinned `oxc_formatter` git revision to that oxfmt release's oxc
-# commit (so rsvelte's own JS/TS formatting tracks the delegated oxfmt), and
-# refreshes the pnpm lockfile.
+# pin, syncs the pinned `oxc_formatter` git revision to a published OXC crates
+# release containing that oxfmt release, and refreshes the pnpm lockfile.
 #
 # Unlike the svelte bump (auto-update-svelte.yml), an oxfmt bump is mechanical
 # and the PR is intended to be mergeable once CI is green. An oxfmt change can
@@ -29,7 +28,7 @@ name: Auto-update oxfmt
 on:
   workflow_dispatch:
   schedule:
-    - cron: '47 5 * * *' # Daily at 05:47 UTC
+    - cron: "47 5 * * *" # Daily at 05:47 UTC
 
 permissions:
   contents: write
@@ -41,7 +40,7 @@ concurrency:
 
 env:
   # Skip a release published less than this many hours ago (stability window).
-  RELEASE_AGE_MIN_HOURS: '24'
+  RELEASE_AGE_MIN_HOURS: "24"
 
 jobs:
   update:
@@ -158,17 +157,38 @@ jobs:
             echo "Bumped ${f}"
           done
 
-          # Sync the pinned oxc revision to the oxc commit this oxfmt release was
-          # cut from. rsvelte formats `<script>` / markup JS-TS with `oxc_formatter`
-          # (pinned by git rev across the Cargo manifests + the [patch.crates-io]
-          # block that unifies every oxc_* dep), so its JS/TS output only tracks the
-          # delegated oxfmt when both ride the same oxc commit. oxfmt npm versions
-          # map to oxc monorepo tags `oxfmt_v<version>`.
-          OXC_SHA=$(gh api "repos/oxc-project/oxc/commits/oxfmt_v${LATEST_VERSION}" \
+          # Find the oxc commit this oxfmt release was cut from. The workspace's
+          # git patch must not pin this arbitrary commit directly: between core
+          # crate releases it can still report the previous semver while differing
+          # from the crates.io package with that version. That makes workspace and
+          # published-crate builds behave differently.
+          FORMATTER_OXC_SHA=$(gh api "repos/oxc-project/oxc/commits/oxfmt_v${LATEST_VERSION}" \
             --jq '.sha' 2>/dev/null || true)
-          if [[ ! "${OXC_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+          if [[ ! "${FORMATTER_OXC_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::Could not resolve an oxc commit for tag oxfmt_v${LATEST_VERSION}"
             exit 1
+          fi
+
+          # Pin the newest published core-crate release only after it contains the
+          # formatter commit. Until then, wait for OXC's next crates release. This
+          # keeps the git-patched workspace byte-for-byte aligned with the version
+          # crates.io consumers resolve when the patch is absent.
+          curl -fsSL \
+            -A 'rsvelte-auto-update-oxfmt (https://github.com/baseballyama/rsvelte)' \
+            https://crates.io/api/v1/crates/oxc_allocator > oxc-allocator-meta.json
+          OXC_VERSION=$(jq -r '.crate.max_stable_version // .crate.max_version // empty' oxc-allocator-meta.json)
+          OXC_TAG="crates_v${OXC_VERSION}"
+          OXC_SHA=$(gh api "repos/oxc-project/oxc/commits/${OXC_TAG}" --jq '.sha' 2>/dev/null || true)
+          if [[ ! "${OXC_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Published oxc_allocator ${OXC_VERSION} has no resolvable ${OXC_TAG} tag yet; waiting."
+            exit 0
+          fi
+          RELEASE_STATUS=$(gh api \
+            "repos/oxc-project/oxc/compare/${FORMATTER_OXC_SHA}...${OXC_SHA}" \
+            --jq '.status' 2>/dev/null || true)
+          if [ "${RELEASE_STATUS}" != "ahead" ] && [ "${RELEASE_STATUS}" != "identical" ]; then
+            echo "${OXC_TAG} does not contain oxfmt_v${LATEST_VERSION} yet; waiting for the next OXC crates release."
+            exit 0
           fi
           # All oxc_* deps share one rev (the [patch.crates-io] block aligns them),
           # so read the single current rev and global-replace it in the manifests.
@@ -191,12 +211,9 @@ jobs:
             #    rev. When a release bumps those crate versions the old req no
             #    longer matches the patched git version, the patch silently stops
             #    applying, and the build ends up with two incompatible oxc copies.
-            #    Realign the reqs to the version this commit publishes (read from
-            #    the oxc tree; oxc_allocator carries the AST-stack version).
-            NEW_OXC_VER=$(gh api \
-              "repos/oxc-project/oxc/contents/crates/oxc_allocator/Cargo.toml?ref=${OXC_SHA}" \
-              --jq '.content' | base64 -d | grep -m1 -E '^version[[:space:]]*=' \
-              | grep -oE '[0-9]+\.[0-9]+')
+            #    Realign the reqs to the published release selected above;
+            #    oxc_allocator carries the AST-stack version.
+            NEW_OXC_VER=${OXC_VERSION%.*}
             OLD_OXC_VER=$(grep -rhoE 'oxc_allocator[^"]*"[0-9]+\.[0-9]+"' crates --include=Cargo.toml \
               | grep -oE '[0-9]+\.[0-9]+' | sort -u | head -n1)
             if [ -n "${NEW_OXC_VER}" ] && [ -n "${OLD_OXC_VER}" ] \
@@ -211,7 +228,7 @@ jobs:
               echo "Bumped oxc crates.io reqs ${OLD_OXC_VER} -> ${NEW_OXC_VER}"
             fi
 
-            # 3. Regenerate the lock via cargo (not sed): sed only swaps the rev
+            # 3. Regenerate the locks via cargo (not sed): sed only swaps the rev
             #    hash and leaves the `version = "x.y.z"` lines stale, which breaks
             #    `cargo build --locked` whenever an oxc release bumps its own crate
             #    versions. Naming the git-sourced crates keeps the refresh scoped so
@@ -226,7 +243,16 @@ jobs:
               cargo update "${oxc_pkgs[@]}"
               git add Cargo.lock
             fi
-            echo "Synced oxc rev ${OLD_SHA} -> ${OXC_SHA} (oxfmt_v${LATEST_VERSION})"
+            mapfile -t lint_types_oxc_pkgs < <(
+              awk '/^name = /{n=$3} /oxc-project\/oxc\?rev=/{gsub(/"/,"",n); print n}' crates/rsvelte_lint_types/Cargo.lock \
+                | sort -u
+            )
+            if [ "${#lint_types_oxc_pkgs[@]}" -gt 0 ]; then
+              cargo update --manifest-path crates/rsvelte_lint_types/Cargo.toml \
+                "${lint_types_oxc_pkgs[@]}"
+              git add crates/rsvelte_lint_types/Cargo.lock
+            fi
+            echo "Synced oxc rev ${OLD_SHA} -> ${OXC_SHA} (${OXC_TAG}, contains oxfmt_v${LATEST_VERSION})"
           else
             echo "oxc rev already at ${OXC_SHA}; no Cargo change needed."
           fi
@@ -263,9 +289,9 @@ jobs:
             echo "CSS formatting output, so **review CI** — the formatter and"
             echo "compatibility-report jobs gate this PR. Merge once green."
             echo
-            echo "The pinned \`oxc_formatter\` revision is synced to this oxfmt's"
-            echo "oxc commit (\`oxfmt_v${LATEST_VERSION}\` tag) so rsvelte's"
-            echo "\`<script>\` / markup JS-TS output tracks the delegated oxfmt."
+            echo "The pinned \`oxc_formatter\` revision is synced to published"
+            echo "OXC release \`${OXC_TAG}\`, which contains \`oxfmt_v${LATEST_VERSION}\`."
+            echo "This keeps workspace patches aligned with crates.io consumers."
             echo
             echo "---"
             echo

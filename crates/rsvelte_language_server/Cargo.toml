@@ -27,7 +27,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sourcemap = "9.0"
 regex = "1.11"
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
 
 [dev-dependencies]
 url = "2"
