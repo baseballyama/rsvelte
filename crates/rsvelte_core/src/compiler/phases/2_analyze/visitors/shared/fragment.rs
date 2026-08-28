@@ -266,7 +266,16 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
     if let Some(cycle) = check_graph_for_cycles::<String>(&edges) {
         // Format the cycle as "a → b → a"
         let cycle_str = cycle.join(" → ");
-        return Err(errors::const_tag_cycle(&cycle_str));
+        let error = errors::const_tag_cycle(&cycle_str);
+        let tag = cycle
+            .first()
+            .and_then(|name| binding_to_tag.get(name))
+            .map(|idx| const_tags[*idx].0);
+        let error = match tag {
+            Some(tag) => error.at(tag.start, tag.end),
+            None => error,
+        };
+        return Err(error);
     }
 
     Ok(())
