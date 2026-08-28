@@ -1375,9 +1375,16 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             .arena
                             .alloc_expr(recurse!(context.arena.get_expr(assign.left)))
                     } else if is_store_sub {
-                        // Store subscriptions: keep original left side for store_sub_mutate to handle
-                        // Recursing would turn `$store` into `$store()` which is wrong
-                        assign.left
+                        // Store subscriptions: preserve the root for store_sub_mutate, but
+                        // still transform reactive reads inside computed property indices.
+                        // e.g. `$values[$key]` must become
+                        // `$.untrack($values)[$key()] = value`, not
+                        // `$.untrack($values)[$key] = value`.
+                        context.arena.alloc_expr(transform_computed_indices_only(
+                            context.arena.get_expr(assign.left),
+                            context,
+                            local_scope,
+                        ))
                     } else {
                         // State/mutable source bindings: transform computed property indices
                         // so that reactive each-item variables inside brackets get $.get() wrappers.
