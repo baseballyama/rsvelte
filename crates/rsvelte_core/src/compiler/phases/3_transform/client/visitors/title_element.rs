@@ -319,15 +319,18 @@ fn build_title_content(
                         is_async: has_await,
                     });
                     let param_ref = b::id(&param_name);
-                    if !is_expression_defined(&expr.expression, context) {
-                        return (
-                            b::nullish(&context.arena, param_ref, b::string("")),
-                            has_state,
-                            memo_entries,
-                        );
-                    } else {
-                        return (param_ref, has_state, memo_entries);
-                    }
+                    // Upstream evaluates the value *after* Memoizer::add has
+                    // replaced the call/await with the fresh `$0` identifier.
+                    // That identifier is unknown to the component scope, so it
+                    // is never known-defined even when the original expression
+                    // is (for example, a CallExpression). Keep the fallback on
+                    // the memo parameter; checking the original expression here
+                    // incorrectly erased it.
+                    return (
+                        b::nullish(&context.arena, param_ref, b::string("")),
+                        has_state,
+                        memo_entries,
+                    );
                 }
 
                 if !is_expression_defined(&expr.expression, context) {
@@ -419,11 +422,9 @@ fn build_title_content(
                         is_async: has_await,
                     });
                     let param_ref = b::id(&param_name);
-                    if !is_expression_defined(&expr.expression, context) {
-                        expressions.push(b::nullish(&context.arena, param_ref, b::string("")));
-                    } else {
-                        expressions.push(param_ref);
-                    }
+                    // As in the single-expression path, scope.evaluate sees
+                    // the memo identifier rather than the original expression.
+                    expressions.push(b::nullish(&context.arena, param_ref, b::string("")));
                 } else if !is_expression_defined(&expr.expression, context) {
                     expressions.push(b::nullish(&context.arena, value, b::string("")));
                 } else {

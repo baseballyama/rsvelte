@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 353 entries)
+## Client (`known-failures.client.json`, 339 entries)
 
-Partition of `known-failures.client.json` by verdict: `257 + 36 + 20 + 37 + 3`
+Partition of `known-failures.client.json` by verdict: `243 + 36 + 20 + 37 + 3`
 
-- **257 — the generated JS differs** (`js` / `code-differs`).
+- **243 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -40,7 +40,7 @@ Partition of `known-failures.client.json` by verdict: `257 + 36 + 20 + 37 + 3`
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
-Every one of the remaining 353 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 339 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -109,17 +109,17 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-## Client dev (`known-failures.client-dev.json`, 391 entries)
+## Client dev (`known-failures.client-dev.json`, 377 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `297 + 36 + 20 + 34 + 4`
+Partition of `known-failures.client-dev.json` by verdict: `283 + 36 + 20 + 34 + 4`
 
-- **297 — the generated JS differs.**
+- **283 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).
 - **4 — rsvelte's output is not JavaScript.**
 
-All remaining 391 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 377 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 40 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
@@ -362,7 +362,6 @@ is one entry. `E:` is official, `A:` rsvelte.
 
 | n | target | first differing line | example repo |
 |---|---|---|---|
-| 2+2 | client, client-dev | `E:[` / `A:[() => makeSimplePageTitle(...)],` | mathesar |
 | 2+2 | client, client-dev | `E:if (mode === undefined \|\| ...)` / `A:if (mode !== undefined)` | huly |
 | 2+2 | client, client-dev | `transformData` prop first / `$gltf` store first | threlte |
 
@@ -376,6 +375,11 @@ generated IIFE were all the statement-boundary defect fixed by #3933 and are
 now retired from both client baselines. The two open-webui entries whose comment
 text rewrote `$i18n.languages` to `$i18n().languages` were fixed by #3941's
 comment-aware store-read transform and are now retired from both client baselines.
+Fourteen title entries across cobalt, mathesar and open-webui were one
+memo-definedness defect: upstream evaluates the fresh `$N` returned by its
+memoizer and retains `?? ''`, while rsvelte evaluated the original call and
+incorrectly removed the fallback. The single- and multi-expression title paths
+now both preserve it, retiring 28 target-pairs.
 The three AdventureLog entries whose same-line legacy-prop comments disappeared
 from the final `$.prop` argument were fixed by #3937's comment-preserving prop
 lowering and are now retired from both client baselines.

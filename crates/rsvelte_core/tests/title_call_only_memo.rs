@@ -43,4 +43,8 @@ fn call_only_title_binds_memo_param() {
         out.contains("() => foo()"),
         "memoised call should be passed as a thunk, got:\n{out}"
     );
+    assert!(
+        out.contains("$0 ?? ''"),
+        "the unknown memo result must keep the title's nullish fallback, got:\n{out}"
+    );
 }
