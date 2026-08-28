@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 424 entries)
+## Client (`known-failures.client.json`, 423 entries)
 
-Partition of `known-failures.client.json` by verdict: `328 + 36 + 20 + 37 + 3`
+Partition of `known-failures.client.json` by verdict: `327 + 36 + 20 + 37 + 3`
 
-- **328 — the generated JS differs** (`js` / `code-differs`).
+- **327 — the generated JS differs** (`js` / `code-differs`).
 - **36 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -40,7 +40,7 @@ Partition of `known-failures.client.json` by verdict: `328 + 36 + 20 + 37 + 3`
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
-Every one of the 424 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the 423 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -109,17 +109,17 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-## Client dev (`known-failures.client-dev.json`, 461 entries)
+## Client dev (`known-failures.client-dev.json`, 460 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `367 + 36 + 20 + 34 + 4`
+Partition of `known-failures.client-dev.json` by verdict: `366 + 36 + 20 + 34 + 4`
 
-- **367 — the generated JS differs.**
+- **366 — the generated JS differs.**
 - **36 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **34 — the generated CSS differs** (three fewer than `client`).
 - **4 — rsvelte's output is not JavaScript.**
 
-All 461 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 460 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 40 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

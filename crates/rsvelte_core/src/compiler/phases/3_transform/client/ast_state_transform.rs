@@ -3998,13 +3998,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     }
 
     fn visit_new_expression(&mut self, expr: &NewExpression<'ast>) {
-        // A `new X.Y(args)` whose callee member-spine bottoms out in a state var
-        // (rewritten to `$.get(name)`) gains a CallExpression in the callee after
-        // transformation, so it must be parenthesised — `new ($.get(x).Y)(args)` —
-        // else `(args)` parses as the `new` arguments. esrap/codegen apply this
-        // for proper AST `new` nodes, but this Raw-text state path can't, so we
-        // insert the parens here. The inserts are added AFTER the walk so the
-        // inner `name -> $.get(name)` replacement (which shares the callee start
+        // A `new X.Y(args)` whose callee member-spine bottoms out in a reactive
+        // getter gains a CallExpression after transformation:
+        //
+        //   state.Y       -> $.get(state).Y
+        //   prop.Y        -> prop().Y
+        //   $store.Y      -> $store().Y
+        //
+        // The callee must therefore be parenthesised — `new (prop().Y)(args)` —
+        // else `(args)` parses as arguments to the newly introduced getter call.
+        // esrap/codegen apply this for proper AST `new` nodes, but this Raw-text
+        // path can't, so insert the parens here. The inserts are added AFTER the
+        // walk so the inner getter replacement (which shares the callee start
         // offset) is applied first; the right-to-left, stable-sorted apply then
         // places `(` immediately before the rewritten callee.
         let mut leftmost = &expr.callee;
@@ -4012,7 +4017,12 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             match leftmost {
                 Expression::StaticMemberExpression(m) => leftmost = &m.object,
                 Expression::ComputedMemberExpression(m) => leftmost = &m.object,
-                Expression::Identifier(id) => break self.is_active_state_var(id.name.as_str()),
+                Expression::Identifier(id) => {
+                    let name = id.name.as_str();
+                    break self.is_active_state_var(name)
+                        || self.is_active_prop_var(name)
+                        || self.is_active_store_sub(name);
+                }
                 _ => break false,
             }
         };
@@ -5515,6 +5525,37 @@ mod tests {
         transform_state_vars_ast(script, &config).unwrap_or_else(|| script.to_string())
     }
 
+    fn transform_with_reactive_getters(
+        script: &str,
+        prop_vars: &[&str],
+        store_vars: &[&str],
+    ) -> String {
+        let prop_vars: Vec<String> = prop_vars.iter().map(|s| s.to_string()).collect();
+        let store_vars: Vec<String> = store_vars.iter().map(|s| s.to_string()).collect();
+        let config = AstTransformConfig {
+            state_vars: &[],
+            non_reactive_vars: &[],
+            raw_state_vars: &[],
+            derived_vars: &[],
+            non_proxy_vars: &[],
+            reassign_non_proxy_vars: &[],
+            is_runes: true,
+            dev: false,
+            analysis_source: None,
+            filename: None,
+            async_derived_locations: None,
+            prop_source_vars: &prop_vars,
+            prop_assignment_transform_vars: &prop_vars,
+            non_bindable_prop_vars: &[],
+            store_sub_vars: &store_vars,
+            read_only_props: &[],
+            rest_prop_vars: &[],
+            analysis: None,
+            exported_names: &[],
+        };
+        transform_state_vars_ast(script, &config).unwrap_or_else(|| script.to_string())
+    }
+
     // -----------------------------------------------------------------------
     // Basic $.get() wrapping
     // -----------------------------------------------------------------------
@@ -5682,6 +5723,30 @@ mod tests {
         assert_eq!(
             transform_with_non_reactive("count + 1", &["count"], &["count"]),
             "count + 1"
+        );
+    }
+
+    #[test]
+    fn new_callee_parenthesises_prop_getter_call() {
+        assert_eq!(
+            transform_with_reactive_getters(
+                "const instance = new Constructor({ value: 1 });",
+                &["Constructor"],
+                &[],
+            ),
+            "const instance = new (Constructor())({ value: 1 });"
+        );
+    }
+
+    #[test]
+    fn new_member_callee_parenthesises_store_getter_call() {
+        assert_eq!(
+            transform_with_reactive_getters(
+                "const instance = new $constructors.Current();",
+                &[],
+                &["$constructors"],
+            ),
+            "const instance = new ($constructors().Current)();"
         );
     }
 

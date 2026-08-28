@@ -402,7 +402,6 @@
 	"threlte/apps/docs/src/examples/rapier/rigid-body/Particle.svelte",
 	"threlte/apps/docs/src/examples/xr/vr-button/assets/bush.svelte",
 	"threlte/packages/extras/src/lib/components/Detailed/Detailed.svelte",
-	"threlte/packages/extras/src/lib/components/InstancedSprite/InstancedSprite.svelte",
 	"threlte/packages/extras/src/lib/hooks/useGamepad/useGamepad.svelte.ts",
 	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
 	"threlte/packages/flex/src/routes/+page.svelte",
