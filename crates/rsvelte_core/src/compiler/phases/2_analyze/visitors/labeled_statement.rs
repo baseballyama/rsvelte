@@ -29,13 +29,13 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             None
         };
 
-        if label_name == Some("$") {
-            // Check if at top level
-            let is_at_top_level = context.js_path.len() >= 2
-                && context.js_path[context.js_path.len() - 2].get_type_str() == Some("Program");
+        let is_at_top_level = context.js_path.len() >= 2
+            && context.js_path[context.js_path.len() - 2].get_type_str() == Some("Program");
+        let is_reactive_statement =
+            label_name == Some("$") && context.ast_type == AstType::Instance && is_at_top_level;
 
+        if label_name == Some("$") {
             let is_instance_script = context.ast_type == AstType::Instance;
-            let is_reactive_statement = is_instance_script && is_at_top_level;
 
             // In runes mode, a top-level `$:` reactive statement is a hard
             // error (upstream LabeledStatement.js `legacy_reactive_statement_invalid`).
@@ -57,10 +57,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
         // Visit the body
         let prev_in_reactive = context.in_reactive_declaration;
-        if label_name == Some("$")
-            && !context.analysis.runes
-            && context.ast_type == AstType::Instance
-        {
+        if is_reactive_statement && !context.analysis.runes {
             context.in_reactive_declaration = true;
         }
         super::script::walk_js_node_typed(body_node, context)?;

@@ -58,17 +58,33 @@ pub(super) fn emit_nested_class_warning(node: &JsNode, context: &mut VisitorCont
     } else {
         1
     };
-    let scope_depth = if context.ast_type == AstType::Template {
+    let mut scope_depth = if context.ast_type == AstType::Template {
         context.function_depth + 1
     } else {
         context.analysis.root.all_scopes[context.scope].function_depth
     };
 
+    // Upstream walks a top-level legacy reactive statement twice: once while
+    // collecting its dependencies with an implicit function depth, and once via
+    // the unconditional `context.next()` at the end of LabeledStatement. Both
+    // walks emit this warning. Keep the observable warning multiplicity without
+    // repeating rsvelte's side-effecting statement walker.
+    if context.in_reactive_declaration {
+        scope_depth = scope_depth.max(allowed_depth + 1);
+    }
+
     if scope_depth > allowed_depth {
-        let mut warning = warnings::perf_avoid_nested_class();
-        warning.start = node.start();
-        warning.end = node.end();
-        context.emit_warning(warning);
+        let count = if context.in_reactive_declaration {
+            2
+        } else {
+            1
+        };
+        for _ in 0..count {
+            let mut warning = warnings::perf_avoid_nested_class();
+            warning.start = node.start();
+            warning.end = node.end();
+            context.emit_warning(warning);
+        }
     }
 }
 
@@ -154,7 +170,7 @@ mod tests {
     #[test]
     fn legacy_reactive_declaration_counts_as_nested_scope() {
         let warnings = component_warnings("<script>\n$: { class A {} }\n</script>\n");
-        assert_eq!(nested_class(&warnings).len(), 1);
+        assert_eq!(nested_class(&warnings).len(), 2);
     }
 
     #[test]
@@ -162,7 +178,20 @@ mod tests {
         let warnings = component_warnings(
             "<script>\nexport let v;\nlet k;\n$: k = (() => { class T extends /ab/.constructor { m() { return v; } } return new T().m(); })();\n</script>\n",
         );
+        assert_eq!(nested_class(&warnings).len(), 2);
+    }
+
+    #[test]
+    fn nested_legacy_label_only_warns_once_for_the_class() {
+        let warnings =
+            component_warnings("<script>\nfunction f() { $: { class A {} } }\n</script>\n");
         assert_eq!(nested_class(&warnings).len(), 1);
+    }
+
+    #[test]
+    fn module_legacy_label_does_not_make_a_top_level_class_nested() {
+        let warnings = component_warnings("<script module>\n$: { class A {} }\n</script>\n");
+        assert!(nested_class(&warnings).is_empty());
     }
 
     #[test]
