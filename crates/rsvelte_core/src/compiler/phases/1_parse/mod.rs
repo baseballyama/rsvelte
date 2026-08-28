@@ -387,6 +387,21 @@ mod tests {
     }
 
     #[test]
+    fn test_scss_interpolation_in_comma_atrule_requires_semicolon() {
+        let source = r#"<style lang="scss">@media #{a}, #{b} {}</style>"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let error = parser.parse().unwrap_err();
+
+        match error {
+            crate::error::ParseError::SvelteError { code, span, .. } => {
+                assert_eq!(code, "expected_token");
+                assert_eq!(span, (33, 33));
+            }
+            other => panic!("expected expected_token, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn test_standard_custom_property_value_still_parses() {
         let source = r#"<style>.x { --value: var(--x); }</style>"#;
         let mut parser = Parser::new(source, ParseOptions::default());

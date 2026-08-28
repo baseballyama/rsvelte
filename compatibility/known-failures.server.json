@@ -1,6 +1,5 @@
 [
 	"appwrite-console/src/lib/components/columnSelector.svelte",
-	"appwrite-console/src/lib/components/modalWrapper.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/databases/create/+page.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"chatgpt-web/src/lib/Home.svelte",
@@ -60,7 +59,6 @@
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
 	"trakt-web/projects/client/src/lib/components/slider/Slider.svelte",
 	"trakt-web/projects/client/src/lib/components/tabs/TabView.svelte",
-	"trakt-web/projects/client/src/lib/components/toggles/Switch.svelte",
 	"trakt-web/projects/client/src/lib/sections/banner/_internal/BannerLink.svelte",
 	"trakt-web/projects/client/src/lib/sections/lists/where-to-watch/_internal/JustWatchInfo.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/SideNavbar.svelte",

@@ -1867,7 +1867,12 @@ impl<'a> CssParser<'a> {
 
         // End position is before the semicolon
         let end = self.offset + self.index;
-        self.eat_optional(";");
+        if self.current_char() != '}' && !self.eat_optional(";") {
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::expected_token(";", self.offset + self.index),
+            );
+        }
 
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String("Declaration".to_string()));
