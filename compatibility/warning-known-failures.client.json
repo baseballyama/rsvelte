@@ -27,7 +27,6 @@
 	"huly/plugins/text-editor-resources/src/components/extension/table/TableNodeView.svelte",
 	"huly/plugins/view-resources/src/components/RelationshipTable.svelte",
 	"joy-of-code/src/lib/ui/header/preferences/dyslexic.svelte",
-	"layerchart/docs/src/examples/components/Treemap/nested-filter.svelte",
 	"mathesar/mathesar_ui/src/components/breadcrumb/BreadcrumbSelector.svelte",
 	"musicat/src/lib/settings/InfoPopup.svelte",
 	"musicat/src/lib/your-music/Scrapbook.svelte",

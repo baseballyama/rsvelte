@@ -300,7 +300,9 @@ fn visit_identifier_inner(
                 BindingKind::State => {
                     binding.reassigned || {
                         // Also warn if the initial $state() call has an argument that won't be proxied
-                        // We approximate: check if initial_node_type is a primitive type
+                        // Match should_proxy's non-proxyable expression kinds. Logical
+                        // and conditional expressions deliberately fall through to true
+                        // upstream because either branch may produce a proxyable value.
                         binding.initial_node_type.as_deref().is_some_and(|t| {
                             matches!(
                                 t,
@@ -308,8 +310,6 @@ fn visit_identifier_inner(
                                     | "TemplateLiteral"
                                     | "BinaryExpression"
                                     | "UnaryExpression"
-                                    | "ConditionalExpression"
-                                    | "LogicalExpression"
                             )
                         })
                     }
