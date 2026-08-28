@@ -59,8 +59,6 @@
 	"svelte-french-toast/src/routes/+page.svelte",
 	"svelte-put/sites/docs/src/packages/async-stack/docs.md.svelte",
 	"svelte-put/sites/docs/src/packages/inline-svg/docs.md.svelte",
-	"svelte-put/sites/docs/src/packages/preprocess-external-link/docs.md.svelte",
-	"svelte-put/sites/docs/src/packages/qr/docs.md.svelte",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
 	"svelty-picker/src/routes/+layout.svelte",
 	"syntaxfm-website/src/lib/ComponentWindow.svelte",

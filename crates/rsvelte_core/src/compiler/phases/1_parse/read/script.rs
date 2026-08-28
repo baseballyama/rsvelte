@@ -21,6 +21,36 @@ use crate::error::ParseResult;
 
 use super::super::parser::{Parser, is_js_whitespace};
 
+impl Parser<'_> {
+    /// Deferred template expressions normally report their parse errors after
+    /// the template walk. A later duplicate script is an immediate error, so
+    /// without this error-path replay it can incorrectly hide an earlier
+    /// expression error that upstream reports while reading the expression.
+    fn eager_error_hidden_by_duplicate(&self) -> Option<crate::error::ParseError> {
+        if !self.should_defer_template_parse() {
+            return None;
+        }
+
+        let mut options = self.options;
+        options.defer_script_parse = false;
+        let mut parser = Parser::new(self.source, options);
+        // SAFETY: `parser.arena` outlives the guard and the replay. The guard
+        // restores the outer parser's arena when it is dropped.
+        let _guard =
+            unsafe { crate::ast::arena::SerializeArenaGuard::new(&parser.arena as *const _) };
+
+        match parser.parse() {
+            Err(crate::error::ParseError::SvelteError { code, .. })
+                if code == "script_duplicate" =>
+            {
+                None
+            }
+            Err(error) => Some(error),
+            Ok(_) => None,
+        }
+    }
+}
+
 /// Ensure a Script's content has been fully parsed from raw_content.
 /// This performs the deferred OXC parse. Call this before accessing script.content in analysis.
 ///
@@ -374,21 +404,23 @@ impl<'a> Parser<'a> {
         match context {
             ScriptContext::Default => {
                 if self.instance_script.is_some() {
-                    return Err(crate::error::ParseError::svelte(
+                    let duplicate = crate::error::ParseError::svelte(
                         "script_duplicate",
                         "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element",
                         (start, start),
-                    ));
+                    );
+                    return Err(self.eager_error_hidden_by_duplicate().unwrap_or(duplicate));
                 }
                 self.instance_script = Some(script);
             }
             ScriptContext::Module => {
                 if self.module_script.is_some() {
-                    return Err(crate::error::ParseError::svelte(
+                    let duplicate = crate::error::ParseError::svelte(
                         "script_duplicate",
                         "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element",
                         (start, start),
-                    ));
+                    );
+                    return Err(self.eager_error_hidden_by_duplicate().unwrap_or(duplicate));
                 }
                 self.module_script = Some(script);
             }
