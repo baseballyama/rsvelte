@@ -1443,3 +1443,41 @@ upper bound on the layout-independent defects. And the buckets move as fixes lan
 measurement read 139 / 66 / 575 + 8 before the two fixes above, and the 34 they moved went from
 the third bucket to the first with the 66 unchanged — which is the control that the condition
 is measuring the classes it claims to.
+
+### 2026-08-31 — the hug path's guard, and a perfect grid worth one corpus file
+
+The 21 the closer fix did not reach split by measurement, not by inspection. Growing the
+body one column at a time inside `{#if r}…{/if}`:
+
+| the body element's content | oracle breaks at | rsvelte breaks at |
+|---|---|---|
+| plain text only | 81 | 81 |
+| an expression tag | 81 | 81 |
+| text **and a nested element** | 81 | never, to ~147 columns |
+
+Same position, same tags, only the content's *kind* varies — so this is reachability, not
+width. `element_hug_parts` (`collapse/hug.rs:146`) refuses any content containing `<`, and
+`try_hug_block_inline_body` is its only route for a block's body. The caller splices `content`
+back verbatim, so a nested element in it is safe; the doc-building caller treats it as a text
+run and still refuses, which is why the guard is now a parameter rather than deleted. Two
+places in `doc_build.rs` already carry hand-rolled copies of "the same hug group without the
+`contains('<')` guard" — the codebase had hit this wall twice before.
+
+**The grid went from 3 diverging cells to 0 and the corpus moved one file.** That is the number
+to keep: a minimal grid can be completed while the population it was drawn from barely moves,
+because the real inputs are blocked further along. Do not size a class by the grid that
+diagnoses it.
+
+The 20 that remain are two shapes, and their offsets name themselves:
+
+| shape | oracle | rsvelte | late by | what that equals |
+|---|---|---|---|---|
+| `{#if a}<Label … />{:else}{label}{/if}` | 81 | 100 | **19** | `{:else}{label}{/if}` exactly |
+| `{#if a}<div class="…"><slot … /></div>{/if}` | 81 | 104 | **23** | `<slot name="a" />` + `</div>` exactly |
+| the same with `<span>` (control) | 81 | 81 | 0 | — |
+
+The first is `trailing_block_close_width` scanning only a run of `{/…}`: a block *arm* opens
+with `{:`, and the whole remainder of the block follows it on that line. The second is a
+block-display body, where the oracle emits the block-break form rather than a hug and rsvelte
+measures the open tag alone — the content and the close tag are outside its budget. The
+`<span>` control is what makes that a claim about block-display rather than about blocks.

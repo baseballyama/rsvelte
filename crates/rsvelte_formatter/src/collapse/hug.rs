@@ -120,6 +120,9 @@ pub(super) fn collect_hug_mixed_non_ws_prefix(
 pub(super) fn element_hug_parts(
     out: &str,
     node: &TemplateNode,
+    // A caller that splices `content` back verbatim can accept a nested element in
+    // it; one that treats it as a text run cannot.
+    allow_nested_element: bool,
 ) -> Option<(String, String, String)> {
     // Extract tag name, attributes, fragment start/end for both RegularElement
     // and Component variants (Components like `<A href="/">text</A>` appear in
@@ -144,7 +147,7 @@ pub(super) fn element_hug_parts(
     let close = out.get(content_end..elem_end as usize)?;
     // Simple text content, an open tag closed by `>`, a real close tag.
     if content.contains('\n')
-        || content.contains('<')
+        || (!allow_nested_element && content.contains('<'))
         || content.is_empty()
         || !open.ends_with('>')
         || !close.starts_with("</")
@@ -216,7 +219,7 @@ pub(super) fn try_hug_block_inline_body(
         return None;
     }
     let elem = &body.nodes[0];
-    let (open_nb, content, tag) = element_hug_parts(out, elem)?;
+    let (open_nb, content, tag) = element_hug_parts(out, elem, true)?;
     let elem_start = node_start(elem) as usize;
     let elem_end = node_end(elem) as usize;
     // The block's close tag must glue directly to the element (no whitespace).
