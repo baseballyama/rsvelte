@@ -3,13 +3,14 @@
 //! A port of the official language server's
 //! `plugins/svelte/features/getHoverInfo.ts`.
 
-use lsp_types::{Hover, HoverContents, MarkedString, MarkupContent, MarkupKind};
+use lsp_types::{Hover, HoverContents, MarkedString, MarkupContent, MarkupKind, Range};
 
-use crate::context::{EmbeddedRegions, attribute_context};
+use crate::context::{EmbeddedRegions, attribute_context, possibly_component};
 use crate::html_data::documentation::{Entry, documentation};
 use crate::html_data::provider;
 use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
+use crate::text::LineIndex;
 
 /// How far either side of the cursor a tag may start.
 const WINDOW: usize = 10;
@@ -32,14 +33,14 @@ const TAG_SPELLINGS: &[(SvelteTag, &[&str])] = &[
 const ELSE: &str = ":else";
 
 #[must_use]
-pub fn hover(text: &str, offset: usize) -> Option<Hover> {
+pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
     let embedded = EmbeddedRegions::new(text);
     if let Some(style) = embedded.style_at(offset) {
         // `shouldExcludeHover` (`CSSPlugin.ts:606-616`).
         if matches!(style.language.as_deref(), Some("sass" | "stylus" | "styl")) {
             return None;
         }
-        return crate::css::hover(text, offset).map(markdown);
+        return crate::css::hover(text, offset).map(|value| markup(markdown, value));
     }
     // A script body belongs to tsgo; answering it here spells an import path as
     // a CSS property.
@@ -53,9 +54,18 @@ pub fn hover(text: &str, offset: usize) -> Option<Hover> {
         return Some(plain(tag.documentation().to_string()));
     }
 
+    if let Some((name, span)) = tag_name_at(text, offset) {
+        // `HTMLPlugin.doHover` (`HTMLPlugin.ts:122`) bails on a component before
+        // `vscode-html-languageservice` sees the position at all.
+        if possibly_component(name) {
+            return None;
+        }
+        return element_hover(text, name, span, markdown);
+    }
+
     let attribute = attribute_context(text, offset)?;
     if attribute.in_value && attribute.name == "style" {
-        return crate::css::hover(text, offset).map(markdown);
+        return crate::css::hover(text, offset).map(|value| markup(markdown, value));
     }
     // `HTMLPlugin.doHover` bails on `possiblyComponent(node)`, so a component's
     // attributes get no HTML description.
@@ -71,10 +81,11 @@ pub fn hover(text: &str, offset: usize) -> Option<Hover> {
                 browsers: provided.data.browsers,
                 references: provided.data.references,
             },
-            true,
+            markdown,
         )
     {
-        return Some(markdown(value));
+        let span = attribute.name_start..attribute.name_start + attribute.name.len();
+        return Some(ranged(markup(markdown, value), text, span));
     }
     if !attribute.can_have_event_modifier() {
         return None;
@@ -84,8 +95,69 @@ pub fn hover(text: &str, offset: usize) -> Option<Hover> {
     })?;
     // `getModifierData` (`features/getModifierData.ts:52-62`) maps every entry's
     // documentation into a Markdown `MarkupContent`; only the TAG hover next to
-    // it hands back a bare string.
-    Some(markdown(modifier.documentation()))
+    // it hands back a bare string. Neither passes through `convertContents`, so
+    // the client's `contentFormat` does not reach either.
+    Some(markup(true, modifier.documentation()))
+}
+
+/// `getTagNameRange` (`htmlHover.js:122-132`) for a start or an end tag: the
+/// name alone, with an offset on either edge counting as inside it.
+fn tag_name_at(text: &str, offset: usize) -> Option<(&str, std::ops::Range<usize>)> {
+    let before = text.get(..offset)?;
+    let open = before.rfind('<')?;
+    if before[open..].contains('>') {
+        return None;
+    }
+    let mut start = open + 1;
+    if text[start..].starts_with('/') {
+        start += 1;
+    }
+    let rest = text.get(start..)?;
+    let end = start
+        + rest
+            .find(|c: char| !is_tag_name_char(c))
+            .unwrap_or(rest.len());
+    (end > start && (start..=end).contains(&offset)).then(|| (&text[start..end], start..end))
+}
+
+const fn is_tag_name_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':')
+}
+
+/// `getTagHover` (`htmlHover.js:27-47`): a known tag with no description is
+/// still a hover, with an empty body.
+fn element_hover(
+    text: &str,
+    name: &str,
+    span: std::ops::Range<usize>,
+    markdown: bool,
+) -> Option<Hover> {
+    // `_tagMap` is built by assignment, so a repeated name keeps the last one.
+    let tag = provider::tags()
+        .filter(|tag| tag.name.eq_ignore_ascii_case(name))
+        .last()?;
+    let value = documentation(
+        &Entry {
+            description: tag.description,
+            status: tag.status.as_ref(),
+            browsers: tag.browsers,
+            references: tag.references,
+        },
+        markdown,
+    )
+    .unwrap_or_default();
+    Some(ranged(markup(markdown, value), text, span))
+}
+
+fn ranged(hover: Hover, text: &str, span: std::ops::Range<usize>) -> Hover {
+    let index = LineIndex::new(text);
+    Hover {
+        range: Some(Range::new(
+            index.position(text, span.start),
+            index.position(text, span.end),
+        )),
+        ..hover
+    }
 }
 
 /// The `WINDOW` characters before `offset` plus what follows them, as the
@@ -156,10 +228,17 @@ const fn plain(value: String) -> Hover {
     }
 }
 
-const fn markdown(value: String) -> Hover {
+/// `HTMLHover.convertContents` (`htmlHover.js:217-239`) relabels a
+/// `MarkupContent` as plain text without rewriting it, so only the `kind`
+/// follows the capability here.
+const fn markup(markdown: bool, value: String) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
+            kind: if markdown {
+                MarkupKind::Markdown
+            } else {
+                MarkupKind::PlainText
+            },
             value,
         }),
         range: None,
@@ -171,7 +250,7 @@ mod tests {
     use super::*;
 
     fn hovered_tag(content: &str, offset: usize) -> Option<String> {
-        let hover = hover(content, offset)?;
+        let hover = hover(content, offset, true)?;
         match hover.contents {
             HoverContents::Scalar(MarkedString::String(value)) => Some(value),
             HoverContents::Markup(content) => {
@@ -284,15 +363,47 @@ mod tests {
     #[test]
     fn a_tag_hover_is_a_string_and_a_modifier_hover_is_markup() {
         assert!(matches!(
-            hover("{#if x}", 3).unwrap().contents,
+            hover("{#if x}", 3, true).unwrap().contents,
             HoverContents::Scalar(MarkedString::String(_))
         ));
         assert!(matches!(
-            hover("<div on:click|preventDefault />", 15)
+            hover("<div on:click|preventDefault />", 15, true)
                 .unwrap()
                 .contents,
             HoverContents::Markup(_)
         ));
+    }
+
+    /// `convertContents` (`htmlHover.js:217-239`) is reached by the HTML and CSS
+    /// hovers only, so the Svelte plugin's own modifier hover stays Markdown
+    /// however the client answered.
+    #[test]
+    fn only_the_html_and_css_hovers_follow_the_client_content_format() {
+        let markup =
+            |content: &str, offset: usize, markdown: bool| match hover(content, offset, markdown)
+                .unwrap()
+                .contents
+            {
+                HoverContents::Markup(content) => content,
+                other => panic!("expected markup, got {other:?}"),
+            };
+        let attribute = "<div lang=\"en\">x</div>";
+        let at = attribute.find("lang").unwrap() + 1;
+        assert_eq!(markup(attribute, at, true).kind, MarkupKind::Markdown);
+        assert_eq!(markup(attribute, at, false).kind, MarkupKind::PlainText);
+        // The prose itself is regenerated, not only relabelled.
+        assert_ne!(
+            markup(attribute, at, true).value,
+            markup(attribute, at, false).value
+        );
+
+        let style = "<style>h1{color:red}</style>";
+        let color = style.find("color").unwrap() + 1;
+        assert_eq!(markup(style, color, true).kind, MarkupKind::Markdown);
+        assert_eq!(markup(style, color, false).kind, MarkupKind::PlainText);
+
+        let modifier = "<div on:click|preventDefault />";
+        assert_eq!(markup(modifier, 15, false).kind, MarkupKind::Markdown);
     }
 
     #[test]
@@ -353,6 +464,58 @@ mod tests {
     fn a_style_body_is_still_answered_from_css() {
         let text = "<style>\n  h1 { color: red }\n</style>";
         assert!(hovered_tag(text, text.find("color").unwrap() + 1).is_some());
+    }
+
+    /// `getTagHover` (`htmlHover.js:27-47`) answers the tag name on both the
+    /// start and the end tag, and carries the name's range.
+    #[test]
+    fn an_element_name_hovers_with_its_range() {
+        let text = "<div>x</div>";
+        for (offset, start, end) in [(2, 1, 4), (9, 8, 11)] {
+            let hover = hover(text, offset, true).unwrap_or_else(|| panic!("no hover at {offset}"));
+            assert_eq!(
+                hover.range,
+                Some(Range::new(
+                    lsp_types::Position::new(0, start),
+                    lsp_types::Position::new(0, end)
+                )),
+                "at {offset}"
+            );
+            let HoverContents::Markup(content) = hover.contents else {
+                panic!("expected markup at {offset}");
+            };
+            assert!(
+                content
+                    .value
+                    .starts_with("The div element has no special meaning"),
+                "{content:?}"
+            );
+        }
+    }
+
+    /// `HTMLPlugin.doHover` (`HTMLPlugin.ts:122`) never reaches the HTML tables
+    /// for a component, so a component name that collides with an element's is
+    /// still not documented.
+    #[test]
+    fn a_component_name_has_no_html_hover() {
+        assert!(hover("<Widget>x</Widget>", 3, true).is_none());
+        // A lowercase tag no table knows is not a hover either.
+        assert!(hover("<nope>x</nope>", 3, true).is_none());
+    }
+
+    /// `getAttrHover` (`htmlHover.js:48-67`) carries the attribute name's range;
+    /// leaving it off makes the response a different one on the wire.
+    #[test]
+    fn an_attribute_hover_carries_its_range() {
+        let text = "<div lang=\"en\">x</div>";
+        let hover = hover(text, text.find("lang").unwrap() + 1, true).unwrap();
+        assert_eq!(
+            hover.range,
+            Some(Range::new(
+                lsp_types::Position::new(0, 5),
+                lsp_types::Position::new(0, 9)
+            ))
+        );
     }
 
     #[test]

@@ -257,7 +257,8 @@ impl AttributeContext<'_> {
 /// `possiblyComponent` (`lib/documents/utils.ts:317-322`): ASCII `A`-`Z` only.
 /// Deliberately not [`is_component_tag`] — upstream asks this question with two
 /// different rules and the two callers must keep answering it their own way.
-fn possibly_component(tag: &str) -> bool {
+#[must_use]
+pub fn possibly_component(tag: &str) -> bool {
     tag.starts_with(|c: char| c.is_ascii_uppercase())
 }
 

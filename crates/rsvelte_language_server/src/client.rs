@@ -53,6 +53,10 @@ pub struct ClientState {
     /// documentation a completion item carries is Markdown only where the
     /// client asked for it, and plain text otherwise.
     pub markdown_documentation: bool,
+    /// `HTMLHover.doesSupportMarkdown` (`htmlHover.js:242-251`): the same
+    /// question asked of a different capability, so a client may answer the two
+    /// differently.
+    pub markdown_hover: bool,
 }
 
 impl ClientState {
@@ -111,6 +115,12 @@ impl ClientState {
                     .and_then(Value::as_array)
                     .is_some_and(|formats| formats.iter().any(|format| format == "markdown"))
             }),
+            markdown_hover: params.get("capabilities").is_none_or(|_| {
+                params
+                    .pointer("/capabilities/textDocument/hover/contentFormat")
+                    .and_then(Value::as_array)
+                    .is_some_and(|formats| formats.iter().any(|format| format == "markdown"))
+            }),
         }
     }
 
@@ -150,6 +160,30 @@ fn field<T: DeserializeOwned>(value: Option<&Value>) -> Option<T> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// Completion and hover ask the same question of two different
+    /// capabilities, so a client may answer them differently.
+    #[test]
+    fn the_two_markdown_capabilities_are_read_separately() {
+        let state =
+            |capabilities| ClientState::from_initialize(&json!({ "capabilities": capabilities }));
+        let both = state(json!({ "textDocument": {
+            "completion": { "completionItem": { "documentationFormat": ["markdown"] } },
+            "hover": { "contentFormat": ["markdown"] },
+        }}));
+        assert!(both.markdown_documentation && both.markdown_hover);
+        let completion_only = state(json!({ "textDocument": {
+            "completion": { "completionItem": { "documentationFormat": ["markdown"] } },
+        }}));
+        assert!(completion_only.markdown_documentation && !completion_only.markdown_hover);
+        let hover_only =
+            state(json!({ "textDocument": { "hover": { "contentFormat": ["markdown"] } } }));
+        assert!(!hover_only.markdown_documentation && hover_only.markdown_hover);
+        assert!(!state(json!({})).markdown_hover);
+        // No `capabilities` at all is upstream's "assume markdown" arm.
+        let absent = ClientState::from_initialize(&json!({}));
+        assert!(absent.markdown_documentation && absent.markdown_hover);
+    }
 
     #[test]
     fn reads_the_fields_the_server_keeps() {

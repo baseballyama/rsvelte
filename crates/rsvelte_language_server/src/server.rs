@@ -895,6 +895,7 @@ impl Server {
                     path,
                     text,
                     offset,
+                    markdown_hover: self.client.markdown_hover,
                 });
             }
             None => self.forward_tsgo_request(tsgo_fallback),

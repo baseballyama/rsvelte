@@ -77,6 +77,7 @@ pub enum Job {
         path: PathBuf,
         text: Arc<String>,
         offset: usize,
+        markdown_hover: bool,
     },
     CodeAction {
         id: RequestId,
@@ -371,9 +372,13 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>, stopping: &AtomicBool) 
                 path,
                 text,
                 offset,
+                markdown_hover,
             } => Outcome::Hovered {
                 id,
-                hover: guard("hover", &path, || crate::hover::hover(&text, offset)).flatten(),
+                hover: guard("hover", &path, || {
+                    crate::hover::hover(&text, offset, markdown_hover)
+                })
+                .flatten(),
             },
             Job::CodeAction {
                 id,

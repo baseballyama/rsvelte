@@ -477,7 +477,7 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
             match adapter {
                 "hover" => {
                     let (source, offset) = source_at_marker(case)?;
-                    let response = hover::hover(&source, offset);
+                    let response = hover::hover(&source, offset, true);
                     assert_response(response.is_some(), expected, case)?;
                 }
                 "completion" => {
@@ -662,7 +662,7 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
         }
         "svelte-if-hover" => {
             let (source, offset) = source_at_marker(case)?;
-            let response = hover::hover(&source, offset).context("no hover response")?;
+            let response = hover::hover(&source, offset, true).context("no hover response")?;
             // `getHoverInfo.ts:56` answers a tag with `{ contents: documentation[tag] }`
             // — a bare string, where only the modifier hover beside it is markup, so the
             // shape is asserted and not only the text.
@@ -964,7 +964,7 @@ fn hover_markdown(marked_source: &str) -> Result<Option<String>> {
     let mut source = marked_source.to_string();
     source.replace_range(offset..offset + '¦'.len_utf8(), "");
     Ok(
-        hover::hover(&source, offset).map(|response| match response.contents {
+        hover::hover(&source, offset, true).map(|response| match response.contents {
             HoverContents::Markup(markup) => markup.value,
             other => format!("{other:?}"),
         }),

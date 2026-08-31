@@ -995,6 +995,66 @@ export default {
     assert_eq!(server.shutdown(), Some(0));
 }
 
+/// `HTMLHover.doesSupportMarkdown` (`htmlHover.js:242-251`) and
+/// `HTMLCompletion.doesSupportMarkdown` (`htmlCompletion.js:554-563`) read two
+/// different client capabilities. The LSP differential gate declares neither,
+/// so its Markdown arm is unreachable and only this test can see it — and only
+/// asserting both arms distinguishes the port from one that answers a constant.
+#[test]
+fn the_client_content_format_reaches_hover_and_completion_separately() {
+    let source = "<div lang=\"en\"></div>\n<div ";
+    let markdown = json!(["markdown"]);
+    for hover_markdown in [false, true] {
+        for completion_markdown in [false, true] {
+            let mut text_document = json!({});
+            if hover_markdown {
+                text_document["hover"] = json!({ "contentFormat": markdown });
+            }
+            if completion_markdown {
+                text_document["completion"] =
+                    json!({ "completionItem": { "documentationFormat": markdown } });
+            }
+            let mut server = Server::start();
+            let id = server.request(
+                "initialize",
+                json!({
+                    "processId": Value::Null,
+                    "rootUri": Value::Null,
+                    "capabilities": {
+                        "workspace": { "configuration": true },
+                        "textDocument": text_document,
+                    },
+                }),
+            );
+            server.response(id);
+            server.notify("initialized", json!({}));
+            let uri = "file:///content-format.svelte";
+            did_open(&mut server, uri, source);
+
+            let expected = |markdown: bool| json!(if markdown { "markdown" } else { "plaintext" });
+            let hover = server.hover(uri, 0, 6);
+            assert_eq!(
+                hover["contents"]["kind"],
+                expected(hover_markdown),
+                "hover kind with hover={hover_markdown} completion={completion_markdown}: {hover}"
+            );
+            let items = server.completion(uri, 1, 5);
+            let class = items
+                .iter()
+                .find(|item| item["label"] == json!("class"))
+                .unwrap_or_else(|| {
+                    panic!("no `class` completion with completion={completion_markdown}")
+                });
+            assert_eq!(
+                class["documentation"]["kind"],
+                expected(completion_markdown),
+                "documentation kind with hover={hover_markdown} completion={completion_markdown}"
+            );
+            assert_eq!(server.shutdown(), Some(0));
+        }
+    }
+}
+
 /// Completion and hover over the wire, on a document that does not parse — the
 /// state a component is in for most of the time it is being typed.
 #[test]
