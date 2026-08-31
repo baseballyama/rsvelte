@@ -5,7 +5,12 @@
 //! was judged to fit by exactly the closers' width. Measured against the
 //! oxfmt(`svelte: true`) oracle at `printWidth: 80`: before this, rsvelte's break
 //! threshold was late by 5 for `{/if}`, 6 for `{/key}`, 7 for `{/each}` and 10
-//! for a block nested in a block, and by 0 for every element parent.
+//! for a block nested in a block, and by 0 for every element parent. The scan
+//! reads any tag, not only a closer: a block ARM and the tags of that arm sit
+//! on the line too (`{:else}{label}{/if}` is 19 columns). It stops at the first
+//! thing that is not a tag, because an element carries its own break decision —
+//! with a second element there the oracle breaks THAT one and keeps the first
+//! flat, so charging its width to the first would be the wrong direction.
 
 use rsvelte_formatter::{FormatOptions, JsFormatOptions, LineWidth, format};
 
@@ -87,4 +92,39 @@ fn a_closer_on_the_close_tags_line_does_not_count() {
     // `{/each}` would take it to 82. Nothing may break.
     let src = "{#each cols as column}\n  <td use:tableCell={{ column, rowData, rowIndex, tableData: dataValues }}>\n    {value}\n  </td>{/each}\n";
     assert_eq!(fmt(src), src);
+}
+
+const X38: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+const X36: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+
+#[test]
+fn a_block_arm_and_the_tags_after_it_count_too() {
+    // `{:else}{label}{/if}` is 19 columns and the scan read only the `{/if}`, so
+    // rsvelte's threshold was late by exactly that.
+    assert_eq!(
+        fmt(&format!(
+            "{{#if a}}<Label text=\"{X38}\" />{{:else}}{{label}}{{/if}}\n"
+        )),
+        format!("{{#if a}}<Label\n    text=\"{X38}\"\n  />{{:else}}{{label}}{{/if}}\n")
+    );
+}
+
+#[test]
+fn one_column_under_that_threshold_stays_flat() {
+    // Two characters shorter: the control that the test above measures the
+    // trailing tags and not simply "this element is too wide".
+    let src = format!("{{#if a}}<Label text=\"{X36}\" />{{:else}}{{label}}{{/if}}\n");
+    assert_eq!(fmt(&src), src);
+}
+
+#[test]
+fn an_expression_tag_after_the_element_counts() {
+    // Not a closer and not an arm — a sibling `{…}` on the same flat line. The
+    // element alone is 37 columns and nothing about it is over the width.
+    assert_eq!(
+        fmt(
+            "{#if a}<Label text=\"xxxxxxxxxxxxxxxxxxxx\" />{aVeryLongExpressionNameIndeedYes}{/if}\n"
+        ),
+        "{#if a}<Label\n    text=\"xxxxxxxxxxxxxxxxxxxx\"\n  />{aVeryLongExpressionNameIndeedYes}{/if}\n"
+    );
 }

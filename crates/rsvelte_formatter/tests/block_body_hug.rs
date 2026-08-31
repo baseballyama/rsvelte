@@ -8,6 +8,11 @@
 //! position were both correct. The caller splices `content` back verbatim, so a
 //! nested element in it is safe; the doc-building caller treats it as a text run
 //! and still refuses.
+//!
+//! A display:block body is the other half and it is NOT a hug: the content goes
+//! on its own indented line and the close tag on the next. Reaching it needs the
+//! same bypass to name `trims_edge_whitespace`, which subsumes `is_block_display`
+//! — bypassing only the latter left `<div>` rejected and measured nothing.
 
 use rsvelte_formatter::{FormatOptions, JsFormatOptions, LineWidth, format};
 
@@ -70,4 +75,37 @@ fn an_element_parent_hugs_the_parent_not_the_child() {
         ),
         "<span\n  ><small><Star class=\"h-3 w-3 fill-current\" /> ({product.rating})</small></span\n>\n"
     );
+}
+
+const C32: &str = "cccccccccccccccccccccccccccccccc";
+const C28: &str = "cccccccccccccccccccccccccccc";
+
+#[test]
+fn a_block_display_body_takes_the_block_form_not_the_hug() {
+    // `trims_edge_whitespace` subsumes `is_block_display`, so a `<div>` body never
+    // reached `try_hug_block_inline_body` at all and stayed flat at 81 columns.
+    assert_eq!(
+        fmt(&format!(
+            "{{#if a}}<div class=\"{C32}\"><slot name=\"a\" /></div>{{/if}}\n"
+        )),
+        format!("{{#if a}}<div class=\"{C32}\">\n    <slot name=\"a\" />\n  </div>{{/if}}\n")
+    );
+}
+
+#[test]
+fn an_inline_body_at_the_same_width_still_hugs() {
+    // The control that this is about display and not about width: `<span>` in the
+    // identical position with the identical content hugs, as it always did.
+    assert_eq!(
+        fmt(&format!(
+            "{{#if a}}<span class=\"{C32}\"><slot name=\"a\" /></span>{{/if}}\n"
+        )),
+        format!("{{#if a}}<span class=\"{C32}\"><slot name=\"a\" /></span\n  >{{/if}}\n")
+    );
+}
+
+#[test]
+fn a_block_display_body_that_fits_is_left_alone() {
+    let src = format!("{{#if a}}<div class=\"{C28}\"><slot name=\"a\" /></div>{{/if}}\n");
+    assert_eq!(fmt(&src), src);
 }

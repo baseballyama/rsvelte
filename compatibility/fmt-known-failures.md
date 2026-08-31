@@ -1481,3 +1481,180 @@ with `{:`, and the whole remainder of the block follows it on that line. The sec
 block-display body, where the oracle emits the block-break form rather than a hug and rsvelte
 measures the open tag alone — the content and the close tag are outside its budget. The
 `<span>` control is what makes that a claim about block-display rather than about blocks.
+
+### 2026-08-31 — the trailing-tag scan reads a closer only, and the arm is on the line too
+
+`trailing_block_close_width` counted a run of `{/…}` after the element and nothing else, so
+`{#if a}<Label … />{:else}{label}{/if}` was late by **19** — the exact width of
+`{:else}{label}{/if}`. Reading any tag rather than only a closer fixes it, and the same one-line
+change also fixes a shape that was never diagnosed: a plain sibling expression tag
+(`{#if a}<Label … />{aVeryLongExpressionNameIndeedYes}{/if}`) was late by 34 on all four widths
+probed, and now matches on all four.
+
+The scan stops at the first thing that is **not** a tag, and that boundary is measured rather
+than assumed. With a second element there (`{#if a}<Label … /><OtherComponent />{/if}`) the
+oracle breaks the SECOND element and keeps the first flat at 26, 30 and 36 columns of
+attribute — so charging that element's width to the first would move rsvelte in the wrong
+direction. That trio diverges identically before and after the change, which is what makes it a
+control rather than a regression.
+
+Measured: the `{:else}` width grid goes 5 diverging cells → 0, the expression-tag grid 4 → 0,
+the 33,776-file corpus differential moves **7 files, 3 to byte equality, 0 regressions**, and the
+`overwidth260` cluster goes 34 → 37 matching.
+
+### 2026-08-31 — where the layout-independent residue actually is
+
+The 549 entries that satisfy `rsvelte(oracle(S)) != oracle(S)` were split by the SIGN of the
+first differing line's width — the direction team-lead asked for, because "packs one more" and
+"packs one fewer" are opposite defects that a count folds together:
+
+| | count |
+|---|---|
+| later — rsvelte packs more onto the line | 328 |
+| earlier — rsvelte packs fewer | 218 |
+| same width, different text | 2 |
+
+Crossed with the construct that starts the line, the largest single cell is **135 = later ×
+attribute or CSS declaration**, and reading it names one shape: **the oracle breaks inside an
+expression embedded in an attribute value and rsvelte does not**. Splitting `later` by where the
+oracle's line ends gives 17 that break immediately after the `{` and **179 that break
+mid-expression**; of those 179, **101** have a ternary arm (`?` / `:`) on rsvelte's next line.
+
+Two reductions came out of that 101, and the second is the one that matters:
+
+- A `style:` / `class:` directive whose value is a ternary keeps the test flat where a **plain
+  attribute of the identical name length** breaks it exactly like the oracle (12 columns each,
+  same expression, same indent; a plain attribute swept from 6 to 16 columns never diverges).
+  That is the directive value's own narrowing path in `markup/directive.rs`. It is **6 of the
+  101**.
+- The dominant sub-shape is **78 of the 101**: an expression interpolated into a *quoted*
+  attribute value whose literal prefix is already past the width. Six lines reproduce it, with
+  three controls at MATCH — a short prefix, the same ternary as the whole unquoted value, and a
+  long prefix with a non-ternary binary.
+
+The reusable part is that the first reduction **drifted**: it is a real defect and a real
+control, and it accounts for 6 of the population the grid was drawn from. A hand-built grid
+finds the shape its author reached for; only classifying the whole cluster says which shape the
+population is made of.
+
+The code path for that 78 is located, and it is a policy rather than an oversight.
+`render_value_sequence_doc` (`markup/value_sequence.rs:52`) — the Doc model that formats each
+interpolation at its true running column — returns `None` when `interp_count < 2`, so a value
+with exactly ONE interpolation falls to the legacy branch. That branch narrows by the
+expression's start column only, and when the start-column form still fits it calls
+`minimal_break_extra`, whose stated contract is *"force the MINIMAL break so only the
+expression's top-level operator wraps, matching the oracle"*. For a ternary the top-level
+operator is `?`/`:`, so the test is never re-measured — which is exactly the divergence. The
+oracle instead formats the expression at the width actually left at its start column, and at a
+start column past 80 that breaks the test too. Changing this is a change to that policy, not a
+missing case, so it needs its own before/after id set.
+
+### 2026-08-31 — a display:block body is the other half of the block-body rule, and one predicate hid it
+
+`{#if a}<div class="…"><slot name="a" /></div>{/if}` stayed flat at 81 columns while the oracle
+put the content on its own indented line. The `<span>` twin — identical position, identical
+content, identical width — was already correct after the hug fix, which is the control that makes
+this about **display** rather than about width; and with the class long enough that the open tag
+itself breaks (60 columns) both sides agree, so the gap is exactly the interval where the open tag
+fits and the whole line does not.
+
+The reason nothing reached the decision is worth recording, because the first fix for it measured
+**zero**. `element_hug_parts` guarded on
+`is_block_display(tag) || is_inline_block(tag) || trims_edge_whitespace(tag)` — and
+`trims_edge_whitespace` is *defined* as `is_block_display(tag) || matches!(tag, "slot" | "title" |
+"svelte:boundary")`, so the first disjunct is redundant and bypassing it alone leaves the element
+rejected by the third. Both binaries were built and run: the half-bypass is byte-identical to no
+bypass at all on the whole grid. **A guard written as a disjunction can have one term subsume
+another, and negating the term you were thinking of is then a no-op** — the two arms have to be
+measured, not read.
+
+Measured: the display × width grid goes 4 diverging cells → 0 with 14 controls unchanged, the
+33,776-file corpus differential moves **5 files, all 5 to byte equality, 0 regressions**, and the
+ablation moves exactly one of the three new tests.
+
+The quoted-interpolation cluster is pinned before any fix touches it, so the count that moves
+afterwards is the number of decision points rather than a guess. Classifying all 549 by whether
+the first divergence sits at an interpolation **inside a quoted attribute value** — anchored on
+the enclosing open tag so the quote parity does not depend on where the walk starts — gives
+**104: 87 later and 17 earlier**, against 304 with no interpolation at the divergence at all, 132
+with an interpolation outside a quoted value, and 7 with no anchor within 40 lines. A first,
+deliberately cruder predicate (a fixed 12-line window) answered 106, so the number is not an
+artefact of how the walk is anchored. **Both signs are in one cluster**: `{step.requires_id &&
+!location.id` is the same budget with rsvelte breaking too early, so a fix measured only against
+the `later` half would report half its own effect — and could move the `earlier` half the wrong
+way without anyone seeing it.
+
+### 2026-08-31 — the quoted-value interpolation cluster: 57 of the pinned 104, and a constant bracketed by its own regressions
+
+The framing in the section above — that this needs a change to `minimal_break_extra`'s policy —
+was wrong, and measuring it first is what showed that. `render_value_sequence_doc` already
+formats every interpolation at its true running column; it just declined to run below two
+interpolations. Letting a single-interpolation value through (`interp_count < 2` → `< 1`) reaches
+the whole cluster, and the legacy path's policy is untouched — it simply stops being reached for
+these values.
+
+The second half is one column, and it was **bracketed, not derived**. That function's printer
+measures at `line_width - 1` (reserving the closing `"`), while `broken_width` — which decides the
+*shape* — used a bare `line_width - col`. Three binaries, three full-corpus differentials:
+
+| reserved | moved | byte-identical | **regressed** |
+|---|---|---|---|
+| 0 columns (threshold alone) | 93 | 56 | **4** |
+| 2 columns | 91 | 57 | **4**, a different four |
+| **1 column** | 86 | **57** | **0** |
+
+The two sets of four run in opposite directions. At 0 the oracle breaks at 79 and rsvelte emits
+81 — under-breaking; at 2 the oracle's line lands on exactly 80 and rsvelte breaks earlier —
+over-breaking. Measured on the real columns, one set requires the reservation to be at least 1 and
+the other at most 1, so the integer is pinned from both sides by inputs that exist. Deriving it
+from the printer's own arithmetic gives 2, which is the value the corpus rejects.
+
+Against the id set pinned *before* the change, `match-oracle` goes **0 → 57 with 0 broken**, and
+those 57 are exactly the corpus-wide fixes — the change has no effect outside the cluster it was
+aimed at. The other 47 of the 104 are further decision points.
+
+**The first boundary tests written for this measured nothing.** Both passed on all four binaries,
+because the indentation was chosen by hand and put the first chunk off the boundary. Reduced again
+at the two real files' real attribute indents (4 columns and 14), each fails on exactly one wrong
+constant and on neither the right one nor the base. Two of the other four expectations were
+transcribed wrong — a continuation indented by 2 where the oracle indents by 4, and single
+quotes where an unquoted value keeps double — and the suite caught both, which is the whole
+reason a test states the output rather than asserting that the output did not change. A boundary case is a property of the column
+arithmetic, not of the shape — writing the shape and picking a plausible indent reproduces the
+shape and not the boundary.
+
+With that landed the layout-independent set stands at **490 of 549 diverging (59 now reproduce the
+oracle's fixed point, up from 2)**, and its largest cell changes hands: `later × attribute/CSS`
+drops 135 → 62 while `earlier × text/script` rises 120 → 133. The rise is not a regression — the
+corpus differential recorded 0 — it is 15 units whose *first* divergence moved to a later line
+once the earlier one was fixed, which is what a first-divergence key does by construction.
+
+That new largest cell has a name already. Its members are continuation lines of a quoted value
+with **two or more** interpolations, where the oracle keeps 68 columns and rsvelte breaks at 55 —
+over-narrow. `col` in `render_value_sequence_doc` is the running *flat* column, so once an earlier
+interpolation in the same value has broken, a later one's real column is much smaller than `col`
+says and `broken_width` is far too tight. That is the next decision point, and it is the mirror of
+the one just fixed: the same variable, wrong in the other direction, on the population the model
+was already running on.
+
+### 2026-08-31 — the mirror defect, pinned and reduced but NOT a one-liner
+
+The cluster named above is pinned at **44 ids** (`agent-c/multi-interp-ids.json`) and reduces to
+five lines of input at four indentation depths, all four diverging:
+
+```svelte
+<div class="step-badge {index <= currentStep ? 'bg-primary text-primary-content' : 'bg-base-200'} {step.requires_id && !location.id ? 'opacity-50 cursor-not-allowed' : ''} {index === 0 && isEditMode ? 'ring-2' : ''}"></div>
+```
+
+The oracle keeps `: 'bg-base-200'} {step.requires_id && !location.id` at 60 columns; rsvelte breaks
+it at 47. The second interpolation's real column is about 27, because the first interpolation
+above it has already broken — but `col` is the running **flat** column, so `broken_width` is
+computed as if all of the first interpolation's text still sat on this line.
+
+**The obvious fix does not work, and that is why this is recorded rather than attempted.** Resetting
+`col` after a breakable part assumes that part breaks; the printer decides that per group, at print
+time, and both outcomes occur. A shape built under the broken assumption is right exactly when the
+earlier group breaks and too wide when it stays flat — the two cases need two different shapes from
+one build-time computation. Doing this properly means the `broken` form becoming a function the
+printer evaluates at the column it actually has, which is a change to `Doc::RawExpr`'s contract
+rather than to an arithmetic expression. The 44 are pinned so that whoever takes it can count.
