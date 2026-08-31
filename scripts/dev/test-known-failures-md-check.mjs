@@ -226,8 +226,15 @@ withCorpus(
 // one this mutation removes, so the assertion survives the ratchet moving.
 {
 	const fmtEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'fmt-known-failures.json'), 'utf8')).length;
+	// The needle is read out of the doc rather than written here: a literal one
+	// encodes today's partition, so the next re-baseline breaks this self-test
+	// instead of the thing it tests.
+	const fmtFirst = Number(
+		/by cluster: `(\d+) \+/.exec(findDoc(CORPUS, 'fmt-known-failures.md', 'by cluster: `')?.text ?? '')?.[1],
+	);
+	if (!Number.isFinite(fmtFirst)) throw new Error('self-test is stale: no fmt `by cluster:` partition found');
 	withCorpus(
-		(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
+		(d) => edit(d, 'fmt-known-failures.md', `by cluster: \`${fmtFirst} +`, `by cluster: \`${fmtFirst - 1} +`),
 		(r) => check(
 			'a stale cluster count fails',
 			[r.code, new RegExp(`sums to ${fmtEntries - 1} \\(`).test(r.out)],

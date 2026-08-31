@@ -902,9 +902,12 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 789 entries** — 22 from before the
-wave-2 corpus enrolment, 766 in the current expanded-corpus population, and 1
-from a pattern-corpus repro added during the campaign (Cluster 12).
+**Current baseline: `fmt-known-failures.json`, 550 entries.** The 789-entry
+split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
+pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
+2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
+first-differing-line signature per entry but not which corpus generation it came
+from, so the three-way split cannot be recomputed without the oracle trees.
 Oracle-bug / invalid-input / migrate cases are NOT here — those are permanently
 excluded in `fmt-oracle-excluded.json` (see `fmt-oracle-excluded.md`).
 
@@ -924,7 +927,17 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `3 + 8 + 6 + 1 + 1 + 1 + 1 + 2 + 386 + 239 + 85 + 38 + 14 + 1 + 2 + 1`
+Partition of `fmt-known-failures.json` by cluster: `258 + 214 + 15 + 47 + 14 + 1 + 1`
+
+**The partition is now the mechanical rule applied to all 550 entries**, where it
+used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
+Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
+diagnoses did not stop being true — but their ids are now counted inside the
+mechanical buckets, because the CI report names an entry's first differing line
+and not the cluster a human filed it under. The addends are, in order:
+20 breaks-later 258, 21 breaks-earlier 214, 22 intra-line-ws 15,
+23 indent-only 47, 24 other 14, 25 extra-line 1, 26 missing-line 1;
+27 quote-style is now empty.
 
 ### Wave-2 enrolment (#3130) — Clusters 20-27
 
@@ -2814,11 +2827,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 77 entries)
+### Client (`known-failures.client.json`, 75 entries)
 
-Partition of `known-failures.client.json` by verdict: `76 + 1`
+Partition of `known-failures.client.json` by verdict: `74 + 1`
 
-- **76 — the generated JS differs** (`js` / `code-differs`).
+- **74 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2851,11 +2864,11 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](#deliberate-divergences), each pinned by a test.
 
-### Server (`known-failures.server.json`, 31 entries)
+### Server (`known-failures.server.json`, 29 entries)
 
-Partition of `known-failures.server.json` by verdict: `29 + 2`
+Partition of `known-failures.server.json` by verdict: `27 + 2`
 
-- **29 — the generated JS differs.**
+- **27 — the generated JS differs.**
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
@@ -2888,19 +2901,19 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-### Server dev (`known-failures.server-dev.json`, 31 entries)
+### Server dev (`known-failures.server-dev.json`, 29 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `29 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `27 + 2`
 
 The trailing **2** is the same deliberate divergence as on `server` — the
 `$`-prefixed function parameter — carried on both targets because the server
 transform runs on both.
 
-- **29 — the generated JS differs.**
+- **27 — the generated JS differs.**
 - **2 — the same recorded deliberate divergence as on `server`.**
 
 All 69 arrived with the wave-2 enrolment (#3130); this target was at 0 before
@@ -2909,11 +2922,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 92 entries)
+### Client dev (`known-failures.client-dev.json`, 89 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `92`
+Partition of `known-failures.client-dev.json` by verdict: `89`
 
-- **92 — the generated JS differs.**
+- **89 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
@@ -4817,7 +4830,7 @@ of 14,229 entries are currently excluded on that basis — the collected corpus 
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **321 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **304 entries**.
 
 ### The question it asks
 
@@ -4887,30 +4900,30 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 45 + 44 + 16 + 14 + 9 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 9 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 78 | 41 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 62 | 32 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 44 | 22 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
-| `unclustered` | 45 | 27 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `estree-fields` | 38 | 19 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
+| `unclustered` | 36 | 22 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 50 | 25 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
-| `child-count` | 16 | 10 | an array of children with a different length. |
+| `child-count` | 14 | 9 | an array of children with a different length. |
 | `loc-presence` | 9 | 5 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 321 keys are **174 distinct bases**: 147 appear on both axes and 27 on one
-(147x2 + 27 = 321, a 1.84x collapse). The defect ceiling is 174. The per-cluster collapse is not
+`legacy`, so 304 keys are **165 distinct bases**: 139 appear on both axes and 26 on one
+(139x2 + 26 = 304, a 1.84x collapse). The defect ceiling is 165. The per-cluster collapse is not
 uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on both axes),
-`css-shape` 1.56x and `child-count` 1.60x (legacy-only shapes), `ast-mode` and
+`css-shape` and `child-count` 1.56x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
-**No base's two axes sit in different clusters** (0 of 147), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 139), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
@@ -5984,11 +5997,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 70 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 36 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `68 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `34 + 2`
 
-- **68 — the emitted TSX differs** (`ts-mismatch`).
+- **34 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`).
 
 ### Wave-2 enrolment (#3130)
@@ -6541,7 +6554,7 @@ compilers already run on every entry.
 
 ### Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 2 entries on all four,
+`warning-known-failures.<target>.json` holds 0 entries on all four,
 and `warning-position-known-failures.<target>.json` 0 entries on all four. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
@@ -6553,23 +6566,22 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
-### Warning codes (`warning-known-failures.<target>.json`, 2 entries each)
+### Warning codes (`warning-known-failures.<target>.json`, 0 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Both remaining entries are **over-warnings** — rsvelte emits
-`state_referenced_locally` where upstream does not. A missing diagnostic and an
-extra one fail differently, and the ratchet count alone does not distinguish
-them, so the split is kept even at this size:
-
-Partition of `warning-known-failures.<target>.json` by direction: `0 + 2`
-
-The two ids are the same source file reached through two corpus sources
+**All four files are empty.** The last two entries were one source file reached
+through two corpus sources
 (`svelte.dev/apps/svelte.dev/content/docs/svelte/03-template-syntax/11-declaration-tags.md/2.svelte`
-and `svelte/documentation/docs/03-template-syntax/11-declaration-tags.md/2.svelte`),
-so this ratchet is **one** defect, not two.
+and `svelte/documentation/docs/03-template-syntax/11-declaration-tags.md/2.svelte`)
+emitting `state_referenced_locally` where upstream does not; the Linux CI run
+behind this baseline scores both as matching on all four targets. An empty
+ratchet is not the claim that warning codes agree everywhere — it is the claim
+that they agree on every source the corpus holds.
+
+Partition of `warning-known-failures.<target>.json` by direction: `0`
 
 **73 of the 83 pre-existing entries arrived with the wave-2 enrolment (#3130)**,
 which took the corpus from 37 corpus sources to 104. The remaining per-code
