@@ -188,13 +188,32 @@ const rsvelte = require(BINDING);
  * and `JSON.stringify` THROWS on one. With the serialization inside the same
  * `try` as the parse, 11 corpus entries were scored "official rejects this
  * document" when official had parsed them perfectly — a finding that is entirely
- * the probe, which is why the two steps are separate functions here. The
- * replacer keeps the value comparable instead of dropping it: rsvelte has to
- * spell a bigint *somehow* across a JSON boundary, and whatever it picks is a
- * divergence this gate should report rather than hide.
+ * the probe, which is why the two steps are separate functions here.
+ *
+ * The `__bigint__` sentinel is then applied to BOTH sides, which reverses the
+ * earlier decision to let rsvelte's spelling be the divergence. Measured:
+ * official gives `{value: 123n, bigint: "123", raw: "123n"}` and rsvelte
+ * `{value: null, bigint: "123", raw: "123n"}` — the two agree on every field a
+ * JSON boundary can carry, and rsvelte's public `parse()` IS that boundary (a
+ * JSON string), so the only way for it to "spell a bigint" is to emit this
+ * harness's own sentinel into output that svelte2tsx, the linter and the
+ * playground read. Deriving the sentinel on both sides from `bigint` hides
+ * nothing: `bigint` is itself compared, so a wrong one still reports as
+ * `Literal.bigint#value`.
  */
+const applyBigintSentinel = (value) => {
+	if (Array.isArray(value)) {
+		for (const item of value) applyBigintSentinel(item);
+		return value;
+	}
+	if (!value || typeof value !== 'object') return value;
+	if (value.type === 'Literal' && typeof value.bigint === 'string') value.value = { __bigint__: value.bigint };
+	for (const key of Object.keys(value)) applyBigintSentinel(value[key]);
+	return value;
+};
+
 const jsonSafe = (value) =>
-	JSON.parse(JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? { __bigint__: v.toString() } : v)));
+	applyBigintSentinel(JSON.parse(JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? { __bigint__: v.toString() } : v))));
 
 const officialParse = (source, options) => official.parse(source, options);
 const rsvelteParse = (source, options) => rsvelte.parse(source, options);
@@ -414,7 +433,8 @@ function compareOne(id, source, options) {
 	// finding. Nothing is expected to throw now that bigints are handled, so let
 	// it escape rather than be absorbed into a verdict.
 	const expectedJson = jsonSafe(expected);
-	const actualJson = JSON.parse(actual);
+	// Both sides, or the normalization is a divergence rather than a removal of one.
+	const actualJson = applyBigintSentinel(JSON.parse(actual));
 	const keys = new Set();
 	diffKeys(expectedJson, actualJson, keys, '(root)', '');
 	return {
