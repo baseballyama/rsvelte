@@ -79,7 +79,15 @@ test("corpus aggregation is blind to a second field in a known response", () => 
   assert.deepEqual(second, first);
 });
 
-test("corpus aggregation detects divergent-request count shrink and growth", () => {
+// The count used to be in the key, which made this pair of inputs two keys. It
+// is out, and this test pins the trade that bought: a (file, method) that gets
+// better or worse WITHOUT reaching zero no longer moves the ratchet. What it
+// bought back is that the gate stops firing on noise — two CI runs whose merge
+// refs share a `main` parent and differ by ten commits touching no Rust moved
+// one file's hover count 91 -> 90 and 88 -> 90, which was 2 NEW + 2 STALE and a
+// red shard. The count could never tell a shrink from a growth anyway (both are
+// one NEW and one STALE), so it was sensitivity without direction.
+test("corpus aggregation does not key on the divergent-request count", () => {
   const one = [
     { method: "textDocument/hover", position: "1:1", differences: ["/a"] },
   ];
@@ -87,10 +95,20 @@ test("corpus aggregation detects divergent-request count shrink and growth", () 
     ...one,
     { method: "textDocument/hover", position: "2:1", differences: ["/a"] },
   ];
-  assert.notDeepEqual(
+  assert.deepEqual(
     aggregateCorpusDifferences("corpus/repo/a.svelte", one),
     aggregateCorpusDifferences("corpus/repo/a.svelte", two),
   );
+});
+
+test("a corpus file+method that stops diverging leaves the ratchet", () => {
+  assert.deepEqual(
+    aggregateCorpusDifferences("corpus/repo/a.svelte", [
+      { method: "textDocument/hover", position: "1:1", differences: ["/a"] },
+    ]),
+    ["aggregate:corpus/repo/a.svelte|textDocument/hover"],
+  );
+  assert.deepEqual(aggregateCorpusDifferences("corpus/repo/a.svelte", []), []);
 });
 
 test("a selected suite with zero cases is rejected", () => {
@@ -122,7 +140,7 @@ test("stale checks select only the measured suite and corpus repo", () => {
 
 test("a baseline-only deleted corpus file is stale in exactly one stable shard", () => {
   const deleted =
-    "aggregate:corpus/bits-ui/deleted.svelte|textDocument/hover|divergentRequestCount=1";
+    "aggregate:corpus/bits-ui/deleted.svelte|textDocument/hover";
   const selections = Array.from({ length: 8 }, (_, index) =>
     selectKnownForScope([deleted], ["corpus"], ["bits-ui"], {
       index,
@@ -149,7 +167,7 @@ test("a post-edit corpus divergence cannot be suppressed by its opened-phase twi
     "edit",
   );
   assert.notDeepEqual(edited, opened);
-  assert.ok(edited[0].includes("|phase=edit|"));
+  assert.ok(edited[0].endsWith("|phase=edit"));
   assert.deepEqual(
     selectKnownForScope([...opened, ...edited], ["corpus"], ["repo"], {
       index: corpusShardIndex("corpus/repo/a.svelte", 4),
