@@ -252,6 +252,24 @@ pub fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
                 .iter()
                 .any(|&(s, e)| pos >= s && pos < e)
         };
+        // `findNextVerbatimElement` matches `(<!--[^]*?-->)` before either tag
+        // and skips it, so a commented-out `<style>` never opens an element.
+        let comment_ranges: Vec<(usize, usize)> = {
+            let mut ranges = Vec::new();
+            let mut at = 0usize;
+            while let Some(rel) = source[at..].find("<!--") {
+                let start = at + rel;
+                let Some(close) = source[start + 4..].find("-->") else {
+                    break;
+                };
+                let end = start + 4 + close + 3;
+                ranges.push((start, end));
+                at = end;
+            }
+            ranges
+        };
+        let is_inside_comment =
+            |pos: usize| -> bool { comment_ranges.iter().any(|&(s, e)| pos >= s && pos < e) };
 
         // Direct case-sensitive substring search over the original source.
         // The previous implementation called `source.to_lowercase()` once
@@ -267,7 +285,7 @@ pub fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
                 search_from = abs_start + 1;
                 continue;
             }
-            if is_already_blanked(abs_start) {
+            if is_already_blanked(abs_start) || is_inside_comment(abs_start) {
                 search_from = abs_start + 1;
                 continue;
             }
