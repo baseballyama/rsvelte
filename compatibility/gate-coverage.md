@@ -953,6 +953,34 @@ a commit, rebuild that commit and re-measure the file — never compare two repo
 or their hunk order.** A report answers "does this pair differ", and its coordinates answer
 nothing else.
 
+### Blind spot 1g — the normalizer strips an object key's quotes, on all four targets — **[D]**
+
+Upstream decides whether a property key is written bare or quoted with
+`regex_is_valid_identifier = /^[a-zA-Z_$][a-zA-Z_$0-9]*$/` (`phases/patterns.js:17`,
+reached through `b.key` in `utils/builders.js:697`), which is ASCII-only. oxfmt drops
+quotes a key does not need, and it reads a non-ASCII identifier as one that does not
+need them — so **both spellings normalize to the same text** and this gate cannot
+report either direction of the divergence.
+
+Discriminating case, run with the gate's own config
+(`compatibility/.oxfmtrc.json`, `{"objectWrap": "collapse"}`):
+
+```
+in   const off = { plainKey: true, 'forciblyСollapsed': true };   ← official's output
+in   const rsv = { plainKey: true, forciblyСollapsed: true };     ← rsvelte's output
+out  const off = { plainKey: true, forciblyСollapsed: true };
+out  const rsv = { plainKey: true, forciblyСollapsed: true };
+```
+
+(`С` is Cyrillic Es, U+0421.) A carrier is already in the collected corpus —
+`huly/plugins/controlled-documents-resources/src/components/hierarchy/DocumentSpacePresenter.svelte`
+diverges on `client` with no mutation applied, and is listed in none of the four
+ratchets. So this is not a population gap that corpus growth closes: the input is
+present and the comparison erases the difference. A regression here has to be held
+by a Rust test asserting `compile()`'s raw output — a `pattern-corpus` repro goes
+through the same normalizer and would be equally blind.
+
+
 ### Blind spot 1d — the compile-option surface is one point
 
 `compile.mjs:99-100`: `{ generate, dev, filename }` plus `css: 'external'` for components.

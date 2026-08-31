@@ -104,34 +104,6 @@ fn analyze_atrule(
         for child in children {
             if is_keyframes {
                 if child.get("type").and_then(|t| t.as_str()) == Some("Rule") {
-                    // Detect if this keyframe step has a percentage selector
-                    // (e.g. `0%`, `50%`). Steps like `from`/`to` don't count.
-                    // The rsvelte CSS parser does not emit a `Percentage` node for
-                    // keyframe steps (it produces an empty RelativeSelector), so we
-                    // detect percentage steps via the source substring using start/end.
-                    if !state.in_global_block
-                        && !analysis.css.has_percentage_keyframe_step
-                        && let Some(prelude) = child.get("prelude")
-                        && let (Some(start), Some(end)) = (
-                            prelude.get("start").and_then(|v| v.as_u64()),
-                            prelude.get("end").and_then(|v| v.as_u64()),
-                        )
-                        && let Some(source) = state.source
-                        && let Some(text) = source.get(start as usize..end as usize)
-                    {
-                        // Split on commas (e.g. `0%, 100%`) and check if any fragment
-                        // is a percentage value
-                        if text.split(',').any(|s| {
-                            let t = s.trim();
-                            t.ends_with('%')
-                                && t[..t.len() - 1]
-                                    .trim()
-                                    .chars()
-                                    .all(|c| c.is_ascii_digit() || c == '.')
-                        }) {
-                            analysis.css.has_percentage_keyframe_step = true;
-                        }
-                    }
                     if let Some(prelude) = child.get("prelude")
                         && has_global_selector(prelude)
                     {

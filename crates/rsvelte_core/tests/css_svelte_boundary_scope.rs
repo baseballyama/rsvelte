@@ -1,10 +1,9 @@
 //! Regression test: CSS scoping must traverse `<svelte:boundary>` like any
 //! other transparent wrapper (issue #466, H-023).
 //!
-//! Bug: `<svelte:boundary>` was handled only by `mark_all_elements_scoped_node`
-//! and was missing from `process_node_scoping`, the sibling-combinator pass,
-//! `apply_scoping_marks`, `propagate_ancestor_scoping`, and the render-site
-//! collector. Elements inside a boundary were therefore never visited, so their
+//! Bug: `<svelte:boundary>` was missing from `process_node_scoping`, the
+//! sibling-combinator pass, `apply_scoping_marks`, `propagate_ancestor_scoping`,
+//! and the render-site collector. Elements inside a boundary were never visited, so their
 //! matching CSS rules were wrongly pruned as unused (and the elements lacked the
 //! scope class). The official Svelte compiler scopes straight through the
 //! boundary.

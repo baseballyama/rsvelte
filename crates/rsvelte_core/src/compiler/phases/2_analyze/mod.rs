@@ -894,16 +894,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         if !analysis.css.hash.is_empty() {
             let css_selectors = css_scoping::extract_css_selectors(stylesheet);
             css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors, Some(&analysis));
-
-            // When a `@keyframes` rule contains a percentage step (`0%`, `50%`, ...),
-            // the official Svelte css-prune walker visits the `Percentage` selector
-            // and its logic treats it as a possible match for every element (it's
-            // explicitly skipped inside `relative_selector_might_apply_to_node`).
-            // The net effect: every element in the template gets `metadata.scoped = true`.
-            // Keyframes that use only `from`/`to` steps do NOT trigger this behavior.
-            if analysis.css.has_percentage_keyframe_step {
-                css_scoping::mark_all_elements_scoped(&mut ast.fragment);
-            }
         }
     }
 

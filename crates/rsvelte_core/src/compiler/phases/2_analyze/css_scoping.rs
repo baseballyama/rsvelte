@@ -538,17 +538,12 @@ fn extract_selectors_from_css_node(
             }
         }
         "Atrule" => {
-            let is_keyframes = node
-                .get("name")
-                .and_then(|n| n.as_str())
-                .is_some_and(|name| {
-                    matches!(
-                        name,
-                        "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
-                    )
-                });
-            if !is_keyframes
-                && let Some(block) = node.get("block")
+            // Keyframe steps are walked like any other nested rule. Upstream's
+            // prune skips a `Percentage` selector rather than the block holding
+            // it, so a step still has to satisfy its parent rule chain; the
+            // parser emits an empty relative selector for `0%`, which matches
+            // any element, and `from` / `to` stay type selectors that match none.
+            if let Some(block) = node.get("block")
                 && let Some(children) = block.get("children").and_then(|c| c.as_array())
             {
                 for child in children {
@@ -1424,108 +1419,6 @@ pub fn mark_elements_scoped(
         &snippet_ancestors,
         analysis,
     );
-}
-
-/// Mark ALL elements in the fragment as scoped (used when @keyframes rules exist).
-pub fn mark_all_elements_scoped(fragment: &mut Fragment) {
-    for node in &mut fragment.nodes {
-        mark_all_elements_scoped_node(node);
-    }
-}
-
-fn mark_all_elements_scoped_node(node: &mut TemplateNode) {
-    match node {
-        TemplateNode::RegularElement(el) => {
-            el.metadata.scoped = true;
-            for child in &mut el.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteElement(el) => {
-            el.metadata.scoped = true;
-            for child in &mut el.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::Component(comp) => {
-            for child in &mut comp.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::IfBlock(if_block) => {
-            for child in &mut if_block.consequent.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-            if let Some(alt) = &mut if_block.alternate {
-                for child in &mut alt.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-        }
-        TemplateNode::EachBlock(each) => {
-            for child in &mut each.body.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-            if let Some(fallback) = &mut each.fallback {
-                for child in &mut fallback.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-        }
-        TemplateNode::AwaitBlock(await_block) => {
-            if let Some(pending) = &mut await_block.pending {
-                for child in &mut pending.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-            if let Some(then) = &mut await_block.then {
-                for child in &mut then.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-            if let Some(catch) = &mut await_block.catch {
-                for child in &mut catch.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-        }
-        TemplateNode::KeyBlock(key) => {
-            for child in &mut key.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SnippetBlock(snippet) => {
-            for child in &mut snippet.body.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteHead(head) => {
-            for child in &mut head.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteBoundary(boundary) => {
-            for child in &mut boundary.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteFragment(frag) => {
-            for child in &mut frag.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteComponent(comp) => {
-            for child in &mut comp.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteSelf(comp) => {
-            for child in &mut comp.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Walk a fragment and mark elements as scoped.
