@@ -317,6 +317,23 @@ fn gather_possible_values(
 pub fn possible_class_names(
     value: &crate::ast::template::AttributeValue,
 ) -> Option<rustc_hash::FxHashSet<String>> {
+    let mut names = rustc_hash::FxHashSet::default();
+    for value in possible_attribute_values(value, true)? {
+        for class_name in value.split_whitespace() {
+            names.insert(class_name.to_string());
+        }
+    }
+    Some(names)
+}
+
+/// The whole values an attribute can take, or `None` when the value is not
+/// statically knowable. Upstream runs one chunk expansion for every attribute
+/// and lets `is_class` decide only whether array/object expressions are
+/// inspected; splitting on whitespace is `class`'s own step, not this one's.
+pub fn possible_attribute_values(
+    value: &crate::ast::template::AttributeValue,
+    is_class: bool,
+) -> Option<rustc_hash::FxHashSet<String>> {
     use crate::ast::template::{AttributeValue, AttributeValuePart};
     use rustc_hash::FxHashSet;
 
@@ -333,7 +350,7 @@ pub fn possible_class_names(
                 let current_vals = match part {
                     AttributeValuePart::Text(text) => vec![text.data.to_string()],
                     AttributeValuePart::ExpressionTag(expr_tag) => {
-                        get_possible_values_expr(&expr_tag.expression, true)?
+                        get_possible_values_expr(&expr_tag.expression, is_class)?
                     }
                 };
 
@@ -406,18 +423,10 @@ pub fn possible_class_names(
             for pv in prev_values {
                 possible_values.insert(pv);
             }
-            for value in &possible_values {
-                for class_name in value.split_whitespace() {
-                    names.insert(class_name.to_string());
-                }
-            }
+            names.extend(possible_values);
         }
         AttributeValue::Expression(expr_tag) => {
-            for value in get_possible_values_expr(&expr_tag.expression, true)? {
-                for class_name in value.split_whitespace() {
-                    names.insert(class_name.to_string());
-                }
-            }
+            names.extend(get_possible_values_expr(&expr_tag.expression, is_class)?);
         }
         AttributeValue::True(_) => {}
     }

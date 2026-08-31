@@ -19,7 +19,7 @@ const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 5;
+const VERSION = 7;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -140,6 +140,8 @@ const JS_CONTINUE_STATEMENT = 0xb7;
 const JS_EMPTY_STATEMENT = 0xb8;
 const JS_DEBUGGER_STATEMENT = 0xb9;
 const JS_IMPORT_DECLARATION = 0xba;
+const JS_IMPORT_ATTRIBUTE = 0xd2;
+const JS_EXPORT_ALL_DECLARATION = 0xd3;
 const JS_IMPORT_SPECIFIER = 0xbb;
 const JS_IMPORT_DEFAULT_SPECIFIER = 0xbc;
 const JS_IMPORT_NAMESPACE_SPECIFIER = 0xbd;
@@ -561,6 +563,8 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsBareExpr(ctx, 'DebuggerStatement', start, end);
 		case JS_IMPORT_DECLARATION:
 			return readJsImportDeclaration(ctx, start, end);
+		case JS_IMPORT_ATTRIBUTE:
+			return readJsImportAttribute(ctx, start, end);
 		case JS_IMPORT_SPECIFIER:
 			return readJsImportSpecifier(ctx, start, end);
 		case JS_IMPORT_DEFAULT_SPECIFIER:
@@ -571,6 +575,8 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsExportNamedDeclaration(ctx, start, end);
 		case JS_EXPORT_DEFAULT_DECLARATION:
 			return readJsExportDefaultDeclaration(ctx, start, end);
+		case JS_EXPORT_ALL_DECLARATION:
+			return readJsExportAllDeclaration(ctx, start, end);
 		case JS_EXPORT_SPECIFIER:
 			return readJsExportSpecifier(ctx, start, end);
 		case JS_CLASS_BODY:
@@ -978,11 +984,18 @@ function readJsBareExpr(ctx, typeName, start, end) {
 function readJsImportExpression(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const source = readNode(ctx);
+	const options = readChildArray(ctx);
+	const ts = readBool(ctx);
 	const node = { type: 'ImportExpression', start, end };
 	if (loc !== null) node.loc = loc;
 	node.source = source;
-	// The upstream serializer also adds `options: null`. Match that.
-	node.options = null;
+	// acorn-typescript spells the second argument as an `arguments` list and
+	// omits the key when there is none; acorn always writes `options`.
+	if (ts) {
+		if (options.length > 0) node.arguments = options;
+	} else {
+		node.options = options.length > 0 ? options[0] : null;
+	}
 	return node;
 }
 
@@ -1416,7 +1429,19 @@ function readJsImportDeclaration(ctx, start, end) {
 	node.specifiers = specifiers;
 	node.source = source;
 	if (importKind !== null) node.importKind = importKind;
-	node.attributes = attributes;
+	// See `readJsExportNamedDeclaration`.
+	if (importKind === null || attributes.length > 0) node.attributes = attributes;
+	return node;
+}
+
+function readJsImportAttribute(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const key = readNode(ctx);
+	const value = readNode(ctx);
+	const node = { type: 'ImportAttribute', start, end };
+	if (loc !== null) node.loc = loc;
+	node.key = key;
+	node.value = value;
 	return node;
 }
 
@@ -1464,15 +1489,35 @@ function readJsExportNamedDeclaration(ctx, start, end) {
 	node.specifiers = specifiers;
 	node.source = source;
 	if (exportKind !== null) node.exportKind = exportKind;
-	node.attributes = attributes;
+	// acorn always writes `attributes`; acorn-typescript writes it only where the
+	// source had a `with` clause, and `exportKind` is set for TypeScript alone.
+	if (exportKind === null || attributes.length > 0) node.attributes = attributes;
+	return node;
+}
+
+function readJsExportAllDeclaration(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const exported = readOptNode(ctx);
+	const source = readNode(ctx);
+	const exportKind = readOptStr(ctx);
+	const attributes = readChildArray(ctx);
+	const node = { type: 'ExportAllDeclaration', start, end };
+	if (loc !== null) node.loc = loc;
+	if (exportKind !== null) node.exportKind = exportKind;
+	node.exported = exported;
+	node.source = source;
+	// See `readJsExportNamedDeclaration`.
+	if (exportKind === null || attributes.length > 0) node.attributes = attributes;
 	return node;
 }
 
 function readJsExportDefaultDeclaration(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
 	const declaration = readNode(ctx);
+	const exportKind = readOptStr(ctx);
 	const node = { type: 'ExportDefaultDeclaration', start, end };
 	if (loc !== null) node.loc = loc;
+	if (exportKind !== null) node.exportKind = exportKind;
 	node.declaration = declaration;
 	return node;
 }

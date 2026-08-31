@@ -1767,6 +1767,9 @@ fn convert_let_directive(let_dir: &LetDirective, positions: &Utf8ToUtf16) -> Val
     estree_fields!(
         result,
         "expression" => optional_expression(let_dir.expression.as_ref(), positions),
+        // `let:` takes no modifiers, but upstream still emits the empty array —
+        // every other directive converter here does the same.
+        "modifiers": [] as [Value; 0],
     );
     Value::Object(result)
 }

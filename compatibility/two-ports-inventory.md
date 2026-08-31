@@ -1287,6 +1287,180 @@ not about the change not landing. `check-known-failures.json` moves with this
 (`rsvelte_check`'s shim set gains `svelte-native-jsx.d.ts`).
 
 
+### 24. May an element whose attribute value is indeterminate match a selector naming that value? — [D], one of six pairs closed
+
+**Upstream:** `css-prune.js` `attribute_matches` — one function. A value it cannot enumerate at
+compile time (an expression, a spread) returns `true`: the element may carry anything, so it
+satisfies any selector naming that attribute.
+
+**Ports — four, all in `3_transform/css.rs`, and they answer for different attributes:**
+
+| # | port | `class` indeterminate | `id` indeterminate |
+|---|---|---|---|
+| 1 | `selector_matches_element` | per element (`has_spread \|\| dynamic_attribute_names`) | **had none** → fixed here, same rule |
+| 2 | the element matcher inlined in `is_parent_chain_unused` | coarse: `ctx.has_dynamic_classes` gates the whole component | **had none at all** → fixed here, per element |
+| 3 | `structural_element_matches_attribute` | per element, plus `has_class_directive` | per element — already correct |
+| 4 | `is_simple_selector_unused` | coarse: `ctx.has_dynamic_classes` | coarse: `ctx.has_dynamic_ids` |
+
+**The demonstrated divergence is the `id` column**, and the inputs are in
+`pattern-corpus/issues/a-dynamic-id-matches-any-id-selector.svelte`. With `<div id={expr}>` in the
+component, official keeps all four of `#absent + .b`, `#absent ~ .b`, `.host:has(#absent)` and
+`#absent { .under { … } }`; before the fix rsvelte pruned every one, and the fourth as a whole
+`(empty)` rule rather than the nested selector official drops. Ports 1 and 2 are why: a sibling,
+a `:has()` argument and a `&` compound reach #1, and a parent prelude reaches #2.
+
+**The controls are what make this a two-*ports* row rather than an id bug.** The same component
+with `class={expr}` matched official *before* the fix — port 1 already had the class escape — so
+the two attributes were being answered by one function under two different rules. And an absent
+**static** id still prunes on all four shapes after the fix, which is what an over-wide escape
+would have broken.
+
+**What is closed:** ports 1 and 2 now agree with 3 on `id`.
+
+**Port 4 was measured on 2026-08-31 and is a different kind of port from 1–3.** Its two callers
+(`css.rs:1981`, `css.rs:2010`) are an early-out *screen*: a `true` declares the whole rule unused
+without consulting the real matcher, while a `false` is non-binding and falls through to it. A
+whole-component flag is therefore strictly more conservative than upstream's per-element rule at
+the only step where it is consulted — it can make the screen keep more, never prune more. Seven
+constructed inputs crossing {dynamic id, dynamic class, spread, static} × {simple `#absent`,
+simple `.absent`, `span#absent`} all MATCH, and the probe has a moving control on the axis in
+question: with a dynamic id in the component neither compiler warns, without one both emit
+`css_unused_selector` at the same position.
+
+**Probing what that does NOT close found the live one.** The screen prunes on
+`!used_ids.contains(…)` / `!used_classes.contains(…)`, so the risk sits in how those two sets are
+*built* — and there the two attributes are answered by different code. `class` goes through
+`css::possible_class_names` (rsvelte's port of upstream's chunk expansion over
+`get_possible_values`); `id` has a bespoke branch in `2_analyze/visitors/shared/element.rs:414-438`
+that marks **any** expression indeterminate. Upstream runs one expansion for both, with `is_class`
+controlling only whether array/object expressions are inspected.
+
+Measured, three diverging shapes and four passing controls:
+
+| `id` value | official | rsvelte |
+|---|---|---|
+| `id={c ? 'a' : 'b'}` | prunes `#zzz` | keeps it |
+| `id={'a' \|\| 'b'}` | prunes `#zzz` | keeps it |
+| `id={'a'}` | prunes `#zzz` | keeps it |
+| ``id={`ab`}`` | keeps | keeps — upstream cannot enumerate it either |
+| `id="a{x}"`, `id={x}` | keeps | keeps |
+| the same four shapes spelled with `class` | — | **all four match**, including the three above |
+
+It is an over-keep, so it costs CSS size and a missing `css_unused_selector`, not rendering. Fixed
+in the same lane: `possible_class_names` is now `possible_attribute_values(value, is_class)` and
+`id` calls it, with the whitespace split kept as `class`'s own step.
+
+**The `class` column was then probed the same way and came back clean.** Seven shapes crossing
+{`class={dyn}`, a spread, a `class:` directive, nothing} × {nested rule, descendant combinator,
+the indeterminate element IS the ancestor} × {`class`, `id`}, each placing the indeterminate
+element where a per-element rule and a whole-component flag must disagree — as a **non-ancestor**
+of the subject. All seven MATCH, and the probe is strongly discriminating: its verdicts range over
+`[]`, one warning, two warnings, and three different CSS bodies (`(empty)`, `(unused)`, kept with
+a scoping hash). **What is not established is why**: port 2's coarse `has_dynamic_classes` does
+not surface on any of these, and no measurement here says whether that is because the flag is
+never binding for `class` or because these seven shapes miss the arm. Recorded as measured-clean,
+not as explained.
+
+### 25. Does this reference warrant `state_referenced_locally`? — [D], both ports still live
+
+**Upstream:** one branch, `2-analyze/visitors/Identifier.js:104-152`. Its three parts are the
+depth equality `state.function_depth === binding.scope.function_depth`, a binding-kind arm (a
+`$state` warns only when it is `reassigned` **or** its initial argument fails `should_proxy`), and
+a read/write test on the parent node.
+
+**Ports — two, and the second exists because the first is unreachable from where it is needed:**
+
+| # | port | depth equality | kind arm | scope searched |
+|---|---|---|---|---|
+| 1 | `2_analyze/visitors/identifier.rs` | yes | full, incl. `should_proxy`-equivalent on `initial_node_type` | the reference's own binding |
+| 2 | `2_analyze/visitors/declaration_tag.rs::warn_local_state_reads` | **none** | kind set only (`State \| RawState \| Derived`) | `analysis.root.scope.declarations` |
+
+Port 2 carries a comment stating why it exists — "rsvelte's main Identifier visitor … does not run
+on declaration tags" — which is true, and is exactly the shape this file warns about: a comment
+asserting fidelity reads as a citation.
+
+**Measured divergence (2026-08-31).** A `{let a = $state({ x: 1 })}` that is never reassigned,
+read synchronously by `{let b = a}`: official is silent (`should_proxy` is true, so the read still
+sees the proxy) and rsvelte warns. Same for `$state([1])`. Port 1 answers these correctly; port 2
+has no `should_proxy` arm at all. Not reachable from any collected input — 0 of the 4,201
+`submodules/svelte` units diverge — so only a constructed probe finds it.
+
+**Sharing the kind arm was tried and reverted, and the reason is the reusable part.** Pointing
+port 2 at port 1's rule fixed both cases and **broke three** that were correct: `{let a = $state(1)}`
+read by `{let b = a}` stopped warning at the top level, inside `{#if}`, and in the file's own
+control. `binding.initial_node_type` is not populated for a declaration-tag binding the way it is
+for a script one, so the shared predicate's `should_proxy` arm answers `false` where port 2's
+kind-only test answered `true`. **Two ports can disagree because they read different *inputs*, not
+because they encode different rules** — and a shared predicate then silently inherits whichever
+input is missing. Closing this row means populating `initial_node_type` for declaration tags
+first, and the port-vs-port test has to spell its expectations independently (degree 2 below),
+because port 2 as an oracle for port 1 passes on exactly the cases that are wrong.
+
+**A third path emits it in neither direction, and this is a deliberate non-start.** Every template
+expression other than a `bind:` goes through the lightweight walker
+`shared/utils::walk_js_expression_node`, which never emits this warning at all. A template
+expression can only warrant it for a binding declared *inside that expression* — an instance
+binding is at a different `function_depth` — and every such slot was measured: an event handler
+with an arrow block body, with `$derived`, with `$state.raw`, with a function expression; an
+attribute-expression IIFE; a text-expression IIFE; a `use:` action argument; and the same inside a
+snippet body and an each body. **Nine slots, one cause**, with the instance-script control
+warning correctly on the identical source shape.
+
+The blocker is named in the code: `shared/utils.rs:1517` states the walker "keeps no `js_path`",
+which is also why rune-call validation there is narrowed to `function_depth == 0`. Upstream's
+condition needs the parent node (to exclude an `AssignmentExpression` target and an
+`UpdateExpression`) and walks `context.path` to choose the `closure` / `derived` message, so the
+warning cannot be emitted from that walker as it stands. Closing it means either giving the walker
+a `js_path` and extracting the decision into ONE function both callers use — degree 1, and the
+only shape that does not add a third port — or routing template expressions through the Identifier
+visitor. Either touches a hot path.
+
+**Not started on purpose.** It is an *under*-warning: the generated code is correct, it occurs 0
+times in the 4,201 `submodules/svelte` units, and no ratchet entry moves. Recorded here so the
+next person inherits the boundary rather than re-deriving it.
+
+**What is still unmeasured:** the depth equality. Port 2 has none, so every kind-eligible read in
+a declaration-tag initializer warns regardless of where the binding lives; upstream realigns
+`function_depth` to `state.scope.function_depth` for that visit specifically, which makes the
+equality hold for a sibling declaration and not for anything shallower. No probe here separates
+those, so the agreement on `Prop` / `RestProp` (which port 2 excludes and upstream admits) is
+untested rather than correct.
+
+### 26. What ESTree object does the NAPI boundary hand a JS caller? — [D], **closed at degree 2**
+
+**Upstream:** there is no counterpart. Official ships one `parse()`.
+
+**Ports — two, and neither is a rewrite of the other.** `napi_parse` serializes the typed program
+with `serde::Serialize` and returns a JSON **string**; `napi_parse_envelope` walks the same tree
+with a hand-written binary writer (`rsvelte_bindings_support/src/napi_raw_parse.rs`) whose decoder
+is a second hand-written walk in JavaScript
+(`apps/npm/vite-plugin-svelte-native/parse-envelope.js`). Every node type is spelled three times:
+a `Serialize` arm, a `write_*` arm, and a `readJs*` function. **No gate drives the envelope path
+against the JSON path**, and the ~39 corpus gates all consume the JSON one.
+
+**[D] — measured 2026-08-31.** Adding `attributes` to an import and the acorn-typescript omission
+rule to the serializer left the decoder writing `attributes: []` where the JSON side omitted it:
+3 of 8 constructed inputs disagreed between the two surfaces while the JSON side matched official
+on all 8. The ablation is the control — restoring the rule takes it to 0/8, removing it again
+returns exactly those 3.
+
+Two things the measurement itself taught. **A `JSON.stringify` comparison of the two surfaces
+reports 6 of 8 as divergent on an unmodified tree**, and every one of those six is key
+**order** — the decoder assigns `value` before `name_loc` on a `<script>` tag's own `Attribute`
+while the serializer emits it after. Order is invisible to a property access and to `parse()`'s
+consumers, so a port-vs-port probe here has to compare structurally or it drowns its real signal
+in noise it cannot act on. And the envelope carries a `VERSION` that both sides pin
+(`napi_raw_parse.rs:74`, `parse-envelope.js:22`, plus `scripts/dev/test-parse-envelope-validation.mjs`):
+a new node tag is additive for the writer and **fatal** for a decoder that does not know it, so
+the version has to move with the tag or a stale decoder reads a byte it cannot dispatch.
+
+**Closed at degree 2**: `crates/rsvelte_core/tests/import_export_parser_shapes.rs` pins the JSON
+side against independently spelled expectations rather than against the envelope, so both ports
+being broken the same way still fails. The envelope side has no equivalent test; the standing
+probe is the 11-input structural round trip described above, which is not in the tree. **That is
+the open half of this row.**
+
+
 ## Adding a row, and closing one
 
 **Finding a candidate.** Start from *one upstream function*, not from a rsvelte symbol. Grep the

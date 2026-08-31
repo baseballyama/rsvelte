@@ -110,6 +110,41 @@ makes dart-sass's `rgb(100%, 41.3333333333%, 20%)` equal to `grass`'s `#ff6933`)
 | content-differs | **2** | a genuinely different value |
 | `grass` rejects an accepted input | **99** | five causes, each with an `upstream_issues/` report |
 
+**The last row is a different severity, and this ratchet folds it in with the other three.**
+The first three classes are units where both compilers produce CSS and the CSS differs; the
+fourth is units where **`grass` does not compile the input at all**, so a consumer's build
+fails rather than renders differently. `scss-known-failures.json` carries one entry shape for
+both, which makes the count read as one severity:
+
+| n | severity | what a consumer sees |
+|---|---|---|
+| 155 | render-neutral | nothing — comments, whitespace, quote style, colour spelling |
+| 59 | wrong cascade | the `mixed-decls` class: a declaration written after a nested rule is hoisted |
+| 2 | wrong value | `grid-row: 0.4`, which a browser drops |
+| **99** | **does not compile** | `sass:color` API 35, `*.import.scss` 32, explicit `.scss` extension 28, relative colour 3, `@apply` `!` 1 |
+
+155 + 59 + 2 + 99 = 315. Splitting the ratchet is a separate decision; recording the split is
+not, because a single number reads as a single severity.
+
+**How the population last grew is worth one line, because it did not grow from the corpus.**
+`pattern-corpus/issues/indented-sass-error-position.svelte#style0` is a `grass-rejects-accepted`
+unit that #3967 added as a repro and did not list here, so it entered as a NEW divergence rather
+than a ratcheted one. It went in because this gate was red for an unrelated reason on that PR —
+`Build the grass side of the gate` failed to compile (`error[E0609]` on an oxc field rename), so
+the comparison never ran, and the PR merged with nine jobs red. A gate that is red for a reason
+unrelated to what it measures stops being read, and a real NEW arrives under cover of that noise;
+this is the failure mode one step earlier than #2405's "a skipped gate reads as a passing one",
+because nothing was skipped. It needs no entry here: the indented-Sass base removal that landed
+after #3967 makes the unit compile, so the gate reports it as a match rather than a divergence —
+which is why the count above is unchanged by it.
+
+**There is no upstream fix to take for any of them.** crates.io's newest `grass` is 0.13.4
+(2024-08-04), which is what this repository locks; `master` has two commits since, one of them
+packaging-only, and its single functional change (a `string.split` overflow) appears in none of
+the justifications here. The seven `upstream_issues/grass-*.md` reports are all written against
+0.13.4 and none is fixed upstream — whether they were *filed* is `unrecorded`, which per
+[`upstream_issues/README.md`](../upstream_issues/README.md) means unrecorded rather than unfiled.
+
 Run the same classification with colour folding **off** (drop `CANON_COLORS=1`) and it reads
 111 / 51 / 54: the 44 units that move are all colour spelling, with identical computed colours.
 Both numbers are reported because "cosmetic" is a line someone drew, and this is where it sits.

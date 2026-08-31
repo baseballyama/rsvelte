@@ -46,11 +46,14 @@ Acceptance divergences are the one exception: "official rejects this document an
 not" is a fact about the document, so those keys carry the entry id. A single shared key could not
 tell two such entries from one, which is the whole shrink the ratchet exists to observe.
 
-## Why the baseline is 482 and not 0
+## Why the baseline is not 0
 
-Because the API was never compared. The current full run measured **66,591 compared pairs** over
-33,721 corpus components — 9,446 modern-axis and 9,622 legacy-axis entries are byte-identical,
-and the remainder produce these 482 field-level keys.
+Because the API was never compared. The run that established these figures measured **66,591
+compared pairs** over 33,721 corpus components — 9,446 modern-axis and 9,622 legacy-axis entries
+byte-identical, with the remainder producing **482** field-level keys. **The ratchet has since
+been re-baselined to 321**; the pair and byte-identical counts above belong to the 482 run and are
+left as measured rather than rescaled, because no run has been made at 321 to replace them. The
+partition below is counted from the current JSON.
 
 The modern-axis identical count was **1,075** when this ratchet was first baselined. #3386
 (`Root.end`) accounted for the other 4,177 on its own: it diverged on 12,324 of 14,102 entries, so
@@ -70,18 +73,106 @@ a replacer so its value stays comparable instead of being dropped.
 
 Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 45 + 44 + 16 + 14 + 9 + 2 + 1`
 
-| cluster | keys | what it is |
-|---|---|---|
-| `span` | 78 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
-| `node-type` | 62 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 44 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
-| `unclustered` | 45 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
-| `comment-attachment` | 50 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
-| `accepts-what-official-rejects` | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
-| `css-shape` | 14 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
-| `child-count` | 16 | an array of children with a different length. |
-| `loc-presence` | 9 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
-| `ast-mode` | 2 | #3385 — the remaining legacy-root shape differences. |
+| cluster | keys | bases | what it is |
+|---|---|---|---|
+| `span` | 78 | 41 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `node-type` | 62 | 32 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `estree-fields` | 44 | 22 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
+| `unclustered` | 45 | 27 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `comment-attachment` | 50 | 25 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
+| `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
+| `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
+| `child-count` | 16 | 10 | an array of children with a different length. |
+| `loc-presence` | 9 | 5 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
+| `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
+
+**Read the `keys` column as `bases x axis`, not as work.** A key is
+`<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
+`legacy`, so 321 keys are **174 distinct bases**: 147 appear on both axes and 27 on one
+(147x2 + 27 = 321, a 1.84x collapse). The defect ceiling is 174. The per-cluster collapse is not
+uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on both axes),
+`css-shape` 1.56x and `child-count` 1.60x (legacy-only shapes), `ast-mode` and
+`accepts-what-official-rejects` 1.00x by construction.
+
+**No base's two axes sit in different clusters** (0 of 147), so a cluster can be worked end to end
+without a key from it turning up under someone else's row. Measured directly from the JSON, which
+is authoritative for the partition: the ten rows above are its `Counter(values())`.
+
+### What the `unclustered` bases actually are (measured 2026-08-31)
+
+Classified by reproducing each key from a minimal source with the gate's own `diffKeys` algebra,
+so every line below is the ratchet's own key string, and the cause is read off the two ASTs rather
+than guessed from the key name. **17 of the 27 bases reproduced; 10 did not** — an unreproduced
+key means no input shape was found for it, not that it is stale.
+
+**A. TypeScript declaration children are not serialized (7 bases).** rsvelte emits the node
+envelope — `type`, `start`, `end`, `loc` — and none of its children:
+`TSEnumDeclaration.id` / `.members`, `TSModuleDeclaration.id` / `.global` (and `.declare`),
+`TSIndexSignature.parameters` (and `.typeAnnotation`), `TSParameterProperty.parameter` (and
+`.accessibility`). This is the same gap AGENTS.md already records from the lint side — a
+`TSTypeAliasDeclaration` dropped entirely, no `returnType` — and the named fix site is
+`1_parse/read/expression.rs`. The probes also turn up neighbours not in this cluster:
+`TSModuleBlock` is labelled `BlockStatement`, and a class's `typeParameters` and a
+`PropertyDefinition`'s `typeAnnotation` are absent.
+
+**B. A field with the wrong shape rather than a missing one (4 bases) — and this grouping was
+wrong.** It was cut by the KEY's shape (`#type` / `#extra` rather than `#missing`), and measuring
+the four split them three ways.
+
+*Two are one family with two more bases filed in other clusters, and it is FIXED.*
+`ImportExpression.options#extra` and `ExportNamedDeclaration.attributes#extra` are the same
+mechanism as `ImportDeclaration.attributes#extra` (`estree-fields`) and
+`ImportDeclaration.attributes[]#length` (`child-count`): **acorn and acorn-typescript emit
+different node shapes, and rsvelte emitted acorn's under both.** So one mechanism spanned three
+cluster rows — the partition is by key shape, not by cause. A 41-construct x plain/`lang="ts"` x
+2-axis grid found five such shapes, of which only two had a corpus carrier; the tree went from 32
+cells carrying 20 distinct keys to 8 carrying 4. Pinned by
+`crates/rsvelte_core/tests/import_export_parser_shapes.rs` and two pattern-corpus files.
+
+*One is really cluster A.* `ClassDeclaration.implements` is a boolean `true` where official has an
+array of `TSExpressionWithTypeArguments`, and the node stores a `bool` (`ast/typed_expr.rs:521`)
+because the TypeScript children are not serialized — the same cause as A, reached through a
+different key kind.
+
+*One is not a compiler defect at all.* `Literal.value` for a bigint is `null` because
+`parse()`'s NAPI binding returns a JSON **string**, which cannot express a `BigInt`. Measured on
+one input: official `{"value": 123n, "bigint": "123", "raw": "123n"}`, rsvelte
+`{"value": null, "bigint": "123", "raw": "123n"}` — **`bigint` and `raw` agree exactly, so no
+information is lost.** Matching would mean emitting the gate harness's own `{"__bigint__": …}`
+normalization shape. It cannot be closed without changing the binding's return type, and it
+should not be read as outstanding work.
+
+**C. `Root.options.customElement.props` is raw AST, not a value (2 bases).** rsvelte emits the
+`ObjectExpression` node; official emits the evaluated bag, `{ p: { reflect: true } }`. The `#extra`
+and `#missing` keys are the two halves of that one substitution.
+
+**D. `Let.modifiers` is one omitted empty array (1 base, legacy only) — FIXED, awaiting a
+re-baseline.** Official emits `modifiers: []` on a `let:` attribute; `convert_let_directive` was
+the one of eight directive converters that omitted it. Reproduced on both `<svelte:fragment
+let:x>` and a component `let:`, and pinned by
+`pattern-corpus/issues/let-directive-carries-an-empty-modifiers-array.svelte`. A 4,898-unit x
+2-axis parse sweep removes exactly this one distinct key and adds none; `compile()` output is
+byte-identical on all four targets, so this base was observable through no other gate.
+
+**E. `ExpressionStatement.directive` — the statement is dropped (1 base).** A `'use strict';`
+directive in an instance script does not appear in `Program.body` at all, so official's body has
+one more element and the first statements have different types. AGENTS.md records the same loss
+for a `FunctionBody`'s `directives`.
+
+**E2. `export * from` never reached the program body — FIXED.** `convert_statement_for_program`
+had no `ExportAllDeclaration` arm, so the statement fell through `_ => None` and vanished; it is a
+cause of `{legacy,modern}::Program.body[]#length`, though that key has other causes and no
+`.svelte` in `submodules/svelte` carries the shape, so **how much of that entry it moves is
+unmeasured until a collected-corpus run**. `compile()` kept the statement throughout.
+
+**F. Not reproduced (10 bases)**, listed so the next attempt starts from a smaller set:
+`TSTypeParameterDeclaration.extra`, `Decorator.expression` (the parent's whole `decorators` array
+is dropped, so any input reaching this key must be one where the array survives),
+`Literal.regex.flags`, `Line.value`, `CSSComment.position` / `.value`, `Text.raw`,
+`Attribute.name` / `.name_loc`, `Identifier.name`, `Comment.ignores[]`. Plain sources for each
+(entities, CRLF, unicode escapes, `svelte-ignore` with two codes, CSS comments inside and outside
+a rule, a shorthand and a spread attribute) all produce **no keys**, so the corpus reaches these
+through a shape none of those covers.
 
 ## The acceptance rows are the interesting ones
 

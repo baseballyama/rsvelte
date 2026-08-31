@@ -71,7 +71,7 @@ pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 7;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -248,6 +248,8 @@ pub const JS_TS_SATISFIES_EXPRESSION: u8 = 0xCE;
 pub const JS_TS_NON_NULL_EXPRESSION: u8 = 0xCF;
 pub const JS_TS_TYPE_ASSERTION: u8 = 0xD0;
 pub const JS_TS_INSTANTIATION_EXPRESSION: u8 = 0xD1;
+pub const JS_IMPORT_ATTRIBUTE: u8 = 0xD2;
+pub const JS_EXPORT_ALL_DECLARATION: u8 = 0xD3;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL: u8 = 0;
@@ -1518,10 +1520,14 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             source,
+            options,
+            ts,
         } => {
             write_preamble(w, JS_IMPORT_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *source, arena)?;
+            write_id_range(w, *options, arena)?;
+            write_bool(w, *ts);
         }
         JsNode::AwaitExpression {
             start,
@@ -1958,6 +1964,18 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_opt_str(w, import_kind.as_deref());
             write_id_range(w, *attributes, arena)?;
         }
+        JsNode::ImportAttribute {
+            start,
+            end,
+            loc,
+            key,
+            value,
+        } => {
+            write_preamble(w, JS_IMPORT_ATTRIBUTE, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_node_id(w, *key, arena)?;
+            write_node_id(w, *value, arena)?;
+        }
         JsNode::ImportSpecifier {
             start,
             end,
@@ -2010,15 +2028,33 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_opt_str(w, export_kind.as_deref());
             write_id_range(w, *attributes, arena)?;
         }
+        JsNode::ExportAllDeclaration {
+            start,
+            end,
+            loc,
+            exported,
+            source,
+            export_kind,
+            attributes,
+        } => {
+            write_preamble(w, JS_EXPORT_ALL_DECLARATION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_opt_node_id(w, *exported, arena)?;
+            write_node_id(w, *source, arena)?;
+            write_opt_str(w, export_kind.as_deref());
+            write_id_range(w, *attributes, arena)?;
+        }
         JsNode::ExportDefaultDeclaration {
             start,
             end,
             loc,
             declaration,
+            export_kind,
         } => {
             write_preamble(w, JS_EXPORT_DEFAULT_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *declaration, arena)?;
+            write_opt_str(w, export_kind.as_deref());
         }
         JsNode::ExportSpecifier {
             start,

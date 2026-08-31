@@ -226,9 +226,12 @@ impl<'a> ScopeBuilder<'a> {
 
         // Visit template - still within the script scope so bindings are accessible
         self.in_template = true;
-        // Upstream's root fragment is `create_fragment()` — non-transparent —
-        // so it owns a non-porous scope one level below the instance script.
-        let template_outer = self.push_function_scope();
+        // Upstream has TWO levels here — `create_scopes` seeds a template scope and
+        // the `Fragment` visitor then childs it — and pins `state.function_depth` to
+        // the seed. Collapsing them into one scope would put a template declaration
+        // at the depth the template walk itself reports, which is the equality
+        // `state_referenced_locally` tests.
+        let template_outer = self.push_scope_deeper_by(2);
         self.root_fragment_scope_index = self.current_scope;
         self.visit_fragment(&ast.fragment);
         self.pop_scope(template_outer);
@@ -421,8 +424,13 @@ impl<'a> ScopeBuilder<'a> {
     /// Push a new non-porous (function-level) child scope and return the old scope index.
     /// Non-porous scopes have function_depth = parent.function_depth + 1.
     fn push_function_scope(&mut self) -> usize {
+        self.push_scope_deeper_by(1)
+    }
+
+    /// Push a non-porous child scope that counts as `levels` nested scopes.
+    fn push_scope_deeper_by(&mut self, levels: usize) -> usize {
         let parent_depth = self.scopes[self.current_scope].function_depth;
-        let new_scope = Scope::new_with_depth(Some(self.current_scope), parent_depth + 1);
+        let new_scope = Scope::new_with_depth(Some(self.current_scope), parent_depth + levels);
         let idx = self.scopes.len();
         self.scopes[self.current_scope].children.push(idx);
         self.scopes.push(new_scope);

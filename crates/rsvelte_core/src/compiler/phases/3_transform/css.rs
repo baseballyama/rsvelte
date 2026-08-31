@@ -2118,7 +2118,14 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
             // Check if any DOM element matches this alternative's constraints
             ctx.dom_structure.elements.iter().any(|elem| {
                 let classes_match = classes.iter().all(|c| elem.classes.contains(c.as_str()));
-                let ids_match = ids.iter().all(|id| elem.id.as_deref() == Some(id.as_str()));
+                // An `id` an expression supplies can be anything at runtime, so it
+                // satisfies any `#id` — the same rule `selector_matches_element`
+                // applies. The class and element guards above are the coarse
+                // whole-component form of this; ids had neither.
+                let id_is_indeterminate =
+                    elem.has_spread || elem.dynamic_attribute_names.contains("id");
+                let ids_match = id_is_indeterminate
+                    || ids.iter().all(|id| elem.id.as_deref() == Some(id.as_str()));
                 let elements_match = elements.iter().all(|tag| {
                     if elem.is_dynamic_tag {
                         true
@@ -4038,8 +4045,11 @@ fn selector_matches_element(
         }
     }
 
-    // Check ID
-    if let Some(ref id) = info.id
+    // Check ID. Same indeterminacy rule as the class branch above: an `id` an
+    // expression supplies can be anything at runtime, so it matches any `#id`.
+    let id_is_indeterminate = el.has_spread || el.dynamic_attribute_names.contains("id");
+    if !id_is_indeterminate
+        && let Some(ref id) = info.id
         && el.id.as_ref() != Some(id)
     {
         return false;

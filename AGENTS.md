@@ -437,9 +437,9 @@ is why that suite reads 100% while the class exists. **A gate's first baseline m
 the surface was ungated, not how much someone let rot.**
 
 **Those three numbers are the FIRST baseline (2721 entries) and none of them is a current work
-item.** The ratchet now stands at 459 over ten clusters — `span` 92, `node-type` 90,
-`estree-fields` 74, `unclustered` 68, `comment-attachment` 64, `css-shape` 24, `child-count` 22,
-`accepts-what-official-rejects` 13, `loc-presence` 10, `ast-mode` 2 — and there is no
+item.** The ratchet stands at 321 over ten clusters — `span` 78, `node-type` 62,
+`comment-attachment` 50, `unclustered` 45, `estree-fields` 44, `child-count` 16, `css-shape` 14,
+`loc-presence` 9, `ast-mode` 2, `accepts-what-official-rejects` 1 — and there is no
 `character` cluster at all. Grepping the keys for `character` returns 0 and **means nothing**,
 because `verify.mjs` folds `start`/`end`/`loc` into one key per node type, so a
 `loc.start.character` divergence sits inside `span`. Measured directly on one input, both
@@ -447,8 +447,31 @@ compilers emit zero `character`-bearing `loc`s and `phases/1-parse` does not imp
 `locate-character` at all (only `preprocess/index.js`, `state.js` and
 `utils/compile_diagnostic.js` do) — which suggests the paragraph above describes the
 *diagnostic* path rather than `parse()` output, but one input is not a population. Count the
-JSON, not this paragraph. And read `459` as `253 bases × axis`: 206 of those keys are the second
-axis of a base already counted, so the defect ceiling is 253, not 459.
+JSON, not this paragraph — and this paragraph has already been wrong once: it read 459 over a
+cluster split that summed to 459 while the file held 321, so **the count and the split go stale
+together and neither checks the other**. And read `321` as `174 bases × axis`: 147 of those bases
+carry a key on both axes and 27 on one, so the defect ceiling is 174, not 321. The collapse is not
+uniform across clusters (2.00x for `estree-fields` and `comment-attachment`, 1.56x for
+`css-shape`), so a per-cluster estimate cannot be had by scaling the total.
+
+**And the clusters partition KEY SHAPES, not causes, so a mechanism can span three rows while
+each row reads as its own backlog.** `lang="ts"` does not merely enable extra syntax — it selects
+`acorn.Parser.extend(tsPlugin())`, and that parser emits **different shapes for the same
+statement**: acorn always writes `attributes` (`[]` when absent) and `options` (null when
+absent), acorn-typescript writes `attributes` only where a `with` clause exists, spells a dynamic
+import's second argument as an `arguments` LIST, and stamps `exportKind` on `export default`.
+rsvelte emitted acorn's shape under both. Its four ratcheted keys sat in `unclustered`,
+`estree-fields` and `child-count`. **The axis that finds this class is one construct hosted in a
+plain `<script>` and in `lang="ts"`, diffed against each other** — 41 constructs found five such
+shapes where only two had a corpus carrier, and the same 164-cell grid re-found a defect this file
+already records (`params.rest` missing on a `function` statement) plus one nothing recorded:
+`export * from` was dropped from `parse()`'s body entirely while `compile()` kept it. Two of the
+five are unreachable from any collected corpus at any size, because `export default` is illegal in
+every script a component can hold — `parse()` accepts it and `compile()` does not, so the only
+gate that can hold them is a unit test. `crates/rsvelte_core/tests/import_export_parser_shapes.rs`
+is that gate. **Do not read a `Literal.value` bigint key as work**: `parse()`'s NAPI binding
+returns a JSON *string*, `bigint` and `raw` agree exactly, and matching would mean emitting the
+harness's own normalization shape.
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),

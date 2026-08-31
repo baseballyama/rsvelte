@@ -4825,6 +4825,59 @@ refusal machinery"* when the question is *"does it refuse **this**"*. The predic
 meaningful when the refusal's **condition references the selector variable in question** — per
 axis, not per file.
 
+### P3 — Did the gate reach its comparison, or did it die before it?
+
+A red check reads as a verdict about the thing the gate measures. It is only that if the gate got
+as far as comparing something. A gate whose **setup** step fails — a build, a submodule checkout,
+an install, an oracle launch — produces a red that carries no information about parity at all, and
+that red is indistinguishable from a parity failure in the branch header, in `gh pr checks`, and
+in the check's own name.
+
+Measured instance (2026-08-31, on #3967's head `7980cdf40`): `SCSS parity (grass vs dart-sass)`
+was red. The name says an SCSS divergence. The job actually died at the step
+**`Build the grass side of the gate`** with
+
+```
+error[E0609]: no field `declaration` on type `&ArenaBox<'_, oxc_ast::ast::ExportNamedDeclaration<'_>>`
+  --> crates/rsvelte_core/src/compiler/phases/1_parse/read/early_errors.rs:220:52
+```
+
+— **zero SCSS blocks were compared**, and the file that broke the gate has nothing to do with
+SCSS. This is the sharp form of the row: the red was caused by a change the gate does not measure,
+in a crate the gate only links.
+
+The same property holds one level up, structurally, for every rollup job. `Tests` is a
+conjunction: its `Verify all test jobs passed` step reads each shard's `result` and exits 1 unless
+every one is `success`, so its conclusion names no conjunct — `AGENTS.md` already records the
+cancellation form of this (a cancelled shard makes the rollup `FAILURE` while every shard under it
+is `cancelled`). A red rollup and a red gate therefore need the same follow-up question, and it is
+not "which gate is red".
+
+The hazard is not that these gates failed closed; they did. It is that a red nobody can attribute
+becomes "pre-existing" during triage, and a gate expected to be red stops being read. From that
+point it defends nothing — and because a shrink-only ratchet is consulted only when its job runs,
+its file keeps looking healthy for as long as the build stays broken.
+
+Before treating a red as known, print the failing **step**, not the job:
+
+```
+gh api repos/:owner/:repo/actions/jobs/<job-id> \
+  --jq '.steps[] | select(.conclusion=="failure") | .name'
+```
+
+If that step is upstream of the comparison, record "**contributed 0 comparisons**" rather than
+"known failure". That is C7 (an uninitialised corpus source shrinks the population silently) asked
+one level up: there the population goes to zero and the gate stays green; here the population goes
+to zero and the gate stays red. **Both report a number that was never measured** — and only one of
+them looks alarming, which is why this one survives longer.
+
+Evidence: **[D]** for the SCSS instance — step name, error code and source location read off
+`actions/jobs/98756280254`. **[D]** for the rollup's mechanism (its failing step is
+`Verify all test jobs passed`, read off `actions/jobs/98757702663`), but **not** for masking on
+that SHA: all seven of its inputs were red there, so it is cited as structure, not as an instance.
+The triage claim is **[S]** — an argument from the mechanism, not a measurement of reviewer
+behaviour.
+
 ## Every performance gate we own points at the runes end of the population
 
 **This is a gate-coverage finding, not a perf finding.** The output-equality gates above are

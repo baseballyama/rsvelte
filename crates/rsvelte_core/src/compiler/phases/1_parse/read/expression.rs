@@ -4607,6 +4607,8 @@ fn convert_expression<'a>(
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
+                options: IdRange::empty(),
+                ts: false,
             })
         }
         OxcExpression::AwaitExpression(await_expr) => {
@@ -8819,6 +8821,7 @@ fn convert_statement_for_program(
                 Some(&export_decl.declaration),
                 &[],
                 None,
+                None,
                 // oxc derives this from the declaration instead of storing it.
                 export_decl.export_kind(),
                 offset,
@@ -8832,6 +8835,7 @@ fn convert_statement_for_program(
                 None,
                 &export_decl.specifiers,
                 None,
+                None,
                 export_decl.export_kind,
                 offset,
                 line_offsets,
@@ -8844,10 +8848,50 @@ fn convert_statement_for_program(
                 None,
                 &export_decl.specifiers,
                 Some(&export_decl.source),
+                export_decl.with_clause.as_deref(),
                 export_decl.export_kind,
                 offset,
                 line_offsets,
             ))
+        }
+        oxc_ast::ast::Statement::ExportAllDeclaration(export_decl) => {
+            let start = offset + export_decl.span.start as usize;
+            let end = offset + export_decl.span.end as usize;
+            let source_lit = &export_decl.source;
+            let source_start = offset + source_lit.span.start as usize;
+            let source_end = offset + source_lit.span.end as usize;
+            let raw = source_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            let source = expr_to_node(create_string_literal(
+                &source_lit.value,
+                raw,
+                source_start,
+                source_end,
+                line_offsets,
+            ));
+            let exported = export_decl.exported.as_ref().map(|name| {
+                let name_start = offset + name.span().start as usize;
+                let name_end = offset + name.span().end as usize;
+                arena.alloc_js_node(expr_to_node(create_identifier(
+                    name.name().as_str(),
+                    name_start,
+                    name_end,
+                    line_offsets,
+                )))
+            });
+            Some(JsNode::ExportAllDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                exported,
+                source: arena.alloc_js_node(source),
+                export_kind: estree_module_kind(arena, export_decl.export_kind),
+                attributes: arena.alloc_js_children(convert_import_attributes(
+                    arena,
+                    export_decl.with_clause.as_deref(),
+                    offset,
+                    line_offsets,
+                )),
+            })
         }
         oxc_ast::ast::Statement::ExportDefaultDeclaration(export_decl) => {
             let start = offset + export_decl.span.start as usize;
@@ -8997,6 +9041,7 @@ fn convert_statement_for_program(
                 end: end as u32,
                 loc,
                 declaration: arena.alloc_js_node(declaration),
+                export_kind: estree_module_kind(arena, oxc_ast::ast::ImportOrExportKind::Value),
             })
         }
         oxc_ast::ast::Statement::ImportDeclaration(import_decl) => {
@@ -9036,7 +9081,12 @@ fn convert_statement_for_program(
                 specifiers: arena.alloc_js_children(specifiers),
                 source: arena.alloc_js_node(source),
                 import_kind,
-                attributes: IdRange::empty(),
+                attributes: arena.alloc_js_children(convert_import_attributes(
+                    arena,
+                    import_decl.with_clause.as_deref(),
+                    offset,
+                    line_offsets,
+                )),
             })
         }
         oxc_ast::ast::Statement::IfStatement(if_stmt) => {
@@ -9790,16 +9840,12 @@ fn convert_ts_module_declaration_as_node(
                 {
                     return Some(node);
                 }
-                // The typed program has no variant for these two (issue #3681), so
-                // `convert_statement_for_program` drops them — but upstream's visitor
-                // leaves both in place, which makes the namespace non-type. Only
-                // these two stand in: most of what it drops (a type alias, say) IS
-                // type-only and must keep stripping to empty.
-                if !matches!(
-                    stmt,
-                    oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)
-                        | oxc_ast::ast::Statement::ExportAllDeclaration(_)
-                ) {
+                // The typed program has no variant for this one (issue #3681), so
+                // `convert_statement_for_program` drops it — but upstream's visitor
+                // leaves it in place, which makes the namespace non-type. Only this
+                // stands in: most of what it drops (a type alias, say) IS type-only
+                // and must keep stripping to empty.
+                if !matches!(stmt, oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)) {
                     return None;
                 }
                 let start = offset + stmt.span().start as usize;
@@ -10240,6 +10286,57 @@ fn convert_declaration_for_program(
 }
 
 /// Convert an import specifier to JSON value.
+/// Convert an `import`/`export`'s `with { … }` entries. The node's span runs
+/// from the key to the end of the value, so it stops short of the clause brace.
+fn convert_import_attributes(
+    arena: &ParseArena,
+    clause: Option<&oxc_ast::ast::WithClause<'_>>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Vec<JsNode> {
+    let Some(clause) = clause else {
+        return Vec::new();
+    };
+    clause
+        .with_entries
+        .iter()
+        .map(|attr| {
+            let key = match &attr.key {
+                oxc_ast::ast::ImportAttributeKey::Identifier(id) => {
+                    let key_start = offset + id.span.start as usize;
+                    let key_end = offset + id.span.end as usize;
+                    create_identifier(&id.name, key_start, key_end, line_offsets)
+                }
+                oxc_ast::ast::ImportAttributeKey::StringLiteral(lit) => {
+                    let key_start = offset + lit.span.start as usize;
+                    let key_end = offset + lit.span.end as usize;
+                    let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+                    create_string_literal(&lit.value, raw, key_start, key_end, line_offsets)
+                }
+            };
+            let value_start = offset + attr.value.span.start as usize;
+            let value_end = offset + attr.value.span.end as usize;
+            let value_raw = attr.value.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            let value = create_string_literal(
+                &attr.value.value,
+                value_raw,
+                value_start,
+                value_end,
+                line_offsets,
+            );
+            let start = offset + attr.key.span().start as usize;
+            let end = value_end;
+            JsNode::ImportAttribute {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                key: arena.alloc_js_node(expr_to_node(key)),
+                value: arena.alloc_js_node(expr_to_node(value)),
+            }
+        })
+        .collect()
+}
+
 fn convert_import_specifier(
     arena: &ParseArena,
     spec: &oxc_ast::ast::ImportDeclarationSpecifier,
@@ -10824,12 +10921,27 @@ fn convert_expression_for_program<'a>(
             let end = offset + import_expr.span.end as usize;
             let source =
                 convert_expression_for_program(arena, &import_expr.source, offset, line_offsets);
+            let options = import_expr
+                .options
+                .as_ref()
+                .map(|opt| {
+                    let node = expr_to_node(convert_expression_for_program(
+                        arena,
+                        opt,
+                        offset,
+                        line_offsets,
+                    ));
+                    arena.alloc_js_children(vec![node])
+                })
+                .unwrap_or_else(IdRange::empty);
 
             Expression::from_node(JsNode::ImportExpression {
                 start: start as u32,
                 end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
+                options,
+                ts: arena.is_ts_program(),
             })
         }
         OxcExpression::AssignmentExpression(assign) => {
@@ -13992,6 +14104,7 @@ fn convert_export_named_as_node(
     decl: Option<&oxc_ast::ast::Declaration>,
     spec_list: &[oxc_ast::ast::ExportSpecifier],
     src: Option<&oxc_ast::ast::StringLiteral>,
+    with_clause: Option<&oxc_ast::ast::WithClause<'_>>,
     kind: oxc_ast::ast::ImportOrExportKind,
     offset: usize,
     line_offsets: &[usize],
@@ -14070,7 +14183,12 @@ fn convert_export_named_as_node(
         specifiers: arena.alloc_js_children(specifiers),
         source,
         export_kind,
-        attributes: IdRange::empty(),
+        attributes: arena.alloc_js_children(convert_import_attributes(
+            arena,
+            with_clause,
+            offset,
+            line_offsets,
+        )),
     }
 }
 
