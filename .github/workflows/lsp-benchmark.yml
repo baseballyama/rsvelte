@@ -61,6 +61,13 @@ jobs:
           -p rsvelte_language_server
           --bin rsvelte-language-server
 
+      # `--timeout-ms` is the harness's per-operation deadline, not a performance
+      # threshold: when it fires the run reports NO number rather than a slow one,
+      # and the validation below asserts `status: ok` and never compares timings.
+      # rsvelte's first diagnostics on this project take ~17.8 s locally against
+      # official's 8.5 s, and exceeded the 30 s default on a CI runner where
+      # official measured 9.7 s. Raising it publishes the figure instead of losing
+      # the run; the gap itself is tracked separately.
       - name: Run LSP benchmark
         run: >-
           node scripts/bench-lsp/run.mjs
@@ -68,6 +75,7 @@ jobs:
           --max-files 250
           --iterations 100
           --warmup 10
+          --timeout-ms 120000
           --output lsp-benchmark.json
         timeout-minutes: 45
 
