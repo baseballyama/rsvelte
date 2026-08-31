@@ -4084,19 +4084,19 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23890 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 24272 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
-Partition of `lsp-known-failures.json` by key kind: `21764 + 1794 + 332` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21630 + 2118 + 524` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11950 + 11940`
+Partition of `lsp-known-failures.json` by request phase: `12141 + 12131`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -4104,15 +4104,16 @@ unit: the difference is 10, and those 10 are precisely the `differential:fixture
 initialize|` keys below. There were 17 when the phase landed; six were `initialize` fields #3016
 closed and one more has since.
 
-The one-sided sets are larger than that difference and do not consist only of `differential:` keys,
-which is worth stating because the earlier wording said they did. Measured on this baseline: 17 keys
-appear only in the opened phase and 7 only in the edit phase. The 7 are the same seven corpus files'
-`textDocument/hover` aggregates on both sides — `divergentRequestCount` differs between the phases,
-so one file's one method enrols under two different keys and contributes 7 to each side, cancelling.
-That is the ratchet key carrying a measured quantity, which is also why progress here is reported as
-divergent fields and requests rather than as a change in entry count.
+The one-sided sets are now exactly that difference: measured on this baseline, **10 keys appear only
+in the opened phase and 0 only in the edit phase**, and the 10 are the `initialize` keys named above.
+An earlier baseline read 17 and 7, and the extra 7 on each side were the same seven corpus files'
+`textDocument/hover` aggregates enrolling under two keys because `divergentRequestCount` differed
+between the phases. `aggregateCorpusDifferences` no longer puts that count in the key, so a corpus
+file's method is one unit per phase and the partition is exactly explainable. Progress here is still
+better read as divergent fields and requests than as a change in entry count, but the entry count is
+no longer moved by a divergence merely getting smaller.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3678 + 7748 + 258 + 10080`
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3662 + 7672 + 258 + 10038`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is
