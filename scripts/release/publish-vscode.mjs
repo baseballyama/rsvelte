@@ -209,6 +209,10 @@ const mpPlatforms = force ? PLATFORMS : missingMp;
 const wanted = needOvsx ? PLATFORMS : mpPlatforms;
 const packaged = new Map(wanted.map((platform) => [platform, pack(platform)]));
 
+// The two registries are independent: serialising them behind one throw left
+// Open VSX unpublished whenever the Marketplace name was reserved.
+let marketplaceError = null;
+
 if (needMp) {
   for (const platform of mpPlatforms) {
     try {
@@ -240,7 +244,8 @@ if (needMp) {
             'and either restore the extension or rename it in apps/npm/vscode/package.json.',
         );
       }
-      throw error;
+      marketplaceError = error;
+      break;
     }
     console.log(`✓ published ${platform} to VS Code Marketplace`);
   }
@@ -281,3 +286,5 @@ if (needOvsx) {
 } else {
   console.log('Open VSX already up to date — skipping.');
 }
+
+if (marketplaceError) throw marketplaceError;
