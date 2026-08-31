@@ -494,8 +494,13 @@ function runeStatementContainerCases() {
 				.replaceAll('%d', () => declaration.declaration)
 				.replaceAll('%u', () => declaration.use);
 			for (const [entryName, entry] of Object.entries(RUNE_STATEMENT_ENTRIES)) {
+				// #3420: a lexical rune declared bare in a `case` clause is lowered while its
+				// references are not, so official returns the Source / Derived object itself.
+				// `$state` and `$derived` are the same defect; both are recorded in
+				// `upstream_issues/3420-svelte-case-clause-state-references-untransformed.md`.
 				const hasBrokenClientOracle =
-					declarationName === 'state-let' && containerName === 'switch-case-bare';
+					(declarationName === 'state-let' || declarationName === 'derived-let') &&
+					containerName === 'switch-case-bare';
 				cases.push({
 					id: `rune-statement-container/${declarationName}__${containerName}__${entryName}${entry.ext}`,
 					source: entry.wrap(body),

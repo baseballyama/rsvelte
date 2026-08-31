@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use lsp_types::{
     CodeActionOrCommand, Color, Diagnostic, DiagnosticSeverity, DocumentSymbolResponse,
-    FoldingRangeKind, HoverContents, NumberOrString, Range, Uri,
+    FoldingRangeKind, HoverContents, MarkedString, NumberOrString, Range, Uri,
 };
 use regex::Regex;
 use rsvelte_diagnostics::{
@@ -477,7 +477,7 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
             match adapter {
                 "hover" => {
                     let (source, offset) = source_at_marker(case)?;
-                    let response = hover::hover(&source, offset);
+                    let response = hover::hover(&source, offset, true);
                     assert_response(response.is_some(), expected, case)?;
                 }
                 "completion" => {
@@ -662,14 +662,17 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
         }
         "svelte-if-hover" => {
             let (source, offset) = source_at_marker(case)?;
-            let response = hover::hover(&source, offset).context("no hover response")?;
-            let HoverContents::Markup(markup) = response.contents else {
-                anyhow::bail!("hover response was not markup");
+            let response = hover::hover(&source, offset, true).context("no hover response")?;
+            // `getHoverInfo.ts:56` answers a tag with `{ contents: documentation[tag] }`
+            // — a bare string, where only the modifier hover beside it is markup, so the
+            // shape is asserted and not only the text.
+            let HoverContents::Scalar(MarkedString::String(value)) = response.contents else {
+                anyhow::bail!("tag hover response was not a bare string");
             };
             let needle = case.expected["markdown_contains"]
                 .as_str()
                 .context("markdown_contains must be a string")?;
-            assert!(markup.value.contains(needle), "{}", markup.value);
+            assert!(value.contains(needle), "{value}");
         }
         id if id.starts_with("hover-") => {
             let official = case.expected["markdown_contains"].as_str();
@@ -961,7 +964,7 @@ fn hover_markdown(marked_source: &str) -> Result<Option<String>> {
     let mut source = marked_source.to_string();
     source.replace_range(offset..offset + '¦'.len_utf8(), "");
     Ok(
-        hover::hover(&source, offset).map(|response| match response.contents {
+        hover::hover(&source, offset, true).map(|response| match response.contents {
             HoverContents::Markup(markup) => markup.value,
             other => format!("{other:?}"),
         }),

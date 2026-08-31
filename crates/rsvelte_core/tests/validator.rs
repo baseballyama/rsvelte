@@ -408,7 +408,7 @@ fn test_validator() {
         println!(
             "\n❌ {} ratchet entries already pass — the ratchet is stale; shrink \
              compatibility/validator-known-failures.json (and \
-             compatibility/validator-known-failures.md):",
+             compatibility/KNOWN-FAILURES.md#validator-known-failures):",
             fixed.len()
         );
         for id in &fixed {

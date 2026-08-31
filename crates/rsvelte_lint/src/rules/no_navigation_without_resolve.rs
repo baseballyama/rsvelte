@@ -28,8 +28,10 @@ use rsvelte_diagnostics::Diagnostic;
 use serde_json::Value;
 
 use crate::context::LintContext;
+use crate::engine::{SourceKind, classify_source};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{node_type, walk_js};
+use crate::rules::kit_nav::{NavKind, ScopeIndex, nav_call_kind};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-navigation-without-resolve",
@@ -495,54 +497,6 @@ fn has_rel_external(attrs: &[Value], var_inits: &HashMap<String, Value>) -> bool
     false
 }
 
-enum NavKind {
-    Goto,
-    Push,
-    Replace,
-}
-
-fn call_kind(node: &Value, im: &Imports) -> Option<NavKind> {
-    let callee = node.get("callee")?;
-    match node_type(callee) {
-        Some("Identifier") => {
-            let n = callee.get("name").and_then(Value::as_str)?;
-            if im.goto.contains(n) {
-                Some(NavKind::Goto)
-            } else if im.push_state.contains(n) {
-                Some(NavKind::Push)
-            } else if im.replace_state.contains(n) {
-                Some(NavKind::Replace)
-            } else {
-                None
-            }
-        }
-        Some("MemberExpression") => {
-            if callee.get("computed").and_then(Value::as_bool) == Some(true) {
-                return None;
-            }
-            let obj = callee
-                .get("object")
-                .filter(|o| node_type(o) == Some("Identifier"))
-                .and_then(|o| o.get("name"))
-                .and_then(Value::as_str)?;
-            if !im.nav_ns.contains(obj) {
-                return None;
-            }
-            match callee
-                .get("property")
-                .and_then(|p| p.get("name"))
-                .and_then(Value::as_str)?
-            {
-                "goto" => Some(NavKind::Goto),
-                "pushState" => Some(NavKind::Push),
-                "replaceState" => Some(NavKind::Replace),
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
-
 /// Check an href attribute node. Returns true if the URL is not allowed.
 fn check_href(
     attr: &Value,
@@ -608,11 +562,14 @@ fn collect_nav_reports(
 ) -> Vec<(u32, u32, &'static str)> {
     let im = collect_imports(json);
     let var_inits = collect_var_inits(json);
+    // Upstream reaches the callee through `ReferenceTracker`, which follows a
+    // binding copied out of the import; the name-keyed `im` sets cannot.
+    let idx = ScopeIndex::build(json);
     let mut reports: Vec<(u32, u32, &'static str)> = Vec::new();
 
     walk_js(json, |node, _| match node_type(node) {
         Some("CallExpression") => {
-            let kind = call_kind(node, &im);
+            let kind = nav_call_kind(&idx, node);
             let Some(kind) = kind else { return };
             let arguments = node.get("arguments").and_then(Value::as_array);
             let Some(first_argument) = arguments.and_then(|arguments| arguments.first()) else {
@@ -783,6 +740,24 @@ pub fn diagnostics_typed(
 #[derive(Default)]
 pub struct NoNavigationWithoutResolve;
 
+impl NoNavigationWithoutResolve {
+    fn run(ctx: &mut LintContext, json: &Value) {
+        let opts = ctx.option0();
+        let ignore = |key: &str| -> bool {
+            opts.and_then(|o| o.get(key)).and_then(Value::as_bool) == Some(true)
+        };
+
+        // No type backend in the native walk: `expressionIsAllowedType` is a
+        // stub. The type-aware path is `diagnostics_typed`.
+        let no_types = |_: &Value, _: AllowConfig| false;
+        let reports = collect_nav_reports(json, NavigationIgnores::from_option(ignore), &no_types);
+
+        for (s, e, msg) in reports {
+            ctx.report(s, e, msg);
+        }
+    }
+}
+
 impl Rule for NoNavigationWithoutResolve {
     fn meta(&self) -> &'static RuleMeta {
         &META
@@ -793,19 +768,21 @@ impl Rule for NoNavigationWithoutResolve {
         else {
             return;
         };
+        Self::run(ctx, &json);
+    }
+}
 
-        let opts = ctx.option0();
-        let ignore = |key: &str| -> bool {
-            opts.and_then(|o| o.get(key)).and_then(Value::as_bool) == Some(true)
-        };
+impl ScriptRule for NoNavigationWithoutResolve {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
 
-        // No type backend in the native walk: `expressionIsAllowedType` is a
-        // stub. The type-aware path is `diagnostics_typed`.
-        let no_types = |_: &Value, _: AllowConfig| false;
-        let reports = collect_nav_reports(&json, NavigationIgnores::from_option(ignore), &no_types);
-
-        for (s, e, msg) in reports {
-            ctx.report(s, e, msg);
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
+        // A component is covered by `check_root`, which sees both scripts and
+        // the template at once; only a standalone module needs this pass.
+        if !matches!(classify_source(ctx.filename()), SourceKind::Module { .. }) {
+            return;
         }
+        Self::run(ctx, program.value());
     }
 }

@@ -37,6 +37,24 @@ pub fn visit_script_expr(
                 context.script_ignore_comments =
                     metadata.ignore_comment_map.iter().cloned().collect();
 
+                // An HTML comment before the `<script>` tag silences a code for the
+                // whole script: upstream parks it on the Program as `leadingComments`
+                // (`1-parse/state/element.js:349`) and its generic visitor pushes it
+                // for the subtree. Only the NEAREST such comment counts.
+                let mut program_ignores = false;
+                if let Some(comments) = metadata.leading_comments.as_ref()
+                    && let Some(text) = comments
+                        .last()
+                        .and_then(|c| c.get("value"))
+                        .and_then(|v| v.as_str())
+                {
+                    let ignores = extract_svelte_ignore(text, context.analysis.runes);
+                    if !ignores.is_empty() {
+                        context.push_ignore(ignores);
+                        program_ignores = true;
+                    }
+                }
+
                 // Push the Program as a TYPED js_path entry, like every other node
                 // the walker pushes below. `as_json()` here used to materialize the
                 // entire program into a `serde_json::Value` up front, on every script
@@ -60,6 +78,9 @@ pub fn visit_script_expr(
                 }
 
                 context.js_path.pop();
+                if program_ignores {
+                    context.pop_ignore();
+                }
                 context.script_ignore_comments = saved_ignores;
                 result
             } else {

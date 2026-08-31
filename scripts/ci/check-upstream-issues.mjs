@@ -36,6 +36,10 @@ const FILED_OK = /^(https:\/\/\S+|unrecorded)$/;
 // pointing at the issue the report came from. That is the exact confusion the
 // column exists to prevent, so the one URL shape it must refuse is our own.
 const OWN_REPO = /github\.com\/baseballyama\/rsvelte\//;
+// The `rsvelte issue` cell for a report that came out of a campaign rather than
+// an issue, and the prose count the index states for those rows.
+const NO_ISSUE = '\u2014';
+const CLAIMED_UNNUMBERED = /\*\*(\d+)\*\* reports carry no rsvelte issue number/;
 
 /** Report files on disk, in sorted order. The index itself is not one. */
 export function reportsOnDisk(dir) {
@@ -98,6 +102,20 @@ export function check(dir) {
         `${INDEX} row \`${row.file}\` has filed=${JSON.stringify(row.filed)} — that is this repository, not an upstream tracker`,
       );
     }
+  }
+
+  // A count stated in prose goes stale silently, and this one already had: it
+  // read "Fifteen" while 19 rows carried `\u2014`.
+  const unnumbered = rows.filter((row) => row.issue === NO_ISSUE).length;
+  const claimed = CLAIMED_UNNUMBERED.exec(text);
+  if (!claimed) {
+    problems.push(
+      `${INDEX} no longer states how many rows carry \`${NO_ISSUE}\` \u2014 want \`**<n>** reports carry no rsvelte issue number\``,
+    );
+  } else if (Number(claimed[1]) !== unnumbered) {
+    problems.push(
+      `${INDEX} says **${claimed[1]}** reports carry no rsvelte issue number, but ${unnumbered} rows carry \`${NO_ISSUE}\``,
+    );
   }
 
   return { problems, fatal: false };

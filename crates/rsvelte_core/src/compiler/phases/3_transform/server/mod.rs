@@ -827,10 +827,7 @@ fn post_process_for_server(source: &str) -> String {
         let call_start = pos + 11;
         let content_end = find_matching_paren(&s[call_start..])?;
         let content = s[call_start..call_start + content_end].trim();
-        Some((
-            call_start + content_end + 1,
-            format!("{content}?.()"),
-        ))
+        Some((call_start + content_end + 1, format!("{content}?.()")))
     });
 
     // Replace $.get(x) for server modules:

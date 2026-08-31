@@ -1657,6 +1657,60 @@ fn tag_legacy_source(call: String, name: &str, dev: bool) -> String {
     }
 }
 
+/// Split `<indent><keyword> ` / the comment run that follows it / the declarator,
+/// for a declaration `declaration_split` rebuilt. `None` when the keyword is
+/// followed directly by its declarator, which is every other declaration.
+fn split_keyword_comment_run(line: &str) -> Option<(&str, &str, &str)> {
+    let indent_len = line.len() - line.trim_start().len();
+    let trimmed = &line[indent_len..];
+    let keyword = ["let ", "const ", "var "]
+        .into_iter()
+        .find(|keyword| trimmed.starts_with(keyword))?;
+    let head_len = indent_len + keyword.len();
+    let mut at = head_len;
+    let bytes = line.as_bytes();
+    let mut found = false;
+    loop {
+        while bytes.get(at).is_some_and(|b| matches!(b, b' ' | b'\t')) {
+            at += 1;
+        }
+        if line[at..].starts_with("//") {
+            at += line[at..].find('\n')? + 1;
+        } else if line[at..].starts_with("/*") {
+            at += line[at..].find("*/")? + 2;
+        } else if bytes.get(at) == Some(&b'\n') && found {
+            at += 1;
+        } else {
+            break;
+        }
+        found = true;
+    }
+    found.then(|| (&line[..head_len], &line[head_len..at], &line[at..]))
+}
+
+/// Is `pos` at the statement's own brace depth, rather than inside a function or
+/// block the statement contains?
+///
+/// The caller hands this pipeline one top-level instance statement at a time, and
+/// a legacy state variable is always declared at that level — upstream promotes
+/// only a top-level `let`. Without the check a `function go() { let v = 0; }`
+/// whose local shadows the state variable had its LOCAL declaration lowered to
+/// `$.mutable_source`, allocating a signal per call.
+fn at_statement_top_level(text: &str, pos: usize) -> bool {
+    let mut depth = 0i32;
+    for (i, byte) in code_bytes(text.as_bytes()) {
+        if i >= pos {
+            break;
+        }
+        match byte {
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+    }
+    depth == 0
+}
+
 /// Transform legacy state declarations to $.mutable_source() calls.
 ///
 /// In legacy (non-runes) mode, variables that are promoted to State kind
@@ -1675,6 +1729,21 @@ pub(super) fn transform_legacy_state_declarations<'a>(
 ) -> Cow<'a, str> {
     if legacy_state_vars.is_empty() {
         return Cow::Borrowed(line);
+    }
+
+    // `declaration_split` prints a rebuilt declaration's comments between the
+    // keyword and the declarator, and every needle below is the literal
+    // `"<keyword> <var> ="`. Transform the comment-free form and print the
+    // comments back, or a commented declaration silently keeps its raw value
+    // and loses its reactivity.
+    if let Some((head, comments, tail)) = split_keyword_comment_run(line) {
+        let inner = format!("{head}{tail}");
+        let transformed =
+            transform_legacy_state_declarations(&inner, legacy_state_vars, immutable, dev);
+        return match transformed.strip_prefix(head) {
+            Some(rest) => Cow::Owned(format!("{head}{comments}{rest}")),
+            None => Cow::Owned(transformed.into_owned()),
+        };
     }
 
     // Handle multi-declarator statements like `let a = 1, b = 2, c = 3;`
@@ -1729,6 +1798,10 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                 let mut search_offset = 0;
                 while let Some(rel_pos) = result[search_offset..].find(&pattern_with_init) {
                     let pos = search_offset + rel_pos;
+                    if !at_statement_top_level(&result, pos) {
+                        search_offset = pos + pattern_with_init.len();
+                        continue;
+                    }
                     let after_raw = &result[pos + pattern_with_init.len()..];
 
                     // Skip `==` / `=>` — those aren't an assignment `=`.
@@ -1806,7 +1879,9 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                 if matched {
                     break;
                 }
-                if let Some(pos) = result.find(pat.as_str()) {
+                if let Some(pos) = result.find(pat.as_str())
+                    && at_statement_top_level(&result, pos)
+                {
                     // Find the `=` that ends the type annotation, respecting nested braces/brackets.
                     let type_start = pos + pat.len();
                     let mut depth = 0i32;
@@ -1881,6 +1956,10 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                 let mut search_offset = 0;
                 while let Some(rel_pos) = result[search_offset..].find(&pattern_no_init) {
                     let pos = search_offset + rel_pos;
+                    if !at_statement_top_level(&result, pos) {
+                        search_offset = pos + pattern_no_init.len();
+                        continue;
+                    }
 
                     // Check if this declaration is inside a for-loop header
                     let chars: Vec<char> = result.chars().collect();
@@ -1926,6 +2005,10 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                 let mut search_offset = 0;
                 while let Some(rel_pos) = result[search_offset..].find(&pattern_no_semi) {
                     let pos = search_offset + rel_pos;
+                    if !at_statement_top_level(&result, pos) {
+                        search_offset = pos + pattern_no_semi.len();
+                        continue;
+                    }
                     let after_pos = pos + pattern_no_semi.len();
                     let is_end = after_pos >= result.len()
                         || result[after_pos..]

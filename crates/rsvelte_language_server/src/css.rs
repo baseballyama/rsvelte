@@ -261,6 +261,75 @@ fn selector_completions(text: &str, marker: char, prefix: &str) -> CompletionLis
     }
 }
 
+/// `getIdClassCompletion.ts`: a `class=` / `id=` value, and the name after
+/// `class:`, are completed from the selectors the component's own `<style>`
+/// declares. Upstream neither deduplicates nor filters by what has been typed,
+/// and labels the selector without its `.` or `#`.
+#[must_use]
+pub fn id_class_completions(text: &str, node_type: &str) -> CompletionList {
+    // Upstream reads `document.stylesheet`, which is parsed from the extracted
+    // style region alone — a completion is asked for while the markup around it
+    // is half-typed, so parsing the whole component would answer nothing.
+    let style = style_element(text).unwrap_or("");
+    let allocator = rsvelte_core::Allocator::default();
+    // `defer_script_parse` would also defer the CSS rules, and the rules are
+    // exactly what is being collected here.
+    let options = rsvelte_core::ParseOptions {
+        skip_expression_loc: true,
+        lenient_script: true,
+        ..rsvelte_core::ParseOptions::default()
+    };
+    let mut items = Vec::new();
+    if let Ok(root) = rsvelte_core::parse(style, &allocator, options)
+        && let Some(css) = root.css.as_deref()
+    {
+        for child in &css.children {
+            collect_selectors(child, node_type, &mut items);
+        }
+    }
+    CompletionList {
+        is_incomplete: false,
+        items,
+    }
+}
+
+/// The whole `<style …>…</style>` element, which on its own is a valid
+/// component however broken the markup it was lifted out of is.
+fn style_element(text: &str) -> Option<&str> {
+    let open = text.find("<style")?;
+    let end = text[open..].find("</style").and_then(|at| {
+        text[open + at..]
+            .find('>')
+            .map(|close| open + at + close + 1)
+    })?;
+    Some(&text[open..end])
+}
+
+fn collect_selectors(node: &serde_json::Value, node_type: &str, items: &mut Vec<CompletionItem>) {
+    if node.get("type").and_then(serde_json::Value::as_str) == Some(node_type)
+        && let Some(name) = node.get("name").and_then(serde_json::Value::as_str)
+    {
+        items.push(CompletionItem {
+            label: name.to_string(),
+            kind: Some(CompletionItemKind::KEYWORD),
+            ..CompletionItem::default()
+        });
+    }
+    match node {
+        serde_json::Value::Array(children) => {
+            for child in children {
+                collect_selectors(child, node_type, items);
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for value in fields.values() {
+                collect_selectors(value, node_type, items);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn word_at(text: &str, offset: usize) -> Option<&str> {
     let start = text[..offset.min(text.len())]
         .char_indices()
@@ -354,6 +423,44 @@ mod tests {
         assert!(
             labels("<div class=\"button\" id=\"main\"></div><style>#ma")
                 .contains(&"#main".to_string())
+        );
+    }
+
+    #[test]
+    fn completes_a_class_and_an_id_attribute_from_the_stylesheet() {
+        // Upstream returns every matching selector, unfiltered and undeduplicated,
+        // labelled without its `.` or `#` — so each half is asserted on its own.
+        let source = "<div></div><style>.a{} .b{} .a{} #c{}</style>";
+        assert_eq!(
+            id_class_completions(source, "ClassSelector")
+                .items
+                .iter()
+                .map(|item| item.label.clone())
+                .collect::<Vec<_>>(),
+            vec!["a", "b", "a"],
+        );
+        assert_eq!(
+            id_class_completions(source, "IdSelector")
+                .items
+                .iter()
+                .map(|item| item.label.clone())
+                .collect::<Vec<_>>(),
+            vec!["c"],
+        );
+    }
+
+    #[test]
+    fn completes_a_stylesheet_the_broken_markup_around_it_cannot_be_parsed_with() {
+        // The position a completion is asked from — `id=` with no value yet —
+        // is itself what stops the component parsing, so a whole-document parse
+        // answers nothing here.
+        assert_eq!(
+            id_class_completions("<div id=></div><style>#abc{}</style>", "IdSelector")
+                .items
+                .iter()
+                .map(|item| item.label.clone())
+                .collect::<Vec<_>>(),
+            vec!["abc"],
         );
     }
 

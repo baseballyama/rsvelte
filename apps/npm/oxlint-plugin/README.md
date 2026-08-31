@@ -127,6 +127,12 @@ will lift as it matures:
   diagnostics point at the top of the `<script>` block; the true location is in
   the message text (`[line:column] …`).
 - **No autofix.** rsvelte's fixes are not yet bridged to oxlint's `--fix`.
+- **An off-by-default rule cannot be switched on from `.oxlintrc.json`.** The
+  plugin runs rsvelte's engine with its own default preset and then surfaces what
+  came back, so an oxlint `rules` entry can turn a rule *off* but not on. Rules
+  `recommended.json` omits (`svelte/prefer-const` among them, matching
+  eslint-plugin-svelte's `recommended: false`) are reachable through
+  [`rsvelte-lint`](https://www.npmjs.com/package/@rsvelte/lint) instead.
 
 For pixel-accurate markup positions and full scriptless coverage today, use
 [`rsvelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check) or the

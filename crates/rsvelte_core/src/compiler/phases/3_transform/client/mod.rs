@@ -50,6 +50,7 @@ mod rune_transforms;
 mod sanitized_props;
 mod scan_index;
 mod scope_analysis;
+mod signal_discipline;
 pub(crate) mod source_anchor;
 mod state_assigns_combined_ast;
 mod state_call_ast;
@@ -90,7 +91,7 @@ use store_transforms::*;
 pub(crate) use class_transforms::transform_class_fields_client;
 use class_transforms::transform_module_class_fields_client;
 pub(crate) use expression_utils::find_matching_paren;
-pub(crate) use formatting::normalize_js_with_oxc;
+pub(crate) use formatting::{normalize_js_with_oxc, normalize_js_with_oxc_lead};
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -614,8 +615,18 @@ pub(crate) fn transform_client(
             .filter(|(_, transform)| transform.assign.is_some())
             .map(|(name, _)| name.clone())
             .collect();
-        let dead_comment_rules =
-            dead_comments::Rules::component(analysis.runes, &destructure_iife_targets);
+        let invalidate_inner_signals_targets: Vec<String> = analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|binding| !binding.legacy_indirect_bindings.is_empty())
+            .map(|binding| binding.name.clone())
+            .collect();
+        let dead_comment_rules = dead_comments::Rules::component(
+            analysis.runes,
+            &destructure_iife_targets,
+            &invalidate_inner_signals_targets,
+        );
         let dead_comments_stripped = match retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
             .filter(|retained| {
@@ -1385,6 +1396,9 @@ pub(crate) fn transform_client(
         // content is always emitted at the function body level.
         let script_indent = 1usize;
         let trimmed = transformed_script.trim();
+        // Upstream dedents a block comment by its opener line's indentation,
+        // which the trim above removes when the script opens with one.
+        let script_lead = formatting::leading_indent(&transformed_script).to_string();
         // `content.start` is the byte right after `<script>`, which resolves to a
         // column past the end of that line; anchor the chunk at its first token.
         let script_source_offset = source
@@ -1412,7 +1426,11 @@ pub(crate) fn transform_client(
                     options.dev,
                 ) {
                     let cleaned_output = strip_async_noop_placeholders(async_result.output.trim());
-                    let normalized = normalize_js_with_oxc(cleaned_output.trim(), script_indent);
+                    let normalized = normalize_js_with_oxc_lead(
+                        cleaned_output.trim(),
+                        script_indent,
+                        &script_lead,
+                    );
                     component_body.push(script_raw_statement(
                         normalized,
                         script_source_offset,
@@ -1431,7 +1449,8 @@ pub(crate) fn transform_client(
                     // No top-level await: strip any async noop placeholders
                     let cleaned = strip_async_noop_placeholders(trimmed);
                     if !cleaned.trim().is_empty() {
-                        let normalized = normalize_js_with_oxc(cleaned.trim(), script_indent);
+                        let normalized =
+                            normalize_js_with_oxc_lead(cleaned.trim(), script_indent, &script_lead);
                         component_body.push(script_raw_statement(
                             normalized,
                             script_source_offset,
@@ -1453,7 +1472,8 @@ pub(crate) fn transform_client(
                     // Normalize raw JavaScript formatting using OXC to match
                     // the official Svelte compiler's esrap output (consistent spacing,
                     // semicolons, etc.)
-                    let normalized = normalize_js_with_oxc(trimmed, script_indent);
+                    let normalized =
+                        normalize_js_with_oxc_lead(trimmed, script_indent, &script_lead);
                     let retained = retained_scripts
                         .and_then(|scripts| scripts.instance.as_ref())
                         .filter(|retained| {
@@ -2194,9 +2214,14 @@ pub(crate) fn transform_client(
             } else {
                 None
             };
-            // Strip TypeScript syntax before processing
-            let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
-                trace_lowered.as_deref().unwrap_or(&module_content.raw),
+            // ScriptContent is already TypeScript-stripped. Only the trace pass
+            // starts again from original source and therefore needs stripping
+            // here. Keeping the ordinary path byte-identical to its recorded
+            // projection is required to remove comments re-emitted from erased
+            // type declarations by their output ranges below.
+            let raw = trace_lowered.as_deref().map_or_else(
+                || module_content.raw.clone(),
+                crate::compiler::phases::phase2_analyze::types::strip_typescript,
             );
             // Phase 2 preserves comments from erased TypeScript declarations for
             // instance scripts, whose located component block lets esrap print
@@ -2778,12 +2803,14 @@ pub(crate) fn transform_client(
                 super::shared::module_tail_comment::rehome(
                     code,
                     &script.raw,
+                    script.source_projection.as_ref(),
                     &analysis.name,
                     &mut mappings,
                 )
             } else {
                 code
             };
+            signal_discipline::check(&code, &analysis.name);
             return Ok(CodegenResult { code, mappings });
         } else if *CLIENT_TO_OXC_DEBUG {
             // Corpus workers share one stderr and a multi-part write interleaves,
@@ -2805,6 +2832,7 @@ pub(crate) fn transform_client(
                     result.code = super::shared::module_tail_comment::rehome(
                         result.code,
                         &script.raw,
+                        script.source_projection.as_ref(),
                         &analysis.name,
                         &mut result.mappings,
                     );
@@ -2828,10 +2856,17 @@ pub(crate) fn transform_client(
             code
         };
         let code = if let Some(script) = analysis.module_script_content.as_ref() {
-            super::shared::module_tail_comment::rehome(code, &script.raw, &analysis.name, &mut [])
+            super::shared::module_tail_comment::rehome(
+                code,
+                &script.raw,
+                script.source_projection.as_ref(),
+                &analysis.name,
+                &mut [],
+            )
         } else {
             code
         };
+        signal_discipline::check(&code, &analysis.name);
         Ok(CodegenResult {
             code,
             mappings: vec![],
@@ -3196,6 +3231,183 @@ fn common_run(left: &[u8], right: &[u8]) -> usize {
         .count()
 }
 
+/// Locate `$.prop` callees that came specifically from `$bindable` defaults.
+///
+/// The props lowering preserves that fact in the numeric flags argument, so
+/// this does not confuse an ordinary prop initializer with a bindable one.
+/// Pairing is deliberately all-or-nothing: a bindable declaration which was
+/// optimized away would otherwise shift every later source location.
+fn bindable_prop_callee_spans(code: &str, source: &str) -> Vec<(usize, usize)> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::find_code_from;
+
+    const GENERATED: &[u8] = b"$.prop(";
+    const SOURCE: &[u8] = b"$bindable";
+    const PROPS_IS_BINDABLE: u32 = 1 << 3;
+
+    let mut generated = Vec::new();
+    let mut from = 0;
+    while let Some(start) = find_code_from(code.as_bytes(), GENERATED, from) {
+        let args_start = start + GENERATED.len();
+        let mut depth = 0u32;
+        let mut commas = Vec::new();
+        let mut close = None;
+        for (offset, byte) in
+            crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes_from(
+                code.as_bytes(),
+                args_start,
+            )
+        {
+            match byte {
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' if depth == 0 => {
+                    close = Some(offset);
+                    break;
+                }
+                b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+                b',' if depth == 0 => commas.push(offset),
+                _ => {}
+            }
+        }
+        let flag_end = commas.get(2).copied().or(close);
+        if let (Some(flag_start), Some(flag_end)) = (commas.get(1).map(|at| at + 1), flag_end)
+            && code[flag_start..flag_end]
+                .trim()
+                .parse::<u32>()
+                .is_ok_and(|flags| flags & PROPS_IS_BINDABLE != 0)
+        {
+            generated.push(start);
+        }
+        from = start + GENERATED.len();
+    }
+
+    let mut bindable = Vec::new();
+    let mut from = 0;
+    while let Some(start) = find_code_from(source.as_bytes(), SOURCE, from) {
+        bindable.push(start);
+        from = start + SOURCE.len();
+    }
+
+    if generated.len() == bindable.len() {
+        generated.into_iter().zip(bindable).collect()
+    } else {
+        Vec::new()
+    }
+}
+
+/// Pair the rest-props helper emitted for a `$props()` destructuring declaration
+/// with that rune's source location. A declaration without a rest element emits
+/// no helper, so only an equal population is safe to pair positionally.
+fn rest_props_callee_spans(code: &str, source: &str) -> Vec<(usize, usize)> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::find_code_from;
+
+    fn occurrences(code: &str, needle: &[u8]) -> Vec<usize> {
+        let mut found = Vec::new();
+        let mut from = 0;
+        while let Some(start) = find_code_from(code.as_bytes(), needle, from) {
+            found.push(start);
+            from = start + needle.len();
+        }
+        found
+    }
+
+    let generated = occurrences(code, b"$.rest_props(");
+    let props = occurrences(source, b"$props(");
+    if generated.len() == props.len() {
+        generated.into_iter().zip(props).collect()
+    } else {
+        Vec::new()
+    }
+}
+
+/// Replace copied mappings under a generated callee with the explicit
+/// lowering location. The endpoint marker permits generated and source callee
+/// lengths to differ, while the following `(` remains mappable.
+fn overlay_lowered_callee_spans(
+    spans: &mut Vec<RawMappedSpan>,
+    pairs: &[(usize, usize)],
+    original_offset: u32,
+    source_at_output: Option<&[Option<u32>]>,
+    generated_len: u32,
+    source_len: u32,
+) {
+    for &(generated, source) in pairs {
+        let start = generated as u32;
+        let end = start + generated_len;
+        let delimiter_end = end + 1;
+        let mut kept = Vec::with_capacity(spans.len() + 3);
+        for mut span in spans.drain(..) {
+            // A zero-width resynchronization marker at the callee start has no
+            // copied byte to preserve. Keeping it beside the explicit overlay
+            // makes `source_offset` prefer the stale marker for the generated
+            // member expression's start, while its property uses the overlay.
+            if span.code.start == span.code.end
+                && span.code.start >= start
+                && span.code.start < delimiter_end
+            {
+                continue;
+            }
+            // `RestoreRawMappedSpans` normally gives a copied run precedence
+            // at a touching endpoint. This overlay is more specific, so keep
+            // every copied byte before it but drop that run's synthetic end
+            // position; otherwise the callee's `$` inherits the old mapping
+            // while only its property name receives the lowering location.
+            if span.code.start < start && span.code.end == start {
+                span.code.end -= 1;
+                span.source.end = span.source.end.saturating_sub(1);
+            }
+            if span.code.end < start || span.code.start >= delimiter_end {
+                kept.push(span);
+                continue;
+            }
+            if span.code.start < start {
+                let shared_len = (start - span.code.start)
+                    .min(span.source.end.saturating_sub(span.source.start));
+                if shared_len != 0 {
+                    kept.push(RawMappedSpan {
+                        code: span.code.start..span.code.start + shared_len,
+                        source: span.source.start..span.source.start + shared_len,
+                        erased_comment_before_export_prop: span.erased_comment_before_export_prop,
+                    });
+                }
+            }
+            if span.code.end > delimiter_end {
+                let shared_len = (span.code.end - delimiter_end)
+                    .min(span.source.end.saturating_sub(span.source.start));
+                if shared_len != 0 {
+                    kept.push(RawMappedSpan {
+                        code: span.code.end - shared_len..span.code.end,
+                        source: span.source.end - shared_len..span.source.end,
+                        erased_comment_before_export_prop: span.erased_comment_before_export_prop,
+                    });
+                }
+            }
+        }
+        let source_start = source_at_output
+            .and_then(|table| table.get(source).copied().flatten())
+            .unwrap_or(original_offset + source as u32);
+        let source_end = source_at_output
+            .and_then(|table| table.get(source + source_len as usize).copied().flatten())
+            .unwrap_or(source_start + source_len);
+        kept.push(RawMappedSpan {
+            code: start..end,
+            source: source_start..source_start + generated_len,
+            erased_comment_before_export_prop: false,
+        });
+        kept.push(RawMappedSpan {
+            code: end..end,
+            source: source_end..source_end,
+            erased_comment_before_export_prop: false,
+        });
+        kept.push(RawMappedSpan {
+            code: end..delimiter_end,
+            source: source_end..source_end + 1,
+            erased_comment_before_export_prop: false,
+        });
+        *spans = kept;
+    }
+    spans.sort_by_key(|span| span.code.start);
+}
+
 /// Align normalized raw output with the stripped script, then project every
 /// unchanged byte back through TypeScript erasure to its component offset.
 /// Formatting may add whitespace or a semicolon, so unmatched bytes are left
@@ -3206,6 +3418,8 @@ fn copied_spans_for_normalized_code(
     original_offset: u32,
     projection: Option<&ScriptProjection>,
 ) -> Vec<RawMappedSpan> {
+    let bindable_prop_spans = bindable_prop_callee_spans(code, stripped);
+    let rest_props_spans = rest_props_callee_spans(code, stripped);
     // Without TypeScript erasure the stripped script *is* the source slice, so
     // every byte projects back at its own offset: the per-byte table would hold
     // `Some(original_offset + i)` at every `i` and the split loop below could
@@ -3390,6 +3604,22 @@ fn copied_spans_for_normalized_code(
             }
         }
     }
+    overlay_lowered_callee_spans(
+        &mut spans,
+        &bindable_prop_spans,
+        original_offset,
+        source_at_output.as_deref(),
+        "$.prop".len() as u32,
+        "$bindable".len() as u32,
+    );
+    overlay_lowered_callee_spans(
+        &mut spans,
+        &rest_props_spans,
+        original_offset,
+        source_at_output.as_deref(),
+        "$.rest_props".len() as u32,
+        "$props".len() as u32,
+    );
     spans
 }
 
@@ -3759,6 +3989,47 @@ impl ScanState {
     }
 }
 
+/// The comments that live inside a hoisted import's own span, in source order.
+///
+/// Upstream removes the declaration node, so esrap's cursor flushes these onto
+/// the next located statement INSIDE the component function; carrying them out
+/// with the hoisted text loses them, because the module-scope printer never
+/// emits them. Comments leading, trailing or between imports are already routed
+/// to the body by the line scan and never reach here.
+fn import_span_comments(import_text: &str) -> Vec<(usize, String)> {
+    crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(
+        import_text.as_bytes(),
+    )
+    .into_iter()
+    .filter_map(|(start, end)| {
+        let text = import_text.get(start..end)?.trim_end();
+        (!text.is_empty()).then(|| (start, text.to_string()))
+    })
+    .collect()
+}
+
+/// Hoist `text` as an import, recording the comments inside its span — with
+/// their offsets in `text` — so the caller can put them back into the body.
+fn hoist_import(imports: &mut Vec<String>, comments: &mut Vec<(usize, String)>, text: String) {
+    comments.extend(import_span_comments(&text));
+    imports.push(text);
+}
+
+/// [`hoist_import`] for the port that needs no source positions.
+fn hoist_import_text(imports: &mut Vec<String>, body: &mut Vec<String>, text: String) {
+    let mut spanned = Vec::new();
+    hoist_import(imports, &mut spanned, text);
+    body.extend(spanned.into_iter().map(|(_, comment)| comment));
+}
+
+/// [`peel_leading_imports`] for the same port.
+fn peel_leading_imports_text(s: &str, imports: &mut Vec<String>, body: &mut Vec<String>) -> String {
+    let mut spanned = Vec::new();
+    let remainder = peel_leading_imports(s, imports, &mut spanned);
+    body.extend(spanned.into_iter().map(|(_, comment)| comment));
+    remainder
+}
+
 pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = Vec::new();
@@ -3796,17 +4067,18 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                     && !trimmed[end..].trim().is_empty()
                 {
                     import_lines.push(trimmed[..end].to_string());
-                    imports.push(import_lines.join("\n"));
+                    hoist_import_text(&mut imports, &mut rest, import_lines.join("\n"));
                     current_import = None;
                     // The remainder may itself begin with further imports packed
                     // on the same line; peel them all before routing the rest.
-                    let remainder = peel_leading_imports(&trimmed[end..], &mut imports);
+                    let remainder =
+                        peel_leading_imports_text(&trimmed[end..], &mut imports, &mut rest);
                     if !remainder.trim().is_empty() {
                         rest.push(remainder);
                     }
                 } else {
                     import_lines.push(line.to_string());
-                    imports.push(import_lines.join("\n"));
+                    hoist_import_text(&mut imports, &mut rest, import_lines.join("\n"));
                     current_import = None;
                 }
             } else {
@@ -3833,7 +4105,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                     // so each is hoisted, then route any trailing non-import code
                     // through `rest` so it is transformed normally instead of
                     // being swallowed into the import string.
-                    let remainder = peel_leading_imports(trimmed, &mut imports);
+                    let remainder = peel_leading_imports_text(trimmed, &mut imports, &mut rest);
                     if !remainder.trim().is_empty() {
                         rest.push(remainder);
                     }
@@ -3851,7 +4123,7 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
 
     // If we ended inside an import (shouldn't happen with valid code), add remaining as import
     if let Some(import_lines) = current_import {
-        imports.push(import_lines.join("\n"));
+        hoist_import_text(&mut imports, &mut rest, import_lines.join("\n"));
     }
 
     (imports, rest.join("\n"))
@@ -3862,10 +4134,81 @@ struct ExtractedSourcePart {
     source: std::ops::Range<u32>,
 }
 
+/// Hoist the accumulated `parts` of one import, putting the comments inside its
+/// span back into `rest` at the position the import occupied.
+///
+/// A comment keeps its real source range when the script slice still spells it,
+/// so the projection stays honest; otherwise it is emitted with an empty range,
+/// which `push_projection_chunk` skips rather than claim wrongly.
+fn flush_import(
+    imports: &mut Vec<String>,
+    rest: &mut Vec<ExtractedSourcePart>,
+    script: &str,
+    parts: Vec<(usize, String)>,
+) {
+    let joined = parts
+        .iter()
+        .map(|(_, text)| text.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    for (at, comment) in import_span_comments(&joined) {
+        rest.push(ExtractedSourcePart {
+            source: absolute_span(script, &parts, at, &comment),
+            text: comment,
+        });
+    }
+    imports.push(joined);
+}
+
+/// The source range of `comment`, found at `at` in the joined text of `parts`,
+/// or an empty range when the script does not spell the same bytes there.
+fn absolute_span(
+    script: &str,
+    parts: &[(usize, String)],
+    at: usize,
+    comment: &str,
+) -> std::ops::Range<u32> {
+    let mut joined_start = 0usize;
+    for (start, text) in parts {
+        if at >= joined_start && at < joined_start + text.len() {
+            let absolute = start + (at - joined_start);
+            if script.get(absolute..absolute + comment.len()) == Some(comment) {
+                return absolute as u32..(absolute + comment.len()) as u32;
+            }
+            break;
+        }
+        joined_start += text.len() + 1;
+    }
+    0..0
+}
+
+/// Move the comments a peel reported — offsets relative to the peeled slice —
+/// into `rest`, at the position the imports occupied.
+fn drain_peeled_comments(
+    rest: &mut Vec<ExtractedSourcePart>,
+    script: &str,
+    comments: &mut Vec<(usize, String)>,
+    base: usize,
+) {
+    for (at, comment) in comments.drain(..) {
+        let absolute = base + at;
+        let source = if script.get(absolute..absolute + comment.len()) == Some(comment.as_str()) {
+            absolute as u32..(absolute + comment.len()) as u32
+        } else {
+            0..0
+        };
+        rest.push(ExtractedSourcePart {
+            text: comment,
+            source,
+        });
+    }
+}
+
 fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<CopiedSourceChunk>) {
     let mut imports = Vec::new();
+    let mut peeled_comments: Vec<(usize, String)> = Vec::new();
     let mut rest: Vec<ExtractedSourcePart> = Vec::new();
-    let mut current_import: Option<Vec<String>> = None;
+    let mut current_import: Option<Vec<(usize, String)>> = None;
     let mut carry = ImportCarry::default();
     let mut scan = ScanState::default();
     let mut line_start = 0usize;
@@ -3894,13 +4237,27 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
                 {
-                    import_lines.push(trimmed[..end].to_string());
-                    imports.push(import_lines.join("\n"));
-                    current_import = None;
                     let trimmed_start = line.len() - line.trim_start().len();
+                    import_lines.push((line_start + trimmed_start, trimmed[..end].to_string()));
+                    flush_import(
+                        &mut imports,
+                        &mut rest,
+                        script,
+                        std::mem::take(import_lines),
+                    );
+                    current_import = None;
                     let remainder_source_start = trimmed_start + end;
-                    let (remainder, remainder_offset) =
-                        peel_leading_imports_ref(&trimmed[end..], &mut imports);
+                    let (remainder, remainder_offset) = peel_leading_imports_ref(
+                        &trimmed[end..],
+                        &mut imports,
+                        &mut peeled_comments,
+                    );
+                    drain_peeled_comments(
+                        &mut rest,
+                        script,
+                        &mut peeled_comments,
+                        line_start + remainder_source_start,
+                    );
                     if !remainder.trim().is_empty() {
                         rest.push(ExtractedSourcePart {
                             text: remainder.to_string(),
@@ -3912,12 +4269,17 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                         });
                     }
                 } else {
-                    import_lines.push(line.to_string());
-                    imports.push(import_lines.join("\n"));
+                    import_lines.push((line_start, line.to_string()));
+                    flush_import(
+                        &mut imports,
+                        &mut rest,
+                        script,
+                        std::mem::take(import_lines),
+                    );
                     current_import = None;
                 }
             } else {
-                import_lines.push(line.to_string());
+                import_lines.push((line_start, line.to_string()));
             }
         } else {
             let trimmed = line.trim();
@@ -3934,7 +4296,13 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                 {
                     let trimmed_start = line.len() - line.trim_start().len();
                     let (remainder, remainder_offset) =
-                        peel_leading_imports_ref(trimmed, &mut imports);
+                        peel_leading_imports_ref(trimmed, &mut imports, &mut peeled_comments);
+                    drain_peeled_comments(
+                        &mut rest,
+                        script,
+                        &mut peeled_comments,
+                        line_start + trimmed_start,
+                    );
                     if !remainder.trim().is_empty() {
                         rest.push(ExtractedSourcePart {
                             text: remainder.to_string(),
@@ -3944,7 +4312,7 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                         });
                     }
                 } else {
-                    current_import = Some(vec![line.to_string()]);
+                    current_import = Some(vec![(line_start, line.to_string())]);
                     carry = scanned.carry;
                     carry.expect_attributes |= attributes_follow;
                 }
@@ -3959,7 +4327,7 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
     }
 
     if let Some(import_lines) = current_import {
-        imports.push(import_lines.join("\n"));
+        flush_import(&mut imports, &mut rest, script, import_lines);
     }
 
     let mut output = String::new();
@@ -4271,11 +4639,19 @@ fn strip_line_terminator(physical_line: &str) -> &str {
 /// `import a from 'x';import b from 'y';` → both hoisted, empty tail. Stops at
 /// the first non-import token or an *incomplete* import (one that continues on a
 /// following line) and returns it so the caller can route it.
-fn peel_leading_imports(s: &str, imports: &mut Vec<String>) -> String {
-    peel_leading_imports_ref(s, imports).0.to_string()
+fn peel_leading_imports(
+    s: &str,
+    imports: &mut Vec<String>,
+    comments: &mut Vec<(usize, String)>,
+) -> String {
+    peel_leading_imports_ref(s, imports, comments).0.to_string()
 }
 
-fn peel_leading_imports_ref<'a>(s: &'a str, imports: &mut Vec<String>) -> (&'a str, usize) {
+fn peel_leading_imports_ref<'a>(
+    s: &'a str,
+    imports: &mut Vec<String>,
+    comments: &mut Vec<(usize, String)>,
+) -> (&'a str, usize) {
     let mut offset = s.len() - s.trim_start().len();
     let mut cur = &s[offset..];
     while cur.starts_with("import ") || cur.starts_with("import{") {
@@ -4283,7 +4659,14 @@ fn peel_leading_imports_ref<'a>(s: &'a str, imports: &mut Vec<String>) -> (&'a s
             break;
         };
         let (import_part, remainder) = cur.split_at(end);
-        imports.push(import_part.trim().to_string());
+        let trimmed_lead = import_part.len() - import_part.trim_start().len();
+        let mut peeled = Vec::new();
+        hoist_import(imports, &mut peeled, import_part.trim().to_string());
+        comments.extend(
+            peeled
+                .into_iter()
+                .map(|(at, text)| (offset + trimmed_lead + at, text)),
+        );
         let whitespace = remainder.len() - remainder.trim_start().len();
         offset += end + whitespace;
         cur = &s[offset..];
@@ -6458,6 +6841,31 @@ fn drop_trailing_svelte_ignore(output: &mut String) {
     }
 }
 
+/// Split off the run of whole-line comments that ends `result`, returning it
+/// (including the newline that starts it) with `result` truncated.
+fn split_trailing_comment_run(result: &mut String) -> Option<String> {
+    let ranges = crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(
+        result.as_bytes(),
+    );
+    let mut boundary = result.len();
+    let mut run_start = None;
+    for &(start, end) in ranges.iter().rev() {
+        if end > boundary || !result[end..boundary].trim().is_empty() {
+            break;
+        }
+        // A comment that trails code on its line belongs to that statement.
+        let line_start = result[..start].rfind('\n').map_or(0, |newline| newline + 1);
+        if !result[line_start..start].trim().is_empty() {
+            break;
+        }
+        run_start = Some(line_start);
+        boundary = line_start;
+    }
+    // A run that starts the text has no statement to follow; leave it alone.
+    let cut = run_start?.checked_sub(1)?;
+    Some(result.split_off(cut))
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -6546,12 +6954,36 @@ fn transform_instance_script_for_visitors(
     let pn_entry_text: &str = script;
     super::profile::record_pn(super::profile::PN_FILES);
 
+    // Decided before any rewrite, on the source the reactive spans describe.
+    let tail_comment_outlives_effects = !analysis.runes
+        && legacy_script_has_dollar_token(script)
+        && formatting::reactive_tail_comment_outlives_effects(script);
     let script: std::borrow::Cow<str> = if analysis.runes || !legacy_script_has_dollar_token(script)
     {
         std::borrow::Cow::Borrowed(script)
     } else {
         super::profile::record_pn(super::profile::PN_INV_COMMENTS);
-        let out = rehome_reactive_statement_comments(script);
+        // Only the `$.invalidate_inner_signals` kill is consulted: the
+        // destructure-IIFE targets live in the visitor state the caller holds,
+        // and a re-home after one of those is the behaviour this had before.
+        let invalidate_targets: Vec<String> = analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|binding| !binding.legacy_indirect_bindings.is_empty())
+            .map(|binding| binding.name.clone())
+            .collect();
+        let liveness = (!invalidate_targets.is_empty()
+            && (memmem::find(script.as_bytes(), b"//").is_some()
+                || memmem::find(script.as_bytes(), b"/*").is_some()))
+        .then(|| {
+            dead_comments::cursor_liveness(
+                script,
+                dead_comments::Rules::component(false, &[], &invalidate_targets),
+            )
+        })
+        .flatten();
+        let out = rehome_reactive_statement_comments(script, liveness.as_ref());
         #[cfg(feature = "measure-pa-split")]
         if out != script {
             super::profile::record_pn(super::profile::PN_CHG_COMMENTS);
@@ -7047,7 +7479,12 @@ fn transform_instance_script_for_visitors(
                 {
                     format!("{}()", n)
                 }
-                Some(b) if matches!(b.kind, BK::StoreSub) => format!("{}()", n),
+                // This body is spliced into instance-script TEXT, which then has read
+                // transforms applied to it, so a store sub is written bare and gets its
+                // `()` from that pass — writing `$t()` here yields `$t()()`. The AST port
+                // in `wrap_with_legacy_invalidate` is emitted post-transform and does the
+                // opposite; the two are not interchangeable.
+                Some(b) if matches!(b.kind, BK::StoreSub) => n.to_string(),
                 Some(b)
                     if matches!(
                         b.kind,
@@ -8539,9 +8976,24 @@ fn transform_instance_script_for_visitors(
     // (order_reactive_statements in 2-analyze/index.js) and then iterates them
     // in that sorted order. We perform the topological sort here at emission time.
     if !pending_reactive_statements.is_empty() {
+        // Upstream prints the appended effects before the script-tail comment,
+        // so the comment has to end up past them here too — otherwise the
+        // cursor the effect body kills is never rewound onto it.
+        let trailing_comments = tail_comment_outlives_effects
+            .then(|| split_trailing_comment_run(&mut result))
+            .flatten();
+        // The split takes the newline that separated the last statement from the
+        // comment, so without restoring one the effects below are appended
+        // straight onto a semicolon-free declaration and fuse with it.
+        if trailing_comments.is_some() && !result.ends_with('\n') {
+            result.push('\n');
+        }
         let sorted = sort_reactive_statements(pending_reactive_statements);
         for (_, _, reactive_stmt) in &sorted {
             result.push_str(reactive_stmt);
+        }
+        if let Some(trailing) = trailing_comments {
+            result.push_str(&trailing);
         }
     }
 

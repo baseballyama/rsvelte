@@ -114,12 +114,18 @@ pub(super) fn collect_hug_mixed_non_ws_prefix(
     }
 }
 
-/// If `node` is a huggable display:inline element — single line, simple text
-/// content (no nested element tags), an open tag ending in `>` — return its
+/// If `node` is a huggable element — single line, simple text content (no nested
+/// element tags), an open tag ending in `>` — return its
 /// `(open_without_bracket, inner_content, tag)` for the hug break.
 pub(super) fn element_hug_parts(
     out: &str,
     node: &TemplateNode,
+    // A caller that splices `content` back verbatim can accept a nested element in
+    // it; one that treats it as a text run cannot.
+    allow_nested_element: bool,
+    // A display:block element never hugs, but a caller that emits the BLOCK form
+    // from these same three parts still needs them.
+    allow_block_display: bool,
 ) -> Option<(String, String, String)> {
     // Extract tag name, attributes, fragment start/end for both RegularElement
     // and Component variants (Components like `<A href="/">text</A>` appear in
@@ -127,7 +133,11 @@ pub(super) fn element_hug_parts(
     let (tag, attrs, frag, elem_start, elem_end) = match node {
         TemplateNode::RegularElement(e) => {
             let tag = e.name.as_str();
-            if is_block_display(tag) || is_inline_block(tag) || trims_edge_whitespace(tag) {
+            // `trims_edge_whitespace` already subsumes `is_block_display`, so the
+            // bypass has to name it here too — but only for the block-display half,
+            // never for the `slot` / `title` / `svelte:boundary` tags it also covers.
+            let bypass = allow_block_display && is_block_display(tag);
+            if is_inline_block(tag) || (trims_edge_whitespace(tag) && !bypass) {
                 return None;
             }
             (tag, &e.attributes, &e.fragment, e.start, e.end)
@@ -144,7 +154,7 @@ pub(super) fn element_hug_parts(
     let close = out.get(content_end..elem_end as usize)?;
     // Simple text content, an open tag closed by `>`, a real close tag.
     if content.contains('\n')
-        || content.contains('<')
+        || (!allow_nested_element && content.contains('<'))
         || content.is_empty()
         || !open.ends_with('>')
         || !close.starts_with("</")
@@ -194,6 +204,8 @@ pub(super) fn element_hug_parts(
 ///   {#if flag}<span
 ///       >long content</span
 ///     >{/if}
+/// A display:block body takes the block form instead — content on its own
+/// indented line, close tag on the next — because it never hugs.
 /// Returns the edit when the block currently renders all on one line and overflows.
 pub(super) fn try_hug_block_inline_body(
     out: &str,
@@ -216,7 +228,7 @@ pub(super) fn try_hug_block_inline_body(
         return None;
     }
     let elem = &body.nodes[0];
-    let (open_nb, content, tag) = element_hug_parts(out, elem)?;
+    let (open_nb, content, tag) = element_hug_parts(out, elem, true, true)?;
     let elem_start = node_start(elem) as usize;
     let elem_end = node_end(elem) as usize;
     // The block's close tag must glue directly to the element (no whitespace).
@@ -235,6 +247,14 @@ pub(super) fn try_hug_block_inline_body(
     }
     let prefix = out.get(s..elem_start)?; // block open tag (+ no leading ws)
     let (indent_unit, _) = indent_config(options);
+    // A display:block body never hugs: the content goes on its own indented line
+    // and the close tag on the next, with the block's own closer glued to it.
+    if is_block_display(&tag) {
+        let block = format!(
+            "{prefix}{open_nb}>\n{indent}{indent_unit}{indent_unit}{content}\n{indent}{indent_unit}</{tag}>{close}"
+        );
+        return (block != whole).then_some((start, end, block));
+    }
     let through_close_tag = format!("{indent}{prefix}{open_nb}>{content}</{tag}");
     let hug = if through_close_tag.visual_width(tw) > line_width {
         format!(

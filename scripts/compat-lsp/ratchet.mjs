@@ -44,13 +44,15 @@ export function aggregateCorpusDifferences(
             ),
       )
       .sort((left, right) => left.position.localeCompare(right.position));
-    // Neither the field count nor a digest of the per-request diffs reproduces:
-    // two full sweeps of one revision moved 664 of 16,348 keys on those two
-    // components alone, and none on the request count.
+    // The request count does not reproduce either, and it never discriminated:
+    // `fileId|method|phase` is already unique, so dropping it leaves all 23,890
+    // committed keys. Two CI runs whose merge refs share a `main` parent and
+    // differ by ten commits that touch NO Rust moved one file's hover count
+    // 91 -> 90 and 88 -> 90 — 2 NEW + 2 STALE and a red shard; with the count out
+    // of the key the same pair of runs is 0 and 0. It was sensitivity without
+    // direction: a shrink and a growth are both one NEW and one STALE.
     const stage = phase === OPEN_PHASE ? "" : `|phase=${phase}`;
-    entries.push(
-      `aggregate:${fileId}|${method}${stage}|divergentRequestCount=${normalized.length}`,
-    );
+    entries.push(`aggregate:${fileId}|${method}${stage}`);
   }
   return entries;
 }

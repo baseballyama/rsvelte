@@ -1039,7 +1039,9 @@ fn has_content(fragment: &Fragment) -> bool {
                     return true;
                 }
             }
-            TemplateNode::Comment(_) => {}
+            // Upstream has no Comment arm: a comment reaches the fall-through and
+            // counts as content, which is what keeps `<button><!-- x --><svg/></button>`
+            // out of the warning.
             _ => return true, // Assume everything else has content
         }
     }

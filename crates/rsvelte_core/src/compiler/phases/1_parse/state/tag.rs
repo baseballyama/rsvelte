@@ -675,7 +675,7 @@ impl<'a> Parser<'a> {
 
         // Parse the expression - propagate JS parse errors when not in loose mode
         // (corresponds to Svelte's read_expression call which throws on invalid JS)
-        let expression = self.parse_js_expression_strict(expr_content.trim_ws(), expr_start)?;
+        let expression = self.parse_js_expression_strict(expr_content, expr_start)?;
 
         Ok(Some(TemplateNode::ExpressionTag(Box::new(ExpressionTag {
             start: start as u32,
@@ -2674,18 +2674,25 @@ impl<'a> Parser<'a> {
         content: &str,
         offset: usize,
     ) -> crate::error::ParseResult<Expression<'a>> {
-        // In deferred mode, create a Lazy expression
-        if self.should_defer_template_parse() {
-            let trimmed = content.trim_ws();
-            if !trimmed.is_empty() {
-                let leading_ws = content.len() - content.trim_start_ws().len();
-                return Ok(Expression::Lazy {
-                    start: (offset + leading_ws) as u32,
-                    end: (offset + leading_ws + trimmed.len()) as u32,
-                    ts: self.ts,
-                    kind: LazyKind::Mustache,
-                });
-            }
+        // Keep comment-bearing bodies eager: their comment sink is drained at
+        // the end of phase 1, and a deferred comment-only body would also lose
+        // the closing-delimiter position when its trailing space is trimmed.
+        let leading_ws = content.len() - content.trim_start_ws().len();
+        let trimmed = content.trim_ws();
+        if let Some(lazy) = self.defer_expression(trimmed, offset + leading_ws, LazyKind::Mustache)
+        {
+            return Ok(lazy);
+        }
+        if !self.options.loose
+            && super::super::read::expression::is_code_empty(trimmed, self.ts)
+            && super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
+                .is_some_and(|(message, at)| message == "Unexpected token" && at == trimmed.len())
+        {
+            return Err(crate::error::ParseError::svelte(
+                "js_parse_error",
+                "Unexpected token",
+                (offset + content.len(), offset + content.len()),
+            ));
         }
 
         self.parse_js_expression_eager_strict(content, offset)

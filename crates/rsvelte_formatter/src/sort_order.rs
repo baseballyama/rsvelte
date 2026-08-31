@@ -130,31 +130,46 @@ impl SortOrderSpec {
 struct Unit {
     priority: u8,
     text: String,
+    /// Whether the source whitespace directly before this unit held a blank
+    /// line. Only read when two markup units are merged: the gap that decides
+    /// their separator is the one *after* the section that split them, which is
+    /// exactly this, and is trimmed away by the time `text` is built.
+    blank_before: bool,
 }
 
 /// Reassemble the top-level sections of `out` in canonical order with exactly
 /// one blank line between each top-level unit.
 ///
-/// `sections` is the list of `(priority, start, end)` byte spans of the
-/// non-markup sections (options / module / instance script / style) **in `out`'s
-/// coordinates** — the caller remaps them from the parsed source through the
-/// applied edits, so this pass never re-parses. Markup is everything else.
+/// `sections` is the list of `(priority, start, end, blank_after)` entries for
+/// the non-markup sections (options / module / instance script / style). The
+/// byte spans are **in `out`'s coordinates** — the caller remaps them from the
+/// parsed source through the applied edits, so this pass never re-parses.
+/// Markup is everything else.
+///
+/// `blank_after` is read off the **source**, not off `out`: it says whether the
+/// whitespace directly after the section held a blank line. An earlier pass has
+/// already normalised that gap in `out` to a blank line unconditionally, so the
+/// distinction only survives on the source side — and it is what decides the
+/// separator when the section is hoisted out from between two markup runs.
 pub fn reorder_sections(
     out: &str,
-    mut sections: Vec<(u8, usize, usize)>,
+    mut sections: Vec<(u8, usize, usize, bool)>,
     markup_priority: u8,
     reorder: bool,
 ) -> String {
     if sections.is_empty() {
         return out.to_string();
     }
-    sections.sort_by_key(|&(_, start, _)| start);
+    sections.sort_by_key(|&(_, start, _, _)| start);
 
     // Build units in source order. A comment-only gap before a section is that
     // section's leading comment; any other non-empty gap is a markup unit.
     let mut units: Vec<Unit> = Vec::new();
     let mut cursor = 0usize;
-    for &(priority, start, end) in &sections {
+    // The markup run before a section follows the PREVIOUS section, so that is
+    // the gap whose blankness decides how the two runs rejoin.
+    let mut blank_after_prev = false;
+    for &(priority, start, end, blank_after) in &sections {
         let gap = &out[cursor..start];
         let gap_trim = gap.trim();
         let section_text = out[start..end].trim();
@@ -177,6 +192,7 @@ pub fn reorder_sections(
             units.push(Unit {
                 priority: markup_priority,
                 text: markup_part.to_string(),
+                blank_before: blank_after_prev,
             });
         }
 
@@ -184,6 +200,7 @@ pub fn reorder_sections(
             units.push(Unit {
                 priority,
                 text: section_text.to_string(),
+                blank_before: false,
             });
         } else {
             // Preserve the separator between the comment and the section as in
@@ -200,9 +217,11 @@ pub fn reorder_sections(
             units.push(Unit {
                 priority,
                 text: format!("{comment_run}{separator}{section_text}"),
+                blank_before: false,
             });
         }
         cursor = cursor.max(end);
+        blank_after_prev = blank_after;
     }
     if cursor < out.len() {
         let trailing = out[cursor..].trim();
@@ -210,6 +229,7 @@ pub fn reorder_sections(
             units.push(Unit {
                 priority: markup_priority,
                 text: trailing.to_string(),
+                blank_before: blank_after_prev,
             });
         }
     }
@@ -225,10 +245,11 @@ pub fn reorder_sections(
         units.sort_by_key(|u| u.priority);
     }
 
-    // Merge consecutive markup units: when two markup runs end up adjacent after
-    // sorting (e.g. `<script-foo>` and `<style-foo>` both land between `<script>`
-    // and `<style>`), prettier / oxfmt renders them as a single markup block with
-    // a single newline between them, not a blank line.
+    // Merge consecutive markup units: two markup runs that a section split (or
+    // that end up adjacent after sorting) render as ONE markup block. The
+    // separator is not fixed — prettier keeps the section's surrounding text
+    // nodes, so the blank line that sat after the hoisted section survives as
+    // the gap between the two runs, and its absence leaves a single newline.
     let units = {
         let mut merged: Vec<Unit> = Vec::with_capacity(units.len());
         for unit in units {
@@ -238,7 +259,8 @@ pub fn reorder_sections(
                     .is_some_and(|last| last.priority == markup_priority)
             {
                 let last = merged.last_mut().expect("checked above");
-                last.text.push('\n');
+                last.text
+                    .push_str(if unit.blank_before { "\n\n" } else { "\n" });
                 last.text.push_str(&unit.text);
             } else {
                 merged.push(unit);

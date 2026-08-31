@@ -110,7 +110,7 @@ fn append_each_invalidation(
 }
 
 impl LocalScope {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             vars: FxHashMap::default(),
         }
@@ -292,15 +292,107 @@ fn extract_pattern_names_to_scope(pattern: &JsPattern, scope: &mut LocalScope) {
     }
 }
 
-/// Scan a block body for variable declarations and register them in the local scope.
+/// Every `var` declaration reachable from `stmt` without crossing into a nested
+/// function or class body, which open a `var` scope of their own. The oxc-AST twin
+/// of this walk is `shared::hoisted_vars`; this one reads the phase-3 IR.
+fn collect_hoisted_var_declarations<'x>(
+    stmt: &'x JsStatement,
+    arena: &'x crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    out: &mut Vec<&'x JsVariableDeclaration>,
+) {
+    let descend = |id, out: &mut Vec<&'x JsVariableDeclaration>| {
+        collect_hoisted_var_declarations(arena.get_stmt(id), arena, out)
+    };
+    match stmt {
+        JsStatement::VariableDeclaration(decl) if matches!(decl.kind, JsVariableKind::Var) => {
+            out.push(decl)
+        }
+        JsStatement::Block(block) => {
+            for stmt in &block.body {
+                collect_hoisted_var_declarations(stmt, arena, out);
+            }
+        }
+        JsStatement::If(stmt) => {
+            descend(stmt.consequent, out);
+            if let Some(alternate) = stmt.alternate {
+                descend(alternate, out);
+            }
+        }
+        JsStatement::For(stmt) => {
+            if let Some(JsForInit::Variable(decl)) = &stmt.init
+                && matches!(decl.kind, JsVariableKind::Var)
+            {
+                out.push(decl);
+            }
+            descend(stmt.body, out);
+        }
+        JsStatement::ForOf(stmt) => {
+            if let JsForOfLeft::Variable(decl) = &stmt.left
+                && matches!(decl.kind, JsVariableKind::Var)
+            {
+                out.push(decl);
+            }
+            descend(stmt.body, out);
+        }
+        JsStatement::While(stmt) => descend(stmt.body, out),
+        JsStatement::DoWhile(stmt) => descend(stmt.body, out),
+        JsStatement::Labeled(stmt) => descend(stmt.body, out),
+        JsStatement::Try(stmt) => {
+            for stmt in &stmt.block.body {
+                collect_hoisted_var_declarations(stmt, arena, out);
+            }
+            if let Some(handler) = &stmt.handler {
+                for stmt in &handler.body.body {
+                    collect_hoisted_var_declarations(stmt, arena, out);
+                }
+            }
+            if let Some(finalizer) = &stmt.finalizer {
+                for stmt in &finalizer.body {
+                    collect_hoisted_var_declarations(stmt, arena, out);
+                }
+            }
+        }
+        JsStatement::Switch(stmt) => {
+            for case in &stmt.cases {
+                for stmt in &case.consequent {
+                    collect_hoisted_var_declarations(stmt, arena, out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Scan a block body for the names it declares and register them in the local scope.
 /// This tracks local `const`/`let`/`var` declarations so that should_proxy() can
-/// check their init expression types when they're referenced in assignments.
+/// check their init expression types when they're referenced in assignments, and a
+/// `function` / `class` declaration, which binds a name in the block exactly as
+/// `let` does.
 fn register_block_local_vars(
     block: &[JsStatement],
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     scope: &mut LocalScope,
 ) {
+    // A `var` is function-scoped, so one declared in a nested block, loop head or
+    // `case` arm binds here too; the loop below only sees this list's own statements.
+    let mut hoisted = Vec::new();
     for stmt in block {
+        collect_hoisted_var_declarations(stmt, arena, &mut hoisted);
+    }
+    for decl in hoisted {
+        for d in &decl.declarations {
+            extract_pattern_names_to_scope(&d.id, scope);
+        }
+    }
+    for stmt in block {
+        match stmt {
+            JsStatement::FunctionDeclaration(JsFunctionDeclaration { id: Some(id), .. })
+            | JsStatement::ClassDeclaration {
+                class: JsClassExpression { id: Some(id), .. },
+                ..
+            } => scope.add_shadowed(id.to_string()),
+            _ => {}
+        }
         if let JsStatement::VariableDeclaration(var_decl) = stmt {
             for decl in &var_decl.declarations {
                 if let JsPattern::Identifier(name) = &decl.id {
@@ -455,8 +547,9 @@ fn should_proxy_with_context(
                             return binding.initial_identifier_name.as_deref() != Some("undefined");
                         }
                         _ => {
-                            // Recursively check if initial value type should be proxied
-                            return should_proxy_node_type(initial_type);
+                            // Recursively check if initial value type should be proxied.
+                            // The `Identifier` arm above already answered that case.
+                            return should_proxy_node_type(initial_type, None);
                         }
                     }
                 }
@@ -472,8 +565,16 @@ fn should_proxy_with_context(
 ///
 /// Returns `false` for types known to produce primitive values or functions.
 /// This is the equivalent of calling `should_proxy(binding.initial, null)` in
-/// the official compiler, where `null` scope prevents further identifier lookups.
-fn should_proxy_node_type(node_type: &str) -> bool {
+/// the official compiler, where `null` scope prevents further identifier lookups
+/// — which is also why a bare `undefined` still answers `false` here while every
+/// other identifier answers `true`.
+pub(in crate::compiler::phases::phase3_transform::client) fn should_proxy_node_type(
+    node_type: &str,
+    identifier_name: Option<&str>,
+) -> bool {
+    if node_type == "Identifier" && identifier_name == Some("undefined") {
+        return false;
+    }
     !matches!(
         node_type,
         "Literal"
@@ -1007,6 +1108,10 @@ pub fn apply_transforms_to_expression_with_shadowed(
         JsExpr::Function(func) => {
             // Extract parameter names - these shadow any outer transforms
             let mut new_scope = local_scope.clone();
+            // A named function expression binds its own name inside its body.
+            if let Some(id) = &func.id {
+                new_scope.add_shadowed(id.to_string());
+            }
             for param in &func.params {
                 extract_pattern_names_to_scope(param, &mut new_scope);
             }
@@ -1900,7 +2005,7 @@ fn has_call_in_base_chain(
 ///
 /// This allows `mutate_value_legacy` to then replace `list` with `$.get(list)`,
 /// resulting in the correct: `$.get(list)[$.get(key)] = $$value`
-fn transform_computed_indices_only(
+pub(crate) fn transform_computed_indices_only(
     expr: &JsExpr,
     context: &ComponentContext,
     local_scope: &LocalScope,
@@ -3550,6 +3655,28 @@ fn push_folded_tag_comments(tag_start: u32, tag_end: u32, context: &mut Componen
     }
 }
 
+/// Drop the opaque chunks `push_folded_tag_comments` emitted for the tag in
+/// `[tag_start, tag_end)`. A generated node anchored on the same source region
+/// carries those comments itself, and keeping both prints each one twice.
+pub fn drop_folded_tag_comments(
+    state: &mut crate::compiler::phases::phase3_transform::client::types::ComponentClientTransformState<'_>,
+    tag_start: u32,
+    tag_end: u32,
+) {
+    state.init.retain(|stmt| match stmt {
+        JsStatement::RawMapped {
+            code,
+            source_offset,
+            ..
+        } => {
+            !(*source_offset >= tag_start
+                && *source_offset < tag_end
+                && (code.starts_with("//") || code.starts_with("/*")))
+        }
+        _ => true,
+    });
+}
+
 /// Build a template chunk from text/expression nodes.
 ///
 /// Corresponds to `build_template_chunk` in
@@ -3588,7 +3715,9 @@ pub fn build_template_chunk(
             }
             TextOrExpr::Expr(expr_tag) => {
                 // Check if it's a literal or can be evaluated at compile time
-                if let Some(lit_value) = get_literal_value(&expr_tag.expression, context) {
+                if let Some(lit_value) =
+                    get_literal_value(&expr_tag.expression, &expr_tag.metadata.expression, context)
+                {
                     if let Some(val) = lit_value {
                         let last_quasi = quasis.last_mut().unwrap();
                         last_quasi.raw.push_str(&val);
@@ -3689,45 +3818,8 @@ pub fn build_template_chunk(
                         };
                     }
 
-                    // Check if the expression is guaranteed to be non-null.
-                    // This corresponds to Svelte's `state.scope.evaluate(value).is_defined` check.
-                    //
-                    // We use a two-step approach:
-                    // 1. Check the ORIGINAL expression with full binding context (knows EachIndex
-                    //    is always a number, const bindings with defined values, etc.)
-                    // 2. If the original was defined, check if a transform made it potentially
-                    //    undefined by wrapping it in $.get() (which returns a Call expression).
-                    //
-                    // This correctly handles:
-                    // - Non-keyed each index `i`: original=defined, built=Identifier => defined
-                    // - Keyed each index `$.get(index)`: original=defined, built=Call => NOT defined
-                    // - Normal variables: original=not defined => NOT defined
-                    // Determine defined-ness by checking the built (transformed) expression.
-                    //
-                    // For simple identifiers that weren't transformed (like non-keyed each
-                    // index `i`), we check the original expression which has binding context
-                    // (knows EachIndex is always a number). For everything else, we check
-                    // the built JsExpr.
-                    let mut value_for_definedness = &value;
-                    while let JsExpr::Spanned(inner, _, _) = value_for_definedness {
-                        value_for_definedness = context.arena.get_expr(*inner);
-                    }
-                    let is_defined = if let JsExpr::Identifier(name) = value_for_definedness {
-                        // Check if this is a memoized parameter ($0, $1, etc.)
-                        // Memoized parameters are unknown identifiers, so they're not defined.
-                        // The official compiler evaluates the memoized expression through
-                        // scope.evaluate() which returns is_defined=false for unknown identifiers.
-                        if name.starts_with('$') && name[1..].chars().all(|c| c.is_ascii_digit()) {
-                            false
-                        } else {
-                            // Value is still a plain identifier (no $.get() wrapping).
-                            // Use the original expression check which has binding context.
-                            is_expression_defined(&expr_tag.expression, context)
-                        }
-                    } else {
-                        // Value was transformed. Check the built expression.
-                        is_js_expr_defined(value_for_definedness, &context.arena, context)
-                    };
+                    let is_defined =
+                        template_chunk_value_is_defined(&value, &expr_tag.expression, context);
 
                     // Add ?? '' where necessary (only if not guaranteed to be defined)
                     let final_value = if is_defined {
@@ -3945,9 +4037,38 @@ pub(crate) fn cook_string_literal(s: &str) -> String {
 /// - `None` - expression cannot be evaluated at compile time
 pub(crate) fn get_literal_value(
     expr: &crate::ast::js::Expression,
+    metadata: &crate::ast::template::ExpressionMetadata,
     context: &ComponentContext,
 ) -> Option<Option<String>> {
+    if legacy_build_expression_wraps(expr, metadata, context) {
+        return None;
+    }
     eval_value_text(&get_literal_value_json(expr.as_json(), context)?)
+}
+
+/// Whether `build_expression` will wrap this chunk in legacy reactivity.
+///
+/// Upstream's `build_template_chunk` evaluates the value it BUILT, and in legacy
+/// mode that value is a `SequenceExpression` whenever the expression has a call,
+/// a member or an assignment. `scope.evaluate` has no `SequenceExpression` case,
+/// so such a chunk is never known however constant the source reads.
+fn legacy_build_expression_wraps(
+    expr: &crate::ast::js::Expression,
+    metadata: &crate::ast::template::ExpressionMetadata,
+    context: &ComponentContext,
+) -> bool {
+    if context.state.analysis.runes || context.state.analysis.maybe_runes {
+        return false;
+    }
+    if metadata.has_call() || metadata.has_member_expression() || metadata.has_assignment() {
+        return true;
+    }
+    // Some directive paths drop the structural flags in phase 2, and the sites
+    // that build this chunk repair them before `build_expression` reads them —
+    // so the fold has to see the repaired answer or the two disagree about one
+    // tree.
+    let props = analyze_expression_properties(expr, context);
+    props.has_member || props.has_assignment || has_call_json(expr.as_json(), context)
 }
 
 /// A folded value as the inlining callers consume it: `None` for a nullish
@@ -4069,6 +4190,33 @@ pub(crate) fn is_global_constant(keypath: &str) -> bool {
     )
 }
 
+/// Upstream `build_template_chunk` / `TitleElement` both ask
+/// `state.scope.evaluate(value).is_defined` of the BUILT value, never of the
+/// source expression — a legacy prop read becomes a `SequenceExpression`, which
+/// upstream's `evaluate` has no case for, so it is never `is_defined`. The
+/// original is consulted only where the transform left a bare identifier, which
+/// is the one shape whose binding context survives it.
+pub(crate) fn template_chunk_value_is_defined(
+    value: &JsExpr,
+    original: &crate::ast::js::Expression,
+    context: &ComponentContext,
+) -> bool {
+    let mut built = value;
+    while let JsExpr::Spanned(inner, _, _) = built {
+        built = context.arena.get_expr(*inner);
+    }
+    if let JsExpr::Identifier(name) = built {
+        // A memoizer parameter (`$0`) is unknown to the component scope.
+        if name.starts_with('$') && name[1..].chars().all(|c| c.is_ascii_digit()) {
+            false
+        } else {
+            is_expression_defined(original, context)
+        }
+    } else {
+        is_js_expr_defined(built, &context.arena, context)
+    }
+}
+
 pub(crate) fn is_js_expr_defined(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
@@ -4130,130 +4278,36 @@ pub(crate) fn is_js_expr_defined(
     }
 }
 
-/// Resolve a bare identifier to its binding and decide whether upstream's
-/// `scope.evaluate(<identifier>).is_defined` would hold. Shared by the
-/// original-expression path (`is_expression_defined_json`) and the
-/// transformed-value path (`is_js_expr_defined`): upstream's `scope.evaluate`
-/// resolves identifiers through the scope in BOTH cases, so a non-reactive
-/// binding that survives transformation as a bare identifier (e.g. a legacy
-/// `let iconAsc = "↑"` inside a `cond ? iconAsc : iconDesc`) must resolve the
-/// same way whether it appears at the top level or nested in a built expression.
+/// Upstream's `scope.evaluate(<identifier>).is_defined`, for an identifier that
+/// survived transformation bare. The walk is the shared one, so the built-value
+/// path and the source-expression path cannot answer this differently.
 fn identifier_is_defined(name: &str, context: &ComponentContext) -> bool {
-    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-
-    // Special identifiers
     if name == "undefined" {
         return false;
     }
 
-    // First, check if there's a transform with is_defined flag
-    // This is how we track EachIndex within each block scope
+    // A transform carries template-local knowledge the component scope does not
+    // — an each index inside its own block — so it wins where it is set.
     if let Some(transform) = context.state.transform.get(name)
         && transform.is_defined
     {
         return true;
     }
 
-    // `const uid = $props.id()` always evaluates to a string.
-    // Upstream's scope.evaluate resolves the const binding's initial
-    // `$props.id()` to STRING (scope.js `case '$props.id'`), so
-    // `is_defined` is true and no `?? ''` is appended.
-    if context.state.analysis.props_id.as_deref() == Some(name) {
-        return true;
-    }
-
-    // Check the binding
-    if let Some(binding) = context.state.get_binding(name) {
-        // EachIndex is always a number, never null/undefined
-        if matches!(binding.kind, BindingKind::EachIndex) {
-            return true;
-        }
-        // A template-scoped DeclarationTag / ConstTag binding
-        // (`{const after_async = number + 1}`) is defined when its
-        // initializer is a statically-non-nullish shape. Upstream's
-        // `is_defined` walks `binding.initial`; mirror that with the
-        // recorded `initial_node_type` so e.g. `after_async`
-        // (BinaryExpression) reads bare while `number`
-        // (AwaitExpression) keeps `?? ''`.
-        if matches!(binding.kind, BindingKind::Template)
-            && binding.initial_is_defined
-            && let Some(ref ity) = binding.initial_node_type
-            && matches!(
-                ity.as_str(),
-                "BinaryExpression"
-                    | "UpdateExpression"
-                    | "ArrayExpression"
-                    | "ObjectExpression"
-                    | "TemplateLiteral"
-            )
-        {
-            return true;
-        }
-        // For Normal const bindings with defined initial value
-        if matches!(binding.kind, BindingKind::Normal)
-            && !binding.reassigned
-            && matches!(
-                binding.declaration_kind,
-                crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Const
-            )
-            && binding.initial_is_defined
-        {
-            return true;
-        }
-
-        // For a Normal binding (any `let`/`var`/`const`) whose
-        // initializer is a `BinaryExpression` (`a + b`) or a
-        // `TemplateLiteral` — the only two non-mutable shapes upstream
-        // `scope.evaluate` types as a definite STRING/NUMBER (never
-        // null/undefined), so `is_defined` holds and no `?? ''` is
-        // added. (Notably NOT `UpdateExpression`: upstream's evaluate
-        // has no case for it, so `x++` falls through to UNKNOWN and
-        // keeps its `?? ''`.) A primitive result cannot be turned
-        // nullish by a later in-place mutation, so only reassignment
-        // (`!reassigned`) can invalidate it. Uses the recorded init
-        // node TYPE directly rather than the `initial_is_defined`
-        // flag, which is not populated for legacy (non-runes) `let`
-        // bindings. Fixes e.g. `let key = a.charAt(0) + a.slice(1)`
-        // reading bare.
-        if matches!(binding.kind, BindingKind::Normal)
-            && !binding.reassigned
-            && binding
-                .initial_node_type
-                .as_deref()
-                .is_some_and(|t| matches!(t, "BinaryExpression" | "TemplateLiteral"))
-        {
-            return true;
-        }
-
-        // A function declaration's binding carries the declaration itself as
-        // its initial, which upstream's evaluate types as FUNCTION — never
-        // null/undefined, so the interpolation reads bare.
-        if matches!(binding.kind, BindingKind::Normal)
-            && !binding.is_updated()
-            && matches!(
-                binding.declaration_kind,
-                crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Function
-            )
-        {
-            return true;
-        }
-
-        // A non-updated `let`/`var`/`const x = <primitive literal>`
-        // (e.g. legacy `let iconAsc = "↑"`): upstream's scope.evaluate
-        // resolves the binding's Literal initial to a defined primitive
-        // (`!binding.updated && binding.initial !== null && !is_prop`),
-        // so a template `${x}` reads bare. Only a `null` literal is
-        // undefined (`undefined` is an Identifier, handled above).
-        if matches!(binding.kind, BindingKind::Normal)
-            && !binding.is_updated()
-            && binding.initial_node_type.as_deref() == Some("Literal")
-            && binding.initial.as_deref() != Some("null")
-            && binding.initial.is_some()
-        {
-            return true;
-        }
-    }
-    false
+    // Everything else is upstream's `scope.evaluate(<identifier>)`, which
+    // recurses into the binding's initializer. Answering it here from a table of
+    // binding shapes made this the second, weaker port of that walk.
+    context.state.get_binding(name).is_some_and(|binding| {
+        evaluate_binding_initial(
+            &ClientEvalScope {
+                context,
+                converted: false,
+            },
+            binding,
+            0,
+        )
+        .is_defined()
+    })
 }
 
 /// Check if an expression is guaranteed to be defined (non-null/undefined).
@@ -6251,6 +6305,13 @@ impl EvalScope for ClientEvalScope<'_, '_> {
                     .state
                     .scope_root
                     .binding_at_reference(name, start as u32)
+            })
+            .filter(|binding| {
+                !self
+                    .context
+                    .state
+                    .scope_is_within_snippet(binding.scope_index)
+                    || self.context.state.scope_chain_contains(binding.scope_index)
             });
         let binding = match reference_binding {
             // Phase 2 resolves children of a component against its `let:`
@@ -6290,7 +6351,11 @@ impl EvalScope for ClientEvalScope<'_, '_> {
                     .get(name)
                     .filter(|bindings| bindings.len() == 1)
                     .and_then(|_| self.context.state.get_binding(name))
-                    .filter(|binding| self.context.state.scope_chain_contains(binding.scope_index))
+                    .filter(|binding| {
+                        self.context
+                            .state
+                            .evaluation_scope_contains(binding.scope_index)
+                    })
             }
         };
         match binding {

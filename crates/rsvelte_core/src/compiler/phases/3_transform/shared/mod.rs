@@ -6,6 +6,7 @@
 pub mod ast_rewrite;
 pub mod async_body;
 pub mod class_body;
+pub mod hoisted_vars;
 pub mod js_scan;
 pub mod module_tail_comment;
 pub mod offsets;

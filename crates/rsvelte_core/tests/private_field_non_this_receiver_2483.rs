@@ -1,5 +1,5 @@
 //! Pins the deliberate divergence recorded in
-//! `compatibility/deliberate-divergences.md`: an update expression on a private
+//! `compatibility/GATES.md#deliberate-divergences`: an update expression on a private
 //! rune field reached through a receiver other than `this` lowers to
 //! `$.update(...)` / `$.update_pre(...)`.
 //!

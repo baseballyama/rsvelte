@@ -33,11 +33,14 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
 use oxc_syntax::operator::AssignmentOperator;
+use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
+use super::scope_analysis::{is_locally_shadowed, shadowed_reference_starts};
 
 thread_local! {
     static MODULE_STATE_SET_REACTIVE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -87,10 +90,12 @@ fn transform_state_set_reactive_spliced(
             ParseOptions::default(),
             true,
             |program| {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let mut collector = StateSetCollector {
                     source: src,
                     state_vars,
                     non_reactive_vars,
+                    semantic: &semantic_ret.semantic,
                     replacements: Vec::new(),
                 };
                 collector.visit_program(program);
@@ -100,14 +105,19 @@ fn transform_state_set_reactive_spliced(
     })
 }
 
-struct StateSetCollector<'a> {
+struct StateSetCollector<'a, 'sem> {
     source: &'a str,
     state_vars: &'a [String],
     non_reactive_vars: &'a [String],
+    /// A reactive body arrives without the component-level declarations, so the
+    /// state variable reads as unresolved and a binding that *does* resolve
+    /// inside the body is a shadow. Upstream reaches the binding through
+    /// `scope.get` and writes nothing for a shadow.
+    semantic: &'sem Semantic<'sem>,
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for StateSetCollector<'a> {
+impl<'a, 'sem, 'ast> Visit<'ast> for StateSetCollector<'a, 'sem> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -125,6 +135,9 @@ impl<'a, 'ast> Visit<'ast> for StateSetCollector<'a> {
             return;
         }
         if self.non_reactive_vars.iter().any(|s| s == name) {
+            return;
+        }
+        if is_locally_shadowed(self.semantic, id) {
             return;
         }
 
@@ -173,6 +186,31 @@ mod tests {
             statements_when_followed_by_a_call(&out),
             "rewrote {src:?} to {out:?}"
         );
+    }
+
+    /// The reactive body arrives without the component-level declarations, so a
+    /// reference that resolves inside it is a binding declared there — never the
+    /// state variable upstream reaches through `scope.get`.
+    #[test]
+    fn a_shadowing_binding_is_not_the_state_var() {
+        for input in [
+            "xs.forEach((x) => { x = 5; });",
+            "function f(x) { x = 5; }",
+            "{ let x; x = 5; }",
+        ] {
+            assert!(
+                transform_state_set_reactive_ast(input, &ssv(&["x"]), &[]).is_none(),
+                "{input}"
+            );
+        }
+    }
+
+    /// The control: the unresolved reference — the state variable itself — still
+    /// rewrites from the same body.
+    #[test]
+    fn an_unshadowed_assignment_still_rewrites() {
+        let out = transform_state_set_reactive_ast("if (c) { x = 5; }", &ssv(&["x"]), &[]).unwrap();
+        assert!(out.contains("$.set(x, 5)"), "{out}");
     }
 
     #[test]
@@ -346,10 +384,15 @@ pub(crate) fn transform_state_set_reactive_in_place(
         SourceType::mjs(),
         ParseOptions::default(),
         |allocator, program| {
+            let shadowed = {
+                let built = SemanticBuilder::new().with_build_nodes(true).build(program);
+                shadowed_reference_starts(program, &built.semantic, state_vars)
+            };
             let mut rewriter = StateSetRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
                 state_vars,
                 non_reactive_vars,
+                shadowed,
                 changed: false,
             };
             oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
@@ -362,6 +405,7 @@ struct StateSetRewriter<'a, 'b> {
     b: crate::compiler::phases::phase3_transform::builders::B<'a>,
     state_vars: &'b [String],
     non_reactive_vars: &'b [String],
+    shadowed: FxHashSet<u32>,
     changed: bool,
 }
 
@@ -383,6 +427,9 @@ impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StateSetRewriter<'a, 'b> {
             return;
         }
         if self.non_reactive_vars.iter().any(|s| s == name) {
+            return;
+        }
+        if self.shadowed.contains(&id.span.start) {
             return;
         }
         let name = name.to_string();

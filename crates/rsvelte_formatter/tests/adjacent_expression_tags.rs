@@ -88,3 +88,39 @@ fn a_broken_tag_breaks_only_at_its_outermost_group() {
         format!("{{z.raw\n  .a}}{{{tail}}}")
     );
 }
+
+#[test]
+fn a_hugged_run_separated_by_spaces_stays_on_one_line_when_it_fits() {
+    // The open tag wraps, so `>` hugs the first child and the children print as
+    // a fill: an inline space is a break OPPORTUNITY, taken only on overflow.
+    let src = "<button on:click={() => onContactButtonClick(row)} class=\"a-fairly-long-class-name-here\"\n  >{key} {a} {b}\n</button>";
+    assert_eq!(
+        fmt(src),
+        "<button\n  on:click={() => onContactButtonClick(row)}\n  class=\"a-fairly-long-class-name-here\"\n  >{key} {a} {b}\n</button>"
+    );
+}
+
+#[test]
+fn a_run_under_a_non_hugged_start_breaks_at_every_space() {
+    // `shouldHugStart` is false when the first child is a text node opening with
+    // a line break, and upstream then sets `noHugSeparatorStart = hardline`,
+    // which breaks the enclosing group — so the run must break however well it
+    // fits. Control for the test above: without this the fill rule is applied
+    // where the oracle has no fill.
+    assert_eq!(
+        fmt("<div>\n  {key} {a}\n</div>"),
+        "<div>\n  {key}\n  {a}\n</div>"
+    );
+    assert_eq!(
+        fmt("<span>\n  {key} {a}\n</span>"),
+        "<span>\n  {key}\n  {a}\n</span>"
+    );
+}
+
+#[test]
+fn a_hugged_run_with_no_edge_whitespace_is_unchanged() {
+    assert_eq!(
+        fmt("<button on:click={f}>{key} {a}</button>"),
+        "<button on:click={f}>{key} {a}</button>"
+    );
+}

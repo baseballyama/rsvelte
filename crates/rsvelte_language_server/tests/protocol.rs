@@ -846,7 +846,10 @@ fn official_settings_drive_tag_close_and_strict_attribute_completions() {
         .into_iter()
         .find(|item| item["label"] == "on:click")
         .unwrap();
-    assert_eq!(click["insertText"], json!("on:click$2=\"{$1}\""));
+    // `htmlCompletion.js:213-219` carries the snippet in a `textEdit`, never in
+    // `insertText`.
+    assert_eq!(click["insertText"], Value::Null);
+    assert_eq!(click["textEdit"]["newText"], json!("on:click$2=\"{$1}\""));
     assert_eq!(server.shutdown(), Some(0));
 }
 
@@ -992,6 +995,66 @@ export default {
     assert_eq!(server.shutdown(), Some(0));
 }
 
+/// `HTMLHover.doesSupportMarkdown` (`htmlHover.js:242-251`) and
+/// `HTMLCompletion.doesSupportMarkdown` (`htmlCompletion.js:554-563`) read two
+/// different client capabilities. The LSP differential gate declares neither,
+/// so its Markdown arm is unreachable and only this test can see it — and only
+/// asserting both arms distinguishes the port from one that answers a constant.
+#[test]
+fn the_client_content_format_reaches_hover_and_completion_separately() {
+    let source = "<div lang=\"en\"></div>\n<div ";
+    let markdown = json!(["markdown"]);
+    for hover_markdown in [false, true] {
+        for completion_markdown in [false, true] {
+            let mut text_document = json!({});
+            if hover_markdown {
+                text_document["hover"] = json!({ "contentFormat": markdown });
+            }
+            if completion_markdown {
+                text_document["completion"] =
+                    json!({ "completionItem": { "documentationFormat": markdown } });
+            }
+            let mut server = Server::start();
+            let id = server.request(
+                "initialize",
+                json!({
+                    "processId": Value::Null,
+                    "rootUri": Value::Null,
+                    "capabilities": {
+                        "workspace": { "configuration": true },
+                        "textDocument": text_document,
+                    },
+                }),
+            );
+            server.response(id);
+            server.notify("initialized", json!({}));
+            let uri = "file:///content-format.svelte";
+            did_open(&mut server, uri, source);
+
+            let expected = |markdown: bool| json!(if markdown { "markdown" } else { "plaintext" });
+            let hover = server.hover(uri, 0, 6);
+            assert_eq!(
+                hover["contents"]["kind"],
+                expected(hover_markdown),
+                "hover kind with hover={hover_markdown} completion={completion_markdown}: {hover}"
+            );
+            let items = server.completion(uri, 1, 5);
+            let class = items
+                .iter()
+                .find(|item| item["label"] == json!("class"))
+                .unwrap_or_else(|| {
+                    panic!("no `class` completion with completion={completion_markdown}")
+                });
+            assert_eq!(
+                class["documentation"]["kind"],
+                expected(completion_markdown),
+                "documentation kind with hover={hover_markdown} completion={completion_markdown}"
+            );
+            assert_eq!(server.shutdown(), Some(0));
+        }
+    }
+}
+
 /// Completion and hover over the wire, on a document that does not parse — the
 /// state a component is in for most of the time it is being typed.
 #[test]
@@ -1087,11 +1150,11 @@ fn serves_completions_and_hover() {
     // 23 == CompletionItemKind.Event
     assert_eq!(items[0]["kind"], json!(23));
 
-    // Hover over `#each` documents the block.
+    // Hover over `#each` documents the block. `getHoverInfo.ts:56` returns
+    // `{ contents: documentation[tag] }` — a bare string, not `MarkupContent`.
     let hover = server.hover(&uri, 5, 5);
-    let contents = hover["contents"]["value"].as_str().unwrap();
+    let contents = hover["contents"].as_str().unwrap();
     assert!(contents.starts_with("`{#each ...}`"), "{contents}");
-    assert_eq!(hover["contents"]["kind"], json!("markdown"));
 
     // Hover inside `<script>` is the TypeScript plugin's business, not ours.
     assert_eq!(server.hover(&uri, 1, 8), Value::Null);
@@ -1141,7 +1204,13 @@ fn a_compiler_warning_carries_its_docs_link_and_yields_a_quickfix() {
         json!("(svelte) Disable a11y_missing_attribute for this line")
     );
     assert_eq!(actions[0]["kind"], json!("quickfix"));
-    let edits = actions[0]["edit"]["changes"][&uri]
+    // `getQuickfixes.ts:148` builds a `documentChanges` edit, never a map.
+    let document_change = &actions[0]["edit"]["documentChanges"][0];
+    assert_eq!(
+        document_change["textDocument"],
+        json!({ "uri": uri, "version": null })
+    );
+    let edits = document_change["edits"]
         .as_array()
         .expect("edits for the document");
     assert_eq!(edits.len(), 1);
@@ -1572,6 +1641,48 @@ fn code_lens_respects_its_setting() {
 
 /// A client that declares neither capability gets folding ranges with
 /// characters and a flat `SymbolInformation` list.
+/// `FoldingRangeProvider.ts:54-56` drops a range inside one line for a client
+/// that folds by line. `folding.rs` decides that from a flag the client state
+/// carries, and nothing else asserts that the capability reaches it.
+#[test]
+fn a_line_folding_client_is_never_sent_a_range_inside_one_line() {
+    const ONE_LINERS: &str = concat!(
+        "<script>\n",
+        "  let a = 1;\n",
+        "</script>\n",
+        "\n",
+        "{#if a}<span>x</span>{/if}\n",
+        "<div>\n",
+        "  <p>y</p>\n",
+        "</div>\n",
+    );
+    let dir = temp_dir("folding-line-only");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let (mut server, _) = server_with(json!({ "foldingRange": { "lineFoldingOnly": true } }));
+    did_open(&mut server, &uri, ONE_LINERS);
+
+    let folds = server.folding_ranges(&uri);
+    assert!(!folds.is_empty(), "the document folds at all");
+    for fold in &folds {
+        assert_ne!(
+            fold["startLine"], fold["endLine"],
+            "a line-folding client was sent {fold}"
+        );
+    }
+
+    let (mut character, _) = server_with(json!({ "foldingRange": {} }));
+    did_open(&mut character, &uri, ONE_LINERS);
+    assert!(
+        character
+            .folding_ranges(&uri)
+            .iter()
+            .any(|fold| fold["startLine"] == fold["endLine"]),
+        "a character-folding client keeps them, so the assertion above can fail"
+    );
+    assert_eq!(server.shutdown(), Some(0));
+    assert_eq!(character.shutdown(), Some(0));
+}
+
 #[test]
 fn a_client_without_the_modern_capabilities_is_served_the_old_shapes() {
     let dir = temp_dir("structure-flat");

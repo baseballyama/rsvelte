@@ -158,7 +158,7 @@ fn assert_left_alone(construct: &str) {
 /// A class index signature is the one member the walk must remove WHOLE rather
 /// than leave behind: deleting only its `typeAnnotation` would leave `[key];`,
 /// which is the shape upstream's eraser produces and then crashes esrap on. See
-/// `compatibility/deliberate-divergences.md` and
+/// `compatibility/GATES.md#deliberate-divergences` and
 /// `crates/rsvelte_core/tests/ts_index_signature_3422.rs`.
 #[test]
 fn class_index_signature_is_erased_whole() {

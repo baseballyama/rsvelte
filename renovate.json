@@ -106,6 +106,26 @@
         "oxfmt",
         "@oxfmt/**"
       ]
+    },
+    {
+      "description": "The lint oracle reproduces eslint-plugin-svelte's own environment, so `globals` tracks the version the pinned plugin resolves: submodules/eslint-plugin-svelte at tag eslint-plugin-svelte@3.23.0 locks globals at 14.0.0/15.15.0/16.4.0 and no 17.x. Four harness files import it, and the lint ratchet key is (rule, line, column, message), so an oracle-side bump moves the baseline with no rsvelte change (#3994). Bump it with eslint-plugin-svelte, as one deliberate oracle move with a re-baseline.",
+      "matchFileNames": [
+        "scripts/compat-corpus/lint-oracle/package.json"
+      ],
+      "matchDepNames": [
+        "globals"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "ubuntu-22.04 is load-bearing at 15 sites: 14 release/publish matrix entries (release.yml x10, release-capi.yml x2, publish-vscode.yml x2) and one mirror of them, ci.yml's glibc-floor job, which builds a shipped binary the same way and asserts GLIBC_FLOOR=2.35. Renovate's github-actions manager sees only the bare `runs-on:` in ci.yml and not the 14 `os:` values inside the release matrices, so it can only ever raise the 1-of-15 PR that breaks the mirror (#3882) - and check-glibc-floor.sh is designed to go red on it. Move all 15 in one PR and re-derive the floor when 22.04 is retired.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "ubuntu"
+      ],
+      "enabled": false
     }
   ]
 }

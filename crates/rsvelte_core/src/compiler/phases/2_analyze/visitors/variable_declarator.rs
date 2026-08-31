@@ -123,7 +123,17 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     }
 
     // Collect svelte-ignore codes from parent
-    let ignore_codes = collect_ignore_codes_from_parent(context);
+    let mut ignore_codes = collect_ignore_codes_from_parent(context);
+    // Upstream snapshots the whole ignore STACK per node (`2-analyze/index.js:769`),
+    // so an ignore pushed for the enclosing Program — an HTML comment before the
+    // `<script>` — also reaches a warning raised from a post-pass over bindings.
+    if let Some(active) = context.ignore_stack.last() {
+        for code in active {
+            if !ignore_codes.iter().any(|c| c == code) {
+                ignore_codes.push(code.clone());
+            }
+        }
+    }
     if !ignore_codes.is_empty() {
         store_ignore_codes_on_bindings_typed(id_node, &ignore_codes, context);
     }

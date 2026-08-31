@@ -33,9 +33,34 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CHECKER = path.join(ROOT, 'scripts/compat-corpus/known-failures-md-check.mjs');
 const CORPUS = path.join(ROOT, 'compatibility');
-const MATRIX_FAMILY_PARTITION = fs
-	.readFileSync(path.join(CORPUS, 'matrix-known-failures.md'), 'utf8')
-	.match(/^Partition of `matrix-known-failures\.json` by family: `[^`]+`$/m)?.[0];
+// The docs consolidate into two files (P2), so a per-ratchet `.md` is not a
+// path this harness may hold: resolve a doc by the text it contains instead.
+const docText = (dir, file) => {
+	const direct = path.join(dir, file);
+	if (fs.existsSync(direct)) return { p: direct, text: fs.readFileSync(direct, 'utf8') };
+	return null;
+};
+const findDoc = (dir, file, needle) => {
+	const direct = docText(dir, file);
+	if (direct && direct.text.includes(needle)) return direct;
+	for (const f of fs.readdirSync(dir)) {
+		if (!f.endsWith('.md')) continue;
+		const q = path.join(dir, f);
+		const text = fs.readFileSync(q, 'utf8');
+		if (text.includes(needle)) return { p: q, text };
+	}
+	return null;
+};
+
+const MATRIX_FAMILY_PARTITION_RE = /^Partition of `matrix-known-failures\.json` by family: `[^`]+`$/m;
+const MATRIX_FAMILY_PARTITION = (() => {
+	for (const f of fs.readdirSync(CORPUS)) {
+		if (!f.endsWith('.md')) continue;
+		const m = fs.readFileSync(path.join(CORPUS, f), 'utf8').match(MATRIX_FAMILY_PARTITION_RE);
+		if (m) return m[0];
+	}
+	return undefined;
+})();
 
 let failed = 0;
 const check = (name, got, want) => {
@@ -168,10 +193,9 @@ const withCorpus = (mutate, fn) => {
 };
 
 const edit = (dir, file, from, to) => {
-	const p = path.join(dir, file);
-	const before = fs.readFileSync(p, 'utf8');
-	if (!before.includes(from)) throw new Error(`self-test is stale: ${file} no longer contains ${JSON.stringify(from)}`);
-	fs.writeFileSync(p, before.replace(from, to));
+	const found = findDoc(dir, file, from);
+	if (!found) throw new Error(`self-test is stale: no doc holds ${JSON.stringify(from)} (looked for ${file} first)`);
+	fs.writeFileSync(found.p, found.text.replace(from, to));
 };
 
 // The control. Without it, every mutation below "passing" would also be
@@ -181,12 +205,36 @@ withCorpus(
 	(r) => check('unmutated corpus copy passes', r.code, 0),
 );
 
+// The upstream_issues link check. An attribution that names a file nobody wrote
+// reads exactly like one that does, and two such links were live when the check
+// was added — so the check is only worth having if it is shown to fire.
+withCorpus(
+	(d) => edit(
+		d,
+		'known-failures.md',
+		'upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md',
+		'upstream_issues/this-file-was-never-written.md',
+	),
+	(r) => check(
+		'an attribution to a nonexistent upstream_issues file fails',
+		[r.code, /this-file-was-never-written\.md, which does not exist/.test(r.out)],
+		[1, true],
+	),
+);
+
 // Derived, not a literal: the expected sum is the ratchet's own size less the
 // one this mutation removes, so the assertion survives the ratchet moving.
 {
 	const fmtEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'fmt-known-failures.json'), 'utf8')).length;
+	// The needle is read out of the doc rather than written here: a literal one
+	// encodes today's partition, so the next re-baseline breaks this self-test
+	// instead of the thing it tests.
+	const fmtFirst = Number(
+		/by cluster: `(\d+) \+/.exec(findDoc(CORPUS, 'fmt-known-failures.md', 'by cluster: `')?.text ?? '')?.[1],
+	);
+	if (!Number.isFinite(fmtFirst)) throw new Error('self-test is stale: no fmt `by cluster:` partition found');
 	withCorpus(
-		(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
+		(d) => edit(d, 'fmt-known-failures.md', `by cluster: \`${fmtFirst} +`, `by cluster: \`${fmtFirst - 1} +`),
 		(r) => check(
 			'a stale cluster count fails',
 			[r.code, new RegExp(`sums to ${fmtEntries - 1} \\(`).test(r.out)],
@@ -195,31 +243,30 @@ withCorpus(
 	);
 }
 
-// The shape #2500 is about: an entry cited under two clusters, with the cluster
-// totals adjusted so the doc still reads as if it summed. One addend moves up,
-// another moves down, the sum is unchanged — and only a check that compares the
-// sum against the JSON rather than against a stated total can see it.
+// The lint ratchet is currently empty, so use an impossible extra count to keep
+// proving that a stated partition sum is checked against the JSON population.
 withCorpus(
-	(d) => edit(d, 'lint-known-failures.md', 'by direction: `5`', 'by direction: `6`'),
-	(r) => check('a double-cited entry fails', [r.code, /sums to 6 \(/.test(r.out)], [1, true]),
+	(d) => edit(d, 'lint-known-failures.md', 'by direction: `0`', 'by direction: `1`'),
+	(r) => check('an extra partition count fails', [r.code, /sums to 1 \(/.test(r.out)], [1, true]),
 );
 
 withCorpus(
-	(d) => edit(d, 'lint-known-failures.md', 'Partition of `lint-known-failures.json` by repo: `5`\n', ''),
+	(d) => edit(d, 'lint-known-failures.md', 'Partition of `lint-known-failures.json` by repo: `0`\n', ''),
 	(r) => check('a deleted partition line fails', [r.code, /found 0/.test(r.out)], [1, true]),
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 84 is not the whole matrix ratchet.
+// against the whole ratchet. The family is currently empty, so an invented
+// count must be compared with its zero-entry prefix population.
 withCorpus(
 	(d) =>
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'by seed: `16 + 8 + 8 + 8 + 20 + 24`',
-			'by seed: `18 + 8 + 8 + 8 + 20 + 24`',
+			'by seed: `0`',
+			'by seed: `2`',
 		),
-	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 84 entries/.test(r.out)], [1, true]),
+	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 0 entries/.test(r.out)], [1, true]),
 );
 
 withCorpus(

@@ -2,7 +2,7 @@
 
 Category: lint compatibility / scope analysis
 
-Evidence: the real-world lint corpus ratchets 104 differing findings (`compatibility/lint-known-failures.md:1-24`), including 23 missing `prefer-svelte-reactivity` findings on `.svelte.js/.svelte.ts` and 36 `sort-attributes` divergences. Exact fixtures remain green, so production shapes expose coverage gaps not represented there.
+Evidence: the real-world lint corpus ratchets 104 differing findings (`compatibility/KNOWN-FAILURES.md#lint-known-failures:1-24`), including 23 missing `prefer-svelte-reactivity` findings on `.svelte.js/.svelte.ts` and 36 `sort-attributes` divergences. Exact fixtures remain green, so production shapes expose coverage gaps not represented there.
 
 Impact: a drop-in migration changes CI failures and autofix opportunities; false positives erode trust and false negatives miss defects official eslint-plugin-svelte would report.
 

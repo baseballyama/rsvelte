@@ -99,4 +99,4 @@ yield fixer.insertTextAfter(node.key, `={${node.key.name.name}}`);
 directive node, producing `style:color|important={color}` — which parses to a
 `StyleDirective` with `modifiers: ["important"]`, identical to the input's
 semantics. This is the only divergence rsvelte carries on this rule, listed in
-`compatibility/lint-adversarial-fix-known-failures.md`.
+`compatibility/KNOWN-FAILURES.md#lint-adversarial-fix-known-failures`.

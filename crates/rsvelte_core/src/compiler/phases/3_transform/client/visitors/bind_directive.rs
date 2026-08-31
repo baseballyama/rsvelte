@@ -127,7 +127,28 @@ pub fn unified_build_bind_this(
         None
     };
 
-    let mut set = apply_transforms_to_expression_with_shadowed(&setter_raw, context, &local_scope);
+    // Upstream visits a synthesized `expression = $$value`, so the assignment visitor's
+    // mutate transform still fires for a prop root whose read was already lowered to
+    // `prop()` during conversion (`prop(prop()[k] = $$value, true)`).
+    let mut set = if setter_expr.is_some() {
+        apply_transforms_to_expression_with_shadowed(&setter_raw, context, &local_scope)
+    } else {
+        let original_root = get_ast_root_identifier_span(expression);
+        // The assignment visitor decides reassign-vs-mutate by IR variant, and an
+        // outer source-span wrapper answers neither.
+        let setter_left = match &raw_expr {
+            JsExpr::Spanned(inner, _, _) => context.arena.get_expr(*inner).clone(),
+            other => other.clone(),
+        };
+        super::expression_converter::transform_synthesized_assignment_with_shadowed(
+            &setter_left,
+            &b::id("$$value"),
+            original_root.as_ref().map(|(name, _, _)| name.as_str()),
+            original_root.as_ref().map(|(_, start, _)| *start),
+            &local_scope,
+            context,
+        )
+    };
 
     // A synthesized `bind:this={item.ref}` setter mutates the each item. Upstream's
     // each-item `mutate` transform therefore marks the render callback as using its
@@ -190,7 +211,7 @@ pub fn unified_build_bind_this(
     // Upstream builds the `bind:this` setter by visiting a synthesized `expr = $$value`
     // assignment, so it passes through `validate_mutation()`; rsvelte builds it directly.
     if context.state.dev && setter_expr.is_none() {
-        set = validate_bind_this_mutation(expression, set, context);
+        set = validate_bind_this_mutation(expression, set, &each_ids, context);
     }
 
     // Apply optional chaining to getter MemberExpression nodes only
@@ -539,10 +560,10 @@ fn bind_directive_inner(
 
     let call = if let Some(element) = parent.as_regular_element() {
         let mut call = call;
-        let element_end = element
-            .start
-            .saturating_add(1)
-            .saturating_add(element.name.len() as u32);
+        // Upstream stamps the element identifier with `element.name_loc`, which
+        // starts at the tag name rather than at the `<`.
+        let name_start = element.start.saturating_add(1);
+        let name_end = name_start.saturating_add(element.name.len() as u32);
         if let (JsExpr::Call(binding), JsExpr::Identifier(node_id)) =
             (&mut call, &context.state.node)
         {
@@ -550,8 +571,8 @@ fn bind_directive_inner(
                 if matches!(argument, JsExpr::Identifier(name) if name == node_id) {
                     *argument = JsExpr::Spanned(
                         context.arena.alloc_expr(argument.clone()),
-                        element.start,
-                        element_end,
+                        name_start,
+                        name_end,
                     );
                 }
             }
@@ -1896,11 +1917,12 @@ fn build_getter_setter_with_primitive(
         //   $obj.a = $$value -> $.store_mutate(obj, $.untrack($obj).a = $$value, $.untrack($obj))
         // Also applies prop mutation transforms in legacy mode:
         //   selected[0] = $$value -> selected(selected()[0] = $$value, true)
-        let original_root_name = get_ast_root_identifier(original_expr);
+        let original_root = get_ast_root_identifier_span(original_expr);
         let transformed_set = super::expression_converter::transform_synthesized_assignment(
             expr,
             &b::id("$$value"),
-            original_root_name.as_deref(),
+            original_root.as_ref().map(|(name, _, _)| name.as_str()),
+            original_root.as_ref().map(|(_, start, _)| *start),
             context,
         );
 
@@ -2162,7 +2184,16 @@ fn build_each_block_accessor_parts(
             // Property of each item: bind:value={item.prop} or bind:value={item.a.b} or bind:value={item[expr]}
             // Getter: () => $.get(item).prop  OR  () => $.get(item)[$.get(expr)]
             // Setter: ($$value) => ($.get(item).prop = $$value, invalidation)
-            let get_base = if each_ctx.item_reactive {
+            // Upstream's each-item read transform answers `collection[index]` for a
+            // reassigned item at EVERY site, not only where the item is read bare.
+            let get_base = if each_ctx.item_reassigned {
+                let member =
+                    super::shared::utils::build_reassigned_item_read(&each_ctx, &context.arena);
+                crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                    &member,
+                    &context.arena,
+                )
+            } else if each_ctx.item_reactive {
                 format!("$.get({})", item_name)
             } else {
                 item_name.clone()
@@ -2812,13 +2843,13 @@ fn extract_root_identifier_span_from_json(val: &serde_json::Value) -> Option<(St
     }
 }
 
-fn get_ast_root_identifier_span(expr: &Expression) -> Option<(String, u32, u32)> {
+pub(crate) fn get_ast_root_identifier_span(expr: &Expression) -> Option<(String, u32, u32)> {
     extract_root_identifier_span_from_json(expr.as_json())
 }
 
 /// Get the root identifier name from an AST Expression (JSON-based).
 /// For `form.count` returns `Some("form")`.
-fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
+pub(crate) fn get_ast_root_identifier(expr: &Expression) -> Option<String> {
     get_ast_root_identifier_span(expr).map(|(name, _, _)| name)
 }
 
@@ -2840,6 +2871,7 @@ fn build_ast_member_path(
 fn validate_bind_this_mutation(
     expression: &Expression,
     set: JsExpr,
+    each_ids: &[EachBlockId],
     context: &mut ComponentContext,
 ) -> JsExpr {
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -2847,10 +2879,14 @@ fn validate_bind_this_mutation(
     if !expression.is_member_expression() {
         return set;
     }
-    let Some(root_name) = get_ast_root_identifier(expression) else {
+    let Some((root_name, root_start, _)) = get_ast_root_identifier_span(expression) else {
         return set;
     };
-    let Some(binding) = context.state.get_binding(&root_name) else {
+    let Some(binding) = context
+        .state
+        .get_prop_binding_at_reference(&root_name, root_start)
+        .or_else(|| context.state.get_prop_binding(&root_name))
+    else {
         return set;
     };
     if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
@@ -2863,11 +2899,16 @@ fn validate_bind_this_mutation(
     // Official sets this before building the path, so an unbuildable path still
     // emits the `$$ownership_validator` preamble.
     context.state.needs_mutation_validation.set(true);
-    // Identity, not `read_computed_path_element`: `build_bind_this` hands the
-    // setter its own parameters, so an each-block index reaches this path as a
-    // plain binding rather than through its outer signal transform.
-    let Some(path) = build_ast_member_path(expression, &|name| JsExpr::Identifier(name.into()))
-    else {
+    // `build_bind_this` overrides `read` to identity for the each-block context
+    // variables it passes in as setter parameters, and for those only; every
+    // other name keeps the transform an ordinary reference would carry.
+    let Some(path) = build_ast_member_path(expression, &|name| {
+        if each_ids.iter().any(|id| id.name == name) {
+            JsExpr::Identifier(name.into())
+        } else {
+            read_computed_path_element(name, context)
+        }
+    }) else {
         return set;
     };
 

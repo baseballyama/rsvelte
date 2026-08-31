@@ -71,3 +71,33 @@ fn unparseable_style_body_is_spliced_without_a_blank_line() {
     );
     assert!(out.contains(".a:is(2n)"), "rule went missing:\n{out}");
 }
+
+/// The three `fmt-oracle-excluded.json` CSS entries. Each form below is
+/// `oxfmt <file>.css`'s own output byte-for-byte; `oxfmt(svelte: true)` — which
+/// prints embedded CSS through prettier's PostCSS printer — disagrees with oxfmt
+/// itself on all three, so matching the oracle would mean matching a tool against
+/// its own other answer.
+#[test]
+fn a_custom_property_value_follows_the_oxc_engine_not_postcss() {
+    let out = fmt(
+        "div{--bar:   !important;--arr: [1, 2];--sel: a > b ~ c;}",
+        CssDialect::Css,
+    );
+    // oracle: `--bar:    !important;` / `[1, 2]` / `a > b ~c`
+    assert!(out.contains("--bar: !important;"), "{out}");
+    assert!(out.contains("--arr: [1 , 2];"), "{out}");
+    assert!(out.contains("--sel: a > b ~ c;"), "{out}");
+}
+
+#[test]
+fn a_nested_calc_group_stays_inline_like_the_oxc_engine() {
+    let out = fmt(
+        ".a{max-width: calc(min(100vw, var(--w)) - (100vw - var(--w) - var(--p) - var(--p)));}",
+        CssDialect::Css,
+    );
+    // The oracle breaks the parenthesized group onto lines of its own.
+    assert!(
+        out.contains("(100vw - var(--w) - var(--p) -"),
+        "inner group was broken out:\n{out}"
+    );
+}

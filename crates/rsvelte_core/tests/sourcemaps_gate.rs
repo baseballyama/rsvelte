@@ -577,6 +577,27 @@ fn snippet(text: &str, line: usize, col: usize, len: usize) -> String {
     String::from_utf16_lossy(&units[col..end]).replace('\n', "\\n")
 }
 
+/// Locate rsvelte's counterpart of one official segment.
+///
+/// Several segments can share a generated column, so they are paired by
+/// occurrence. Official also emits the *same* segment twice at one column
+/// (`basic`'s `let foo = $.prop(…)` carries `1:12` twice); a redundant copy
+/// resolves to the same original position for every consumer, so an exact
+/// match anywhere at that column satisfies it rather than counting as a
+/// segment rsvelte failed to reproduce.
+fn counterpart<'a>(
+    ours: &'a DecodedMap,
+    line_no: usize,
+    segment: &Segment,
+    occurrence: usize,
+) -> Option<&'a Segment> {
+    let line = ours.lines.get(line_no)?;
+    let at_column = || line.iter().filter(|s| s.len() >= 4 && s[0] == segment[0]);
+    at_column()
+        .nth(occurrence)
+        .or_else(|| at_column().find(|s| s[1..4] == segment[1..4]))
+}
+
 fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: &str, src: &str) {
     for (line_no, line) in theirs.lines.iter().enumerate() {
         let mut previous_column = None;
@@ -591,11 +612,7 @@ fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: 
                 previous_column = Some(segment[0]);
                 occurrence = 0;
             }
-            let mine = ours.lines.get(line_no).and_then(|l| {
-                l.iter()
-                    .filter(|s| s.len() >= 4 && s[0] == segment[0])
-                    .nth(occurrence)
-            });
+            let mine = counterpart(ours, line_no, segment, occurrence);
             let gen_text = snippet(generated, line_no, segment[0] as usize, 24);
             let want = snippet(src, segment[2] as usize, segment[3] as usize, 24);
             match mine {
@@ -631,11 +648,7 @@ fn parity(theirs: &DecodedMap, ours: &DecodedMap) -> Parity {
                 previous_column = Some(segment[0]);
                 occurrence = 0;
             }
-            let mine = ours.lines.get(line_no).and_then(|l| {
-                l.iter()
-                    .filter(|s| s.len() >= 4 && s[0] == segment[0])
-                    .nth(occurrence)
-            });
+            let mine = counterpart(ours, line_no, segment, occurrence);
             match mine {
                 None => p.missing += 1,
                 Some(m) if m[1..4] == segment[1..4] => p.exact += 1,
@@ -1221,4 +1234,33 @@ fn parity_compares_duplicate_generated_columns_by_occurrence() {
     let shifted_result = parity(&official, &extra_leading);
     assert_eq!(shifted_result.exact, 0);
     assert_eq!(shifted_result.wrong, 2);
+
+    // Official emits the same segment twice at one generated column (`basic`'s
+    // `let foo = $.prop(…)` carries `1:12` twice). The duplicate resolves to
+    // the same original position for every consumer, so reproducing it once is
+    // reproducing it.
+    let duplicated = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![3, 0, 1, 2], vec![3, 0, 1, 2]]],
+    };
+    let once = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![3, 0, 1, 2]]],
+    };
+
+    let duplicate_result = parity(&duplicated, &once);
+    assert_eq!(duplicate_result.exact, 2);
+    assert_eq!(duplicate_result.bad(), 0);
+
+    // A second segment rsvelte does not have at all is still missing.
+    let two_distinct = DecodedMap {
+        sources: Vec::new(),
+        sources_content: Vec::new(),
+        lines: vec![vec![vec![3, 0, 1, 2], vec![3, 0, 4, 5]]],
+    };
+    let first_only = parity(&two_distinct, &once);
+    assert_eq!(first_only.exact, 1);
+    assert_eq!(first_only.missing, 1);
 }

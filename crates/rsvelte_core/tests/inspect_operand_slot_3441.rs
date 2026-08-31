@@ -10,7 +10,7 @@
 //!
 //! rsvelte emits what the rune evaluates to instead of leaving the call in
 //! place, which would throw `ReferenceError: $inspect is not defined`. The
-//! divergence is recorded in `compatibility/deliberate-divergences.md` and
+//! divergence is recorded in `compatibility/GATES.md#deliberate-divergences` and
 //! reported upstream in
 //! `upstream_issues/3441-svelte-inspect-in-an-operand-slot.md`.
 //!

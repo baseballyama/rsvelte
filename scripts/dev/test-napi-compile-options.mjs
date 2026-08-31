@@ -557,13 +557,43 @@ const canonicalJson = (value) => {
 	}
 	return value;
 };
+const firstJsonDifference = (actual, expected, path = '$') => {
+	if (Object.is(actual, expected)) return null;
+	if (Array.isArray(actual) || Array.isArray(expected)) {
+		if (!Array.isArray(actual) || !Array.isArray(expected)) return { path, actual, expected };
+		if (actual.length !== expected.length) {
+			return { path: `${path}.length`, actual: actual.length, expected: expected.length };
+		}
+		for (let i = 0; i < actual.length; i += 1) {
+			const difference = firstJsonDifference(actual[i], expected[i], `${path}[${i}]`);
+			if (difference) return difference;
+		}
+		return null;
+	}
+	if (actual && expected && typeof actual === 'object' && typeof expected === 'object') {
+		const keys = [...new Set([...Object.keys(actual), ...Object.keys(expected)])].sort();
+		for (const key of keys) {
+			if (!(key in actual) || !(key in expected)) {
+				return { path: `${path}.${key}`, actual: actual[key], expected: expected[key] };
+			}
+			const difference = firstJsonDifference(actual[key], expected[key], `${path}.${key}`);
+			if (difference) return difference;
+		}
+		return null;
+	}
+	return { path, actual, expected };
+};
+const officialModernAst = officialCompile(MODERN_AST_SRC, {
+	filename: 'A.svelte',
+	modernAst: true,
+}).ast;
+const modernAstDifference = firstJsonDifference(modernAst, officialModernAst);
 assert(
 	'compile.modernAst: matches the official public AST',
-	JSON.stringify(canonicalJson(modernAst)) ===
-		JSON.stringify(
-			canonicalJson(officialCompile(MODERN_AST_SRC, { filename: 'A.svelte', modernAst: true }).ast)
-		),
-	'modern AST differs from svelte/compiler'
+	JSON.stringify(canonicalJson(modernAst)) === JSON.stringify(canonicalJson(officialModernAst)),
+	modernAstDifference
+		? `first difference at ${modernAstDifference.path}: rsvelte=${JSON.stringify(modernAstDifference.actual)} official=${JSON.stringify(modernAstDifference.expected)}`
+		: 'modern AST differs from svelte/compiler'
 );
 // Upstream fills `ast` either way — the modern tree under `modernAst`, the
 // Svelte-4 legacy tree otherwise. Key sets are compared rather than whole trees
