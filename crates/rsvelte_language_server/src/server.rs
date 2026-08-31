@@ -3392,6 +3392,9 @@ impl Server {
                     if method == "textDocument/foldingRange" {
                         drop_degenerate_folding_ranges(result, self.client.line_folding_only);
                     }
+                    if method == "textDocument/diagnostic" {
+                        fill_diagnostic_tags(result);
+                    }
                     if let Some(fallback) = fallback_result {
                         merge_tsgo_result(&method, result, fallback);
                     }
@@ -4220,6 +4223,56 @@ fn is_project_config(uri: &Uri) -> bool {
 
 /// `FoldingRangeProvider.ts:54-56`: a client that folds by line has no use for a
 /// range inside one line, and an inverted range is never emitted.
+/// TypeScript codes whose diagnostic the API marks `reportsUnnecessary`, read out
+/// of `ts.Diagnostics` in the pinned typescript 6.0.3.
+const UNNECESSARY_CODES: [i64; 9] = [2695, 6133, 6138, 6192, 6196, 6198, 6199, 7027, 7028];
+/// The `reportsDeprecated` half of the same table.
+const DEPRECATED_CODES: [i64; 2] = [6385, 6387];
+
+/// tsgo's LSP never writes `tags`: upstream reads `reportsUnnecessary` /
+/// `reportsDeprecated` off the TypeScript API instead, and its `getDiagnosticTag`
+/// returns `[]` rather than `undefined`, so every diagnostic it emits carries the
+/// key. The code decides both flags, so the LSP surface can reproduce them.
+fn fill_diagnostic_tags(result: &mut serde_json::Value) {
+    fn tag_items(value: &mut serde_json::Value) {
+        let Some(items) = value
+            .get_mut("items")
+            .and_then(serde_json::Value::as_array_mut)
+        else {
+            return;
+        };
+        for item in items {
+            let Some(object) = item.as_object_mut() else {
+                continue;
+            };
+            if object.contains_key("tags") {
+                continue;
+            }
+            let code = object.get("code").and_then(serde_json::Value::as_i64);
+            let mut tags = Vec::new();
+            if let Some(code) = code {
+                if UNNECESSARY_CODES.contains(&code) {
+                    tags.push(serde_json::json!(1));
+                }
+                if DEPRECATED_CODES.contains(&code) {
+                    tags.push(serde_json::json!(2));
+                }
+            }
+            object.insert("tags".to_string(), serde_json::Value::Array(tags));
+        }
+    }
+
+    tag_items(result);
+    if let Some(related) = result
+        .get_mut("relatedDocuments")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for report in related.values_mut() {
+            tag_items(report);
+        }
+    }
+}
+
 fn drop_degenerate_folding_ranges(result: &mut serde_json::Value, line_folding_only: bool) {
     let Some(ranges) = result.as_array_mut() else {
         return;
@@ -4496,6 +4549,68 @@ fn might_be_at_start_tag_whitespace(text: &str, offset: usize) -> bool {
     let at = text.get(offset..).and_then(|text| text.chars().next());
     before.is_some_and(char::is_whitespace)
         && at.is_some_and(|character| character.is_whitespace() || matches!(character, '>' | '/'))
+}
+
+#[cfg(test)]
+mod diagnostic_tag_tests {
+    use super::fill_diagnostic_tags;
+
+    fn tagged(items: serde_json::Value) -> Vec<serde_json::Value> {
+        let mut result = serde_json::json!({ "kind": "full", "items": items });
+        fill_diagnostic_tags(&mut result);
+        result["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["tags"].clone())
+            .collect()
+    }
+
+    /// tsgo sends no `tags` at all, and upstream's `getDiagnosticTag` returns `[]`
+    /// rather than `undefined` — so an untagged diagnostic still carries the key.
+    #[test]
+    fn a_code_decides_the_tag_and_every_diagnostic_carries_the_key() {
+        assert_eq!(
+            tagged(serde_json::json!([
+                { "code": 6133, "message": "unused" },
+                { "code": 6387, "message": "deprecated" },
+                { "code": 2322, "message": "type error" },
+                { "message": "no code at all" }
+            ])),
+            [
+                serde_json::json!([1]),
+                serde_json::json!([2]),
+                serde_json::json!([]),
+                serde_json::json!([])
+            ]
+        );
+    }
+
+    /// A server that does send `tags` keeps them: this fills a gap, it does not
+    /// overwrite an answer.
+    #[test]
+    fn an_existing_tags_field_is_left_alone() {
+        assert_eq!(
+            tagged(serde_json::json!([{ "code": 6133, "tags": [] }])),
+            [serde_json::json!([])]
+        );
+    }
+
+    /// A related document's report is a second `items` array, and an
+    /// inter-file-dependency provider fills it.
+    #[test]
+    fn related_documents_are_tagged_too() {
+        let mut result = serde_json::json!({
+            "kind": "full",
+            "items": [],
+            "relatedDocuments": { "file:///a.ts": { "kind": "full", "items": [{ "code": 6385 }] } }
+        });
+        fill_diagnostic_tags(&mut result);
+        assert_eq!(
+            result["relatedDocuments"]["file:///a.ts"]["items"][0]["tags"],
+            serde_json::json!([2])
+        );
+    }
 }
 
 #[cfg(test)]
