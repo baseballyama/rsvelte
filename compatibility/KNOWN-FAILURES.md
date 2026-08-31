@@ -5998,12 +5998,49 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 36 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 35 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `34 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `33 + 2`
 
-- **34 — the emitted TSX differs** (`ts-mismatch`).
-- **2 — one side rejects and the other compiles** (`error-mismatch`).
+- **33 — the emitted TSX differs** (`ts-mismatch`).
+- **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
+  `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
+  a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
+  throw from `magic-string`, reduced and filed as
+  `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md`.
+
+Attribution of `svelte2tsx-known-failures.json`:
+
+| n | target | cluster |
+|---|---|---|
+| 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
+
+The remaining 33 carry no target yet: every one measured so far is an rsvelte
+defect, so the end state for them is elimination rather than attribution. The
+classification below is the input to that work.
+
+### The 33 `ts-mismatch` entries, measured 2026-09-01
+
+Both implementations run directly on the 33 listed sources with the options
+`svelte2tsx-compile.mjs` passes (`{filename, isTsFile, mode:'ts', namespace:'html',
+version:'5'}`); the key is the first differing line after blank-line normalization.
+Read it the way the paragraphs above tell you to read every first-differing-line
+key: it is a **symptom**, so a mechanism can span rows and two mechanisms can
+share one.
+
+| n | first differing line |
+|---|---|
+| 5 | official has reached `async () => {` while rsvelte is still emitting an `import` — the instance/module statement order |
+| 3 | `App.Error` on official against `any` on rsvelte, in a `+error.svelte`'s `$$ComponentProps` typedef |
+| 3 | `* @type {{` against `* @typedef {{` |
+| 2 | `return { props: {` — a JSDoc comment placed after the brace |
+| 2 | the props object's entries, from a wider `return { props: {…}` line |
+| 2 | `;` against `function $$render() {` |
+| 1 | store declarations emitted in a different order |
+| 1 | `ensureTransition(fade(…))` against `ensureTransition(fade)(…)` |
+| 1 | `function $$render/*Ωignore_startΩ*/<T>/*Ωignore_endΩ*/()` against a bare `;` |
+| 1 | a dev-mode `__sveltets_2_any` assignment rsvelte adds to a typed declaration |
+| 13 | one entry each |
 
 ### Wave-2 enrolment (#3130)
 
