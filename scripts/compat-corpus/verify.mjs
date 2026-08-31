@@ -12,7 +12,7 @@
  *   - js-mismatch / css-mismatch / error-mismatch (rsvelte errs where official
  *     compiles, or vice versa)
  *   - js-unparseable  one side's output does not parse, so there is no
- *     comparison to make (see compatibility/ast-equivalence.md)
+ *     comparison to make (see compatibility/GATES.md#ast-equivalence)
  *
  * Compiler WARNINGS and the detail of a compiler ERROR are gated separately, on
  * their own ratchets, and never touch the output verdicts above — see "warning
@@ -29,7 +29,7 @@
  * exits non-zero when a (id, target) pair NOT in its baseline fails (a
  * regression) AND when a baseline still lists a pair that now passes (a stale
  * ratchet) — known failures are tolerated and burned down over time (see
- * compatibility/known-failures.md for the root-cause writeup of each entry).
+ * compatibility/KNOWN-FAILURES.md#known-failures for the root-cause writeup of each entry).
  * Both are fixed with --update-baseline, which rewrites the files from current
  * results; `--update-baseline <target>` rewrites only that target's file.
  *
@@ -525,7 +525,7 @@ if (staleExclusions.length) {
 
 // A gate whose population is "modules rsvelte produced" gets GREENER the more
 // the compiler refuses to compile — the failure mode recorded for
-// `ast_gate_preconditions.rs` in compatibility/gate-coverage.md § 15a, where the
+// `ast_gate_preconditions.rs` in compatibility/GATES.md#gate-coverage § 15a, where the
 // only floor was on input discovery. The denominator here is official's module
 // count, which no rsvelte change can move, so the two cannot shrink together.
 const PARSE_POPULATION_FLOOR = 0.9;
@@ -603,7 +603,7 @@ const failures = [];
 // (`is_meaningful_comment` matches `@ts-`, `svelte-ignore`, `@component`, …),
 // so JSDoc type tags such as `@type` are still filtered as prose. The gate is
 // blind to them under either policy. The path forward is rsvelte preserving
-// comments plus `--comments` here — see compatibility/ast-equivalence.md.
+// comments plus `--comments` here — see compatibility/GATES.md#ast-equivalence.
 //
 // Preservation is necessary but NOT sufficient. Official drops the comment in
 // 80 of 192 generated module positions and keeps it in the other 112 — the
@@ -1179,7 +1179,7 @@ if (regressions.length || fixedKnown || diagnosticRegressions.length || diagnost
 if (failures.length) {
   const breakdown = TARGET_KEYS.map((key) => `${key} ${failsByTarget.get(key).size}`).join(", ");
   console.log(
-    `\n[verify] ✅ no regressions (${breakdown} known failures remain — see compatibility/known-failures.md)`,
+    `\n[verify] ✅ no regressions (${breakdown} known failures remain — see compatibility/KNOWN-FAILURES.md#known-failures)`,
   );
 } else {
   console.log("\n[verify] ✅ all corpus outputs identical after normalization");
@@ -1187,7 +1187,7 @@ if (failures.length) {
 
 if (warningFailures.length) {
   console.log(
-    `[verify] ✅ no warning regressions (${warningFailures.length} known warning failures remain — see compatibility/warning-known-failures.md)`,
+    `[verify] ✅ no warning regressions (${warningFailures.length} known warning failures remain — see compatibility/KNOWN-FAILURES.md#warning-known-failures)`,
   );
 } else {
   console.log("[verify] ✅ all corpus warnings identical");
@@ -1195,7 +1195,7 @@ if (warningFailures.length) {
 
 if (errorFailures.length) {
   console.log(
-    `[verify] ✅ no error regressions (${errorFailures.length} known error failures remain — see compatibility/error-known-failures.md)`,
+    `[verify] ✅ no error regressions (${errorFailures.length} known error failures remain — see compatibility/KNOWN-FAILURES.md#error-known-failures)`,
   );
 } else {
   console.log("[verify] ✅ all corpus compile errors identical");
@@ -1203,7 +1203,7 @@ if (errorFailures.length) {
 
 if (parseFailures.length) {
   console.log(
-    `[verify] ✅ no output-parseability regressions (${parseFailures.length} known unparseable entries remain — see compatibility/parse-known-failures.md)`,
+    `[verify] ✅ no output-parseability regressions (${parseFailures.length} known unparseable entries remain — see compatibility/KNOWN-FAILURES.md#parse-known-failures)`,
   );
 } else {
   console.log(`[verify] ✅ all ${parsedModules} generated modules parse`);

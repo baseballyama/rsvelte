@@ -2106,7 +2106,7 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
 
             // Deliberate divergence: upstream leaves a constructor-root update
             // through a non-`this` receiver as `inst.#n.v++`, which writes the
-            // source without notifying (`compatibility/deliberate-divergences.md`).
+            // source without notifying (`compatibility/GATES.md#deliberate-divergences`).
             let post_inc = format!("{}++", qualified);
             while result.contains(&post_inc) {
                 let replacement = format!("$.update({})", qualified);

@@ -426,7 +426,7 @@ if (fixed.length) {
 if (regressions.length || fixed.length) cleanup(1);
 
 if (ids.size) {
-	console.log(`\n[matrix] ✅ no regressions (${ids.size} known divergences remain — see compatibility/matrix-known-failures.md)`);
+	console.log(`\n[matrix] ✅ no regressions (${ids.size} known divergences remain — see compatibility/KNOWN-FAILURES.md#matrix-known-failures)`);
 } else {
 	console.log('\n[matrix] ✅ every generated case matches the official compiler');
 }

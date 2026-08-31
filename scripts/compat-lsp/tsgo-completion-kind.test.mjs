@@ -1,4 +1,4 @@
-// Pins the tsgo capability gap that `compatibility/deliberate-divergences.md`
+// Pins the tsgo capability gap that `compatibility/GATES.md#deliberate-divergences`
 // records: `tsgo --lsp` carries no `ScriptElementKind`/`kindModifiers`, so a
 // `const` is indistinguishable from a `let` and rsvelte cannot reproduce
 // official's `CompletionItemKind.Constant`. When tsgo starts distinguishing

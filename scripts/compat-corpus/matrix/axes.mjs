@@ -1588,7 +1588,7 @@ export const REMOVAL_SUCCESSORS = ['succ-none', 'succ-stmt'];
  * right.
  *
  * The update operators are declared apart because the non-`this` half of that
- * row is a recorded deliberate divergence (`compatibility/deliberate-divergences.md`),
+ * row is a recorded deliberate divergence (`compatibility/GATES.md#deliberate-divergences`),
  * and an output-equality gate has no way to say "expected to differ".
  */
 export const PRIVATE_FIELD_KINDS = {

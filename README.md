@@ -80,7 +80,7 @@ compares compiler output, diagnostics, formatting, linting, TypeScript output,
 source maps, and generated edge cases with the official tools.
 
 - [Live compatibility results](https://baseballyama.github.io/rsvelte/progress)
-- [Compatibility checks](compatibility/README.md)
+- [Compatibility checks](compatibility/GATES.md#README)
 - [Real-world test method](scripts/compat-corpus/README.md)
 - [Live benchmarks and test details](https://baseballyama.github.io/rsvelte/benchmark)
 

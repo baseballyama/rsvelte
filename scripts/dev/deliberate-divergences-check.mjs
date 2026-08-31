@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DoD for `compatibility/deliberate-divergences.md`: a divergence recorded there is a
+// DoD for `compatibility/GATES.md#deliberate-divergences`: a divergence recorded there is a
 // decision not to close, so it must be held in place by a test. A section with prose
 // and no pin is a claim nothing re-checks — the next refactor changes the behaviour
 // and the document keeps asserting the old one.

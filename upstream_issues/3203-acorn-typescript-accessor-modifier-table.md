@@ -59,4 +59,4 @@ and `remove_typescript_nodes` rejects the accessor field, which is what upstream
 other spelling of it). Both compilers refuse the input; only the code and the position differ, and
 matching upstream here would mean reproducing a wrong rule at a wrong position. The three affected
 axis values are ratcheted on the `class-modifier` matrix family, justified in
-`compatibility/matrix-known-failures.md`.
+`compatibility/KNOWN-FAILURES.md#matrix-known-failures`.

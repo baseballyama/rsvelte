@@ -14,7 +14,7 @@
  * using the official map only to CALIBRATE the invariants: a rule magic-string
  * itself violates is by definition too strict and is not encoded here. Both
  * sides are clean on all 13,465 corpus components that produce a map; see
- * compatibility/svelte2tsx-map-known-failures.md.
+ * compatibility/KNOWN-FAILURES.md#svelte2tsx-map-known-failures.
  */
 
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';

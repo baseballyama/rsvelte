@@ -1,5 +1,5 @@
 //! Pins the deliberate divergence recorded in
-//! `compatibility/deliberate-divergences.md` — "A `$`-prefixed function parameter
+//! `compatibility/GATES.md#deliberate-divergences` — "A `$`-prefixed function parameter
 //! is not a store subscription (server)".
 //!
 //! Upstream's server transform decides "this is a store" from the name's spelling

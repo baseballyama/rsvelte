@@ -221,7 +221,7 @@ of its examples were measured and which were inferred from the mechanism** — t
 four were only ever the latter.
 
 **And #3027 is not one bug, it is the shape of a class — the inventory is
-[`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
+[`compatibility/GATES.md#two-ports-inventory`](compatibility/GATES.md#two-ports-inventory).** Every gate here
 compares rsvelte to *upstream*; **none compares rsvelte to itself**, so a second port of one
 upstream function is only ever exercised on whatever inputs a real file happens to supply. On
 2026-08-22 four instances were reported on one day by four people in four files — #3403, #3427,
@@ -292,13 +292,13 @@ apportioned.
 - Retained Phase-1 programs are immutable; Phase 3 uses source-range transforms and falls back after text rewrites
 - No backward compatibility for internal APIs (refactor freely)
 
-### What each gate cannot see ([`compatibility/gate-coverage.md`](compatibility/gate-coverage.md))
+### What each gate cannot see ([`compatibility/GATES.md#gate-coverage`](compatibility/GATES.md#gate-coverage))
 
 The sections below describe what the ~34 gates *do* compare. Every one of them can be green
 while a real defect ships, because each has a field its comparison key drops, a normalization
 step that erases the divergence, or a population its unit never reaches — and rediscovering
 those blind spots ad hoc has cost this project several shipped bugs (#2403, #2424, #2425).
-`compatibility/gate-coverage.md` is the inventory: per gate, the unit compared, what it
+`compatibility/GATES.md#gate-coverage` is the inventory: per gate, the unit compared, what it
 structurally cannot observe with the responsible flag/field/filter cited by file and line, and
 evidence classified as a **discriminating case**, a **structural argument from code**, or an
 explicit **unmeasured**. Never fill a row with a plausible guess — an unsupported blind-spot
@@ -338,7 +338,7 @@ rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
 `scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
-may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
+may only shrink, and each remaining failure is justified in `compatibility/KNOWN-FAILURES.md#known-failures`. Every
 ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
 that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
 same directory holds five sibling shrink-only ratchets, each with per-entry justification in a paired
@@ -374,7 +374,7 @@ number, and fixing the compiler turns that row red until the harness mirrors the
 
 The same `verify.mjs` run also gates compiler **warnings** — `(code, line, column)` per entry —
 on ratchets of their own (`warning-known-failures.{client,server,client-dev}.json` and
-`warning-position-known-failures.*`, justified in `compatibility/warning-known-failures.md`).
+`warning-position-known-failures.*`, justified in `compatibility/KNOWN-FAILURES.md#warning-known-failures`).
 Codes and positions ratchet separately: a wrong set of codes is a semantic bug, a wrong position
 is one systemic cause, and folded together the larger position backlog would hide every semantic
 regression. Until #2281 the pipeline discarded `result.warnings` entirely, so this whole class was
@@ -384,7 +384,7 @@ not look at, not only what the input does not contain.
 
 Compiler **errors** ratchet the same way and for the same reason
 (`error-{message,position,end,frame}-known-failures.{client,server,client-dev}.json`, justified
-in `compatibility/error-known-failures.md`). The output verdict compares an error's `code` and
+in `compatibility/KNOWN-FAILURES.md#error-known-failures`). The output verdict compares an error's `code` and
 nothing else, and that field is **saturated**: 0 divergences over the 2,843 `(id, target)` pairs
 both compilers reject. Every other field was invisible until it was captured — `message` 121
 ids, `start` 226, `end` 243, `frame` 5 — so growing the corpus could never have found them.

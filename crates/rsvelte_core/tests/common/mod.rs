@@ -496,7 +496,7 @@ pub fn runtime_skip_names(category: &str) -> &'static [&'static str] {
 /// drops the user's `JSDoc` / `@ts-expect-error` / `svelte-ignore` comments on the
 /// server path, and keeps one on the client path that the official compiler
 /// drops. That is a real gap, tracked separately in
-/// `compatibility/ast-equivalence.md`, not something this suite can absorb one
+/// `compatibility/GATES.md#ast-equivalence`, not something this suite can absorb one
 /// fixture at a time.
 ///
 /// # Panics

@@ -700,7 +700,7 @@ if (unmeasured.length) {
 if (regressions.length || stale.length || rekeyed.length || unmeasured.length) finish(1);
 
 if (ids.size) {
-	console.log(`\n[mutate] ✅ no code regressions (${ids.size} known remain — see compatibility/mutation-known-failures.md)`);
+	console.log(`\n[mutate] ✅ no code regressions (${ids.size} known remain — see compatibility/KNOWN-FAILURES.md#mutation-known-failures)`);
 } else {
 	console.log('\n[mutate] ✅ no mutant changes generated code');
 }

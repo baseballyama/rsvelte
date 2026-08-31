@@ -1,6 +1,6 @@
 //! What `grass` 0.13.4 emits where dart-sass 1.103.1 emits something else.
 //!
-//! `scss-known-failures.json` lists 315 units, and `compatibility/deliberate-divergences.md`
+//! `scss-known-failures.json` lists 315 units, and `compatibility/GATES.md#deliberate-divergences`
 //! decides that the render-neutral ones stay listed rather than being normalised away. That
 //! decision is only enforceable if the behaviour it describes is pinned: each case below
 //! records dart-sass's output beside the assertion, so a `grass` upgrade that converges (or

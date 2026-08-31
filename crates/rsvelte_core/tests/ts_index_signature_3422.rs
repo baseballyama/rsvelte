@@ -1,5 +1,5 @@
 //! Pins the deliberate divergence recorded in
-//! `compatibility/deliberate-divergences.md`: a TypeScript **class index
+//! `compatibility/GATES.md#deliberate-divergences`: a TypeScript **class index
 //! signature** is erased, the way an interface and a type alias already are.
 //!
 //! It is type-only and has no runtime representation. The official compiler

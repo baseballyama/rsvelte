@@ -95,6 +95,6 @@ return null;` before the `is_store_name` branch — the client's behaviour is th
 ## What rsvelte does
 
 rsvelte resolves the parameter and emits `$viewport.distance = 42;` on both targets. This is a
-deliberate divergence recorded in `compatibility/deliberate-divergences.md`; the corpus entries
+deliberate divergence recorded in `compatibility/GATES.md#deliberate-divergences`; the corpus entries
 are listed in `compatibility/known-failures.server.json` and
 `compatibility/known-failures.server-dev.json` pending an upstream fix.
