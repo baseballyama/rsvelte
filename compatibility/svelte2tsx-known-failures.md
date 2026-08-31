@@ -154,3 +154,53 @@ Known upstream svelte2tsx bug classes (reference, should any resurface):
   (`createElement("}tr", …)`).
 - **Malformed migrate output** — Svelte-4 migrate inputs produce unparseable TSX
   (e.g. `const st x = …`, inconsistent `props: {  }` spacing).
+
+### 2026-08-31 — one space, 90 files, and a gate that cannot see any of them
+
+`ExportedNames.ts:476` writes the combined SvelteKit block as
+`` `${kitType};${name} = __sveltets_2_any(${name});` `` — `kitType` already carries
+its leading `: `, so the separator between the annotation and the widener is a
+bare `;`. rsvelte spelled the same string as one format literal and put a space
+after that `;`. Fixed.
+
+The measurement is the point. Over all 33,776 corpus components, comparing the
+**raw** `svelte2tsx` text of three implementations:
+
+| | ids |
+|---|---|
+| output changed | 96 |
+| …now byte-identical to official | **90** |
+| …**regressed** | **0** |
+| …differ from official before and after | 6 |
+
+**86 of those 90 were not in this ratchet**, which is the finding: the gate
+normalizes both trees with `oxfmt` before comparing (`svelte2tsx-verify.mjs:218`),
+and oxfmt reprints `; data` and `;data` identically. So this divergence was
+present in 90 real files and *structurally invisible* to the gate — no corpus size
+reaches it, because the normalizer, not the population, is what hides it. The
+other 6 carry a further raw difference that normalization also absorbs, and
+re-running the gate's own normalization over all 96 confirms 0 gate-visible
+regressions.
+
+Recorded so the next person does not read a green gate as "the text agrees":
+what this gate compares is the text *after* oxfmt, and whitespace inside a
+statement is below its resolution.
+
+### 2026-08-31 — a `lang="ts"` script never reads the JSDoc above its `$props()`
+
+Upstream reaches its whole JSDoc scan under `if (!this.isTsFile)`
+(`ExportedNames.ts:242`), so in a TS file the `/** @type {Props} */` above a
+`$props()` destructuring is never consulted and `createPropsStr` runs, emitting
+`;type $$ComponentProps = { … };`. rsvelte read `jsdoc_type` regardless of the
+language, took the JS branch, and emitted **nothing** — so the props return type
+loses the author's shape entirely.
+
+Corpus differential over all 33,776 components: **4 outputs change, 4 become
+byte-identical to official, 0 regress**, and all four are ratchet entries.
+Re-running the gate's own normalization over the 70 ratchet ids moves the
+already-matching count 30 → 34 with 0 gate-visible regressions.
+
+The control is the same source as JavaScript: it must keep the JSDoc and emit no
+alias. Both arms are pinned in
+`crates/rsvelte_projection/tests/svelte2tsx_ts_props_ignores_jsdoc.rs`; dropping
+the `!is_ts` guard turns the TS arm red and leaves the JS arm green.

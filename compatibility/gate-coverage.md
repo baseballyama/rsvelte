@@ -152,7 +152,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | neither output is parsed — identical **non-JavaScript** scores `match`; CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [D] |
-| 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; anything about an error both sides raise | [S] [D] |
+| 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; whitespace inside a statement; anything about an error both sides raise | [S] [D] |
 | 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
@@ -1930,7 +1930,7 @@ string, which oxfmt parses). **[S]** There is no `oracle-invalid` baseline, so t
 grow without bound and no step fails.
 
 
-### Blind spot 6f — a BOM-induced offset shift is absorbed by the reformatter
+### Blind spot 6h — a BOM-induced offset shift is absorbed by the reformatter
 
 The compiler's parser strips a leading BOM (upstream's `remove_bom`, at every public entry
 point), so its offsets are relative to the stripped text, while `svelte2tsx()` slices the
@@ -1947,6 +1947,23 @@ the oracle. It is recorded because the same mixing **was** a real defect one cra
 `rsvelte_lint` shifted every column on the BOM's line by three and panicked slicing at byte 1
 — and there the oracle (ESLint's `SourceCode`) does strip. The rule that separates the two
 cases is what the oracle does, not what looks tidy.
+
+### Blind spot 6g — whitespace inside a statement is below the gate's resolution
+
+`svelte2tsx-verify.mjs:218-222` runs `oxfmtTree` on **both** trees before comparing, so the
+comparison is over reformatted TSX and any divergence a reformatter absorbs is invisible.
+**[D]** Measured in both directions on the corpus: a one-character fix to the widener glue
+(`` `${kitType};${name} = …` `` — official emits no space after the `;`, rsvelte emitted one)
+turned **90 components byte-equal on the raw output**, and the gate's post-normalization match
+count moved **30 → 30**. Ninety real divergences, zero of them gate-visible, and 86 of the 90
+were never ratchet entries at all — so neither the failure list nor the match count could have
+named them. This is the class corpus growth cannot reach: it is not a missing input, it is a
+normalization step applied to both sides.
+
+The consequence for reading this gate: an entry leaving `svelte2tsx-known-failures.json` is
+evidence about the normalized text, never about the bytes the language server actually
+consumes. Gate 7 does not close it either — it validates rsvelte's map against *rsvelte's own*
+line lengths (6a).
 
 ---
 

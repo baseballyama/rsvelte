@@ -1017,3 +1017,429 @@ and the accompanying commit touches no formatter code. The claim that the entry
 fails on Linux is inferred from the oracle agreeing across the two platform
 descriptions, not measured there — if the Formatter-parity job reports this id
 as already passing, delete it from this ratchet rather than re-excluding it.
+
+### 2026-08-31 — the formatter now normalizes line endings; 67 entries are ready to shrink
+
+`rsvelte_formatter::format_with_arenas` rewrote spans in the source it was
+handed, so every region it copies **verbatim** carried that source's line
+endings through. Prettier normalizes `\r\n` / `\r` to `\n` before it parses, so
+the oracle never can. Two regions were reachable — a comment body and a
+whitespace-only `<style>` — and everything else (markup between tags, a
+`<script>`, a non-empty `<style>`) was already normalized because the indent
+pass rewrites those separators itself. That asymmetry is why the defect looked
+like six unrelated clusters: **how loud it is depends on which region the file's
+CRLF happens to land in, not on the defect.**
+
+Measured on the 788 listed ids that have a source, staged and formatted with the
+pinned oracle and `rsvelte-fmt` in directory mode:
+
+| | ids |
+|---|---|
+| listed and diverging before | 788 |
+| rsvelte keeps a CR the oracle does not | 76 |
+| …of which the CR is the *only* difference | 63 |
+| **now byte-equal to the oracle** | **67** |
+
+The four beyond the 63 are ids where removing the CR also removed a second
+difference that the CR was creating (a line the CR pushed past the print width).
+
+**Blast radius, stated as a set rather than as a risk.** The normalizer returns
+its input borrowed when the source holds no `\r`, so every source without one is
+byte-identical by construction. Of the 33,776 component entries, **306** contain
+a CR: 84 listed here, and **222 unlisted — all 222 still match the oracle**
+after the change (they were re-formatted and compared, not assumed).
+
+The 67 ids are **not removed from the JSON here**: the *Cross-platform baseline
+rule* above binds this file to the Linux CI failure set, and this measurement is
+macOS. Shrink them from the next Linux Formatter-parity run.
+
+The regression tests are `crates/rsvelte_formatter/tests/line_endings.rs`, one
+per region plus two controls, rather than a `pattern-corpus/` repro: convention 5
+of that directory is *commit formatted files*, and a CRLF file is by definition
+not the shape the oracle emits.
+
+### 2026-08-31 — what the remaining entries are, by which printer owns them
+
+The residue is classified by **region**, because the ratchet's own clusters
+(`breaks-later`, `indent-only`, …) name the *symptom* and every target the
+attribution contract accepts names a *printer*. Each diverging line's first
+differing column is mapped to an offset in the oracle's output and tested against
+the spans official's `parse({modern: true})` reports, so a file is labelled by
+the set of regions its divergences fall in — `js` (a `<script>` body or a
+template expression: oxc here, prettier there), `css` (`oxc_formatter_css` here,
+PostCSS there), `markup` (Svelte structure, which both sides print with the
+*same* intent).
+
+Measured on the 721 that still diverge after the line-ending fix:
+
+| region set | layout-only | characters differ |
+|---|---|---|
+| `js` only | 51 | 6 |
+| `css` only | 13 | 1 |
+| `js` + `markup` | 182 | 72 |
+| `css` + `js` + `markup` | 114 | 52 |
+| `css` + `markup` | 30 | 0 |
+| `markup` only | 182 | 2 |
+| oracle unparseable | 12 | 4 |
+
+`layout-only` means the two outputs are byte-equal once all whitespace is
+removed. Read the table by the two totals it implies: **71 files diverge only
+where a different engine prints**, and **634 carry at least one `markup`
+divergence**. The existing `deliberate-divergences` entry *The formatter's
+JavaScript engine is oxc, not prettier* is about embedded JS and CSS, so it
+reaches the 71 and not the 634 — and a `markup` divergence cannot be attributed
+to a deliberate choice at all, because the same Svelte-structure printer is held
+to the svelte.dev formatter gate, which has **no tolerance** and is green. Those
+are defects to fix.
+
+### 2026-08-31 — an element's edge whitespace: the predicate was already right, the branch was unreachable
+
+`<RadioTile value="test"> <div>c</div> </RadioTile>` — the space either side of the
+child is not significant inside a component, and the oracle drops it. rsvelte kept
+it. The rule was measured rather than read: 45 parent tags × a `<span>` child, and
+a 7×4 parent × child grid.
+
+**The oracle's answer depends on the parent alone.** Block-display elements,
+`<slot>` and components trim; inline elements (`span`, `a`, `b`, `button`,
+`label`, `svg`, a custom element, …) keep. rsvelte already agreed on every
+`RegularElement` in prettier-plugin-svelte's `blockElements` list and disagreed on
+exactly three parents — a component, `<svelte:element>`, and `<slot>` — plus,
+inconsistently, on a block parent whose child is *also* block, where it was
+consulting the child's display as well.
+
+rsvelte's predicate was already correct: `trims_edge_whitespace(tag) ||
+is_component_tag(tag)` (`collapse/collect.rs`) is the same partition the oracle
+uses. What was wrong is that `try_collapse` returns before reading it as soon as
+any child is an element, so only a *pure-text* body was ever trimmed.
+
+**Where the pass runs is not a detail: that whitespace is also the hug signal.**
+`shouldHugStart` hugs only when the content touches the open tag, so a trim placed
+*before* the layout passes makes both sides believe the content is adjacent and
+changes the layout. The pass therefore runs **last**, after every breaking pass has
+read the whitespace it needs. Two consequences worth stating: the trim only ever
+deletes spaces and tabs, so it can neither remove a line break nor lengthen a line;
+and it declines a fragment with two or more element children, where the element is
+laid out broken and the oracle breaks its edges too.
+
+Measured over the whole corpus with the two binaries, hashing all 33,776 component
+outputs:
+
+| | ids |
+|---|---|
+| output changed | 59 |
+| …now byte-equal to the oracle (was not) | **48** |
+| …**regressed** (was equal, now not) | **0** |
+| …differ from the oracle before and after | 11 |
+
+Regression tests: `crates/rsvelte_formatter/tests/edge_whitespace.rs`, four
+trimming shapes and five controls (three inline parents, a newline-bearing edge, a
+`<pre>`, and the two-child shape the pass declines).
+
+As with the line-ending fix above, the ids are **not** removed from the JSON here —
+the *Cross-platform baseline rule* binds this file to the Linux CI failure set.
+
+### 2026-08-31 — the same trim, seven node types it never reached
+
+The pass above was measured on *tags* and implemented on *node types*, and the two
+are not the same partition. `is_component_tag` already answers `true` for every
+`svelte:` prefix, so the predicate was right for `<svelte:fragment>` and its
+siblings — but `trim_edge_target`'s `match` listed only `SvelteElement`
+(`<svelte:element>`) and `SvelteComponent`, and the other seven `svelte:*` node
+types fell to its `_ => None`. **A predicate keyed on a name cannot be reached by a
+caller keyed on a variant**, and nothing in the first measurement could see the gap:
+the 45-parent grid injected tags into one `RegularElement` slot.
+
+Measured one tag at a time against the oracle, `<TAG> <b>c</b> </TAG>`:
+
+| parent | oracle trims | rsvelte trimmed (before) |
+|---|---|---|
+| `svelte:fragment`, `svelte:head`, `svelte:boundary`, `svelte:body`, `svelte:window`, `svelte:document`, `svelte:self` | yes | **no** |
+| `svelte:element`, `svelte:component`, `div`, `Comp` | yes | yes |
+| `span` | no | no |
+
+`<svelte:options>` is absent because both compilers reject content in it
+(`svelte_meta_invalid_content`) — measured, not assumed.
+
+Corpus differential over all 33,776 component outputs, base = the merge commit's
+own binary (md5 identical to the tree built before this change):
+
+| | ids |
+|---|---|
+| output changed | 24 |
+| …now byte-equal to the oracle | **24** |
+| …**regressed** | **0** |
+| …still differ from the oracle | 0 |
+
+Those 24 are exactly the residue's `intra-line-ws` × `markup` cell — 23
+`<svelte:fragment slot="…">` and one `<svelte:head>`. Positive control: with the
+seven arms removed, `every_svelte_special_element_drops_it` fails at
+`<svelte:fragment>` and the other eight tests in the file stay green.
+
+### 2026-08-31 — the axis the collected corpus cannot hold: an input where the reorder actually runs
+
+`reorder_sections` hoists a `<script>` / `<style>` that sits between two markup
+runs and rejoins them. The separator was a hardcoded `\n`, so a blank line after
+`</script>` was lost. It is fixed, and the interesting part is the population.
+
+**Published components write `<script>` first**, so on the 33,776 collected
+components the hoist is a no-op or nearly so: the merge branch fires on **2** of
+them and neither has a blank line at that gap. The corpus therefore scored
+33,776 byte-identical outputs before and after the fix — the gate could not see
+the defect at any corpus size, because *the axis is not "which repository" but
+"does the reorder run at all"*. What reached it was a hand-written
+`compatibility/pattern-corpus` file (`d129fd211`'s analyze repro, which happens to
+put `<script>` after the markup) landing in the gate as one NEW entry.
+
+Two consequences worth keeping. The deciding gap is the source's gap **after** the
+section, and it has to be read off the *source*: by the time the reorder pass runs,
+an earlier pass has normalised that gap in `out` to a blank line either way, so
+`out` cannot answer the question. And the hand-written cases in
+`blank_lines.rs` all opened their trailing markup run with an element — the corpus
+entry opens it with a **comment**, which is why that exact input is now pinned as
+`the_corpus_repro_leads_the_hoisted_script_with_a_comment`. Positive control:
+hardcoding the separator back to `\n` turns that test red along with the six
+others covering the same join.
+
+### 2026-08-31 — a fill is a break OPPORTUNITY, and the cluster it was scoped against had four mechanisms
+
+prettier prints a fragment's children as a **fill**: an inline space between two
+children is a break opportunity taken only when the line would overflow. rsvelte's
+indent pass took every one of them once the fragment was broken. Where the run can
+be measured from the source — every non-whitespace child an `ExpressionTag`, whose
+flat text is its own source slice — the width is now computed and the run stays on
+one line when it fits.
+
+The guard on that predicate is the load-bearing half. Upstream's `shouldHugStart`
+is false when the first child is a text node opening with a line break, and it then
+sets `noHugSeparatorStart = hardline` (`prettier-plugin-svelte/plugin.js:1218`),
+which **breaks the enclosing group** — so under a non-hugged start every separator
+breaks however well the run fits. Without the guard the first version of this fix
+turned `<div>\n  {key} {a}\n</div>` and its `<span>` twin from MATCH to DIVERGE.
+Both directions are pinned in `adjacent_expression_tags.rs`, and each ablation
+kills exactly the test that names it: no-op the predicate and only
+`a_hugged_run_separated_by_spaces_stays_on_one_line_when_it_fits` fails; delete the
+`shouldHugStart` guard and only `a_run_under_a_non_hugged_start_breaks_at_every_space`
+fails.
+
+Corpus differential over all 33,776 component outputs, base = the same tree without
+this change: **1 output moved, it moved to byte-equal with the oracle, 0 regressed**
+(`svelte-table/example/example6/ContactButtonComponent.svelte`, a listed entry).
+svelte.dev hard gate `1103/1103 pass, 0 fail, 0 unparseable`.
+
+**The reach is the finding.** This work was scoped against a cluster measured at 84
+files ("inline element content wrapping") and re-measured at 63 after the CRLF fix.
+Re-run against the oracle on the current tree, **45 of those 63 already match** — the
+list is a historical record, not an inventory — and the 18 that remain are not one
+mechanism: 11 are a hugged-close inline element whose content keeps the source
+indent, 3 are `<style>` body indentation, 2 a `<script type="application/ld+json">`
+body, 2 a block body that keeps source tabs. **A cluster named from a symptom
+(an indent delta) partitions by symptom, not by decision point.**
+
+The sibling cluster was two *directed* sets — 3 files where the oracle keeps a
+`} {` run flat and rsvelte breaks it, 34 where rsvelte keeps it flat and the oracle
+breaks it. The fix moves **1 of the 3 and 0 of the 34**, which answers the open
+question about whether they share a decision point: they do not. The mechanism says
+the same thing independently — the predicate can only *permit* a flat run, never
+force a break, so it structurally cannot reach the 34.
+
+### 2026-08-31 — an element's width budget omits four of its possible children
+
+Found while characterising those 34. `<strong><CHILD … /></strong>` at 90 columns
+under `printWidth: 80`, one cell per child kind, oracle = oxfmt(`svelte: true`):
+
+| child | oracle | rsvelte |
+|---|---|---|
+| `<div>`, `<em>`, `<Self>` | BROKEN | BROKEN (MATCH) |
+| `<svelte:self>`, `<svelte:fragment>` | BROKEN | **FLAT** |
+| `<svelte:component>`, `<svelte:element>` | BROKEN | BROKEN, but not the oracle's shape |
+
+Every ordinary child kind matches; all four `svelte:*` kinds diverge, in the same
+parent, with the same attributes. The controls move, so this is not a property of
+the width itself: the same four tags **do** break their own attribute list when they
+are the top-level node (measured, 6/6 MATCH), so what is missing is their
+contribution to the *parent's* budget. This is the same shape as the
+`trim_edge_target` gap recorded above — a `match` that enumerates
+`RegularElement` / `Component` and lets the `svelte:*` variants fall to `_` — and
+`build_open_attr_doc` (`collapse/doc_build.rs:685`) is one confirmed instance of the
+pattern, not yet shown to be *the* cause. Unfixed; its corpus reach is unmeasured.
+
+### 2026-08-31 — the over-width direction is 260 to 12, and the `svelte:*` sliver is 1
+
+The `svelte:*` grid above says nothing about how much of the ratchet it reaches, so
+that was measured separately. Per listed entry, count the output lines wider than
+`printWidth` on each side and compare the two counts *within the file* (which
+controls for a genuinely unbreakable long line, since it appears on both sides):
+
+| | entries |
+|---|---|
+| rsvelte has MORE over-width lines than the oracle | **260** |
+| the oracle has more than rsvelte | 12 |
+| equal and non-zero | 323 |
+| neither side over width | 53 |
+
+788 listed, 648 of which still diverge on this tree. The direction is one-sided
+21:1, which is the signature of a missing width check rather than of layout noise.
+**33 of the 34 "rsvelte keeps a `} {` run flat" ids sit inside the 260**, so that
+cluster is a subset of this one.
+
+Two cautions on the number. It counts a *symptom* (an over-width line), not a
+decision point — the section above is about exactly that mistake, and 260 is an
+upper bound on however many mechanisms are inside it. And the `<svelte:` variant
+that motivated the measurement reaches **1** entry, against 11 for `<div`, 36 for
+`<span` and 126 for any tag: the first proxy tried — "the first differing line
+mentions `svelte:`" — returned 13, and inspecting them showed the string was in the
+surrounding *context* line in 12 of the 13. A substring hit near a divergence is not
+a reach measurement.
+
+### 2026-08-31 — the 260 partitioned, and the largest decision point in it is 54
+
+Bucketed by the shape of the first over-width line rsvelte emits that the oracle
+does not (`instruments/overwidth260.mjs`; the list is
+`agent-c/overwidth260.json`):
+
+| n | the over-width line starts with |
+|---|---|
+| 67 | script / style / prose text |
+| 66 | a block header `{#…}` |
+| 30 | an attribute |
+| 28 | a hugged `>` line |
+| 21 | an HTML open tag |
+| 20 | an expression `{…}` |
+| 15 | other |
+| 6 | a component open tag |
+| 5 | `{@…}` / `{:…}` / `{/…}` |
+| 2 | a close tag |
+
+The block-header bucket splits again by where the width goes: **9** where the
+header expression itself is over width and the oracle breaks the expression, and
+**54** where the header fits and the one-line *body* overflows. That 54 is the
+largest single decision point found in the residue so far, and it reproduces in
+three cells with two controls (oracle = oxfmt(`svelte: true`), `printWidth: 80`):
+
+```
+B1 {#if isSub}<div class="header-row"><slot … /></div>{/if}   DIVERGE
+B3 {#each xs as x}…{/each}                                     DIVERGE   same shape
+B4 {#key k}…{/key}                                             DIVERGE   same shape
+B2 the same body, short enough to fit                          MATCH     control
+B6 the same body, already broken in the source                 MATCH     control
+```
+
+The oracle keeps the block tags glued and breaks the *element's* content
+(`{#if isSub}<div class="header-row">⏎    <slot … />⏎  </div>{/if}`); rsvelte
+leaves the whole line flat. B6 matching is what rules out a source-layout
+explanation.
+
+**B5 is the discriminating cell.** With two arms
+(`{#if a}<div …>…</div>{:else}<div …>…</div>{/if}`) rsvelte leaves the *first*
+arm flat and breaks the *second* one's open tag — so a pass that can break this
+shape exists and reaches one arm and not the other. Whatever gates it is a
+position test, not a missing capability.
+
+### 2026-08-31 — the 54 is one parameter: a block's closing tag is not in the width
+
+Holding the body fixed and growing it one column at a time, the two formatters'
+break thresholds can be read off directly. The oracle breaks at total 81 in every
+form, which calibrates the instrument; rsvelte's threshold is late by **exactly the
+length of the closing block tag**:
+
+| form | closer | oracle breaks at | rsvelte breaks at | late by |
+|---|---|---|---|---|
+| `{#if a}…{/if}` | 5 | 81 | 86 | **5** |
+| `{#key a}…{/key}` | 6 | 81 | 87 | **6** |
+| `{#each a as b}…{/each}` | 7 | 81 | 88 | **7** |
+| `<span>…</span>` | 7 | 81 | 81 | 0 |
+| `<Wrap>…</Wrap>` | 7 | 81 | 81 | 0 |
+| the element alone | — | 81 | 81 | 0 |
+| the element + 7 characters of trailing text | — | 81 | 81 | 0 |
+| the element + a trailing sibling element | — | 81 | 81 | 0 |
+
+So it is not "trailing content on the line is ignored" — trailing text and a
+trailing sibling are both counted. It is the block's `{/…}` specifically, and the
+element parents are the controls that make that a claim rather than an
+observation. An element's own close tag is inside its span; a block's is not.
+
+50 of the 54 entries are a block header directly followed by an element (33 a
+component, 17 an HTML element), and the remaining 4 are a text or nested-block
+body, which the same rule predicts. Whether all 54 share this one parameter is
+what the fix will measure — the id list is in `agent-c/overwidth260.json`.
+
+The rule **composes**, which is the prediction that makes it a rule rather than a
+fitted constant: a block nested in a block (`{#if a}{#if b}<el …/>{/if}{/if}`) is
+late by **10**, exactly the two closers. Two body kinds are *not* covered and must
+not be folded in — a bare expression body is late by 3, and a prose-text body never
+breaks at all in the range measured while the oracle breaks at 86. Those are
+separate constants, so "all 54 share one parameter" stays a prediction the fix will
+test rather than a claim.
+
+### 2026-08-31 — the fix, and what it measured: 33 of the 54, not 54
+
+`push_open_tag` measures the open tag against the width from the element's leading
+column; `open_tag_leading_indent` already accounts for a `{#if …}` *prefix* by
+reading the element's source column, and nothing accounted for the `{/…}` *suffix*.
+`trailing_block_close_width` adds it. Every threshold in the table above is now 0,
+including the nested case, and the element controls did not move.
+
+Corpus differential over all 33,776 component outputs, base = the same tree with
+only this change reverted: **34 moved, 33 to byte-equal with the oracle, 0
+regressed**, 1 moved without reaching equality. All 34 are inside the 54.
+
+**So the 54 was not one decision point — 33 of it was.** The 21 that remain are not
+a residue of the same rule; they are the same missing quantity in a *different*
+pass, and the split is legible:
+
+- a body element with **no attributes to wrap** (`{#if p.rating}<small><Star … /> ({p.rating})</small>{/if}`)
+  must break by **hugging**, which is `collapse/hug.rs`, not the open-tag path;
+- a body that is a bare expression (`{@render children(feature)}`) is the
+  separately-measured constant of 3;
+- two are `<pre>` content indentation, which is a different mechanism entirely.
+
+That is the two-ports shape again: one upstream decision, two implementations here,
+and fixing one leaves the other. The hug path is the next instalment.
+
+**The first version of this fix regressed exactly one real file**, and no grid
+predicted it: `svelte-ux/…/docs/components/Table/+page.svelte` writes
+`</td>{/each}`, so the closer sits on the **close tag's** line, not the open tag's,
+and charging it to the open tag broke a tag that fits. The guard is that the
+element's own span must be single-line. Both halves have a positive control, and
+the first attempt at each was **non-discriminating**: the `{#each}` test passed
+under full ablation until its header was shortened so the element alone lands
+exactly on 80 (a longer header breaks with or without the fix), and the
+`</td>{/each}` test passed under guard ablation until the open tag was widened to
+75 columns so the closer is what crosses the width. Neither was visible from the
+assertion; both came out of running the ablation.
+
+### 2026-08-31 — `rsvelte(oracle(S)) == oracle(S)` splits the residue without writing a fix
+
+Byte parity needs `rsvelte(oracle(S)) == oracle(S)`: the oracle's output is already in the
+oracle's own normal form, so a formatter that agrees with it must leave it alone. The condition
+is necessary, not sufficient, and it costs one extra pass — which makes it a way to size a
+defect class *before* anyone writes the fix. Measured over the listed ids on the tree at
+`9cbb4148b` (`instruments/fixedpoint.mjs`):
+
+| | ids |
+|---|---|
+| `rsvelte(S)` already equals `oracle(S)` | 173 |
+| diverges, but `rsvelte(oracle(S)) == oracle(S)` | **66** |
+| diverges on the oracle's own normal form | **549** |
+
+The 66 are the ones whose divergence **cannot survive re-formatting**, so nothing about the
+input's own content explains them — only its layout does. That is the fingerprint of a
+source-range pipeline: `format_with_arenas` rewrites spans, so a decision that reads the
+source's line breaks is reading an input prettier does not have (it parses and re-prints, and
+its input's layout is gone by then). The CRLF defect recorded above is the same shape one level
+down — a copied region carried the source's line *endings*; here a decision reads the source's
+line *positions*.
+
+**It is not the element-flatten decision.** That one was tested directly and is
+source-independent: the same over-width element flat in the source and broken in the source
+produce byte-identical rsvelte output (`instruments/widthgrid.mjs`, W1 vs W2), and the same
+holds for an under-width element (W3 vs W4). So whatever reads the layout sits in a different
+pass, and a fix aimed at the flatten decision would move none of the 66. Recorded before the
+66 are worked so the next person does not re-derive the hypothesis the grid already killed.
+
+Two cautions on the split. The 549 includes the 8 ids on which **the oracle is not its own
+fixed point** (below), where "agrees with the oracle" is not well-defined at all, so 549 is an
+upper bound on the layout-independent defects. And the buckets move as fixes land: the same
+measurement read 139 / 66 / 575 + 8 before the two fixes above, and the 34 they moved went from
+the third bucket to the first with the 66 unchanged — which is the control that the condition
+is measuring the classes it claims to.

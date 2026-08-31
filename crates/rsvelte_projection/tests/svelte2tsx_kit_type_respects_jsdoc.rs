@@ -103,3 +103,51 @@ fn ts_typed_kit_prop_keeps_the_authors_type() {
         "kit type injected over an explicit TS annotation:\n{out}"
     );
 }
+
+/// The corpus gate calls svelte2tsx without `emitJsDoc`, which is the branch the
+/// two tests below live in; the helper above hardcodes it on.
+fn to_tsx_no_jsdoc(src: &str, filename: &str) -> String {
+    let opts = Svelte2TsxOptions {
+        filename: filename.to_string(),
+        is_ts_file: false,
+        ..Default::default()
+    };
+    svelte2tsx(src, opts).expect("svelte2tsx").code
+}
+
+/// The combined branch — kit type *and* widener in one ignore block — is written
+/// out as a single format string here, where upstream concatenates
+/// `` `${kitType};${name} = __sveltets_2_any(${name});` `` (`ExportedNames.ts:476`).
+/// The two must agree byte for byte, and the separator between them is one
+/// character wide, so it is asserted as text rather than by `contains` on the
+/// pieces. Control: the *separate* branch below never had the space, which is
+/// what makes this a divergence between two spellings of one upstream string.
+#[test]
+fn the_combined_kit_type_and_widener_glue_with_no_space() {
+    let out = to_tsx_no_jsdoc(
+        concat!("<script>\n", "\texport let data;\n", "</script>\n"),
+        "+page.svelte",
+    );
+    assert!(
+        out.contains(
+            "/*\u{03A9}ignore_start\u{03A9}*/: import('./$types.js').PageData;data = __sveltets_2_any(data);/*\u{03A9}ignore_end\u{03A9}*/"
+        ),
+        "combined kit block does not match upstream's spelling:\n{out}"
+    );
+}
+
+#[test]
+fn the_widener_alone_already_glued() {
+    // No kit type (not a route prop name), so the widener is emitted on its own —
+    // the branch that was already correct, kept as the control for the test above.
+    let out = to_tsx_no_jsdoc(
+        concat!("<script>\n", "\texport let other;\n", "</script>\n"),
+        "+page.svelte",
+    );
+    assert!(
+        out.contains(
+            "/*\u{03A9}ignore_start\u{03A9}*/;other = __sveltets_2_any(other);/*\u{03A9}ignore_end\u{03A9}*/"
+        ),
+        "standalone widener changed shape:\n{out}"
+    );
+}

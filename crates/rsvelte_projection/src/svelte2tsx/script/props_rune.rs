@@ -236,8 +236,11 @@ pub(super) fn apply_props_typedef(
         // Keep the type annotation as-is, use it directly in props_type_text
         // (props_type_text is already set by detect_props_rune_oxc)
         // Don't create $$ComponentProps
-    } else if let Some(ref jsdoc_type) = info.jsdoc_type {
-        // JS case with JSDoc @type
+    } else if !is_ts && let Some(ref jsdoc_type) = info.jsdoc_type {
+        // JS case with JSDoc @type. Upstream reaches its whole JSDoc scan under
+        // `if (!this.isTsFile)` (`ExportedNames.ts:242`), so a `lang="ts"` script
+        // whose `$props()` carries a `/** @type {…} */` derives `$$ComponentProps`
+        // from the destructuring instead of honouring the comment.
         // Check if the type is an inline object type `{{ ... }}` or a named reference `{SomeType}`
         let inner = jsdoc_type
             .strip_prefix('{')
