@@ -128,6 +128,28 @@ path and a `Value` on the declaration path, which is itself a two-ports pair);
 (`BlockStatement` spanning the whole declaration, where official has a `TSModuleBlock` spanning
 the braces); `TSParameterProperty` is unmeasured.
 
+**`TSEnumDeclaration` is done too, and the ordering mattered.** It had **two emitters** — a typed
+`JsNode::TSEnumDeclaration { start, end, loc }` on the statement path and a `Value` built inline on
+the declaration path — which is itself a two-ports pair, so adding children to one of them would
+have created an eleventh instance rather than closing a defect. Both now go through one
+`convert_ts_enum_declaration_value`, and the variant joins the opaque `value: Box<Value>` group the
+other retained TS declarations already use (`TSTypeAliasDeclaration` / `TSInterfaceDeclaration` /
+`TSDeclareMethod`), so the envelope needs no new tag — it moves onto the generic `write_json_node`
+escape. That **removes** `JS_TS_ENUM_DECLARATION` rather than adding a tag, and the envelope
+`VERSION` still has to move (7 → 8): the object a JS caller receives changes shape even though
+dispatch stays generic.
+
+It removes the four ratcheted keys `{legacy,modern}::TSEnumDeclaration.{id,members}#missing`, plus
+**two** with no carrier in the ratchet — `const#missing` and `declare#missing`, which the repro
+carries because `const enum` and `declare enum` are separate acorn-typescript flags emitted in that
+order. Measured: the repro reports 4 keys per axis pre-fix and 0 post-fix; over the 4,898-unit x
+2-axis parse sweep exactly those four ratcheted keys leave, **0 appear and 0 change count**
+(159 → 155 distinct); compile output is byte-identical over 14,694 pairs; the NAPI two-surface round
+trip is 16/16, and ablating the decoder to drop `members` takes it to 4/16 on exactly the four enum
+cases. One neighbour is measured and **not** carried: acorn-typescript **rejects** a computed member
+key (`enum E { ['C'] = 1 }`, `js_parse_error`), so rsvelte accepting it is a separate
+over-acceptance in the `param-default` / `class-modifier` family's shape, not a field divergence.
+
 **`TSIndexSignature` is done** (`parameters`, `typeAnnotation`, `readonly`), which removes four
 ratcheted keys — and those four sat in **two** clusters (`unclustered` and `estree-fields`) for
 one mechanism, the same split recorded under B. A fifth key it closes, `readonly#missing`, has no

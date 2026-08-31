@@ -19,7 +19,7 @@ const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 7;
+const VERSION = 8;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -154,7 +154,6 @@ const JS_PROPERTY_DEFINITION = 0xc3;
 const JS_STATIC_BLOCK = 0xc4;
 const JS_DECORATOR = 0xc5;
 const JS_TS_TYPE_ANNOTATION = 0xc6;
-const JS_TS_ENUM_DECLARATION = 0xc7;
 const JS_TS_MODULE_DECLARATION = 0xc8;
 const JS_COMMENT = 0xc9;
 const JS_NULL = 0xca;
@@ -591,8 +590,6 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsBareExpr(ctx, 'Decorator', start, end);
 		case JS_TS_TYPE_ANNOTATION:
 			return readJsTSTypeAnnotation(ctx, start, end);
-		case JS_TS_ENUM_DECLARATION:
-			return readJsBareExpr(ctx, 'TSEnumDeclaration', start, end);
 		case JS_TS_PARAMETER_PROPERTY:
 			return readJsBareExpr(ctx, 'TSParameterProperty', start, end);
 		case JS_TS_MODULE_DECLARATION:

@@ -885,6 +885,29 @@ was found by a hand-built `compileModule` grid comparing **raw** `js.code`. So t
 only "a redundant terminator is invisible": *any* statement whose entire printed form is `;` is
 outside what these two gates compare, no matter how many cases sit on it.
 
+### Blind spot 1g — intra-statement whitespace the source chose, on 100% of the corpus
+
+Same mechanism as 1e, one level finer: oxfmt re-prints every statement, so the *spacing inside*
+a statement is normalized on both sides before comparison. A divergence that consists only of
+how many spaces separate two tokens is therefore invisible to gate #1 and, by contract, to
+gate #5.
+
+**Evidence [D].** `export *  from './m.js';` — two spaces between `*` and `from` — compiles to
+**byte-different** output on all four targets: official reproduces the source's two spaces,
+rsvelte prints one. Both spellings were run through oxfmt and both collapse to one space, so
+the normalized texts are identical and every entry scores `match`. The single-space spelling is
+byte-identical on all four targets, which is the control: the divergence is the whitespace and
+nothing else.
+
+Unlike 1e, the mutation gate does **not** pick this up either — its normalizer removes
+whitespace too. And unlike a missing terminator, this class is unlikely to be reached by adding
+corpus files, because published code is formatted: the two-space spelling occurs **0 times in
+the 5,287 `.svelte` files under `submodules/`** (measured with a positive control on a file
+that does carry it — the collected corpus was not present on the measuring machine, so that
+denominator is the submodules, not the 34,795-entry manifest). It is recorded here rather than
+fixed; the open question is whether official's spacing comes from esrap re-emitting the source
+slice, in which case it belongs in `upstream_issues/` instead.
+
 ### Blind spot 1b — comment ordering, not position
 
 `ast_equiv/src/lib.rs:234` compares comments as an ordered `Vec<String>`. A meaningful comment

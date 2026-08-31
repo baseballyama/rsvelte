@@ -1454,6 +1454,15 @@ in noise it cannot act on. And the envelope carries a `VERSION` that both sides 
 a new node tag is additive for the writer and **fatal** for a decoder that does not know it, so
 the version has to move with the tag or a stale decoder reads a byte it cannot dispatch.
 
+**A tag can also be REMOVED, and that direction is not additive for either side.** Giving
+`TSEnumDeclaration` its children moved it onto the generic `write_json_node` escape the other
+retained TS declarations already use, so `JS_TS_ENUM_DECLARATION` is no longer written by anything.
+A stale decoder paired with the new writer would in fact decode it correctly — the escape is
+generic — which is exactly why the `VERSION` pin has to move anyway: the *shape* the JS side hands
+its caller changed from a bare `{type,start,end,loc}` to the full declaration, and nothing but the
+version distinguishes the two. **Read "additive for the writer" as a statement about dispatch, not
+about the object a caller receives.**
+
 **Closed at degree 2**: `crates/rsvelte_core/tests/import_export_parser_shapes.rs` pins the JSON
 side against independently spelled expectations rather than against the envelope, so both ports
 being broken the same way still fails. The envelope side has no equivalent test; the standing

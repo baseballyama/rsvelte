@@ -273,3 +273,66 @@ fn a_writable_index_signature_omits_the_flag() {
     assert!(sig.get("readonly").is_none(), "{sig}");
     assert!(sig.get("static").is_none(), "{sig}");
 }
+
+#[test]
+fn an_enum_declaration_carries_its_id() {
+    let body = instance_body(&ts("enum E { A }\nlet a = E.A;"));
+    assert_eq!(body[0]["type"], "TSEnumDeclaration", "{}", body[0]);
+    assert_eq!(body[0]["id"]["type"], "Identifier", "{}", body[0]);
+    assert_eq!(body[0]["id"]["name"], "E", "{}", body[0]);
+}
+
+#[test]
+fn an_enum_member_carries_its_name_and_initializer() {
+    let body = instance_body(&ts("enum E { A = 1, B }\nlet a = E.A;"));
+    let members = &body[0]["members"];
+    assert_eq!(members.as_array().map(Vec::len), Some(2), "{}", body[0]);
+    assert_eq!(members[0]["type"], "TSEnumMember", "{members}");
+    assert_eq!(members[0]["id"]["name"], "A", "{members}");
+    assert_eq!(members[0]["initializer"]["type"], "Literal", "{members}");
+    assert_eq!(members[0]["initializer"]["value"], 1, "{members}");
+    // An implicit value has no `initializer` key at all.
+    assert!(members[1].get("initializer").is_none(), "{members}");
+}
+
+#[test]
+fn a_quoted_enum_member_name_is_a_literal() {
+    let body = instance_body(&ts("enum E { 'A-b' = 'x' }\nlet a = E['A-b'];"));
+    let member = &body[0]["members"][0];
+    assert_eq!(member["id"]["type"], "Literal", "{member}");
+    assert_eq!(member["id"]["value"], "A-b", "{member}");
+    assert_eq!(member["id"]["raw"], "'A-b'", "{member}");
+}
+
+#[test]
+fn a_const_enum_says_so() {
+    let body = instance_body(&ts("const enum E { A }\nlet a = E.A;"));
+    assert_eq!(body[0]["const"], true, "{}", body[0]);
+    assert!(body[0].get("declare").is_none(), "{}", body[0]);
+}
+
+#[test]
+fn a_declared_enum_says_so() {
+    let body = instance_body(&ts("declare enum E { A }\nlet a = E.A;"));
+    assert_eq!(body[0]["declare"], true, "{}", body[0]);
+    assert!(body[0].get("const").is_none(), "{}", body[0]);
+}
+
+#[test]
+fn a_plain_enum_omits_both_modifier_flags() {
+    let body = instance_body(&ts("enum E { A }\nlet a = E.A;"));
+    assert!(body[0].get("const").is_none(), "{}", body[0]);
+    assert!(body[0].get("declare").is_none(), "{}", body[0]);
+}
+
+/// The exported form reaches a second emitter — the declaration path — which
+/// had its own bare-envelope shape. Both must go through the one builder.
+#[test]
+fn an_exported_enum_carries_the_same_shape() {
+    let body = instance_body(&ts("export enum E { A = 1 }\nlet a = E.A;"));
+    let decl = &body[0]["declaration"];
+    assert_eq!(decl["type"], "TSEnumDeclaration", "{}", body[0]);
+    assert_eq!(decl["id"]["name"], "E", "{decl}");
+    assert_eq!(decl["members"][0]["id"]["name"], "A", "{decl}");
+    assert_eq!(decl["members"][0]["initializer"]["value"], 1, "{decl}");
+}

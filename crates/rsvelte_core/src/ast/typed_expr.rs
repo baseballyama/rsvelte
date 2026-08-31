@@ -770,14 +770,14 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         type_annotation: JsNodeId,
     },
+    /// TypeScript declarations are kept as their complete ESTree object so the
+    /// public `parse()` API can expose nested TS nodes (and their comments).
+    /// Compilation removes the whole declaration before Phase 2.
     TSEnumDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Box<Loc>>,
+        value: Box<Value>,
     },
-    /// Type-only declarations are kept as their complete ESTree object so the
-    /// public `parse()` API can expose nested TS nodes (and their comments).
-    /// Compilation removes the whole declaration before Phase 2.
     TSTypeAliasDeclaration {
         start: u32,
         end: u32,
@@ -2404,16 +2404,8 @@ impl Serialize for JsNode {
                 ser_comments!(map, "TSParameterProperty", *start, *end);
                 map.end()
             }
-            Self::TSEnumDeclaration { start, end, loc } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("type", "TSEnumDeclaration")?;
-                map.serialize_entry("start", start)?;
-                map.serialize_entry("end", end)?;
-                ser_loc!(map, loc);
-                ser_comments!(map, "TSEnumDeclaration", *start, *end);
-                map.end()
-            }
-            Self::TSTypeAliasDeclaration { value, .. }
+            Self::TSEnumDeclaration { value, .. }
+            | Self::TSTypeAliasDeclaration { value, .. }
             | Self::TSInterfaceDeclaration { value, .. }
             | Self::TSDeclareMethod { value, .. } => {
                 opaque_ts_with_comments(value).serialize(serializer)
@@ -2704,7 +2696,12 @@ impl JsNode {
                     .map(str::to_owned);
                 if matches!(
                     opaque_type.as_deref(),
-                    Some("TSTypeAliasDeclaration" | "TSInterfaceDeclaration" | "TSDeclareMethod")
+                    Some(
+                        "TSTypeAliasDeclaration"
+                            | "TSInterfaceDeclaration"
+                            | "TSDeclareMethod"
+                            | "TSEnumDeclaration"
+                    )
                 ) {
                     let start = owned_obj
                         .get("start")
@@ -2720,6 +2717,7 @@ impl JsNode {
                             Self::TSTypeAliasDeclaration { start, end, value }
                         }
                         Some("TSDeclareMethod") => Self::TSDeclareMethod { start, end, value },
+                        Some("TSEnumDeclaration") => Self::TSEnumDeclaration { start, end, value },
                         _ => Self::TSInterfaceDeclaration { start, end, value },
                     };
                 }
@@ -3357,7 +3355,6 @@ impl JsNode {
                         type_annotation: convert_child(obj, "typeAnnotation"),
                     },
                     "TSParameterProperty" => Self::TSParameterProperty { start, end, loc },
-                    "TSEnumDeclaration" => Self::TSEnumDeclaration { start, end, loc },
                     "TSModuleDeclaration" => Self::TSModuleDeclaration {
                         start,
                         end,

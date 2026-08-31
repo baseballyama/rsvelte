@@ -71,7 +71,7 @@ pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 7;
+pub const VERSION: u32 = 8;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -233,7 +233,6 @@ pub const JS_PROPERTY_DEFINITION: u8 = 0xC3;
 pub const JS_STATIC_BLOCK: u8 = 0xC4;
 pub const JS_DECORATOR: u8 = 0xC5;
 pub const JS_TS_TYPE_ANNOTATION: u8 = 0xC6;
-pub const JS_TS_ENUM_DECLARATION: u8 = 0xC7;
 pub const JS_TS_MODULE_DECLARATION: u8 = 0xC8;
 pub const JS_COMMENT: u8 = 0xC9;
 // Special sentinel for the JsNode null fallback variant — it doesn't fit the
@@ -2142,15 +2141,12 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *type_annotation, arena)?;
         }
-        JsNode::TSEnumDeclaration { start, end, loc } => {
-            write_preamble(w, JS_TS_ENUM_DECLARATION, *start, *end);
-            write_typed_loc(w, loc.as_deref());
-        }
         // These declarations retain their complete ESTree object so nested TS
         // nodes survive the public parse API. Serialize `node`, rather than the
         // stored raw value, so the JsNode serializer also restores comments
         // captured in the arena side table (#3702).
-        JsNode::TSTypeAliasDeclaration { start, end, .. }
+        JsNode::TSEnumDeclaration { start, end, .. }
+        | JsNode::TSTypeAliasDeclaration { start, end, .. }
         | JsNode::TSInterfaceDeclaration { start, end, .. }
         | JsNode::TSDeclareMethod { start, end, .. } => {
             write_json_node(w, *start, *end, node)?;

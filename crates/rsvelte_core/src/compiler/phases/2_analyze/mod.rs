@@ -6438,11 +6438,7 @@ fn collect_identifier_names_in_node(
             loc: _,
             type_annotation: _,
         } => {}
-        JsNode::TSEnumDeclaration {
-            start: _,
-            end: _,
-            loc: _,
-        }
+        JsNode::TSEnumDeclaration { .. }
         | JsNode::TSParameterProperty {
             start: _,
             end: _,

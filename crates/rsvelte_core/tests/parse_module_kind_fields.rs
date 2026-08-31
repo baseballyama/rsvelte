@@ -1,9 +1,11 @@
 //! `importKind` / `exportKind` and `attributes` are decided by the PARSER.
 //!
-//! acorn-typescript stamps a kind on every import and export and emits no
-//! import attributes; acorn does the exact opposite. rsvelte emitted the kind
-//! only for a `type` form and `attributes` unconditionally, so a `lang="ts"`
-//! script disagreed with official's `parse()` on both fields at once.
+//! acorn-typescript stamps a kind on every import and export and emits
+//! `attributes` only where the source wrote a clause; acorn does the exact
+//! opposite. rsvelte emitted the kind only for a `type` form and `attributes`
+//! unconditionally, so a `lang="ts"` script disagreed with official's `parse()`
+//! on both fields at once. Both halves now match; the anchors below come from
+//! the official compiler run on these exact sources.
 
 use rsvelte_core::Allocator;
 use rsvelte_core::ast::arena::with_serialize_arena;
@@ -106,27 +108,40 @@ fn a_plain_script_stamps_no_kind() {
 }
 
 /// `attributes` is where the two parsers disagree in the other direction, and
-/// rsvelte matches NEITHER: it serializes an always-empty list. Pinned as it is
-/// so the next change here has to say which of the two it is moving towards —
-/// acorn always emits the list, acorn-typescript emits it only where the source
-/// wrote an `assert`/`with` clause, and rsvelte never populates it at all.
+/// **rsvelte now answers as acorn-typescript does**: the field's presence is a
+/// fact about which parser ran, so a `lang="ts"` import carries it only where
+/// the source wrote an `assert`/`with` clause, while every acorn import carries
+/// it whether or not there is a clause. This test used to pin the third
+/// answer — an always-present, always-empty list, matching neither parser —
+/// and it went red on the commit that moved rsvelte onto acorn-typescript's
+/// side, which is what it was pinned for.
+///
+/// Measured on these exact sources with the official compiler
+/// (`OFFICIAL_COMPILER_REL`): TS `present [false, false, false]`, JS
+/// `present [true]` `len 0`, TS_ATTRS `present [true]` `len 1`. The JS and
+/// TS_ATTRS rows are the discriminating half — a fix that simply suppressed
+/// `attributes` under `lang="ts"` passes the TS row and breaks both.
 #[test]
-fn attributes_is_an_always_empty_list_on_both_parsers() {
+fn attributes_presence_follows_the_parser_that_produced_it() {
+    fn attribute_lengths(src: &str) -> Vec<Option<usize>> {
+        let tree = ast(src);
+        let mut found = Vec::new();
+        nodes_of(&tree, "ImportDeclaration", &mut found);
+        found
+            .iter()
+            .map(|n| n.get("attributes").and_then(Value::as_array).map(Vec::len))
+            .collect()
+    }
+
+    // acorn-typescript, no clause written: the field is absent, not empty.
     assert_eq!(
         has_attributes(TS, "ImportDeclaration"),
-        vec![true, true, true]
+        vec![false, false, false]
     );
+    // acorn: always present, empty when the source wrote no clause.
     assert_eq!(has_attributes(JS, "ImportDeclaration"), vec![true]);
+    assert_eq!(attribute_lengths(JS), vec![Some(0)]);
+    // acorn-typescript with a clause: present, and carrying what was written.
     assert_eq!(has_attributes(TS_ATTRS, "ImportDeclaration"), vec![true]);
-    // The clause the source wrote reaches nothing.
-    let tree = ast(TS_ATTRS);
-    let mut found = Vec::new();
-    nodes_of(&tree, "ImportDeclaration", &mut found);
-    assert_eq!(
-        found[0]
-            .get("attributes")
-            .and_then(Value::as_array)
-            .map(Vec::len),
-        Some(0)
-    );
+    assert_eq!(attribute_lengths(TS_ATTRS), vec![Some(1)]);
 }

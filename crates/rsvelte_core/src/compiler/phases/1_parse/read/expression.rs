@@ -9637,16 +9637,16 @@ fn convert_statement_for_program(
             })
         }
         // TypeScript enum declarations - emit as TSEnumDeclaration so remove_typescript_nodes can detect them
-        oxc_ast::ast::Statement::TSEnumDeclaration(enum_decl) => {
-            let start = offset + enum_decl.span.start as usize;
-            let end = offset + enum_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-            Some(JsNode::TSEnumDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-            })
-        }
+        oxc_ast::ast::Statement::TSEnumDeclaration(enum_decl) => Some(JsNode::TSEnumDeclaration {
+            start: (offset + enum_decl.span.start as usize) as u32,
+            end: (offset + enum_decl.span.end as usize) as u32,
+            value: Box::new(convert_ts_enum_declaration_value(
+                arena,
+                enum_decl,
+                offset,
+                line_offsets,
+            )),
+        }),
         oxc_ast::ast::Statement::TSTypeAliasDeclaration(decl) => Some(
             convert_ts_type_alias_declaration_as_node(arena, decl, offset, line_offsets),
         ),
@@ -9725,6 +9725,98 @@ fn convert_ts_namespace_as_node(
             }
         }
     }
+}
+
+/// Build the ESTree `TSEnumDeclaration` acorn-typescript emits. One builder for
+/// both emitters (the statement path and the declaration path), so the two
+/// cannot drift.
+fn convert_ts_enum_declaration_value(
+    arena: &ParseArena,
+    decl: &oxc_ast::ast::TSEnumDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + decl.span.start as usize;
+    let end = offset + decl.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("TSEnumDeclaration".to_string()));
+    push_span_fields(&mut obj, start, end, line_offsets);
+    if decl.r#const {
+        obj.set_field("const", Value::Bool(true));
+    }
+    if decl.declare {
+        obj.set_field("declare", Value::Bool(true));
+    }
+    obj.set_field(
+        "id",
+        ts_identifier_value(
+            &decl.id.name,
+            offset + decl.id.span.start as usize,
+            offset + decl.id.span.end as usize,
+            line_offsets,
+        ),
+    );
+    let members: Vec<Value> = decl
+        .body
+        .members
+        .iter()
+        .map(|member| {
+            let member_start = offset + member.span.start as usize;
+            let member_end = offset + member.span.end as usize;
+            let mut m = Map::new();
+            m.set_field("type", Value::String("TSEnumMember".to_string()));
+            push_span_fields(&mut m, member_start, member_end, line_offsets);
+            let id = match &member.id {
+                oxc_ast::ast::TSEnumMemberName::Identifier(id) => ts_identifier_value(
+                    &id.name,
+                    offset + id.span.start as usize,
+                    offset + id.span.end as usize,
+                    line_offsets,
+                ),
+                oxc_ast::ast::TSEnumMemberName::String(lit) => ts_literal_value(
+                    offset + lit.span.start as usize,
+                    offset + lit.span.end as usize,
+                    Value::String(lit.value.to_string()),
+                    lit.raw.as_ref().map(|a| a.as_str().to_string()),
+                    line_offsets,
+                ),
+                // acorn-typescript rejects a computed member key, so official
+                // never emits either of these; carry the expression rather than
+                // inventing a shape for it.
+                oxc_ast::ast::TSEnumMemberName::ComputedString(lit) => ts_literal_value(
+                    offset + lit.span.start as usize,
+                    offset + lit.span.end as usize,
+                    Value::String(lit.value.to_string()),
+                    lit.raw.as_ref().map(|a| a.as_str().to_string()),
+                    line_offsets,
+                ),
+                oxc_ast::ast::TSEnumMemberName::ComputedTemplateString(tpl) => {
+                    create_template_literal_with_adjustment(
+                        arena,
+                        tpl,
+                        offset + tpl.span.start as usize,
+                        offset + tpl.span.end as usize,
+                        offset,
+                        0,
+                        line_offsets,
+                    )
+                }
+            };
+            m.set_field("id", id);
+            if let Some(init) = &member.initializer {
+                let node = expr_to_node(convert_expression_for_program(
+                    arena,
+                    init,
+                    offset,
+                    line_offsets,
+                ));
+                m.set_field("initializer", node.to_value());
+            }
+            Value::Object(m)
+        })
+        .collect();
+    obj.set_field("members", Value::Array(members));
+    Value::Object(obj)
 }
 
 fn convert_ts_type_alias_declaration_as_node(
@@ -10312,12 +10404,7 @@ fn convert_declaration_for_program(
         }
         // TypeScript enum declarations
         oxc_ast::ast::Declaration::TSEnumDeclaration(enum_decl) => {
-            let start = offset + enum_decl.span.start as usize;
-            let end = offset + enum_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.set_field("type", Value::String("TSEnumDeclaration".to_string()));
-            push_span_fields(&mut obj, start, end, line_offsets);
-            Value::Object(obj)
+            convert_ts_enum_declaration_value(arena, enum_decl, offset, line_offsets)
         }
         // TypeScript module / namespace declarations are handled by the typed
         // `convert_ts_module_declaration_as_node` before this function is reached.
