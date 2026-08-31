@@ -56,18 +56,32 @@ pub fn visit<'a, 'b: 'a>(
                 }
                 // Upstream runs one `BindDirective` visitor for every host, so a
                 // `{get, set}` pair takes its own early branch here too.
-                if super::bind_directive::is_get_set_pair(bind) {
-                    super::bind_directive::validate_get_set_pair(bind, context)?;
-                    super::bind_directive::walk_get_set_pair(bind, context)?;
+                // This host's `bind:` never reaches `bind_directive::visit`, so the
+                // `non_reactive_update` rule for `bind:this` — only a reference under an
+                // `{#if}` / `{#each}` / `{#await}` / `{#key}` needs state — is repeated here.
+                let prev_in_bind_this = context.in_bind_this;
+                if bind.name == "this" {
+                    context.in_bind_this = true;
+                    if context.bind_this_block_depth > 0
+                        && let Ok(name) = super::bind_directive::bind_target_name(bind, context)
+                        && let Some(idx) = context.analysis.root.get_binding(&name, context.scope)
+                    {
+                        context.analysis.root.bindings[idx].has_direct_template_read = true;
+                    }
+                }
+                let result = if super::bind_directive::is_get_set_pair(bind) {
+                    super::bind_directive::validate_get_set_pair(bind, context)
+                        .and_then(|()| super::bind_directive::walk_get_set_pair(bind, context))
                 } else {
                     let bind_node = bind.expression.as_node();
-                    validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
-                    super::bind_directive::validate_bind_value_target(bind, context)?;
-                    // Walk the bind expression to add template references.
-                    // This is important for legacy mode state promotion - bindings need
-                    // template references to be promoted from 'normal' to 'state' kind.
-                    super::bind_directive::walk_bind_expression(bind, context)?;
-                }
+                    validate_assignment_node((bind.start, bind.end), &bind_node, context, true)
+                        .and_then(|()| {
+                            super::bind_directive::validate_bind_value_target(bind, context)
+                        })
+                        .and_then(|()| super::bind_directive::walk_bind_expression(bind, context))
+                };
+                context.in_bind_this = prev_in_bind_this;
+                result?;
             }
             Attribute::OnDirective(on) => {
                 if on.modifiers.len() > 1 || on.modifiers.iter().any(|modifier| modifier != "once")

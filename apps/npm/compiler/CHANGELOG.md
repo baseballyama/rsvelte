@@ -226,7 +226,7 @@
   a shape upstream compiles, instead of having its body dropped at parse: the type-only body still
   strips, and a value in it is rejected exactly as the un-dotted spelling is. The official compiler
   crashes on the dotted form with an uncoded `TypeError`; that divergence is recorded in
-  `compatibility/deliberate-divergences.md` and reported in `upstream_issues/`.
+  `compatibility/GATES.md#deliberate-divergences` and reported in `upstream_issues/`.
 
   Measured against `submodules/svelte` @ `20b341f10048` (`VERSION === '5.56.9'`) over 29 declaration
   forms × 2 export spellings × 3 entry points × 2 targets × dev/prod.
@@ -786,7 +786,7 @@ Memoizer()` and closes it with `build_render_statement`, which reads that
   one of these shapes — a method, two signatures, `static`, `constructor`, a private name, a
   getter, and a class expression — while agreeing with rsvelte on the two neighbouring
   controls (an `abstract` method and a `function` overload, both dropped). That divergence is
-  recorded in `compatibility/deliberate-divergences.md` and reported in `upstream_issues/`.
+  recorded in `compatibility/GATES.md#deliberate-divergences` and reported in `upstream_issues/`.
 
 - a9d8598: End an unquoted attribute value at `"`, `'`, `` ` ``, `<` and `=` as well as at whitespace, `>` and `/>`, mirroring upstream's `regex_invalid_unquoted_attribute_value`. rsvelte read one run of characters up to whitespace or `>`, so `<div data-x=a<b>` produced a single attribute valued `a<b` where official produces `data-x="a"` plus an attribute named `<b`, and start tags official rejects (`data-x=a=b`, `data-x=a"b`, `data-x=a</b`) compiled. A top-level `<script>`/`<style>` keeps the narrower `read_static_attribute` set. The `<` that ends a value is also read as the next attribute's name, as upstream does, so a missing `>` after it is reported past that name instead of at the `<`.
 - 1d47a0d: Decode `<textarea>` content with the attribute-value entity rule, as `read_sequence` does upstream, so a semicolon-less legacy name like `&notreal;` stays literal instead of decoding its `&not` prefix. The word-boundary guard it uses now also treats `_` as a word character, matching JavaScript's `\b` — `&amp_b` was decoded in every attribute value, not only in a `<textarea>`.
@@ -974,7 +974,7 @@ Memoizer()` and closes it with `build_render_statement`, which reads that
   interface and a type alias already were — measured over 8 spellings × 3 class hosts × 2 entry
   points × 3 targets, taking 96 unparseable outputs, 96 TypeScript leaks and 48 silently-dropped
   scripts to zero with the 198 control cells unchanged. Recorded in
-  `compatibility/deliberate-divergences.md` and reported in `upstream_issues/`.
+  `compatibility/GATES.md#deliberate-divergences` and reported in `upstream_issues/`.
 
 - 5dec259: Reject a TypeScript class-member modifier in a source parsed as plain JavaScript. OXC parses `private` / `public` / `protected` / `readonly` / `override` / `declare` / `abstract` / `accessor` on a class member in a non-TypeScript source and reports nothing, while acorn reads the modifier as the member's _name_ and throws on the token after it. `compileModule` always parses with `typescript: false`, so `class K { private a = 1 }` in a `.svelte.ts` module compiled and copied the keyword straight into the emitted `.js`, which no JavaScript parser accepts; a plain `<script>` in a component reached the same parse and did the same. Both now raise `js_parse_error` at the offset official reports. A modifier keyword that is not a modifier is untouched — `private\n\ta = 1;` is two ordinary fields, `private = 1;` is a field named `private` — and `<script lang="ts">` keeps compiling all of them.
 - 2bf8d8b: Reject a second `function` **implementation** with the same name. TypeScript lets a name carry any number of body-less overload signatures, and rsvelte turned that into "exempt every function-vs-function redeclaration", so `function f() {} function f() {}` compiled in a `lang="ts"` script — and in a plain one, where a function declaration always has a body. The exemption is now about the body rather than the `function` keyword, which also gives `declare function f(): void; function f() {}` the right answer, and the error carries acorn's code, wording and zero-width position

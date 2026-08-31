@@ -129,6 +129,38 @@ fn a_run_broken_by_a_paren_moves_only_its_adjacent_half() {
     );
 }
 
+/// A `(` that opens no node of its own is invisible to acorn, so the run
+/// reaches across it. `f(` above is the same `(` byte and DOES stop the run,
+/// because the node it opens starts at `f`, not at the paren — which is why the
+/// two rows have to sit next to each other.
+#[test]
+fn a_paren_that_opens_no_node_does_not_break_the_run() {
+    assert_contains(
+        &module("\treturn f/* a */(await load());\n"),
+        "return f((await $.track_reactivity_loss(/* a */ load()))());",
+    );
+}
+
+/// The JSDoc cast that motivated it: `/** @type {T} */ (` wraps the operand in
+/// parens that belong to nothing else, and the run has to cross them.
+#[test]
+fn a_cast_comment_crosses_the_cast_parens() {
+    assert_contains(
+        &module("\tconst r = /** @type {R} */ (await load());\n\treturn r;\n"),
+        "const r = (await $.track_reactivity_loss(/** @type {R} */ load()))();",
+    );
+}
+
+/// CONTROL: the same cast one level out, where the `(` opens the enclosing call
+/// `(await …)()`. The run stops at it and the comment stays outside.
+#[test]
+fn a_comment_before_an_enclosing_calls_paren_stays_outside() {
+    assert_contains(
+        &module("\treturn /* a */ (await load())();\n"),
+        "return (/* a */ (await $.track_reactivity_loss(load()))()());",
+    );
+}
+
 /// A comment that stood on a line of its own keeps that break, which is also
 /// what stops a line comment from swallowing the wrapper's own `))()`.
 #[test]

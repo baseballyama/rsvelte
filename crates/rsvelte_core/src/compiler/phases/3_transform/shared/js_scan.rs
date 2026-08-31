@@ -427,6 +427,21 @@ pub(crate) fn comment_ranges(bytes: &[u8]) -> Vec<(usize, usize)> {
     ranges
 }
 
+/// `bytes` with every comment byte but its newlines replaced by a space, so a
+/// line-based scan reads a comment as blank instead of as a token. Byte indices
+/// and line structure are preserved, so a position is valid in either view.
+pub(crate) fn blank_comments(bytes: &[u8]) -> Vec<u8> {
+    let mut out = bytes.to_vec();
+    for (start, end) in comment_ranges(bytes) {
+        for b in &mut out[start..end] {
+            if *b != b'\n' {
+                *b = b' ';
+            }
+        }
+    }
+    out
+}
+
 /// Walk left from `pos` over whitespace and comments, with `comments` from
 /// [`comment_ranges`] over the same `bytes`.
 pub(crate) fn skip_ws_and_comments_back(
@@ -451,6 +466,40 @@ pub(crate) fn skip_ws_and_comments_back(
 /// `needle` must contain no byte that can open an opaque run (`'`, `"`,
 /// `` ` ``, `/`), so testing its first byte settles the whole match.
 /// This is also used by production scans whose needles are not rune keypaths.
+/// For every line of `bytes`, whether it begins outside every comment, string,
+/// template or regex opened on an earlier line. A line-based scan needs this: a
+/// continuation line read as a construct of its own splits the construct that
+/// encloses it. A `${…}` interior counts as inside its template, which is what
+/// a caller splitting members wants and is not the same as "this byte is code".
+pub(crate) fn line_starts_outside_opaque(bytes: &[u8]) -> Vec<bool> {
+    let mut starts = vec![true];
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            starts.extend(
+                bytes[i..next]
+                    .iter()
+                    .filter(|b| **b == b'\n')
+                    .map(|_| false),
+            );
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        let c = bytes[i];
+        if c == b'\n' {
+            starts.push(true);
+        } else if !c.is_ascii_whitespace() {
+            prev = Some(c);
+        }
+        i += 1;
+    }
+    starts
+}
+
 pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
     find_code_filtered(bytes, needle, 0, |_, _| true)
 }
@@ -739,7 +788,7 @@ fn is_js_whitespace(c: char) -> bool {
 mod tests {
     use super::{
         KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_code_from, find_rune_call,
-        find_rune_code, skip_opaque, slash_starts_regex_at,
+        find_rune_code, line_starts_outside_opaque, skip_opaque, slash_starts_regex_at,
     };
 
     #[test]
@@ -916,6 +965,16 @@ mod tests {
     }
 
     /// `skip_opaque` is the only caller, so the decision has to reach it.
+    #[test]
+    fn line_starts_outside_opaque_marks_every_continuation_line() {
+        // block comment, template literal, and a `${…}` whose interior is code
+        let src = "a;\n/* c\n */ b;\nlet t = `x\ny`;\nlet u = `p ${\n1\n} q`;\n";
+        assert_eq!(
+            line_starts_outside_opaque(src.as_bytes()),
+            vec![true, true, false, true, false, true, false, false, true]
+        );
+    }
+
     #[test]
     fn skip_opaque_steps_over_a_regex_after_a_keyword() {
         let src = "return /[;}]/.test(s);";

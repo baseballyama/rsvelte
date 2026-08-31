@@ -41,6 +41,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `1681-oxc-css-commented-gradient-indent.md` | oxc-project/oxc (`oxc_formatter_css`) | #1681 | unrecorded |
 | `2582-oxc-nel-whitespace.md` | oxc-project/oxc (`oxc_parser`) | #2582 | unrecorded |
 | `2990-svelte-class-accessor-drops-later-comments.md` | sveltejs/svelte | #2990 | unrecorded |
+| `3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md` | sveltejs/prettier-plugin-svelte | #3035 | unrecorded |
 | `3052-svelte-css-custom-property-brace-block.md` | sveltejs/svelte | #3052 | unrecorded |
 | `3054-svelte-bigint-mix-compile-crash.md` | sveltejs/svelte | #3054 | unrecorded |
 | `3070-svelte-template-comment-leaks-into-generated-code.md` | sveltejs/svelte | #3070 | unrecorded |
@@ -77,23 +78,52 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `3609-svelte-snippet-param-shadowed-by-const.md` | sveltejs/svelte | #3609 | unrecorded |
 | `3635-esrap-side-effect-import-drops-attributes.md` | sveltejs/esrap | #3635 | unrecorded |
 | `3651-svelte-async-autofocus-and-event-output-is-unparseable.md` | sveltejs/svelte | #3651 | unrecorded |
+| `4046-svelte-a-reordered-reactive-statement-reprints-earlier-comments.md` | sveltejs/svelte | #4046 | unrecorded |
+| `grass-css-color-4-relative-syntax.md` | connorskees/grass | — | unrecorded |
+| `grass-explicit-extension-specifier.md` | connorskees/grass | — | unrecorded |
+| `grass-hoists-a-declaration-written-after-a-nested-rule.md` | connorskees/grass | — | unrecorded |
+| `grass-import-only-file-loaded-by-use.md` | connorskees/grass | — | unrecorded |
+| `grass-missing-css-color-4-api.md` | connorskees/grass | — | unrecorded |
+| `grass-slash-list-divided-inside-a-nested-rule.md` | connorskees/grass | — | unrecorded |
+| `grass-tailwind-important-apply.md` | connorskees/grass | — | unrecorded |
 | `eslint-plugin-svelte-no-add-event-listener-suggestion.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
 | `eslint-plugin-svelte-no-goto-without-base-namespace-import-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
 | `eslint-plugin-svelte-no-navigation-without-base-empty-href-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
 | `eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
 | `eslint-plugin-svelte-shorthand-directive-modifier.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
+| `esrap-property-prints-a-function-expression-as-a-method.md` | sveltejs/esrap (shipped by sveltejs/svelte's lockfile) | — | unrecorded |
+| `lsp-render-tag-kills-every-template-definition.md` | sveltejs/language-tools | — | unrecorded |
 | `oxfmt-const-tag-ending-in-a-line-comment.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-each-pattern-default-unknown-node-type.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-single-quoted-attribute-containing-a-double-quote.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-style-terminator-inside-a-css-string.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
+| `oxfmt-svelte-css-eats-a-css-escape-terminator-space.md` | oxc-project/oxc (`oxfmt`, `svelte: true`) | — | unrecorded |
+| `oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md` | oxc-project/oxc (`oxfmt`, `svelte: true`) | — | unrecorded |
+| `prettier-plugin-svelte-inline-element-overflows-print-width.md` | sveltejs/prettier-plugin-svelte | — | unrecorded |
 | `svelte-bind-group-unresolved-identifier-crash.md` | sveltejs/svelte | #3567 | unrecorded |
 | `svelte-class-index-signature-crash.md` | sveltejs/svelte | #3422 | unrecorded |
+| `svelte-class-static-block-shares-the-instance-scope.md` | sveltejs/svelte | — | unrecorded |
 | `svelte-declaration-tag-dollar-identifier.md` | sveltejs/svelte | #3614 | unrecorded |
 | `svelte-eslint-parser-self-closing-style-lookalike-component.md` | sveltejs/svelte-eslint-parser | — | unrecorded |
 | `svelte-fromcodepoint-rangeerror.md` | sveltejs/svelte | #3617 | unrecorded |
 | `svelte-inspect-with-in-a-declarator.md` | sveltejs/svelte | #3614, #3627 | unrecorded |
+| `svelte-named-class-expression-shadowing-a-rune-emits-unparseable-output.md` | sveltejs/svelte | — | unrecorded |
+| `svelte-scss-line-comment-hides-an-animation-name-from-keyframe-scoping.md` | sveltejs/svelte | #4048 | unrecorded |
+| `svelte-server-treats-a-dollar-parameter-as-a-store.md` | sveltejs/svelte | #4048 | unrecorded |
 | `svelte-snippet-name-colliding-with-an-import.md` | sveltejs/svelte | #3567 | unrecorded |
 | `svelte2tsx-shorthand-style-directive-modifier.md` | sveltejs/language-tools (svelte2tsx) | #3567, #3578 | unrecorded |
+| `svelte2tsx-transposes-an-unclosed-start-tag.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
+| `tsgo-lsp-completion-item-omits-the-typescript-kind.md` | microsoft/typescript-go (`tsgo --lsp`) | — | unrecorded |
 
-The six unnumbered reports came out of the lint-parity campaign rather than from a single rsvelte
-issue, and none of them names one internally — `—` records that, rather than inventing a number.
+**22** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
+against `eslint-plugin-svelte`, one against `svelte-eslint-parser`), two out of the
+`two-ports-inventory.md` row 21 shadow probes, seven out of the SCSS-backend burndown — five
+covering every unit `scss-known-failures.json` lists as `grass-rejects-accepted`, plus the two
+classes in that ratchet whose output is not render-neutral (a hoisted declaration, and a slash list
+divided inside a nested rule) — and two out of the LSP differential campaign. The remaining five
+are later: two `oxfmt` CSS reports from the formatter-parity corpus, one against `esrap`, one
+against `language-tools`, and one against `prettier-plugin-svelte` from the formatter-parity
+burndown (an inline element in a text run overflows `printWidth`, and re-formatting the output is
+not a fixed point). None of them names an issue internally — `—` records that, rather than
+inventing a number, and `check-upstream-issues.mjs` holds the count above to the table so this
+paragraph cannot go stale the way it already had (it read "Fifteen" against 19 rows).

@@ -448,8 +448,27 @@ mod tests {
 
     #[test]
     fn ts_source_type_works() {
-        let src = "let x: number = 1; console.log(x);";
+        // The annotation is the point: a JS parse of this fails, so reaching the
+        // wrap at all proves the TS source type was used.
+        let src = "let x: number = y; console.log(x);";
         let out = transform_console_calls_dev_ast_for_test(src, true).unwrap();
+        assert!(out.contains("$.log_if_contains_state('log', x)"));
+    }
+
+    #[test]
+    fn an_unwritten_let_is_evaluated_like_a_const() {
+        // Upstream evaluates a binding's initializer when `!binding.updated`, so a
+        // `let` nobody writes to is as known as a `const`.
+        assert!(
+            transform_console_calls_dev_ast_for_test("let x = 1; console.log(x);", false).is_none()
+        );
+        assert!(
+            transform_console_calls_dev_ast_for_test("var x = 1; console.log(x);", false).is_none()
+        );
+        // …and one that is written stays unknown.
+        let out =
+            transform_console_calls_dev_ast_for_test("let x = 1; x = y; console.log(x);", false)
+                .unwrap();
         assert!(out.contains("$.log_if_contains_state('log', x)"));
     }
 

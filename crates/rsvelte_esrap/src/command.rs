@@ -344,14 +344,7 @@ impl Driver<'_> {
             source_line,
             source_column,
         };
-        match self.mappings.last_mut() {
-            Some(last)
-                if last.gen_line == mapping.gen_line && last.gen_column == mapping.gen_column =>
-            {
-                *last = mapping;
-            }
-            _ => self.mappings.push(mapping),
-        }
+        self.mappings.push(mapping);
     }
 
     fn append_text(&mut self, text: &str) {

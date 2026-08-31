@@ -201,6 +201,39 @@ impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
         }
     }
 
+    fn visit_string_literal(&mut self, it: &oxc::StringLiteral<'a>) {
+        if self.collect_store_facts {
+            self.store_scan
+                .add_opaque_dollar_span((it.span.start + self.offset, it.span.end + self.offset));
+        }
+    }
+
+    fn visit_template_literal(&mut self, it: &oxc::TemplateLiteral<'a>) {
+        if self.collect_store_facts {
+            // Only the text chunks: a `${…}` interpolation is code the official
+            // walker does see.
+            for quasi in &it.quasis {
+                self.store_scan.add_opaque_dollar_span((
+                    quasi.span.start + self.offset,
+                    quasi.span.end + self.offset,
+                ));
+            }
+        }
+        oxc_ast_visit::walk::walk_template_literal(self, it);
+    }
+
+    fn visit_import_specifier(&mut self, it: &oxc::ImportSpecifier<'a>) {
+        // `import { $x as y }`: upstream's `isNotPropertyNameOfImport` keeps the
+        // IMPORTED name out of every store decision, and the un-aliased form has
+        // no property name at all — so the two spans coinciding is the test.
+        if self.collect_store_facts && it.imported.span() != it.local.span {
+            let span = it.imported.span();
+            self.store_scan
+                .add_opaque_dollar_span((span.start + self.offset, span.end + self.offset));
+        }
+        oxc_ast_visit::walk::walk_import_specifier(self, it);
+    }
+
     fn visit_ts_type_assertion(&mut self, it: &oxc::TSTypeAssertion<'a>) {
         #[cfg(test)]
         {

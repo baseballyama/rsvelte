@@ -554,7 +554,7 @@ no scope-dependent constant folder involved.
 so this is ~80% of `to_value` on Svelte-4-era corpora (huly, carbon), a third on
 open-webui, and exactly zero on runes-only code (SMUI). Legacy `$:` is 12.34% of
 library bytes but 68.89% of application bytes, so the corpora this repo gates on
-under-weight it — see `compatibility/gate-coverage.md` § C6. (The bench corpus is
+under-weight it — see `compatibility/GATES.md#gate-coverage` § C6. (The bench corpus is
 **not** "8 of 9 runes"; fixtures 10-11 closed that gap and it is 37.7% legacy by
 bytes.)
 

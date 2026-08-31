@@ -1059,3 +1059,75 @@ pub(super) fn try_collapse(
 
     (broken != whole).then_some((start, end, broken))
 }
+
+/// Pass 0.5: drop the same-line edge whitespace of an element whose content is
+/// not whitespace-sensitive. `trims_edge` already answers that question, but
+/// [`try_collapse`] bails before reading it whenever any child is an element, so
+/// only a pure-text body was ever trimmed. Measured against the oracle across 45
+/// parent tags: the rule depends on the PARENT alone — block-display elements,
+/// `<slot>` and components trim, inline elements keep. Edge whitespace holding a
+/// newline is left alone: the element is laid out broken there and removing it
+/// would join the lines.
+pub(super) fn collect_trim_edge_whitespace(
+    out: &str,
+    fragment: &Fragment,
+    edits: &mut Vec<(u32, u32, String)>,
+) {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        if crate::prettier_ignore::preceded_by_prettier_ignore(&fragment.nodes, i) {
+            continue;
+        }
+        if let Some((tag, child)) = trim_edge_target(node)
+            && !is_whitespace_preserving(tag)
+            && (trims_edge_whitespace(tag) || is_component_tag(tag))
+            // Exactly one non-text child. The trim only ever deletes spaces and
+            // tabs, so it cannot join lines; the restriction is that with two or
+            // more children the element is laid out broken and the oracle then
+            // breaks its edges too, so removing them produces a third shape.
+            && child
+                .nodes
+                .iter()
+                .filter(|n| !matches!(n, TemplateNode::Text(_)))
+                .count()
+                == 1
+        {
+            for edge in [child.nodes.first(), child.nodes.last()] {
+                let Some(TemplateNode::Text(t)) = edge else {
+                    continue;
+                };
+                let Some(text) = out.get(t.start as usize..t.end as usize) else {
+                    continue;
+                };
+                if !text.is_empty() && text.bytes().all(|b| b == b' ' || b == b'\t') {
+                    edits.push((t.start, t.end, String::new()));
+                }
+            }
+        }
+        for f in super::child_fragments(node) {
+            collect_trim_edge_whitespace(out, f, edits);
+        }
+    }
+}
+
+/// The tag name and child fragment of a node whose edge whitespace the trim pass
+/// may remove. Deliberately not `element_container`: that one answers "does it carry
+/// attributes", and this one needs the name the whitespace rule keys on.
+fn trim_edge_target<'b, 'a>(node: &'b TemplateNode<'a>) -> Option<(&'b str, &'b Fragment<'a>)> {
+    match node {
+        TemplateNode::RegularElement(e) => Some((e.name.as_str(), &e.fragment)),
+        TemplateNode::Component(c) => Some((c.name.as_str(), &c.fragment)),
+        TemplateNode::SlotElement(e) => Some((e.name.as_str(), &e.fragment)),
+        TemplateNode::TitleElement(t) => Some((t.name.as_str(), &t.fragment)),
+        TemplateNode::SvelteComponent(c) => Some((c.name.as_str(), &c.fragment)),
+        TemplateNode::SvelteElement(e) => Some((e.name.as_str(), &e.fragment)),
+        // `<svelte:options>` is absent because both compilers reject content in it.
+        TemplateNode::SvelteFragment(e)
+        | TemplateNode::SvelteHead(e)
+        | TemplateNode::SvelteBoundary(e)
+        | TemplateNode::SvelteBody(e)
+        | TemplateNode::SvelteWindow(e)
+        | TemplateNode::SvelteDocument(e)
+        | TemplateNode::SvelteSelf(e) => Some((e.name.as_str(), &e.fragment)),
+        _ => None,
+    }
+}

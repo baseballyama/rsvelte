@@ -355,6 +355,11 @@ struct StateVarCollector<'a, 's> {
     /// component-function body (depth 1), so we trigger the `$.save(...)`
     /// wrap when our `function_depth >= 1`.
     function_depth: u32,
+    /// A named function expression's own name, declared once its scope is entered.
+    pending_fn_expr_name: Option<String>,
+    /// Per scope, whether it is a `var` boundary (a function, an arrow, or the
+    /// program). A `var` declared in a nested block belongs to the nearest one.
+    scope_is_var_boundary: Vec<bool>,
 
     /// Semantic for the parsed script, set after construction. Enables
     /// per-site resolution of a bare-identifier assignment RHS (upstream
@@ -450,6 +455,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             exported_names,
             prop_source_vars_slice: prop_source_vars,
             function_depth: 0,
+            pending_fn_expr_name: None,
+            scope_is_var_boundary: Vec::new(),
             semantic: None,
         }
     }
@@ -528,6 +535,26 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 .iter()
                 .rev()
                 .any(|scope| scope.contains(name))
+    }
+
+    /// Register the names a variable declaration binds, classified the way a state
+    /// declaration has to be: it must not register its own names, or `is_shadowed`
+    /// would return true and suppress every transform for them.
+    fn register_declaration_names(&mut self, decl: &VariableDeclaration<'_>) {
+        if self.is_props_destructuring_declaration(decl) {
+            return;
+        }
+        for declarator in &decl.declarations {
+            if self.is_known_transform_declaration(declarator) {
+                if self.is_reactive_transform_declaration(declarator) {
+                    self.collect_active_state_binding_names(&declarator.id);
+                } else {
+                    self.collect_binding_names_skip_state(&declarator.id);
+                }
+            } else {
+                self.collect_binding_names(&declarator.id);
+            }
+        }
     }
 
     /// Declare a variable in the current scope.
@@ -2032,10 +2059,10 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// detection replaces the per-statement byte scan
     /// `memmem::find(result.as_bytes(), b"$props()")` that used to live
     /// in `transform_client_runes_with_skip_and_state`.
-    fn try_rewrite_props_destructuring_declaration(
-        &mut self,
-        decl: &VariableDeclaration<'_>,
-    ) -> bool {
+    /// Whether `try_rewrite_props_destructuring_declaration` owns this declaration,
+    /// and so whether it registers no names. Shared with the hoisting pre-pass, which
+    /// must skip exactly the same declarations or it shadows the props themselves.
+    fn is_props_destructuring_declaration(&self, decl: &VariableDeclaration<'_>) -> bool {
         if decl.declarations.len() != 1 {
             return false;
         }
@@ -2043,7 +2070,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let Some(init) = &declarator.init else {
             return false;
         };
-        let (init, init_span) = init_without_parens(init);
+        let (init, _) = init_without_parens(init);
         let Expression::CallExpression(call) = init else {
             return false;
         };
@@ -2056,20 +2083,36 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         if ident.name != "$props" || self.is_shadowed("$props") {
             return false;
         }
-        // The text helper needs `ComponentAnalysis` for binding-kind /
-        // accessor / immutable lookups. Unit-test paths construct the
-        // visitor with `analysis: None` and therefore bypass this
-        // migration, falling back to whatever the unit test set up.
+        // The text helper needs `ComponentAnalysis` for binding-kind / accessor /
+        // immutable lookups. Unit-test paths construct the visitor with
+        // `analysis: None` and therefore bypass this migration.
+        if self.analysis.is_none() {
+            return false;
+        }
+        matches!(
+            &declarator.id,
+            BindingPattern::BindingIdentifier(_) | BindingPattern::ObjectPattern(_)
+        )
+    }
+
+    fn try_rewrite_props_destructuring_declaration(
+        &mut self,
+        decl: &VariableDeclaration<'_>,
+    ) -> bool {
+        if !self.is_props_destructuring_declaration(decl) {
+            return false;
+        }
+        let declarator = &decl.declarations[0];
+        let Some(init) = &declarator.init else {
+            return false;
+        };
+        let (init, init_span) = init_without_parens(init);
+        let Expression::CallExpression(call) = init else {
+            return false;
+        };
         let Some(analysis) = self.analysis else {
             return false;
         };
-        let is_supported_pattern = matches!(
-            &declarator.id,
-            BindingPattern::BindingIdentifier(_) | BindingPattern::ObjectPattern(_)
-        );
-        if !is_supported_pattern {
-            return false;
-        }
 
         // Walk inner expressions (default-value sub-trees, etc.) so any
         // state-var refs register their `$.get(...)` replacements. We
@@ -2671,9 +2714,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                 .await_comment_runs
                 .relocatable_run(self.source, expr.span.start)
             {
-                Some((run_start, comments)) => {
-                    (run_start, wrap(&format!("{comments}{}", arg_text.trim())))
-                }
+                Some((run_start, parens, comments)) => (
+                    run_start,
+                    format!(
+                        "{parens}{}",
+                        wrap(&format!("{comments}{}", arg_text.trim()))
+                    ),
+                ),
                 None => (expr.span.start, wrap(arg_text.trim())),
             },
         };
@@ -2936,11 +2983,14 @@ impl<'a, 's> StateVarCollector<'a, 's> {
 }
 
 impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
-    fn enter_scope(&mut self, _flags: ScopeFlags, _scope_id: &std::cell::Cell<Option<ScopeId>>) {
+    fn enter_scope(&mut self, flags: ScopeFlags, _scope_id: &std::cell::Cell<Option<ScopeId>>) {
+        self.scope_is_var_boundary
+            .push(flags.intersects(ScopeFlags::Function | ScopeFlags::Top));
         self.push_scope();
     }
 
     fn leave_scope(&mut self) {
+        self.scope_is_var_boundary.pop();
         self.pop_scope();
     }
 
@@ -2991,20 +3041,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             return;
         }
 
-        // Register declared names in the current scope for shadowing detection.
-        // A state declaration must not register its own names — that would make
-        // `is_shadowed()` true and suppress every transform for them.
-        for declarator in &decl.declarations {
-            if self.is_known_transform_declaration(declarator) {
-                if self.is_reactive_transform_declaration(declarator) {
-                    self.collect_active_state_binding_names(&declarator.id);
-                } else {
-                    self.collect_binding_names_skip_state(&declarator.id);
-                }
-            } else {
-                self.collect_binding_names(&declarator.id);
-            }
-        }
+        self.register_declaration_names(decl);
         // Then walk the declaration normally (to visit initializers, etc.)
         walk::walk_variable_declaration(self, decl);
     }
@@ -3063,6 +3100,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
         }
     }
 
+    fn visit_class(&mut self, it: &oxc_ast::ast::Class<'ast>) {
+        // A `class Foo {}` DECLARATION binds `Foo` in the ENCLOSING scope exactly
+        // as a function declaration does. A class EXPRESSION binds its name only
+        // inside its own body, which upstream mis-lowers, so it is left alone.
+        if it.r#type == oxc_ast::ast::ClassType::ClassDeclaration
+            && let Some(id) = &it.id
+        {
+            self.declare_in_current_scope(&id.name);
+        }
+        walk::walk_class(self, it);
+    }
+
     fn visit_function(&mut self, it: &Function<'ast>, flags: ScopeFlags) {
         // A `function foo()` DECLARATION binds `foo` in the ENCLOSING scope,
         // shadowing any same-named prop/state var for references elsewhere — so
@@ -3074,6 +3123,15 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             && let Some(id) = &it.id
         {
             self.declare_in_current_scope(&id.name);
+        }
+        // A named function EXPRESSION binds its own name inside its body, so it
+        // is declared once the function's scope has been entered — which the
+        // parameter walk is the first hook inside.
+        let saved_fn_expr_name = self.pending_fn_expr_name.take();
+        if it.r#type == oxc_ast::ast::FunctionType::FunctionExpression
+            && let Some(id) = &it.id
+        {
+            self.pending_fn_expr_name = Some(id.name.to_string());
         }
         // Track enclosing function depth so the `$derived(await …)`
         // declarator handler can choose between `await $.async_derived(…)`
@@ -3093,6 +3151,7 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             .or_else(|| self.trace_parent_label.clone());
         self.trace_function_is_async = it.r#async;
         walk::walk_function(self, it, flags);
+        self.pending_fn_expr_name = saved_fn_expr_name;
         self.trace_function_label = saved_label;
         self.trace_function_is_async = saved_async;
         self.trace_in_class_method = saved_class_method;
@@ -3138,6 +3197,38 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 stmts,
                 self.source,
             ));
+        // Upstream resolves a reference against a scope that already holds every
+        // declaration of its block, so a name shadows above its own declaration too.
+        // Registering only on the way past the declarator left
+        // `const r = typeof v; function v() {}` reading the component's binding.
+        for stmt in stmts {
+            match stmt {
+                Statement::VariableDeclaration(decl) => self.register_declaration_names(decl),
+                Statement::FunctionDeclaration(func) => {
+                    if let Some(id) = &func.id {
+                        self.declare_in_current_scope(&id.name);
+                    }
+                }
+                Statement::ClassDeclaration(class) => {
+                    if let Some(id) = &class.id {
+                        self.declare_in_current_scope(&id.name);
+                    }
+                }
+                _ => {}
+            }
+        }
+        // A `var` is function-scoped, so `{ var v = 2; } typeof v` resolves to the
+        // local after the block ends — which the per-block pass above cannot see.
+        if self.scope_is_var_boundary.last().copied().unwrap_or(false) {
+            let mut hoisted = Vec::new();
+            crate::compiler::phases::phase3_transform::shared::hoisted_vars::collect_in_list(
+                stmts,
+                &mut hoisted,
+            );
+            for decl in hoisted {
+                self.register_declaration_names(decl);
+            }
+        }
         walk::walk_statements(self, stmts);
     }
 
@@ -3156,6 +3247,9 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
     }
 
     fn visit_formal_parameters(&mut self, params: &FormalParameters<'ast>) {
+        if let Some(name) = self.pending_fn_expr_name.take() {
+            self.declare_in_current_scope(&name);
+        }
         // Register parameter names in the current scope before walking
         for param in &params.items {
             self.collect_binding_names(&param.pattern);

@@ -50,7 +50,7 @@ fn main() {
         options = options.with_dialect(Dialect::Tsx);
     }
     // Comments are part of the equivalence but rsvelte does not preserve them
-    // yet (see compatibility/ast-equivalence.md), so callers opt in explicitly.
+    // yet (see compatibility/GATES.md#ast-equivalence), so callers opt in explicitly.
     if !args.iter().any(|a| a == "--comments") {
         options = options.with_comments(rsvelte_ast_equiv::CommentPolicy::Ignore);
     }

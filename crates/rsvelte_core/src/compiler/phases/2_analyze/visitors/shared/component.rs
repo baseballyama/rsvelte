@@ -225,6 +225,16 @@ pub fn visit_component<'a, 'b: 'a>(
                 let prev_in_bind_this = context.in_bind_this;
                 if bind.name == "this" {
                     context.in_bind_this = true;
+                    // A component's `bind:` never reaches `bind_directive::visit`, so the
+                    // `non_reactive_update` marking upstream applies to every `bind:this`
+                    // has to be repeated here.
+                    if context.bind_this_block_depth > 0
+                        && let Ok(name) =
+                            super::super::bind_directive::bind_target_name(bind, context)
+                        && let Some(idx) = context.analysis.root.get_binding(&name, context.scope)
+                    {
+                        context.analysis.root.bindings[idx].has_direct_template_read = true;
+                    }
                 }
                 let result = if super::super::bind_directive::is_get_set_pair(bind) {
                     super::super::bind_directive::walk_get_set_pair(bind, context)

@@ -42,6 +42,6 @@ So it is neither "shorthand names are not store references" nor "`style:` does
 not resolve stores" — only the combination diverges.
 
 rsvelte mirrors the behaviour, because output parity with official is the
-contract (see `compatibility/svelte2tsx-known-failures.md` on why a divergence
+contract (see `compatibility/KNOWN-FAILURES.md#svelte2tsx-known-failures` on why a divergence
 is not registered instead). The mirroring is in
 `svelte2tsx/script/stores.rs::collect_store_candidates`.

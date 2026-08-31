@@ -16,9 +16,11 @@ pub(crate) mod error {
     pub use rsvelte_core::error::*;
 }
 
+pub mod script_kind;
 pub mod svelte2tsx;
 mod toolchain;
 
+pub use script_kind::is_typescript_component;
 pub use svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxError, Svelte2TsxMode, Svelte2TsxNamespace,
     Svelte2TsxOptions, Svelte2TsxResult, SvelteVersion,

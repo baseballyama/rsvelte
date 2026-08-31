@@ -894,16 +894,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         if !analysis.css.hash.is_empty() {
             let css_selectors = css_scoping::extract_css_selectors(stylesheet);
             css_scoping::mark_elements_scoped(&mut ast.fragment, &css_selectors, Some(&analysis));
-
-            // When a `@keyframes` rule contains a percentage step (`0%`, `50%`, ...),
-            // the official Svelte css-prune walker visits the `Percentage` selector
-            // and its logic treats it as a possible match for every element (it's
-            // explicitly skipped inside `relative_selector_might_apply_to_node`).
-            // The net effect: every element in the template gets `metadata.scoped = true`.
-            // Keyframes that use only `from`/`to` steps do NOT trigger this behavior.
-            if analysis.css.has_percentage_keyframe_step {
-                css_scoping::mark_all_elements_scoped(&mut ast.fragment);
-            }
         }
     }
 
@@ -2673,6 +2663,37 @@ fn collect_reactive_refs(
             locals.truncate(locals_mark);
             path.pop();
         }
+        // A switch body is a single block scope shared by every case, so a `let`
+        // in any case shadows the outer binding for the whole statement.
+        JsNode::SwitchStatement {
+            discriminant,
+            cases,
+            ..
+        } => {
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*discriminant),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
+            let locals_mark = locals.len();
+            let case_nodes = arena.get_js_children(*cases);
+            for case in case_nodes {
+                if let JsNode::SwitchCase { consequent, .. } = case {
+                    for s in arena.get_js_children(*consequent) {
+                        collect_block_local_decls(s, arena, locals);
+                    }
+                }
+            }
+            for case in case_nodes {
+                collect_reactive_refs(case, arena, path, locals, order, included);
+            }
+            locals.truncate(locals_mark);
+            path.pop();
+        }
         JsNode::SwitchCase {
             test, consequent, ..
         } => {
@@ -3914,6 +3935,7 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
         | JsNode::TSEnumDeclaration { .. }
         | JsNode::TSTypeAliasDeclaration { .. }
         | JsNode::TSInterfaceDeclaration { .. }
+        | JsNode::TSDeclareMethod { .. }
         | JsNode::TSParameterProperty { .. }
         | JsNode::Comment { .. }
         | JsNode::Null => {}
@@ -3994,7 +4016,16 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
             walk_id!(*quasi);
         }
 
-        JsNode::ImportExpression { source, .. } => walk_id!(*source),
+        JsNode::ImportExpression {
+            source, options, ..
+        } => {
+            walk_id!(*source);
+            walk_range!(*options);
+        }
+        JsNode::ImportAttribute { key, value, .. } => {
+            walk_id!(*key);
+            walk_id!(*value);
+        }
 
         JsNode::YieldExpression { argument, .. } => walk_opt_id!(argument),
 
@@ -4200,6 +4231,8 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
             walk_range!(*attributes);
         }
         JsNode::ExportDefaultDeclaration { declaration, .. } => walk_id!(*declaration),
+        // `exported` and `source` are names in another module, not local references.
+        JsNode::ExportAllDeclaration { attributes, .. } => walk_range!(*attributes),
         JsNode::ExportSpecifier {
             local, exported, ..
         } => {
@@ -5973,7 +6006,23 @@ fn collect_identifier_names_in_node(
             end: _,
             loc: _,
             source,
-        } => walk(*source, out),
+            options,
+            ts: _,
+        } => {
+            walk(*source, out);
+            walk_range(*options, out);
+        }
+
+        JsNode::ImportAttribute {
+            start: _,
+            end: _,
+            loc: _,
+            key,
+            value,
+        } => {
+            walk(*key, out);
+            walk(*value, out);
+        }
 
         JsNode::AwaitExpression {
             start: _,
@@ -6081,6 +6130,7 @@ fn collect_identifier_names_in_node(
             kind: _,
             r#static: _,
             computed,
+            modifiers: _,
         } => {
             if *computed {
                 walk(*key, out);
@@ -6096,7 +6146,7 @@ fn collect_identifier_names_in_node(
             value,
             r#static: _,
             computed,
-            accessor: _,
+            modifiers: _,
         } => {
             if *computed {
                 walk(*key, out);
@@ -6347,7 +6397,19 @@ fn collect_identifier_names_in_node(
             end: _,
             loc: _,
             declaration,
+            export_kind: _,
         } => walk(*declaration, out),
+
+        // `exported` and `source` are names in another module, not local references.
+        JsNode::ExportAllDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            exported: _,
+            source: _,
+            export_kind: _,
+            attributes,
+        } => walk_range(*attributes, out),
 
         // `exported` is the name in the importing module, not a local reference.
         JsNode::ExportSpecifier {
@@ -6366,18 +6428,15 @@ fn collect_identifier_names_in_node(
             loc: _,
             type_annotation: _,
         } => {}
-        JsNode::TSEnumDeclaration {
-            start: _,
-            end: _,
-            loc: _,
-        }
+        JsNode::TSEnumDeclaration { .. }
         | JsNode::TSParameterProperty {
             start: _,
             end: _,
             loc: _,
         }
         | JsNode::TSTypeAliasDeclaration { .. }
-        | JsNode::TSInterfaceDeclaration { .. } => {}
+        | JsNode::TSInterfaceDeclaration { .. }
+        | JsNode::TSDeclareMethod { .. } => {}
         JsNode::TSModuleDeclaration {
             start: _,
             end: _,

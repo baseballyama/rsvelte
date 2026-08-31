@@ -45,8 +45,9 @@
 //! `build_getter` resolves `name` through `context.state.scope`, so a `$y`
 //! introduced as a FUNCTION PARAMETER (e.g. `derived(y, ($y) => $y * $y)`)
 //! shadows the component-level `$y` store-sub binding and is NOT wrapped. We
-//! mirror this with a `shadowed` stack populated from function / arrow
-//! parameter patterns (the only shadowing the store-cluster fixtures exercise).
+//! mirror this with a `shadowed` stack populated from every construct that
+//! binds a name: function / arrow parameters, block declarations, switch-case
+//! declarations, a `catch` clause and the three loop heads.
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
@@ -627,11 +628,9 @@ impl<'a, 'b> ReadWrap<'a, 'b> {
 /// to the nearest enclosing declaration: a local `let value = 0` inside a
 /// `$.derived(() => …)` thunk must NOT be read-wrapped as `value()`.
 ///
-/// We collect `let`/`const`/`var`/`function`/`class` declaration names. `var` and
-/// `function` are function-scoped, `let`/`const`/`class` block-scoped, but for the
-/// purpose of "is this name a local declaration that shadows the instance binding"
-/// collecting all of them at every block boundary is conservatively correct: any
-/// name declared anywhere in the enclosing function body chain shadows.
+/// `let`/`const`/`class`/`function` only: those are the block's own bindings, and
+/// this frame is popped when the block ends. A `var` outlives it — see
+/// [`collect_hoisted_var_names`], which the enclosing function collects instead.
 fn collect_block_decl_names(stmts: &[Statement], out: &mut FxHashSet<String>) {
     for stmt in stmts {
         match stmt {
@@ -651,6 +650,33 @@ fn collect_block_decl_names(stmts: &[Statement], out: &mut FxHashSet<String>) {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+/// Names bound by a `for … of` / `for … in` head. An assignment-target head
+/// (`for (x of xs)`) declares nothing, so it shadows nothing.
+fn collect_for_left_names(left: &oxc_ast::ast::ForStatementLeft, out: &mut FxHashSet<String>) {
+    if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(decl) = left {
+        for d in decl.declarations.iter() {
+            collect_binding_pattern_names(&d.id, out);
+        }
+    }
+}
+
+/// Collect every `var` declared anywhere inside a function body — nested blocks,
+/// loop heads, `try`, `switch`. A `var` is function-scoped, so
+/// `{ var v = 2; } typeof v` still resolves to the local after the block ends,
+/// which a per-block frame cannot express. The walk is shared with the client's
+/// instance-script pass: it answers the same question about the same AST.
+fn collect_hoisted_var_names(stmts: &[Statement], out: &mut FxHashSet<String>) {
+    let mut decls = Vec::new();
+    crate::compiler::phases::phase3_transform::shared::hoisted_vars::collect_in_list(
+        stmts, &mut decls,
+    );
+    for decl in decls {
+        for d in decl.declarations.iter() {
+            collect_binding_pattern_names(&d.id, out);
         }
     }
 }
@@ -991,9 +1017,14 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
         flags: oxc_syntax::scope::ScopeFlags,
     ) {
         let mut frame = FxHashSet::default();
+        // A named function expression's own name is bound inside its body.
+        if let Some(id) = &it.id {
+            frame.insert(id.name.to_string());
+        }
         Self::collect_param_names(&it.params, &mut frame);
         if let Some(body) = it.body.as_ref() {
             collect_block_decl_names(&body.statements, &mut frame);
+            collect_hoisted_var_names(&body.statements, &mut frame);
         }
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_function(self, it, flags);
@@ -1008,6 +1039,7 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
         Self::collect_param_names(&it.params, &mut frame);
         if let Some(block) = it.body.as_function_body() {
             collect_block_decl_names(&block.statements, &mut frame);
+            collect_hoisted_var_names(&block.statements, &mut frame);
         }
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_arrow_function_expression(self, it);
@@ -1019,6 +1051,67 @@ impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
         collect_block_decl_names(&it.body, &mut frame);
         self.shadowed.push(frame);
         oxc_ast_visit::walk_mut::walk_block_statement(self, it);
+        self.shadowed.pop();
+    }
+
+    fn visit_catch_clause(&mut self, it: &mut oxc_ast::ast::CatchClause<'a>) {
+        let mut frame = FxHashSet::default();
+        if let Some(param) = &it.param {
+            collect_binding_pattern_names(&param.pattern, &mut frame);
+        }
+        self.shadowed.push(frame);
+        oxc_ast_visit::walk_mut::walk_catch_clause(self, it);
+        self.shadowed.pop();
+    }
+
+    fn visit_for_statement(&mut self, it: &mut oxc_ast::ast::ForStatement<'a>) {
+        // The head's own declaration is visited OUTSIDE the frame: its
+        // initializer is evaluated before the loop binding exists, so a
+        // `for (let i = total; …)` still reads the derived `total`.
+        let mut frame = FxHashSet::default();
+        if let Some(init) = &mut it.init {
+            match init {
+                oxc_ast::ast::ForStatementInit::VariableDeclaration(decl) => {
+                    self.visit_variable_declaration(decl);
+                    for d in decl.declarations.iter() {
+                        collect_binding_pattern_names(&d.id, &mut frame);
+                    }
+                }
+                expr => {
+                    if let Some(expr) = expr.as_expression_mut() {
+                        self.visit_expression(expr);
+                    }
+                }
+            }
+        }
+        self.shadowed.push(frame);
+        if let Some(test) = &mut it.test {
+            self.visit_expression(test);
+        }
+        if let Some(update) = &mut it.update {
+            self.visit_expression(update);
+        }
+        self.visit_statement(&mut it.body);
+        self.shadowed.pop();
+    }
+
+    fn visit_for_of_statement(&mut self, it: &mut oxc_ast::ast::ForOfStatement<'a>) {
+        self.visit_expression(&mut it.right);
+        let mut frame = FxHashSet::default();
+        collect_for_left_names(&it.left, &mut frame);
+        self.shadowed.push(frame);
+        self.visit_for_statement_left(&mut it.left);
+        self.visit_statement(&mut it.body);
+        self.shadowed.pop();
+    }
+
+    fn visit_for_in_statement(&mut self, it: &mut oxc_ast::ast::ForInStatement<'a>) {
+        self.visit_expression(&mut it.right);
+        let mut frame = FxHashSet::default();
+        collect_for_left_names(&it.left, &mut frame);
+        self.shadowed.push(frame);
+        self.visit_for_statement_left(&mut it.left);
+        self.visit_statement(&mut it.body);
         self.shadowed.pop();
     }
 

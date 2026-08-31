@@ -325,27 +325,15 @@
 	},
 	{
 		"id": "submodules/date-picker-svelte/src/lib/DateInput.svelte#style0",
-		"verdict": "grass-rejects-accepted"
-	},
-	{
-		"id": "submodules/date-picker-svelte/src/lib/DatePicker.svelte#style0",
-		"verdict": "grass-rejects-accepted"
-	},
-	{
-		"id": "submodules/date-picker-svelte/src/lib/TimePicker.svelte#style0",
-		"verdict": "grass-rejects-accepted"
+		"verdict": "css-mismatch"
 	},
 	{
 		"id": "submodules/date-picker-svelte/src/routes/+layout.svelte#style0",
-		"verdict": "grass-rejects-accepted"
-	},
-	{
-		"id": "submodules/date-picker-svelte/src/routes/prop.svelte#style0",
-		"verdict": "grass-rejects-accepted"
+		"verdict": "css-mismatch"
 	},
 	{
 		"id": "submodules/date-picker-svelte/src/routes/split.svelte#style0",
-		"verdict": "grass-rejects-accepted"
+		"verdict": "css-mismatch"
 	},
 	{
 		"id": "submodules/huly/packages/theme/styles/_colors.scss",

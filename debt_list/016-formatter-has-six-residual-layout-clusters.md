@@ -2,7 +2,7 @@
 
 Category: formatter compatibility / maintainability
 
-Evidence: `fmt-known-failures.json` contains 19 files partitioned `3 + 8 + 5 + 1 + 1 + 1` (`compatibility/fmt-known-failures.md:8-25`). Residue spans tag hugging, attribute/directive breakpoints, embedded-JS member chains, expression joining, OXC parentheses/types, and native CSS indentation.
+Evidence: `fmt-known-failures.json` contains 19 files partitioned `3 + 8 + 5 + 1 + 1 + 1` (`compatibility/KNOWN-FAILURES.md#fmt-known-failures:8-25`). Residue spans tag hugging, attribute/directive breakpoints, embedded-JS member chains, expression joining, OXC parentheses/types, and native CSS indentation.
 
 Impact: switching to `rsvelte-fmt` creates persistent formatting churn and makes mixed-tool teams unstable despite the exact fixture suite passing.
 

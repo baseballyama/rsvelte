@@ -210,3 +210,30 @@ fn a_sequence_initializer_is_still_rejected() {
         22,
     );
 }
+
+/// A type annotation is not an expression in TypeScript either: acorn-typescript
+/// returns the identifier and leaves the colon to the caller's `eat('}')`, so the
+/// diagnostic is `expected_token`. rsvelte probes with a synthetic `(` wrapper,
+/// where TypeScript *does* allow an annotation — it is an arrow parameter list —
+/// so the probe read past the colon and reported the next real syntax error.
+///
+/// Both codes and both offsets are the official compiler's own output (5.56.10).
+#[test]
+fn a_type_annotation_in_a_mustache_is_a_missing_close_token() {
+    // The same source with and without `lang="ts"`: the answer must not depend
+    // on it, which is what makes the JavaScript row the control for the other.
+    for (prefix, offset) in [
+        ("<script lang=\"ts\">\n\tlet a = 1;\n</script>\n\n", 43u32),
+        ("", 0),
+    ] {
+        for body in [
+            "{\n\tdata: string;\n}\n",
+            "{\n\t/** doc */\n\tdata: string;\n}\n",
+        ] {
+            let src = format!("{prefix}{body}");
+            let colon = src.find(':').unwrap() as u32;
+            assert!(colon > offset, "{src:?}");
+            assert_error(&src, "expected_token", "Expected token }", colon);
+        }
+    }
+}

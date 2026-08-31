@@ -132,12 +132,13 @@ fn visit_common(
     // doesn't need state since the element reference never changes.
     // For other binds: always mark as direct template read.
     //
-    // We use block_depth > 0 to detect if we're inside a conditional/iterating block.
-    // block_depth is incremented by IfBlock, EachBlock, AwaitBlock, and SnippetBlock visitors.
+    // Upstream walks the reference path back from the `BindDirective` looking for an
+    // `IfBlock` / `EachBlock` / `AwaitBlock` / `KeyBlock` (`2-analyze/index.js:757-767`);
+    // a `SnippetBlock` is not one of them.
     if let Some(idx) = binding_idx {
         if directive.name == "this" {
             // bind:this only needs state when inside a conditional/iterating block
-            if context.block_depth > 0 {
+            if context.bind_this_block_depth > 0 {
                 context.analysis.root.bindings[idx].has_direct_template_read = true;
             }
         } else {

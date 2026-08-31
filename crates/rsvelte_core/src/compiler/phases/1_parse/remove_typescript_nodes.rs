@@ -41,7 +41,7 @@ use crate::error::ParseError;
 //     rebuild the `Program` node, only mutate its body entries in place.
 
 use crate::ast::arena::{IdRange, JsNodeId, ParseArena};
-use crate::ast::typed_expr::JsNode;
+use crate::ast::typed_expr::{JsNode, TsMemberModifiers};
 
 /// Recurse the typed TS strip into the arena node addressed by `id`.
 ///
@@ -188,7 +188,7 @@ pub fn remove_typescript_nodes_typed(
         // `accessor` class fields are not supported (mirrors the Value mutator).
         Some("PropertyDefinition") => {
             if let JsNode::PropertyDefinition {
-                accessor: true,
+                modifiers: TsMemberModifiers { accessor: true, .. },
                 start,
                 end,
                 ..

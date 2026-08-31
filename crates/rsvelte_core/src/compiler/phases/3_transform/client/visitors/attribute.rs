@@ -3,7 +3,7 @@
 //! Corresponds to `Attribute.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Attribute.js`.
 
-use crate::ast::template::{Attribute, AttributeNode};
+use crate::ast::template::{Attribute, AttributeNode, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::client::types::Memoizer;
@@ -13,7 +13,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::events:
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_render_statement_with_memoizer, expression_has_await,
 };
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsArrowBody, JsExpr};
 use crate::compiler::phases::phase3_transform::utils::locate_in_source;
 #[cfg(test)]
 use crate::compiler::utils::can_delegate_event;
@@ -142,7 +142,11 @@ fn is_expression_attribute_value(value: &crate::ast::template::AttributeValue) -
 ///     }
 /// }
 /// ```
-pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContext) {
+pub fn visit_event_attribute(
+    node: &AttributeNode,
+    element_name_span: (u32, u32),
+    context: &mut ComponentContext,
+) {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     // Extract event name (remove "on" prefix)
@@ -188,12 +192,35 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     // Only generate a name if the handler is actually an arrow function, to avoid consuming
     // names from the conflicts set unnecessarily.
     // Reference: events.js build_event(): `if (dev && handler.type === 'ArrowFunctionExpression')`
-    let mut handler = if context.state.options.dev && matches!(handler, JsExpr::Arrow(_)) {
+    let named_function = context.state.options.dev && matches!(handler, JsExpr::Arrow(_));
+    // Only a block body carries the handler's own-line comments in a chunk of
+    // its own; an expression body has no statement list, so the anchor below is
+    // the only thing that can place them.
+    let body_carries_comments = matches!(
+        &handler,
+        JsExpr::Arrow(arrow) if matches!(arrow.body, JsArrowBody::Block(_))
+    );
+    let mut handler = if named_function {
         let name = context.state.memoizer.generate_id(event_name);
         convert_arrow_to_named_function(handler, name.into())
     } else {
         handler
     };
+
+    // Upstream's dev wrapper is `b.function(…)` — a builder node with no `loc`,
+    // so the cursor reaches no position inside it. This anchor exists to stop
+    // the handler's own anchor from placing those comments a second time; the
+    // body's chunk already carries them, so it must not place a copy itself.
+    let (name_start, name_end) = element_name_span;
+    let mut event_node = context.state.node.clone();
+    if named_function && let Some(region) = CommentRegion::of(&context.state, expr_tag, name_start)
+    {
+        event_node = if body_carries_comments {
+            region.anchor_claim_only(&context.arena, event_node, name_start, name_end)
+        } else {
+            region.anchor(&context.arena, event_node, name_start, name_end)
+        };
+    }
 
     if let (Some(start), Some(end)) = (expr_tag.expression.start(), expr_tag.expression.end())
         && let Some(region) = CommentRegion::of(&context.state, expr_tag, expr_tag.start + 1)
@@ -206,7 +233,7 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
         build_event(
             &context.arena,
             event_name,
-            &context.state.node,
+            &event_node,
             handler,
             capture,
             if passive == Some(true) { passive } else { None },
@@ -230,7 +257,6 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 
     // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
     let is_special_element = context.current_parent().is_some_and(|parent| {
-        use crate::ast::template::TemplateNode;
         matches!(
             parent,
             TemplateNode::SvelteWindow(_)

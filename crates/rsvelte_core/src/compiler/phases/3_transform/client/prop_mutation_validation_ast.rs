@@ -58,6 +58,11 @@ pub(super) fn wrap_prop_mutation_validation_ast(
     )
 }
 
+/// Whether `expression` is exactly the compiler-generated identifier `name`.
+fn is_generated_root(expression: &Expression<'_>, name: &str) -> bool {
+    matches!(expression, Expression::Identifier(root) if root.name == name)
+}
+
 struct Collector<'a> {
     generated: &'a str,
     source: &'a str,
@@ -81,18 +86,45 @@ impl<'a> Collector<'a> {
             AssignmentTarget::StaticMemberExpression(member) => {
                 (&member.object, format!("'{}'", member.property.name))
             }
-            AssignmentTarget::ComputedMemberExpression(member) => {
-                let span = member.expression.span();
-                (
-                    &member.object,
-                    self.generated[span.start as usize..span.end as usize].to_string(),
-                )
-            }
+            AssignmentTarget::ComputedMemberExpression(member) => (
+                &member.object,
+                self.computed_path_element(&member.expression)?,
+            ),
             _ => return None,
         };
         let (root, mut path) = self.expression_root_and_path(expression)?;
         path.push(tail);
         Some((root, path))
+    }
+
+    /// The path element a computed access contributes, or `None` where upstream
+    /// bails out of the whole wrap.
+    ///
+    /// Upstream tests the *source* property and accepts only a `Literal` or an
+    /// `Identifier`; by the time this pass runs, an identifier has been through
+    /// its read transform, so it is also a call (`k()`, `$s()`, `$.get(i)`) or a
+    /// `$$props` member. A binary, template-literal or plain member key reaches
+    /// none of those, which is how `item[a.b] = v` stays unwrapped.
+    fn computed_path_element(&self, expression: &Expression<'_>) -> Option<String> {
+        let readable = match expression {
+            Expression::Identifier(_) => true,
+            Expression::CallExpression(call) => match &call.callee {
+                Expression::Identifier(_) => call.arguments.is_empty(),
+                Expression::StaticMemberExpression(member) => {
+                    is_generated_root(&member.object, "$")
+                }
+                _ => false,
+            },
+            // A non-bindable runes prop reads as `$$props.name`, which a source
+            // member key cannot spell: `$$` is reserved.
+            Expression::StaticMemberExpression(member) => {
+                is_generated_root(&member.object, "$$props")
+                    || is_generated_root(&member.object, "$$restProps")
+            }
+            other => other.is_literal(),
+        };
+        let span = expression.span();
+        readable.then(|| self.generated[span.start as usize..span.end as usize].to_string())
     }
 
     fn simple_target_root_and_path(
@@ -103,13 +135,10 @@ impl<'a> Collector<'a> {
             SimpleAssignmentTarget::StaticMemberExpression(member) => {
                 (&member.object, format!("'{}'", member.property.name))
             }
-            SimpleAssignmentTarget::ComputedMemberExpression(member) => {
-                let span = member.expression.span();
-                (
-                    &member.object,
-                    self.generated[span.start as usize..span.end as usize].to_string(),
-                )
-            }
+            SimpleAssignmentTarget::ComputedMemberExpression(member) => (
+                &member.object,
+                self.computed_path_element(&member.expression)?,
+            ),
             _ => return None,
         };
         let (root, mut path) = self.expression_root_and_path(expression)?;
@@ -130,8 +159,7 @@ impl<'a> Collector<'a> {
                     current = &member.object;
                 }
                 Expression::ComputedMemberExpression(member) => {
-                    let span = member.expression.span();
-                    path.push(self.generated[span.start as usize..span.end as usize].to_string());
+                    path.push(self.computed_path_element(&member.expression)?);
                     current = &member.object;
                 }
                 Expression::CallExpression(call) if call.arguments.is_empty() => {
@@ -146,7 +174,18 @@ impl<'a> Collector<'a> {
         }
     }
 
-    fn location(&mut self, name: &str, path: &[String], expression: &str) -> (usize, usize) {
+    /// Whether the source has any member write through this prop. A generated
+    /// setter call for a prop the source never writes through a member of came
+    /// from a destructuring pattern, which upstream's `left.type !==
+    /// 'MemberExpression'` bail leaves unvalidated.
+    fn source_writes_a_member(&self, name: &str) -> bool {
+        self.sites
+            .iter()
+            .find(|(candidate, _, _)| candidate == name)
+            .is_none_or(|(_, _, sites)| !sites.is_empty())
+    }
+
+    fn location(&mut self, name: &str, path: &[String], value: &str) -> (usize, usize) {
         let static_path = path
             .iter()
             .map(|part| {
@@ -158,13 +197,13 @@ impl<'a> Collector<'a> {
         self.sites
             .iter_mut()
             .find(|(candidate, _, _)| candidate == name)
-            .and_then(|(_, _, sites)| sites.take(static_path.as_deref(), expression))
+            .and_then(|(_, _, sites)| sites.take(static_path.as_deref(), value))
             .unwrap_or_else(|| {
                 super::props_transforms::find_prop_mutation_location(self.source, name)
             })
     }
 
-    fn wrap(&mut self, span: Span, name: String, path: Vec<String>) {
+    fn wrap(&mut self, span: Span, name: String, path: Vec<String>, value: Option<Span>) {
         if self
             .ownership
             .iter()
@@ -175,10 +214,17 @@ impl<'a> Collector<'a> {
         let Some(alias) = self.prop(&name).cloned() else {
             return;
         };
-        let original_expression =
-            self.generated[span.start as usize..span.end as usize].to_string();
-        let (line, column) = self.location(&name, &path, &original_expression);
-        let mut expression = original_expression;
+        if !self.source_writes_a_member(&name) {
+            return;
+        }
+        // The right-hand side alone: `span` is the whole setter call, whose
+        // `, true)` tail would otherwise be matched against the source value.
+        let generated = self.generated;
+        let value = value.map_or("", |value| {
+            &generated[value.start as usize..value.end as usize]
+        });
+        let (line, column) = self.location(&name, &path, value);
+        let mut expression = self.generated[span.start as usize..span.end as usize].to_string();
 
         // The traversal is child-first, so fold already-wrapped descendants into this
         // replacement. Leaving overlapping edits for `splice` would apply the outer edit
@@ -217,7 +263,7 @@ impl<'a> Collector<'a> {
     fn setter_path(
         &self,
         expression: &Expression<'_>,
-    ) -> Option<(Span, Span, String, Vec<String>)> {
+    ) -> Option<(Span, Span, Span, String, Vec<String>)> {
         let Expression::CallExpression(call) = expression else {
             return None;
         };
@@ -238,7 +284,13 @@ impl<'a> Collector<'a> {
             return None;
         };
         let (name, path) = self.root_and_path(&assignment.left)?;
-        Some((call.span, assignment.span, name, path))
+        Some((
+            call.span,
+            assignment.span,
+            assignment.right.span(),
+            name,
+            path,
+        ))
     }
 
     fn sequence_span(&self, span: Span) -> Span {
@@ -279,10 +331,12 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
                 Argument::AssignmentExpression(assignment) => {
                     self.skip.push(assignment.span);
                     self.root_and_path(&assignment.left)
+                        .map(|(name, path)| (name, path, Some(assignment.right.span())))
                 }
                 Argument::UpdateExpression(update) => {
                     self.skip.push(update.span);
                     self.simple_target_root_and_path(&update.argument)
+                        .map(|(name, path)| (name, path, None))
                 }
                 _ => None,
             }
@@ -290,8 +344,8 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             None
         };
         walk::walk_call_expression(self, call);
-        if let Some((name, path)) = setter {
-            self.wrap(call.span, name, path);
+        if let Some((name, path, value)) = setter {
+            self.wrap(call.span, name, path, value);
         }
     }
 
@@ -300,13 +354,13 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             .expressions
             .iter()
             .find_map(|expression| self.setter_path(expression));
-        if let Some((call_span, assignment_span, _, _)) = &setter {
+        if let Some((call_span, assignment_span, _, _, _)) = &setter {
             self.skip_calls.push(*call_span);
             self.skip.push(*assignment_span);
         }
         walk::walk_sequence_expression(self, sequence);
-        if let Some((_, _, name, path)) = setter {
-            self.wrap(self.sequence_span(sequence.span), name, path);
+        if let Some((_, _, value, name, path)) = setter {
+            self.wrap(self.sequence_span(sequence.span), name, path, Some(value));
         }
     }
 
@@ -316,7 +370,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             return;
         }
         if let Some((name, path)) = self.root_and_path(&assignment.left) {
-            self.wrap(assignment.span, name, path);
+            self.wrap(assignment.span, name, path, Some(assignment.right.span()));
         }
     }
 
@@ -326,7 +380,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             return;
         }
         if let Some((name, path)) = self.simple_target_root_and_path(&update.argument) {
-            self.wrap(update.span, name, path);
+            self.wrap(update.span, name, path, None);
         }
     }
 }
@@ -349,15 +403,93 @@ mod tests {
         );
     }
 
+    /// Upstream calls `validate_mutation` on the source `AssignmentExpression`,
+    /// whose `left` is the pattern — not on the per-leaf writes the destructure
+    /// lowers to — so a prop the source never writes through a member of gets
+    /// no wrap however its generated setters look.
+    #[test]
+    fn a_destructuring_target_is_not_a_member_mutation() {
+        let props = vec![("items".to_string(), None)];
+        for source in [
+            "<script>\nexport let items;\n[items[0], items[1]] = [items[1], items[0]];\n</script>",
+            "<script>\nexport let items;\n({ a: items[0] } = src);\n</script>",
+        ] {
+            let generated = "items(items()[0] = $$array[0], true);";
+            assert_eq!(
+                wrap_prop_mutation_validation_ast(generated, &props, source).as_deref(),
+                Some(generated),
+                "{source}"
+            );
+        }
+    }
+
+    /// The control: one plain member write in the source and the same generated
+    /// setter is wrapped again.
+    #[test]
+    fn a_plain_member_write_in_the_source_still_wraps() {
+        let source = "<script>\nexport let items;\nitems[0] = 1;\n</script>";
+        let props = vec![("items".to_string(), None)];
+        let output =
+            wrap_prop_mutation_validation_ast("items(items()[0] = 1, true);", &props, source)
+                .unwrap();
+        assert!(
+            output.starts_with("$$ownership_validator.mutation(null, ['items', 0]"),
+            "{output}"
+        );
+    }
+
     #[test]
     fn wraps_runes_computed_member_assignment() {
-        let source = "<script>\nlet { item } = $props();\nitem[`${key}`] = value;\n</script>";
+        let source =
+            "<script>\nlet { item } = $props();\nlet key = 'k';\nitem[key] = value;\n</script>";
         let props = vec![("item".to_string(), Some("item".to_string()))];
         let output =
-            wrap_prop_mutation_validation_ast("item()[`${key}`] = value;", &props, source).unwrap();
+            wrap_prop_mutation_validation_ast("item()[key] = value;", &props, source).unwrap();
         assert!(output.starts_with(
-            "$$ownership_validator.mutation('item', ['item', `${key}`], item()[`${key}`] = value"
+            "$$ownership_validator.mutation('item', ['item', key], item()[key] = value"
         ));
+    }
+
+    /// Upstream's `validate_mutation` accepts a computed key only as a `Literal`
+    /// or an `Identifier`; a template literal and a member expression each leave
+    /// the assignment unwrapped.
+    #[test]
+    fn leaves_an_unnameable_computed_key_unwrapped() {
+        let props = vec![("item".to_string(), Some("item".to_string()))];
+        for (source, generated) in [
+            (
+                "<script>\nlet { item } = $props();\nlet key = 'k';\nitem[`${key}`] = value;\n</script>",
+                "item()[`${key}`] = value;",
+            ),
+            (
+                "<script>\nlet { item } = $props();\nlet d = { k: 1 };\nitem[d.k] = value;\n</script>",
+                "item()[d.k] = value;",
+            ),
+        ] {
+            assert_eq!(
+                wrap_prop_mutation_validation_ast(generated, &props, source).as_deref(),
+                Some(generated),
+            );
+        }
+    }
+
+    /// A right-hand side that opens on the line after its `=` still contributes
+    /// its words, which is what tells two same-path mutations apart.
+    #[test]
+    fn a_multi_line_right_hand_side_still_discriminates_two_sites() {
+        let source = "<script>\nexport let collection;\nfunction a() {\n\tcollection.items =\n\t\tcollection.items.filter(\n\t\t\t(it) => it.kind === 'note'\n\t\t);\n}\nfunction b() {\n\tcollection.items = collection.items.filter((it) => it.id !== id);\n}\n</script>";
+        let output = wrap_prop_mutation_validation_ast(
+            "collection(collection().items = collection().items.filter((it) => it.id !== id), true);\ncollection(collection().items = collection().items.filter((it) => it.kind === 'note'), true);",
+            &[("collection".to_string(), None)],
+            source,
+        )
+        .unwrap();
+
+        assert!(output.contains("it.id !== id), true), 10, 1)"), "{output}");
+        assert!(
+            output.contains("it.kind === 'note'), true), 4, 1)"),
+            "{output}"
+        );
     }
 
     #[test]
@@ -411,7 +543,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(output.ends_with(", 4, 0);"));
+        assert!(output.ends_with(", 4, 1);"));
     }
 
     #[test]
@@ -424,7 +556,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(output.contains("result()[key] = true, true), 5, 0)"));
-        assert!(output.contains("step().params._id = 'next', true), 6, 0)"));
+        assert!(output.contains("result()[key] = true, true), 5, 1)"));
+        assert!(output.contains("step().params._id = 'next', true), 6, 1)"));
     }
 }

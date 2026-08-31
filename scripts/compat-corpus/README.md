@@ -127,7 +127,7 @@ Every source but the last is **pinned by its submodule gitlink**. The first 36 a
 bumped by `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes
 through `auto-update-svelte.yml`); `skeleton` is excluded there because it also feeds
 the line-number-keyed svelte-check e2e ratchet (see
-`compatibility/check-e2e-known-failures.md`), and so is the wave-2 block from `huly`
+`compatibility/KNOWN-FAILURES.md#check-e2e-known-failures`), and so is the wave-2 block from `huly`
 down — 67 more weekly PRs is not reviewable, and each bump can require re-triaging the
 baselines. Freshness is what the rotation buys; wave 2 buys breadth, and a pinned
 source is a deterministic gate input. For
@@ -176,7 +176,7 @@ itself never spends cycles on cosmetic output massaging (rsvelte targets
    does not parse is its own verdict — `js-unparseable`, never demoted to a text
    diff. This is the same comparator the fixture suites and the devtools use, so
    "equivalent" means one thing repo-wide; see
-   [compatibility/ast-equivalence.md](../../compatibility/ast-equivalence.md).
+   [compatibility/GATES.md#ast-equivalence](../../compatibility/GATES.md#ast-equivalence).
 
 1. **template-hole flattening** (`normalize.mjs`, applied BEFORE oxfmt) —
    esrap wraps long expressions inside `` `${}` `` template-literal holes
@@ -303,7 +303,7 @@ sides, because where the reference does not parse there is nothing to hold
 rsvelte to. The gate also refuses to run if rsvelte produced fewer than 90% as
 many modules as official did, so it cannot go green by the compiler refusing to
 compile. See
-[compatibility/parse-known-failures.md](../../compatibility/parse-known-failures.md)
+[compatibility/KNOWN-FAILURES.md#parse-known-failures](../../compatibility/KNOWN-FAILURES.md#parse-known-failures)
 for the oracle's calibration figures and why the baseline is 0.
 
 Warning, error and parseability comparison need no normalization, so they are
@@ -317,10 +317,10 @@ exits `2` instead of reporting success
 `scripts/dev/test-corpus-parse-gate.mjs` guard this).
 `--from-report` derives output failures only, so it rejects the diagnostic flags
 rather than ignoring them. See
-[compatibility/warning-known-failures.md](../../compatibility/warning-known-failures.md)
+[compatibility/KNOWN-FAILURES.md#warning-known-failures](../../compatibility/KNOWN-FAILURES.md#warning-known-failures)
 — including why the warning gate did not exist until #2281, and the corpus entry
 that proved it was needed — and
-[compatibility/error-known-failures.md](../../compatibility/error-known-failures.md).
+[compatibility/KNOWN-FAILURES.md#error-known-failures](../../compatibility/KNOWN-FAILURES.md#error-known-failures).
 
 The compared targets (their `generate` / `dev` options, whether CSS is compared,
 and which baseline file they ratchet against) are declared once in
@@ -433,7 +433,7 @@ Two things follow that are easy to get wrong:
   `is_meaningful_comment` matches `@ts-`, `svelte-ignore`, `@component`,
   `eslint-disable`, `prettier-ignore`, `# sourceMappingURL=` — so JSDoc type
   tags like `@type` are still filtered as prose. The real prerequisite is
-  rsvelte preserving comments at all; see `compatibility/ast-equivalence.md`.
+  rsvelte preserving comments at all; see `compatibility/GATES.md#ast-equivalence`.
 - **Preserving them is necessary but not sufficient.** Official itself drops
   the comment in 80 of 192 generated module positions and keeps it in the other
   112, position-dependent rather than per-comment-kind (#2399). Parity means
@@ -816,7 +816,7 @@ pnpm run lint-corpus:update            # re-baseline lint-known-failures.json af
 - **Ratchet** — every finding present on exactly one side is a *divergence*,
   recorded in `compatibility/lint-known-failures.json` (tracked). The set may
   only **shrink**: a NEW divergence fails CI; fixed ones are pruned with
-  `--update`. See [compatibility/lint-known-failures.md](../../compatibility/lint-known-failures.md)
+  `--update`. See [compatibility/KNOWN-FAILURES.md#lint-known-failures](../../compatibility/KNOWN-FAILURES.md#lint-known-failures)
   for the burn-down playbook and the root-cause clusters.
 
 The `lint-parity` job in `.github/workflows/corpus-compat.yml` runs this track
@@ -874,7 +874,7 @@ pnpm run test:svelte-check:tsgo
 - **Ratchet** — every surplus diagnostic on one side is a *divergence*, recorded
   in `compatibility/check-known-failures.json` (tracked), shrink-only, with an
   ` xN` suffix when the surplus is larger than one. Justifications live in
-  [compatibility/check-known-failures.md](../../compatibility/check-known-failures.md).
+  [compatibility/KNOWN-FAILURES.md#check-known-failures](../../compatibility/KNOWN-FAILURES.md#check-known-failures).
 
 The `check-parity` job in `.github/workflows/corpus-compat.yml` runs this track
 as a `backend: [tsc, tsgo]` matrix (see [check-known-failures.md](../../compatibility/check-known-failures.md#backend-matrix-tsc-vs-tsgo));
@@ -917,7 +917,7 @@ node scripts/compat-corpus/check-e2e-verify.mjs --update         # re-baseline
   the multiset diff are shared in `check-diagnostics.mjs`), with the entry
   prefixed `<project>/<unit>` instead of `<scenario>`. Baseline:
   `compatibility/check-e2e-known-failures.json`, justified per cluster in
-  [check-e2e-known-failures.md](../../compatibility/check-e2e-known-failures.md).
+  [check-e2e-known-failures.md](../../compatibility/KNOWN-FAILURES.md#check-e2e-known-failures).
 
 The `check-e2e-parity` job in `.github/workflows/corpus-compat.yml` runs this
 track. Adding a unit means adding a submodule + a `PROJECTS` entry + the
@@ -1083,7 +1083,7 @@ pnpm run corpus:parse-ast:update           # re-baseline (full runs only)
 ```
 
 The ratchet key is a **field, not a file**: `<axis>::<NodeType>.<field>#<kind>`.
-Read `compatibility/parse-ast-known-failures.md` for why — per-entry keys are a
+Read `compatibility/KNOWN-FAILURES.md#parse-ast-known-failures` for why — per-entry keys are a
 five-figure file that churns on every submodule bump, and per-divergent-path-set
 keys multiply independent defects into 472 classes over 4,468 files. Entry counts
 are printed but deliberately not ratcheted, because they track corpus size.

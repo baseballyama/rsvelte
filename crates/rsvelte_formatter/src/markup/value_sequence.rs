@@ -61,7 +61,7 @@ fn render_value_sequence_doc(
         .iter()
         .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
         .count();
-    if interp_count < 2 {
+    if interp_count < 1 {
         return Ok(None);
     }
     if parts
@@ -110,8 +110,13 @@ fn render_value_sequence_doc(
                 // under the flat form (guarantees at least the top-level
                 // operator splits even when the overflow is trailing-caused).
                 let flat_inner_w = flat_inner.visual_width(tw);
+                // One column is reserved, the same one the printer below reserves
+                // for the closing `"`. The bracket is measured, not derived: an
+                // interpolation whose first chunk lands exactly ON the width needs
+                // the reservation to be at most 1, and one that lands one column
+                // over needs it to be at least 1.
                 let broken_width = line_width
-                    .saturating_sub(col)
+                    .saturating_sub(col + 1)
                     .min(flat_inner_w.saturating_sub(1))
                     .max(1);
                 let broken_inner =

@@ -111,6 +111,33 @@ impl<'a> VisitMut<'a> for SpanEraser {
     }
 }
 
+/// Upstream's legacy dependency thunk is `b.thunk(b.sequence(deps))` and carries
+/// no `loc`, so no comment is ever written into it. rsvelte generates the call
+/// as text and appends it after the rest of the body, so re-parsing gives the
+/// thunk coordinates PAST a script-tail comment run — which then prints inside
+/// it. The effect body keeps its coordinates: it is the half upstream locates.
+fn unlocate_legacy_pre_effect_deps(stmts: &mut [Statement<'_>]) {
+    for stmt in stmts {
+        let Statement::ExpressionStatement(es) = stmt else {
+            continue;
+        };
+        let Expression::CallExpression(call) = &mut es.expression else {
+            continue;
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            continue;
+        };
+        if !matches!(&member.object, Expression::Identifier(id) if id.name == "$")
+            || member.property.name != "legacy_pre_effect"
+        {
+            continue;
+        }
+        if let Some(deps) = call.arguments.first_mut() {
+            SpanEraser.visit_argument(deps);
+        }
+    }
+}
+
 /// A retained source program to clone into the final OXC allocator.
 pub struct AstIsland<'source> {
     pub program: &'source RetainedProgram<'source>,
@@ -250,45 +277,100 @@ impl<'a> VisitMut<'a> for ShiftSpans {
 /// slice of a TypeScript-stripped script.
 struct RestoreRawMappedSpans<'s> {
     spans: &'s [RawMappedSpan],
+    code: &'s [u8],
 }
 
 impl RestoreRawMappedSpans<'_> {
     fn source_offset(&self, offset: u32) -> Option<u32> {
-        // `spans` is emitted in increasing `code` order and is one entry per
-        // copied run of a whole script, so this has to be a search, not a scan.
         let index = self
             .spans
             .partition_point(|span| span.code.start <= offset)
             .checked_sub(1)?;
-        // Two runs may touch at an endpoint, and a scan would have stopped at
-        // the earlier one — its `end` is where the copied text really is.
+        // At a touching boundary the copied run on the left owns the position.
+        // A zero-width entry at the boundary is an explicit source end marker.
         let index = if index > 0 && self.spans[index - 1].code.end >= offset {
             index - 1
         } else {
             index
         };
         let span = &self.spans[index];
-        (offset <= span.code.end).then(|| span.source.start + offset - span.code.start)
+        if offset > span.code.end {
+            return None;
+        }
+        Some(span.source.start + offset - span.code.start)
+    }
+
+    fn source_start_offset(&self, offset: u32) -> Option<u32> {
+        // Runtime identifiers such as `$.derived` replace a source rune at the
+        // start of the copied run on the right. This is the sole boundary where
+        // the generated token cannot belong to the run on the left.
+        if self.code.get(offset as usize) == Some(&b'$') {
+            let at = self.spans.partition_point(|span| span.code.start < offset);
+            let after = self.spans.partition_point(|span| span.code.start <= offset);
+            if let Some(span) = self.spans[at..after]
+                .iter()
+                .rev()
+                .find(|span| span.code.end > offset)
+            {
+                return Some(span.source.start + offset - span.code.start);
+            }
+        }
+        self.source_offset(offset)
+    }
+
+    fn source_end_offset(&self, offset: u32) -> Option<u32> {
+        if let Some(end) = self.source_offset(offset) {
+            return Some(end);
+        }
+        // A sentinel end (`u32::MAX`, a kept `;` for a removed `$inspect`) is a
+        // marker rather than a position, and every other offset past the chunk
+        // is not a generated position either.
+        if offset as usize > self.code.len() {
+            return None;
+        }
+        // Formatting supplies a terminator the source omitted (semicolon-free
+        // style), so the generated node ends past every copied byte. Ending it
+        // at the last copied run keeps the node located; dropping the span
+        // instead loses the whole statement's source position.
+        let index = self.spans.partition_point(|span| span.code.start <= offset);
+        self.spans[..index]
+            .iter()
+            .rev()
+            .find(|span| span.code.end <= offset)
+            .map(|span| span.source.end)
     }
 }
 
 impl<'a> VisitMut<'a> for RestoreRawMappedSpans<'_> {
     fn visit_span(&mut self, span: &mut Span) {
-        let Some(start) = self.source_offset(span.start) else {
+        let Some(start) = self.source_start_offset(span.start) else {
             return;
         };
-        let Some(end) = self.source_offset(span.end) else {
+        let Some(end) = self.source_end_offset(span.end) else {
             return;
         };
+        // A generated node may enclose several independently copied runs whose
+        // source order is no longer monotonic after lowering (for example a
+        // `$.rest_props($$props, [...])` call assembled from `$props` and a
+        // destructuring binding). Its children can still carry useful source
+        // locations, but the enclosing parser span cannot be represented as a
+        // single original-source range. Keep that node in chunk coordinates
+        // instead of constructing an invalid OXC span.
+        if start > end {
+            return;
+        }
         *span = Span::new(start, end);
     }
 }
 
-fn restore_raw_mapped_spans(stmts: &mut [Statement<'_>], spans: &[RawMappedSpan]) {
+fn restore_raw_mapped_spans(stmts: &mut [Statement<'_>], spans: &[RawMappedSpan], code: &str) {
     if spans.is_empty() {
         return;
     }
-    let mut restorer = RestoreRawMappedSpans { spans };
+    let mut restorer = RestoreRawMappedSpans {
+        spans,
+        code: code.as_bytes(),
+    };
     for statement in stmts {
         restorer.visit_statement(statement);
     }
@@ -757,6 +839,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         comments: &[(u32, u32, bool)],
         at: u32,
         at_end: u32,
+        claim_only: bool,
     ) -> Option<Span> {
         if at < region_start || at_end < at {
             return None;
@@ -778,7 +861,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             synth.source.push_str(region);
             synth.source.push('\n');
             for &(source_start, source_end, line) in comments {
-                if !synth.source_comments.insert((source_start, source_end)) {
+                if !synth.source_comments.insert((source_start, source_end)) || claim_only {
                     continue;
                 }
                 let start = base + (source_start - region_start);
@@ -810,6 +893,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             &anchor.comments,
             anchor.at,
             anchor.at_end,
+            anchor.claim_only,
         )
     }
 
@@ -1444,6 +1528,8 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     &anchor.comments,
                     anchor.at,
                     anchor.at_end,
+                    // A pattern anchor stands in for no builder-made wrapper.
+                    false,
                 ) {
                     *pattern.span_mut() = span;
                 }
@@ -1776,6 +1862,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     } else {
                         *e.span_mut() = span;
                     }
+                    // esrap brackets a body's comments by the body's own `loc`,
+                    // and `consumed` leaves that `SPAN` for a body that appended
+                    // nothing to the comment buffer — which is every body whose
+                    // only content is a comment.
+                    anchor_empty_body(&mut e, span);
                 }
                 Some(e)
             }
@@ -1940,6 +2031,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         for stmt in &mut stmts {
             shifter.visit_statement(stmt);
         }
+        unlocate_legacy_pre_effect_deps(&mut stmts);
         // The padded re-parse put the chunk one byte in, so its spans sit at
         // `shift + 1` relative to the stripped text.
         seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, shift + 1);
@@ -2040,6 +2132,21 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 copied_spans,
             } => {
                 let mut stmts = self.parse_raw_statements(code, false, &[])?;
+                // The block conversion copies an own-line source comment into a
+                // chunk of its own, which carries it into the buffer verbatim.
+                // An enclosing `JsSourceAnchor` covers the same source range, so
+                // claim the range here — `source_comments` is the existing
+                // "this comment is already in the buffer" set, and the anchor
+                // consults it before adding one.
+                if stmts.is_empty()
+                    && (code.starts_with("//") || code.starts_with("/*"))
+                    && let Ok(len) = u32::try_from(code.trim_end().len())
+                {
+                    self.synth
+                        .borrow_mut()
+                        .source_comments
+                        .insert((*source_offset, *source_offset + len));
+                }
                 let region = self.take_chunk_region(Some(*source_offset), copied_spans);
                 if let Some((region_start, _)) = region {
                     unlocate_prop_declarations_after_erased_comments(
@@ -2056,7 +2163,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 // `print_with_map` maps the (transformed) instance-script lines
                 // back to the user source — mirroring the text codegen's
                 // per-block `source_offset` line mapping.
-                restore_raw_mapped_spans(&mut stmts, copied_spans);
+                restore_raw_mapped_spans(&mut stmts, copied_spans, code);
                 let sp = Span::new(*source_offset, *source_offset);
                 for s in &mut stmts {
                     if s.span().is_empty() {
@@ -2091,7 +2198,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                         return Some(stmts);
                     }
                 }
-                restore_raw_mapped_spans(&mut stmts, copied_spans);
+                restore_raw_mapped_spans(&mut stmts, copied_spans, code);
                 erase_generated_effect_call_locs(&mut stmts, effect_spans);
                 let sp = Span::new(*source_offset, *source_offset);
                 for s in &mut stmts {
@@ -2865,6 +2972,32 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     }
 }
 
+/// Give a function body claiming no comment-buffer range the anchored span, so
+/// the printer's end-of-body comment flush is reachable.
+fn anchor_empty_body(e: &mut Expression<'_>, span: Span) {
+    match e {
+        Expression::ArrowFunctionExpression(arrow) => {
+            if let ArrowFunctionBody::FunctionBody(body) = &mut arrow.body
+                && body.span == SPAN
+                && body.statements.is_empty()
+                && body.directives.is_empty()
+            {
+                body.span = span;
+            }
+        }
+        Expression::FunctionExpression(func) => {
+            if let Some(body) = &mut func.body
+                && body.span == SPAN
+                && body.statements.is_empty()
+                && body.directives.is_empty()
+            {
+                body.span = span;
+            }
+        }
+        _ => {}
+    }
+}
+
 struct SourceRegionRemap {
     source_start: u32,
     source_end: u32,
@@ -3056,15 +3189,89 @@ fn seal_in_list(stmts: &mut [Statement<'_>], text: &str, at: &[u32], shift: u32)
 
 #[cfg(test)]
 mod tests {
-    use super::{AstIsland, program_to_oxc, program_to_oxc_with_islands};
+    use super::{AstIsland, RestoreRawMappedSpans, program_to_oxc, program_to_oxc_with_islands};
     use crate::ast::oxc_program::RetainedProgram;
     use crate::compiler::phases::phase3_transform::js_ast::{
         JsArena, JsAssignmentOp, JsExpr, JsMemberExpression, JsMemberProperty, JsProgram,
-        JsStatement, JsUpdateOp, builders as b,
+        JsStatement, JsUpdateOp, RawMappedSpan, builders as b,
     };
     use oxc_allocator::Allocator;
     use oxc_ast::ast::{Expression, Statement};
     use oxc_span::{GetSpan, Span};
+
+    #[test]
+    fn raw_mapping_keeps_a_plain_touching_boundary_on_the_left() {
+        let spans = [
+            RawMappedSpan {
+                code: 0..4,
+                source: 100..104,
+                erased_comment_before_export_prop: false,
+            },
+            RawMappedSpan {
+                code: 4..8,
+                source: 300..304,
+                erased_comment_before_export_prop: false,
+            },
+        ];
+        let restorer = RestoreRawMappedSpans {
+            spans: &spans,
+            code: b"abcdefgh",
+        };
+
+        assert_eq!(restorer.source_start_offset(4), Some(104));
+        assert_eq!(restorer.source_end_offset(4), Some(104));
+    }
+
+    #[test]
+    fn raw_mapping_uses_the_right_run_for_a_generated_runtime_identifier() {
+        let spans = [
+            RawMappedSpan {
+                code: 0..4,
+                source: 100..104,
+                erased_comment_before_export_prop: false,
+            },
+            RawMappedSpan {
+                code: 4..8,
+                source: 300..304,
+                erased_comment_before_export_prop: false,
+            },
+        ];
+        let restorer = RestoreRawMappedSpans {
+            spans: &spans,
+            code: b"abcd$foo",
+        };
+
+        assert_eq!(restorer.source_start_offset(4), Some(300));
+        assert_eq!(restorer.source_end_offset(4), Some(104));
+    }
+
+    #[test]
+    fn raw_mapping_end_marker_does_not_capture_the_following_start() {
+        let spans = [
+            RawMappedSpan {
+                code: 0..4,
+                source: 100..104,
+                erased_comment_before_export_prop: false,
+            },
+            RawMappedSpan {
+                code: 4..4,
+                source: 200..200,
+                erased_comment_before_export_prop: false,
+            },
+            RawMappedSpan {
+                code: 4..8,
+                source: 300..304,
+                erased_comment_before_export_prop: false,
+            },
+        ];
+        let restorer = RestoreRawMappedSpans {
+            spans: &spans,
+            code: b"abcd$foo",
+        };
+
+        assert_eq!(restorer.source_start_offset(4), Some(300));
+        assert_eq!(restorer.source_end_offset(4), Some(200));
+    }
 
     #[test]
     fn generated_identifier_uses_keep_the_registered_span() {

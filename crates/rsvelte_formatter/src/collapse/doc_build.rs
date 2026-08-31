@@ -887,7 +887,7 @@ pub(super) fn build_void_element_doc(
 /// element, otherwise the verbatim single-line span.
 pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::Doc> {
     use crate::doc::Doc;
-    if let Some((open_no_bracket, content, tag)) = element_hug_parts(out, node) {
+    if let Some((open_no_bracket, content, tag)) = element_hug_parts(out, node, false, false) {
         // The open tag is normally atomic, but when it has attributes build it as
         // a wrappable attribute group so a long open tag inside prose can break
         // its attributes onto their own lines (`<a`\n`  href="…">text</a`\n`>`).

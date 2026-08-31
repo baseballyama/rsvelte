@@ -100,6 +100,7 @@ fn collect_svelte_window_open_tag_edits(
         true,
         false,
         false,
+        0,
         options,
         edits,
     )?;
@@ -286,6 +287,7 @@ pub fn collect_options_open_tag_edit(
         false,
         false,
         false,
+        0,
         options,
         edits,
     )?;
@@ -330,6 +332,40 @@ fn is_empty_nonhug_element(name: &str, fragment: &Fragment) -> bool {
     !is_block_element(name) && is_empty_fragment(fragment) && fragment_has_whitespace_body(fragment)
 }
 
+/// Columns consumed by the enclosing block closing tags (`{/if}`, `{/each}`, …)
+/// that glue directly to this element's end.
+///
+/// An element's own close tag lies inside its span and is measured with it; a
+/// block's does not, so an element that is a block's whole one-line body was
+/// judged against the width without the `{/…}` after it and stayed flat by
+/// exactly the closers' width. Only a closer glued with no whitespace counts:
+/// anything else offers a break opportunity of its own.
+fn trailing_tag_width(source: &str, start: u32, end: u32) -> usize {
+    // Only when the element itself renders on one line: otherwise the closers sit
+    // on the CLOSE tag's line (`</td>{/each}`), not on the open tag's, and adding
+    // them there breaks an open tag that fits.
+    if source
+        .get(start as usize..end as usize)
+        .is_none_or(|whole| whole.contains('\n'))
+    {
+        return 0;
+    }
+    let Some(mut rest) = source.get(end as usize..) else {
+        return 0;
+    };
+    let mut width = 0;
+    // Any tag, not only a closer: a block ARM (`{:else}`) and the arm's own
+    // expression tags sit on this line too. Stop at the first thing that is not
+    // a tag — an element carries its own break decision, so counting it would
+    // break an open tag that fits.
+    while rest.starts_with('{') {
+        let Some(close) = rest.find('}') else { break };
+        width += close + 1;
+        rest = &rest[close + 1..];
+    }
+    width
+}
+
 /// Emit the open-tag + close-tag rewrite edits for one attribute-bearing
 /// element and recurse into its fragment. `this_expression` is the reactive
 /// `this={X}` slot carried by `<svelte:component>` / `<svelte:element>`; `None`
@@ -368,6 +404,7 @@ fn handle_element(
         is_empty,
         empty_nonhug,
         regular_element,
+        trailing_tag_width(source, start, end),
         options,
         edits,
     )?;

@@ -7,6 +7,60 @@ use crate::ast::template::{
 use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
+/// The character class upstream's blanking preserves is JavaScript's `\s`,
+/// which is neither `char::is_whitespace` (that misses U+FEFF and adds U+0085)
+/// nor ASCII whitespace. Measured against the official svelte2tsx on all 26
+/// candidates, U+2000-U+200A included.
+fn is_js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{9}'
+            | '\u{a}'
+            | '\u{b}'
+            | '\u{c}'
+            | '\u{d}'
+            | '\u{20}'
+            | '\u{a0}'
+            | '\u{1680}'
+            | '\u{2000}'
+            ..='\u{200a}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{202f}'
+                | '\u{205f}'
+                | '\u{3000}'
+                | '\u{feff}'
+    )
+}
+
+/// What a static text run of a `style:` value is left as once the element
+/// transform has moved the attribute out: its whitespace characters, in order.
+/// A non-empty run with no whitespace collapses to one space; an empty run
+/// stays empty, which is what makes `style:x=""` print `""` and not `" "`.
+fn blanked_text_run(text: &str) -> String {
+    let ws: String = text.chars().filter(|c| is_js_whitespace(*c)).collect();
+    if ws.is_empty() && !text.is_empty() {
+        " ".to_string()
+    } else {
+        ws
+    }
+}
+
+/// The quote upstream wraps a single-text `style:` value in: the source's own
+/// quote character, defaulting to `"` for an unquoted value. Read from the
+/// character after the directive's `=` so the empty value (`style:x=''`), which
+/// has no text run to look behind, answers from the same place.
+fn style_value_quote(style: &StyleDirective, source: &str) -> char {
+    let (start, end) = (style.start as usize, style.end as usize);
+    let Some(span) = source.get(start..end) else {
+        return '"';
+    };
+    span.find('=')
+        .and_then(|i| span[i + 1..].chars().next())
+        .filter(|q| *q == '"' || *q == '\'')
+        .unwrap_or('"')
+}
+
 /// Lower `class:` / `style:` directives as statements appended *after* the
 /// element's `svelteHTML.createElement(...)` call, instead of as keys in the
 /// (typed) props object. Mirrors upstream `htmlxtojsx_v2/nodes/Class.ts`
@@ -64,20 +118,21 @@ pub fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<S
                 }
                 // Mirrors upstream StyleDirective.ts. svelte2tsx moves the
                 // value range into the element's attrs object, so the
-                // ensureType reference is left with the BLANKED text — every
-                // static text run collapses to a single space. Hence:
-                //   `style:x="red"`  → `, " ");`            (single text → " ")
-                //   `style:x={y}`    → `, y);`              (single expr → bare)
-                //   `style:x="a{b}"` → `, ` ${b}`);`        (text→space, expr kept)
-                // Empty value (`style:--c=""`): official emits the empty
-                // string `""` (single-Text branch with a zero-length text
-                // range), not an empty template literal.
+                // ensureType reference is left with the BLANKED text:
+                //   `style:x="red"`     → `, " ");`
+                //   `style:x="a  b"`    → `, "  ");`  (whitespace survives)
+                //   `style:x='red'`     → `, ' ');`   (the source's own quote)
+                //   `style:x=""`        → `, "");`    (an empty run stays empty)
+                //   `style:x={y}`       → `, y);`
+                //   `style:x="a{b}"`    → `, ` ${b}`);`
                 AttributeValue::Sequence(parts) if parts.is_empty() => {
-                    segs_push_lit(&mut out, "\"\"");
+                    let q = style_value_quote(style, source);
+                    segs_push_lit(&mut out, &format!("{q}{q}"));
                 }
                 AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
-                    AttributeValuePart::Text(_) => {
-                        segs_push_lit(&mut out, "\" \"");
+                    AttributeValuePart::Text(text) => {
+                        let q = style_value_quote(style, source);
+                        segs_push_lit(&mut out, &format!("{q}{}{q}", blanked_text_run(&text.data)));
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
                         if let Some((s, e)) = get_expression_range(&expr.expression) {
@@ -98,9 +153,7 @@ pub fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<S
                     for part in parts {
                         match part {
                             AttributeValuePart::Text(t) => {
-                                let ws: String =
-                                    t.data.chars().filter(|c| c.is_whitespace()).collect();
-                                segs_push_lit(&mut out, if ws.is_empty() { " " } else { &ws });
+                                segs_push_lit(&mut out, &blanked_text_run(&t.data));
                             }
                             AttributeValuePart::ExpressionTag(expr) => {
                                 segs_push_lit(&mut out, "${");

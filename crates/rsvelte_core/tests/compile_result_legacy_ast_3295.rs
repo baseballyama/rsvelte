@@ -134,7 +134,13 @@ fn compilation_rebuilds_legacy_expression_locations_at_the_json_boundary() {
     let assignment = &each["children"][1]["expression"];
     let local = source.find("local =").unwrap();
     let one = source.find("1}").unwrap();
-    assert_loc(assignment, local, one + 1, false);
+    // Upstream synthesizes this node in `legacy.js` with no `loc` of its own.
+    assert_eq!(assignment["start"], local);
+    assert_eq!(assignment["end"], one + 1);
+    assert!(
+        assignment.get("loc").is_none(),
+        "the synthesized ConstTag assignment carries no loc"
+    );
     assert_loc(&assignment["left"], local, local + 5, true);
     assert_loc(&assignment["right"], item_positions[2], one + 1, false);
     assert_loc(

@@ -1515,13 +1515,16 @@ fn generate_token_mappings_inner<'source>(
         // lookup for every emitted end anchor.
         let source_end = typescript_declaration_annotation_end(source, src_pos, text.len())
             .unwrap_or(src_pos + text.len());
+        // Upstream anchors a declaration keyword as `kind + ' '`, so its end
+        // column counts the separator even where the source has a newline there.
+        let anchor_len = if text == "let" { 4 } else { text.len() };
         let (gen_line_end, gen_col_end, orig_line_end, orig_col_end) =
             if text.is_ascii() && source_end == src_pos + text.len() {
                 (
                     generated_line,
-                    generated_col + text.len() as u32,
+                    generated_col + anchor_len as u32,
                     source_position.line,
-                    source_position.col + text.len() as u32,
+                    source_position.col + anchor_len as u32,
                 )
             } else {
                 let mut gen_line_end = generated_line;
@@ -1862,6 +1865,7 @@ mod tests {
 	let derived = $derived(state);
 	let by = $derived.by(() => state);
 	let { value = $bindable(), ...rest } = $props();
+	value = 1;
 	$effect(() => state);
 	$effect.pre(() => state);
 </script>
@@ -2153,7 +2157,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(accessor_starts.len(), 2, "generated={generated:?}");
 
-        let mut expected = vec![(14, 0), (19, 6)];
+        // The element identifier carries `element.name_loc`, so it starts at the
+        // tag name rather than at the `<`.
+        let mut expected = vec![(14, 1), (19, 6)];
         for start in accessor_starts {
             expected.extend([
                 (start, 19),

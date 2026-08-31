@@ -45,6 +45,6 @@ output.
 The differential gates cannot report this shared defect: official output is the
 oracle, and the generated matrix aborts an official parse failure instead of
 creating a ratchet verdict. This blind spot and these two measured examples are
-recorded in `compatibility/gate-coverage.md` section 5r.
+recorded in `compatibility/GATES.md#gate-coverage` section 5r.
 
 Local anchor: [#3651](https://github.com/baseballyama/rsvelte/issues/3651).

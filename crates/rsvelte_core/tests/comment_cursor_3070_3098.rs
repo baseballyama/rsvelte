@@ -81,14 +81,18 @@ fn client_const_initializer_comment_reaches_the_generated_callback_parameter() {
     }
 }
 
+/// Dev replaces the arrow with a `b.function(…)` upstream, which carries no
+/// `loc`: the comment then flushes at the element identifier printed before it
+/// rather than inside the rewritten update. Both fragments were measured.
 #[test]
 fn client_event_arrow_comment_stays_with_the_rewritten_update() {
-    for dev in [false, true] {
-        assert_has(
-            &client("<button onclick={() => /* c */ v++}>x</button>", dev),
-            "() => $.update(/* c */ v)",
-        );
-    }
+    const SOURCE: &str = "<button onclick={() => /* c */ v++}>x</button>";
+
+    assert_has(&client(SOURCE, false), "() => $.update(/* c */ v)");
+    assert_has(
+        &client(SOURCE, true),
+        "$.delegated('click', button, /* c */ function click() {",
+    );
 }
 
 #[test]

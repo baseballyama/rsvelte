@@ -413,29 +413,26 @@ pub fn collect_css_attribute_facts(
                         }
                         None => context.analysis.css.has_dynamic_classes = true,
                     },
-                    "id" => match &attr_node.value {
-                        AttributeValue::Sequence(parts) => {
-                            let has_dynamic_part = parts
+                    // Upstream runs one chunk expansion for every attribute; `id` used to
+                    // call any expression indeterminate, so `id={c ? 'a' : 'b'}` kept every
+                    // `#id` rule official prunes.
+                    "id" => match css::possible_attribute_values(&attr_node.value, false) {
+                        Some(ids) => {
+                            let ids: Vec<String> = ids
                                 .iter()
-                                .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-                            if has_dynamic_part {
-                                context.analysis.css.has_dynamic_ids = true;
-                            } else {
-                                for part in parts {
-                                    if let AttributeValuePart::Text(text) = part {
-                                        let id = text.data.trim();
-                                        if !id.is_empty() {
-                                            context.analysis.css.used_ids.insert(id.to_string());
-                                            facts.id = Some(id.to_string());
-                                        }
-                                    }
-                                }
+                                .map(|id| id.trim().to_string())
+                                .filter(|id| !id.is_empty())
+                                .collect();
+                            // Only one candidate can name THIS element; picking one of
+                            // several would prune the rules naming the others.
+                            if let [only] = ids.as_slice() {
+                                facts.id = Some(only.clone());
+                            }
+                            for id in ids {
+                                context.analysis.css.used_ids.insert(id);
                             }
                         }
-                        AttributeValue::Expression(_) => {
-                            context.analysis.css.has_dynamic_ids = true;
-                        }
-                        _ => {}
+                        None => context.analysis.css.has_dynamic_ids = true,
                     },
                     _ => {}
                 }

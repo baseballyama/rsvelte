@@ -402,6 +402,11 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PropReadCollector<'a, 'sem> {
             && obj.name == "$"
         {
             let prop_name = member.property.name.as_str();
+            // The invalidate body is synthesized already in its final read form
+            // (`build_getter`), so re-reading it here would call the prop twice.
+            if prop_name == "invalidate_inner_signals" {
+                return;
+            }
             let mut should_skip_first_arg = false;
             // The text version's `is_inside_update_call` only checks
             // these two; `is_sole_derived_arg` also requires the call

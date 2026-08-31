@@ -495,7 +495,21 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
             // It belongs on the declaration hoisted by the async-body transform.
             transformed = transformed.replace(comment, "");
             let suffix = if comment.starts_with("//") {
-                format!("{comment}\n")
+                // A `//` ends at its newline, so the name moves to the next line
+                // and has to keep the indent of the `var` it belongs to. Every
+                // hoist reachable from a probe sits at one tab, so a literal
+                // would pass too; the line's own indent is read because it is
+                // right by construction rather than by that coincidence.
+                let line_start = transformed
+                    .get(..pos)
+                    .and_then(|before| before.rfind('\n'))
+                    .map_or(0, |newline| newline + 1);
+                let indent = transformed.get(line_start..pos).unwrap_or("");
+                if indent.bytes().all(|byte| byte == b'\t' || byte == b' ') {
+                    format!("{comment}\n{indent}")
+                } else {
+                    format!("{comment}\n")
+                }
             } else {
                 format!("{comment} ")
             };
@@ -631,6 +645,11 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         if trimmed_stmt.is_empty() {
             continue;
         }
+        let (leading_comments, leading_break) = if leading_comments.is_empty() {
+            declaration_keyword_comment(trimmed_stmt)
+        } else {
+            (leading_comments, false)
+        };
 
         let has_await = has_top_level_await_in_statement(trimmed_stmt);
 
@@ -752,7 +771,14 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                         continue;
                     }
                     if first_hoisted && !leading_comments.is_empty() {
-                        hoisted_vars.push(format!("{leading_comments} {}", decl.name));
+                        // A `//` ends at its newline, so the name can never follow it on
+                        // the same line; a block comment keeps the line it was written on.
+                        let pad = if leading_break || leading_comments.starts_with("//") {
+                            "\n\t"
+                        } else {
+                            " "
+                        };
+                        hoisted_vars.push(format!("{leading_comments}{pad}{}", decl.name));
                     } else {
                         hoisted_vars.push(decl.name.clone());
                     }
@@ -1759,6 +1785,25 @@ fn skip_regex(bytes: &[u8], start: usize) -> usize {
     start + 1
 }
 
+/// The comment a rebuilt declaration prints between its keyword and its first
+/// declarator. Upstream splits a multi-declarator declaration into builder-made
+/// statements, so esrap flushes the comment at the first LOCATED node inside it
+/// — the binding pattern — and the text arriving here already reads
+/// `const /* c */ a = …`.
+fn declaration_keyword_comment(statement: &str) -> (&str, bool) {
+    let Some(rest) = ["let ", "var ", "const "]
+        .iter()
+        .find_map(|kw| statement.strip_prefix(kw))
+    else {
+        return ("", false);
+    };
+    let (comment, after) = split_leading_comments(rest);
+    // `comment` is trimmed, so ask the consumed prefix — not an offset into it.
+    let prefix = &rest[..rest.len() - after.len()];
+    let own_line = !comment.is_empty() && prefix.trim_end_matches([' ', '\t']).ends_with('\n');
+    (comment, own_line)
+}
+
 fn split_leading_comments(mut statement: &str) -> (&str, &str) {
     let original = statement;
     loop {
@@ -2380,6 +2425,10 @@ fn extract_var_declarations(stmt: &str) -> Vec<VarDecl> {
 
     // Strip trailing semicolon
     let rest = rest.strip_suffix(';').unwrap_or(rest).trim();
+
+    // A rebuilt declaration prints its comment AFTER the keyword, so the first
+    // declarator's name is preceded by one; it is not part of the name.
+    let rest = split_leading_comments(rest).1;
 
     // Split into individual declarators at top-level commas
     let declarators = split_declarators(rest);

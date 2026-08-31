@@ -481,6 +481,11 @@ pub struct JsSourceAnchor {
     /// Preserve source spans carried by descendants, remapping them into the
     /// synthetic comment region. Generated wrappers stay location-less.
     pub preserve_inner_spans: bool,
+    /// Claim this region's comments without placing them. Upstream's cursor
+    /// reaches no position inside a builder-made wrapper, so an anchor standing
+    /// in for one must stop a later anchor from re-placing them without
+    /// emitting a copy of its own.
+    pub claim_only: bool,
 }
 
 /// Literal value.

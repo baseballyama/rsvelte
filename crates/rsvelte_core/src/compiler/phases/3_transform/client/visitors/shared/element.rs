@@ -51,6 +51,7 @@ where
             let expression = extract_expression_from_tag_with_context(expr_tag, context);
             let mut metadata =
                 ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
+            restore_expression_shape_flags(&expr_tag.expression, context, &mut metadata);
 
             // Check for reactive state using the comprehensive check that considers transforms
             let has_reactive_state =
@@ -102,6 +103,7 @@ where
                     let expression = extract_expression_from_tag_with_context(expr_tag, context);
                     let mut metadata =
                         ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
+                    restore_expression_shape_flags(&expr_tag.expression, context, &mut metadata);
 
                     // Check for reactive state using the comprehensive check that considers transforms
                     let has_reactive_state =
@@ -152,6 +154,26 @@ pub struct AttributeValueResult {
     pub has_state: bool,
 }
 
+/// Some directive analysis paths retain dependencies but omit structural
+/// expression flags. `build_expression` needs those flags to reproduce legacy
+/// coarse-grained reads before evaluating a member or assignment untracked.
+fn restore_expression_shape_flags(
+    expression: &crate::ast::js::Expression<'_>,
+    context: &ComponentContext,
+    metadata: &mut ExpressionMetadata,
+) {
+    let properties = super::utils::analyze_expression_properties(expression, context);
+    if properties.has_member {
+        metadata.set_has_member_expression(true);
+    }
+    if properties.has_assignment {
+        metadata.set_has_assignment(true);
+    }
+    if properties.has_await {
+        metadata.set_has_await(true);
+    }
+}
+
 /// Build a template chunk from text and expression parts.
 ///
 /// Creates a template literal like `foo ${expr} bar`.
@@ -180,7 +202,9 @@ where
 
             AttributeValuePart::ExpressionTag(expr_tag) => {
                 // Try to evaluate at compile time (constant folding)
-                if let Some(lit_value) = get_literal_value(&expr_tag.expression, context) {
+                if let Some(lit_value) =
+                    get_literal_value(&expr_tag.expression, &expr_tag.metadata.expression, context)
+                {
                     // Successfully evaluated - fold into current text
                     if let Some(val) = lit_value {
                         current_text.push_str(&val);
@@ -197,6 +221,7 @@ where
                 let expression = extract_expression_from_tag_with_context(expr_tag, context);
                 let mut metadata =
                     ExpressionMetadata::from_template_metadata(&expr_tag.metadata.expression);
+                restore_expression_shape_flags(&expr_tag.expression, context, &mut metadata);
                 let chunk_has_call = metadata.has_call();
 
                 // Update metadata.has_state with comprehensive reactive state check
@@ -411,7 +436,7 @@ pub fn build_style_directives_object_with_memoizer(
         let metadata = &directive.metadata.expression;
         has_call |= metadata.has_call();
         has_state |= if matches!(&directive.value, AttributeValue::True(_)) {
-            metadata.has_state()
+            style_shorthand_has_state(directive, context)
         } else {
             get_directive_expressions(directive)
                 .iter()
@@ -761,7 +786,7 @@ pub fn build_set_style(
         has_state |= style_directives.iter().any(|directive| {
             let metadata = &directive.metadata.expression;
             (if matches!(&directive.value, AttributeValue::True(_)) {
-                metadata.has_state()
+                style_shorthand_has_state(directive, context)
             } else {
                 metadata.has_call()
                     || get_directive_expressions(directive)
@@ -923,9 +948,11 @@ fn build_style_attribute_value_with_memoization(
                         // - Literal nodes are inlined directly (lines 121-124)
                         // - Identifiers referencing constant bindings are evaluated via
                         //   scope.evaluate() and inlined if is_known (lines 135-163)
-                        if let Some(lit_value) =
-                            super::utils::get_literal_value(&expr_tag.expression, context)
-                        {
+                        if let Some(lit_value) = super::utils::get_literal_value(
+                            &expr_tag.expression,
+                            &expr_tag.metadata.expression,
+                            context,
+                        ) {
                             if let Some(val) = lit_value {
                                 current_text.push_str(&val);
                             }
@@ -1019,6 +1046,19 @@ fn get_directive_expressions<'a>(
             })
             .collect(),
     }
+}
+
+/// A shorthand style directive is represented by its name rather than an
+/// expression node. The transform map is scope-aware and therefore supplies
+/// the state bit that can be absent from the directive's empty expression
+/// metadata (for example `style:color` for a reassigned legacy binding).
+fn style_shorthand_has_state(directive: &StyleDirective<'_>, context: &ComponentContext) -> bool {
+    directive.metadata.expression.has_state()
+        || context
+            .state
+            .transform
+            .get(directive.name.as_str())
+            .is_some_and(|transform| transform.read.is_some())
 }
 
 /// Build an attribute effect for elements with spread attributes.

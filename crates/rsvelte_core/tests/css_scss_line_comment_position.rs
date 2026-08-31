@@ -1,6 +1,7 @@
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn assert_error_at(source: &str, expected: usize) {
+    let expected = u32::try_from(expected).expect("fixture offset fits in u32");
     for generate in [GenerateMode::Client, GenerateMode::Server] {
         let diagnostic = compile(
             source,

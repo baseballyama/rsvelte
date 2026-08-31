@@ -193,7 +193,7 @@ fn test_svelte2tsx_fixtures() {
         "\n[s2tsx-fixtures] ❌ {} NEW failures (not in \
          compatibility/svelte2tsx-fixtures-known-failures.json):\n{}\n\
          Fix them, or — only with a written justification in \
-         compatibility/svelte2tsx-fixtures-known-failures.md — record them with\n  \
+         compatibility/KNOWN-FAILURES.md#svelte2tsx-fixtures-known-failures — record them with\n  \
          UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures\n\
          Re-run with `-- --nocapture` to see the diffs.",
         regressions.len(),
@@ -211,7 +211,7 @@ fn test_svelte2tsx_fixtures() {
         "\n[s2tsx-fixtures] ❌ {} stale entries in \
          compatibility/svelte2tsx-fixtures-known-failures.json (they already pass):\n{}\n\
          Shrink the baseline in the same change that fixed them, and drop their \
-         justification from compatibility/svelte2tsx-fixtures-known-failures.md:\n  \
+         justification from compatibility/KNOWN-FAILURES.md#svelte2tsx-fixtures-known-failures:\n  \
          UPDATE_S2TSX_FIXTURES_BASELINE=1 cargo test --test svelte2tsx_fixtures",
         fixed_known.len(),
         fixed_known

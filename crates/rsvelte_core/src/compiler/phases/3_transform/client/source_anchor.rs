@@ -174,6 +174,26 @@ impl CommentRegion {
             at,
             at_end,
             preserve_inner_spans: false,
+            claim_only: false,
+        }))
+    }
+
+    /// As [`Self::anchor`], but the region's comments are claimed and not
+    /// placed: this anchor stands in for a builder-made wrapper upstream's
+    /// cursor never reaches, so a copy emitted here would be a second one.
+    pub fn anchor_claim_only(&self, arena: &JsArena, expr: JsExpr, at: u32, at_end: u32) -> JsExpr {
+        if at < self.start || at_end > self.end {
+            return expr;
+        }
+        JsExpr::SourceAnchored(Box::new(JsSourceAnchor {
+            inner: arena.alloc_expr(expr),
+            region_start: self.start,
+            region: self.text.clone(),
+            comments: self.comments.clone(),
+            at,
+            at_end,
+            preserve_inner_spans: false,
+            claim_only: true,
         }))
     }
 
@@ -193,6 +213,7 @@ impl CommentRegion {
             at,
             at_end,
             preserve_inner_spans: true,
+            claim_only: false,
         }))
     }
 

@@ -2,7 +2,7 @@
 
 Category: diagnostics / compatibility
 
-Evidence: each target retains 14 warning-code divergences and one position divergence (`compatibility/warning-known-failures.md`). Ten code entries are rsvelte false positives (`component_name_lowercase`, `export_let_unused`, `state_referenced_locally`); four are missing warnings. The remaining position is an absent span for `options_deprecated_immutable`.
+Evidence: each target retains 14 warning-code divergences and one position divergence (`compatibility/KNOWN-FAILURES.md#warning-known-failures`). Ten code entries are rsvelte false positives (`component_name_lowercase`, `export_let_unused`, `state_referenced_locally`); four are missing warnings. The remaining position is an absent span for `options_deprecated_immutable`.
 
 Impact: projects using warning codes as CI policy get different exit behavior, while editors cannot place the one otherwise-correct warning.
 

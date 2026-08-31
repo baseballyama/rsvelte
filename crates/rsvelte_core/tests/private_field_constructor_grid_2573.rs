@@ -10,7 +10,7 @@
 //! 2. **The cells the generated matrix cannot carry.** `matrix/axes.mjs`'s
 //!    `private-field` family compares rsvelte's bytes against the official
 //!    compiler's, so it has to omit `++`/`--` through a non-`this` receiver —
-//!    a recorded deliberate divergence (`compatibility/deliberate-divergences.md`).
+//!    a recorded deliberate divergence (`compatibility/GATES.md#deliberate-divergences`).
 //!    Those cells are pinned here instead, on rsvelte's own form.
 //!
 //! The grid is duplicated in `scripts/compat-corpus/matrix/axes.mjs` rather than
@@ -188,7 +188,7 @@ fn every_cell_emits_javascript() {
         closed.is_empty(),
         "{} cell(s) now parse that the record says do not — update \
          `reproduces_upstreams_invalid_server_output`, `matrix/generate.mjs` and \
-         compatibility/deliberate-divergences.md:\n  {}",
+         compatibility/GATES.md#deliberate-divergences:\n  {}",
         closed.len(),
         closed.join("\n  ")
     );
@@ -293,7 +293,7 @@ fn a_derived_field_written_at_a_constructor_root_matches_official() {
 
 #[test]
 fn a_state_field_read_at_a_constructor_root_takes_upstreams_shortcut() {
-    // The control for #2629, answered in `compatibility/deliberate-divergences.md`:
+    // The control for #2629, answered in `compatibility/GATES.md#deliberate-divergences`:
     // reads follow upstream for every receiver, so a fix that widened the update
     // divergence to reads would fail here.
     let out = compile(

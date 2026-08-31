@@ -1009,7 +1009,11 @@ fn js_whitespace(c: char) -> bool {
     ) || ('\u{2000}'..='\u{200a}').contains(&c)
 }
 
-fn is_global_keypath(keypath: &str) -> bool {
+/// The keys of upstream's `globals` table (`scope.js`). Spelled out rather than
+/// matched by a `Math.` prefix: with the prefix rule `Math.notAThing` is a global
+/// here and UNKNOWN upstream, which is invisible while the only consumer folds
+/// (both answer unknown) and wrong as soon as one reads the TYPE.
+pub(crate) fn is_global_keypath(keypath: &str) -> bool {
     matches!(
         keypath,
         "BigInt"
@@ -1023,7 +1027,42 @@ fn is_global_keypath(keypath: &str) -> bool {
             | "Number.parseInt"
             | "String.fromCharCode"
             | "String.fromCodePoint"
-    ) || (keypath.starts_with("Math.") && keypath.len() > 5)
+            | "Math.min"
+            | "Math.max"
+            | "Math.random"
+            | "Math.floor"
+            | "Math.f16round"
+            | "Math.round"
+            | "Math.abs"
+            | "Math.acos"
+            | "Math.asin"
+            | "Math.atan"
+            | "Math.atan2"
+            | "Math.ceil"
+            | "Math.cos"
+            | "Math.sin"
+            | "Math.tan"
+            | "Math.exp"
+            | "Math.log"
+            | "Math.pow"
+            | "Math.sqrt"
+            | "Math.clz32"
+            | "Math.imul"
+            | "Math.sign"
+            | "Math.log10"
+            | "Math.log2"
+            | "Math.log1p"
+            | "Math.expm1"
+            | "Math.cosh"
+            | "Math.sinh"
+            | "Math.tanh"
+            | "Math.acosh"
+            | "Math.asinh"
+            | "Math.atanh"
+            | "Math.trunc"
+            | "Math.fround"
+            | "Math.cbrt"
+    )
 }
 
 pub(crate) fn global_constant(keypath: &str) -> Option<f64> {
@@ -1869,6 +1908,21 @@ pub(crate) fn evaluate_binding_initial<S: EvalScope + ?Sized>(
     }
     if binding.is_updated() {
         return Evaluation::unknown();
+    }
+    // Upstream keeps the function node itself as `binding.initial`, so
+    // `scope.evaluate` types the binding FUNCTION. The analyzer records no
+    // initializer for a `function` declaration and no JSON for a function
+    // expression, so neither reaches the recursion below.
+    if matches!(
+        binding.declaration_kind,
+        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Function
+    ) || binding.initial_node_type.as_deref().is_some_and(|ty| {
+        matches!(
+            ty,
+            "FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression"
+        )
+    }) {
+        return Evaluation::single(EvalValue::FunctionMarker);
     }
     // `$state()` / `$state.raw()` with no argument evaluates to
     // `undefined` (upstream scope.js CallExpression rune case: no

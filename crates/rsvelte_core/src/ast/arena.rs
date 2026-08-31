@@ -273,6 +273,11 @@ pub struct ParseArena {
     /// an `ExpressionStatement` in semicolon-free source has exactly its
     /// expression's, so the comment leaked onto the inner node as well.
     node_comments: RefCell<FxHashMap<(u32, u32), (CompactString, NodeComments)>>,
+    /// Whether the program being converted was parsed as TypeScript. acorn and
+    /// acorn-typescript disagree on a whole field set for imports and exports,
+    /// and the two are perfectly correlated: the TS parser emits
+    /// `importKind`/`exportKind` on every one and `attributes` on none.
+    ts_program: std::cell::Cell<bool>,
 }
 
 // ParseArena is explicitly NOT Sync - it's single-threaded only.
@@ -297,7 +302,21 @@ impl ParseArena {
             js_children: UnsafeCell::new(ChildStore::new()),
             bump: Bump::new(),
             node_comments: RefCell::new(FxHashMap::default()),
+            ts_program: std::cell::Cell::new(false),
         }
+    }
+
+    /// Set the TypeScript flag for the program about to be converted, returning
+    /// the previous value so a nested conversion can restore it.
+    #[inline]
+    pub fn set_ts_program(&self, ts: bool) -> bool {
+        self.ts_program.replace(ts)
+    }
+
+    /// Whether the program being converted was parsed as TypeScript.
+    #[inline]
+    pub fn is_ts_program(&self) -> bool {
+        self.ts_program.get()
     }
 
     // -- Node comment side table (parse-only) --------------------------------

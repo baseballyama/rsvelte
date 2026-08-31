@@ -81,3 +81,28 @@ fn high_codepoint_type_selector_parses() {
         "expected a `×` TypeSelector, got: {css}"
     );
 }
+
+#[test]
+fn loose_unterminated_attribute_mustache_does_not_panic() {
+    // Loose mode answers an unterminated mustache with EOF, and the attribute
+    // reader then stepped over a `}` that is not there, leaving `index` one
+    // past the end — `match_str` reads out of bounds from there. Each input is
+    // asserted on its own because a single "none of these panic" assertion is
+    // satisfied by whichever one is checked first.
+    for source in [
+        "<div a={",
+        "<div a={(",
+        "<div a={x",
+        "<div on:click={() =>",
+        "<div a={x} b={",
+    ] {
+        let allocator = oxc_allocator::Allocator::default();
+        let options = ParseOptions {
+            loose: true,
+            ..ParseOptions::default()
+        };
+        // The verdict is that the call returns at all; loose mode is free to
+        // report an error here, and strict mode does.
+        let _ = parse(source, &allocator, options);
+    }
+}

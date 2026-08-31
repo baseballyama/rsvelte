@@ -281,13 +281,22 @@ fn visit_identifier_inner(
             .map(|s| s.function_depth)
             .unwrap_or(0);
 
-        // Compute absolute context function_depth:
-        // - In module/instance scripts: function_depth already matches the scope tree's depth
-        // - In template: template level is function_depth 2 (instance scope 1 + 1 for template)
+        // Upstream pins `state.function_depth` for the whole template walk to the
+        // scope `create_scopes` seeds, which is the parent of the root fragment —
+        // a constant here would assume both scripts exist and give a component
+        // with no instance script a template one level too shallow.
         let absolute_context_depth = match context.ast_type {
-            super::AstType::Module => context.function_depth,
-            super::AstType::Instance => context.function_depth,
-            super::AstType::Template => context.function_depth + 2,
+            super::AstType::Module | super::AstType::Instance => context.function_depth,
+            super::AstType::Template => {
+                let root_fragment_depth = context
+                    .analysis
+                    .root
+                    .all_scopes
+                    .get(context.analysis.root.root_fragment_scope_index)
+                    .map(|s| s.function_depth)
+                    .unwrap_or(1);
+                context.function_depth + root_fragment_depth.saturating_sub(1)
+            }
         };
 
         // Check if the function depths match
