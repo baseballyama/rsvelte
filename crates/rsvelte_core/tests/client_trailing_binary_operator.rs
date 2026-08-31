@@ -78,7 +78,8 @@ fn an_operator_inside_a_comment_is_not_a_continuation() {
     let source = "<script>\n  export let a = 1; // wide || tall\n  export let b = 2;\n</script>\n\n<p>{a}{b}</p>\n";
     let out = compile_to(source, GenerateMode::Client);
     assert!(
-        out.contains("$.prop($$props, 'a', 8, 1)") && out.contains("$.prop($$props, 'b', 8, 2)"),
+        out.contains("let a = $.prop($$props, 'a', 8, 1")
+            && out.contains("let b = $.prop($$props, 'b', 8, 2)"),
         "the comment's `||` merged the two declarations:\n{out}"
     );
 }

@@ -67,7 +67,6 @@ pub struct Unsupported(pub &'static str);
 /// written unmapped.
 struct KeywordCursor {
     cursor: Option<(u32, u32)>,
-    line_end: Option<u32>,
 }
 
 impl KeywordCursor {
@@ -78,10 +77,8 @@ impl KeywordCursor {
             ctx.location(line, col);
             ctx.write(fragment);
             let end = col.saturating_add(usize_to_u32(fragment.len()));
-            if end <= self.line_end.unwrap_or(u32::MAX) {
-                ctx.location(line, end);
-            }
-            self.cursor = Some((line, col + usize_to_u32(fragment.len())));
+            ctx.location(line, end);
+            self.cursor = Some((line, end));
         } else {
             ctx.write(fragment);
         }
@@ -825,6 +822,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.comment_source.or(self.placement_source)
     }
 
+    /// One past the last pending comment, as a `flush_comments_until` bound that
+    /// takes all of them. `None` when nothing is pending.
+    fn pending_comments_end(&self) -> Option<u32> {
+        self.comment_at(self.comment_len().checked_sub(1)?)
+            .map(|comment| comment.end + 1)
+    }
+
     /// esrap's `if (node.loc)`: whether a span offset is a real source position
     /// (and so may carry comments) rather than a synthesized node's placeholder.
     fn has_loc(&self, offset: u32) -> bool {
@@ -918,30 +922,22 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx.location(line, column + usize_to_u32(keyword.len()));
     }
 
-    /// esrap's `write_keyword`: map one `keyword` anchored at the byte offset
-    /// `start` (resolved to a source `loc`), then append an unmapped `suffix`. If
-    /// the offset can't be resolved (no source context), falls back to a plain
+    /// esrap's `write_keyword`: map one `keyword` anchored at `span`'s start
+    /// (resolved to a source `loc`), then append an unmapped `suffix`. If the
+    /// offset can't be resolved (no source context), falls back to a plain
     /// `keyword + suffix` write.
-    fn write_keyword(&self, ctx: &mut Context<DIRECT>, start: u32, keyword: &str, suffix: &str) {
-        if !self.emit_locations {
+    fn write_keyword(&self, ctx: &mut Context<DIRECT>, span: Span, keyword: &str, suffix: &str) {
+        // esrap guards on `node.loc`; a builder-made node has none.
+        let located = !span.is_empty() && span.start != u32::MAX;
+        if !self.emit_locations || !located {
             ctx.write(keyword);
             ctx.write(suffix);
             return;
         }
-        if let Some((line, column)) = self.map_position(start) {
+        if let Some((line, column)) = self.map_position(span.start) {
             ctx.location(line, column);
             ctx.write(keyword);
-            let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
-            let line_end = line_starts
-                .get(line as usize)
-                .copied()
-                .unwrap_or(u32::MAX)
-                .saturating_sub(1);
-            let line_start = line_starts[(line - 1) as usize];
-            let end = column.saturating_add(usize_to_u32(keyword.len()));
-            if end <= line_end.saturating_sub(line_start) {
-                ctx.location(line, end);
-            }
+            ctx.location(line, column.saturating_add(usize_to_u32(keyword.len())));
             if !suffix.is_empty() {
                 ctx.write(suffix);
             }
@@ -1013,22 +1009,16 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// When `map_ok` is false (or no source context), every fragment is written
     /// unmapped. Implemented as an explicit [`KeywordCursor`] because Rust closures
     /// can't borrow `self` mutably across calls the way the JS closure does.
-    fn keyword_cursor(&self, start: u32, map_ok: bool) -> KeywordCursor {
-        let cursor = if map_ok && self.emit_locations {
-            self.map_position(start)
+    fn keyword_cursor(&self, span: Span, map_ok: bool) -> KeywordCursor {
+        // esrap guards every keyword anchor on `node.loc`; a builder-made node
+        // has none, and rsvelte spells that as an empty or sentinel span.
+        let located = !span.is_empty() && span.start != u32::MAX;
+        let cursor = if map_ok && located && self.emit_locations {
+            self.map_position(span.start)
         } else {
             None
         };
-        let line_end = cursor.map(|(line, _)| {
-            let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
-            line_starts
-                .get(line as usize)
-                .copied()
-                .unwrap_or(u32::MAX)
-                .saturating_sub(1)
-                .saturating_sub(line_starts[(line - 1) as usize])
-        });
-        KeywordCursor { cursor, line_end }
+        KeywordCursor { cursor }
     }
 
     /// esrap's `function_async_function_offset_ok`: the `async function` source
@@ -1868,6 +1858,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             .filter(|elem| keep_empty || !elem.is_empty_stmt())
             .peekable();
         let mut prev: Option<(BodyElem<'a, 'b>, bool)> = None;
+        let mut prev_joined = false;
         let mut last_end = None;
         while let Some(elem) = elems.next() {
             let layout_mark = ctx.event_mark();
@@ -1877,9 +1868,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 // statement, so nothing separates them — but two separate holes
                 // are two statements and take a newline. A pair is built at
                 // consecutive starts (`B::empty_kept(s)` / `(s + 1)`).
-                let joined = prev_elem.is_kept_empty()
-                    && elem.is_kept_empty()
-                    && elem.span_start() == prev_elem.span_start().wrapping_add(1);
+                // `Place::At` deliberately gives both halves the same source
+                // anchor, so pair by adjacency just like the comment-island
+                // path. Alternation keeps two neighbouring holes as `;;\n;;`.
+                let joined = !prev_joined && prev_elem.is_kept_empty() && elem.is_kept_empty();
+                prev_joined = joined;
                 has_margin = !joined && (*prev_multiline || !elem.same_kind(prev_elem));
                 if has_margin {
                     ctx.margin();
@@ -1887,6 +1880,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if !joined {
                     ctx.newline();
                 }
+            } else {
+                prev_joined = false;
             }
 
             let scope = ctx.begin_scope();
@@ -1990,18 +1985,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                             // expression the same anchor; upstream still sees
                             // the comment between `return` and the argument.
                             .is_some_and(|c| c.start <= unparen(arg).span().start);
-                    let start = s.span().start;
+                    let span = s.span();
                     if contains_comment {
-                        self.write_keyword(ctx, start, "return", " (");
+                        self.write_keyword(ctx, span, "return", " (");
                         self.print_expression(arg, ctx);
                         ctx.write_ascii_bytes(b");");
                     } else {
-                        self.write_keyword(ctx, start, "return", " ");
+                        self.write_keyword(ctx, span, "return", " ");
                         self.print_expression(arg, ctx);
                         ctx.write_ascii(b';');
                     }
                 } else {
-                    self.write_keyword(ctx, s.span().start, "return", ";");
+                    self.write_keyword(ctx, s.span(), "return", ";");
                 }
             }
             Statement::BlockStatement(b) => {
@@ -2019,7 +2014,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.print_statement(&s.body, ctx);
             }
             Statement::ThrowStatement(s) => {
-                self.write_keyword(ctx, s.span().start, "throw", " ");
+                self.write_keyword(ctx, s.span(), "throw", " ");
                 self.print_expression(&s.argument, ctx);
                 ctx.write_ascii(b';');
             }
@@ -2116,7 +2111,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     fn import_declaration(&mut self, node: &ImportDeclaration, ctx: &mut Context<DIRECT>) {
         if node.specifiers.as_ref().is_none_or(|v| v.is_empty()) {
-            self.write_keyword(ctx, node.span.start, "import", " ");
+            self.write_keyword(ctx, node.span, "import", " ");
             self.write_node(ctx, node.source.span, Self::string_literal(&node.source));
             // Upstream esrap returns before printing this clause. Import
             // attributes affect module loading, so dropping them is not a
@@ -2139,7 +2134,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
         }
 
-        let mut kw = self.keyword_cursor(node.span.start, true);
+        let mut kw = self.keyword_cursor(node.span, true);
         kw.write(ctx, "import ");
         if import_type {
             kw.write(ctx, "type ");
@@ -2236,22 +2231,22 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             for decorator in &c.decorators {
                 self.decorator(decorator, ctx);
             }
-            self.write_keyword(ctx, node.span().start, "export", " ");
+            self.write_keyword(ctx, node.span(), "export", " ");
             self.class_node_no_decorators(c, ctx);
             return;
         }
-        self.write_keyword(ctx, node.span().start, "export", " ");
+        self.write_keyword(ctx, node.span(), "export", " ");
         self.declaration(&node.declaration, ctx);
     }
 
     fn export_specifier_list(
         &mut self,
-        span_start: u32,
+        span: Span,
         specifiers: &[ExportSpecifier],
         export_kind: ImportOrExportKind,
         ctx: &mut Context<DIRECT>,
     ) {
-        let mut kw = self.keyword_cursor(span_start, true);
+        let mut kw = self.keyword_cursor(span, true);
         kw.write(ctx, "export ");
         if matches!(export_kind, ImportOrExportKind::Type) {
             kw.write(ctx, "type ");
@@ -2285,12 +2280,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         node: &ExportNamedDeclaration,
         ctx: &mut Context<DIRECT>,
     ) {
-        self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
+        self.export_specifier_list(node.span(), &node.specifiers, node.export_kind, ctx);
         ctx.write_ascii(b';');
     }
 
     fn export_from_declaration(&mut self, node: &ExportFromDeclaration, ctx: &mut Context<DIRECT>) {
-        self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
+        self.export_specifier_list(node.span(), &node.specifiers, node.export_kind, ctx);
         ctx.write(" from ");
         ctx.write(Self::string_literal(&node.source));
         ctx.write_ascii(b';');
@@ -2307,7 +2302,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             .offset_to_line_col(node.span().start)
             .zip(self.offset_to_line_col(node.span().end))
             .is_some_and(|((s, _), (e, _))| s == e);
-        let mut kw = self.keyword_cursor(node.span().start, map_ok);
+        let mut kw = self.keyword_cursor(node.span(), map_ok);
         kw.write(ctx, "export ");
         kw.write(ctx, "default ");
         match &node.declaration {
@@ -2504,7 +2499,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // mapped to their source span when `class_modifier_keywords_map_ok`
         // (no decorators, id/body on the node's start line).
         let map_ok = self.class_modifier_map_ok(node);
-        let mut kw = self.keyword_cursor(node.span().start, map_ok);
+        let mut kw = self.keyword_cursor(node.span(), map_ok);
         if node.declare {
             kw.write(ctx, "declare ");
         }
@@ -2705,7 +2700,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ClassElement::PropertyDefinition(p) => self.property_definition(p, ctx),
             ClassElement::AccessorProperty(a) => self.accessor_property(a, ctx),
             ClassElement::StaticBlock(b) => {
-                self.write_keyword(ctx, b.span().start, "static", " ");
+                self.write_keyword(ctx, b.span(), "static", " ");
                 let span = b.span();
                 self.block(&b.body, span.start, span.end, ctx);
             }
@@ -2728,7 +2723,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .map(|(l, _)| l);
             n.is_some() && n == v
         };
-        let mut kw = self.keyword_cursor(node.span().start, map_ok);
+        let mut kw = self.keyword_cursor(node.span(), map_ok);
         if matches!(
             node.r#type,
             MethodDefinitionType::TSAbstractMethodDefinition
@@ -2877,7 +2872,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     }
 
     fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context<DIRECT>) {
-        self.write_keyword(ctx, node.span().start, "if", " (");
+        self.write_keyword(ctx, node.span(), "if", " (");
         self.print_expression(&node.test, ctx);
         ctx.write_ascii_bytes(b") ");
         self.print_statement(&node.consequent, ctx);
@@ -2903,7 +2898,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     }
 
     fn do_while_statement(&mut self, node: &DoWhileStatement, ctx: &mut Context<DIRECT>) {
-        self.write_keyword(ctx, node.span().start, "do", " ");
+        self.write_keyword(ctx, node.span(), "do", " ");
         self.print_statement(&node.body, ctx);
         // esrap maps the trailing `while` to a computed offset (one past the body
         // end) when the test begins on the body's end line at column >= 6.
@@ -2958,18 +2953,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     /// esrap's `TryStatement`: `try {…}` + optional `catch (p) {…}` + `finally {…}`.
     fn try_statement(&mut self, node: &TryStatement, ctx: &mut Context<DIRECT>) {
-        self.write_keyword(ctx, node.span().start, "try", " ");
+        self.write_keyword(ctx, node.span(), "try", " ");
         let span = node.block.span();
         self.block(&node.block.body, span.start, span.end, ctx);
         if let Some(handler) = &node.handler {
             ctx.write_ascii(b' ');
             if let Some(param) = &handler.param {
                 // esrap emits `catch(e)` with no space after the keyword.
-                self.write_keyword(ctx, handler.span().start, "catch", "(");
+                self.write_keyword(ctx, handler.span(), "catch", "(");
                 self.binding_pattern(&param.pattern, ctx);
                 ctx.write_ascii_bytes(b") ");
             } else {
-                self.write_keyword(ctx, handler.span().start, "catch", " ");
+                self.write_keyword(ctx, handler.span(), "catch", " ");
             }
             let span = handler.body.span();
             self.block(&handler.body.body, span.start, span.end, ctx);
@@ -3002,7 +2997,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// esrap's `SwitchStatement`: `switch (disc) {`, each case indented with a
     /// blank-line margin between cases, statements one-per-line.
     fn switch_statement(&mut self, node: &SwitchStatement, ctx: &mut Context<DIRECT>) {
-        self.write_keyword(ctx, node.span().start, "switch", " (");
+        self.write_keyword(ctx, node.span(), "switch", " (");
         self.print_expression(&node.discriminant, ctx);
         ctx.write_ascii_bytes(b") {");
         ctx.indent();
@@ -3014,11 +3009,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.newline();
             match &case.test {
                 Some(test) => {
-                    self.write_keyword(ctx, case.span().start, "case", " ");
+                    self.write_keyword(ctx, case.span(), "case", " ");
                     self.print_expression(test, ctx);
                     ctx.write_ascii(b':');
                 }
-                None => self.write_keyword(ctx, case.span().start, "default", ":"),
+                None => self.write_keyword(ctx, case.span(), "default", ":"),
             }
             ctx.indent();
             for stmt in &case.consequent {
@@ -3153,13 +3148,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let this_len = usize::from(this_param.is_some());
         let item_len = params.items.len();
         let n = this_len + item_len + usize::from(params.rest.is_some());
+        // esrap reads an ESTree parameter, which IS the pattern; oxc's
+        // `FormalParameter` wrapper is builder-made in generated output, so its
+        // span would bound nothing.
+        let loc_base = self.loc_base;
+        let located = move |offset: u32| offset != u32::MAX && loc_base.is_none_or(|b| offset >= b);
         self.sequence_indexed(
             n,
             |i| {
                 let span = if i < this_len {
                     this_param.unwrap().span
                 } else if i - this_len < item_len {
-                    params.items[i - this_len].span()
+                    let param = &params.items[i - this_len];
+                    if located(param.span().start) {
+                        param.span()
+                    } else {
+                        param.pattern.span()
+                    }
                 } else {
                     params.rest.as_ref().unwrap().span()
                 };
@@ -3243,16 +3248,24 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             .return_type
             .as_ref()
             .map_or_else(|| node.body.span().start, |rt| rt.span().start);
-        // A comment-owning generated arrow can have an original-source body
-        // span, which is below `loc_base` and therefore cannot bound comments
-        // in the synthetic comment buffer. In that case the next call argument
-        // is the boundary upstream's generated arrow effectively gets. A
-        // located body (for example a header-comment carrier) remains the more
-        // precise boundary.
-        let until = if owned_comment_until.is_some() && !self.has_loc(body_start) {
-            owned_comment_until
-        } else {
-            Some(body_start)
+        // A generated arrow designated as the owner of a call argument's
+        // comments must leave a located body's leading comments for the body
+        // itself. Otherwise its empty parameter list consumes them before the
+        // `=>`. An original-source body cannot bound comments in the synthetic
+        // comment buffer, so the owner falls back to the next argument — and
+        // when that argument is builder-made too it bounds nothing, leaving the
+        // owner every comment still pending, which is where upstream's located
+        // body puts the boundary.
+        let until = match owned_comment_until {
+            Some(next) if !self.has_loc(body_start) => {
+                if self.has_loc(next) {
+                    Some(next)
+                } else {
+                    self.pending_comments_end()
+                }
+            }
+            Some(_) => None,
+            None => Some(body_start),
         };
         self.formal_parameters_with_this(&node.params, None, until, ctx);
         ctx.write_ascii(b')');
@@ -3415,7 +3428,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             VariableDeclarationKind::Using => "using ",
             VariableDeclarationKind::AwaitUsing => "await using ",
         };
-        let mut kw = self.keyword_cursor(decl.span().start, true);
+        let mut kw = self.keyword_cursor(decl.span(), true);
         if decl.declare {
             kw.write(ctx, "declare ");
         }
@@ -3515,8 +3528,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     #[allow(clippy::too_many_lines)]
     fn print_expression(&mut self, expr: &Expression, ctx: &mut Context<DIRECT>) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
+        // acorn elides parentheses, so the node whose start bounds that flush is
+        // the expression INSIDE them — bounding it at the `(` puts a comment that
+        // precedes the parens on the same line as the operand it opens.
         let span = expr.span();
-        let start = span.start;
+        let start = unparen(expr).span().start;
         self.flush_leading(ctx, start);
         if HAS_COMMENTS
             && DIRECT
@@ -3606,13 +3622,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 // esrap's `AwaitExpression`: map `await` to its source span, then
                 // `' ('`/arg/`')'` when the argument is below await's precedence
                 // (17), else `' '`/arg. Text is unchanged from `await ` + parens.
-                let start = a.span().start;
+                let span = a.span();
                 if expr_precedence(&a.argument) < 17 {
-                    self.write_keyword(ctx, start, "await", " (");
+                    self.write_keyword(ctx, span, "await", " (");
                     self.print_expression(&a.argument, ctx);
                     ctx.write_ascii(b')');
                 } else {
-                    self.write_keyword(ctx, start, "await", " ");
+                    self.write_keyword(ctx, span, "await", " ");
                     self.print_expression(&a.argument, ctx);
                 }
             }
@@ -3994,6 +4010,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context<DIRECT>) {
         self.member_object_with_parens(&node.object, ctx);
         ctx.write(if node.optional { "?." } else { "." });
+        // Upstream reaches the property through `context.visit`, which performs
+        // the leading flush; `write_node` only emits locations.
+        self.flush_leading(ctx, node.property.span.start);
         self.write_node(ctx, node.property.span, node.property.name.as_str());
     }
 
@@ -4227,6 +4246,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             },
             |p, el, child| match el {
                 ArrayExpressionElement::SpreadElement(s) => {
+                    // The element is reached by `visit` upstream, so its leading
+                    // comments are flushed before `...`, not before the operand.
+                    p.flush_leading(child, s.span.start);
                     child.write_ascii_bytes(b"...");
                     p.print_expression(&s.argument, child);
                 }
@@ -4408,6 +4430,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn print_argument(&mut self, arg: &Argument, ctx: &mut Context<DIRECT>) {
         match arg {
             Argument::SpreadElement(spread) => {
+                self.flush_leading(ctx, spread.span.start);
                 ctx.write_ascii_bytes(b"...");
                 self.print_expression(&spread.argument, ctx);
             }

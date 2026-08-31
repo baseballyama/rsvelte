@@ -213,7 +213,9 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                                     read_source: None,
                                     assign: Some(prop_assign),
                                     mutate: Some(
-                                        if matches!(binding.kind, BindingKind::BindableProp) {
+                                        if !context.state.analysis.runes
+                                            || matches!(binding.kind, BindingKind::BindableProp)
+                                        {
                                             prop_bindable_mutate
                                         } else {
                                             prop_mutate

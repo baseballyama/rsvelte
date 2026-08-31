@@ -150,6 +150,18 @@ impl ChunkRegistry {
         self.chunks.is_empty()
     }
 
+    /// Whether `span` already sits in a registered region, i.e. the statement
+    /// carrying it anchors comments of its own.
+    pub fn anchors(&self, span: Span) -> bool {
+        let bases: Vec<(u32, u32)> = self
+            .chunks
+            .iter()
+            .map(|c| (c.prov_base, c.prov_base + c.text.len() as u32))
+            .collect();
+        // A location-less end (`is_sentinel`) still anchors on its start.
+        chunk_of(&bases, Span::new(span.start, span.start)).is_some()
+    }
+
     /// `nested` when the component body is the `$$renderer.component(($$renderer)
     /// => { … })` callback rather than the exported function itself, which is
     /// where the replayed comments have to land.

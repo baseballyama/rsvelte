@@ -10,7 +10,7 @@
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase1_parse::utils::is_reserved;
-use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
+use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
@@ -2164,6 +2164,140 @@ impl<'a> ComponentClientTransformState<'a> {
         self.scope_root.bindings.get(index)
     }
 
+    /// Get the prop binding which installed an already-applied read transform.
+    ///
+    /// Phase 2 can retain the prop kind on a binding which is not the instance
+    /// scope's declaration entry (notably around legacy exports and same-named
+    /// parameters). Selecting by kind also avoids the flattened root scope's
+    /// unrelated same-named template declarations.
+    pub fn get_prop_binding(&self, name: &str) -> Option<&Binding> {
+        self.scope_root
+            .bindings_by_name
+            .get(name)?
+            .iter()
+            .filter_map(|&index| self.scope_root.bindings.get(index as usize))
+            .find(|binding| matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp))
+    }
+
+    /// Get the prop binding which owns the reference at `start`.
+    ///
+    /// More than one same-named binding can retain a reference at the same
+    /// source position. `ScopeRoot::binding_at_reference` stores one index per
+    /// position, so a later non-prop binding can otherwise hide the prop whose
+    /// read transform produced the member expression we are mutating.
+    pub fn get_prop_binding_at_reference(&self, name: &str, start: u32) -> Option<&Binding> {
+        self.scope_root
+            .bindings_by_name
+            .get(name)?
+            .iter()
+            .filter_map(|&index| self.scope_root.bindings.get(index as usize))
+            .find(|binding| {
+                matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+                    && binding
+                        .references
+                        .iter()
+                        .any(|reference| reference.start == start)
+            })
+    }
+
+    /// Whether the reference at `start` positively belongs to a binding that is
+    /// not a prop, which is how a local declaration shadowing a prop is told
+    /// apart from a read of the prop itself.
+    ///
+    /// Upstream resolves the root of a mutation through `state.scope`; phase 3's
+    /// current scope is the template's for an event handler, so a name lookup
+    /// alone reaches the prop. Only a reference exactly one binding claims
+    /// answers — more than one same-named binding can retain the same position,
+    /// and there the name lookup is still the better guess.
+    pub fn reference_is_shadowed_non_prop(&self, name: &str, start: u32) -> bool {
+        let Some(indices) = self.scope_root.bindings_by_name.get(name) else {
+            return false;
+        };
+        let mut owners = indices
+            .iter()
+            .filter_map(|&index| self.scope_root.bindings.get(index as usize))
+            .filter(|binding| {
+                binding
+                    .references
+                    .iter()
+                    .any(|reference| reference.start == start)
+            });
+        let Some(owner) = owners.next() else {
+            return false;
+        };
+        owners.next().is_none()
+            && !matches!(
+                owner.kind,
+                BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+            )
+    }
+
+    /// Whether the reference at `start` uniquely belongs to a plain `let`/`const`
+    /// /`var` declaration, so a same-named entry in the transform map belongs to
+    /// some other binding and must not claim this write.
+    ///
+    /// `reference_is_shadowed_non_prop` answers a different question — it is true
+    /// of a top-level `$state` too, because every kind but a prop counts there.
+    pub fn reference_is_plain_local(&self, name: &str, start: u32) -> bool {
+        let Some(indices) = self.scope_root.bindings_by_name.get(name) else {
+            return false;
+        };
+        let mut owners = indices
+            .iter()
+            .filter_map(|&index| self.scope_root.bindings.get(index as usize))
+            .filter(|binding| {
+                binding
+                    .references
+                    .iter()
+                    .any(|reference| reference.start == start)
+            });
+        let Some(owner) = owners.next() else {
+            return false;
+        };
+        if owners.next().is_some() || !matches!(owner.kind, BindingKind::Normal) {
+            return false;
+        }
+        // A rune declared inside a template expression's function body is a
+        // signal, and phase 2 records a second, `Normal` entry for it — so the
+        // owner alone says "plain local" about `let x = $state(1); x = 2` in a
+        // handler. The scope chain separates the two: a component binding is
+        // declared at instance depth, a local signal below one more function.
+        !self.get_binding(name).is_some_and(|scoped| {
+            matches!(
+                scoped.kind,
+                BindingKind::State | BindingKind::RawState | BindingKind::Derived
+            ) && self
+                .scope_root
+                .all_scopes
+                .get(scoped.scope_index)
+                .is_some_and(|scope| scope.function_depth >= 2)
+        })
+    }
+
+    /// The names a plain `let` / `const` / `var` declaration binds and refers to
+    /// somewhere inside `[start, end)`.
+    ///
+    /// The write lowerings resolve one root, so a position answers them
+    /// (`reference_is_plain_local`). An expression has many identifiers and the
+    /// converted `JsExpr` no longer carries their positions — `JsExpr::Spanned`
+    /// exists only under `enable_sourcemap`, so keying on it would make the
+    /// generated code depend on whether a map was asked for. The source range of
+    /// the expression is available on both paths, so ask the bindings instead.
+    pub fn plain_local_names_in_range(&self, start: u32, end: u32) -> Vec<String> {
+        self.scope_root
+            .bindings
+            .iter()
+            .filter(|binding| matches!(binding.kind, BindingKind::Normal))
+            .filter(|binding| {
+                binding
+                    .references
+                    .iter()
+                    .any(|reference| reference.start >= start && reference.start < end)
+            })
+            .map(|binding| binding.name.clone())
+            .collect()
+    }
+
     /// Whether `scope_index` is the current scope (`self.scope`) or one of its
     /// ancestors. Used to restrict constant-folding of snippet-scoped template
     /// declarations to lexically reachable references (upstream resolves these
@@ -2182,6 +2316,40 @@ impl<'a> ComponentClientTransformState<'a> {
             parent = self.scope_root.all_scopes.get(idx).and_then(|s| s.parent);
         }
         false
+    }
+
+    /// Whether a binding is reachable while evaluating a template expression.
+    ///
+    /// Phase 3's current template scope is not always linked back through the
+    /// Phase-2 instance/module scopes, although both are lexical ancestors of
+    /// every template expression. Template-local scopes still have to be on the
+    /// active chain so a constant from a sibling snippet cannot leak across.
+    pub fn evaluation_scope_contains(&self, scope_index: usize) -> bool {
+        scope_index == 0
+            || scope_index == self.scope_root.instance_scope_index
+            || self.scope_chain_contains(scope_index)
+    }
+
+    /// Whether `scope_index` is a snippet body or is nested inside one.
+    ///
+    /// Position-based reference resolution is useful for template scopes that
+    /// Phase 3 does not enter, but a snippet is a separate generated function:
+    /// declarations from one snippet must never be folded into a sibling.
+    pub fn scope_is_within_snippet(&self, mut scope_index: usize) -> bool {
+        loop {
+            if self.scope_root.snippet_scope_indices.contains(&scope_index) {
+                return true;
+            }
+            let Some(parent) = self
+                .scope_root
+                .all_scopes
+                .get(scope_index)
+                .and_then(|scope| scope.parent)
+            else {
+                return false;
+            };
+            scope_index = parent;
+        }
     }
 
     /// Look up a local variable's init expression AST node type.

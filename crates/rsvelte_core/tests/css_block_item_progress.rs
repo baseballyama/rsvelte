@@ -31,8 +31,8 @@ fn empty_block_item_selector_terminates_with_the_upstream_error() {
                 assert_eq!(
                     error.diagnostic().span,
                     Some((
-                        source.find("devices.$break1").unwrap(),
-                        source.find(" {\n\t\t.card").unwrap() + 1,
+                        source.find("devices.$break1").unwrap() as u32,
+                        (source.find(" {\n\t\t.card").unwrap() + 1) as u32,
                     ))
                 );
             }

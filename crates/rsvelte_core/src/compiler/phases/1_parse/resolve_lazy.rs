@@ -62,9 +62,13 @@ pub(crate) fn resolve_lazy_expressions_with_line_offsets<'a>(
         && stylesheet.children.is_empty()
         && !stylesheet.content.styles.is_empty()
     {
+        // Upstream reports a CSS EOF at `parser.template.length`, which is the
+        // whole template after `trimEnd()`.
+        let parser_content_end = super::parser::js_trim_end_len(source);
         match super::read::style::parse_css_strict(
             &stylesheet.content.styles,
             stylesheet.content.start as usize,
+            parser_content_end,
         ) {
             Ok(children) => stylesheet.children = children,
             Err(err) => {

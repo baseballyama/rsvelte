@@ -71,6 +71,41 @@ const ROOT = path.resolve(__dirname, '../..');
 // been shown to fail on anything.
 const CORPUS = process.env.KNOWN_FAILURES_DIR || path.join(ROOT, 'compatibility');
 
+// The per-ratchet justification docs are consolidated into `KNOWN-FAILURES.md` /
+// `GATES.md`, where each former file becomes an `<a id="<stem>"></a>` anchored
+// section. Resolving both shapes here keeps a ratchet's `doc:` a machine-facing
+// key instead of a path every consolidation has to rewrite, and keeps the scope
+// per-ratchet: reading the whole merged file would let a partition declared for
+// one ratchet satisfy the check for another.
+const MERGED = ['KNOWN-FAILURES.md', 'GATES.md'];
+const mergedLines = new Map();
+// `existsSync` is case-insensitive on macOS, where `known-failures.md` and
+// `KNOWN-FAILURES.md` are one path — so the per-file branch would swallow the
+// merged file whole and every ratchet's section would be the entire document.
+// Ask the directory listing, which is exact on both platforms.
+const corpusNames = new Set(fs.readdirSync(CORPUS));
+function docText(doc) {
+	if (corpusNames.has(doc)) return fs.readFileSync(path.join(CORPUS, doc), 'utf8');
+	const stem = doc.replace(/\.md$/, '');
+	for (const merged of MERGED) {
+		const mp = path.join(CORPUS, merged);
+		if (!fs.existsSync(mp)) continue;
+		if (!mergedLines.has(mp)) mergedLines.set(mp, fs.readFileSync(mp, 'utf8').split('\n'));
+		const all = mergedLines.get(mp);
+		const start = all.findIndex((l) => l.trim() === `<a id="${stem}"></a>`);
+		if (start === -1) continue;
+		let end = all.length;
+		for (let i = start + 1; i < all.length; i++) {
+			if (/^<a id="[^"]+"><\/a>$/.test(all[i].trim())) {
+				end = i;
+				break;
+			}
+		}
+		return all.slice(start, end).join('\n');
+	}
+	return null;
+}
+
 const TARGETS = ['client', 'server', 'client-dev', 'server-dev'];
 const perTarget = (stem) => TARGETS.map((t) => `${stem}.${t}.json`);
 
@@ -367,7 +402,9 @@ export function partitionLines(docText) {
 // Importing this module must not run the checks: a failing checker would
 // `process.exit(1)` during import and take its own test suite down with it,
 // which reads as "tests did not fail".
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();
+// `import.meta.url` is the realpath and `path.resolve` is not, so comparing the two
+// makes an invocation through any symlinked path exit 0 having checked nothing.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) main();
 
 function main() {
 // ---- 1. every ratchet JSON on disk is declared --------------------------------
@@ -389,8 +426,8 @@ for (const f of declared) {
 
 // ---- 2. every declared ratchet's doc states its count -------------------------
 for (const { doc, key, jsons } of RATCHETS) {
-	const docPath = path.join(CORPUS, doc);
-	if (!fs.existsSync(docPath)) {
+	const docBody = docText(doc);
+	if (docBody === null) {
 		fail(`missing justification doc ${doc} (declared for ${key})`);
 		continue;
 	}
@@ -409,7 +446,7 @@ for (const { doc, key, jsons } of RATCHETS) {
 		continue;
 	}
 	const actual = unique[0];
-	const stated = statedCounts(fs.readFileSync(docPath, 'utf8'), key);
+	const stated = statedCounts(docBody, key);
 	if (!stated.ok) {
 		fail(
 			`${doc}: cannot verify the count for \`${key}\` — ${stated.reason}.\n` +
@@ -432,9 +469,9 @@ const idsFor = (key) => {
 const declaredPartitions = new Set(PARTITIONS.map((p) => `${p.doc} ${p.key} ${p.prefix ?? ''} ${p.label}`));
 
 for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
-	const docPath = path.join(CORPUS, doc);
-	if (!fs.existsSync(docPath)) continue; // already reported above
-	for (const found of partitionLines(fs.readFileSync(docPath, 'utf8'))) {
+	const docBody = docText(doc);
+	if (docBody === null) continue; // already reported above
+	for (const found of partitionLines(docBody)) {
 		const id = `${doc} ${found.key} ${found.prefix ?? ''} ${found.label}`;
 		if (!declaredPartitions.has(id)) {
 			fail(
@@ -445,8 +482,8 @@ for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
 }
 
 for (const { doc, key, prefix, label } of PARTITIONS) {
-	const docPath = path.join(CORPUS, doc);
-	if (!fs.existsSync(docPath)) continue; // already reported above
+	const docBody = docText(doc);
+	if (docBody === null) continue; // already reported above
 	const ids = idsFor(key);
 	if (ids === null) {
 		fail(`PARTITIONS declares \`${key}\` for ${doc}, which is not a ratchet in RATCHETS`);
@@ -456,7 +493,7 @@ for (const { doc, key, prefix, label } of PARTITIONS) {
 	// array is its indices, so normalise rather than branching at every use.
 	const idList = Array.isArray(ids) ? ids : Object.keys(ids);
 	const population = prefix ? idList.filter((id) => String(id).startsWith(prefix)) : idList;
-	const matches = partitionLines(fs.readFileSync(docPath, 'utf8')).filter(
+	const matches = partitionLines(docBody).filter(
 		(p) => p.key === key && (p.prefix ?? undefined) === prefix && p.label === label,
 	);
 	const where = `\`${key}\`${prefix ? ` entries under \`${prefix}\`` : ''} by ${label}`;
@@ -478,7 +515,7 @@ for (const { doc, key, prefix, label } of PARTITIONS) {
 }
 
 // ---- 3. doc-specific reconciliations that no generic rule can derive ----------
-const knownFailuresMd = fs.readFileSync(path.join(CORPUS, 'known-failures.md'), 'utf8');
+const knownFailuresMd = docText('known-failures.md') ?? '';
 const clientDevLen = JSON.parse(
 	fs.readFileSync(path.join(CORPUS, 'known-failures.client-dev.json'), 'utf8'),
 ).length;
@@ -501,9 +538,8 @@ if (reconcile) {
 // doc, not just the one that introduced it — a convention checked in a single
 // file is a convention the next doc to adopt it gets for free and unverified.
 for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
-	const docPath = path.join(CORPUS, doc);
-	if (!fs.existsSync(docPath)) continue;
-	const text = fs.readFileSync(docPath, 'utf8');
+	const text = docText(doc);
+	if (text === null) continue;
 	for (const [, statedRaw, expression] of text.matchAll(/summing to (?:all )?([\d,]+)\s*\(`([\d\s,x+]+)`\)/g)) {
 		const total = sumExpression(expression);
 		if (total !== num(statedRaw)) fail(`${doc} claims ${statedRaw} but \`${expression}\` sums to ${total}`);
@@ -511,7 +547,7 @@ for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
 }
 
 // Matrix per-family split: the number a burn-down PR forgets to update.
-const matrixMd = fs.readFileSync(path.join(CORPUS, 'matrix-known-failures.md'), 'utf8');
+const matrixMd = docText('matrix-known-failures.md') ?? '';
 const matrixEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'matrix-known-failures.json'), 'utf8'));
 for (const family of ['binding-position', 'comment-slot']) {
 	const fm = matrixMd.match(new RegExp('### `' + escape(family) + '` — ([\\d,]+) entr(?:y|ies)'));
@@ -525,9 +561,8 @@ for (const family of ['binding-position', 'comment-slot']) {
 
 // Mutation per-verdict split (mutate-corpus.mjs, #2281 Gate 3): the same
 // forget-to-update surface the matrix families have.
-const mutationMdPath = path.join(CORPUS, 'mutation-known-failures.md');
-if (fs.existsSync(mutationMdPath)) {
-	const mutationMd = fs.readFileSync(mutationMdPath, 'utf8');
+const mutationMd = docText('mutation-known-failures.md');
+if (mutationMd !== null) {
 	const mutationEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'mutation-known-failures.json'), 'utf8'));
 	for (const verdict of ['code-mismatch', 'unparseable', 'compiler-crash', 'error-mismatch']) {
 		const vm = mutationMd.match(new RegExp('\\| `' + escape(verdict) + '` \\| (\\d+) \\|'));
@@ -536,6 +571,23 @@ if (fs.existsSync(mutationMdPath)) {
 		const actual = mutationEntries.filter((id) => id.includes(`[${verdict}]`)).length;
 		if (claimed !== actual) {
 			fail(`mutation-known-failures.md says ${claimed} "${verdict}" entries, but the ratchet has ${actual}`);
+		}
+	}
+}
+
+// An attribution that names a file nobody wrote reads exactly like one that does.
+// Two of these were already live, both citing a renamed upstream_issues item.
+// Resolved from the repo, not from CORPUS: the self-test points CORPUS at a
+// temp copy, and an `upstream_issues/` that is merely absent would make every
+// link look broken — a failure mode indistinguishable from a real dangling one.
+const issuesDir = path.join(ROOT, 'upstream_issues');
+let issueLinks = 0;
+for (const doc of fs.readdirSync(CORPUS).filter((f) => f.endsWith('.md'))) {
+	const docPath = path.join(CORPUS, doc);
+	for (const [, name] of fs.readFileSync(docPath, 'utf8').matchAll(/upstream_issues\/([A-Za-z0-9._-]+\.md)/g)) {
+		issueLinks++;
+		if (!fs.existsSync(path.join(issuesDir, name))) {
+			fail(`${doc} attributes entries to upstream_issues/${name}, which does not exist`);
 		}
 	}
 }

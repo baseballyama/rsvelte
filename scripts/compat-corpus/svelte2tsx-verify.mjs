@@ -76,6 +76,50 @@ const BASELINE_PATH = path.resolve(
 // the real file — which makes it unsafe to REWRITE from such a run (see below).
 const MAP_BASELINE_PATH = path.join(CORPUS, 'svelte2tsx-map-known-failures.json');
 
+// --from-report <path> derives the baselines from a report this gate already
+// wrote, without re-collecting or re-compiling the corpus. The verdict a corpus
+// run reaches is a property of the machine that ran it, so a baseline has to be
+// derived from the CI report rather than from a local sweep.
+const FROM_REPORT = (() => {
+	const i = args.indexOf('--from-report');
+	return i !== -1 && args[i + 1] ? path.resolve(process.cwd(), args[i + 1]) : null;
+})();
+
+if (FROM_REPORT) {
+	if (!UPDATE_BASELINE) {
+		console.error('[s2t-verify] --from-report only rewrites baselines; pass --update-baseline too');
+		process.exit(2);
+	}
+	if (ALT_BASELINE) {
+		console.error('[s2t-verify] --from-report cannot be combined with --baseline (the map ratchet would be rewritten from a narrower run)');
+		process.exit(2);
+	}
+	const report = JSON.parse(fs.readFileSync(FROM_REPORT, 'utf8'));
+	// Same FALSE-SHRINK trap as a local rewrite: a report from a partial sweep
+	// would delete every id it did not measure and read as a ratchet win.
+	if ((report.total ?? 0) < MIN_FULL_CORPUS_ENTRIES) {
+		console.error(
+			`[s2t-verify] refusing to rewrite baselines from a report of ${report.total ?? 0} entries (expected >= ${MIN_FULL_CORPUS_ENTRIES})`
+		);
+		process.exit(2);
+	}
+	// An absent array is indistinguishable from "everything passes" once written.
+	for (const field of ['failures', 'mapFailures']) {
+		if (Array.isArray(report[field])) continue;
+		console.error(`[s2t-verify] the report carries no \`${field}\` array, so its ratchet cannot be derived from it`);
+		process.exit(2);
+	}
+	for (const [entries, file] of [
+		[report.failures, BASELINE_PATH],
+		[report.mapFailures, MAP_BASELINE_PATH],
+	]) {
+		const baseline = entries.map((f) => f.id).sort();
+		fs.writeFileSync(file, JSON.stringify(baseline, null, '\t') + '\n');
+		console.log(`[s2t-verify] baseline updated: ${baseline.length} known failures -> ${path.relative(ROOT, file)}`);
+	}
+	process.exit(0);
+}
+
 const manifest = JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8')).filter(
 	(e) => e.kind === 'component'
 );

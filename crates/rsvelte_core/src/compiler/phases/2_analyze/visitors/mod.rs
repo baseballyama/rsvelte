@@ -391,6 +391,10 @@ pub struct VisitorContext<'a> {
     pub element_depth: usize,
     /// Depth inside control flow blocks (for placement validation).
     pub block_depth: usize,
+    /// Depth inside the four blocks upstream's `non_reactive_update` walk accepts
+    /// above a `bind:this` — `{#if}`, `{#each}`, `{#await}`, `{#key}`. A snippet is
+    /// NOT one of them, which is why this cannot reuse `block_depth`.
+    pub bind_this_block_depth: usize,
     /// Depth of the ancestors upstream's `SvelteSelf` visitor accepts as a parent —
     /// `{#if}`, `{#each}`, `{#snippet}` and a `Component`, so neither an `{#await}`
     /// nor a `<svelte:component>` counts.
@@ -617,6 +621,7 @@ impl<'a> VisitorContext<'a> {
             dom_element_stack: Vec::new(),
             element_depth: 0,
             block_depth: 0,
+            bind_this_block_depth: 0,
             svelte_self_parent_depth: 0,
             component_depth: 0,
             in_root_fragment: false,

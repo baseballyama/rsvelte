@@ -66,8 +66,12 @@ async function loadCompiler(workspace) {
       const require = createRequire(join(resolve(workspace), '__rsvelte_preprocess__.cjs'));
       for (const specifier of ['svelte/compiler', '@rsvelte/vite-plugin-svelte-native']) {
         try {
-          const module = await import(pathToFileURL(require.resolve(specifier)).href);
-          if (typeof module.preprocess === 'function') return module;
+          const imported = await import(pathToFileURL(require.resolve(specifier)).href);
+          // npm ships `svelte/compiler` as a CJS bundle, whose namespace carries
+          // `default` alone — reading `preprocess` off it is undefined for every
+          // real project, so this loop always fell through to the throw below.
+          const module = typeof imported.preprocess === 'function' ? imported : imported.default;
+          if (typeof module?.preprocess === 'function') return module;
         } catch {}
       }
       throw new Error(

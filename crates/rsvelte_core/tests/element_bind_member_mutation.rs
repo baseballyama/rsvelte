@@ -26,7 +26,7 @@ fn element_bind_setter_mutates_a_legacy_prop_member() {
     );
 
     assert!(
-        output.contains("options((options().from = $$value), true)"),
+        output.contains("options(options().from = $$value, true)"),
         "got:\n{output}"
     );
 }
@@ -44,7 +44,7 @@ fn element_bind_setter_mutates_a_legacy_state_computed_member() {
     );
 
     assert!(
-        output.contains("$.mutate(selected, ($.get(selected)[index] = $$value))"),
+        output.contains("$.mutate(selected, $.get(selected)[index] = $$value)"),
         "got:\n{output}"
     );
 }

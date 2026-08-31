@@ -12,6 +12,33 @@ use super::scan_index::ScanIndex;
 use super::{find_matching_paren, is_shorthand_object_property};
 use crate::compiler::phases::phase3_transform::shared::offsets::{CharLen, CharOffset, CharToByte};
 
+/// How a store's own binding is read, the way `build_getter` reads any
+/// reference to it: a prop is a getter call, a reassigned legacy `let` is a
+/// signal read, anything else is the bare name. Six rewriters ask this.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum StoreSourceRead {
+    Getter,
+    Signal,
+    Bare,
+}
+
+pub(super) fn store_source_read(
+    store_name: &str,
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> StoreSourceRead {
+    if prop_vars.iter().any(|p| p == store_name) {
+        StoreSourceRead::Getter
+    } else if state_vars.iter().any(|s| s == store_name)
+        && !non_reactive_state_vars.iter().any(|s| s == store_name)
+    {
+        StoreSourceRead::Signal
+    } else {
+        StoreSourceRead::Bare
+    }
+}
+
 /// Transform store assignments in client-side code.
 ///
 /// Handles patterns like:
@@ -66,21 +93,15 @@ pub(super) fn transform_store_assignments_client(
     let result = after_assigns.unwrap_or_else(|| stage1.to_string());
 
     // Member-expression mutations (`$store.prop = …`, `$store[0]++`, etc.)
-    // are handled by the dedicated AST helper. The first
-    // `$.store_mutate(...)` argument is the store *source* read the same way
-    // any reference to its binding would be: a prop binding reads as the getter
-    // call `store()`, so prop-backed stores need that form rather than the bare
-    // name (other binding kinds keep the bare name).
-    //
-    // The rewriter matches every store in one traversal and looks `prop_store_names`
-    // up by name, so all of them go through a single parse+reprint rather than one
-    // per subscribed store.
-    let prop_store_names: Vec<String> = store_sub_vars
-        .iter()
-        .map(|store_sub| store_sub[1..].to_string())
-        .filter(|store_name| prop_vars.contains(store_name))
-        .collect();
-    transform_store_member_mutations(&result, store_sub_vars, &prop_store_names)
+    // are handled by the dedicated AST helper, which reads the store source
+    // through the same `store_source_read` the assign and update rewriters use.
+    transform_store_member_mutations(
+        &result,
+        store_sub_vars,
+        prop_vars,
+        state_vars,
+        non_reactive_state_vars,
+    )
 }
 
 /// Check if a store subscription name appears as a function parameter in a statement.
@@ -630,12 +651,16 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
 pub(super) fn transform_store_member_mutations(
     line: &str,
     store_subs: &[String],
-    prop_store_names: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
 ) -> String {
     super::store_member_mutate_ast::transform_store_member_mutate_ast_with_props(
         line,
         store_subs,
-        prop_store_names,
+        prop_vars,
+        state_vars,
+        non_reactive_state_vars,
     )
     .unwrap_or_else(|| line.to_string())
 }

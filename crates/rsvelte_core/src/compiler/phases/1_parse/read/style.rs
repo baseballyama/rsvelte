@@ -49,7 +49,7 @@ fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
 
 /// Parse CSS content and return the children array for StyleSheet.
 pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
-    let mut parser = CssParser::new(content, offset);
+    let mut parser = CssParser::new(content, offset, offset + content.len());
     parser.parse()
 }
 
@@ -60,8 +60,9 @@ pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
 pub(crate) fn parse_css_strict(
     content: &str,
     offset: usize,
+    template_end: usize,
 ) -> Result<Vec<Value>, crate::error::ParseError> {
-    let mut parser = CssParser::new(content, offset);
+    let mut parser = CssParser::new(content, offset, template_end);
     let rules = parser.parse();
     if let Some(err) = parser.error.take() {
         return Err(err);
@@ -167,6 +168,28 @@ fn record_first_error(
 ) {
     let existing = cell.take();
     if existing.is_some() {
+        cell.set(existing);
+    } else {
+        cell.set(Some(err));
+    }
+}
+
+/// Record a missing declaration terminator over the selector error produced
+/// while speculatively deciding whether the same text began a nested rule.
+/// Upstream commits to the declaration parse at this point, so its `;` error
+/// is the observable one; unrelated earlier errors still retain precedence.
+fn record_declaration_terminator_error(
+    cell: &std::cell::Cell<Option<crate::error::ParseError>>,
+    err: crate::error::ParseError,
+) {
+    let existing = cell.take();
+    if matches!(
+        &existing,
+        Some(crate::error::ParseError::SvelteError { code, .. })
+            if code.as_str() == "css_expected_identifier"
+    ) {
+        cell.set(Some(err));
+    } else if existing.is_some() {
         cell.set(existing);
     } else {
         cell.set(Some(err));
@@ -298,6 +321,42 @@ fn nth_of_tail(text: &str, anb: usize) -> Option<usize> {
 /// A comment where a compound selector should begin. Upstream's `read_selector`
 /// tolerates one only immediately before `,`, `{` or `)`; anywhere else the loop
 /// falls through to `read_identifier`, which rejects the `/`.
+/// Upstream reads a combinator, consumes only WHITESPACE after it, and then
+/// requires a compound: `read_selector` raises `css_selector_invalid` on a `,`,
+/// on the rule's `{` (or the argument list's `)` inside a pseudo-class) and
+/// reads an identifier on anything else — so a comment there is
+/// `css_expected_identifier`, reported at the comment and not at the
+/// terminator. Both selector scans lose that terminator to trimming, so it is
+/// recovered from the source rather than from the text they were handed.
+fn record_trailing_combinator_error(
+    cell: &std::cell::Cell<Option<crate::error::ParseError>>,
+    source: &str,
+    offset: usize,
+    combinator_end: usize,
+) {
+    let Some(rest) = combinator_end
+        .checked_sub(offset)
+        .and_then(|i| source.get(i..))
+    else {
+        return;
+    };
+    let skip = rest.len() - rest.trim_start_ws().len();
+    let pos = combinator_end + skip;
+    let after = &rest[skip..];
+    if after.starts_with("/*") {
+        record_selector_comment_error(cell, pos);
+    } else if after.starts_with(',') || after.starts_with('{') || after.starts_with(')') {
+        record_first_error(
+            cell,
+            crate::error::ParseError::svelte(
+                "css_selector_invalid",
+                "Invalid selector",
+                (pos, pos),
+            ),
+        );
+    }
+}
+
 fn record_selector_comment_error(
     cell: &std::cell::Cell<Option<crate::error::ParseError>>,
     pos: usize,
@@ -339,11 +398,13 @@ impl<'a> Parser<'a> {
         let mut quote: Option<u8> = None;
         let mut in_url = false;
         let mut escaped = false;
-        // Upstream tests `</style` only between rules, so a `<` inside a block or
-        // a parenthesised value is CSS text: `.a { color: red; </style> }` is a
-        // `css_empty_declaration` and `calc(</style>)` a declaration value.
+        // Upstream tests `</style` only between rules, so a `<` inside a block is
+        // CSS text: `.a { color: red; </style> }` is a `css_empty_declaration`.
+        // Parenthesis depth is deliberately NOT tracked — upstream's readers do
+        // not balance `(` either, so an unclosed one (an SCSS `// (` comment, or
+        // `x: (;`) would otherwise swallow the real closing tag and turn the rest
+        // of the component into CSS.
         let mut brace_depth = 0usize;
-        let mut paren_depth = 0usize;
         let mut i = self.index;
 
         if !tokenise {
@@ -373,18 +434,12 @@ impl<'a> Parser<'a> {
                 quote = None;
             } else if ch == b')' {
                 in_url = false;
-                if quote.is_none() {
-                    paren_depth = paren_depth.saturating_sub(1);
-                }
             } else if quote.is_none() && (ch == b'"' || ch == b'\'') {
                 quote = Some(ch);
             } else if ch == b'(' && i >= content_start + 3 && &bytes[i - 3..i] == b"url" {
                 in_url = true;
-                paren_depth += 1;
             } else if quote.is_none() && !in_url {
-                if ch == b'(' {
-                    paren_depth += 1;
-                } else if ch == b'{' {
+                if ch == b'{' {
                     brace_depth += 1;
                 } else if ch == b'}' {
                     brace_depth = brace_depth.saturating_sub(1);
@@ -404,7 +459,7 @@ impl<'a> Parser<'a> {
                         i += 4 + off + 3;
                         continue;
                     }
-                    if brace_depth == 0 && paren_depth == 0 {
+                    if brace_depth == 0 {
                         self.index = i;
                         if self.is_valid_closing_tag("</style") {
                             return (first_invalid_lt, false, first_line_comment);
@@ -420,6 +475,18 @@ impl<'a> Parser<'a> {
 
         self.index = len;
         (first_invalid_lt, in_url, first_line_comment)
+    }
+
+    /// Upstream's `read_style` runs `read_body` to completion before it reaches
+    /// `eat('</style', true)`, so any CSS error precedes the structural ones the
+    /// closing-tag scan raises. That scan is a raw-text approximation of a
+    /// recursive parse, so it is consulted only once the CSS parse is silent.
+    fn css_error_before_structural(
+        &self,
+        style_content: &str,
+        content_start: usize,
+    ) -> Option<crate::error::ParseError> {
+        parse_css_strict(style_content, content_start, self.content_end).err()
     }
 
     /// Parse a `<style>` tag and store it in stylesheet.
@@ -541,6 +608,9 @@ impl<'a> Parser<'a> {
                 i += 1;
             }
             if in_string || unterminated_url {
+                if let Some(err) = self.css_error_before_structural(style_content, content_start) {
+                    return Err(err);
+                }
                 // `//` is not a CSS comment. Upstream reaches that slash and
                 // raises from `read_identifier` before text later on the same
                 // SCSS line (for example `don't`) can look like the start of an
@@ -574,6 +644,9 @@ impl<'a> Parser<'a> {
                 self.index = after_name;
             }
         } else if self.is_eof() {
+            if let Some(err) = self.css_error_before_structural(style_content, content_start) {
+                return Err(err);
+            }
             // Style tag was not closed - check if there was invalid '<' in content
             if let Some(lt_pos) = first_invalid_lt {
                 return Err(crate::error::ParseError::svelte(
@@ -616,14 +689,14 @@ impl<'a> Parser<'a> {
             })
             .collect();
 
-        // Validate CSS content before parsing.
         // If the content has non-whitespace, non-comment text but no '{' character,
-        // it cannot be valid CSS (no rules can be formed).
-        // This corresponds to CSS-Tree's error when encountering invalid CSS in the
-        // official Svelte compiler.
+        // it cannot be valid CSS (no rules can be formed). Upstream has no such
+        // check: it reports wherever its recursive CSS parse first fails, so this
+        // raw-text approximation is consulted only once that parse is silent.
         //
         // Skipped only for a non-CSS `lang` block in lenient (lint) mode (see
         // the string-quote check above).
+        let mut no_rule_error = None;
         if !lenient_non_css {
             let trimmed = style_content.trim_ws();
             if !trimmed.is_empty() {
@@ -633,9 +706,19 @@ impl<'a> Parser<'a> {
                     if !trimmed.contains('{') && !trimmed.contains(';') && !trimmed.starts_with('@')
                     {
                         // Non-empty CSS content with no blocks and no at-rules - invalid
-                        let err_pos =
-                            first_line_comment.unwrap_or(content_start + style_content.len());
-                        return Err(crate::error::ParseError::svelte(
+                        // In indented Sass, upstream reads the first line as a
+                        // declaration property and stops at the first property
+                        // colon on the following line. Its point diagnostic is
+                        // immediately after that colon, rather than at </style>.
+                        // Upstream stops at whichever it reaches first, so the
+                        // earlier position wins rather than the `//`.
+                        let colon_pos =
+                            sass_stop_colon(style_content).map(|pos| content_start + pos);
+                        let err_pos = match (first_line_comment, colon_pos) {
+                            (Some(a), Some(b)) => a.min(b),
+                            (a, b) => a.or(b).unwrap_or(content_start + style_content.len()),
+                        };
+                        no_rule_error = Some(crate::error::ParseError::svelte(
                             "css_expected_identifier",
                             "Expected a valid CSS identifier",
                             (err_pos, err_pos),
@@ -678,9 +761,15 @@ impl<'a> Parser<'a> {
                         && !stripped.starts_with('@')
                     {
                         // Non-empty CSS content with no blocks and no at-rules - invalid
-                        let err_pos =
-                            first_line_comment.unwrap_or(content_start + style_content.len());
-                        return Err(crate::error::ParseError::svelte(
+                        // Upstream stops at whichever it reaches first, so the
+                        // earlier position wins rather than the `//`.
+                        let colon_pos =
+                            sass_stop_colon(style_content).map(|pos| content_start + pos);
+                        let err_pos = match (first_line_comment, colon_pos) {
+                            (Some(a), Some(b)) => a.min(b),
+                            (a, b) => a.or(b).unwrap_or(content_start + style_content.len()),
+                        };
+                        no_rule_error = Some(crate::error::ParseError::svelte(
                             "css_expected_identifier",
                             "Expected a valid CSS identifier",
                             (err_pos, err_pos),
@@ -696,6 +785,9 @@ impl<'a> Parser<'a> {
         // tokens like `$blue`) propagate to the user instead of being
         // silently dropped.
         let css_children = if self.should_defer_template_parse() {
+            if let Some(err) = no_rule_error {
+                return Err(err);
+            }
             Vec::new() // Will be resolved by ensure_css_parsed() before analysis
         } else if lenient_non_css {
             // Non-CSS `lang` block in lint mode: the body is sass/scss/stylus/…,
@@ -704,7 +796,11 @@ impl<'a> Parser<'a> {
             // children, so the surrounding template still lints normally.
             Vec::new()
         } else {
-            parse_css_strict(style_content, content_start)?
+            let children = parse_css_strict(style_content, content_start, self.content_end)?;
+            if let Some(err) = no_rule_error {
+                return Err(err);
+            }
+            children
         };
 
         // Capture the preceding HTML comment for svelte-ignore support.
@@ -751,17 +847,21 @@ struct CssParser<'a> {
     /// so that helper methods which take `&self` (because they mutate only
     /// `self.index` indirectly via sub-parsers) can still record errors.
     error: std::cell::Cell<Option<crate::error::ParseError>>,
+    /// Upstream reports every CSS EOF at `parser.template.length`, which is the
+    /// whole trimmed template rather than this style block.
+    template_end: usize,
     /// Current nested-rule depth, bounded by `MAX_NESTING_DEPTH`.
     depth: u32,
 }
 
 impl<'a> CssParser<'a> {
-    fn new(source: &'a str, offset: usize) -> Self {
+    fn new(source: &'a str, offset: usize, template_end: usize) -> Self {
         Self {
             source,
             offset,
             index: 0,
             error: std::cell::Cell::new(None),
+            template_end,
             depth: 0,
         }
     }
@@ -815,12 +915,7 @@ impl<'a> CssParser<'a> {
 
         // Read at-rule name
         let name_start = self.offset + self.index;
-        // Upstream's `read_identifier` rejects a name starting `-?\d` before reading it.
-        let leading_digit = {
-            let rest = &self.source[self.index..];
-            let rest = rest.strip_prefix('-').unwrap_or(rest);
-            rest.starts_with(|c: char| c.is_ascii_digit())
-        };
+        let leading_digit = starts_with_hyphen_or_digit(&self.source[self.index..]);
         let name = self.read_identifier();
         if leading_digit || name.is_empty() {
             record_first_error(
@@ -939,51 +1034,96 @@ impl<'a> CssParser<'a> {
         let bytes = self.source.as_bytes();
         let mut i = self.index;
 
-        let mut paren_depth = 0i32;
-        let mut bracket_depth = 0i32;
-        let mut in_string: Option<u8> = None;
+        // A custom property's value may begin with a balanced `{ ... }`
+        // block. That brace belongs to the declaration value, not to a nested
+        // selector. Commit to the declaration once the leading custom-property
+        // name and its colon have been seen; `parse_declaration` owns the full
+        // balanced-block scan.
+        if bytes.get(i..i + 2) == Some(b"--") {
+            let mut property_end = i + 2;
+            while property_end < bytes.len()
+                && !bytes[property_end].is_ascii_whitespace()
+                && !matches!(bytes[property_end], b':' | b';' | b'{' | b'}')
+            {
+                property_end += 1;
+            }
+            while property_end < bytes.len() && bytes[property_end].is_ascii_whitespace() {
+                property_end += 1;
+            }
+            if bytes.get(property_end) == Some(&b':') {
+                let mut value_start = property_end + 1;
+                while value_start < bytes.len() && bytes[value_start].is_ascii_whitespace() {
+                    value_start += 1;
+                }
+                // This parser consumes plain CSS, even when a preprocessor
+                // attribute is present. Preserve upstream's CSS parse error for
+                // an unprocessed SCSS interpolation instead of accepting its
+                // braces as a custom-property value block.
+                if bytes.get(value_start..value_start + 2) != Some(b"#{") {
+                    return false;
+                }
+            }
+        }
+
+        // Upstream's `read_value`: the only bracket it tracks is `url(`, so a
+        // `{` inside any other parenthesis or bracket still ends the value and
+        // makes the item a rule.
+        let mut in_url = false;
+        let mut quote: Option<u8> = None;
+        let mut escaped = false;
+        // The last three bytes `value` would hold, for upstream's `url(` test.
+        let mut tail = [0u8; 3];
+        let push_tail = |tail: &mut [u8; 3], b: u8| {
+            tail[0] = tail[1];
+            tail[1] = tail[2];
+            tail[2] = b;
+        };
         while i < bytes.len() {
             let b = bytes[i];
-            // CSS escape: `\<x>` — skip both bytes verbatim, no semantic effect.
-            if b == b'\\' && i + 1 < bytes.len() {
-                i += 2;
-                continue;
-            }
-            if let Some(q) = in_string {
-                if b == q {
-                    in_string = None;
-                }
+            if escaped {
+                push_tail(&mut tail, b'\\');
+                push_tail(&mut tail, b);
+                escaped = false;
                 i += 1;
                 continue;
-            }
-            if b == b'"' || b == b'\'' {
-                in_string = Some(b);
+            } else if b == b'\\' {
+                escaped = true;
                 i += 1;
                 continue;
-            }
-            // CSS block comments don't appear inside parens for declarations,
-            // but skip them defensively to avoid false-positives.
-            if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            } else if Some(b) == quote {
+                quote = None;
+            } else if b == b')' {
+                in_url = false;
+            } else if quote.is_none() && (b == b'"' || b == b'\'') {
+                quote = Some(b);
+            } else if b == b'(' && &tail == b"url" {
+                in_url = true;
+            } else if matches!(b, b';' | b'{' | b'}') && !in_url && quote.is_none() {
+                return b == b'{';
+            } else if b == b'/' && !in_url && quote.is_none() && bytes.get(i + 1) == Some(&b'*') {
                 i += 2;
                 while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                     i += 1;
                 }
                 if i + 1 < bytes.len() {
                     i += 2;
+                } else {
+                    i = bytes.len();
                 }
                 continue;
             }
-            match b {
-                b'(' => paren_depth += 1,
-                b')' => paren_depth -= 1,
-                b'[' => bracket_depth += 1,
-                b']' => bracket_depth -= 1,
-                b'{' if paren_depth == 0 && bracket_depth == 0 => return true,
-                b';' | b'}' if paren_depth == 0 && bracket_depth == 0 => return false,
-                _ => {}
-            }
+            push_tail(&mut tail, b);
             i += 1;
         }
+        // Upstream throws `unexpected_eof` from this scan instead of returning.
+        record_first_error(
+            &self.error,
+            crate::error::ParseError::svelte(
+                "unexpected_eof",
+                "Unexpected end of input",
+                (self.template_end, self.template_end),
+            ),
+        );
         false
     }
 
@@ -1474,12 +1614,14 @@ impl<'a> CssParser<'a> {
                 let rel_selector =
                     self.create_empty_relative_selector_with_combinator(comb, comb_start, comb_end);
                 result.push(rel_selector);
+                record_trailing_combinator_error(&self.error, self.source, self.offset, comb_end);
             }
         } else if let Some((comb, comb_start, comb_end)) = last_combinator {
             // Trailing combinator with no selector after it
             let rel_selector =
                 self.create_empty_relative_selector_with_combinator(comb, comb_start, comb_end);
             result.push(rel_selector);
+            record_trailing_combinator_error(&self.error, self.source, self.offset, comb_end);
         }
 
         // If no selectors were found, create one for the whole text
@@ -1799,7 +1941,16 @@ impl<'a> CssParser<'a> {
         // the value after those blocks close.
         let is_custom_property = property.starts_with("--");
         let value_start = self.index;
-        let mut paren_depth = 0;
+        // Upstream's `read_value` tracks exactly one bracket, `url(`: every other
+        // `(` is ordinary text, so a `;`/`{`/`}` inside one still ends the value.
+        let mut in_url = false;
+        // The last three bytes `value` would hold, for upstream's `url(` test.
+        let mut tail = [0u8; 3];
+        let push_tail = |tail: &mut [u8; 3], c: char| {
+            tail[0] = tail[1];
+            tail[1] = tail[2];
+            tail[2] = if c.is_ascii() { c as u8 } else { 0 };
+        };
         let mut bracket_depth = 0;
         let mut brace_depth = 0;
         let mut in_string: Option<char> = None;
@@ -1807,8 +1958,10 @@ impl<'a> CssParser<'a> {
             let c = self.current_char();
             // CSS escape: `\<x>` — consume both bytes verbatim.
             if c == '\\' {
+                push_tail(&mut tail, '\\');
                 self.advance();
                 if !self.is_eof() {
+                    push_tail(&mut tail, self.current_char());
                     self.advance();
                 }
                 continue;
@@ -1817,39 +1970,51 @@ impl<'a> CssParser<'a> {
                 if c == quote {
                     in_string = None;
                 }
+                push_tail(&mut tail, c);
                 self.advance();
                 continue;
             }
             if c == '"' || c == '\'' {
                 in_string = Some(c);
+                push_tail(&mut tail, c);
                 self.advance();
                 continue;
             }
 
-            if is_custom_property && self.match_str("/*") {
+            // A block comment is whitespace in every declaration value. If it
+            // is left to the quote scanner below, an apostrophe in prose such
+            // as `/* it's a comment */` opens a string and makes the real
+            // declaration terminator disappear.
+            if self.match_str("/*") {
                 self.skip_block_comment();
                 continue;
             }
 
             match c {
-                '(' => paren_depth += 1,
-                ')' => paren_depth -= 1,
+                '(' if &tail == b"url" => in_url = true,
+                ')' => in_url = false,
                 '[' if is_custom_property => bracket_depth += 1,
                 ']' if is_custom_property && bracket_depth > 0 => bracket_depth -= 1,
                 '{' if is_custom_property => brace_depth += 1,
+                // Upstream's `read_value` terminates at a block opener. This is
+                // observable for unprocessed SCSS interpolation: the first `#{`
+                // is mistaken for the at-rule block and the real opener then
+                // terminates the declaration value.
+                '{' if !in_url => break,
                 '}' if is_custom_property && brace_depth > 0 => brace_depth -= 1,
-                '}' if paren_depth == 0
+                '}' if !in_url
                     && (!is_custom_property || (bracket_depth == 0 && brace_depth == 0)) =>
                 {
                     break;
                 }
-                ';' if paren_depth == 0
+                ';' if !in_url
                     && (!is_custom_property || (bracket_depth == 0 && brace_depth == 0)) =>
                 {
                     break;
                 }
                 _ => {}
             }
+            push_tail(&mut tail, c);
             self.advance();
         }
         let value = self.source[value_start..self.index].trim_ws().to_string();
@@ -1867,7 +2032,28 @@ impl<'a> CssParser<'a> {
 
         // End position is before the semicolon
         let end = self.offset + self.index;
-        if self.current_char() != '}' && !self.eat_optional(";") {
+        // In an unprocessed SCSS prelude such as `@media #{a}, #{b} {}` the
+        // first interpolation brace is (necessarily) mistaken for the at-rule
+        // block. The second interpolation then reaches this declaration path
+        // as its value. Its closing `}` is not the CSS block terminator
+        // upstream commits to: upstream asks for `;` at the opening brace of
+        // `#{b}`.
+        // Preserve that error and position instead of letting the later empty
+        // block overwrite it with `css_expected_identifier`.
+        let interpolation_value = self.source[value_start..self.index]
+            .trim_start_ws()
+            .starts_with("#{");
+        if self.current_char() == '}' && interpolation_value {
+            let value_offset = value_start
+                + (self.source[value_start..self.index].len()
+                    - self.source[value_start..self.index].trim_start_ws().len());
+            record_declaration_terminator_error(
+                &self.error,
+                crate::error::ParseError::expected_token(";", self.offset + value_offset + 1),
+            );
+        } else if self.current_char() != '}' && !self.eat_optional(";") {
+            // Not the interpolation case above: upstream throws at the earlier
+            // selector error rather than reaching this declaration at all.
             record_first_error(
                 &self.error,
                 crate::error::ParseError::expected_token(";", self.offset + self.index),
@@ -2009,6 +2195,68 @@ impl<'a> CssParser<'a> {
     fn read_identifier(&mut self) -> String {
         read_css_identifier(self.source, &mut self.index)
     }
+}
+
+/// Where upstream's CSS reader gives up on a block that never opens a rule.
+///
+/// Indented Sass is read as ordinary CSS, so the whole block is one selector
+/// until a `:` is followed by something `read_identifier` refuses, and the point
+/// diagnostic sits immediately after that colon — not after the first colon in
+/// the block, which is usually a pseudo-class. A `:` inside a comment or a
+/// string is not a colon, and `::` is one pseudo-element token.
+fn sass_stop_colon(content: &str) -> Option<usize> {
+    let b = content.as_bytes();
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'/' if b.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i + 1 < b.len() && !(b[i] == b'*' && b[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(b.len());
+            }
+            quote @ (b'"' | b'\'') => {
+                i += 1;
+                while i < b.len() && b[i] != quote {
+                    i += if b[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+            }
+            b':' => {
+                let mut after = i + 1;
+                if b.get(after) == Some(&b':') {
+                    after += 1;
+                }
+                if !starts_css_identifier(content.get(after..).unwrap_or("")) {
+                    return Some(after);
+                }
+                i = after;
+            }
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+/// Can `rest` begin a name `read_identifier` accepts? A leading `-` is fine
+/// (`:-moz-…`, `--custom`) unless a digit follows it, which is the
+/// `-?\d` the reader refuses outright.
+fn starts_css_identifier(rest: &str) -> bool {
+    if starts_with_hyphen_or_digit(rest) {
+        return false;
+    }
+    rest.chars()
+        .next()
+        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '-' || c == '\\' || !c.is_ascii())
+}
+
+/// `REGEX_LEADING_HYPHEN_OR_DIGIT` — upstream's `read_identifier` refuses a name
+/// starting `-?\d` before it reads a single character of it.
+fn starts_with_hyphen_or_digit(rest: &str) -> bool {
+    rest.strip_prefix('-')
+        .unwrap_or(rest)
+        .starts_with(|c: char| c.is_ascii_digit())
 }
 
 /// Read a CSS identifier starting at `*index` in `source`, decoding escape
@@ -2355,7 +2603,7 @@ impl<'a> SelectorParser<'a> {
         self.advance(); // consume first ':'
         self.advance(); // consume second ':'
 
-        let name = self.read_identifier();
+        let name = self.read_identifier_checked()?;
 
         let args = if self.current_char() == '(' {
             let args_start = self.offset + self.index + 1;
@@ -2419,24 +2667,10 @@ impl<'a> SelectorParser<'a> {
         let start = self.offset + self.index;
         self.advance(); // consume ':'
 
-        let name_start = self.offset + self.index;
-        let name = self.read_identifier();
-        if name.is_empty() {
-            // Upstream delegates the name to `read_identifier`, which throws
-            // at the byte immediately after `:` when there is no identifier.
-            // This also matters for unprocessed indented Sass: `color: red`
-            // is first read as a descendant selector, and this is its earliest
-            // syntax error rather than the eventual end of the style block.
-            record_first_error(
-                &self.error,
-                crate::error::ParseError::svelte(
-                    "css_expected_identifier",
-                    "Expected a valid CSS identifier",
-                    (name_start, name_start),
-                ),
-            );
-            return None;
-        }
+        // The empty half also matters for unprocessed indented Sass: `color: red`
+        // is first read as a descendant selector, and this is its earliest syntax
+        // error rather than the eventual end of the style block.
+        let name = self.read_identifier_checked()?;
         // Check for arguments in parentheses
         let args = if self.current_char() == '(' {
             let args_start = self.offset + self.index + 1;
@@ -2953,18 +3187,10 @@ impl<'a> SelectorParser<'a> {
             }
         }
 
-        // Upstream reads a combinator and then requires a compound after it;
-        // hitting the argument list's `)` instead is `css_selector_invalid`.
-        if last_combinator.is_some() && text[current_start..].trim_ws().is_empty() {
-            let pos = base_offset + text.len();
-            record_first_error(
-                &self.error,
-                crate::error::ParseError::svelte(
-                    "css_selector_invalid",
-                    "Invalid selector",
-                    (pos, pos),
-                ),
-            );
+        if let Some((_, _, comb_end)) = last_combinator
+            && text[current_start..].trim_ws().is_empty()
+        {
+            record_trailing_combinator_error(&self.error, self.source, self.offset, comb_end);
         }
 
         // If no selectors were found, create one for the whole text
@@ -3028,7 +3254,7 @@ impl<'a> SelectorParser<'a> {
         let start = self.offset + self.index;
         self.advance(); // consume '.'
 
-        let name = self.read_identifier();
+        let name = self.read_identifier_checked()?;
         let end = self.offset + self.index;
 
         let mut obj = Map::new();
@@ -3047,7 +3273,7 @@ impl<'a> SelectorParser<'a> {
         let start = self.offset + self.index;
         self.advance(); // consume '#'
 
-        let name = self.read_identifier();
+        let name = self.read_identifier_checked()?;
         let end = self.offset + self.index;
 
         let mut obj = Map::new();
@@ -3068,22 +3294,8 @@ impl<'a> SelectorParser<'a> {
             self.advance();
         }
 
-        // Read attribute name (identifier)
-        let name_pos = self.offset + self.index;
-        let name = self.read_identifier();
-        if name.is_empty() {
-            // Upstream reads the name with the same `read_identifier`, which
-            // rejects an empty one — there is no namespace syntax inside `[…]`.
-            record_first_error(
-                &self.error,
-                crate::error::ParseError::svelte(
-                    "css_expected_identifier",
-                    "Expected a valid CSS identifier",
-                    (name_pos, name_pos),
-                ),
-            );
-            return None;
-        }
+        // There is no namespace syntax inside `[…]`, so the name is read straight.
+        let name = self.read_identifier_checked()?;
 
         // Skip whitespace
         while !self.is_eof() && is_js_whitespace(self.current_char()) {
@@ -3255,24 +3467,11 @@ impl<'a> SelectorParser<'a> {
     /// Read the local name after a `|` namespace separator, which upstream
     /// reads with the same `read_identifier` — so an empty one is an error.
     fn read_namespaced_local_name(&mut self) -> Option<String> {
-        let pos = self.offset + self.index;
         if self.current_char() == '*' {
             self.advance();
             return Some("*".to_string());
         }
-        let local = self.read_identifier();
-        if local.is_empty() {
-            record_first_error(
-                &self.error,
-                crate::error::ParseError::svelte(
-                    "css_expected_identifier",
-                    "Expected a valid CSS identifier",
-                    (pos, pos),
-                ),
-            );
-            return None;
-        }
-        Some(local)
+        self.read_identifier_checked()
     }
 
     fn is_eof(&self) -> bool {
@@ -3329,5 +3528,28 @@ impl<'a> SelectorParser<'a> {
     /// Read a CSS identifier, decoding CSS escape sequences.
     fn read_identifier(&mut self) -> String {
         read_css_identifier(self.source, &mut self.index)
+    }
+
+    /// Upstream reads every selector name with one `read_identifier`, which
+    /// raises `css_expected_identifier` at the name's start on both of its
+    /// rules: a leading `-?\d`, and nothing readable at all. Each `.`/`#`/`:`
+    /// /`::`/`[` site here answered that question for itself, and three of them
+    /// did not ask it — so `. { }` and `.1a { }` compiled.
+    fn read_identifier_checked(&mut self) -> Option<String> {
+        let pos = self.offset + self.index;
+        let leading = starts_with_hyphen_or_digit(&self.source[self.index..]);
+        let name = self.read_identifier();
+        if leading || name.is_empty() {
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_expected_identifier",
+                    "Expected a valid CSS identifier",
+                    (pos, pos),
+                ),
+            );
+            return None;
+        }
+        Some(name)
     }
 }

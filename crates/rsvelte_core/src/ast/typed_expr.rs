@@ -110,6 +110,69 @@ impl Serialize for LiteralValue {
     }
 }
 
+/// TypeScript accessibility, spelled as acorn-typescript spells it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TsAccessibility {
+    Private,
+    Protected,
+    Public,
+}
+
+impl TsAccessibility {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Private => "private",
+            Self::Protected => "protected",
+            Self::Public => "public",
+        }
+    }
+
+    #[must_use]
+    pub fn from_keyword(value: &str) -> Option<Self> {
+        match value {
+            "private" => Some(Self::Private),
+            "protected" => Some(Self::Protected),
+            "public" => Some(Self::Public),
+            _ => None,
+        }
+    }
+}
+
+/// Class-member modifiers, as acorn-typescript reports them: each is emitted
+/// **only where the source wrote it**, so absence and `false` are different
+/// facts and every consumer must skip rather than emit a `false`.
+///
+/// One field on the two member variants rather than seven, because a field is
+/// priced on the type: `JsNode` is one enum and every variant pays its widest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TsMemberModifiers {
+    pub r#abstract: bool,
+    pub accessor: bool,
+    pub declare: bool,
+    pub definite: bool,
+    pub optional: bool,
+    pub readonly: bool,
+    pub r#override: bool,
+    pub accessibility: Option<TsAccessibility>,
+}
+
+impl TsMemberModifiers {
+    /// The `(name, written)` pairs in the order acorn-typescript emits them.
+    #[must_use]
+    pub const fn flags(&self) -> [(&'static str, bool); 7] {
+        [
+            ("abstract", self.r#abstract),
+            ("accessor", self.accessor),
+            ("declare", self.declare),
+            ("definite", self.definite),
+            ("optional", self.optional),
+            ("readonly", self.readonly),
+            ("override", self.r#override),
+        ]
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum JsNode {
     Identifier {
@@ -313,6 +376,21 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         source: JsNodeId,
+        /// The second argument, empty when the source wrote none. Held as a
+        /// range because acorn-typescript spells it as an `arguments` list.
+        options: IdRange,
+        /// Which parser upstream ran: acorn always writes `options` (null when
+        /// absent), acorn-typescript writes `arguments` and omits it when empty.
+        ts: bool,
+    },
+    /// One entry of an `import`/`export`'s `with { … }` clause. The span runs
+    /// from the key to the end of the value, not to the clause's brace.
+    ImportAttribute {
+        start: u32,
+        end: u32,
+        loc: Option<Box<Loc>>,
+        key: JsNodeId,
+        value: JsNodeId,
     },
     AwaitExpression {
         start: u32,
@@ -616,11 +694,23 @@ pub enum JsNode {
         export_kind: Option<CompactString>,
         attributes: IdRange,
     },
+    ExportAllDeclaration {
+        start: u32,
+        end: u32,
+        loc: Option<Box<Loc>>,
+        exported: Option<JsNodeId>,
+        source: JsNodeId,
+        export_kind: Option<CompactString>,
+        attributes: IdRange,
+    },
     ExportDefaultDeclaration {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
         declaration: JsNodeId,
+        /// `Some("value")` under acorn-typescript, which stamps a kind on every
+        /// export; acorn stamps none, so this is a fact about the parser.
+        export_kind: Option<CompactString>,
     },
     ExportSpecifier {
         start: u32,
@@ -646,6 +736,7 @@ pub enum JsNode {
         kind: CompactString,
         r#static: bool,
         computed: bool,
+        modifiers: TsMemberModifiers,
     },
     PropertyDefinition {
         start: u32,
@@ -655,10 +746,11 @@ pub enum JsNode {
         value: Option<JsNodeId>,
         r#static: bool,
         computed: bool,
-        /// TS `accessor` field modifier — preserved so the TS stripper can
-        /// raise `typescript_invalid_feature` (the round-trip must be lossless;
-        /// dropping it silently accepts an unsupported feature).
-        accessor: bool,
+        /// TS member modifiers — preserved so the TS stripper can raise
+        /// `typescript_invalid_feature` on `accessor` (the round-trip must be
+        /// lossless; dropping one silently accepts an unsupported feature) and
+        /// so `parse()` reports the same field set acorn-typescript does.
+        modifiers: TsMemberModifiers,
     },
     StaticBlock {
         start: u32,
@@ -678,20 +770,28 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         type_annotation: JsNodeId,
     },
+    /// TypeScript declarations are kept as their complete ESTree object so the
+    /// public `parse()` API can expose nested TS nodes (and their comments).
+    /// Compilation removes the whole declaration before Phase 2.
     TSEnumDeclaration {
         start: u32,
         end: u32,
-        loc: Option<Box<Loc>>,
+        value: Box<Value>,
     },
-    /// Type-only declarations are kept as their complete ESTree object so the
-    /// public `parse()` API can expose nested TS nodes (and their comments).
-    /// Compilation removes the whole declaration before Phase 2.
     TSTypeAliasDeclaration {
         start: u32,
         end: u32,
         value: Box<Value>,
     },
     TSInterfaceDeclaration {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
+    /// An abstract method's bodyless `value`, retained whole for the same
+    /// reason: nothing walks into it and its shape is acorn-typescript's, not
+    /// a `FunctionExpression`'s.
+    TSDeclareMethod {
         start: u32,
         end: u32,
         value: Box<Value>,
@@ -773,6 +873,23 @@ macro_rules! ser_loc {
             $map.serialize_entry("loc", loc)?;
         }
     };
+}
+
+/// Helper: serialize the TS member modifiers that the source actually wrote.
+/// A modifier that was not written is ABSENT, not `false` — acorn-typescript
+/// emits no key at all, so emitting `false` is its own divergence.
+macro_rules! ser_member_modifiers {
+    ($map:ident, $modifiers:expr) => {{
+        let modifiers = $modifiers;
+        for (name, written) in modifiers.flags() {
+            if written {
+                $map.serialize_entry(name, &true)?;
+            }
+        }
+        if let Some(accessibility) = modifiers.accessibility {
+            $map.serialize_entry("accessibility", accessibility.as_str())?;
+        }
+    }};
 }
 
 /// Helper: serialize a `JsNodeId` field by resolving through the arena.
@@ -1344,11 +1461,30 @@ impl Serialize for JsNode {
                 ser_comments!(map, "Super", *start, *end);
                 map.end()
             }
+            Self::ImportAttribute {
+                start,
+                end,
+                loc,
+                key,
+                value,
+            } => {
+                let mut map = serializer.serialize_map(Some(5))?;
+                map.serialize_entry("type", "ImportAttribute")?;
+                map.serialize_entry("start", start)?;
+                map.serialize_entry("end", end)?;
+                ser_loc!(map, loc);
+                ser_node!(map, "key", key);
+                ser_node!(map, "value", value);
+                ser_comments!(map, "ImportAttribute", *start, *end);
+                map.end()
+            }
             Self::ImportExpression {
                 start,
                 end,
                 loc,
                 source,
+                options,
+                ts,
             } => {
                 let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "ImportExpression")?;
@@ -1356,7 +1492,17 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "source", source);
-                map.serialize_entry("options", &None::<()>)?;
+                if *ts {
+                    if !options.is_empty() {
+                        ser_children!(map, "arguments", options);
+                    }
+                } else if options.is_empty() {
+                    map.serialize_entry("options", &None::<()>)?;
+                } else {
+                    crate::ast::arena::with_current_serialize_arena(|arena| {
+                        map.serialize_entry("options", &arena.get_js_children(*options)[0])
+                    })?;
+                }
                 ser_comments!(map, "ImportExpression", *start, *end);
                 map.end()
             }
@@ -1991,7 +2137,12 @@ impl Serialize for JsNode {
                 if let Some(ik) = import_kind {
                     map.serialize_entry("importKind", ik.as_str())?;
                 }
-                ser_children!(map, "attributes", attributes);
+                // acorn always emits `attributes`; acorn-typescript emits it
+                // only where the source wrote an `assert`/`with` clause, and
+                // `importKind` is set for TypeScript programs alone.
+                if import_kind.is_none() || !attributes.is_empty() {
+                    ser_children!(map, "attributes", attributes);
+                }
                 ser_comments!(map, "ImportDeclaration", *start, *end);
                 map.end()
             }
@@ -2067,8 +2218,39 @@ impl Serialize for JsNode {
                 if let Some(ek) = export_kind {
                     map.serialize_entry("exportKind", ek.as_str())?;
                 }
-                ser_children!(map, "attributes", attributes);
+                // See `ImportDeclaration`: the field's presence is a fact about
+                // which parser upstream ran, and `exportKind` is the same fact.
+                if export_kind.is_none() || !attributes.is_empty() {
+                    ser_children!(map, "attributes", attributes);
+                }
                 ser_comments!(map, "ExportNamedDeclaration", *start, *end);
+                map.end()
+            }
+            Self::ExportAllDeclaration {
+                start,
+                end,
+                loc,
+                exported,
+                source,
+                export_kind,
+                attributes,
+            } => {
+                let mut map = serializer.serialize_map(Some(5))?;
+                map.serialize_entry("type", "ExportAllDeclaration")?;
+                map.serialize_entry("start", start)?;
+                map.serialize_entry("end", end)?;
+                ser_loc!(map, loc);
+                if let Some(ek) = export_kind {
+                    map.serialize_entry("exportKind", ek.as_str())?;
+                }
+                ser_opt_node!(map, "exported", exported);
+                ser_node!(map, "source", source);
+                // See `ImportDeclaration`: acorn always writes `attributes`,
+                // acorn-typescript only where a `with` clause exists.
+                if export_kind.is_none() || !attributes.is_empty() {
+                    ser_children!(map, "attributes", attributes);
+                }
+                ser_comments!(map, "ExportAllDeclaration", *start, *end);
                 map.end()
             }
             Self::ExportDefaultDeclaration {
@@ -2076,12 +2258,16 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 declaration,
+                export_kind,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ExportDefaultDeclaration")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
+                if let Some(ek) = export_kind {
+                    map.serialize_entry("exportKind", ek.as_str())?;
+                }
                 ser_node!(map, "declaration", declaration);
                 ser_comments!(map, "ExportDefaultDeclaration", *start, *end);
                 map.end()
@@ -2131,6 +2317,7 @@ impl Serialize for JsNode {
                 kind,
                 r#static,
                 computed,
+                modifiers,
             } => {
                 let mut map = serializer.serialize_map(Some(8))?;
                 map.serialize_entry("type", "MethodDefinition")?;
@@ -2142,6 +2329,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("kind", kind.as_str())?;
                 ser_node!(map, "key", key);
                 ser_node!(map, "value", value);
+                ser_member_modifiers!(map, modifiers);
                 ser_comments!(map, "MethodDefinition", *start, *end);
                 map.end()
             }
@@ -2153,7 +2341,7 @@ impl Serialize for JsNode {
                 value,
                 r#static,
                 computed,
-                accessor,
+                modifiers,
             } => {
                 let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "PropertyDefinition")?;
@@ -2162,7 +2350,7 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("static", r#static)?;
                 map.serialize_entry("computed", computed)?;
-                map.serialize_entry("accessor", accessor)?;
+                ser_member_modifiers!(map, modifiers);
                 ser_node!(map, "key", key);
                 ser_opt_node!(map, "value", value);
                 ser_comments!(map, "PropertyDefinition", *start, *end);
@@ -2216,17 +2404,10 @@ impl Serialize for JsNode {
                 ser_comments!(map, "TSParameterProperty", *start, *end);
                 map.end()
             }
-            Self::TSEnumDeclaration { start, end, loc } => {
-                let mut map = serializer.serialize_map(Some(3))?;
-                map.serialize_entry("type", "TSEnumDeclaration")?;
-                map.serialize_entry("start", start)?;
-                map.serialize_entry("end", end)?;
-                ser_loc!(map, loc);
-                ser_comments!(map, "TSEnumDeclaration", *start, *end);
-                map.end()
-            }
-            Self::TSTypeAliasDeclaration { value, .. }
-            | Self::TSInterfaceDeclaration { value, .. } => {
+            Self::TSEnumDeclaration { value, .. }
+            | Self::TSTypeAliasDeclaration { value, .. }
+            | Self::TSInterfaceDeclaration { value, .. }
+            | Self::TSDeclareMethod { value, .. } => {
                 opaque_ts_with_comments(value).serialize(serializer)
             }
             Self::TSModuleDeclaration {
@@ -2367,6 +2548,25 @@ fn get_bool(obj: &serde_json::Map<String, Value>, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// The round-trip through the `Value` blob is where these used to be dropped:
+/// the blob emitted them and the typed variant had nowhere to put them, so a
+/// written `readonly` survived exactly as far as `from_value`.
+fn member_modifiers_from_value(obj: &serde_json::Map<String, Value>) -> TsMemberModifiers {
+    TsMemberModifiers {
+        r#abstract: get_bool(obj, "abstract"),
+        accessor: get_bool(obj, "accessor"),
+        declare: get_bool(obj, "declare"),
+        definite: get_bool(obj, "definite"),
+        optional: get_bool(obj, "optional"),
+        readonly: get_bool(obj, "readonly"),
+        r#override: get_bool(obj, "override"),
+        accessibility: obj
+            .get("accessibility")
+            .and_then(serde_json::Value::as_str)
+            .and_then(TsAccessibility::from_keyword),
+    }
+}
+
 fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
     let loc_val = obj.get("loc")?;
     let loc_obj = loc_val.as_object()?;
@@ -2496,7 +2696,12 @@ impl JsNode {
                     .map(str::to_owned);
                 if matches!(
                     opaque_type.as_deref(),
-                    Some("TSTypeAliasDeclaration" | "TSInterfaceDeclaration")
+                    Some(
+                        "TSTypeAliasDeclaration"
+                            | "TSInterfaceDeclaration"
+                            | "TSDeclareMethod"
+                            | "TSEnumDeclaration"
+                    )
                 ) {
                     let start = owned_obj
                         .get("start")
@@ -2506,18 +2711,14 @@ impl JsNode {
                         .get("end")
                         .and_then(Value::as_u64)
                         .unwrap_or_default() as u32;
-                    return if opaque_type.as_deref() == Some("TSTypeAliasDeclaration") {
-                        Self::TSTypeAliasDeclaration {
-                            start,
-                            end,
-                            value: Box::new(Value::Object(owned_obj)),
+                    let value = Box::new(Value::Object(owned_obj));
+                    return match opaque_type.as_deref() {
+                        Some("TSTypeAliasDeclaration") => {
+                            Self::TSTypeAliasDeclaration { start, end, value }
                         }
-                    } else {
-                        Self::TSInterfaceDeclaration {
-                            start,
-                            end,
-                            value: Box::new(Value::Object(owned_obj)),
-                        }
+                        Some("TSDeclareMethod") => Self::TSDeclareMethod { start, end, value },
+                        Some("TSEnumDeclaration") => Self::TSEnumDeclaration { start, end, value },
+                        _ => Self::TSInterfaceDeclaration { start, end, value },
                     };
                 }
 
@@ -2751,12 +2952,37 @@ impl JsNode {
                     }
                     "ThisExpression" => Self::ThisExpression { start, end, loc },
                     "Super" => Self::Super { start, end, loc },
-                    "ImportExpression" => Self::ImportExpression {
+                    "ImportAttribute" => Self::ImportAttribute {
                         start,
                         end,
                         loc,
-                        source: convert_child(obj, "source"),
+                        key: convert_child(obj, "key"),
+                        value: convert_child(obj, "value"),
                     },
+                    "ImportExpression" => {
+                        // acorn-typescript spells the second argument as an
+                        // `arguments` list and omits the key when there is
+                        // none; acorn always writes `options`, null when absent.
+                        let ts = !obj.contains_key("options");
+                        let options = if obj.contains_key("arguments") {
+                            convert_array(obj, "arguments")
+                        } else {
+                            match obj.remove("options") {
+                                Some(v @ Value::Object(_)) => {
+                                    deser_alloc_children(vec![JsNode::from_value(v)])
+                                }
+                                _ => IdRange::empty(),
+                            }
+                        };
+                        Self::ImportExpression {
+                            start,
+                            end,
+                            loc,
+                            source: convert_child(obj, "source"),
+                            options,
+                            ts,
+                        }
+                    }
                     "AwaitExpression" => Self::AwaitExpression {
                         start,
                         end,
@@ -3055,11 +3281,27 @@ impl JsNode {
                             .map(std::convert::Into::into),
                         attributes: convert_array(obj, "attributes"),
                     },
+                    "ExportAllDeclaration" => Self::ExportAllDeclaration {
+                        start,
+                        end,
+                        loc,
+                        exported: convert_optional_child(obj, "exported"),
+                        source: convert_child(obj, "source"),
+                        export_kind: obj
+                            .get("exportKind")
+                            .and_then(|v| v.as_str())
+                            .map(std::convert::Into::into),
+                        attributes: convert_array(obj, "attributes"),
+                    },
                     "ExportDefaultDeclaration" => Self::ExportDefaultDeclaration {
                         start,
                         end,
                         loc,
                         declaration: convert_child(obj, "declaration"),
+                        export_kind: obj
+                            .get("exportKind")
+                            .and_then(|v| v.as_str())
+                            .map(std::convert::Into::into),
                     },
                     "ExportSpecifier" => Self::ExportSpecifier {
                         start,
@@ -3087,6 +3329,7 @@ impl JsNode {
                         kind: get_str(obj, "kind"),
                         r#static: get_bool(obj, "static"),
                         computed: get_bool(obj, "computed"),
+                        modifiers: member_modifiers_from_value(obj),
                     },
                     "PropertyDefinition" => Self::PropertyDefinition {
                         start,
@@ -3096,7 +3339,7 @@ impl JsNode {
                         value: convert_optional_child(obj, "value"),
                         r#static: get_bool(obj, "static"),
                         computed: get_bool(obj, "computed"),
-                        accessor: get_bool(obj, "accessor"),
+                        modifiers: member_modifiers_from_value(obj),
                     },
                     "StaticBlock" => Self::StaticBlock {
                         start,
@@ -3112,7 +3355,6 @@ impl JsNode {
                         type_annotation: convert_child(obj, "typeAnnotation"),
                     },
                     "TSParameterProperty" => Self::TSParameterProperty { start, end, loc },
-                    "TSEnumDeclaration" => Self::TSEnumDeclaration { start, end, loc },
                     "TSModuleDeclaration" => Self::TSModuleDeclaration {
                         start,
                         end,
@@ -3209,6 +3451,7 @@ impl JsNode {
             Self::TemplateElement { .. } => Some("TemplateElement"),
             Self::ThisExpression { .. } => Some("ThisExpression"),
             Self::Super { .. } => Some("Super"),
+            Self::ImportAttribute { .. } => Some("ImportAttribute"),
             Self::ImportExpression { .. } => Some("ImportExpression"),
             Self::AwaitExpression { .. } => Some("AwaitExpression"),
             Self::YieldExpression { .. } => Some("YieldExpression"),
@@ -3249,6 +3492,7 @@ impl JsNode {
             Self::ImportDefaultSpecifier { .. } => Some("ImportDefaultSpecifier"),
             Self::ImportNamespaceSpecifier { .. } => Some("ImportNamespaceSpecifier"),
             Self::ExportNamedDeclaration { .. } => Some("ExportNamedDeclaration"),
+            Self::ExportAllDeclaration { .. } => Some("ExportAllDeclaration"),
             Self::ExportDefaultDeclaration { .. } => Some("ExportDefaultDeclaration"),
             Self::ExportSpecifier { .. } => Some("ExportSpecifier"),
             Self::ClassBody { .. } => Some("ClassBody"),
@@ -3260,6 +3504,7 @@ impl JsNode {
             Self::TSParameterProperty { .. } => Some("TSParameterProperty"),
             Self::TSEnumDeclaration { .. } => Some("TSEnumDeclaration"),
             Self::TSTypeAliasDeclaration { .. } => Some("TSTypeAliasDeclaration"),
+            Self::TSDeclareMethod { .. } => Some("TSDeclareMethod"),
             Self::TSInterfaceDeclaration { .. } => Some("TSInterfaceDeclaration"),
             Self::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
             Self::TSAsExpression { .. } => Some("TSAsExpression"),
@@ -3932,6 +4177,7 @@ impl JsNode {
             | Self::TemplateElement { start, .. }
             | Self::ThisExpression { start, .. }
             | Self::Super { start, .. }
+            | Self::ImportAttribute { start, .. }
             | Self::ImportExpression { start, .. }
             | Self::AwaitExpression { start, .. }
             | Self::YieldExpression { start, .. }
@@ -3972,6 +4218,7 @@ impl JsNode {
             | Self::ImportDefaultSpecifier { start, .. }
             | Self::ImportNamespaceSpecifier { start, .. }
             | Self::ExportNamedDeclaration { start, .. }
+            | Self::ExportAllDeclaration { start, .. }
             | Self::ExportDefaultDeclaration { start, .. }
             | Self::ExportSpecifier { start, .. }
             | Self::ClassBody { start, .. }
@@ -3983,6 +4230,7 @@ impl JsNode {
             | Self::TSParameterProperty { start, .. }
             | Self::TSEnumDeclaration { start, .. }
             | Self::TSTypeAliasDeclaration { start, .. }
+            | Self::TSDeclareMethod { start, .. }
             | Self::TSInterfaceDeclaration { start, .. }
             | Self::TSModuleDeclaration { start, .. }
             | Self::TSAsExpression { start, .. }
@@ -4020,6 +4268,7 @@ impl JsNode {
             | Self::TemplateElement { end, .. }
             | Self::ThisExpression { end, .. }
             | Self::Super { end, .. }
+            | Self::ImportAttribute { end, .. }
             | Self::ImportExpression { end, .. }
             | Self::AwaitExpression { end, .. }
             | Self::YieldExpression { end, .. }
@@ -4060,6 +4309,7 @@ impl JsNode {
             | Self::ImportDefaultSpecifier { end, .. }
             | Self::ImportNamespaceSpecifier { end, .. }
             | Self::ExportNamedDeclaration { end, .. }
+            | Self::ExportAllDeclaration { end, .. }
             | Self::ExportDefaultDeclaration { end, .. }
             | Self::ExportSpecifier { end, .. }
             | Self::ClassBody { end, .. }
@@ -4071,6 +4321,7 @@ impl JsNode {
             | Self::TSParameterProperty { end, .. }
             | Self::TSEnumDeclaration { end, .. }
             | Self::TSTypeAliasDeclaration { end, .. }
+            | Self::TSDeclareMethod { end, .. }
             | Self::TSInterfaceDeclaration { end, .. }
             | Self::TSModuleDeclaration { end, .. }
             | Self::TSAsExpression { end, .. }
@@ -4111,6 +4362,7 @@ impl JsNode {
             Self::TemplateElement { .. } => "TemplateElement",
             Self::ThisExpression { .. } => "ThisExpression",
             Self::Super { .. } => "Super",
+            Self::ImportAttribute { .. } => "ImportAttribute",
             Self::ImportExpression { .. } => "ImportExpression",
             Self::AwaitExpression { .. } => "AwaitExpression",
             Self::YieldExpression { .. } => "YieldExpression",
@@ -4151,6 +4403,7 @@ impl JsNode {
             Self::ImportDefaultSpecifier { .. } => "ImportDefaultSpecifier",
             Self::ImportNamespaceSpecifier { .. } => "ImportNamespaceSpecifier",
             Self::ExportNamedDeclaration { .. } => "ExportNamedDeclaration",
+            Self::ExportAllDeclaration { .. } => "ExportAllDeclaration",
             Self::ExportDefaultDeclaration { .. } => "ExportDefaultDeclaration",
             Self::ExportSpecifier { .. } => "ExportSpecifier",
             Self::ClassBody { .. } => "ClassBody",
@@ -4162,6 +4415,7 @@ impl JsNode {
             Self::TSParameterProperty { .. } => "TSParameterProperty",
             Self::TSEnumDeclaration { .. } => "TSEnumDeclaration",
             Self::TSTypeAliasDeclaration { .. } => "TSTypeAliasDeclaration",
+            Self::TSDeclareMethod { .. } => "TSDeclareMethod",
             Self::TSInterfaceDeclaration { .. } => "TSInterfaceDeclaration",
             Self::TSModuleDeclaration { .. } => "TSModuleDeclaration",
             Self::TSAsExpression { .. } => "TSAsExpression",

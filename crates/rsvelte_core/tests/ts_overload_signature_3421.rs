@@ -1,5 +1,5 @@
 //! Pins the deliberate divergence recorded in
-//! `compatibility/deliberate-divergences.md`: a bodiless class member — a
+//! `compatibility/GATES.md#deliberate-divergences`: a bodiless class member — a
 //! TypeScript overload signature — is erased, the way an `abstract` method
 //! already is.
 //!

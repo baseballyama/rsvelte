@@ -482,6 +482,15 @@ impl<'a> Parser<'a> {
             }
 
             if let Some(node) = self.parse_node()? {
+                // Upstream's backward scan for a `<script>`/`<style>`'s leading
+                // comment stops at the first sibling that is neither a Comment
+                // nor whitespace-only Text (`1-parse/state/element.js:334-339`),
+                // so anything else ends the run of candidates.
+                if !matches!(&node, TemplateNode::Comment(_))
+                    && !matches!(&node, TemplateNode::Text(text) if text.data.trim().is_empty())
+                {
+                    self.pending_leading_comments.clear();
+                }
                 nodes.push(node);
             }
         }

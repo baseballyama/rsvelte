@@ -5,7 +5,11 @@
 //! [`grass`](https://docs.rs/grass) compiler, which targets dart-sass
 //! compatibility.
 
-use std::path::PathBuf;
+use std::{
+    any::Any,
+    panic::{AssertUnwindSafe, catch_unwind},
+    path::PathBuf,
+};
 
 use rsvelte_core::compiler::preprocess::types::{
     AttributeValue, PreprocessAttributeMap as Map, PreprocessError, PreprocessorFn,
@@ -14,6 +18,90 @@ use rsvelte_core::compiler::preprocess::types::{
 
 use crate::filter::{FilterOptions, matches};
 use crate::sass_fs::RecordingFs;
+
+/// Dart Sass treats an indentation prefix shared by every line as the
+/// document's base indentation — the usual shape of a `<style lang="sass">`
+/// block inside a Svelte file — while grass's indented parser asserts the
+/// top-level indentation is zero and aborts. Remove only the shared prefix,
+/// preserving all relative indentation.
+///
+/// The leading blank line is required, not incidental: dart Sass rejects a
+/// document whose very first line is indented (`Indenting at the beginning of
+/// the document is illegal`), and so does grass, so normalizing that shape
+/// would make rsvelte accept what dart Sass refuses.
+pub(crate) fn remove_indented_base(source: &str) -> String {
+    if !source
+        .lines()
+        .next()
+        .is_some_and(|line| line.trim().is_empty())
+    {
+        return source.to_string();
+    }
+    let common = source
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.len() - line.trim_start_matches([' ', '\t']).len())
+        .min()
+        .unwrap_or(0);
+    if common == 0 {
+        return source.to_string();
+    }
+
+    let mut output = String::with_capacity(source.len());
+    let mut saw_content = false;
+    for chunk in source.split_inclusive('\n') {
+        let (line, newline) = chunk
+            .strip_suffix('\n')
+            .map_or((chunk, ""), |line| (line, "\n"));
+        if !saw_content && line.trim().is_empty() {
+            continue;
+        }
+        saw_content = true;
+        if line.trim().is_empty() {
+            output.push_str(line);
+        } else {
+            output.push_str(&line[common..]);
+        }
+        output.push_str(newline);
+    }
+    output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remove_indented_base;
+
+    #[test]
+    fn indented_base_removes_leading_blank_lines_before_tab_indentation() {
+        assert_eq!(
+            remove_indented_base("\n\t.card\n\t\tdisplay: block\n"),
+            ".card\n\tdisplay: block\n"
+        );
+    }
+
+    #[test]
+    fn indented_base_leaves_a_document_that_starts_indented_alone() {
+        // Dart Sass rejects this shape; dedenting it would make rsvelte accept it.
+        let source = "\t.card\n\t\tdisplay: block\n";
+        assert_eq!(remove_indented_base(source), source);
+    }
+
+    #[test]
+    fn indented_base_leaves_unindented_documents_unchanged() {
+        let source = "\n.card\n  display: block\n";
+        assert_eq!(remove_indented_base(source), source);
+    }
+}
+
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
 
 /// Options forwarded to the Sass compiler (subset of the dart-sass options
 /// object the JS package accepts).
@@ -86,7 +174,21 @@ pub fn preprocess_sass(
         options = options.load_path(path);
     }
 
-    let mut css = grass::from_string(content.to_string(), &options).map_err(|e| e.to_string())?;
+    // The base indentation has to be removed BEFORE grass sees the document:
+    // grass aborts on that shape, and `catch_unwind` is void under the
+    // `panic = "abort"` release profile every shipped binary but the three with
+    // an explicit `panic = "unwind"` override is built with.
+    let source = if indented {
+        remove_indented_base(content)
+    } else {
+        content.to_string()
+    };
+    let compile =
+        |source: String| catch_unwind(AssertUnwindSafe(|| grass::from_string(source, &options)));
+    let mut css = match compile(source) {
+        Ok(result) => result.map_err(|error| error.to_string())?,
+        Err(payload) => return Err(format!("grass panicked: {}", panic_message(payload))),
+    };
 
     // dart-sass's legacy `render` (which the JS package wraps) emits expanded CSS
     // without a trailing newline; `grass` appends one, so drop it to match.

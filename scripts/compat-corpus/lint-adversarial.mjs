@@ -12,7 +12,7 @@
  *     corpus merely counts and skips it;
  *   - the ratchet (`compatibility/lint-adversarial-known-failures.json`)
  *     is expected to stay empty — an entry needs a documented reason in
- *     compatibility/lint-adversarial-known-failures.md (oracle-side bug or
+ *     compatibility/KNOWN-FAILURES.md#lint-adversarial-known-failures (oracle-side bug or
  *     capability gap), never "we diverge here".
  *
  * Usage:

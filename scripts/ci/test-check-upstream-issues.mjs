@@ -27,13 +27,19 @@ function corpus(files, index) {
   return dir;
 }
 
-function table(rows) {
+function table(rows, claim) {
+  // The index states, in prose, how many rows carry `\u2014` in the issue
+  // column; the guard holds that number to the table. Derive it here so every
+  // scenario below is about the rule it names, and pass `claim` to break it.
+  const unnumbered = rows.filter((row) => /\|\s*\u2014\s*\|/.test(row)).length;
   return [
     '# Upstream defect reports',
     '',
     '| file | upstream project | rsvelte issue | filed |',
     '|---|---|---|---|',
     ...rows,
+    '',
+    claim === null ? 'Some reports carry no rsvelte issue number.' : `**${claim ?? unnumbered}** reports carry no rsvelte issue number.`,
     '',
   ].join('\n');
 }
@@ -61,6 +67,26 @@ const dirty = (needle) => (r, l) =>
   ok(`${l} (got ${JSON.stringify(r.problems)})`, r.problems.some((p) => p.includes(needle)));
 
 scenario('a correct index passes', FILES, GOOD, clean);
+
+// The count in prose is the one field nothing else here would notice going
+// stale — it already had, reading "Fifteen" against 19 rows.
+const UNNUMBERED_ROWS = [
+  '| `3001-svelte-a.md` | sveltejs/svelte | \u2014 | unrecorded |',
+  '| `3002-oxc-b.md` | oxc-project/oxc | #3002 | unrecorded |',
+];
+scenario('an accurate unnumbered count passes', FILES, table(UNNUMBERED_ROWS), clean);
+scenario(
+  'a stale unnumbered count is reported',
+  FILES,
+  table(UNNUMBERED_ROWS, 5),
+  dirty('but 1 rows carry'),
+);
+scenario(
+  'a missing unnumbered count is reported',
+  FILES,
+  table(UNNUMBERED_ROWS, null),
+  dirty('no longer states how many rows carry'),
+);
 
 scenario(
   'a file with no row is reported',

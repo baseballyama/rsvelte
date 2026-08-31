@@ -227,12 +227,41 @@ pub(super) fn find_matching_close_paren(s: &str) -> Option<usize> {
 ///
 /// String literals, template literals and their `${…}` interpolations are
 /// tracked so a `$:` or `//` inside one is not mistaken for code.
-pub(super) fn rehome_reactive_statement_comments(source: &str) -> String {
-    let reactive_spans = reactive_statement_spans(source);
+pub(super) fn rehome_reactive_statement_comments(
+    source: &str,
+    liveness: Option<&super::dead_comments::CursorLiveness>,
+) -> String {
+    let mut reactive_spans = reactive_statement_spans(source);
+    // The copy only lands if the cursor is still alive where the successor is
+    // printed; an unlocated thunk earlier in the script kills it, and upstream
+    // then flushes nothing there.
+    if let Some(liveness) = liveness {
+        for span in &mut reactive_spans {
+            if span.has_successor && !liveness.alive_at(span.end as u32) {
+                span.has_successor = false;
+                span.rehome = false;
+            }
+        }
+    }
     if reactive_spans.is_empty() {
         return source.to_string();
     }
     relocate_comments_in_spans(source, &reactive_spans)
+}
+
+/// Whether the comment run past the last `$:` statement outlives the rebuilt
+/// effect. Upstream appends every effect after the rest of the instance body,
+/// so such a comment is printed *after* them — and only a source-located block
+/// nested in the effect body revives the cursor that reaches it.
+pub(super) fn reactive_tail_comment_outlives_effects(source: &str) -> bool {
+    let spans = reactive_statement_spans(source);
+    let Some(last) = spans.last() else {
+        return false;
+    };
+    !last.has_successor
+        && last.end < source.len()
+        && (source[last.end..].contains("//") || source[last.end..].contains("/*"))
+        && !nested_block_ranges(source, last.label, last.end).is_empty()
 }
 
 /// A top-level `$:` statement, with the byte ranges the rewrite needs.
@@ -245,6 +274,9 @@ struct ReactiveSpan {
     end: usize,
     /// Whether a statement that survives into the output follows.
     has_successor: bool,
+    /// Whether the copy is actually printed there — false when the cursor is
+    /// already dead at that point.
+    rehome: bool,
 }
 
 impl ReactiveSpan {
@@ -346,6 +378,7 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
             label,
             end,
             has_successor: after_last_surviving_code > end,
+            rehome: after_last_surviving_code > end,
         })
         .collect();
     // The `$.legacy_pre_effect(…, () => { … })` upstream builds for the last
@@ -422,8 +455,12 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
         match c {
             b'(' | b'[' => scan.depth += 1,
             b'{' => {
+                // Only a brace at the statement's own depth opens its block; one
+                // nested inside is an object literal or an arrow body, and
+                // treating it as the statement's block both disables the ASI exit
+                // below and ends the statement at an unrelated `}` later on.
+                opened_block |= scan.depth == base_depth;
                 scan.depth += 1;
-                opened_block = true;
             }
             b')' | b']' => scan.depth = scan.depth.saturating_sub(1),
             b'}' => {
@@ -634,9 +671,6 @@ fn relocate_comments_in_spans(source: &str, spans: &[ReactiveSpan]) -> String {
             continue;
         }
         let text = &source[comment_start..i];
-        if memmem::find(text.as_bytes(), b"svelte-ignore").is_some() {
-            continue;
-        }
         let Some(index) = spans.iter().position(|span| {
             let (start, end) = span.comment_range();
             comment_start >= start && comment_start < end
@@ -644,7 +678,14 @@ fn relocate_comments_in_spans(source: &str, spans: &[ReactiveSpan]) -> String {
             continue;
         };
         let span = &spans[index];
-        if span.has_successor {
+        // A `svelte-ignore` LEADING the statement stays put — the later text
+        // passes find it by scanning backwards from the node it annotates. One
+        // written inside the statement annotates nothing there and is ordinary
+        // trivia, so leaving it behind loses it with the rebuilt label.
+        if comment_start < span.label && memmem::find(text.as_bytes(), b"svelte-ignore").is_some() {
+            continue;
+        }
+        if span.rehome {
             rehomed[index].push(text);
         }
         let blocks =
@@ -1070,6 +1111,15 @@ fn detect_base_indent(code: &str) -> usize {
     min_indent.unwrap_or(0)
 }
 
+/// The leading whitespace of `text`'s first non-blank line — the indentation
+/// `str::trim` is about to remove, which upstream still sees when it dedents a
+/// block comment by its opener line.
+pub(crate) fn leading_indent(text: &str) -> &str {
+    text.lines()
+        .find(|line| !line.trim().is_empty())
+        .map_or("", |line| &line[..line.len() - line.trim_start().len()])
+}
+
 /// Strip `base_indent` characters from the start of a line.
 fn strip_indent(line: &str, base_indent: usize) -> &str {
     if base_indent == 0 || line.len() <= base_indent {
@@ -1146,6 +1196,11 @@ fn restore_pre_effect_thunk_parens<'a>(
 /// The output uses single quotes, tab indentation, and strips comments
 /// (matching esrap/Svelte compiler behavior).
 pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
+    normalize_js_with_oxc_lead(js, indent_level, "")
+}
+
+/// `lead` is the indentation the caller trimmed off `js`'s first line.
+pub(crate) fn normalize_js_with_oxc_lead(js: &str, indent_level: usize, lead: &str) -> String {
     // Fast path: skip OXC parse+codegen for scripts without JSDoc or await.
     // JSDoc comments need OXC to fix indentation (tab+space before *).
     // await scripts go through async_body transform which needs OXC formatting.
@@ -1226,11 +1281,18 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // esrap's preserved quote style.
     const DOUBLE_SEMI_PLACEHOLDER: &str = "void '$$DOUBLE_SEMI$$';void '$$DOUBLE_SEMI$$'";
     let has_double_semi = memmem::find(js.as_bytes(), b";;").is_some();
-    let protected = if has_double_semi {
+    let mut protected = if has_double_semi {
         js.replace(";;", DOUBLE_SEMI_PLACEHOLDER)
     } else {
         js.to_string()
     };
+    // Upstream dedents a multi-line block comment by its opener line's
+    // indentation; the script slice arrives here with the FIRST line's
+    // indentation already trimmed, so a leading `/**` would dedent by nothing
+    // and its continuation lines would keep the source indent on top of ours.
+    if protected.starts_with("/*") && !lead.is_empty() {
+        protected.insert_str(0, lead);
+    }
 
     // Use thread-local allocator to avoid repeated allocation overhead
     let code = with_normalize_allocator(|allocator| {
@@ -1271,6 +1333,13 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // preserve its original indentation exactly as-is.
     let mut result_lines = Vec::new();
     let indent_str: String = "\t".repeat(indent_level);
+    // A block comment opening on line 0 gets no indent on its opener line, so
+    // the final print cannot dedent one back off its continuation lines; leave
+    // them bare and let that print supply the indent once.
+    let leading_comment_last_line = code
+        .starts_with("/*")
+        .then(|| code.find("*/").map(|end| code[..end].matches('\n').count()))
+        .flatten();
     // Use a persistent stack so we correctly preserve state across lines,
     // including inside nested template literals (e.g. `${`...`}`). A simple
     // `bool` cannot represent whether we are in a nested Template vs an
@@ -1284,7 +1353,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
             result_lines.push(line.to_string());
         } else if line.is_empty() {
             result_lines.push(String::new());
-        } else if in_template_at_start {
+        } else if in_template_at_start || leading_comment_last_line.is_some_and(|last| i <= last) {
             // Inside a template literal - preserve content exactly as-is
             update_template_literal_stack(line, &mut stack);
             result_lines.push(line.to_string());
@@ -1563,9 +1632,15 @@ pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
 mod reactive_comment_tests {
     use super::rehome_reactive_statement_comments;
 
+    /// The liveness gate belongs to the caller; these rows exercise the
+    /// relocation itself.
+    fn rehome(source: &str) -> String {
+        rehome_reactive_statement_comments(source, None)
+    }
+
     #[track_caller]
     fn assert_kept(source: &str) {
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     #[test]
@@ -1582,7 +1657,7 @@ mod reactive_comment_tests {
     fn drops_an_exotic_line_comment_before_the_last_reactive_statement() {
         for terminator in ["\r", "\u{2028}", "\u{2029}"] {
             let source = format!("let x = 1; // gone{terminator}$: y = x;{terminator}");
-            let out = rehome_reactive_statement_comments(&source);
+            let out = rehome(&source);
             assert!(
                 !out.contains("// gone"),
                 "terminator {terminator:?}: {out:?}"
@@ -1602,17 +1677,13 @@ mod reactive_comment_tests {
         assert_kept("let x = 1; // kept\r\n$: y = x;\r\n");
         for terminator in ["\r", "\u{2028}", "\u{2029}"] {
             let source = format!("let x = 1; // kept{terminator}$: y = x;{terminator}let z = 2;");
-            assert_eq!(
-                rehome_reactive_statement_comments(&source),
-                source,
-                "terminator {terminator:?}"
-            );
+            assert_eq!(rehome(&source), source, "terminator {terminator:?}");
         }
     }
 
     #[test]
     fn drops_the_comments_leading_a_last_reactive_statement() {
-        let out = rehome_reactive_statement_comments("let x = 1;\n// note\n$: y = x;\n");
+        let out = rehome("let x = 1;\n// note\n$: y = x;\n");
         assert_eq!(out, "let x = 1;\n\n$: y = x;\n");
     }
 
@@ -1625,20 +1696,20 @@ mod reactive_comment_tests {
 
     #[test]
     fn drops_comments_inside_a_reactive_block() {
-        let out = rehome_reactive_statement_comments("$: {\n\t// inner\n\ty = 1;\n}\n");
+        let out = rehome("$: {\n\t// inner\n\ty = 1;\n}\n");
         assert_eq!(out, "$: {\n\t\n\ty = 1;\n}\n");
     }
 
     #[test]
     fn drops_comments_after_a_semicolon_less_predecessor() {
-        let out = rehome_reactive_statement_comments("let y\n$: {\n\t// inner\n\ty = 1;\n}\n");
+        let out = rehome("let y\n$: {\n\t// inner\n\ty = 1;\n}\n");
         assert_eq!(out, "let y\n$: {\n\t\n\ty = 1;\n}\n");
     }
 
     #[test]
     fn a_conditional_consequent_is_not_a_reactive_statement() {
         let source = "let y = c ?\n/* keep */\n$: 1;\n";
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     /// The ASI accept side, on the other token classes that can end an
@@ -1648,11 +1719,7 @@ mod reactive_comment_tests {
         for predecessor in ["f()", "xs[0]", "y", "1", "_x", "$x", "'s'", "`t`"] {
             let source = format!("{predecessor}\n$: {{\n\t// inner\n\ty = 1;\n}}\n");
             let expected = format!("{predecessor}\n$: {{\n\t\n\ty = 1;\n}}\n");
-            assert_eq!(
-                rehome_reactive_statement_comments(&source),
-                expected,
-                "predecessor: {predecessor}"
-            );
+            assert_eq!(rehome(&source), expected, "predecessor: {predecessor}");
         }
     }
 
@@ -1662,11 +1729,7 @@ mod reactive_comment_tests {
     fn an_operator_does_not_open_a_statement() {
         for predecessor in ["let y = c ?", "let y = a +", "let y =", "let y = a,"] {
             let source = format!("{predecessor}\n/* keep */\n$: 1;\n");
-            assert_eq!(
-                rehome_reactive_statement_comments(&source),
-                source,
-                "predecessor: {predecessor}"
-            );
+            assert_eq!(rehome(&source), source, "predecessor: {predecessor}");
         }
     }
 
@@ -1675,7 +1738,7 @@ mod reactive_comment_tests {
     #[test]
     fn a_same_line_predecessor_does_not_open_a_statement() {
         let source = "let y = a $: /* keep */ 1;\n";
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     /// `$` is an ordinary object key, and `,` sits at bracket depth — upstream
@@ -1683,16 +1746,14 @@ mod reactive_comment_tests {
     #[test]
     fn an_object_literal_key_is_not_a_reactive_statement() {
         let source = "let o = {\n\ta: 1,\n\t/* keep */\n\t$: 2\n};\n";
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     /// The `if`'s consequent keeps its source span, so upstream's cursor rewinds
     /// into it after re-homing the comment and prints it a second time.
     #[test]
     fn rehomes_and_keeps_a_comment_inside_a_reactive_if_block() {
-        let out = rehome_reactive_statement_comments(
-            "$: if (a) {\n\t/* inner */\n\tb = 1;\n}\nlet z = 1; // kept\n",
-        );
+        let out = rehome("$: if (a) {\n\t/* inner */\n\tb = 1;\n}\nlet z = 1; // kept\n");
         assert_eq!(
             out,
             "$: if (a) {\n\t/* inner */\n\tb = 1;\n}\n/* inner */\nlet z = 1; // kept\n"
@@ -1703,8 +1764,7 @@ mod reactive_comment_tests {
     /// comment sitting directly in it only reaches the successor.
     #[test]
     fn moves_a_comment_out_of_the_reactive_block_itself() {
-        let out =
-            rehome_reactive_statement_comments("$: {\n\t/* inner */\n\ty = 1;\n}\nlet z = 1;\n");
+        let out = rehome("$: {\n\t/* inner */\n\ty = 1;\n}\nlet z = 1;\n");
         assert_eq!(out, "$: {\n\t\n\ty = 1;\n}\n/* inner */\nlet z = 1;\n");
     }
 
@@ -1712,9 +1772,7 @@ mod reactive_comment_tests {
     /// comment survive in place.
     #[test]
     fn an_object_literal_brace_does_not_keep_a_comment_in_place() {
-        let out = rehome_reactive_statement_comments(
-            "$: {\n\ty = {\n\t\t/* inner */\n\t\ta: 1\n\t};\n}\nlet z = 1;\n",
-        );
+        let out = rehome("$: {\n\ty = {\n\t\t/* inner */\n\t\ta: 1\n\t};\n}\nlet z = 1;\n");
         assert_eq!(
             out,
             "$: {\n\ty = {\n\t\t\n\t\ta: 1\n\t};\n}\n/* inner */\nlet z = 1;\n"
@@ -1726,7 +1784,7 @@ mod reactive_comment_tests {
     #[test]
     fn keeps_a_nested_block_comment_with_no_successor() {
         let source = "$: if (a) {\n\t/* inner */\n\tb = 1;\n}\n";
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     /// The located `if` consequent revives esrap's cursor after the synthesized
@@ -1734,14 +1792,12 @@ mod reactive_comment_tests {
     #[test]
     fn keeps_a_tail_comment_after_a_nested_reactive_block() {
         let source = "$: if (a) {\n\tb = 1;\n}\n/* tail */\n";
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     #[test]
     fn rehomes_every_comment_in_source_order() {
-        let out = rehome_reactive_statement_comments(
-            "$: {\n\t/* one */\n\ty = 1;\n\t/* two */\n}\nlet z = 1;\n",
-        );
+        let out = rehome("$: {\n\t/* one */\n\ty = 1;\n\t/* two */\n}\nlet z = 1;\n");
         assert_eq!(
             out,
             "$: {\n\t\n\ty = 1;\n\t\n}\n/* one */\n/* two */\nlet z = 1;\n"
@@ -1750,7 +1806,7 @@ mod reactive_comment_tests {
 
     #[test]
     fn a_reactive_statement_without_a_semicolon_ends_at_the_line() {
-        let out = rehome_reactive_statement_comments("$: y = x\n// after, kept\nlet z = 1;\n");
+        let out = rehome("$: y = x\n// after, kept\nlet z = 1;\n");
         assert_eq!(out, "$: y = x\n// after, kept\nlet z = 1;\n");
     }
 
@@ -1777,7 +1833,7 @@ mod reactive_comment_tests {
     #[test]
     fn line_structure_survives_so_later_offset_passes_stay_aligned() {
         let source = "let x = 1;\n/* multi\n   line */\n$: y = x;\n";
-        let out = rehome_reactive_statement_comments(source);
+        let out = rehome(source);
         assert_eq!(out.lines().count(), source.lines().count());
     }
 }
@@ -1786,31 +1842,35 @@ mod reactive_comment_tests {
 mod reactive_trailing_comment_tests {
     use super::rehome_reactive_statement_comments;
 
+    /// The liveness gate belongs to the caller; these rows exercise the
+    /// relocation itself.
+    fn rehome(source: &str) -> String {
+        rehome_reactive_statement_comments(source, None)
+    }
+
     #[test]
     fn rehomes_a_comment_trailing_the_reactive_statement_itself() {
         // Left in place it lands inside the generated `legacy_pre_effect` call
         // and the output stops being parseable.
-        let out =
-            rehome_reactive_statement_comments("$: double = count * 2; // this too\nlet x = 1;\n");
+        let out = rehome("$: double = count * 2; // this too\nlet x = 1;\n");
         assert_eq!(out, "$: double = count * 2; \n// this too\nlet x = 1;\n");
     }
 
     #[test]
     fn rehomes_a_block_comment_trailing_on_the_same_line() {
-        let out =
-            rehome_reactive_statement_comments("$: y = x; /* trailing */\nlet z = 1; // kept\n");
+        let out = rehome("$: y = x; /* trailing */\nlet z = 1; // kept\n");
         assert_eq!(out, "$: y = x; \n/* trailing */\nlet z = 1; // kept\n");
     }
 
     #[test]
     fn keeps_a_comment_on_the_line_after_a_reactive_statement() {
         let source = "$: y = x;\n// belongs to the next statement\nlet z = 1;\n";
-        assert_eq!(rehome_reactive_statement_comments(source), source);
+        assert_eq!(rehome(source), source);
     }
 
     #[test]
     fn rehomes_a_comment_trailing_a_reactive_block() {
-        let out = rehome_reactive_statement_comments("$: {\n\ty = 1;\n} // trailing\nlet z = 1;\n");
+        let out = rehome("$: {\n\ty = 1;\n} // trailing\nlet z = 1;\n");
         assert_eq!(out, "$: {\n\ty = 1;\n} \n// trailing\nlet z = 1;\n");
     }
 }
@@ -1840,12 +1900,18 @@ mod double_semi_placeholder_tests {
 mod reactive_multiline_tests {
     use super::rehome_reactive_statement_comments;
 
+    /// The liveness gate belongs to the caller; these rows exercise the
+    /// relocation itself.
+    fn rehome(source: &str) -> String {
+        rehome_reactive_statement_comments(source, None)
+    }
+
     /// Ending the statement at the first newline would leave the trailing `;`
     /// outside the statement. The arrow body is a `BlockStatement`, so its
     /// comment is both kept in place and re-homed.
     #[test]
     fn a_chained_call_split_across_lines_is_one_statement() {
-        let out = rehome_reactive_statement_comments(
+        let out = rehome(
             "$: filtered = rows\n\t.filter(r => {\n\t\t// inner\n\t\treturn true;\n\t});\nlet z = 1; // kept\n",
         );
         assert_eq!(
@@ -1856,9 +1922,7 @@ mod reactive_multiline_tests {
 
     #[test]
     fn an_operator_at_the_end_of_a_line_continues_the_statement() {
-        let out = rehome_reactive_statement_comments(
-            "$: total = a +\n\tb; // trailing\nlet z = 1; // kept\n",
-        );
+        let out = rehome("$: total = a +\n\tb; // trailing\nlet z = 1; // kept\n");
         assert_eq!(
             out,
             "$: total = a +\n\tb; \n// trailing\nlet z = 1; // kept\n"

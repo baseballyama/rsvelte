@@ -147,6 +147,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Increment block depth for child analysis
     context.block_depth += 1;
+    context.bind_this_block_depth += 1;
 
     // Clear direct_component_parent since children of control flow blocks
     // are not direct children of a component
@@ -212,6 +213,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Decrement block depth
     context.block_depth -= 1;
+    context.bind_this_block_depth -= 1;
 
     Ok(())
 }

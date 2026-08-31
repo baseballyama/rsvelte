@@ -13,10 +13,6 @@
 //! event handler), which upstream's plain `ImportExpression` visitor sees
 //! because the whole component is one ESTree walk for it.
 
-use oxc_allocator::Allocator;
-use oxc_ast::ast::Statement;
-use oxc_parser::Parser;
-use oxc_span::SourceType;
 use serde_json::Value;
 
 use crate::context::LintContext;
@@ -128,40 +124,9 @@ impl ScriptRule for NoSvelteInternal {
                 reports.push((s, e));
             }
         });
-        // `export * from '…'` has no variant in the typed script AST, so it
-        // never appears in the serialized program JSON. Recover it by parsing
-        // the script body with oxc and reading the module-level
-        // `ExportAllDeclaration` statements directly.
-        collect_export_all(ctx, program, &mut reports);
         reports.sort_unstable();
         for (start, end) in reports {
             ctx.report(start, end, MESSAGE);
-        }
-    }
-}
-
-/// Append the spans of `export * from 'svelte/internal…'` statements, which the
-/// typed AST drops. TS grammar is a superset of the script grammar accepted
-/// here, so one TS parse covers both languages.
-fn collect_export_all(ctx: &LintContext, program: &ProgramView<'_>, out: &mut Vec<(u32, u32)>) {
-    let (Some(base), Some(end)) = (node_start(program.value()), node_end(program.value())) else {
-        return;
-    };
-    let source = ctx.source();
-    if base > end || end as usize > source.len() {
-        return;
-    }
-    let body = &source[base as usize..end as usize];
-    if !body.contains("export") {
-        return;
-    }
-    let allocator = Allocator::default();
-    let parsed = Parser::new(&allocator, body, SourceType::ts().with_module(true)).parse();
-    for stmt in &parsed.program.body {
-        if let Statement::ExportAllDeclaration(decl) = stmt
-            && is_svelte_internal(&decl.source.value)
-        {
-            out.push((base + decl.span.start, base + decl.span.end));
         }
     }
 }

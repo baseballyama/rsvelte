@@ -7,6 +7,8 @@ use serde_json::Value;
 
 const COMPONENT_SUFFIX: &str = "__SvelteComponent_";
 const RUNES: [&str; 4] = ["$props", "$state", "$derived", "$effect"];
+/// `internalHelpers.renderName` — the function svelte2tsx wraps a component in.
+const RENDER_NAME: &str = "$$render";
 
 /// Source context needed to normalize an initial or resolved completion.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -36,10 +38,15 @@ pub enum CompletionSite {
     Script,
     TemplateExpression,
     RawTemplateText,
+    /// A position upstream's start-tag guards do not reach: `svelteNodeAt`
+    /// answers neither an `Element` nor a template `Text` there.
+    Unguarded,
     Style,
     BlockMarker,
     ElementStartTag,
-    ComponentStartTag { at_whitespace: bool },
+    ComponentStartTag {
+        at_whitespace: bool,
+    },
 }
 
 /// What the server should do with a tsgo completion response.
@@ -71,6 +78,7 @@ pub const fn completion_action(
         } if item_count > 500 => CompletionAction::NarrowToSvelte,
         CompletionSite::Script
         | CompletionSite::TemplateExpression
+        | CompletionSite::Unguarded
         | CompletionSite::ElementStartTag
         | CompletionSite::ComponentStartTag { .. } => CompletionAction::Forward,
     }
@@ -99,12 +107,24 @@ pub fn rewrite_completion_response_for_context(
     let Some(items) = completion_items_mut(value) else {
         return;
     };
+    items.retain(is_not_svelte2tsx_completion);
     if context.kit_route {
         duplicate_kit_types_items(items);
     }
     for item in items {
         rewrite_completion_item_with_preference(item, context.prefer_components);
     }
+}
+
+/// `CompletionProvider.ts`'s `isNoSvelte2tsxCompletion`, minus its
+/// `kindModifiers === 'declare'` arm: tsgo's LSP items carry no `kindModifiers`,
+/// so the `svelte2tsxTypes` name list is left unported rather than dropping a
+/// user's own `SvelteStore`.
+fn is_not_svelte2tsx_completion(item: &Value) -> bool {
+    let Some(label) = item.get("label").and_then(Value::as_str) else {
+        return true;
+    };
+    !label.starts_with("__sveltets_") && label != RENDER_NAME && !label.starts_with("$$_")
 }
 
 /// Normalize one initial or resolved completion item.
@@ -132,6 +152,12 @@ pub fn rewrite_visible_tsgo_response(value: &mut Value) {
 }
 
 fn rewrite_completion_item_with_preference(item: &mut Value, prefer_components: bool) {
+    // Upstream builds every completion item itself and never sets `tags` —
+    // `CompletionItemTag` appears nowhere in `packages/language-server/src` —
+    // so tsgo's deprecation tag is a field upstream cannot produce.
+    if let Some(object) = item.as_object_mut() {
+        object.remove("tags");
+    }
     let generated_component = item
         .get("label")
         .and_then(Value::as_str)
@@ -140,6 +166,7 @@ fn rewrite_completion_item_with_preference(item: &mut Value, prefer_components: 
         .get("label")
         .and_then(Value::as_str)
         .is_some_and(|label| RUNES.contains(&label));
+    strip_optional_marker(item);
     rewrite_visible_value(item);
     if prefer_components && (generated_component || rune) {
         let Some(object) = item.as_object_mut() else {
@@ -157,6 +184,117 @@ fn rewrite_completion_item_with_preference(item: &mut Value, prefer_components: 
             Value::Array(vec![Value::String(">".to_string())]),
         );
     }
+}
+
+/// tsgo marks an optional property by appending `?` to the label alone —
+/// `filterText`, `insertText`, `textEdit.newText` and `data.name` all keep the
+/// bare name. Upstream's label is `entry.name` (`toCompletionItem`), which has
+/// no such marker, so the name is restored where the `?` is only decoration.
+fn strip_optional_marker(item: &mut Value) {
+    let Some(label) = item.get("label").and_then(Value::as_str) else {
+        return;
+    };
+    let Some(name) = label.strip_suffix('?') else {
+        return;
+    };
+    let bare = item
+        .pointer("/data/name")
+        .or_else(|| item.get("filterText"))
+        .and_then(Value::as_str);
+    if bare != Some(name) {
+        return;
+    }
+    let name = name.to_string();
+    if let Some(object) = item.as_object_mut() {
+        object.insert("label".to_string(), Value::String(name));
+    }
+}
+
+/// Upstream's per-item `data` (`CompletionProvider.ts:717`) is the TS entry
+/// name plus the *source* document and position, because its resolve re-runs
+/// the completion from them. tsgo instead returns the shadow `.tsx` path and a
+/// byte offset into it, so the payload is swapped here and put back on resolve.
+/// Returns the tsgo payloads, by entry name, for that reverse step.
+#[must_use]
+pub fn adopt_upstream_completion_data(
+    result: &mut Value,
+    uri: &str,
+    position: &Value,
+) -> HashMap<String, Value> {
+    let mut stash = HashMap::new();
+    let Some(items) = completion_items_mut(result) else {
+        return stash;
+    };
+    for item in items {
+        if let Some(name) = adopt_upstream_item_data(item, uri, position)
+            && let Some(data) = name.1
+        {
+            stash.insert(name.0, data);
+        }
+    }
+    stash
+}
+
+/// [`adopt_upstream_completion_data`] for a single item, as a resolved item
+/// carries the same payload.
+pub fn adopt_upstream_item_data(
+    item: &mut Value,
+    uri: &str,
+    position: &Value,
+) -> Option<(String, Option<Value>)> {
+    let object = item.as_object_mut()?;
+    let tsgo_data = object.remove("data");
+    let name = tsgo_data
+        .as_ref()
+        .and_then(|data| data.get("name"))
+        .and_then(Value::as_str)
+        .or_else(|| object.get("label").and_then(Value::as_str))?
+        .to_string();
+    object.insert(
+        "data".to_string(),
+        serde_json::json!({ "name": name, "uri": uri, "position": position }),
+    );
+    // Upstream falls back to this set whenever TypeScript reports no per-entry
+    // characters; a Svelte component keeps the `>` written above it.
+    object
+        .entry("commitCharacters")
+        .or_insert_with(|| serde_json::json!([".", ",", ";", "("]));
+    Some((name, tsgo_data))
+}
+
+/// The source document and position an item's adopted `data` names.
+#[must_use]
+pub fn upstream_completion_data_site(item: &Value) -> Option<(String, Value)> {
+    let data = item.get("data")?.as_object()?;
+    if data.contains_key("fileName") {
+        return None;
+    }
+    Some((
+        data.get("uri")?.as_str()?.to_string(),
+        data.get("position")?.clone(),
+    ))
+}
+
+/// Put tsgo's own payload back on an item the editor is asking to resolve.
+pub fn restore_tsgo_completion_data(item: &mut Value, stash: &HashMap<String, Value>) -> bool {
+    let Some(object) = item.as_object_mut() else {
+        return false;
+    };
+    let Some(data) = object.get("data").and_then(Value::as_object) else {
+        return false;
+    };
+    if data.contains_key("fileName") {
+        return false;
+    }
+    let Some(original) = data
+        .get("name")
+        .and_then(Value::as_str)
+        .and_then(|name| stash.get(name))
+    else {
+        return false;
+    };
+    object.insert("data".to_string(), original.clone());
+    true
 }
 
 fn completion_items_mut(value: &mut Value) -> Option<&mut Vec<Value>> {
@@ -491,6 +629,92 @@ mod tests {
     }
 
     #[test]
+    fn a_deprecation_tag_is_not_forwarded() {
+        let mut item = json!({
+            "label": "HTMLDirectoryElement",
+            "tags": [1],
+            "sortText": "11",
+            "data": { "name": "HTMLDirectoryElement" }
+        });
+        rewrite_completion_item(&mut item);
+        assert!(item.get("tags").is_none());
+        // Only `tags` goes; the item is otherwise forwarded unchanged.
+        assert_eq!(item["sortText"], "11");
+        assert_eq!(item["label"], "HTMLDirectoryElement");
+    }
+
+    #[test]
+    fn a_deprecation_tag_is_not_forwarded_in_a_list_either() {
+        let mut result = json!({
+            "isIncomplete": false,
+            "items": [{ "label": "a", "tags": [1] }, { "label": "b" }]
+        });
+        rewrite_completion_response_for_context(
+            &mut result,
+            CompletionRewriteContext {
+                kit_route: false,
+                prefer_components: true,
+            },
+        );
+        assert!(result["items"][0].get("tags").is_none());
+    }
+
+    #[test]
+    fn svelte2tsx_internals_are_dropped_from_a_list() {
+        let mut result = json!({
+            "isIncomplete": false,
+            "items": [
+                { "label": "__sveltets_2_any" },
+                { "label": "$$render" },
+                { "label": "$$_ident" },
+                { "label": "Popover" },
+                { "label": "SvelteStore" }
+            ]
+        });
+        rewrite_completion_response_for_context(
+            &mut result,
+            CompletionRewriteContext {
+                kit_route: false,
+                prefer_components: true,
+            },
+        );
+        let labels: Vec<&str> = result["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .map(|item| item["label"].as_str().expect("label"))
+            .collect();
+        // `SvelteStore` stays: upstream only drops it when tsgo reports
+        // `kindModifiers: 'declare'`, which the LSP shape does not carry.
+        assert_eq!(labels, ["Popover", "SvelteStore"]);
+    }
+
+    #[test]
+    fn tsgos_optional_marker_is_not_part_of_the_label() {
+        let mut response = json!({"items": [
+            {"label": "children?", "filterText": "children", "data": {"name": "children"}},
+            {"label": "on:copy?", "filterText": "on:copy", "data": {"name": "on:copy"}},
+            {"label": "a?", "data": {"name": "b"}},
+            {"label": "plain", "data": {"name": "plain"}}
+        ]});
+        rewrite_completion_response(&mut response);
+        let labels = response["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["label"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(labels, ["children", "on:copy", "a?", "plain"]);
+    }
+
+    #[test]
+    fn a_bare_array_response_is_filtered_too() {
+        let mut result = json!([{ "label": "__sveltets_2_any" }, { "label": "keep" }]);
+        rewrite_completion_response(&mut result);
+        assert_eq!(result.as_array().expect("array").len(), 1);
+    }
+
+    #[test]
     fn ordinary_completion_keeps_tsgo_ranking() {
         let mut item = json!({
             "label": "ordinary",
@@ -699,5 +923,81 @@ mod tests {
             ),
             CompletionAction::Forward
         );
+    }
+
+    // Measured against `svelte-language-server` on the same request: every item
+    // carries `{name, uri, position}` and `['.', ',', ';', '(']`, and a
+    // generated component carries `['>']`.
+    #[test]
+    fn an_item_adopts_upstreams_data_payload_and_commit_characters() {
+        let mut result = json!({
+            "isIncomplete": false,
+            "items": [
+                {
+                    "label": "value",
+                    "data": { "fileName": "/w/.rsvelte-language-server/a.svelte.tsx", "position": 77, "name": "value" }
+                },
+                {
+                    "label": "Probe",
+                    "commitCharacters": [">"],
+                    "data": { "fileName": "/w/.rsvelte-language-server/a.svelte.tsx", "position": 77, "name": "Probe__SvelteComponent_" }
+                }
+            ]
+        });
+        let position = json!({ "line": 2, "character": 3 });
+        let stash = adopt_upstream_completion_data(&mut result, "file:///w/a.svelte", &position);
+
+        let items = result["items"].as_array().unwrap();
+        assert_eq!(
+            items[0]["data"],
+            json!({ "name": "value", "uri": "file:///w/a.svelte", "position": position })
+        );
+        assert_eq!(items[0]["commitCharacters"], json!([".", ",", ";", "("]));
+        // The payload names the TS entry, which for a component keeps the suffix.
+        assert_eq!(items[1]["data"]["name"], json!("Probe__SvelteComponent_"));
+        assert_eq!(items[1]["commitCharacters"], json!([">"]));
+
+        assert_eq!(stash["value"]["position"], json!(77));
+        assert_eq!(
+            stash["Probe__SvelteComponent_"]["fileName"],
+            json!("/w/.rsvelte-language-server/a.svelte.tsx")
+        );
+    }
+
+    // tsgo resolves from its own shadow file and offset, so an item the editor
+    // sends back has to carry that payload again or the request is rejected.
+    #[test]
+    fn a_resolve_gets_tsgos_payload_back() {
+        let mut result = json!({ "items": [{
+            "label": "value",
+            "data": { "fileName": "/w/x.svelte.tsx", "position": 77, "name": "value" }
+        }] });
+        let position = json!({ "line": 2, "character": 3 });
+        let stash = adopt_upstream_completion_data(&mut result, "file:///w/x.svelte", &position);
+
+        let mut item = result["items"][0].clone();
+        assert_eq!(
+            upstream_completion_data_site(&item),
+            Some(("file:///w/x.svelte".to_string(), position))
+        );
+        assert!(restore_tsgo_completion_data(&mut item, &stash));
+        assert_eq!(
+            item["data"],
+            json!({ "fileName": "/w/x.svelte.tsx", "position": 77, "name": "value" })
+        );
+        // Already tsgo's payload: nothing to restore, and no site to key on.
+        assert!(!restore_tsgo_completion_data(&mut item, &stash));
+        assert_eq!(upstream_completion_data_site(&item), None);
+    }
+
+    #[test]
+    fn an_unknown_entry_name_leaves_the_item_alone() {
+        let stash = HashMap::new();
+        let mut item = json!({
+            "label": "value",
+            "data": { "name": "value", "uri": "file:///w/x.svelte", "position": { "line": 0, "character": 0 } }
+        });
+        assert!(!restore_tsgo_completion_data(&mut item, &stash));
+        assert_eq!(item["data"]["uri"], json!("file:///w/x.svelte"));
     }
 }

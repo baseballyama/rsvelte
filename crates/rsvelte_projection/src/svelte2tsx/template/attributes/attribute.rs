@@ -431,6 +431,23 @@ fn append_wrapped_attribute(
     );
 }
 
+/// Emit `"name"` keeping the name as an unedited source chunk. Upstream
+/// `Attribute.ts` overwrites only the name's first character (`contentOnly`)
+/// and pushes `[attr.start, attr.start + attr.name.length]` as a range, so the
+/// name maps per character; a lowercased element name is a real edit there and
+/// stays a literal here.
+fn push_attribute_name(out: &mut Vec<Seg>, node: &AttributeNode, source: &str, name: &str) {
+    let start = node.start;
+    let end = start + u32::try_from(node.name.len()).unwrap_or(0);
+    if source.get(start as usize..end as usize) == Some(name) {
+        segs_push_lit(out, "\"");
+        segs_push_src(out, start, end);
+        segs_push_lit(out, "\"");
+    } else {
+        segs_push_fmt(out, format_args!("\"{name}\""));
+    }
+}
+
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every
 /// expression site in `Seg::Src` so the resulting `MagicString` chunks
 /// retain per-character source-map fidelity.
@@ -472,18 +489,17 @@ pub fn append_attribute_node_segments(
             if is_data_attr {
                 segs_push_fmt(
                     out,
-                    format_args!("...__sveltets_2_empty({{{leading_comment}\"{name}\":true}}),"),
+                    format_args!("...__sveltets_2_empty({{{leading_comment}"),
                 );
+                push_attribute_name(out, node, source, name);
+                segs_push_lit(out, ":true}),");
             } else if is_css_prop {
-                segs_push_fmt(
-                    out,
-                    format_args!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),"),
-                );
+                segs_push_lit(out, "...__sveltets_2_cssProp({");
+                push_attribute_name(out, node, source, name);
+                segs_push_lit(out, ":\"\"}),");
             } else {
-                segs_push_fmt(
-                    out,
-                    format_args!("\"{name}\":{},", valueless_value(&node.name)),
-                );
+                push_attribute_name(out, node, source, name);
+                segs_push_fmt(out, format_args!(":{},", valueless_value(&node.name)));
             }
         }
         AttributeValue::Expression(expr) => {
@@ -541,7 +557,8 @@ pub fn append_attribute_node_segments(
                         (s, e)
                     };
                     append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                        segs_push_fmt(out, format_args!("\"{name}\":"));
+                        push_attribute_name(out, node, source, name);
+                        segs_push_lit(out, ":");
                         segs_push_src(out, s, e);
                     });
                 }
@@ -550,7 +567,8 @@ pub fn append_attribute_node_segments(
                 segs_push_fmt(out, format_args!("{name},"));
             } else {
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{name}\":{expr_text}"));
+                    push_attribute_name(out, node, source, name);
+                    segs_push_fmt(out, format_args!(":{expr_text}"));
                 });
             }
         }
@@ -562,7 +580,8 @@ pub fn append_attribute_node_segments(
             {
                 let range = get_expression_range(&expr.expression);
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{name}\":"));
+                    push_attribute_name(out, node, source, name);
+                    segs_push_lit(out, ":");
                     if let Some((s, e)) = range {
                         segs_push_src(out, s, e);
                     } else {
@@ -589,7 +608,8 @@ pub fn append_attribute_node_segments(
                 && is_js_numeric(&text.data)
             {
                 append_segments(out, leading);
-                segs_push_fmt(out, format_args!("\"{name}\":"));
+                push_attribute_name(out, node, source, name);
+                segs_push_lit(out, ":");
                 segs_push_src(out, text.start, text.end);
                 segs_push_lit(out, ",");
                 return;
@@ -607,7 +627,8 @@ pub fn append_attribute_node_segments(
             });
             if !has_expr && text_is_empty {
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{name}\":\"\""));
+                    push_attribute_name(out, node, source, name);
+                    segs_push_lit(out, ":\"\"");
                 });
                 return;
             }
@@ -637,7 +658,8 @@ pub fn append_attribute_node_segments(
                 };
                 let needs_escape = data.contains('\\') || (has_backtick && data.contains('\n'));
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{name}\":{quote}"));
+                    push_attribute_name(out, node, source, name);
+                    segs_push_fmt(out, format_args!(":{quote}"));
                     if needs_escape {
                         let json =
                             serde_json::to_string(data).unwrap_or_else(|_| format!("\"{data}\""));
@@ -653,7 +675,8 @@ pub fn append_attribute_node_segments(
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
             append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                segs_push_fmt(out, format_args!("\"{name}\":`"));
+                push_attribute_name(out, node, source, name);
+                segs_push_lit(out, ":`");
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {

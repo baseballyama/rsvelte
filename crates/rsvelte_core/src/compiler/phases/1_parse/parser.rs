@@ -69,7 +69,7 @@ pub(crate) fn is_js_whitespace_byte(b: u8) -> bool {
 }
 
 /// Byte length of `source` after upstream's `template.trimEnd()`.
-fn js_trim_end_len(source: &str) -> usize {
+pub(crate) fn js_trim_end_len(source: &str) -> usize {
     source.trim_end_matches(is_js_whitespace).len()
 }
 
@@ -1120,10 +1120,8 @@ impl<'a> Parser<'a> {
                 return Ok(end);
             }
         }
-        // Loose mode keeps recovering so a half-typed document still yields a tree.
-        if self.options.loose {
-            return Ok(self.bytes.len());
-        }
+        // `read/expression.js:13-27`: upstream's loose recovery only fires when
+        // `find_matching_bracket` actually found a close, and rethrows otherwise.
         use crate::compiler::phases::phase1_parse::read::expression::{
             check_js_parse_error_with_pos, trailing_token_offset,
         };

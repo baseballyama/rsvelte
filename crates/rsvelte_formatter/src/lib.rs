@@ -127,15 +127,41 @@ pub fn format_with_arenas(
     // the stripped text; slicing the unstripped source with one is three bytes
     // off. Prettier keeps the BOM in its output, so it goes back on afterwards.
     let stripped = rsvelte_core::remove_bom(source);
+    let had_bom = stripped.len() != source.len();
+    // Prettier rewrites every `\r\n` / lone `\r` to `\n` before it parses, so a
+    // region the formatter copies verbatim (a comment body, a whitespace-only
+    // `<style>`) must not be able to carry a CR through.
+    let normalized = normalize_line_endings(stripped);
+    let stripped = normalized.as_ref();
     let formatted = match format_attempt(stripped, options, arenas, false) {
         Err(e) if e.is_dialect_sensitive() => format_attempt(stripped, options, arenas, true),
         other => other,
     }?;
-    Ok(if stripped.len() == source.len() {
+    Ok(if !had_bom {
         formatted
     } else {
         format!("\u{feff}{formatted}")
     })
+}
+
+/// Prettier's `endOfLine: "lf"` normalization, applied before the parse so every
+/// span is relative to the text the output is built from.
+fn normalize_line_endings(source: &str) -> std::borrow::Cow<'_, str> {
+    if !source.contains('\r') {
+        return std::borrow::Cow::Borrowed(source);
+    }
+    let mut out = String::with_capacity(source.len());
+    let mut rest = source;
+    while let Some(i) = rest.find('\r') {
+        out.push_str(&rest[..i]);
+        out.push('\n');
+        rest = &rest[i + 1..];
+        if rest.starts_with('\n') {
+            rest = &rest[1..];
+        }
+    }
+    out.push_str(rest);
+    std::borrow::Cow::Owned(out)
 }
 
 fn normalize_file_edges(out: &mut String) {
@@ -303,7 +329,7 @@ fn format_attempt(
     // offset is its original offset plus the net length change of every applied
     // edit ending at or before it. Only remap when reordering could change
     // something (more than one top-level unit); otherwise the pass is skipped.
-    let reorder_spans: Vec<(u8, usize, usize)> =
+    let reorder_spans: Vec<(u8, usize, usize, bool)> =
         if sections.len() > 1 || (sections.len() == 1 && has_markup) {
             let remap = |pos: u32| -> usize {
                 let delta: i128 = applied
@@ -317,9 +343,21 @@ fn format_attempt(
                 usize::try_from(i128::from(pos) + delta)
                     .expect("remapped section offset is outside usize range")
             };
+            // Whether the SOURCE held a blank line right after the section. The
+            // formatted output cannot answer it — an earlier pass normalises
+            // that gap to a blank line either way — and it is what decides how
+            // two markup runs rejoin once the section between them is hoisted.
+            let blank_after = |pos: u32| -> bool {
+                source[pos as usize..]
+                    .chars()
+                    .take_while(|c| c.is_whitespace())
+                    .filter(|c| *c == '\n')
+                    .count()
+                    >= 2
+            };
             sections
                 .iter()
-                .map(|&(p, s, e)| (p, remap(s), remap(e)))
+                .map(|&(p, s, e)| (p, remap(s), remap(e), blank_after(e)))
                 .collect()
         } else {
             Vec::new()

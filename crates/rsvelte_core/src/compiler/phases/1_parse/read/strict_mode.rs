@@ -303,7 +303,7 @@ fn collect_pattern_names(pattern: &BindingPattern<'_>, out: &mut Vec<(String, u3
 /// The offset of the first escape strict mode forbids inside `raw`, which spans
 /// the whole literal including its delimiters. Returns the offset relative to
 /// `raw` and whether it is a legacy octal (`\251`) or a `\8` / `\9`.
-fn find_bad_escape(raw: &str) -> Option<(usize, bool)> {
+pub(super) fn find_bad_escape(raw: &str) -> Option<(usize, bool)> {
     let b = raw.as_bytes();
     let mut i = 0;
     while i + 1 < b.len() {

@@ -50,6 +50,19 @@ jobs:
         with:
           submodules: false
 
+      - name: Free runner disk
+        # Measured, not inferred: this job fails with
+        #   rustc-LLVM ERROR: IO failure on output stream: No space left on device
+        # `cargo llvm-cov --workspace` links every test target in the workspace
+        # with instrumentation, and rsvelte_core alone declares 589 of them.
+        # The df lines stay so the next failure is sized rather than guessed at.
+        run: |
+          df -h / /mnt || true
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost /usr/share/swift /usr/local/.ghcup || true
+          sudo docker image prune -af || true
+          df -h / /mnt || true
+
       - name: Checkout test submodules (shallow)
         run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap submodules/svelte-switch-case submodules/svelte-preprocess-sass
 
@@ -120,7 +133,14 @@ jobs:
         # Skip the coverage instrumentation hit for the SSR / runtime suites if
         # they get too noisy — initially we measure everything, and we can prune
         # in `--ignore-filename-regex` later if needed.
+        # The disk watcher streams, and a streamed line survives the runner
+        # dying mid-step: when this job last failed, `Generate coverage` ended
+        # with a null conclusion and every later step — `if: always()` included —
+        # never ran, so a df placed after it reports nothing.
         run: |
+          ( while true; do printf 'DISK %s ' "$(date -u +%H:%M:%S)"; df -h / | tail -1; sleep 30; done ) &
+          watcher=$!
+          trap 'kill "$watcher" 2>/dev/null || true' EXIT
           cargo llvm-cov --workspace --lcov --output-path lcov.info \
             --ignore-filename-regex '(tests/|benches/|src/bin/)' \
             -- --test-threads=2

@@ -21,7 +21,8 @@
 //! - **JSON fallback (`TAG_JSON`)**: the entire `StyleSheet` sub-tree,
 //!   `SvelteOptions`, `TransitionDirective`/`AnimateDirective`
 //!   `metadata`, `Root.js`, and the two opaque TypeScript declaration
-//!   variants (`TSTypeAliasDeclaration` and `TSInterfaceDeclaration`).
+//!   variants (`TSTypeAliasDeclaration`, `TSInterfaceDeclaration` and
+//!   `TSDeclareMethod`).
 //!   These are rare and have many optional fields; switching them to
 //!   dedicated tags is a follow-up.
 //!
@@ -70,7 +71,7 @@ pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 8;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -232,7 +233,6 @@ pub const JS_PROPERTY_DEFINITION: u8 = 0xC3;
 pub const JS_STATIC_BLOCK: u8 = 0xC4;
 pub const JS_DECORATOR: u8 = 0xC5;
 pub const JS_TS_TYPE_ANNOTATION: u8 = 0xC6;
-pub const JS_TS_ENUM_DECLARATION: u8 = 0xC7;
 pub const JS_TS_MODULE_DECLARATION: u8 = 0xC8;
 pub const JS_COMMENT: u8 = 0xC9;
 // Special sentinel for the JsNode null fallback variant — it doesn't fit the
@@ -247,6 +247,8 @@ pub const JS_TS_SATISFIES_EXPRESSION: u8 = 0xCE;
 pub const JS_TS_NON_NULL_EXPRESSION: u8 = 0xCF;
 pub const JS_TS_TYPE_ASSERTION: u8 = 0xD0;
 pub const JS_TS_INSTANTIATION_EXPRESSION: u8 = 0xD1;
+pub const JS_IMPORT_ATTRIBUTE: u8 = 0xD2;
+pub const JS_EXPORT_ALL_DECLARATION: u8 = 0xD3;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL: u8 = 0;
@@ -1517,10 +1519,14 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             end,
             loc,
             source,
+            options,
+            ts,
         } => {
             write_preamble(w, JS_IMPORT_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *source, arena)?;
+            write_id_range(w, *options, arena)?;
+            write_bool(w, *ts);
         }
         JsNode::AwaitExpression {
             start,
@@ -1957,6 +1963,18 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_opt_str(w, import_kind.as_deref());
             write_id_range(w, *attributes, arena)?;
         }
+        JsNode::ImportAttribute {
+            start,
+            end,
+            loc,
+            key,
+            value,
+        } => {
+            write_preamble(w, JS_IMPORT_ATTRIBUTE, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_node_id(w, *key, arena)?;
+            write_node_id(w, *value, arena)?;
+        }
         JsNode::ImportSpecifier {
             start,
             end,
@@ -2009,15 +2027,33 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_opt_str(w, export_kind.as_deref());
             write_id_range(w, *attributes, arena)?;
         }
+        JsNode::ExportAllDeclaration {
+            start,
+            end,
+            loc,
+            exported,
+            source,
+            export_kind,
+            attributes,
+        } => {
+            write_preamble(w, JS_EXPORT_ALL_DECLARATION, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_opt_node_id(w, *exported, arena)?;
+            write_node_id(w, *source, arena)?;
+            write_opt_str(w, export_kind.as_deref());
+            write_id_range(w, *attributes, arena)?;
+        }
         JsNode::ExportDefaultDeclaration {
             start,
             end,
             loc,
             declaration,
+            export_kind,
         } => {
             write_preamble(w, JS_EXPORT_DEFAULT_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *declaration, arena)?;
+            write_opt_str(w, export_kind.as_deref());
         }
         JsNode::ExportSpecifier {
             start,
@@ -2052,6 +2088,9 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             kind,
             r#static,
             computed,
+            // The envelope has never carried TS member modifiers; widening it
+            // is a separate change with its own decoder side.
+            modifiers: _,
         } => {
             write_preamble(w, JS_METHOD_DEFINITION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -2069,7 +2108,7 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             value,
             r#static,
             computed,
-            accessor: _,
+            modifiers: _,
         } => {
             write_preamble(w, JS_PROPERTY_DEFINITION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -2102,16 +2141,14 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_typed_loc(w, loc.as_deref());
             write_node_id(w, *type_annotation, arena)?;
         }
-        JsNode::TSEnumDeclaration { start, end, loc } => {
-            write_preamble(w, JS_TS_ENUM_DECLARATION, *start, *end);
-            write_typed_loc(w, loc.as_deref());
-        }
         // These declarations retain their complete ESTree object so nested TS
         // nodes survive the public parse API. Serialize `node`, rather than the
         // stored raw value, so the JsNode serializer also restores comments
         // captured in the arena side table (#3702).
-        JsNode::TSTypeAliasDeclaration { start, end, .. }
-        | JsNode::TSInterfaceDeclaration { start, end, .. } => {
+        JsNode::TSEnumDeclaration { start, end, .. }
+        | JsNode::TSTypeAliasDeclaration { start, end, .. }
+        | JsNode::TSInterfaceDeclaration { start, end, .. }
+        | JsNode::TSDeclareMethod { start, end, .. } => {
             write_json_node(w, *start, *end, node)?;
         }
         JsNode::TSParameterProperty { start, end, loc } => {

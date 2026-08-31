@@ -126,6 +126,13 @@ fn collect_indent_edits_inner(
                 && !is_inline_level_node(n, source, child_indent.visual_width(tw), options)
         });
 
+        // prettier prints a fragment's children as a fill: an inline space is a
+        // break OPPORTUNITY, taken only when the line would overflow. The rule
+        // below takes every one. Measure the flat run instead where it can be
+        // measured from the source — every non-whitespace child an ExpressionTag,
+        // each whitespace run one space — and keep it on one line when it fits.
+        let expr_run_fits = expression_run_fits(source, fragment, &child_indent, tw, options);
+
         // prettier-plugin-svelte's `forceBreakContent`: when any child is a
         // block-display HTML element AND there are multiple non-whitespace
         // children, all children must be on their own lines. This mirrors
@@ -221,6 +228,7 @@ fn collect_indent_edits_inner(
                             || (force_break_content && (next_is_block_html || prev_is_block_html))
                     };
                     let replacement = if effectively_broken
+                        && !expr_run_fits
                         && prev_provoking
                         && next_provoking
                         && next_not_regular
@@ -970,4 +978,54 @@ fn is_inline_block_element(tag: &str) -> bool {
         tag,
         "input" | "button" | "select" | "object" | "video" | "audio"
     )
+}
+
+/// Whether a fragment whose every non-whitespace child is an `ExpressionTag`
+/// renders flat within the line width at `child_indent`.
+///
+/// Only this shape is measured: an expression tag's flat text is its source
+/// slice, so the run's width is known without laying anything out. Anything else
+/// in the fragment (text words, elements, blocks, comments) is left to the
+/// existing rule — an unmeasurable child must not be silently treated as fitting.
+/// The `+ 1` is the `>` the content line carries when the open tag broke.
+fn expression_run_fits(
+    source: &str,
+    fragment: &Fragment,
+    child_indent: &str,
+    tw: usize,
+    options: &FormatOptions,
+) -> bool {
+    // Only a hugged start is a fill. When the first child is a text node opening
+    // with a line break, `shouldHugStart` is false and upstream sets
+    // `noHugSeparatorStart = hardline` (`plugin.js:1218`), which breaks the
+    // enclosing group — so every `line` between the children breaks too, and the
+    // run must NOT be kept on one line however well it fits.
+    if matches!(fragment.nodes.first(), Some(TemplateNode::Text(t)) if t.data.starts_with([' ', '\t', '\n', '\r']))
+    {
+        return false;
+    }
+    let mut tags = 0usize;
+    let mut width = child_indent.visual_width(tw) + 1;
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::Text(t) if is_whitespace_only(t.data.as_ref()) => {
+                if !t.data.contains('\n') {
+                    width += 1;
+                }
+            }
+            TemplateNode::ExpressionTag(_) => {
+                let (s, e) = crate::collapse::template_node_span(node);
+                let Some(text) = source.get(s as usize..e as usize) else {
+                    return false;
+                };
+                if text.contains('\n') {
+                    return false;
+                }
+                width += text.visual_width(tw);
+                tags += 1;
+            }
+            _ => return false,
+        }
+    }
+    tags > 1 && width <= options.js.line_width.value() as usize
 }

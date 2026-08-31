@@ -136,7 +136,8 @@ fn whole_parameter_default_is_applied() {
 
 #[test]
 fn render_tag_async_and_call_args_share_one_counter() {
-    // H-099: an awaited arg ($0) and a memoised-call arg ($1) must not both be $0.
+    // H-099: the awaited arg owns $0. Current upstream passes a non-awaited
+    // call argument directly instead of allocating a second derived temporary.
     // `await` in a template expression needs the experimental.async gate.
     let src = r#"{#snippet foo(a, b)}<p>{a}{b}</p>{/snippet}{@render foo(await p, bar())}"#;
     let out = compile(
@@ -155,5 +156,8 @@ fn render_tag_async_and_call_args_share_one_counter() {
     .js
     .code;
     assert!(out.contains("$0"), "got:\n{out}");
-    assert!(out.contains("let $1 = $.derived(bar)"), "got:\n{out}");
+    assert!(
+        out.contains("foo($$anchor, () => $.get($0), bar);"),
+        "got:\n{out}"
+    );
 }

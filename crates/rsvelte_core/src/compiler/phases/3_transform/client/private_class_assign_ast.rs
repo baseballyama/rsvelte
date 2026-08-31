@@ -52,7 +52,7 @@
 //! `$derived.by`) go in `other_qualified`.
 //!
 //! The update rows hold for a non-`this` receiver too, where upstream
-//! diverges — see `compatibility/deliberate-divergences.md`.
+//! diverges — see `compatibility/GATES.md#deliberate-divergences`.
 //!
 //! The pass has two implementations — a text-splicing one and an
 //! in-place AST one, picked between by `ast_rewrite::dual_run::resolve`
@@ -578,7 +578,7 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
 
     /// The helper form is kept for every receiver, not just `this`: upstream
     /// gates it on a literal `this` and its fallthrough emits the unparseable
-    /// `$.get(inst.#n)++` (`compatibility/deliberate-divergences.md`).
+    /// `$.get(inst.#n)++` (`compatibility/GATES.md#deliberate-divergences`).
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
         walk::walk_update_expression(self, expr);
 
@@ -1075,7 +1075,7 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
     }
 
     /// Same deliberate divergence as the spliced collector's
-    /// `visit_update_expression` (`compatibility/deliberate-divergences.md`).
+    /// `visit_update_expression` (`compatibility/GATES.md#deliberate-divergences`).
     fn rewrite_update(&mut self, expr: &mut Expression<'a>) {
         let Expression::UpdateExpression(update) = &*expr else {
             return;

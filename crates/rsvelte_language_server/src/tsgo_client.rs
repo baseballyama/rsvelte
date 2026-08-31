@@ -1031,6 +1031,13 @@ fn initialize_params(config: &TsgoConfig) -> Value {
         );
     }
     general.insert("positionEncodings".to_string(), Value::Array(encodings));
+    // Upstream renders a hover itself and always fences it; tsgo renders one for
+    // us, and in plaintext it runs the declaration and the documentation
+    // together with no separator to split them back on.
+    object_entry(object_entry(capabilities, "textDocument"), "hover").insert(
+        "contentFormat".to_string(),
+        json!(["markdown", "plaintext"]),
+    );
     Value::Object(params)
 }
 
@@ -1154,6 +1161,24 @@ mod tests {
         assert_eq!(
             params.pointer("/capabilities/textDocument/hover/contentFormat/0"),
             Some(&json!("markdown"))
+        );
+    }
+
+    #[test]
+    fn a_plaintext_only_editor_still_gets_a_markdown_hover_from_tsgo() {
+        let mut config = TsgoConfig::new("tsgo");
+        config.editor_initialize_params = json!({
+            "capabilities": {
+                "textDocument": { "hover": { "contentFormat": ["plaintext"] } }
+            }
+        });
+
+        assert_eq!(
+            config
+                .initialize_params()
+                .pointer("/capabilities/textDocument/hover/contentFormat/0"),
+            Some(&json!("markdown")),
+            "plaintext runs the declaration and the documentation together"
         );
     }
 

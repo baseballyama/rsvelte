@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CI_REPOS } from './lint-universe.mjs';
+import { ignoredPaths } from './gitignored.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -140,10 +141,17 @@ function collectRepo(repo, dir, markdown) {
 		return;
 	}
 	const files = walk(dir);
+	const ignored = ignoredPaths(dir);
 	let real = 0;
 	let md = 0;
+	let skipped = 0;
 	for (const file of files) {
 		const rel = path.relative(dir, file);
+		const collectable = isSvelteModule(file) || isSvelteFile(file) || (markdown && file.endsWith('.md'));
+		if (collectable && ignored.has(rel.split(path.sep).join('/'))) {
+			skipped++;
+			continue;
+		}
 		if (isSvelteModule(file)) {
 			addEntry(repo, rel, 'module', fs.readFileSync(file, 'utf8'));
 			real++;
@@ -159,7 +167,7 @@ function collectRepo(repo, dir, markdown) {
 			}
 		}
 	}
-	console.log(`[lint-collect] ${repo}: ${real} files + ${md} markdown snippets`);
+	console.log(`[lint-collect] ${repo}: ${real} files + ${md} markdown snippets` + (skipped ? ` (${skipped} gitignored skipped)` : ''));
 }
 
 // `--ci` is the list the ratchet describes; naming it here rather than in the

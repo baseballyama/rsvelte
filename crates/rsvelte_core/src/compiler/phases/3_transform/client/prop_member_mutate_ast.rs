@@ -57,10 +57,13 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use oxc_span::Span;
+use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
+use super::scope_analysis::{is_locally_shadowed, shadowed_reference_starts};
 
 thread_local! {
     static MODULE_PROP_MEMBER_MUTATE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -125,11 +128,13 @@ fn transform_prop_member_mutate_spliced(
             ParseOptions::default(),
             true,
             |program| {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let mut collector = PropMemberMutateCollector {
                     source: src,
                     prop_vars,
                     non_bindable_prop_vars,
                     prop_invalidate_bodies,
+                    semantic: &semantic_ret.semantic,
                     replacements: Vec::new(),
                     skip_assignment_spans: Vec::new(),
                     skip_update_spans: Vec::new(),
@@ -159,7 +164,7 @@ impl Root {
     }
 }
 
-struct PropMemberMutateCollector<'a> {
+struct PropMemberMutateCollector<'a, 'sem> {
     source: &'a str,
     prop_vars: &'a [String],
     non_bindable_prop_vars: &'a [String],
@@ -167,6 +172,9 @@ struct PropMemberMutateCollector<'a> {
     /// the prop's `legacy_indirect_bindings`). Empty unless the prop backs a
     /// legacy `<select bind:value>` referencing other variables.
     prop_invalidate_bodies: &'a rustc_hash::FxHashMap<String, String>,
+    /// Upstream resolves the mutation target through `scope.get`, so a local
+    /// binding shadowing the prop is not a prop write.
+    semantic: &'sem Semantic<'sem>,
     replacements: Vec<Edit>,
     /// Spans of `AssignmentExpression`s that are the first arg of a
     /// `prop(<assignment>, true)` wrap call. Skipping these is what
@@ -177,17 +185,19 @@ struct PropMemberMutateCollector<'a> {
     skip_update_spans: Vec<(u32, u32)>,
 }
 
-impl<'a> PropMemberMutateCollector<'a> {
+impl<'a, 'sem> PropMemberMutateCollector<'a, 'sem> {
     /// Find the leftmost root of a member chain. Returns the
     /// identifier name and a [`Root`] tagged with the appropriate
     /// span. `None` if the root isn't a bare identifier or
     /// `name()`-style call on a bare identifier.
-    fn walk_object_chain_to_root<'e>(expr: &'e Expression<'_>) -> Option<(&'e str, Root)> {
+    fn walk_object_chain_to_root<'e, 'x>(
+        expr: &'e Expression<'x>,
+    ) -> Option<(&'e IdentifierReference<'x>, Root)> {
         let mut cur = expr;
         loop {
             match cur {
                 Expression::Identifier(id) => {
-                    return Some((id.name.as_str(), Root::Direct(id.span)));
+                    return Some((id, Root::Direct(id.span)));
                 }
                 Expression::CallExpression(call) => {
                     if !call.arguments.is_empty() {
@@ -196,7 +206,7 @@ impl<'a> PropMemberMutateCollector<'a> {
                     let Expression::Identifier(id) = &call.callee else {
                         return None;
                     };
-                    return Some((id.name.as_str(), Root::Call(call.span)));
+                    return Some((id, Root::Call(call.span)));
                 }
                 Expression::StaticMemberExpression(m) => cur = &m.object,
                 Expression::ComputedMemberExpression(m) => cur = &m.object,
@@ -205,7 +215,9 @@ impl<'a> PropMemberMutateCollector<'a> {
         }
     }
 
-    fn root_of_assignment_target<'e>(target: &'e AssignmentTarget<'_>) -> Option<(&'e str, Root)> {
+    fn root_of_assignment_target<'e, 'x>(
+        target: &'e AssignmentTarget<'x>,
+    ) -> Option<(&'e IdentifierReference<'x>, Root)> {
         let object = match target {
             AssignmentTarget::StaticMemberExpression(m) => &m.object,
             AssignmentTarget::ComputedMemberExpression(m) => &m.object,
@@ -215,7 +227,7 @@ impl<'a> PropMemberMutateCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
+impl<'a, 'sem, 'ast> Visit<'ast> for PropMemberMutateCollector<'a, 'sem> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Detect the wrap shape `prop(<assignment>, true)` we emit
         // for prop member mutations. If callee is a bare Identifier
@@ -259,13 +271,17 @@ impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
             return;
         }
 
-        let Some((root_name, root)) = Self::root_of_assignment_target(&expr.left) else {
+        let Some((root_id, root)) = Self::root_of_assignment_target(&expr.left) else {
             return;
         };
+        let root_name = root_id.name.as_str();
         if !self.prop_vars.iter().any(|p| p == root_name) {
             return;
         }
         if self.non_bindable_prop_vars.iter().any(|nb| nb == root_name) {
+            return;
+        }
+        if is_locally_shadowed(self.semantic, root_id) {
             return;
         }
 
@@ -321,9 +337,13 @@ impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
             SimpleAssignmentTarget::ComputedMemberExpression(m) => &m.object,
             _ => return,
         };
-        let Some((root_name, root)) = Self::walk_object_chain_to_root(object) else {
+        let Some((root_id, root)) = Self::walk_object_chain_to_root(object) else {
             return;
         };
+        let root_name = root_id.name.as_str();
+        if is_locally_shadowed(self.semantic, root_id) {
+            return;
+        }
         if !self.prop_vars.iter().any(|p| p == root_name) {
             return;
         }
@@ -390,12 +410,19 @@ pub(crate) fn transform_prop_member_mutate_in_place(
         SourceType::mjs(),
         ParseOptions::default(),
         |allocator, program| {
+            // The shadowed positions are read off the untouched parse: the
+            // rewrite below moves nodes, and `Semantic` borrows the program.
+            let shadowed = {
+                let built = SemanticBuilder::new().with_build_nodes(true).build(program);
+                shadowed_reference_starts(program, &built.semantic, prop_vars)
+            };
             let mut rewriter = PropMemberMutateRewriter {
                 allocator,
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
                 prop_vars,
                 non_bindable_prop_vars,
                 prop_invalidate_bodies,
+                shadowed,
                 skip_assignment_spans: Vec::new(),
                 skip_update_spans: Vec::new(),
                 changed: false,
@@ -412,6 +439,7 @@ struct PropMemberMutateRewriter<'a, 'b> {
     prop_vars: &'b [String],
     non_bindable_prop_vars: &'b [String],
     prop_invalidate_bodies: &'b rustc_hash::FxHashMap<String, String>,
+    shadowed: FxHashSet<u32>,
     skip_assignment_spans: Vec<(u32, u32)>,
     skip_update_spans: Vec<(u32, u32)>,
     changed: bool,
@@ -459,6 +487,18 @@ impl<'a> PropMemberMutateRewriter<'a, '_> {
             },
             _ => None,
         }
+    }
+
+    fn root_is_shadowed(&self, root: &Expression<'a>) -> bool {
+        let start = match root {
+            Expression::Identifier(id) => id.span.start,
+            Expression::CallExpression(call) => match &call.callee {
+                Expression::Identifier(id) => id.span.start,
+                _ => return false,
+            },
+            _ => return false,
+        };
+        self.shadowed.contains(&start)
     }
 
     /// `$.invalidate_inner_signals(() => { … })` for a prop carrying legacy
@@ -535,6 +575,9 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for PropMemberMutateRewriter<'a, '_> {
             let Some(root) = root else {
                 return;
             };
+            if self.root_is_shadowed(root) {
+                return;
+            }
             let Some(prop) = Self::root_prop_name(root) else {
                 return;
             };
@@ -571,6 +614,9 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for PropMemberMutateRewriter<'a, '_> {
         let Some(root) = Self::target_root(&mut assign.left) else {
             return;
         };
+        if self.root_is_shadowed(root) {
+            return;
+        }
         let Some(prop) = Self::root_prop_name(root) else {
             return;
         };
@@ -627,6 +673,37 @@ mod tests {
         let out =
             transform_prop_member_mutate_ast("field.x = {};", &ssv(&["field"]), &[], &map).unwrap();
         assert_eq!(out, "field(field().x = {}, true);");
+    }
+
+    /// Upstream resolves the target through `scope.get`, so a nested binding of
+    /// the same name is not the prop. Values are the shapes two corpus
+    /// components use: a `for…of` binding and a destructured arrow parameter.
+    #[test]
+    fn a_local_binding_shadowing_the_prop_is_not_a_prop_write() {
+        for input in [
+            "function f(xs) { for (const prop of xs) { prop.foo = 5; } }",
+            "const g = ({ prop }) => { prop.foo = 5; };",
+            "function f(prop) { prop.foo++; }",
+        ] {
+            assert_eq!(
+                transform_prop_member_mutate_ast(input, &ssv(&["prop"]), &[], &nm()),
+                None,
+                "{input}"
+            );
+        }
+    }
+
+    /// The control: the same write from an unshadowed position still wraps.
+    #[test]
+    fn an_unshadowed_prop_member_write_still_wraps() {
+        let out = transform_prop_member_mutate_ast(
+            "function f() { prop.foo = 5; }",
+            &ssv(&["prop"]),
+            &[],
+            &nm(),
+        )
+        .unwrap();
+        assert!(out.contains("prop(prop().foo = 5, true)"), "{out}");
     }
 
     #[test]

@@ -291,7 +291,9 @@ pub(super) fn find_and_transform_one_destructure(
                     // brace/bracket depth. If we encounter an unmatched
                     // opening `{` or `[` before hitting a statement boundary,
                     // we're nested inside another pattern and should skip.
-                    if is_inside_enclosing_pattern(statement, b(pattern_start).get()) {
+                    if is_inside_enclosing_pattern(statement, b(pattern_start).get())
+                        || is_function_parameter_default(statement, b(pattern_start).get())
+                    {
                         i = j + 1;
                         continue;
                     }
@@ -432,7 +434,7 @@ pub(super) fn find_and_transform_one_destructure(
     // `return` the official compiler does not emit.
     let before_text = actual_start.before(statement).trim_end_matches([' ', '\t']);
     let after_text = actual_end.after(statement).trim_start_matches([' ', '\t']);
-    let is_standalone = (before_text.is_empty()
+    let is_expression_statement = (before_text.is_empty()
         || before_text.ends_with(';')
         || before_text.ends_with('{')
         || before_text.ends_with('}')
@@ -442,6 +444,10 @@ pub(super) fn find_and_transform_one_destructure(
             || after_text.starts_with(';')
             || after_text.starts_with('}')
             || after_text.starts_with('\n'));
+    // Upstream's test is `context.path.at(-1).type.endsWith('Statement')`, which a
+    // statement's own head expression satisfies as much as an expression statement.
+    let is_standalone = is_expression_statement
+        || is_statement_head_expression(statement, actual_start.get(), actual_end.get());
 
     // Check if RHS will become a function call
     let rhs_trimmed = rhs_str.trim();
@@ -517,6 +523,216 @@ fn is_inside_enclosing_pattern(statement: &str, pattern_open_byte: usize) -> boo
         }
     }
     false
+}
+
+/// Whether `text` ends with `word` as a whole token rather than as the tail of a
+/// longer identifier.
+fn ends_with_word(text: &str, word: &str) -> bool {
+    text.ends_with(word)
+        && text[..text.len() - word.len()]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_alphanumeric() && c != '_' && c != '$')
+}
+
+/// Whether `text` ends with a `case …:` / `default:` label, which introduces a
+/// statement — as against a ternary's `:` or an object property's.
+fn ends_with_case_label(text: &str) -> bool {
+    let head = text.trim_end();
+    let Some(head) = head.strip_suffix(':') else {
+        return false;
+    };
+    if ends_with_word(head.trim_end(), "default") {
+        return true;
+    }
+    let mut depth: i32 = 0;
+    for (i, c) in head.char_indices().rev() {
+        match c {
+            ')' | '}' | ']' => depth += 1,
+            '(' | '{' | '[' => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            // A `?` or a statement boundary before the keyword means the `:` belongs
+            // to a conditional expression or to nothing at all.
+            '?' | ';' if depth == 0 => return false,
+            _ => {}
+        }
+        if depth == 0 && ends_with_word(&head[..i + c.len_utf8()], "case") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether the expression spanning `[start, end)` is a statement's own child in a
+/// position the expression-statement character rule cannot see: the test of an
+/// `if` / `while` / `switch`, one slot of a `for` head, a `return` / `throw`
+/// argument, or the body of an `else` / `do` / `case …:`. Upstream decides
+/// "standalone" with `context.path.at(-1).type.endsWith('Statement')`, so all of
+/// these keep no trailing value.
+fn is_statement_head_expression(statement: &str, start: usize, end: usize) -> bool {
+    let bytes = statement.as_bytes();
+    let code: Vec<(usize, u8)> = code_bytes(bytes)
+        .filter(|&(_, b)| !b.is_ascii_whitespace())
+        .collect();
+    let mut lo = code.partition_point(|&(i, _)| i < start);
+    let mut hi = code.partition_point(|&(i, _)| i < end);
+    let mut end = end;
+    // A redundant paren layer is no node at all — acorn drops it — so every layer
+    // has to be asked the question, innermost first. Peeling first instead would
+    // strip the head's OWN parens and lose `if (({ a } = o))`.
+    loop {
+        if statement_child_at(statement, &code, lo, hi, end) {
+            return true;
+        }
+        if lo > 0 && code[lo - 1].1 == b'(' && hi < code.len() && code[hi].1 == b')' {
+            lo -= 1;
+            end = code[hi].0 + 1;
+            hi += 1;
+        } else {
+            return false;
+        }
+    }
+}
+
+/// One paren layer of `is_statement_head_expression`: `code` holds the statement's
+/// non-whitespace code bytes, `lo` how many of them precede the expression and `hi`
+/// the index of the first one after it.
+fn statement_child_at(
+    statement: &str,
+    code: &[(usize, u8)],
+    lo: usize,
+    hi: usize,
+    end: usize,
+) -> bool {
+    let Some(&(prev_byte, prev)) = lo.checked_sub(1).map(|i| &code[i]) else {
+        return false;
+    };
+    let head = &statement[..prev_byte + 1];
+    if ends_with_word(head, "return")
+        || ends_with_word(head, "throw")
+        || ends_with_word(head, "else")
+        || ends_with_word(head, "do")
+        || ends_with_case_label(head)
+    {
+        // The statement's own terminator, read the way the expression-statement
+        // rule reads it — a bare line break ends a statement here too.
+        let after_text = statement[end..].trim_start_matches([' ', '\t']);
+        return after_text.is_empty()
+            || after_text.starts_with(';')
+            || after_text.starts_with('}')
+            || after_text.starts_with('\n');
+    }
+
+    // A whole head slot is delimited by the head's own parentheses, or by the `;`
+    // separating two slots of a `for` head. `if (1 && ({ a } = o))` closes on the
+    // same `)` and is a LogicalExpression's operand, not the head.
+    let next = code.get(hi).map(|&(_, b)| b);
+    if !matches!(next, Some(b')') | Some(b';')) || !matches!(prev, b'(' | b';') {
+        return false;
+    }
+    let mut depth: i32 = 0;
+    let mut open_paren = None;
+    for &(i, b) in code[..lo].iter().rev() {
+        match b {
+            b')' | b'}' | b']' => depth += 1,
+            b'(' => {
+                depth -= 1;
+                if depth < 0 {
+                    open_paren = Some(i);
+                    break;
+                }
+            }
+            b'{' | b'[' => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    let Some(open_paren) = open_paren else {
+        return false;
+    };
+    let opener = statement[..open_paren].trim_end();
+    ["if", "while", "switch", "for"]
+        .iter()
+        .any(|kw| ends_with_word(opener, kw))
+}
+
+/// Whether the destructure pattern opening at `pattern_open_byte` is a FORMAL
+/// PARAMETER carrying a default (`function go({ v } = { v: 0 })`) rather than a
+/// destructuring assignment. Both spell the same bytes; what separates them is
+/// the enclosing paren — a parameter list's `)` is followed by `=>` or by the
+/// body's `{`, and a control-flow head is the one other paren that closes
+/// before a `{`.
+fn is_function_parameter_default(statement: &str, pattern_open_byte: usize) -> bool {
+    let bytes = statement.as_bytes();
+    // Walk back to the unmatched `(` enclosing the pattern. A `{`/`[` opening
+    // first means the pattern sits inside another pattern, which
+    // `is_inside_enclosing_pattern` answers.
+    let before: Vec<(usize, u8)> = code_bytes(bytes)
+        .take_while(|&(i, _)| i < pattern_open_byte)
+        .collect();
+    let mut depth: i32 = 0;
+    let mut open_paren = None;
+    for &(i, b) in before.iter().rev() {
+        match b {
+            b')' | b'}' | b']' => depth += 1,
+            b'(' => {
+                depth -= 1;
+                if depth < 0 {
+                    open_paren = Some(i);
+                    break;
+                }
+            }
+            b'{' | b'[' => {
+                depth -= 1;
+                if depth < 0 {
+                    return false;
+                }
+            }
+            b';' if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    let Some(open_paren) = open_paren else {
+        return false;
+    };
+    // `if ({ a } = obj) {}` is a real assignment whose paren also closes before
+    // a `{`, so the keyword that opened the paren decides.
+    let head = statement[..open_paren].trim_end();
+    if ["if", "while", "for", "switch", "catch", "with"]
+        .iter()
+        .any(|kw| ends_with_word(head, kw))
+    {
+        return false;
+    }
+    let mut after_close = code_bytes(bytes).skip_while(|&(i, _)| i < open_paren);
+    let mut depth: i32 = 0;
+    for (_, b) in after_close.by_ref() {
+        match b {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    // The next two CODE bytes, so a comment between the `)` and the body does
+    // not decide this.
+    let mut next = after_close.filter(|&(_, b)| !b.is_ascii_whitespace());
+    matches!(
+        (next.next(), next.next()),
+        (Some((_, b'{')), _) | (Some((_, b'=')), Some((_, b'>')))
+    )
 }
 
 /// Find the matching opening bracket, respecting nesting and strings.

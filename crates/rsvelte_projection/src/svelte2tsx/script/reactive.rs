@@ -178,34 +178,33 @@ pub(super) fn handle_reactive_statement(
                 // expression (`$: console.log(x)`), a member-LHS assignment
                 // (`$: foo.bar = x`), or a compound operator (`$: x *= 2`).
                 // All are wrapped whole: `;() => {$: …}`.
-                let label_colon_end = labeled.label.span.end + 1;
-                let label_colon_abs = label_colon_end + offset;
-                str.overwrite(label_start, label_colon_abs, ";() => {$:");
-                str.append_left(label_end, "}");
+                wrap_reactive_statement(str, label_start, label_end);
             }
         }
         oxc::Statement::BlockStatement(_) => {
             // Block: `$: { ... }` → `;() => {$: { ... }}`
-            let label_colon_end = labeled.label.span.end + 1;
-            let label_colon_abs = label_colon_end + offset;
-            str.overwrite(label_start, label_colon_abs, ";() => {$:");
-            str.append_left(label_end, "}");
+            wrap_reactive_statement(str, label_start, label_end);
         }
         oxc::Statement::IfStatement(_) => {
             // `$: if (...) { ... }` → `;() => {$: if (...) { ... }}`
-            let label_colon_end = labeled.label.span.end + 1;
-            let label_colon_abs = label_colon_end + offset;
-            str.overwrite(label_start, label_colon_abs, ";() => {$:");
-            str.append_left(label_end, "}");
+            wrap_reactive_statement(str, label_start, label_end);
         }
         _ => {
             // Other statements: wrap similarly
-            let label_colon_end = labeled.label.span.end + 1;
-            let label_colon_abs = label_colon_end + offset;
-            str.overwrite(label_start, label_colon_abs, ";() => {$:");
-            str.append_left(label_end, "}");
+            wrap_reactive_statement(str, label_start, label_end);
         }
     }
+}
+
+/// Wrap a whole reactive statement as `;() => {<source>}`.
+///
+/// Upstream `ImplicitTopLevelNames.handleReactiveStatement` does exactly
+/// `prependLeft(start, ';() => {')` — it never rewrites the label, so a source
+/// that spells the label `$ :`, `$\t:` or `$/*c*/:` keeps its own spelling.
+/// Overwriting a fixed two-byte `$:` instead produced `$::` (and ate a comment).
+fn wrap_reactive_statement(str: &mut MagicString<'_>, start: u32, end: u32) {
+    str.prepend_left(start, ";() => {");
+    str.append_left(end, "}");
 }
 
 fn is_store_assignment(target: &oxc::AssignmentTarget) -> bool {

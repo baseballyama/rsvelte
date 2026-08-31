@@ -27,8 +27,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_render_statement_with_memoizer, build_template_chunk,
-    collect_expression_identifiers_for_blockers, expression_has_reactive_state, get_literal_value,
-    is_js_expr_defined,
+    collect_expression_identifiers_for_blockers, expression_has_reactive_state, is_js_expr_defined,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -568,7 +567,9 @@ pub fn visit_regular_element(
             if let Attribute::Attribute(attr) = attribute {
                 // Handle event attributes (onclick={...}) first, then continue
                 if is_event_attribute(attribute).is_some() {
-                    visit_event_attribute(attr, context);
+                    let name_start = node.start.saturating_add(1);
+                    let name_end = name_start + node.name.len() as u32;
+                    visit_event_attribute(attr, (name_start, name_end), context);
                     continue;
                 }
 
@@ -1195,8 +1196,7 @@ pub fn visit_regular_element(
                 !super::shared::utils::is_effect_pending_expr(
                     &expr_tag.expression,
                     context.state.parse_arena,
-                ) && (get_literal_value(&expr_tag.expression, context).is_some()
-                    || !expression_has_reactive_state(&expr_tag.expression, context))
+                ) && !expression_has_reactive_state(&expr_tag.expression, context)
                     && !expr_tag.metadata.expression.has_call()
                     && !has_blockers
             }

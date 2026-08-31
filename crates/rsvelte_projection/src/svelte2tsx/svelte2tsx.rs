@@ -466,7 +466,7 @@ pub fn svelte2tsx(
     // errors like official.
     let parse_options = ParseOptions {
         modern: true,
-        loose: false,
+        loose: options.emit_on_template_error,
         skip_expression_loc: true,
         defer_script_parse: true,
         force_typescript: false,

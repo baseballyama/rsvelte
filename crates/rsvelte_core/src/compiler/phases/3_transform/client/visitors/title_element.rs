@@ -11,7 +11,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::expression_conv
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::collect_ids_from_expr;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_expression, expression_has_await, expression_has_reactive_state, get_literal_value,
-    is_expression_defined,
+    is_js_expr_defined,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -297,7 +297,7 @@ fn build_title_content(
                 // so every known folds to a STRING — `0` and `true` included — and a
                 // known-nullish one folds to the empty string rather than keeping a
                 // `?? ''` around a name that is gone by then.
-                match get_literal_value(&expr.expression, context) {
+                match get_literal_value(&expr.expression, &expr.metadata.expression, context) {
                     Some(Some(v)) => return (b::string(v), false, memo_entries),
                     Some(None) => return (b::string(""), false, memo_entries),
                     None => {}
@@ -339,7 +339,10 @@ fn build_title_content(
                     );
                 }
 
-                if !is_expression_defined(&expr.expression, context) {
+                // Upstream evaluates the value it BUILT, so a legacy
+                // `$.untrack(...)` wrapper makes the chunk unknown even when
+                // the source expression is statically defined.
+                if !is_js_expr_defined(&value, &context.arena, context) {
                     return (
                         b::nullish(&context.arena, value, b::string("")),
                         has_state,
@@ -363,7 +366,7 @@ fn build_title_content(
             match node {
                 TemplateNode::Text(text) => folded.push_str(&text.data),
                 TemplateNode::ExpressionTag(expr) => {
-                    match get_literal_value(&expr.expression, context) {
+                    match get_literal_value(&expr.expression, &expr.metadata.expression, context) {
                         Some(Some(v)) => folded.push_str(&v),
                         Some(None) => {}
                         None => {
@@ -398,7 +401,7 @@ fn build_title_content(
                 // Upstream inlines a chunk whose evaluation is known into the
                 // quasi text (`Zoo — ${name}`, not `${site} — ${name}`); a
                 // known-nullish chunk contributes nothing (its `?? ''`).
-                match get_literal_value(&expr.expression, context) {
+                match get_literal_value(&expr.expression, &expr.metadata.expression, context) {
                     Some(Some(v)) => {
                         current_text.push_str(&v);
                         continue;
@@ -433,7 +436,7 @@ fn build_title_content(
                     // As in the single-expression path, scope.evaluate sees
                     // the memo identifier rather than the original expression.
                     expressions.push(b::nullish(&context.arena, param_ref, b::string("")));
-                } else if !is_expression_defined(&expr.expression, context) {
+                } else if !is_js_expr_defined(&value, &context.arena, context) {
                     expressions.push(b::nullish(&context.arena, value, b::string("")));
                 } else {
                     expressions.push(value);

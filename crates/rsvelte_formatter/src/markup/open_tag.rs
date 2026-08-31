@@ -370,6 +370,11 @@ pub(super) fn push_open_tag(
     // parent being a `RegularElement`, which the tag name alone cannot decide
     // (`title` / `slot` are their own node types).
     regular_element: bool,
+    // Columns the enclosing block's trailing tags consume after this element on
+    // the same flat line. An element's own close tag is inside its span and is
+    // already measured; a block's `{/if}` or `{:else}` is not, so without this
+    // the element is judged to fit by exactly those tags' width.
+    trailing_tag_width: usize,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<bool, FormatError> {
@@ -413,7 +418,7 @@ pub(super) fn push_open_tag(
         tag_name,
         &rendered_attrs,
         self_closing,
-        leading_indent_width,
+        leading_indent_width + trailing_tag_width,
         tw,
     );
 

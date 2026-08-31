@@ -1588,7 +1588,7 @@ export const REMOVAL_SUCCESSORS = ['succ-none', 'succ-stmt'];
  * right.
  *
  * The update operators are declared apart because the non-`this` half of that
- * row is a recorded deliberate divergence (`compatibility/deliberate-divergences.md`),
+ * row is a recorded deliberate divergence (`compatibility/GATES.md#deliberate-divergences`),
  * and an output-equality gate has no way to say "expected to differ".
  */
 export const PRIVATE_FIELD_KINDS = {
@@ -2277,6 +2277,14 @@ export const RUNE_STATEMENT_DECLARATIONS = {
 	'state-let': {
 		declaration: 'let value = $state(1);',
 		use: 'value += 1;\n\treturn value;',
+		containers: ['switch-case-bare', 'switch-case-block', 'labeled-block'],
+	},
+	// The `$derived` half of #3420. Held to the same containers as `state-let` because a
+	// lexical declaration is a syntax error as a bare `if` / loop / labeled body, and both
+	// compilers reject it — an error-parity cell measures nothing about this axis.
+	'derived-let': {
+		declaration: 'let value = $derived(1);',
+		use: 'return value;',
 		containers: ['switch-case-bare', 'switch-case-block', 'labeled-block'],
 	},
 };

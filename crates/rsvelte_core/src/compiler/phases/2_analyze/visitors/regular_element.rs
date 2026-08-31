@@ -1017,18 +1017,9 @@ pub fn visit<'a, 'b: 'a>(
                                 if !ancestor_scopes.contains(&other_binding.scope_index) {
                                     continue;
                                 }
-                                // A store auto-subscription (`$label`) is not a real
-                                // scope binding upstream — `scope.get('$label')`
-                                // returns null (the binding is `label`), so the
-                                // official never adds it as an indirect binding.
-                                // rsvelte synthesizes a `$label` StoreSub binding, so
-                                // skip it explicitly to match.
-                                if matches!(
-                                    other_binding.kind,
-                                    crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
-                                ) {
-                                    continue;
-                                }
+                                // `2-analyze/index.js:445` declares `$label` as a real
+                                // `store_sub` binding, so upstream's `scope.get` finds it
+                                // and adds it like any other reference.
                                 if let Some(min_pos) = other_binding
                                     .references
                                     .iter()

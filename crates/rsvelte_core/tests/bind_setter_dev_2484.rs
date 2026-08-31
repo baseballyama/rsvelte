@@ -73,3 +73,65 @@ fn svelte_self_member_binding_uses_dev_assign() {
     let out = dev_client("{#if flag}<svelte:self bind:value={s.x} />{/if}");
     assert_eq!(out.matches("$.assign(").count(), 1, "{out}");
 }
+
+/// `build_assignment` returns from the `mutate` branch before the dev `$.assign`
+/// wrap is considered, so `<svelte:self>` keeps the plain assignment wherever
+/// the root carries one — measured against the official compiler.
+#[test]
+fn svelte_self_member_binding_skips_dev_assign_behind_a_mutate_transform() {
+    for (name, script, markup, expected) in [
+        (
+            "state_source",
+            "\n\tlet v = $state({ x: 1 });\n\tfunction r() { v = { x: 2 }; }\n",
+            "{#if true}<svelte:self bind:value={v.x} />{/if}<button onclick={r}>r</button>",
+            "$.get(v).x = $$value;",
+        ),
+        (
+            "derived",
+            "\n\tlet s = $state({ x: 1 });\n\tlet v = $derived(s);\n",
+            "{#if true}<svelte:self bind:value={v.x} />{/if}",
+            "$.get(v).x = $$value;",
+        ),
+        (
+            "each_item",
+            "\n\tlet list = $state([{ x: 1 }]);\n",
+            "{#each list as item}<svelte:self bind:value={item.x} />{/each}",
+            "$.get(item).x = $$value;",
+        ),
+    ] {
+        let out = compile(
+            &format!("<script>{script}</script>\n\n{markup}\n"),
+            CompileOptions {
+                filename: Some("A.svelte".to_string()),
+                generate: GenerateMode::Client,
+                dev: true,
+                ..Default::default()
+            },
+        )
+        .expect("compile failed")
+        .js
+        .code;
+        assert!(out.contains(expected), "{name}:\n{out}");
+        assert_eq!(out.matches("$.assign(").count(), 0, "{name}:\n{out}");
+    }
+}
+
+/// The other direction: a root with no `mutate` transform keeps the wrap, and
+/// the key comes from the member — computed or nested included.
+#[test]
+fn svelte_self_member_binding_wraps_a_computed_and_a_nested_key() {
+    let out = compile(
+        "<script>\n\tlet v = $state({ x: 1, n: { y: 2 } });\n\tlet k = 'x';\n</script>\n\n{#if k}<svelte:self bind:value={v[k]} /><svelte:self bind:value={v.n.y} />{/if}\n",
+        CompileOptions {
+            filename: Some("A.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: true,
+            ..Default::default()
+        },
+    )
+    .expect("compile failed")
+    .js
+    .code;
+    assert!(out.contains("$.assign(v, k, '=', $$value,"), "{out}");
+    assert!(out.contains("$.assign(v.n, 'y', '=', $$value,"), "{out}");
+}

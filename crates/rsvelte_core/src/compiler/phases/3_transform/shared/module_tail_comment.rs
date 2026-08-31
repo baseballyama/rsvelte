@@ -9,6 +9,7 @@
 //! module as an isolated text chunk, so reproduce that cross-chunk cursor
 //! result explicitly.
 
+use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
 use crate::compiler::phases::phase3_transform::js_ast::codegen::SourceMapping;
 
 use super::js_scan;
@@ -16,10 +17,11 @@ use super::js_scan;
 pub(crate) fn rehome(
     code: String,
     module_source: &str,
+    projection: Option<&ScriptProjection>,
     component_name: &str,
     mappings: &mut [SourceMapping],
 ) -> String {
-    let Some(comment) = standalone_tail_comment(module_source) else {
+    let Some(comment) = standalone_tail_comment(module_source, projection) else {
         return code;
     };
     let needle = format!("function {component_name}(");
@@ -71,9 +73,25 @@ pub(crate) fn rehome(
     out
 }
 
-fn standalone_tail_comment(source: &str) -> Option<&str> {
+fn standalone_tail_comment<'source>(
+    source: &'source str,
+    projection: Option<&ScriptProjection>,
+) -> Option<&'source str> {
     let ranges = js_scan::comment_ranges(source.as_bytes());
     let &(start, end) = ranges.last()?;
+    // TypeScript stripping temporarily copies comments out of erased
+    // declarations so located instance-script nodes can print them. Module
+    // scripts drop those comments upstream. In particular, the final field
+    // JSDoc of an erased interface otherwise looks exactly like a genuine EOF
+    // comment and gets moved onto the generated component parameter list.
+    if projection.is_some_and(|projection| {
+        projection
+            .reemitted_comment_outputs
+            .iter()
+            .any(|range| range.start <= start as u32 && end as u32 <= range.end)
+    }) {
+        return None;
+    }
     if !source[end..].trim().is_empty() {
         return None;
     }
@@ -100,14 +118,14 @@ mod tests {
     #[test]
     fn block_comment_moves_to_the_final_parameter() {
         let code = "export default function App($$anchor, $$props) {\n\treturn 1;\n}".to_string();
-        let out = rehome(code, "export const x = 1;\n/* c */\n", "App", &mut []);
+        let out = rehome(code, "export const x = 1;\n/* c */\n", None, "App", &mut []);
         assert!(out.contains("App($$anchor, $$props /* c */)"), "{out}");
     }
 
     #[test]
     fn line_comment_makes_the_parameter_list_multiline() {
         let code = "export default function App($$anchor) {\n\treturn 1;\n}".to_string();
-        let out = rehome(code, "export const x = 1;\n// c\n", "App", &mut []);
+        let out = rehome(code, "export const x = 1;\n// c\n", None, "App", &mut []);
         assert!(out.contains("App(\n\t$$anchor, // c\n)"), "{out}");
     }
 
@@ -115,9 +133,15 @@ mod tests {
     fn inline_and_comment_only_tails_stay_untouched() {
         let code = "export default function App($$anchor) {}".to_string();
         assert_eq!(
-            rehome(code.clone(), "export const x = 1; // c", "App", &mut []),
+            rehome(
+                code.clone(),
+                "export const x = 1; // c",
+                None,
+                "App",
+                &mut []
+            ),
             code
         );
-        assert_eq!(rehome(code.clone(), "// c\n", "App", &mut []), code);
+        assert_eq!(rehome(code.clone(), "// c\n", None, "App", &mut []), code);
     }
 }

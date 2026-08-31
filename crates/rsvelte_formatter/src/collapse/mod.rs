@@ -40,7 +40,7 @@ use children_port::{
     ChildrenPortResult, block_branch_bounds, collect_children_port_only, node_to_child,
     prepend_leading_to_fill, text_preceded_by_close_tag, try_children_port,
 };
-use collect::{collect, collect_try_collapse_only};
+use collect::{collect, collect_trim_edge_whitespace, collect_try_collapse_only};
 use doc_build::{
     build_attrs_concat, build_children_doc, build_children_doc_nodes, build_component_doc,
     build_if_block_doc, build_inline_element_doc, build_open_attr_doc, build_simple_block_doc,
@@ -391,7 +391,48 @@ pub fn collapse_pure_text_elements(
             result = apply_edits(&result, edits3);
         }
     }
+
+    // Last pass: drop the same-line edge whitespace of an element whose content
+    // is not whitespace-sensitive. `trims_edge` already answers that, but
+    // `try_collapse` bails before reading it as soon as any child is an element,
+    // so only a pure-text body was ever trimmed. It runs LAST because that
+    // whitespace is also the hug signal — `shouldHugStart` hugs only when the
+    // content touches the open tag — so removing it earlier changes the layout
+    // both formatters derive from it.
+    // The re-parse is the dominant cost of this whole post-pass, so gate it on a
+    // necessary byte condition: a trimmable edge always sits between the `>`/`}`
+    // that ends what precedes it and the `<`/`{` that starts what follows.
+    if has_same_line_tag_gap(&result)
+        && let Ok(root4) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts)
+    {
+        let mut edits4: Vec<(u32, u32, String)> = Vec::new();
+        collect_trim_edge_whitespace(&result, &root4.fragment, &mut edits4);
+        if !edits4.is_empty() {
+            result = apply_edits(&result, edits4);
+        }
+    }
     result
+}
+
+/// `[>}][ \t]+[<{]` — the byte shape every edge the trim pass can remove has,
+/// since such an edge is bounded by the tag or tag-like token on either side.
+fn has_same_line_tag_gap(text: &str) -> bool {
+    let b = text.as_bytes();
+    let mut open = None;
+    for (i, &c) in b.iter().enumerate() {
+        match c {
+            b'>' | b'}' => open = Some(i),
+            b' ' | b'\t' => {}
+            b'<' | b'{' => {
+                if open.is_some_and(|j| i > j + 1) {
+                    return true;
+                }
+                open = None;
+            }
+            _ => open = None,
+        }
+    }
+    false
 }
 
 #[cfg(test)]

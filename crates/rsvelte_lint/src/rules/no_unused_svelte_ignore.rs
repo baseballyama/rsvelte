@@ -232,7 +232,7 @@ pub fn no_unused_svelte_ignore_diagnostics(
                 || non_css_style.as_ref().is_some_and(|(elem, _, _)| {
                     is_css_warn_code(item)
                         && item.scope == Some(*elem)
-                        && transformed_style_warnings.as_ref().map_or(true, |warnings| {
+                        && transformed_style_warnings.as_ref().is_none_or(|warnings| {
                             warnings.contains(item.code.as_str())
                                 || warnings.contains(item.code_for_v5.as_str())
                         })

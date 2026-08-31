@@ -126,7 +126,7 @@ fn the_two_implementations_of_every_pass_agree() {
         "these ratchet entries now agree — re-baseline in the same change that \
          fixed them (UPDATE_DUAL_RUN_RATCHET=1 cargo test -p rsvelte_devtools \
          --test dual_run_gate) and update \
-         compatibility/dual-run-known-failures.md:\n{}",
+         compatibility/KNOWN-FAILURES.md#dual-run-known-failures:\n{}",
         fixed
             .iter()
             .map(|s| format!("  {s}"))

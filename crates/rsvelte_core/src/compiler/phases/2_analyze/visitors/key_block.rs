@@ -76,7 +76,10 @@ pub fn visit<'a, 'b: 'a>(
     if let Some(&key_scope) = context.analysis.root.template_scope_map.get(&block.start) {
         context.scope = key_scope;
     }
-    fragment::analyze(&mut block.fragment, context)?;
+    context.bind_this_block_depth += 1;
+    let result = fragment::analyze(&mut block.fragment, context);
+    context.bind_this_block_depth -= 1;
+    result?;
     context.scope = old_scope;
 
     // Pop fragment owner type

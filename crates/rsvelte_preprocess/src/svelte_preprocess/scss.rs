@@ -34,10 +34,15 @@ pub fn transform(
     content: &str,
 ) -> Result<ScssOutput, String> {
     // `prepareContent` prepends `prependData` before compiling.
+    let content = if indented {
+        crate::sass::remove_indented_base(content)
+    } else {
+        content.to_string()
+    };
     let prepared = options
         .prepend_data
         .as_ref()
-        .map_or_else(|| content.to_string(), |data| format!("{data}\n{content}"));
+        .map_or_else(|| content.clone(), |data| format!("{data}\n{content}"));
 
     // scss errors if passed an empty string — upstream returns `{ code: '' }`.
     if prepared.is_empty() {

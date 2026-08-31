@@ -1286,6 +1286,10 @@ pub struct Script<'a> {
     /// Whether the script uses TypeScript.
     #[serde(skip)]
     pub is_typescript: bool,
+    /// HTML comments preceding the tag, kept for the deferred parse: the
+    /// nearest one silences warnings for the whole script.
+    #[serde(skip)]
+    pub leading_comments: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]

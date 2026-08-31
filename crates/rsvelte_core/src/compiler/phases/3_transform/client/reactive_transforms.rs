@@ -226,7 +226,22 @@ pub(super) fn transform_reactive_statement(
             // string/template literal at the start of this line.
             let in_string_like =
                 in_single || in_double || (in_template > 0 && template_expr_depth == 0);
-            if t.starts_with('.') && !collapsed.is_empty() && !in_string_like {
+            // A chain continuation is `.name`; `...` is a spread element, and
+            // joining one onto the line above swallows it when that line ends in
+            // a `//` comment.
+            let chain_continuation = t.starts_with('.') && !t.starts_with("..");
+            // The same swallow happens when the line above IS a `//` comment,
+            // whatever follows it: the joined continuation lands inside the
+            // comment and every line of a multi-line callback is orphaned.
+            let joins_into_a_comment = chain_continuation
+                && crate::compiler::phases::phase3_transform::shared::js_scan::ends_inside_line_comment(
+                    &collapsed,
+                );
+            if chain_continuation
+                && !collapsed.is_empty()
+                && !in_string_like
+                && !joins_into_a_comment
+            {
                 // Append chain continuation without newline
                 collapsed.push_str(t);
             } else {
@@ -346,7 +361,12 @@ pub(super) fn transform_reactive_statement(
             // without the `$.mutate` wrap. Must run before `wrap_state_vars_in_expr`
             // (which rewrites the LHS root to `$.get(obj)`, after which the
             // member-mutate detector bails).
-            let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_state_member_mutations(
+                &temp,
+                state_vars,
+                non_reactive_state_vars,
+                prop_invalidate_bodies,
+            );
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             transformed_body =
                 wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars)
@@ -386,7 +406,12 @@ pub(super) fn transform_reactive_statement(
                 &[],
                 prop_invalidate_bodies,
             );
-            let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_state_member_mutations(
+                &temp,
+                state_vars,
+                non_reactive_state_vars,
+                prop_invalidate_bodies,
+            );
             let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
             let temp =
                 wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
@@ -475,9 +500,13 @@ pub(super) fn transform_reactive_statement(
                     // Build $.mutate(base, $.get(base).member = rhs)
                     // The first arg of $.mutate() is protected by in_mutate_first_arg check
                     // in wrap_state_vars_in_expr, so `base` won't be double-wrapped.
-                    transformed_body = format!(
-                        "$.mutate({}, $.get({}){} = {})",
-                        base, base, member_part, transformed_rhs
+                    transformed_body = wrap_legacy_invalidate(
+                        format!(
+                            "$.mutate({}, $.get({}){} = {})",
+                            base, base, member_part, transformed_rhs
+                        ),
+                        base,
+                        prop_invalidate_bodies,
                     );
                 } else if store_sub_vars.contains(&lhs.to_string()) {
                     // Store subscription assignment → $.store_set(store_name, rhs)
@@ -527,9 +556,13 @@ pub(super) fn transform_reactive_statement(
                         non_reactive_state_vars,
                         proxy_vars,
                     );
-                    transformed_body = format!(
-                        "{}({}(){} = {}, true)",
-                        base, base, transformed_member_part, transformed_rhs
+                    transformed_body = wrap_legacy_invalidate(
+                        format!(
+                            "{}({}(){} = {}, true)",
+                            base, base, transformed_member_part, transformed_rhs
+                        ),
+                        base,
+                        prop_invalidate_bodies,
                     );
                 } else {
                     // Regular assignment - still transform prop reads on RHS
@@ -596,7 +629,12 @@ pub(super) fn transform_reactive_statement(
         // Transform state member-expression mutations (e.g., `object[key] = []`)
         // to `$.mutate(object, $.get(object)[key] = [])`. Must run before wrap_state_vars_in_expr
         // so identifiers are still in their original form.
-        let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
+        let temp = transform_state_member_mutations(
+            &temp,
+            state_vars,
+            non_reactive_state_vars,
+            prop_invalidate_bodies,
+        );
         // Transform state var assignments to $.set() before wrapping reads in $.get()
         let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
         let temp = wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
@@ -1007,6 +1045,25 @@ pub(super) fn transform_state_set_in_reactive(
     .unwrap_or_else(|| expr.to_string())
 }
 
+/// A `$:` body is lowered by string formatting here rather than by the AST port in
+/// `expression_converter`, so this third port owes the same `legacy_indirect_bindings`
+/// wrap that `legacy_state_member_mutate_ast` and `prop_member_mutate_ast` apply.
+fn wrap_legacy_invalidate(
+    mutation: String,
+    root_name: &str,
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
+) -> String {
+    match invalidate_bodies.get(root_name) {
+        Some(body) if !body.is_empty() => {
+            format!(
+                "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                mutation, body
+            )
+        }
+        _ => mutation,
+    }
+}
+
 /// Transform member-expression assignments of state variables to `$.mutate()` calls.
 ///
 /// Converts patterns like:
@@ -1022,11 +1079,13 @@ pub(super) fn transform_state_member_mutations(
     expr: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     super::state_member_mutate_ast::transform_state_member_mutate_ast(
         expr,
         state_vars,
         non_reactive_vars,
+        invalidate_bodies,
     )
     .unwrap_or_else(|| expr.to_string())
 }

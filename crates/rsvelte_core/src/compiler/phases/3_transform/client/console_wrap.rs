@@ -22,7 +22,7 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
     ArrayExpressionElement, BindingIdentifier, BindingPattern, IdentifierReference, Program,
-    Statement, VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
+    Statement, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
@@ -32,6 +32,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::server::evaluate as server_evaluate;
 use crate::compiler::phases::phase3_transform::server::evaluate::EvalCtx;
 
 pub(super) const CONSOLE_METHODS: &[&str] = &[
@@ -149,8 +150,23 @@ pub(super) fn collect_local_consts(
 ) -> LocalConsts {
     let semantic_ret = SemanticBuilder::new().build(program);
     let semantic = &semantic_ret.semantic;
+    let mut references = LocalReferenceCollector {
+        semantic,
+        starts: FxHashSet::default(),
+    };
+    references.visit_program(program);
+    // The index is built with the reference set but no verdicts: whether a name is
+    // locally BOUND is what disqualifies a global keypath (`const Math = …` shadows
+    // `Math.random()`), and unlike a verdict that answer does not depend on visit
+    // order. A chained `const a = b` still stays unresolved.
+    let index_locals = LocalConsts {
+        verdicts: FxHashMap::default(),
+        local_references: references.starts.clone(),
+    };
     let mut collector = ConstCollector {
         analysis,
+        semantic,
+        index_locals: &index_locals,
         counts: FxHashMap::default(),
         verdicts: FxHashMap::default(),
     };
@@ -161,11 +177,6 @@ pub(super) fn collect_local_consts(
         ..
     } = collector;
     verdicts.retain(|name, _| counts.get(name) == Some(&1));
-    let mut references = LocalReferenceCollector {
-        semantic,
-        starts: FxHashSet::default(),
-    };
-    references.visit_program(program);
     LocalConsts {
         verdicts,
         local_references: references.starts,
@@ -192,22 +203,17 @@ impl<'a> Visit<'a> for LocalReferenceCollector<'_> {
     }
 }
 
-struct ConstCollector<'an> {
+struct ConstCollector<'an, 'sem> {
     analysis: Option<&'an ComponentAnalysis>,
+    semantic: &'sem Semantic<'sem>,
+    index_locals: &'sem LocalConsts,
     counts: FxHashMap<String, u32>,
     verdicts: FxHashMap<String, bool>,
 }
 
-impl<'a> Visit<'a> for ConstCollector<'_> {
+impl<'a> Visit<'a> for ConstCollector<'_, '_> {
     fn visit_binding_identifier(&mut self, it: &BindingIdentifier<'a>) {
         *self.counts.entry(it.name.to_string()).or_insert(0) += 1;
-    }
-
-    fn visit_variable_declaration(&mut self, it: &VariableDeclaration<'a>) {
-        if !matches!(it.kind, VariableDeclarationKind::Const) {
-            return;
-        }
-        walk::walk_variable_declaration(self, it);
     }
 
     fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
@@ -218,12 +224,28 @@ impl<'a> Visit<'a> for ConstCollector<'_> {
         let Some(init) = &it.init else {
             return;
         };
-        // No `locals` while building the index: a chained `const a = b` stays
-        // unresolved rather than depending on visit order.
+        // Upstream evaluates a binding's initializer when `!binding.updated` —
+        // the test is whether the name is ever written, not whether it is `const`.
+        if !self.is_never_written(id) {
+            return;
+        }
         self.verdicts.insert(
             id.name.to_string(),
-            shape_can_be_unknown(init, self.analysis, None),
+            shape_can_be_unknown(init, self.analysis, Some(self.index_locals)),
         );
+    }
+}
+
+impl ConstCollector<'_, '_> {
+    fn is_never_written(&self, id: &BindingIdentifier<'_>) -> bool {
+        let Some(symbol_id) = id.symbol_id.get() else {
+            return false;
+        };
+        !self
+            .semantic
+            .scoping()
+            .get_resolved_references(symbol_id)
+            .any(oxc_semantic::Reference::is_write)
     }
 }
 
@@ -316,10 +338,69 @@ pub(super) fn shape_can_be_unknown(
         // false}`, and reads of a `$state` declaration to `$.get(name)`.
         E::CallExpression(call) => match state_read_operand(call) {
             Some(id) => identifier_can_be_unknown(&id.name, id.span.start, analysis, locals),
-            None => !is_never_unknown_call(&call.callee),
+            // A call upstream's `globals` table types contributes NUMBER or
+            // STRING to the value set even when it folds nothing (`Math.random()`),
+            // so it is never UNKNOWN.
+            None => {
+                !is_never_unknown_call(&call.callee)
+                    && !global_keypath(&call.callee, analysis, locals)
+                        .is_some_and(|k| server_evaluate::is_global_keypath(&k))
+            }
         },
+        // `Math.PI` and its siblings are `global_constants` upstream: a known value.
+        E::StaticMemberExpression(_) => global_keypath(expr, analysis, locals)
+            .is_none_or(|k| server_evaluate::global_constant(&k).is_none()),
         _ => true,
     }
+}
+
+/// Upstream's `get_global_keypath`: a dotted chain of plain identifiers whose base
+/// resolves to no binding. Only the base needs the lookup — a property name is not
+/// a reference.
+fn global_keypath(
+    expr: &oxc_ast::ast::Expression<'_>,
+    analysis: Option<&ComponentAnalysis>,
+    locals: Option<&LocalConsts>,
+) -> Option<String> {
+    use oxc_ast::ast::Expression as E;
+    let mut joined = String::new();
+    let mut node = expr;
+    while let E::StaticMemberExpression(member) = node {
+        joined = format!(".{}{}", member.property.name, joined);
+        node = &member.object;
+    }
+    let E::Identifier(base) = node else {
+        return None;
+    };
+    if binding_exists(&base.name, base.span.start, analysis, locals) {
+        return None;
+    }
+    Some(format!("{}{joined}", base.name))
+}
+
+/// Whether this reference resolves to a declaration — upstream's
+/// `scope.get(name) !== null`, which disqualifies a shadowed `Math` / `Number`.
+/// `local_references` holds reference POSITIONS, so a `const Math` in one function
+/// does not disqualify `Math.random()` in another; the name-keyed verdict map
+/// would, which is the same shadow-by-name hazard this file is full of.
+fn binding_exists(
+    name: &str,
+    reference_start: u32,
+    analysis: Option<&ComponentAnalysis>,
+    locals: Option<&LocalConsts>,
+) -> bool {
+    if locals.is_some_and(|l| l.local_references.contains(&reference_start)) {
+        return true;
+    }
+    // Phase 2 records function-locals in `root.bindings` too, so the name lookup
+    // has to be confined to the scopes a generated script's ROOT can see —
+    // otherwise a `const Math` in one function disqualifies `Math.random()` in
+    // every other. `local_references` already covers everything below that.
+    analysis.is_some_and(|a| {
+        a.root.bindings.iter().any(|b| {
+            b.name == name && (b.scope_index == 0 || b.scope_index == a.root.instance_scope_index)
+        })
+    })
 }
 
 /// The declaration name behind a lowered reactive read (`$.get(count)` /

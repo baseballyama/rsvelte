@@ -11,7 +11,9 @@ use crate::compiler::phases::phase3_transform::shared::class_body::{
     find_assignment_eq, find_class_header, has_rune_after_eq, initializer_starts_later,
     skip_ws_and_comments, split_class_members_onto_lines,
 };
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    line_starts_outside_opaque, skip_opaque,
+};
 
 /// JS-lexical-aware replacement for `find_matching_paren`: given `s` positioned
 /// just after an opening `(`, return the byte offset of the matching `)`,
@@ -258,15 +260,25 @@ pub(super) fn rejoin_class_members(
     let mut blocks: Vec<Vec<&str>> = Vec::new();
     let mut current: Vec<&str> = Vec::new();
     let mut depth = 0i32;
-    for line in text.lines() {
+    let in_code = line_starts_outside_opaque(text.as_bytes());
+    let starts_code = |i: usize| in_code.get(i).copied().unwrap_or(true);
+    for (idx, line) in text.lines().enumerate() {
         let trimmed = line.trim();
-        if trimmed.is_empty() {
+        // A blank line inside a template literal is part of its value.
+        if starts_code(idx) && trimmed.is_empty() {
             continue;
         }
         current.push(line);
+        if !starts_code(idx) {
+            continue;
+        }
         depth += net_bracket_depth(trimmed);
         // A comment line never terminates a member: it belongs to the next one.
-        if depth <= 0 && !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
+        if depth <= 0
+            && starts_code(idx + 1)
+            && !trimmed.starts_with("//")
+            && !trimmed.starts_with("/*")
+        {
             depth = 0;
             blocks.push(std::mem::take(&mut current));
         }
@@ -1128,9 +1140,15 @@ fn transform_class_fields_client_with_options_at(
             // are never mis-classified as standalone "plain field declarations".
             // Depth increases on `{` and decreases on `}` in the PENDING accumulator.
             let mut brace_depth: i32 = 0;
+            let in_code = line_starts_outside_opaque(section.as_bytes());
 
             while si < section_lines.len() {
                 let line = section_lines[si];
+                if !in_code.get(si).copied().unwrap_or(true) {
+                    pending_non_rune.push(line.to_string());
+                    si += 1;
+                    continue;
+                }
                 let trimmed = line.trim();
                 if trimmed.is_empty() {
                     si += 1;
@@ -1226,6 +1244,7 @@ fn transform_class_fields_client_with_options_at(
                     // in pending_non_rune to keep method bodies intact.
                     let field_trimmed = trimmed.trim_end_matches(';').trim();
                     let is_plain_field = brace_depth == 0
+                        && in_code.get(si + 1).copied().unwrap_or(true)
                         && !field_trimmed.contains('(')
                         && !field_trimmed.contains('{')
                         && !field_trimmed.starts_with("//")
@@ -2087,7 +2106,7 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
 
             // Deliberate divergence: upstream leaves a constructor-root update
             // through a non-`this` receiver as `inst.#n.v++`, which writes the
-            // source without notifying (`compatibility/deliberate-divergences.md`).
+            // source without notifying (`compatibility/GATES.md#deliberate-divergences`).
             let post_inc = format!("{}++", qualified);
             while result.contains(&post_inc) {
                 let replacement = format!("$.update({})", qualified);
