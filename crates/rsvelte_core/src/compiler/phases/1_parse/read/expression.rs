@@ -4151,17 +4151,57 @@ fn convert_ts_signature(
             }
             Value::Object(obj)
         }
-        // Index signatures remain span-bearing until their parameter/modifier
-        // fields have an exact public-AST conversion.
         TSSignature::TSIndexSignature(index) => {
-            let start = offset + index.span.start as usize;
-            let end = offset + index.span.end as usize;
-            let mut obj = Map::new();
-            obj.set_field("type", Value::String("TSIndexSignature".to_string()));
-            push_span_fields(&mut obj, start, end, line_offsets);
-            Value::Object(obj)
+            convert_ts_index_signature(arena, index, offset, line_offsets)
         }
     }
+}
+
+/// Build the ESTree `TSIndexSignature` acorn-typescript emits. Its `parameters`
+/// entry is an `Identifier` whose span covers the whole `k: string`, not the name.
+fn convert_ts_index_signature(
+    arena: &ParseArena,
+    index: &oxc_ast::ast::TSIndexSignature,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + index.span.start as usize;
+    let end = offset + index.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("TSIndexSignature".to_string()));
+    push_span_fields(&mut obj, start, end, line_offsets);
+    if index.r#static {
+        obj.set_field("static", Value::Bool(true));
+    }
+    if index.readonly {
+        obj.set_field("readonly", Value::Bool(true));
+    }
+    let parameters: Vec<Value> = std::iter::once(&index.parameter)
+        .map(|param| {
+            let param_start = offset + param.span.start as usize;
+            let param_end = offset + param.span.end as usize;
+            let mut id = Map::new();
+            id.set_field("type", Value::String("Identifier".to_string()));
+            push_span_fields(&mut id, param_start, param_end, line_offsets);
+            id.set_field("name", Value::String(param.name.to_string()));
+            id.set_field(
+                "typeAnnotation",
+                convert_type_annotation_adjusted(
+                    arena,
+                    &param.type_annotation,
+                    offset,
+                    line_offsets,
+                ),
+            );
+            Value::Object(id)
+        })
+        .collect();
+    obj.set_field("parameters", Value::Array(parameters));
+    obj.set_field(
+        "typeAnnotation",
+        convert_type_annotation_adjusted(arena, &index.type_annotation, offset, line_offsets),
+    );
+    Value::Object(obj)
 }
 
 /// Convert a `TSPropertySignature` key (Identifier / string / numeric).

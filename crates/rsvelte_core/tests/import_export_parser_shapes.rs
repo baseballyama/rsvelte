@@ -2,6 +2,8 @@
 //! export, so which fields `parse()` emits is a fact about which parser
 //! upstream ran, not about the statement. One test per rule: a single
 //! "all shapes agree" assertion is satisfied by every rule but the broken one.
+//! The TypeScript declaration shapes at the end are here for the same reason —
+//! a node emitted as a bare envelope passes every "it parsed" check there is.
 //!
 //! Two of these rules have no carrier in any collected corpus. `export default`
 //! is illegal in every script a Svelte component can hold, so `compile()`
@@ -214,4 +216,60 @@ fn typescript_stamps_an_export_kind_on_an_export_star() {
     );
     assert_eq!(body[0]["exportKind"], "value", "{}", body[0]);
     assert!(body[0].get("attributes").is_none(), "{}", body[0]);
+}
+
+#[test]
+fn an_index_signature_carries_its_parameter() {
+    let body = instance_body(&ts(
+        "interface I { [k: string]: number; }\nlet a: I = {} as I;",
+    ));
+    let sig = &body[0]["body"]["body"][0];
+    assert_eq!(sig["type"], "TSIndexSignature", "{sig}");
+    let params = &sig["parameters"];
+    assert_eq!(params.as_array().map(Vec::len), Some(1), "{sig}");
+    assert_eq!(params[0]["type"], "Identifier");
+    assert_eq!(params[0]["name"], "k");
+    // acorn-typescript spans the parameter, not the name: `k: string`.
+    assert_eq!(params[0]["typeAnnotation"]["type"], "TSTypeAnnotation");
+    assert_eq!(
+        params[0]["typeAnnotation"]["typeAnnotation"]["type"],
+        "TSStringKeyword"
+    );
+    assert_eq!(
+        params[0]["end"], params[0]["typeAnnotation"]["end"],
+        "{}",
+        params[0]
+    );
+}
+
+#[test]
+fn an_index_signature_carries_its_value_type() {
+    let body = instance_body(&ts(
+        "interface I { [k: string]: number; }\nlet a: I = {} as I;",
+    ));
+    let sig = &body[0]["body"]["body"][0];
+    assert_eq!(sig["typeAnnotation"]["type"], "TSTypeAnnotation", "{sig}");
+    assert_eq!(
+        sig["typeAnnotation"]["typeAnnotation"]["type"],
+        "TSNumberKeyword"
+    );
+}
+
+#[test]
+fn a_readonly_index_signature_says_so() {
+    let body = instance_body(&ts(
+        "interface I { readonly [k: string]: number; }\nlet a: I = {} as I;",
+    ));
+    let sig = &body[0]["body"]["body"][0];
+    assert_eq!(sig["readonly"], true, "{sig}");
+}
+
+#[test]
+fn a_writable_index_signature_omits_the_flag() {
+    let body = instance_body(&ts(
+        "interface I { [k: string]: number; }\nlet a: I = {} as I;",
+    ));
+    let sig = &body[0]["body"]["body"][0];
+    assert!(sig.get("readonly").is_none(), "{sig}");
+    assert!(sig.get("static").is_none(), "{sig}");
 }

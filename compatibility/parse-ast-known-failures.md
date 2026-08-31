@@ -115,6 +115,28 @@ envelope — `type`, `start`, `end`, `loc` — and none of its children:
 `TSModuleBlock` is labelled `BlockStatement`, and a class's `typeParameters` and a
 `PropertyDefinition`'s `typeAnnotation` are absent.
 
+**The precondition for fixing A was measured before any of it was attempted, and it holds.** The
+question was whether the existing `Option<Box<serde_json::Value>>` machinery
+(`convert_ts_type_parameter_declaration` and friends, on `push_span_fields`) can reproduce
+official's positions at all, since every fix here builds on it. A generic function's
+`typeParameters` — built exactly that way — diverges on **zero** keys, so the answer is yes and
+the remaining work is writing the missing builders rather than replacing the approach. The
+sizing is *not* uniform per base: `TSIndexSignature` had one emitter and every helper already
+present; `TSEnumDeclaration` has **two** emitters (a typed `JsNode` variant on the statement
+path and a `Value` on the declaration path, which is itself a two-ports pair);
+`TSModuleDeclaration` needs an `id` *and* a `body` whose node type and span are both wrong
+(`BlockStatement` spanning the whole declaration, where official has a `TSModuleBlock` spanning
+the braces); `TSParameterProperty` is unmeasured.
+
+**`TSIndexSignature` is done** (`parameters`, `typeAnnotation`, `readonly`), which removes four
+ratcheted keys — and those four sat in **two** clusters (`unclustered` and `estree-fields`) for
+one mechanism, the same split recorded under B. A fifth key it closes, `readonly#missing`, has no
+carrier at all. Its `leadingComments#missing` is untouched and belongs to `comment-attachment`: a
+`Value`-built node never reaches `ser_comments!`. One measured neighbour is **not** fixed —
+`class C { static [k: string]: number }` drops the member entirely (`ClassBody.body[]#length`),
+because a class element goes through two further converters, the pair that also drops a
+`static {}` block.
+
 **B. A field with the wrong shape rather than a missing one (4 bases) — and this grouping was
 wrong.** It was cut by the KEY's shape (`#type` / `#extra` rather than `#missing`), and measuring
 the four split them three ways.
