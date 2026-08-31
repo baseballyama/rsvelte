@@ -111,6 +111,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `svelte-scss-line-comment-hides-an-animation-name-from-keyframe-scoping.md` | sveltejs/svelte | #4048 | unrecorded |
 | `svelte-server-treats-a-dollar-parameter-as-a-store.md` | sveltejs/svelte | #4048 | unrecorded |
 | `svelte-snippet-name-colliding-with-an-import.md` | sveltejs/svelte | #3567 | unrecorded |
+| `svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | sveltejs/language-tools (svelte2tsx) | #4048 | unrecorded |
 | `svelte2tsx-shorthand-style-directive-modifier.md` | sveltejs/language-tools (svelte2tsx) | #3567, #3578 | unrecorded |
 | `svelte2tsx-transposes-an-unclosed-start-tag.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
 | `tsgo-lsp-completion-item-omits-the-typescript-kind.md` | microsoft/typescript-go (`tsgo --lsp`) | — | unrecorded |
