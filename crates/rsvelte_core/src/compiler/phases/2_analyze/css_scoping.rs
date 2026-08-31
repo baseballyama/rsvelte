@@ -1675,6 +1675,15 @@ fn complex_selector_matches_element(
     element: &ElementInfo,
     ancestors: &[ElementInfo],
 ) -> bool {
+    complex_selector_matches_element_req(selector, element, ancestors, None)
+}
+
+fn complex_selector_matches_element_req(
+    selector: &CssComplexSelector,
+    element: &ElementInfo,
+    ancestors: &[ElementInfo],
+    required: Option<usize>,
+) -> bool {
     let children = &selector.children;
     if children.is_empty() {
         return false;
@@ -1691,14 +1700,15 @@ fn complex_selector_matches_element(
     }
 
     if effective_children.len() == 1 {
-        return true;
+        return required.is_none();
     }
 
-    apply_combinator_chain(
+    apply_combinator_chain_req(
         &effective_children[..effective_children.len() - 1],
         last,
         ancestors,
         ancestors.len(),
+        required,
     )
 }
 
@@ -1754,15 +1764,19 @@ fn selector_matches_element(rel: &CssRelativeSelector, element: &ElementInfo) ->
     element_matches_simple_selectors(element, &rel.selectors)
 }
 
-/// Apply combinator chain backward through ancestors.
-fn apply_combinator_chain(
+/// Apply combinator chain backward through ancestors. A `Some(index)` requirement
+/// is satisfied only by a binding that actually consumes `ancestors[index]`:
+/// whether an element is scoped is "does *some* successful match use it", so a
+/// witness produced by the first binding found answers a different question.
+fn apply_combinator_chain_req(
     remaining: &[CssRelativeSelector],
     current_rel: &CssRelativeSelector,
     ancestors: &[ElementInfo],
     cursor: usize,
+    required: Option<usize>,
 ) -> bool {
     if remaining.is_empty() {
-        return true;
+        return required.is_none();
     }
 
     let combinator = current_rel.combinator.as_deref().unwrap_or(" ");
@@ -1774,19 +1788,25 @@ fn apply_combinator_chain(
             if cursor == 0 {
                 // No more ancestors known - if remaining are all global (bare or typed),
                 // they could match elements outside the component
-                return remaining.iter().all(is_relative_selector_global);
+                return required.is_none() && remaining.iter().all(is_relative_selector_global);
             }
 
             let parent = &ancestors[cursor - 1];
             if selector_matches_element(next_sel, parent) {
+                let rest = if required == Some(cursor - 1) {
+                    None
+                } else {
+                    required
+                };
                 if remaining.len() == 1 {
-                    return true;
+                    return rest.is_none();
                 }
-                return apply_combinator_chain(
+                return apply_combinator_chain_req(
                     &remaining[..remaining.len() - 1],
                     next_sel,
                     ancestors,
                     cursor - 1,
+                    rest,
                 );
             }
             // Parent didn't match. For `>` combinator with a known parent,
@@ -1798,38 +1818,44 @@ fn apply_combinator_chain(
 
             if is_bare_global(next_sel) {
                 if remaining.len() == 1 {
-                    return true;
+                    return required.is_none();
                 }
                 for i in (0..cursor).rev() {
-                    if apply_combinator_chain(
+                    if apply_combinator_chain_req(
                         &remaining[..remaining.len() - 1],
                         next_sel,
                         ancestors,
                         i + 1,
+                        required,
                     ) {
                         return true;
                     }
                 }
-                return remaining.iter().all(is_relative_selector_global);
+                return required.is_none() && remaining.iter().all(is_relative_selector_global);
             }
 
             for i in (0..cursor).rev() {
                 if selector_matches_element(next_sel, &ancestors[i]) {
+                    let rest = if required == Some(i) { None } else { required };
                     if remaining.len() == 1 {
-                        return true;
+                        if rest.is_none() {
+                            return true;
+                        }
+                        continue;
                     }
-                    if apply_combinator_chain(
+                    if apply_combinator_chain_req(
                         &remaining[..remaining.len() - 1],
                         next_sel,
                         ancestors,
                         i,
+                        rest,
                     ) {
                         return true;
                     }
                 }
             }
             // No ancestor matched - fall back to global check
-            remaining.iter().all(is_relative_selector_global)
+            required.is_none() && remaining.iter().all(is_relative_selector_global)
         }
         "+" | "~" => {
             // Sibling combinators are handled by process_sibling_selectors
@@ -2089,8 +2115,16 @@ fn subtree_has_matching_subject(
     // cloning the entire chain. Clone of `ancestor_element` is unavoidable
     // because the caller still owns it.
     ancestors.push(ancestor_element.clone());
-    let result =
-        subtree_has_matching_subject_inner(fragment, selector, ancestors, snippet_ancestors);
+    // The subject must match through a binding that consumes THIS element: a
+    // `>` link is a position, and "the subtree holds a subject" does not carry one.
+    let required = ancestors.len() - 1;
+    let result = subtree_has_matching_subject_inner(
+        fragment,
+        selector,
+        ancestors,
+        snippet_ancestors,
+        required,
+    );
     ancestors.pop();
     result
 }
@@ -2100,6 +2134,7 @@ fn subtree_has_matching_subject_inner(
     selector: &CssComplexSelector,
     ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
+    required: usize,
 ) -> bool {
     let effective = truncate_globals(&selector.children);
     let subject_sel = effective.last();
@@ -2108,7 +2143,12 @@ fn subtree_has_matching_subject_inner(
         match node {
             TemplateNode::RegularElement(el) => {
                 let element_info = ElementInfo::from_element(el);
-                if complex_selector_matches_element(selector, &element_info, ancestors) {
+                if complex_selector_matches_element_req(
+                    selector,
+                    &element_info,
+                    ancestors,
+                    Some(required),
+                ) {
                     return true;
                 }
                 // The sibling pass may already have scoped this element for a selector
@@ -2128,6 +2168,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 );
                 ancestors.pop();
                 if matched {
@@ -2136,7 +2177,12 @@ fn subtree_has_matching_subject_inner(
             }
             TemplateNode::SvelteElement(el) => {
                 let element_info = ElementInfo::from_svelte_element(el);
-                if complex_selector_matches_element(selector, &element_info, ancestors) {
+                if complex_selector_matches_element_req(
+                    selector,
+                    &element_info,
+                    ancestors,
+                    Some(required),
+                ) {
                     return true;
                 }
                 if has_sibling_combinator(selector)
@@ -2152,6 +2198,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 );
                 ancestors.pop();
                 if matched {
@@ -2164,6 +2211,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 ) =>
             {
                 return true;
@@ -2174,6 +2222,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 ) {
                     return true;
                 }
@@ -2183,6 +2232,7 @@ fn subtree_has_matching_subject_inner(
                         selector,
                         ancestors,
                         snippet_ancestors,
+                        required,
                     )
                 {
                     return true;
@@ -2194,6 +2244,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 ) {
                     return true;
                 }
@@ -2203,6 +2254,7 @@ fn subtree_has_matching_subject_inner(
                         selector,
                         ancestors,
                         snippet_ancestors,
+                        required,
                     )
                 {
                     return true;
@@ -2215,6 +2267,7 @@ fn subtree_has_matching_subject_inner(
                         selector,
                         ancestors,
                         snippet_ancestors,
+                        required,
                     )
                 {
                     return true;
@@ -2225,6 +2278,7 @@ fn subtree_has_matching_subject_inner(
                         selector,
                         ancestors,
                         snippet_ancestors,
+                        required,
                     )
                 {
                     return true;
@@ -2235,6 +2289,7 @@ fn subtree_has_matching_subject_inner(
                         selector,
                         ancestors,
                         snippet_ancestors,
+                        required,
                     )
                 {
                     return true;
@@ -2246,6 +2301,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 ) =>
             {
                 return true;
@@ -2256,6 +2312,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 ) =>
             {
                 return true;
@@ -2266,6 +2323,7 @@ fn subtree_has_matching_subject_inner(
                     selector,
                     ancestors,
                     snippet_ancestors,
+                    required,
                 ) =>
             {
                 return true;
@@ -2292,6 +2350,7 @@ fn subtree_has_matching_subject_inner(
                         selector,
                         ancestors,
                         snippet_ancestors,
+                        required,
                     )
                 {
                     return true;
