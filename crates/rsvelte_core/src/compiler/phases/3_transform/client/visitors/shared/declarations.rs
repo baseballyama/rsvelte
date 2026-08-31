@@ -142,7 +142,13 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     // Prop is a "source" - accessed via function call
                     // read: b.call - transforms x to x()
                     // assign: (node, value) => b.call(node, value) - x(value)
-                    let is_bindable = matches!(binding.kind, BindingKind::BindableProp);
+                    // Upstream classifies every legacy `export let` as a
+                    // bindable prop. rsvelte deliberately keeps ordinary
+                    // legacy props as `Prop`, so mode has to participate in
+                    // the mutation choice even though the binding kind does
+                    // not. Deep writes must notify the parent in legacy mode.
+                    let is_bindable = !context.state.analysis.runes
+                        || matches!(binding.kind, BindingKind::BindableProp);
                     let transform = IdentifierTransform {
                         read: Some(prop_source_read),
                         read_source: None,
@@ -293,7 +299,7 @@ fn prop_mutate(
 /// For bindable props, mutations need to notify the parent.
 /// Transforms `x.prop = value` to `x(x.prop = value, true)`
 /// The callee uses `JsExpr::Raw` to prevent double-transformation.
-fn prop_bindable_mutate(
+pub(crate) fn prop_bindable_mutate(
     _transform: &IdentifierTransform,
     arena: &JsArena,
     node: JsExpr,

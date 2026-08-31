@@ -41,9 +41,7 @@ pub fn ensure_script_parsed(
     let raw = std::mem::take(&mut script.raw_content);
     let offset = script.content_offset as usize;
 
-    // Collect leading comments from the source before the script tag
-    // For now, pass empty - TODO: preserve leading comments from parse phase
-    let leading_comments: Vec<String> = Vec::new();
+    let leading_comments = std::mem::take(&mut script.leading_comments);
 
     let (program, parse_error) = super::expression::parse_program_with_error(
         arena,
@@ -77,7 +75,7 @@ pub(crate) fn ensure_script_parsed_retained<'source>(
 
     let raw = std::mem::take(&mut script.raw_content);
     let offset = script.content_offset as usize;
-    let leading_comments: Vec<String> = Vec::new();
+    let leading_comments = std::mem::take(&mut script.leading_comments);
     let (program, parse_error, retained) = super::expression::parse_program_retained_with_error(
         arena,
         super::expression::ProgramParseParams {
@@ -285,7 +283,16 @@ impl<'a> Parser<'a> {
         }
 
         let use_typescript = self.ts || self.script_ts || is_typescript;
-        let leading_comments = std::mem::take(&mut self.pending_leading_comments);
+        // Not taken: a `<script>` is not a fragment node, so upstream's backward
+        // scan still reaches the same comment from a later script or style tag.
+        // Only the nearest one is kept, because upstream's scan stops at the
+        // first Comment and stores exactly `[{ type: 'Line', value: … }]`.
+        let leading_comments: Vec<String> = self
+            .pending_leading_comments
+            .last()
+            .cloned()
+            .into_iter()
+            .collect();
 
         let script = if self.options.defer_script_parse {
             // Defer script content parsing to analysis phase for faster parse().
@@ -307,6 +314,7 @@ impl<'a> Parser<'a> {
                 raw_content: script_content,
                 content_offset: content_start as u32,
                 is_typescript: use_typescript,
+                leading_comments,
             }
         } else {
             // Eager parsing (default for tests and direct AST comparison)
@@ -354,6 +362,7 @@ impl<'a> Parser<'a> {
                     raw_content: script_content,
                     content_offset: content_start as u32,
                     is_typescript: use_typescript,
+                    leading_comments: Vec::new(),
                 }
             } else {
                 Script {
@@ -366,6 +375,7 @@ impl<'a> Parser<'a> {
                     raw_content: "",
                     content_offset: content_start as u32,
                     is_typescript: use_typescript,
+                    leading_comments: Vec::new(),
                 }
             }
         };

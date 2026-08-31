@@ -75,11 +75,16 @@ fn a_line_comment_before_the_first_continuation_line_keeps_it() {
     assert!(code_only(&out).contains("let b = 1;"), "{out}");
 }
 
+/// The comment stood on a line of its own, and upstream keeps that: svelte
+/// 5.56.10 emits `let /* c */\n\tc;` for this source. The assertion here used to
+/// read `let /* c */ c;`, which was rsvelte's own output — `collapse_lines` had
+/// already joined the comment onto the declarator's line before anything could
+/// ask which line it came from.
 #[test]
-fn a_block_comment_between_declarators_still_folds_onto_one_line() {
+fn a_block_comment_between_declarators_keeps_its_own_line() {
     let out = client("<script>\n\tlet a,\n/* c */\n\t\tc;\n</script>\n\n<p>{a}{c}</p>\n");
     assert!(parses(&out), "{out}");
-    assert!(out.contains("let /* c */ c;"), "{out}");
+    assert!(out.contains("let /* c */\n\tc;"), "{out}");
 }
 
 #[test]

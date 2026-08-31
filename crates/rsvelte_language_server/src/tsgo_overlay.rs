@@ -13,9 +13,10 @@ use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 
 use lsp_types::{Position, Range, Uri};
+use rsvelte_check::overlay::{SHIM_FILES, global_type_files};
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
-    Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
+    Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, is_typescript_component,
 };
 use serde_json::json;
 use sourcemap::{SourceMap, SourceMapBuilder};
@@ -26,12 +27,6 @@ const CACHE_DIRECTORY: &str = ".rsvelte-language-server";
 const TSGO_DIRECTORY: &str = "tsgo";
 const SHADOW_DIRECTORY: &str = "svelte";
 const OVERLAY_TSCONFIG: &str = "tsconfig.json";
-const SHIM_SHIMS_NAME: &str = "svelte-shims-v4.d.ts";
-const SHIM_JSX_NAME: &str = "svelte-jsx-v4.d.ts";
-const SHIM_SHIMS: &str =
-    include_str!("../../rsvelte_check/src/svelte_check/shims/svelte-shims-v4.d.ts");
-const SHIM_JSX: &str =
-    include_str!("../../rsvelte_check/src/svelte_check/shims/svelte-jsx-v4.d.ts");
 const IGNORE_START: &str = "/*Ωignore_startΩ*/";
 const IGNORE_END: &str = "/*Ωignore_endΩ*/";
 
@@ -186,6 +181,11 @@ struct ShadowState {
     generated_ranges: Vec<std::ops::Range<usize>>,
     identity: bool,
     plain_insertions: Vec<(usize, std::ops::Range<usize>)>,
+    /// Byte offset in `source_text` that generated offset 0 corresponds to,
+    /// for the `FragmentMapper` upstream installs when there is no projection.
+    fragment_offset: usize,
+    /// svelte2tsx's message, when this shadow is the parser-error fallback.
+    parser_error: Option<String>,
 }
 
 /// Workspace-scoped diskless overlay used by the tsgo LSP proxy.
@@ -321,13 +321,20 @@ impl TsgoOverlay {
         };
 
         let options = self.projection_options(&source_path, &shadow_path, preprocessed_text);
-        let artifact = self
-            .engine
-            .project(preprocessed_text, options)
-            .map_err(|error| TsgoOverlayError::Projection {
-                path: source_path.clone(),
-                message: error.to_string(),
-            })?;
+        let artifact = match self.engine.project(preprocessed_text, options) {
+            Ok(artifact) => artifact,
+            // `DocumentSnapshot.ts:275-291`: a rejected document still gets a
+            // snapshot, over its extracted script, so TypeScript keeps answering.
+            Err(error) => {
+                return self.open_parser_error_fallback(
+                    &source_path,
+                    &shadow_path,
+                    original_text,
+                    version,
+                    error.to_string(),
+                );
+            }
+        };
         let mut exact_map = if preprocess_status == PreprocessStatus::Identity {
             artifact.exact_mappings.unwrap_or_default()
         } else {
@@ -375,7 +382,7 @@ impl TsgoOverlay {
         let document = ShadowDocument {
             source_uri: path_to_uri(&source_path)?,
             shadow_uri: path_to_uri(&shadow_path)?,
-            language_id: "typescriptreact".to_string(),
+            language_id: shadow_language_id(preprocessed_text).to_string(),
             text: generated_text,
             version,
         };
@@ -404,6 +411,8 @@ impl TsgoOverlay {
             generated_ranges,
             identity: false,
             plain_insertions: Vec::new(),
+            fragment_offset: 0,
+            parser_error: None,
             document: document.clone(),
         };
         if let Some(old) = self.entries.insert(source_path.clone(), state) {
@@ -411,6 +420,67 @@ impl TsgoOverlay {
         }
         self.by_shadow.insert(shadow_path, source_path);
         Ok(document)
+    }
+
+    /// The snapshot upstream keeps when svelte2tsx rejects a document: the
+    /// instance script's body (else the module script's, else nothing) mapped
+    /// back by a constant shift, so TypeScript still answers and every caller
+    /// can see that the projection failed.
+    fn open_parser_error_fallback(
+        &mut self,
+        source_path: &Path,
+        shadow_path: &Path,
+        original_text: &str,
+        version: i32,
+        message: String,
+    ) -> Result<ShadowDocument, TsgoOverlayError> {
+        let fragment = crate::context::fallback_script_body(original_text);
+        let fragment_offset = fragment.as_ref().map_or(0, |body| body.start);
+        let generated_text = fragment
+            .and_then(|body| original_text.get(body))
+            .unwrap_or("")
+            .to_string();
+        let document = ShadowDocument {
+            source_uri: path_to_uri(source_path)?,
+            shadow_uri: path_to_uri(shadow_path)?,
+            language_id: shadow_language_id(original_text).to_string(),
+            text: generated_text.clone(),
+            version,
+        };
+        let state = ShadowState {
+            source_path: source_path.to_path_buf(),
+            shadow_path: shadow_path.to_path_buf(),
+            source_text: original_text.to_string(),
+            source_index: LineIndex::new(original_text),
+            preprocessed_text: None,
+            preprocessed_index: None,
+            preprocess_map: None,
+            preprocess_mappings: PreprocessMappings::default(),
+            preprocess_status: PreprocessStatus::Identity,
+            generated_index: LineIndex::new(&generated_text),
+            exact_map: ProjectionMap::default(),
+            tokens: Vec::new(),
+            source_map: None,
+            generated_ranges: Vec::new(),
+            identity: true,
+            plain_insertions: Vec::new(),
+            fragment_offset,
+            parser_error: Some(message),
+            document: document.clone(),
+        };
+        if let Some(old) = self.entries.insert(source_path.to_path_buf(), state) {
+            self.by_shadow.remove(&old.shadow_path);
+        }
+        self.by_shadow
+            .insert(shadow_path.to_path_buf(), source_path.to_path_buf());
+        Ok(document)
+    }
+
+    /// svelte2tsx's message for a document whose projection failed.
+    #[must_use]
+    pub fn parser_error(&self, source_path: &Path) -> Option<&str> {
+        let path = self.lookup_source_path(source_path);
+        self.entries.get(&path)?.parser_error.as_deref()
     }
 
     /// Route an open TypeScript or JavaScript buffer through the overlay
@@ -456,6 +526,8 @@ impl TsgoOverlay {
             generated_ranges: Vec::new(),
             identity: true,
             plain_insertions,
+            fragment_offset: 0,
+            parser_error: None,
             document: document.clone(),
         };
         if let Some(old) = self.entries.insert(source_path.clone(), state) {
@@ -654,7 +726,7 @@ impl TsgoOverlay {
         let source_offset = entry.source_index.offset(&entry.source_text, position);
 
         if entry.identity {
-            let generated_offset = source_offset
+            let generated_offset = source_offset.saturating_sub(entry.fragment_offset)
                 + entry
                     .plain_insertions
                     .iter()
@@ -720,7 +792,7 @@ impl TsgoOverlay {
             {
                 return None;
             }
-            let source_offset = generated_offset
+            let source_offset = entry.fragment_offset + generated_offset
                 - entry
                     .plain_insertions
                     .iter()
@@ -859,13 +931,16 @@ impl TsgoOverlay {
     ) -> Svelte2TsxOptions {
         Svelte2TsxOptions {
             filename: source_path.display().to_string(),
-            is_ts_file: looks_like_typescript(source),
+            is_ts_file: is_typescript_component(source),
             mode: Svelte2TsxMode::Ts,
             accessors: self.accessors,
             namespace: self.namespace,
             version: SvelteVersion::V5,
             runes: None,
             emit_jsdoc: true,
+            // `LSAndTSDocResolver.ts:138`: the language server projects a
+            // half-typed document; `svelte-check` deliberately does not.
+            emit_on_template_error: true,
             rewrite_external_imports: Some(RewriteExternalImportsOptions {
                 source_path: source_path.display().to_string(),
                 generated_path: shadow_path.display().to_string(),
@@ -877,12 +952,11 @@ impl TsgoOverlay {
 
     fn materialize_support_files(&self) -> Result<(), TsgoOverlayError> {
         reject_symlink_components(&self.cache_dir, &self.cache_dir)?;
-        let shims = self.cache_dir.join(SHIM_SHIMS_NAME);
-        let jsx = self.cache_dir.join(SHIM_JSX_NAME);
-        reject_symlink_components(&shims, &self.cache_dir)?;
-        reject_symlink_components(&jsx, &self.cache_dir)?;
-        write_if_changed(&shims, SHIM_SHIMS)?;
-        write_if_changed(&jsx, SHIM_JSX)?;
+        for (name, contents) in SHIM_FILES {
+            let path = self.cache_dir.join(name);
+            reject_symlink_components(&path, &self.cache_dir)?;
+            write_if_changed(&path, contents)?;
+        }
         self.write_tsconfig()
     }
 
@@ -895,15 +969,21 @@ impl TsgoOverlay {
         let mut include = vec!["svelte/**/*".to_string()];
         if let Some(user_include) = specs.include {
             include.extend(user_include);
-        } else if specs.files.is_none() {
-            let root = self
-                .source_tsconfig
-                .as_deref()
-                .and_then(Path::parent)
-                .unwrap_or(&self.workspace);
+        } else if specs.files.is_none()
+            && let Some(root) = self.source_tsconfig.as_deref().and_then(Path::parent)
+        {
+            // With no project config upstream builds its fallback with
+            // `include: []` (`service.ts:874-878`, "not to flood the initial
+            // files"), so a workspace glob here would put every `.d.ts` in the
+            // repository — and its `declare global`s — into the program.
             include.push(format!("{}/**/*", path_for_tsconfig(root)));
         }
-        let mut files = vec![SHIM_SHIMS_NAME.to_string(), SHIM_JSX_NAME.to_string()];
+        let (shims, svelte_html) = global_type_files(&self.workspace);
+        let mut files = shims
+            .iter()
+            .map(|name| (*name).to_string())
+            .collect::<Vec<_>>();
+        files.extend(svelte_html.as_deref().map(path_for_tsconfig));
         files.extend(specs.files.unwrap_or_default());
         let mut config = json!({
             "compilerOptions": {
@@ -919,6 +999,9 @@ impl TsgoOverlay {
             "files": files,
             "include": include
         });
+        if let Some(target) = overlay_target(self.source_tsconfig.as_deref()) {
+            config["compilerOptions"]["target"] = json!(target);
+        }
         if let Some(source) = &self.source_tsconfig {
             config["extends"] = json!(path_for_tsconfig(source));
         }
@@ -1083,6 +1166,27 @@ struct InheritedConfigSpecs {
     files: Option<Vec<String>>,
 }
 
+/// The `target` the shadow program must be given, or `None` to keep the
+/// project's. Mirrors `service.ts:792-795`, where upstream forces
+/// `ScriptTarget.Latest` when the project sets no target and raises anything
+/// below ES2015 to ES2015 — without it a shadow program is checked against a
+/// smaller lib than the editor's own program uses.
+fn overlay_target(tsconfig: Option<&Path>) -> Option<&'static str> {
+    match tsconfig.and_then(|path| resolve_compiler_option(path, "target")) {
+        None => Some("ESNext"),
+        Some(target) => {
+            matches!(target.to_ascii_lowercase().as_str(), "es3" | "es5").then_some("ES2015")
+        }
+    }
+}
+
+fn resolve_compiler_option(tsconfig: &Path, key: &str) -> Option<String> {
+    resolve_config_value(tsconfig, key).and_then(|value| match value {
+        serde_json::Value::String(text) => Some(text),
+        _ => None,
+    })
+}
+
 fn read_tsconfig_specs(tsconfig: &Path) -> InheritedConfigSpecs {
     let config_dir = tsconfig.parent().unwrap_or_else(|| Path::new("."));
     let rebase = |key: &str| {
@@ -1132,6 +1236,48 @@ fn resolve_config_specs(tsconfig: &Path, key: &str) -> Option<(Vec<String>, Path
                 base,
             ));
         }
+        let parents = match parsed.get("extends") {
+            Some(serde_json::Value::String(parent)) => vec![parent.as_str()],
+            Some(serde_json::Value::Array(parents)) => parents
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .collect(),
+            _ => Vec::new(),
+        };
+        pending.extend(
+            parents
+                .into_iter()
+                .filter_map(|parent| resolve_extends_target(&base, parent)),
+        );
+    }
+    None
+}
+
+fn resolve_config_value(tsconfig: &Path, key: &str) -> Option<serde_json::Value> {
+    let mut pending = vec![absolute_normalized(tsconfig)];
+    let mut seen = BTreeSet::new();
+    let mut visited = 0usize;
+    while let Some(path) = pending.pop() {
+        if visited == MAX_EXTENDS_CONFIGS || !seen.insert(path.clone()) {
+            continue;
+        }
+        visited += 1;
+        let Ok(raw) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Some(parsed) = parse_jsonc(&raw) else {
+            continue;
+        };
+        if let Some(value) = parsed
+            .get("compilerOptions")
+            .and_then(|options| options.get(key))
+        {
+            return Some(value.clone());
+        }
+        let base = path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
         let parents = match parsed.get("extends") {
             Some(serde_json::Value::String(parent)) => vec![parent.as_str()],
             Some(serde_json::Value::Array(parents)) => parents
@@ -1455,6 +1601,17 @@ fn compose_source_map(
     ))
 }
 
+/// `DocumentSnapshot.ts:232-237` picks `ScriptKind.JS` unless a script tag says
+/// TypeScript, and tsgo reads the script kind off the LSP language id rather
+/// than off the `.tsx` shadow name.
+fn shadow_language_id(source: &str) -> &'static str {
+    if is_typescript_component(source) {
+        "typescriptreact"
+    } else {
+        "javascriptreact"
+    }
+}
+
 fn rewrite_plain_svelte_imports(source: &str) -> (String, Vec<(usize, std::ops::Range<usize>)>) {
     let bytes = source.as_bytes();
     let mut insertions = Vec::new();
@@ -1642,11 +1799,6 @@ fn ordered_range(start: Position, end: Position) -> Range {
     }
 }
 
-fn looks_like_typescript(source: &str) -> bool {
-    let lower = source.to_ascii_lowercase();
-    lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
-}
-
 fn utf8_position(text: &str, offset: usize) -> Position {
     let offset = floor_char_boundary(text, offset.min(text.len()));
     let line = text.as_bytes()[..offset]
@@ -1810,6 +1962,7 @@ fn path_to_uri(path: &Path) -> Result<Uri, TsgoOverlayError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rsvelte_check::overlay::{SHIM_JSX_V4_NAME, SHIM_NATIVE_JSX_NAME, SHIM_SHIMS_V4_NAME};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     struct TestWorkspace(PathBuf);
@@ -1915,8 +2068,8 @@ mod tests {
         assert!(shadow_path.parent().unwrap().is_dir());
         assert!(!shadow_path.exists());
         assert!(overlay.tsconfig_path().is_file());
-        assert!(overlay.cache_dir().join(SHIM_SHIMS_NAME).is_file());
-        assert!(overlay.cache_dir().join(SHIM_JSX_NAME).is_file());
+        assert!(overlay.cache_dir().join(SHIM_SHIMS_V4_NAME).is_file());
+        assert!(overlay.cache_dir().join(SHIM_JSX_V4_NAME).is_file());
         assert!(overlay.unresolved_shadow_routes().is_empty());
     }
 
@@ -1952,8 +2105,8 @@ mod tests {
             &overlay.workspace().join("src/**/*.ts")
         ))));
         let files = config["files"].as_array().unwrap();
-        assert!(files.contains(&json!(SHIM_SHIMS_NAME)));
-        assert!(files.contains(&json!(SHIM_JSX_NAME)));
+        assert!(files.contains(&json!(SHIM_SHIMS_V4_NAME)));
+        assert!(files.contains(&json!(SHIM_JSX_V4_NAME)));
         assert!(files.contains(&json!(path_for_tsconfig(
             &overlay.workspace().join("ambient.d.ts")
         ))));
@@ -1967,6 +2120,110 @@ mod tests {
                 &overlay.workspace().join("src/generated/**")
             )])
         );
+    }
+
+    fn overlay_config_of(workspace: &Path) -> serde_json::Value {
+        let overlay = TsgoOverlay::build(workspace, None).unwrap();
+        serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn a_project_without_a_config_does_not_pull_in_the_whole_workspace() {
+        let workspace = TestWorkspace::new("no-config-include");
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+        write(
+            &workspace.0.join("src/globals.d.ts"),
+            "declare const unrelated: 1;",
+        );
+
+        let config = overlay_config_of(&workspace.0);
+        // `service.ts:874-878` builds its fallback with `include: []`.
+        assert_eq!(config["include"], json!(["svelte/**/*"]));
+        assert_eq!(config["compilerOptions"]["target"], json!("ESNext"));
+        assert!(config.get("extends").is_none());
+    }
+
+    #[test]
+    fn a_target_below_es2015_is_raised_and_a_modern_one_is_left_alone() {
+        for (declared, expected) in [
+            ("ES5", Some("ES2015")),
+            ("es3", Some("ES2015")),
+            ("ES2020", None),
+            ("ESNext", None),
+        ] {
+            let workspace = TestWorkspace::new(&format!("target-{declared}"));
+            write(
+                &workspace.0.join("tsconfig.json"),
+                &format!("{{ \"compilerOptions\": {{ \"target\": \"{declared}\" }} }}"),
+            );
+            write(&workspace.0.join("App.svelte"), "<p />");
+
+            let config = overlay_config_of(&workspace.0);
+            assert_eq!(
+                config["compilerOptions"]
+                    .get("target")
+                    .and_then(|v| v.as_str()),
+                expected,
+                "declared {declared}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_target_is_read_through_the_extends_chain() {
+        let workspace = TestWorkspace::new("target-extends");
+        write(
+            &workspace.0.join("configs/base.json"),
+            r#"{ "compilerOptions": { "target": "ES2022" } }"#,
+        );
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "extends": "./configs/base.json" }"#,
+        );
+        write(&workspace.0.join("App.svelte"), "<p />");
+
+        assert!(
+            overlay_config_of(&workspace.0)["compilerOptions"]
+                .get("target")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn the_native_jsx_shim_is_part_of_every_program() {
+        let workspace = TestWorkspace::new("native-jsx-shim");
+        write(&workspace.0.join("App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        assert!(overlay.cache_dir().join(SHIM_NATIVE_JSX_NAME).is_file());
+        let config: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
+        assert!(
+            config["files"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(SHIM_NATIVE_JSX_NAME))
+        );
+    }
+
+    #[test]
+    fn the_jsx_shim_is_a_fallback_for_a_package_without_svelte_html() {
+        // `get_global_types` pushes `svelte-jsx-v4.d.ts` only when the
+        // installed svelte has no `svelte-html.d.ts`; shipping both would put
+        // two `svelteHTML` namespaces in one program.
+        let workspace = TestWorkspace::new("jsx-shim-fallback");
+        let svelte = workspace.0.join("node_modules").join("svelte");
+        write(&svelte.join("package.json"), r#"{"version":"5.0.0"}"#);
+
+        let (without, html) = global_type_files(&workspace.0);
+        assert_eq!(html, None);
+        assert!(without.contains(&SHIM_JSX_V4_NAME));
+
+        write(&svelte.join("svelte-html.d.ts"), "");
+        let (with, html) = global_type_files(&workspace.0);
+        assert!(html.is_some_and(|path| path.ends_with("svelte/svelte-html.d.ts")));
+        assert!(!with.contains(&SHIM_JSX_V4_NAME));
+        assert!(with.contains(&SHIM_SHIMS_V4_NAME) && with.contains(&SHIM_NATIVE_JSX_NAME));
     }
 
     #[test]
@@ -2299,5 +2556,25 @@ mod tests {
         let error = TsgoOverlay::build(&workspace.0, None).unwrap_err();
         assert!(error.to_string().contains("symlink"));
         assert!(fs::read_dir(&outside.0).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn a_component_without_a_typescript_script_opens_as_javascript() {
+        // tsgo decides the script kind from the language id, not from the
+        // `.tsx` shadow name, so this is what keeps TypeScript-only keywords
+        // out of a plain component's completions.
+        assert_eq!(
+            shadow_language_id("<script>let a = 1;</script>"),
+            "javascriptreact"
+        );
+        assert_eq!(shadow_language_id("<div>{a}</div>"), "javascriptreact");
+        assert_eq!(
+            shadow_language_id("<script lang=\"ts\">let a: number = 1;</script>"),
+            "typescriptreact"
+        );
+        assert_eq!(
+            shadow_language_id("<script module lang=\"ts\">export const a = 1;</script>"),
+            "typescriptreact"
+        );
     }
 }

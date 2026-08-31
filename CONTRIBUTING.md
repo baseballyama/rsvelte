@@ -82,7 +82,7 @@ cargo test
   └─ tests/<suite>.rs
         ├─ runs the Rust compiler on input.svelte
         ├─ canonicalizes via OXC parse→codegen (common::canonicalize_js)
-        │  see compatibility/ast-equivalence.md for what that treats as
+        │  see compatibility/GATES.md#ast-equivalence for what that treats as
         │  formatting and what it treats as a real difference
         └─ compares against the stored fixture
                 ↓

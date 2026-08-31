@@ -751,6 +751,8 @@ jobs:
           cd submodules/language-tools
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --filter svelte-language-server... build
+          cd "$GITHUB_WORKSPACE"
+          node scripts/compat-lsp/pin-official-svelte.mjs
 
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node
@@ -1143,7 +1145,8 @@ jobs:
           cache: 'true'
 
       # verify.mjs parses generated output with acorn, so these sandbox runs need
-      # node_modules. Still no submodules and no Rust build.
+      # node_modules. No Rust build; the lint-severity step below is the only one
+      # that needs a submodule.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -1154,26 +1157,62 @@ jobs:
       # does not suppress it, and that it cannot go green by rsvelte compiling
       # less.
       - name: Check the output-parseability gate
+        # A failing step skips every unguarded step after it, and a skipped
+        # check reads exactly like a passing one. Run regardless.
+        if: ${{ !cancelled() }}
         run: node scripts/dev/test-corpus-parse-gate.mjs
 
       - name: Check mutation baseline provenance
+        if: ${{ !cancelled() }}
         run: node scripts/dev/test-mutation-baseline-provenance.mjs
+
+      # `codeIdentity` decides the `code-mismatch` / `comment-mismatch` split
+      # that this gate and the shape matrix ratchet on, so a reduction that
+      # deletes real code makes a code regression report as comment noise.
+      - name: Check the code/comment classifier's string handling
+        if: ${{ !cancelled() }}
+        run: node scripts/dev/test-code-identity-strings.mjs
 
       # The lint gate's rewrite floor and its compared population. Both linters
       # are stubbed, so this runs without the lint submodules, the dist-lint
       # build or the eslint oracle that the Lint parity job needs.
       - name: Check the lint gate's population floor
+        if: ${{ !cancelled() }}
         run: node scripts/dev/test-lint-verify-population-floor.mjs
+
+      # The deliberate-divergence claim behind lint-severity's 56 exit-code
+      # entries is "the official compiler rejects every one of them", which is a
+      # one-time measurement until it runs. It needs the real oracle, so this is
+      # the one step here that checks out a submodule.
+      - name: Checkout svelte submodule (shallow)
+        if: ${{ !cancelled() }}
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install Svelte compiler dependencies
+        if: ${{ !cancelled() }}
+        run: pnpm --dir submodules/svelte install --frozen-lockfile
+
+      - name: Check the lint-severity exit attribution
+        if: ${{ !cancelled() }}
+        run: node scripts/dev/test-lint-severity-exit-attribution.mjs
 
       # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
       # it runs without the corpus: it needs no submodules and no build.
       - name: Check the known-failures doc count parser
+        if: ${{ !cancelled() }}
         run: node scripts/dev/test-known-failures-md-check.mjs
+
+      # A recorded deliberate divergence is a decision not to close, so it has to
+      # be held by a test; this reads the doc, not the corpus.
+      - name: Check every deliberate divergence is pinned
+        if: ${{ !cancelled() }}
+        run: node scripts/dev/deliberate-divergences-check.mjs
 
       # The CSS-prune sweep's comparison key. Same reason it lives here: the
       # comparator is a pure module, so it needs neither the NAPI binding nor
       # submodules that the sweep itself does.
       - name: Check the CSS-prune sweep compares warnings
+        if: ${{ !cancelled() }}
         run: node scripts/dev/test-css-prune-sweep-warning-verdict.mjs
 
   release-comment:
@@ -1235,66 +1274,83 @@ jobs:
       # The guard passing on the tree it was written against proves nothing;
       # these are the controls that show it can still fail.
       - name: Run workflow trigger guard tests
+        # A failing step skips every unguarded step after it, and a skipped
+        # check reads exactly like a passing one. Run regardless.
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-workflow-trigger-guard.mjs
 
       # The `Tests` aggregator's verdict is a message nothing else reads, so it
       # can only regress silently.
       - name: Run Tests aggregator verdict tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-tests-aggregate-verdict.mjs
 
       - name: Run release verdict waiter tests
+        if: ${{ !cancelled() }}
         run: node scripts/release/test-wait-for-release-verdicts.mjs
 
       - name: Run differential corpus workflow tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-differential-corpus-workflow.mjs
 
       - name: Run compatibility report comparison tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-compatibility-report-comparison.mjs
 
       - name: Run compatibility report workflow tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-compatibility-report-workflow.mjs
 
       # The compare command's compiler calls are injected, so its argument,
       # discovery, verdict, and reporting contract can be pinned without a WASM
       # build or corpus checkout.
       - name: Run compare CLI unit tests
+        if: ${{ !cancelled() }}
         run: node --test apps/npm/compiler/test/compare-cli.test.mjs
 
       # The Corpus Compat job filter can skip a gate, and a skipped gate reads as
       # a passing one — so its controls belong with the other trigger guards.
       - name: Run corpus-compat job filter tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-corpus-compat-job-filter.mjs
 
       # A pattern-corpus repro carries its provenance only in the README, so a
       # file that drifts out of the table loses the record of which axis it
       # holds — and nothing noticed in either direction until #3670.
       - name: Check pattern-corpus is documented
+        if: ${{ !cancelled() }}
         run: node scripts/ci/check-pattern-corpus-docs.mjs
 
       - name: Run pattern-corpus docs guard tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-check-pattern-corpus-docs.mjs
 
       # `update-docs.mjs --check` only runs in the Compatibility Report job,
       # which needs a release build and a generated report. Comparing a doc to
       # the submodule needs neither, so the version half runs on every PR.
       - name: Check the docs state the pinned Svelte version
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-svelte-target-marker.mjs
 
       # svelte is the oracle every differential gate compares against, so a
       # range makes the installed version a function of the install date rather
       # than of the commit.
       - name: Check svelte is pinned exactly
+        if: ${{ !cancelled() }}
         run: node scripts/ci/check-svelte-dependency-pin.mjs
 
       - name: Run svelte pin guard tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-check-svelte-dependency-pin.mjs
 
       # An upstream report that nobody links is a report nobody can tell was
       # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).
       - name: Check upstream_issues is indexed
+        if: ${{ !cancelled() }}
         run: node scripts/ci/check-upstream-issues.mjs
 
       - name: Run upstream_issues index guard tests
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-check-upstream-issues.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
@@ -1313,6 +1369,9 @@ jobs:
         run: node scripts/ci/prereq-coverage-guard.mjs
 
       - name: Run prerequisite coverage guard tests
+        # A failing step skips every unguarded step after it, and a skipped
+        # check reads exactly like a passing one. Run regardless.
+        if: ${{ !cancelled() }}
         run: node scripts/ci/test-prereq-coverage-guard.mjs
 
   ratchet-doc-guard:

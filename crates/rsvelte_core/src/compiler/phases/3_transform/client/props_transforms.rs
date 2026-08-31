@@ -7,7 +7,7 @@ use std::fmt::Write as _;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    after_keywords, code_bytes, skip_opaque,
+    after_keywords, code_bytes, ends_inside_line_comment, find_code, skip_opaque,
 };
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
@@ -535,6 +535,10 @@ pub(super) fn transform_let_with_reexported_props(
     let leading_ws: &str = &line[..line.len() - line.trim_start().len()];
 
     let rest_raw = trimmed[4..].trim();
+    // Same as `transform_export_let`: `declaration_split` puts a comment the
+    // declaration carried between the keyword and the declarator, and this
+    // function rebuilds the declaration from its own text.
+    let (declaration_comments, rest_raw) = split_own_line_leading_comments(rest_raw);
     // Strip trailing JS comments (// and /* */) before splitting declarators so that
     //   `let name; // comment`
     // does not produce `name; // comment` as the declarator name.
@@ -748,7 +752,42 @@ pub(super) fn transform_let_with_reexported_props(
         }
     }
 
+    reprint_declaration_comments(&mut results, &declaration_comments, leading_ws, kw);
+
     Some(results.join("\n"))
+}
+
+/// Print the comments a rebuilt declaration carried back between its keyword and
+/// its first declarator, which is where esrap flushes them.
+fn reprint_declaration_comments(
+    results: &mut [String],
+    comments: &[(String, bool)],
+    leading_ws: &str,
+    kw: &str,
+) {
+    if comments.is_empty() {
+        return;
+    }
+    let Some(first) = results.first_mut() else {
+        return;
+    };
+    let Some(tail) = first.strip_prefix(&format!("{leading_ws}{kw} ")) else {
+        return;
+    };
+    let mut rebuilt = format!("{leading_ws}{kw} ");
+    for (comment, own_line) in comments {
+        rebuilt.push_str(comment);
+        // A comment that shared the declarator's line was written there and
+        // keeps that line; only one that ended its own line breaks.
+        if *own_line {
+            rebuilt.push('\n');
+            rebuilt.push_str(leading_ws);
+        } else {
+            rebuilt.push(' ');
+        }
+    }
+    rebuilt.push_str(tail);
+    *first = rebuilt;
 }
 
 /// Apply prop source read transformations inside the default value of $.prop() calls.
@@ -1124,6 +1163,13 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     // `trimmed` already points past any leading block comment.
     let rest_raw = trimmed[declarator_at..].trim();
 
+    // `declaration_split` moves a comment that led the source declaration to
+    // between the keyword and the declarator, because upstream rebuilds a split
+    // declaration and esrap flushes its comments at the first located node
+    // inside it. Keep it while the declarators are parsed, and print it back
+    // there rather than losing it to `strip_js_comments` below.
+    let (declaration_comments, rest_raw) = split_own_line_leading_comments(rest_raw);
+
     // esrap flushes a same-line comment after the source declaration on the
     // initializer node. Once that initializer becomes the final `$.prop`
     // argument, the comment therefore belongs inside the generated call. Keep
@@ -1189,13 +1235,33 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
 
             // Remove trailing semicolon from value (after comment removal)
             let value = value.trim_end_matches(';').trim();
-            let initializer_comment = raw_declarators
+            let raw_initializer = raw_declarators
                 .get(declarator_index)
-                .and_then(|raw_decl| raw_decl.find('=').map(|at| &raw_decl[at + 1..]))
-                .and_then(leading_initializer_comments);
-            let rendered_value = initializer_comment
-                .map(|comment| format!("{}{}", comment, value))
-                .unwrap_or_else(|| value.to_string());
+                .and_then(|raw_decl| raw_decl.find('=').map(|at| &raw_decl[at + 1..]));
+            let initializer_comment = raw_initializer.and_then(leading_initializer_comments);
+            // A comment INSIDE the initializer is in neither restored run: the
+            // comment-free copy is what every semantic decision reads. Carry the
+            // source text instead, guarded on the two spellings agreeing once
+            // comments are removed.
+            let interior_comments = raw_initializer
+                .filter(|_| initializer_comment.is_none())
+                .map(|raw| raw.trim_end().strip_suffix(';').unwrap_or(raw).trim())
+                .filter(|raw| raw.contains("//") || raw.contains("/*"))
+                // A `;` still in the text means the initializer did not end
+                // where that suffix was stripped (`null; // c`), and text ending
+                // inside a line comment would swallow the closing paren.
+                .filter(|raw| {
+                    find_code(raw.as_bytes(), b";").is_none() && !ends_inside_line_comment(raw)
+                })
+                .filter(|raw| strip_js_comments(raw).trim() == value);
+            let rendered_value = interior_comments.map_or_else(
+                || {
+                    initializer_comment
+                        .map(|comment| format!("{}{}", comment, value))
+                        .unwrap_or_else(|| value.to_string())
+                },
+                std::string::ToString::to_string,
+            );
 
             // Check if the value is a store accessor (e.g., $foo)
             // Store accessors like $foo become $foo() calls after transformation.
@@ -1298,7 +1364,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
                     // When value starts with '{', wrap in parens to prevent
                     // OXC from parsing `() => {...}` as arrow with block body
                     // instead of arrow returning object literal
-                    let lazy_arg = make_lazy_prop_arg(value);
+                    let lazy_arg = make_lazy_prop_arg(interior_comments.unwrap_or(value));
                     let lazy_arg = initializer_comment
                         .map(|comment| restore_lazy_initializer_comment(&lazy_arg, comment))
                         .unwrap_or(lazy_arg);
@@ -1339,11 +1405,49 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
         last.insert_str(close, &format!(" {}\n", comment));
     }
 
+    reprint_declaration_comments(&mut results, &declaration_comments, leading_ws, kw);
+
     if comment_prefix.is_empty() {
         results.join("\n")
     } else {
         format!("{}{}", comment_prefix, results.join("\n"))
     }
+}
+
+/// Peel the comments `declaration_split` moved between the keyword and the
+/// declarator. Only a comment that ends its line is one of those; a comment
+/// sharing the declarator's line was written there and stays put.
+fn split_own_line_leading_comments(text: &str) -> (Vec<(String, bool)>, &str) {
+    let mut comments = Vec::new();
+    let mut rest = text;
+    loop {
+        let trimmed = rest.trim_start();
+        let end = if trimmed.starts_with("//") {
+            match trimmed.find('\n') {
+                Some(at) => at,
+                None => break,
+            }
+        } else if trimmed.starts_with("/*") {
+            match trimmed.find("*/") {
+                Some(at) => at + 2,
+                None => break,
+            }
+        } else {
+            break;
+        };
+        let after = &trimmed[end..];
+        let own_line = after
+            .trim_start_matches([' ', '\t', '\r'])
+            .starts_with('\n');
+        // A `//` that does not end its line cannot be re-emitted inline — it
+        // would swallow the declarator — so it stays for `strip_js_comments`.
+        if !own_line && trimmed.starts_with("//") {
+            break;
+        }
+        comments.push((trimmed[..end].trim_end().to_string(), own_line));
+        rest = after;
+    }
+    (comments, rest.trim())
 }
 
 /// Return the leading comment trivia of an initializer, including the spacing
@@ -2415,13 +2519,17 @@ fn expr_should_proxy(
             if id.name.as_str() == "undefined" {
                 return false;
             }
-            // Upstream: recurse into a resolvable, non-reassigned, non-function
-            // binding's initial (with a `null` scope, hence at most one level).
+            // Upstream: recurse into a resolvable, non-reassigned binding's
+            // initial (with a `null` scope, hence at most one level). Upstream's
+            // own exclusions name DECLARATION kinds it has no initializer
+            // expression for, and every one of them answers `true` from the
+            // node-type dispatch below anyway — a function-VALUED initializer is
+            // NOT among them, so testing `initial_is_function` proxied what
+            // upstream leaves alone.
             if let Some(analysis) = analysis
                 && let Some(idx) = analysis.root.find_binding_any_scope(id.name.as_str())
                 && let Some(binding) = analysis.root.bindings.get(idx)
                 && !binding.reassigned
-                && !binding.initial_is_function
             {
                 // Upstream recurses into the declaration initializer node. A
                 // rune declaration's initializer is the call itself, not its
@@ -2431,8 +2539,17 @@ fn expr_should_proxy(
                 if binding.init_rune.is_some() {
                     return true;
                 }
+                // `binding.initial` only carries a LITERAL's text; every other
+                // initializer leaves it `None` and records its node type
+                // instead, which is what upstream's null-scope recursion
+                // dispatches on.
                 let Some(initial) = binding.initial.as_deref() else {
-                    return true;
+                    return binding.initial_node_type.as_deref().is_none_or(|ty| {
+                        super::visitors::shared::utils::should_proxy_node_type(
+                            ty,
+                            binding.initial_identifier_name.as_deref(),
+                        )
+                    });
                 };
                 // `None` disables further identifier recursion (upstream `null` scope).
                 return ast_should_proxy(initial, None).unwrap_or(true);
@@ -3637,7 +3754,10 @@ pub(super) fn wrap_prop_mutation_validation(
 
             // Each mutation reports its own source position.
             let (line_num, col_num) = sites
-                .take(static_member_names(&path_parts).as_deref(), &full_expr)
+                .take(
+                    static_member_names(&path_parts).as_deref(),
+                    assigned_value(&full_expr),
+                )
                 .unwrap_or_else(|| find_prop_mutation_location(source, var_name));
 
             // Build the path array
@@ -3888,7 +4008,7 @@ pub(super) fn wrap_prop_mutation_validation(
             let (line_num, col_num) = sites
                 .take(
                     static_member_names(&path_parts).as_deref(),
-                    &full_original_expr,
+                    assigned_value(&full_original_expr),
                 )
                 .unwrap_or_else(|| find_prop_mutation_location(source, var_name));
 
@@ -3959,8 +4079,10 @@ struct PropMutationSite {
     chain: Option<Vec<String>>,
     /// The identifier-shaped words of the value it assigns.
     value_words: Vec<String>,
-    /// Whether it is written inside a `$:` statement.
-    reactive: bool,
+    /// Where the generated code for this site is emitted, which is the order
+    /// `take` walks: plain instance statement, then `$:` body (a
+    /// `legacy_pre_effect` at the end of the instance), then template.
+    region: u8,
     used: bool,
 }
 
@@ -3975,6 +4097,9 @@ pub(super) struct PropMutationSites {
 pub(super) struct PropMutationScan {
     reactive: Vec<(usize, usize)>,
     code: CodeSpans,
+    /// The offset past the last `</script>`; every site at or after it is
+    /// written in the template.
+    template_start: usize,
 }
 
 impl PropMutationScan {
@@ -3982,6 +4107,8 @@ impl PropMutationScan {
         Self {
             reactive: reactive_statement_ranges(source),
             code: CodeSpans::scan(source),
+            template_start: memchr::memmem::rfind(source.as_bytes(), b"</script>")
+                .map_or(source.len(), |at| at + "</script>".len()),
         }
     }
 }
@@ -3990,6 +4117,7 @@ impl PropMutationSites {
     pub(super) fn collect(source: &str, var_name: &str, scan: &PropMutationScan) -> Self {
         let mut sites = Vec::new();
         let reactive = &scan.reactive;
+        let template_start = scan.template_start;
         let bytes = source.as_bytes();
         let mut search = memchr::memmem::find(bytes, b"<script").unwrap_or(0);
         while search < source.len() {
@@ -4023,35 +4151,50 @@ impl PropMutationSites {
                     line,
                     column,
                     chain,
-                    value_words: identifier_words(
-                        &source[value_start..statement_end(bytes, after)],
-                    ),
-                    reactive: reactive
+                    value_words: identifier_words(&mutation_value_text(source, value_start)),
+                    region: if start >= template_start {
+                        2
+                    } else if reactive
                         .iter()
-                        .any(|(from, to)| (*from..*to).contains(&start)),
+                        .any(|(from, to)| (*from..*to).contains(&start))
+                    {
+                        1
+                    } else {
+                        0
+                    },
                     used: false,
                 });
             }
         }
         // A `$:` body is emitted at the end of the instance script as a
-        // `legacy_pre_effect`, so consuming reactive sites last is what keeps
-        // them lined up with the output when the value cannot tell two
-        // mutations of the same member apart.
-        sites.sort_by_key(|site| site.reactive);
+        // `legacy_pre_effect` and the template after that, so ordering the
+        // sites by emission region is what keeps them lined up with the output
+        // when the value cannot tell two mutations of the same member apart.
+        sites.sort_by_key(|site| site.region);
         Self { sites }
     }
 
-    /// The source position of the mutation that produced `expression`. Matching
-    /// on the member names and on the words of the assigned value rather than
-    /// on position is what keeps a moved statement — a `$:` body becomes a
+    /// Whether the source writes through a member of this prop at all.
+    ///
+    /// Upstream reaches `validate_mutation` from an `AssignmentExpression` whose
+    /// `left` is a `MemberExpression`; a destructuring pattern holding the same
+    /// member (`[items[i], items[s]] = …`) is not one, so its leaves — which
+    /// rsvelte lowers to the same setter calls a plain write produces — must not
+    /// be validated. The scan below already declines to record those as sites,
+    /// which makes "this prop has no site" the answer to that question.
+    pub(super) fn is_empty(&self) -> bool {
+        self.sites.is_empty()
+    }
+
+    /// The source position of the mutation that assigned `value`. Matching on
+    /// the member names and on the words of the assigned value rather than on
+    /// position is what keeps a moved statement — a `$:` body becomes a
     /// `legacy_pre_effect` at the end of the output — from taking the location
-    /// of whichever mutation happens to be printed before it.
-    pub(super) fn take(
-        &mut self,
-        chain: Option<&[String]>,
-        expression: &str,
-    ) -> Option<(usize, usize)> {
-        let words = identifier_words(assigned_value(expression));
+    /// of whichever mutation happens to be printed before it. `value` is the
+    /// right-hand side alone: the setter call that wraps it in the generated
+    /// code (`p(p().x = v, true)`) would otherwise contribute a `true`.
+    pub(super) fn take(&mut self, chain: Option<&[String]>, value: &str) -> Option<(usize, usize)> {
+        let words = identifier_words(value);
         let best = self
             .sites
             .iter()
@@ -4238,7 +4381,9 @@ fn scan_prop_mutation_target(
 }
 
 /// Return the byte after the closing parenthesis when `root_start..expression_end`
-/// is wrapped in a TypeScript `as` or `satisfies` assertion.
+/// is parenthesized around a TypeScript `as` or `satisfies` assertion. Upstream
+/// never sees the wrapper — acorn-typescript erases the assertion, so the
+/// reported position is the chain root, not the `(`.
 fn parenthesized_ts_assertion_end(
     source: &str,
     root_start: usize,
@@ -4310,13 +4455,71 @@ fn mutation_value_start(source: &str, mut pos: usize) -> Option<usize> {
     Some((pos + 1).min(bytes.len()))
 }
 
-/// The offset of the `;` or newline that ends the statement starting at `pos`.
-fn statement_end(bytes: &[u8], pos: usize) -> usize {
+/// The assigned value's text, from `pos` to the end of the mutation statement.
+///
+/// A newline ends the statement only at bracket depth zero and only once some
+/// value has been read — an `=` at the end of its line opens the value on the
+/// next one — and a comment contributes nothing: the generated expression these
+/// words are matched against carries neither the source's line breaks nor its
+/// comments.
+fn mutation_value_text(source: &str, pos: usize) -> String {
+    let bytes = source.as_bytes();
+    let mut text = String::new();
+    let mut segment = pos;
+    let mut depth = 0i32;
+    let mut saw_value = false;
     let mut i = pos;
-    while i < bytes.len() && bytes[i] != b';' && bytes[i] != b'\n' {
-        i += 1;
-    }
-    i
+    let end = loop {
+        if i >= bytes.len() {
+            break bytes.len();
+        }
+        match (bytes[i], bytes.get(i + 1).copied()) {
+            (b'/', Some(b'/')) => {
+                text.push_str(&source[segment..i]);
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                segment = i;
+            }
+            (b'/', Some(b'*')) => {
+                text.push_str(&source[segment..i]);
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                segment = i;
+            }
+            (quote @ (b'"' | b'\'' | b'`'), _) => {
+                saw_value = true;
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i = (i + 1).min(bytes.len());
+            }
+            (b'(' | b'[' | b'{', _) => {
+                saw_value = true;
+                depth += 1;
+                i += 1;
+            }
+            (b')' | b']' | b'}', _) => {
+                if depth == 0 {
+                    break i;
+                }
+                depth -= 1;
+                i += 1;
+            }
+            (b';', _) if depth == 0 => break i,
+            (b'\n', _) if depth == 0 && saw_value => break i,
+            (byte, _) => {
+                saw_value |= !byte.is_ascii_whitespace();
+                i += 1;
+            }
+        }
+    };
+    text.push_str(&source[segment..end]);
+    text
 }
 
 /// The member names `'a'`-quoted by the path builders, or `None` when any
@@ -4605,6 +4808,7 @@ fn scan_member_chain_names(source: &str, mut pos: usize) -> Option<(usize, Optio
             }
             b'[' => {
                 names = None;
+                let key_start = pos + 1;
                 let mut depth = 0usize;
                 while pos < bytes.len() {
                     match bytes[pos] {
@@ -4620,13 +4824,71 @@ fn scan_member_chain_names(source: &str, mut pos: usize) -> Option<(usize, Optio
                     }
                     pos += 1;
                 }
-                if depth != 0 {
+                if depth != 0 || !is_nameable_computed_key(source[key_start..pos - 1].trim()) {
                     return None;
                 }
             }
             _ => return Some((pos, names)),
         }
     }
+}
+
+/// Whether a computed key is one upstream's `validate_mutation` accepts: it
+/// takes a `Literal` or an `Identifier` for the property and returns the
+/// expression unwrapped for anything else, so `item[a.b] = v` is not a site.
+fn is_nameable_computed_key(key: &str) -> bool {
+    let key = strip_ts_assertion(key);
+    let mut chars = key.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if matches!(first, '\'' | '"') {
+        return key.len() > 1
+            && key.ends_with(first)
+            && !key[1..key.len() - 1].contains(first)
+            && !key[1..key.len() - 1].contains('\\');
+    }
+    if first.is_ascii_digit() {
+        return key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_');
+    }
+    (first.is_alphabetic() || first == '_' || first == '$')
+        && chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+/// The expression a top-level TypeScript assertion wraps, which is what acorn
+/// leaves behind: `object[attrKey as keyof typeof object]` writes `attrKey`.
+fn strip_ts_assertion(key: &str) -> &str {
+    let bytes = key.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            quote @ (b'"' | b'\'' | b'`') => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
+            _ if depth == 0 && bytes[i].is_ascii_whitespace() => {
+                let tail = key[i..].trim_start();
+                for keyword in ["as", "satisfies"] {
+                    if tail
+                        .strip_prefix(keyword)
+                        .is_some_and(|rest| rest.starts_with(char::is_whitespace))
+                    {
+                        return key[..i].trim_end();
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    key
 }
 
 /// Whether an assignment or update operator starts at `pos`.

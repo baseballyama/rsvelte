@@ -178,12 +178,16 @@ impl Server {
     }
 
     fn open(&mut self, uri: &str, text: &str) {
+        self.open_as(uri, "svelte", text);
+    }
+
+    fn open_as(&mut self, uri: &str, language_id: &str, text: &str) {
         self.notify(
             "textDocument/didOpen",
             json!({
                 "textDocument": {
                     "uri": uri,
-                    "languageId": "svelte",
+                    "languageId": language_id,
                     "version": 1,
                     "text": text,
                 },
@@ -561,6 +565,154 @@ fn json_id(message: &str) -> &str {
         &message[message.len() - rest.len() - 1..message.len() - rest.len() + end + 1]
     } else {
         let end = rest.find(|character: char| !character.is_ascii_digit() && character != '-').unwrap_or(rest.len());
+        &rest[..end]
+    }
+}
+"###;
+
+/// `drop_degenerate_folding_ranges` is called on the tsgo half of
+/// `textDocument/foldingRange`, and the unit test beside it calls the function
+/// directly — so removing the call site leaves that suite green. A range whose
+/// end precedes its start is what the call site drops in either folding mode.
+#[cfg(unix)]
+#[test]
+fn a_reversed_folding_range_from_tsgo_never_reaches_the_client() {
+    let dir = TestDir::new("folding-degenerate");
+    let helper_source = dir.0.join("fake_tsgo.rs");
+    let helper = dir.0.join("fake-tsgo");
+    let state = dir.0.join("generation");
+    fs::write(&helper_source, FAKE_TSGO_FOLDING).expect("write fake tsgo source");
+    let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+    assert!(
+        Command::new(rustc)
+            .arg("--edition=2024")
+            .arg(&helper_source)
+            .arg("-o")
+            .arg(&helper)
+            .status()
+            .expect("run rustc")
+            .success(),
+        "compile fake tsgo"
+    );
+    fs::write(dir.0.join("package.json"), "{}").expect("write package.json");
+    // A `.ts` document is proxied to tsgo outright, so its response is the one
+    // the call site filters. It has to be long enough to hold the ranges the
+    // fake reports, which are otherwise clamped away.
+    let source = &"export const answer = 42;\n".repeat(50);
+    let module = dir.0.join("main.ts");
+    fs::write(&module, source).expect("write module");
+    let uri = file_uri(&module);
+    let component = dir.0.join("App.svelte");
+    let component_source = "<script lang=\"ts\">\nlet answer = 42;\n</script>\n";
+    fs::write(&component, component_source).expect("write component");
+    let mut server = Server::start(
+        Some(&dir.0),
+        &[
+            ("TSGO_BIN", helper.as_path()),
+            ("RSVELTE_TEST_TSGO_STATE", state.as_path()),
+        ],
+    );
+    server.open(&file_uri(&component), component_source);
+    server.open_as(&uri, "typescript", source);
+
+    // tsgo answers only once its overlay is up, so the well-formed range is what
+    // says the proxied half reached this response at all.
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        let id = server.request(
+            "textDocument/foldingRange",
+            json!({ "textDocument": { "uri": uri } }),
+        );
+        let response = server.response(id, RESPONSE_TIMEOUT);
+        let found: Vec<(i64, i64)> = response["result"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|range| {
+                (
+                    range["startLine"].as_i64().unwrap(),
+                    range["endLine"].as_i64().unwrap(),
+                )
+            })
+            .collect();
+        if found.contains(&(30, 40)) {
+            assert!(
+                !found.iter().any(|(start, end)| end < start),
+                "a reversed range reached the client: {found:?}"
+            );
+            server.shutdown();
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "tsgo never contributed a folding range: {found:?}"
+        );
+        thread::sleep(Duration::from_millis(100));
+    }
+}
+
+#[cfg(unix)]
+const FAKE_TSGO_FOLDING: &str = r###"
+use std::io::{self, BufRead, Write};
+
+fn main() {
+    let stdin = io::stdin();
+    let mut input = stdin.lock();
+    let stdout = io::stdout();
+    let mut output = stdout.lock();
+    loop {
+        let Some(message) = read_message(&mut input).unwrap() else { return };
+        if message.contains(r#""method":"initialize""#) {
+            let id = json_id(&message);
+            write_message(&mut output, &format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"result":{{"capabilities":{{"positionEncoding":"utf-8","hoverProvider":true,"foldingRangeProvider":true}}}}}}"#
+            )).unwrap();
+        } else if message.contains(r#""method":"textDocument/foldingRange""#) {
+            let id = json_id(&message);
+            write_message(&mut output, &format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"result":[{{"startLine":25,"endLine":24}},{{"startLine":30,"endLine":40}}]}}"#
+            )).unwrap();
+        } else if message.contains(r#""method":"shutdown""#) {
+            let id = json_id(&message);
+            write_message(&mut output, &format!(r#"{{"jsonrpc":"2.0","id":{id},"result":null}}"#)).unwrap();
+        } else if message.contains(r#""method":"exit""#) {
+            return;
+        } else if message.contains(r#""method":""#) && message.contains(r#""id":"#) {
+            let id = json_id(&message);
+            write_message(&mut output, &format!(r#"{{"jsonrpc":"2.0","id":{id},"result":null}}"#)).unwrap();
+        }
+    }
+}
+
+fn read_message(reader: &mut impl BufRead) -> io::Result<Option<String>> {
+    let mut content_length = None;
+    loop {
+        let mut line = String::new();
+        if reader.read_line(&mut line)? == 0 { return Ok(None) }
+        if line == "\r\n" { break }
+        if let Some(value) = line.strip_prefix("Content-Length:") {
+            content_length = Some(value.trim().parse::<usize>().unwrap());
+        }
+    }
+    let mut body = vec![0; content_length.unwrap()];
+    reader.read_exact(&mut body)?;
+    Ok(Some(String::from_utf8(body).unwrap()))
+}
+
+fn write_message(writer: &mut impl Write, body: &str) -> io::Result<()> {
+    write!(writer, "Content-Length: {}\r\n\r\n{body}", body.len())?;
+    writer.flush()
+}
+
+/// The id is echoed as the JSON literal it arrived as: tsgo's ids are strings,
+/// and stripping the quotes makes every response unparseable.
+fn json_id(message: &str) -> &str {
+    let rest = message.split_once(r#""id":"#).unwrap().1;
+    if rest.starts_with('"') {
+        let end = rest[1..].find('"').unwrap() + 2;
+        &rest[..end]
+    } else {
+        let end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
         &rest[..end]
     }
 }

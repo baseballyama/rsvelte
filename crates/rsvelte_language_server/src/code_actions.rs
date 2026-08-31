@@ -4,11 +4,10 @@
 //! `CodeActionParams.context`, never from a fresh analysis, so what the editor
 //! offers always matches what it is showing.
 
-use std::collections::HashMap;
-
 use lsp_types::{
-    CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticSeverity, Position,
-    Range, TextEdit, Uri, WorkspaceEdit,
+    CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticSeverity,
+    DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
+    TextDocumentEdit, TextEdit, Uri, WorkspaceEdit,
 };
 use rsvelte_core::ParseOptions;
 use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
@@ -17,6 +16,22 @@ use crate::diagnostics::{COMPILER_SOURCE, is_compiler_code};
 use crate::text::{LineIndex, source_offset};
 
 pub const FIX_ALL_KIND: &str = "source.fixAll.rsvelte";
+
+/// `getQuickfixes.ts:148` and `getRefactorings.ts:56` build every Svelte code
+/// action as `documentChanges`, unconditionally — a `changes` map is a
+/// different response on the wire even when the edits are identical.
+fn document_edit(uri: &Uri, edits: Vec<TextEdit>) -> WorkspaceEdit {
+    WorkspaceEdit {
+        document_changes: Some(DocumentChanges::Edits(vec![TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: None,
+            },
+            edits: edits.into_iter().map(OneOf::Left).collect(),
+        }])),
+        ..WorkspaceEdit::default()
+    }
+}
 
 /// Warnings a `svelte-ignore` comment cannot suppress, in both the spelling the
 /// official server lists and the one Svelte 5 emits.
@@ -182,10 +197,7 @@ fn action(
     CodeActionOrCommand::CodeAction(CodeAction {
         title: title.to_string(),
         kind: Some(kind),
-        edit: Some(WorkspaceEdit {
-            changes: Some(HashMap::from([(uri.clone(), edits)])),
-            ..WorkspaceEdit::default()
-        }),
+        edit: Some(document_edit(uri, edits)),
         ..CodeAction::default()
     })
 }
@@ -224,10 +236,7 @@ fn add_noreferrer(
     Some(CodeActionOrCommand::CodeAction(CodeAction {
         title: "(svelte) Add missing attribute rel=\"noreferrer\"".to_string(),
         kind: Some(CodeActionKind::QUICKFIX),
-        edit: Some(WorkspaceEdit {
-            changes: Some(HashMap::from([(uri.clone(), vec![edit])])),
-            ..WorkspaceEdit::default()
-        }),
+        edit: Some(document_edit(uri, vec![edit])),
         ..CodeAction::default()
     }))
 }
@@ -303,10 +312,7 @@ fn svelte_ignore(
     CodeActionOrCommand::CodeAction(CodeAction {
         title: format!("(svelte) Disable {code} for this line"),
         kind: Some(CodeActionKind::QUICKFIX),
-        edit: Some(WorkspaceEdit {
-            changes: Some(HashMap::from([(uri.clone(), vec![edit])])),
-            ..WorkspaceEdit::default()
-        }),
+        edit: Some(document_edit(uri, vec![edit])),
         ..CodeAction::default()
     })
 }
@@ -478,6 +484,24 @@ mod tests {
         }
     }
 
+    /// The edits an action carries, read out of `documentChanges` — the one
+    /// shape `getQuickfixes.ts` and `getRefactorings.ts` ever produce.
+    fn document_edits(edit: &WorkspaceEdit) -> Vec<TextEdit> {
+        let Some(DocumentChanges::Edits(edits)) = &edit.document_changes else {
+            panic!("expected documentChanges edits");
+        };
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].text_document.uri, uri());
+        edits[0]
+            .edits
+            .iter()
+            .map(|edit| match edit {
+                OneOf::Left(edit) => edit.clone(),
+                OneOf::Right(edit) => edit.text_edit.clone(),
+            })
+            .collect()
+    }
+
     /// The (title, edit) pairs of every action, flattened for assertion.
     fn fixes(source: &str, diagnostics: &[Diagnostic]) -> Vec<(String, TextEdit)> {
         quickfixes(source, &uri(), diagnostics)
@@ -487,11 +511,7 @@ mod tests {
                     panic!("a command, not a code action");
                 };
                 assert_eq!(action.kind, Some(CodeActionKind::QUICKFIX));
-                let edits = action
-                    .edit
-                    .and_then(|edit| edit.changes)
-                    .and_then(|mut changes| changes.remove(&uri()))
-                    .expect("edits for the document");
+                let edits = document_edits(action.edit.as_ref().expect("a workspace edit"));
                 assert_eq!(edits.len(), 1);
                 (action.title, edits.into_iter().next().unwrap())
             })
@@ -751,7 +771,7 @@ mod tests {
         assert_eq!(action.title, "Remove `{@debug}` from the source");
         assert_eq!(action.kind, Some(CodeActionKind::REFACTOR_REWRITE));
         assert_eq!(
-            action.edit.as_ref().unwrap().changes.as_ref().unwrap()[&uri()][0].new_text,
+            document_edits(action.edit.as_ref().unwrap())[0].new_text,
             ""
         );
     }

@@ -35,6 +35,40 @@ pub fn is_locally_shadowed(semantic: &Semantic, ident: &IdentifierReference) -> 
     symbol_scope != root_scope
 }
 
+/// The span starts of every reference to one of `names` that
+/// [`is_locally_shadowed`] answers true for.
+///
+/// An in-place rewriter cannot hold a `Semantic` — it borrows the program the
+/// rewrite then moves nodes out of — so it reads the answer off the untouched
+/// parse first and matches on the span afterwards.
+pub fn shadowed_reference_starts<'a>(
+    program: &oxc_ast::ast::Program<'a>,
+    semantic: &Semantic,
+    names: &[String],
+) -> FxHashSet<u32> {
+    struct Finder<'s, 'n> {
+        semantic: &'s Semantic<'s>,
+        names: &'n [String],
+        starts: FxHashSet<u32>,
+    }
+    impl<'s, 'n, 'ast> oxc_ast_visit::Visit<'ast> for Finder<'s, 'n> {
+        fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
+            if self.names.iter().any(|n| n == ident.name.as_str())
+                && is_locally_shadowed(self.semantic, ident)
+            {
+                self.starts.insert(ident.span.start);
+            }
+        }
+    }
+    let mut finder = Finder {
+        semantic,
+        names,
+        starts: FxHashSet::default(),
+    };
+    oxc_ast_visit::Visit::visit_program(&mut finder, program);
+    finder.starts
+}
+
 /// For each name in `names`, find the SymbolId of the OUTERMOST
 /// declaration. Returns the set of all such "canonical" symbol ids.
 ///

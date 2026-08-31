@@ -56,7 +56,7 @@ const SHOW = args.includes("--show") ? Number(args[args.indexOf("--show") + 1] |
 // not implement) — the finding-scoped analogue of the per-rule `EXCLUDE` in
 // lint-universe.mjs, NOT a place to hide real divergences. Each entry is a full
 // `<corpus-id>|<+|-><rule>\t<line>:<col>\t<message>` string and MUST carry a
-// documented justification (see compatibility/lint-known-failures.md).
+// documented justification (see compatibility/KNOWN-FAILURES.md#lint-known-failures).
 const MANUAL_EXCLUSIONS = new Set([
   // `comment-directive` reportUnusedDisableDirectives on a CORE ESLint rule.
   // The oracle reports an `eslint-disable-next-line no-undef` as unused because

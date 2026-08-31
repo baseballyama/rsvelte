@@ -147,14 +147,15 @@ impl<'a, 'ast> Visit<'ast> for StoreUpdateCollector<'a> {
         let store_sub = name; // `"$count"`
         let store_name = &name[1..]; // `"count"`
 
-        let store_access = if self.prop_vars.iter().any(|p| p == store_name) {
-            format!("{}()", store_name)
-        } else if self.state_vars.iter().any(|s| s == store_name)
-            && !self.non_reactive_state_vars.iter().any(|s| s == store_name)
-        {
-            format!("$.get({})", store_name)
-        } else {
-            store_name.to_string()
+        let store_access = match super::store_transforms::store_source_read(
+            store_name,
+            self.prop_vars,
+            self.state_vars,
+            self.non_reactive_state_vars,
+        ) {
+            super::store_transforms::StoreSourceRead::Getter => format!("{}()", store_name),
+            super::store_transforms::StoreSourceRead::Signal => format!("$.get({})", store_name),
+            super::store_transforms::StoreSourceRead::Bare => store_name.to_string(),
         };
 
         let rewrite = match (expr.operator, expr.prefix) {
@@ -360,14 +361,17 @@ impl<'a, 'b> StoreUpdateRewriter<'a, 'b> {
     /// How the store itself is read: a prop is a getter call, reactive state
     /// goes through `$.get`, anything else is the bare binding.
     fn store_access(&self, store_name: &str) -> Expression<'a> {
-        if self.prop_vars.iter().any(|p| p == store_name) {
-            self.b.call(store_name, vec![])
-        } else if self.state_vars.iter().any(|s| s == store_name)
-            && !self.non_reactive_state_vars.iter().any(|s| s == store_name)
-        {
-            self.b.call("$.get", vec![self.b.id(store_name)])
-        } else {
-            self.b.id(store_name)
+        match super::store_transforms::store_source_read(
+            store_name,
+            self.prop_vars,
+            self.state_vars,
+            self.non_reactive_state_vars,
+        ) {
+            super::store_transforms::StoreSourceRead::Getter => self.b.call(store_name, vec![]),
+            super::store_transforms::StoreSourceRead::Signal => {
+                self.b.call("$.get", vec![self.b.id(store_name)])
+            }
+            super::store_transforms::StoreSourceRead::Bare => self.b.id(store_name),
         }
     }
 }

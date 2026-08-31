@@ -145,7 +145,7 @@ fn only_a_primary_expression_superclass_loses_its_parentheses() {
     assert!(out.contains("extends (0, Base) {}"), "{out}");
     assert!(out.contains("extends mixin(Base) {}"), "{out}");
     // Deliberate divergence: official omits these and emits text no parser
-    // accepts — see compatibility/deliberate-divergences.md.
+    // accepts — see compatibility/GATES.md#deliberate-divergences.
     assert!(out.contains("extends (Base ?? class {}) {}"), "{out}");
     assert!(out.contains("extends (true ? Base : Base) {}"), "{out}");
 }

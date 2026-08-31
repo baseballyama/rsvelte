@@ -170,6 +170,9 @@ fn no_typescript_unknown_stub_for_modelled_types() {
         "<script lang=\"ts\">\n  let x: string & (() => void);\n</script>",
         "<script lang=\"ts\">\n  let x: new (a: string) => Foo;\n</script>",
         "<script lang=\"ts\">\n  let x = 1 as (() => void);\n</script>",
+        "<script lang=\"ts\">\n  let x: [number, string] = y;\n</script>",
+        "<script lang=\"ts\">\n  let x: [a: number, b?: string] = y;\n</script>",
+        "<script lang=\"ts\">\n  let x: [number?, ...string[]] = y;\n</script>",
     ] {
         let ast = parse_to_json(src);
         assert!(
@@ -541,4 +544,90 @@ fn required_parameter_omits_optional() {
     // `optional` must sit before `typeAnnotation` when present.
     let s = parse_to_string("<script lang=\"ts\">function f(b?: number){}</script>");
     assert_key_order(&s, "\"name\"", "\"optional\"", "\"typeAnnotation\"");
+}
+
+// ---- tuple types: a comment inside one has to find its own owner ---------
+
+#[test]
+fn tuple_type_elements_are_real_nodes() {
+    let src = "<script lang=\"ts\">\n  let x: [a: number, b?: string, ...rest: boolean[]] = y;\n</script>";
+    let ast = parse_to_json(src);
+
+    let tuple = find_node(&ast, "TSTupleType").expect("TSTupleType must be present (not a stub)");
+    let elements = tuple
+        .get("elementTypes")
+        .and_then(|v| v.as_array())
+        .expect("tuple must have an elementTypes array");
+    assert_eq!(elements.len(), 3);
+
+    assert_eq!(type_of(&elements[0]), Some("TSNamedTupleMember"));
+    assert_eq!(
+        elements[0].pointer("/label/name").and_then(|v| v.as_str()),
+        Some("a")
+    );
+    assert_eq!(
+        elements[0].get("optional").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        elements[0]
+            .pointer("/elementType/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+
+    assert_eq!(
+        elements[1].get("optional").and_then(Value::as_bool),
+        Some(true)
+    );
+
+    assert_eq!(type_of(&elements[2]), Some("TSRestType"));
+    assert_eq!(
+        elements[2]
+            .pointer("/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNamedTupleMember")
+    );
+}
+
+#[test]
+fn optional_tuple_element_is_a_ts_optional_type() {
+    let src = "<script lang=\"ts\">\n  let x: [number?] = y;\n</script>";
+    let ast = parse_to_json(src);
+    let tuple = find_node(&ast, "TSTupleType").expect("TSTupleType must be present");
+    let elements = tuple
+        .get("elementTypes")
+        .and_then(|v| v.as_array())
+        .unwrap();
+    assert_eq!(type_of(&elements[0]), Some("TSOptionalType"));
+    assert_eq!(
+        elements[0]
+            .pointer("/typeAnnotation/type")
+            .and_then(|v| v.as_str()),
+        Some("TSNumberKeyword")
+    );
+}
+
+#[test]
+fn a_comment_inside_a_tuple_type_literal_belongs_to_its_own_member() {
+    // Upstream attaches the comment to the nested `data` signature; while the
+    // tuple collapsed to a stub, rsvelte carried it to the next top-level member.
+    let src = "<script lang=\"ts\" module>\nexport type P = {\n\tsnip?: Snippet<[{ /** doc */ data: number }]>;\n\tref?: string;\n};\n</script>";
+    let _capture = rsvelte_core::ast::arena::CommentCaptureGuard::new();
+    let ast = parse_to_json(src);
+
+    let tuple = find_node(&ast, "TSTupleType").expect("TSTupleType must be present");
+    let inner = find_node(tuple, "TSPropertySignature").expect("nested signature must be present");
+    assert!(
+        inner.get("leadingComments").is_some(),
+        "the comment must attach to the nested signature, got: {inner}"
+    );
+
+    let literal = find_node(&ast, "TSTypeLiteral").expect("TSTypeLiteral must be present");
+    let members = literal.get("members").and_then(|v| v.as_array()).unwrap();
+    assert!(
+        members[1].get("leadingComments").is_none(),
+        "the following top-level member must not swallow it, got: {}",
+        members[1]
+    );
 }

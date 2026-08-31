@@ -132,7 +132,7 @@ fn client_a_nested_reactive_block_revives_the_tail_comment() {
         "<script>\n\texport let a = 1;\n\tlet b = 0;\n\t$: if (b > 2) {\n\t\tconsole.log(b);\n\t}\n\t/* tail */\n</script>\n<p>{b}</p>",
     );
     assert!(
-        out.contains("var /* tail */ p = root();"),
+        out.contains("var /* tail */\n\tp = root();"),
         "the located consequent should leave the comment for the root node:\n{out}"
     );
     assert_eq!(

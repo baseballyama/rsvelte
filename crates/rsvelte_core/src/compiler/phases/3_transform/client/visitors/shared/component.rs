@@ -1447,21 +1447,51 @@ fn validate_bind_setter_mutation(
     )
 }
 
+/// Upstream visits the synthesized `expression = $$value` with the component
+/// node on the path, and `SvelteSelf` is absent from the `$.assign` exemption
+/// list that `Component` / `SvelteComponent` are on — so the dev wrap survives
+/// wherever `build_assignment` reaches it: the root has a binding and no
+/// `mutate` transform (a `mutate` returns the mutation before the wrap).
 fn synthesized_self_member_assign(
     bind: &BindDirective<'_>,
-    raw: &JsExpr,
+    expression: &JsExpr,
     context: &ComponentContext,
 ) -> Option<JsExpr> {
     if !context.state.dev {
         return None;
     }
-    let JsExpr::Member(member) = raw else {
+    let (root, root_start, _) =
+        crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_ast_root_identifier_span(
+            &bind.expression,
+        )?;
+    let binding = context
+        .state
+        .scope_root
+        .binding_at_reference(&root, root_start)
+        .or_else(|| context.state.get_binding(&root))?;
+    // `EachBlock.js` gives an item and every destructured path a `mutate`
+    // that this table does not carry, so the kind stands in for it.
+    if matches!(
+        binding.kind,
+        crate::compiler::phases::phase2_analyze::scope::BindingKind::EachItem
+    ) || context
+        .state
+        .transform
+        .get(root.as_str())
+        .is_some_and(|transform| transform.mutate.is_some())
+    {
+        return None;
+    }
+    let JsExpr::Member(member) = expression else {
         return None;
     };
-    let (JsMemberProperty::Identifier(property)
-    | JsMemberProperty::SpannedIdentifier { name: property, .. }) = &member.property
-    else {
-        return None;
+    let key = match &member.property {
+        JsMemberProperty::Identifier(property)
+        | JsMemberProperty::SpannedIdentifier { name: property, .. } => {
+            b::string(property.as_str())
+        }
+        JsMemberProperty::Expression(property) => context.arena.get_expr(*property).clone(),
+        JsMemberProperty::PrivateIdentifier(_) => return None,
     };
     let start = bind.expression.start()? as usize;
     let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
@@ -1481,7 +1511,7 @@ fn synthesized_self_member_assign(
         b::member_path(&context.arena, "$.assign"),
         vec![
             context.arena.get_expr(member.object).clone(),
-            b::string(property.as_str()),
+            key,
             b::string("="),
             b::id("$$value"),
             b::string(&location),
@@ -1902,7 +1932,7 @@ fn process_bind_directive<'a>(
             );
             // Build the assignment with $.untrack($store) as the base
             let assignment_expr = build_store_member_assignment(
-                &context.arena,
+                context,
                 &raw_expression,
                 &store_prefix,
                 b::id("$$value"),
@@ -1925,16 +1955,52 @@ fn process_bind_directive<'a>(
         }
     } else {
         // Check if this is a member expression binding where the root is a prop or state
-        let member_root_info = if let JsExpr::Member(_) = &raw_expression {
-            // Extract the root identifier from the member expression. Identifier
-            // nodes can carry source-map spans, so walking only bare Member and
-            // Identifier variants loses prop roots such as `data().pingEval`.
-            crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_expression_root_identifier(
-                &raw_expression,
-                &context.arena,
+        let member_root_info = if bind.expression.is_member_expression() {
+            // Use the source AST as the authority for the root. The converted
+            // tree may already contain a getter call or an in-band source-map
+            // wrapper, neither of which changes which binding owns the write.
+            crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_ast_root_identifier_span(
+                &bind.expression,
             )
-            .and_then(|name| {
-                context.state.get_binding(&name).map(|binding| {
+            .and_then(|(name, start, _)| {
+                context
+                    .state
+                    .get_prop_binding_at_reference(&name, start)
+                    .or_else(|| {
+                        context
+                            .state
+                            .scope_root
+                            .binding_at_reference(&name, start)
+                            .filter(|binding| {
+                                crate::compiler::phases::phase3_transform::client::utils::is_state_source(
+                                    binding,
+                                    context.state.analysis,
+                                ) || matches!(
+                                    binding.kind,
+                                    crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                                        | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                                )
+                            })
+                    })
+                    // A template scope can fail to retain the reference edge
+                    // for a synthesized `<svelte:self>` binding. Resolve the
+                    // lexically visible source by name before giving up; the
+                    // kind filter keeps an unrelated static/template binding
+                    // from claiming the mutation.
+                    .or_else(|| {
+                        context.state.get_binding(&name).filter(|binding| {
+                            crate::compiler::phases::phase3_transform::client::utils::is_state_source(
+                                binding,
+                                context.state.analysis,
+                            ) || matches!(
+                                binding.kind,
+                                crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                                    | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                            )
+                        })
+                    })
+                    .or_else(|| context.state.get_prop_binding(&name))
+                    .map(|binding| {
                     let is_state =
                         crate::compiler::phases::phase3_transform::client::utils::is_state_source(
                             binding,
@@ -1955,13 +2021,24 @@ fn process_bind_directive<'a>(
                                 crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
                             ));
                     (name, is_state, is_prop)
-                })
+                    })
             })
         } else {
             None
         };
 
-        if let Some((root_name, is_state, is_prop)) = member_root_info {
+        // `build_assignment` reaches the dev `$.assign` wrap only after the
+        // `mutate` branches have declined, so this outranks the dispatch below.
+        let self_dev_assign = if is_svelte_self {
+            synthesized_self_member_assign(bind, &transformed_expression, context)
+        } else {
+            None
+        };
+
+        if let Some(assign) = self_dev_assign {
+            let assign = validate_bind_setter_mutation(assign, bind, ignored_codes, context);
+            vec![b::stmt(&context.arena, assign)]
+        } else if let Some((root_name, is_state, is_prop)) = member_root_info {
             // Check for reactive import first - these take priority over state/prop
             // because import bindings can be promoted to State by legacy analysis,
             // but they still need the reactive_import mutation pattern.
@@ -2010,35 +2087,18 @@ fn process_bind_directive<'a>(
                 );
                 let wrapped = validate_bind_setter_mutation(wrapped, bind, ignored_codes, context);
                 vec![b::stmt(&context.arena, wrapped)]
-            } else if is_state
-                || (is_svelte_self
-                    && context.state.analysis.runes
-                    && context.state.get_binding(&root_name).is_some_and(|binding| {
-                        matches!(
-                            binding.kind,
-                            crate::compiler::phases::phase2_analyze::scope::BindingKind::State
-                                | crate::compiler::phases::phase2_analyze::scope::BindingKind::RawState
-                        )
-                    }))
-            {
+            } else if is_state {
                 if context.state.analysis.runes {
-                    if is_svelte_self
-                        && let Some(assign) =
-                            synthesized_self_member_assign(bind, &raw_expression, context)
-                    {
-                        vec![b::stmt(&context.arena, assign)]
-                    } else {
-                        // In runes mode, replace the root with $.get(root) in the assignment:
-                        // $.get(value).a = $$value
-                        let assignment = b::assign(
-                            &context.arena,
-                            transformed_expression.clone(),
-                            b::id("$$value"),
-                        );
-                        let assignment =
-                            validate_bind_setter_mutation(assignment, bind, ignored_codes, context);
-                        vec![b::stmt(&context.arena, assignment)]
-                    }
+                    // In runes mode, replace the root with $.get(root) in the assignment:
+                    // $.get(value).a = $$value
+                    let assignment = b::assign(
+                        &context.arena,
+                        transformed_expression.clone(),
+                        b::id("$$value"),
+                    );
+                    let assignment =
+                        validate_bind_setter_mutation(assignment, bind, ignored_codes, context);
+                    vec![b::stmt(&context.arena, assignment)]
                 } else {
                     // In legacy mode, wrap in $.mutate():
                     // $.mutate(value, $.get(value).a = $$value)
@@ -2047,12 +2107,15 @@ fn process_bind_directive<'a>(
                         transformed_expression.clone(),
                         b::id("$$value"),
                     );
+                    let mutate = b::call(
+                        &context.arena,
+                        b::member_path(&context.arena, "$.mutate"),
+                        vec![b::id(root_name.clone()), assignment],
+                    );
                     vec![b::stmt(
                         &context.arena,
-                        b::call(
-                            &context.arena,
-                            b::member_path(&context.arena, "$.mutate"),
-                            vec![b::id(root_name.clone()), assignment],
+                        crate::compiler::phases::phase3_transform::client::visitors::expression_converter::wrap_with_legacy_invalidate(
+                            mutate, &root_name, context,
                         ),
                     )]
                 }
@@ -2070,10 +2133,20 @@ fn process_bind_directive<'a>(
                 vec![b::stmt(&context.arena, assignment)]
             }
         } else {
-            vec![b::stmt(
-                &context.arena,
-                b::assign(&context.arena, raw_expression.clone(), b::id("$$value")),
-            )]
+            // Upstream builds the setter from the SOURCE assignment and visits it
+            // (`context.visit(b.assignment('=', attribute.expression, b.id('$$value')))`),
+            // so a member base whose root carries a read transform keeps it.
+            let original_root = crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_ast_root_identifier_span(
+                &bind.expression,
+            );
+            let assignment = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::transform_synthesized_assignment(
+                &raw_expression,
+                &b::id("$$value"),
+                original_root.as_ref().map(|(name, _, _)| name.as_str()),
+                original_root.as_ref().map(|(_, start, _)| *start),
+                context,
+            );
+            vec![b::stmt(&context.arena, assignment)]
         }
     };
 
@@ -2227,22 +2300,23 @@ fn get_store_info_from_member(expr: &Expression) -> Option<(String, String)> {
 /// Build an assignment expression for store member mutation.
 /// Replaces the store prefix ($store) with $.untrack($store) in the member expression.
 fn build_store_member_assignment(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    context: &ComponentContext,
     expr: &JsExpr,
     store_prefix: &str,
     value: JsExpr,
 ) -> JsExpr {
     // Build the left side by replacing $store with $.untrack($store)
-    let left = replace_store_with_untrack(arena, expr, store_prefix);
-    b::assign(arena, left, value)
+    let left = replace_store_with_untrack(context, expr, store_prefix);
+    b::assign(&context.arena, left, value)
 }
 
 /// Replace the store identifier in an expression with $.untrack($store).
 fn replace_store_with_untrack(
-    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    context: &ComponentContext,
     expr: &JsExpr,
     store_prefix: &str,
 ) -> JsExpr {
+    let arena = &context.arena;
     match expr {
         JsExpr::Identifier(name) if name == store_prefix => b::call(
             arena,
@@ -2251,10 +2325,20 @@ fn replace_store_with_untrack(
         ),
         JsExpr::Member(member) => {
             let new_object =
-                replace_store_with_untrack(arena, arena.get_expr(member.object), store_prefix);
+                replace_store_with_untrack(context, arena.get_expr(member.object), store_prefix);
+            // Only the object is the untracked store; a computed key is an ordinary
+            // read and still owes its site's transform ($key -> $key(), i -> $.get(i)).
+            let property = match &member.property {
+                JsMemberProperty::Expression(id) if member.computed => {
+                    let key =
+                        super::utils::apply_transforms_to_expression(arena.get_expr(*id), context);
+                    JsMemberProperty::Expression(arena.alloc_expr(key))
+                }
+                other => other.clone(),
+            };
             JsExpr::Member(JsMemberExpression {
                 object: arena.alloc_expr(new_object),
-                property: member.property.clone(),
+                property,
                 computed: member.computed,
                 optional: member.optional,
             })

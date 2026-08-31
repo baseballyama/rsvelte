@@ -38,10 +38,11 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
-use oxc_span::Span;
 
 use super::ast_rewrite::{self, Edit};
+use super::scope_analysis::is_locally_shadowed;
 
 thread_local! {
     static MODULE_STATE_MEMBER_MUTATE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -55,6 +56,7 @@ pub fn transform_state_member_mutate_ast(
     source: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
     if state_vars.is_empty() {
         return None;
@@ -76,10 +78,13 @@ pub fn transform_state_member_mutate_ast(
             ParseOptions::default(),
             true,
             |program| {
+                let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
                 let mut collector = StateMemberMutateCollector {
                     source: src,
                     state_vars,
                     non_reactive_vars,
+                    invalidate_bodies,
+                    semantic: &semantic_ret.semantic,
                     replacements: Vec::new(),
                 };
                 collector.visit_program(program);
@@ -89,22 +94,29 @@ pub fn transform_state_member_mutate_ast(
     })
 }
 
-struct StateMemberMutateCollector<'a> {
+struct StateMemberMutateCollector<'a, 'sem> {
     source: &'a str,
     state_vars: &'a [String],
     non_reactive_vars: &'a [String],
+    invalidate_bodies: &'a rustc_hash::FxHashMap<String, String>,
+    /// The reactive body is handed over without the component-level
+    /// declarations, so the state variable reads as unresolved here and a
+    /// binding that *does* resolve inside the body is a shadow.
+    semantic: &'sem Semantic<'sem>,
     replacements: Vec<Edit>,
 }
 
-impl<'a> StateMemberMutateCollector<'a> {
+impl<'a, 'sem> StateMemberMutateCollector<'a, 'sem> {
     /// Walk the `object` chain of a member expression down to the
     /// leftmost identifier. Returns `None` if the leftmost atom is
     /// a call, parenthesised expression, `this`, etc.
-    fn walk_object_chain_to_root<'e>(expr: &'e Expression<'_>) -> Option<(&'e str, Span)> {
+    fn walk_object_chain_to_root<'e, 'x>(
+        expr: &'e Expression<'x>,
+    ) -> Option<&'e IdentifierReference<'x>> {
         let mut cur = expr;
         loop {
             match cur {
-                Expression::Identifier(id) => return Some((id.name.as_str(), id.span)),
+                Expression::Identifier(id) => return Some(id),
                 Expression::StaticMemberExpression(m) => cur = &m.object,
                 Expression::ComputedMemberExpression(m) => cur = &m.object,
                 _ => return None,
@@ -112,7 +124,9 @@ impl<'a> StateMemberMutateCollector<'a> {
         }
     }
 
-    fn root_of_assignment_target<'e>(target: &'e AssignmentTarget<'_>) -> Option<(&'e str, Span)> {
+    fn root_of_assignment_target<'e, 'x>(
+        target: &'e AssignmentTarget<'x>,
+    ) -> Option<&'e IdentifierReference<'x>> {
         let object = match target {
             AssignmentTarget::StaticMemberExpression(m) => &m.object,
             AssignmentTarget::ComputedMemberExpression(m) => &m.object,
@@ -122,17 +136,22 @@ impl<'a> StateMemberMutateCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for StateMemberMutateCollector<'a> {
+impl<'a, 'sem, 'ast> Visit<'ast> for StateMemberMutateCollector<'a, 'sem> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
-        let Some((root_name, root_span)) = Self::root_of_assignment_target(&expr.left) else {
+        let Some(root) = Self::root_of_assignment_target(&expr.left) else {
             return;
         };
+        let root_name = root.name.as_str();
+        let root_span = root.span;
         if !self.state_vars.iter().any(|s| s == root_name) {
             return;
         }
         if self.non_reactive_vars.iter().any(|s| s == root_name) {
+            return;
+        }
+        if is_locally_shadowed(self.semantic, root) {
             return;
         }
         let state_var = root_name;
@@ -148,7 +167,18 @@ impl<'a, 'ast> Visit<'ast> for StateMemberMutateCollector<'a> {
         wrapped.push(')');
         wrapped.push_str(&outer_text[re..]);
 
-        let rewrite = format!("$.mutate({}, {})", state_var, wrapped);
+        let mutate = format!("$.mutate({}, {})", state_var, wrapped);
+        // A `<select bind:value={state…}>` whose subtree reads other scope
+        // variables owes them an invalidation, exactly as the non-`$:` port does.
+        let rewrite = match self.invalidate_bodies.get(state_var) {
+            Some(body) if !body.is_empty() => {
+                format!(
+                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                    mutate, body
+                )
+            }
+            _ => mutate,
+        };
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }
@@ -164,45 +194,115 @@ mod tests {
 
     #[test]
     fn static_member_assignment() {
-        let out =
-            transform_state_member_mutate_ast("state.prop = 5;", &ssv(&["state"]), &[]).unwrap();
+        let out = transform_state_member_mutate_ast(
+            "state.prop = 5;",
+            &ssv(&["state"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(state, $.get(state).prop = 5);");
+    }
+
+    /// The reactive body arrives without the component-level declarations, so a
+    /// resolved reference is by construction a binding declared inside it —
+    /// upstream's `scope.get` answers the state variable only for the
+    /// unresolved one. `legacy_state_member_mutate_ast` already resolves this
+    /// way on the instance path; this port did not.
+    #[test]
+    fn a_callback_parameter_shadowing_the_state_var_is_not_a_state_write() {
+        for input in [
+            "xs.reduce((state, x) => { state.prop = 5; return state; }, {});",
+            "function f(state) { state.prop = 5; }",
+            "for (const state of xs) { state.prop = 5; }",
+        ] {
+            assert_eq!(
+                transform_state_member_mutate_ast(
+                    input,
+                    &ssv(&["state"]),
+                    &[],
+                    &rustc_hash::FxHashMap::default()
+                ),
+                None,
+                "{input}"
+            );
+        }
+    }
+
+    /// The control: the same write from an unshadowed position still wraps.
+    #[test]
+    fn an_unshadowed_state_member_write_still_wraps() {
+        let out = transform_state_member_mutate_ast(
+            "if (x) { state.prop = 5; }",
+            &ssv(&["state"]),
+            &[],
+            &rustc_hash::FxHashMap::default(),
+        )
+        .unwrap();
+        assert!(
+            out.contains("$.mutate(state, $.get(state).prop = 5)"),
+            "{out}"
+        );
     }
 
     #[test]
     fn computed_member_assignment() {
-        let out =
-            transform_state_member_mutate_ast("state[0] = 5;", &ssv(&["state"]), &[]).unwrap();
+        let out = transform_state_member_mutate_ast(
+            "state[0] = 5;",
+            &ssv(&["state"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(state, $.get(state)[0] = 5);");
     }
 
     #[test]
     fn compound_assignment_on_member() {
-        let out =
-            transform_state_member_mutate_ast("state.prop += 3;", &ssv(&["state"]), &[]).unwrap();
+        let out = transform_state_member_mutate_ast(
+            "state.prop += 3;",
+            &ssv(&["state"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(state, $.get(state).prop += 3);");
     }
 
     #[test]
     fn chained_member_chain() {
-        let out =
-            transform_state_member_mutate_ast("state.a.b.c = 5;", &ssv(&["state"]), &[]).unwrap();
+        let out = transform_state_member_mutate_ast(
+            "state.a.b.c = 5;",
+            &ssv(&["state"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(state, $.get(state).a.b.c = 5);");
     }
 
     #[test]
     fn mixed_static_and_computed() {
-        let out = transform_state_member_mutate_ast("state.items[0] = x;", &ssv(&["state"]), &[])
-            .unwrap();
+        let out = transform_state_member_mutate_ast(
+            "state.items[0] = x;",
+            &ssv(&["state"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(out, "$.mutate(state, $.get(state).items[0] = x);");
     }
 
     #[test]
     fn only_root_is_wrapped() {
         // `state.idx` deep in a computed key must NOT also be wrapped.
-        let out =
-            transform_state_member_mutate_ast("state.items[state.idx] = y;", &ssv(&["state"]), &[])
-                .unwrap();
+        let out = transform_state_member_mutate_ast(
+            "state.items[state.idx] = y;",
+            &ssv(&["state"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert!(out.contains("$.get(state).items[state.idx] = y"));
         assert!(out.starts_with("$.mutate(state, "));
     }
@@ -213,7 +313,8 @@ mod tests {
             transform_state_member_mutate_ast(
                 "state.prop = 5;",
                 &ssv(&["state"]),
-                &ssv(&["state"])
+                &ssv(&["state"]),
+                &Default::default()
             )
             .is_none()
         );
@@ -224,13 +325,22 @@ mod tests {
         // Once wrapped, LHS root is `$.get(state)` — a
         // CallExpression — so the visitor bails on the next pass.
         let already = "$.mutate(state, $.get(state).prop = 5);";
-        assert!(transform_state_member_mutate_ast(already, &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(already, &ssv(&["state"]), &[], &Default::default())
+                .is_none()
+        );
     }
 
     #[test]
     fn leaves_non_state_member_alone() {
         assert!(
-            transform_state_member_mutate_ast("obj.prop = 5;", &ssv(&["state"]), &[]).is_none()
+            transform_state_member_mutate_ast(
+                "obj.prop = 5;",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
         );
     }
 
@@ -238,38 +348,64 @@ mod tests {
     fn leaves_bare_state_assignment_alone() {
         // `state = 5` is handled by transform_state_set_in_reactive,
         // not here. LHS is identifier, not member.
-        assert!(transform_state_member_mutate_ast("state = 5;", &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(
+                "state = 5;",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn leaves_update_expression_alone() {
         // `state.x++` is NOT handled by the text version either.
-        assert!(transform_state_member_mutate_ast("state.x++;", &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(
+                "state.x++;",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "state.prop = 5";"#;
-        assert!(transform_state_member_mutate_ast(src, &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(src, &ssv(&["state"]), &[], &Default::default())
+                .is_none()
+        );
     }
 
     #[test]
     fn does_not_rewrite_inside_comment() {
         let src = "// state.prop = 5\nfoo();";
-        assert!(transform_state_member_mutate_ast(src, &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(src, &ssv(&["state"]), &[], &Default::default())
+                .is_none()
+        );
     }
 
     #[test]
     fn rewrites_inside_template_expression() {
         let src = "let s = `${state.prop = 5}`;";
-        let out = transform_state_member_mutate_ast(src, &ssv(&["state"]), &[]).unwrap();
+        let out =
+            transform_state_member_mutate_ast(src, &ssv(&["state"]), &[], &Default::default())
+                .unwrap();
         assert_eq!(out, "let s = `${$.mutate(state, $.get(state).prop = 5)}`;");
     }
 
     #[test]
     fn rewrites_inside_callback() {
         let src = "items.forEach(it => { state.x = it; });";
-        let out = transform_state_member_mutate_ast(src, &ssv(&["state"]), &[]).unwrap();
+        let out =
+            transform_state_member_mutate_ast(src, &ssv(&["state"]), &[], &Default::default())
+                .unwrap();
         assert_eq!(
             out,
             "items.forEach(it => { $.mutate(state, $.get(state).x = it); });"
@@ -278,8 +414,13 @@ mod tests {
 
     #[test]
     fn multiple_states_in_one_source() {
-        let out =
-            transform_state_member_mutate_ast("a.x = 1; b.y = 2;", &ssv(&["a", "b"]), &[]).unwrap();
+        let out = transform_state_member_mutate_ast(
+            "a.x = 1; b.y = 2;",
+            &ssv(&["a", "b"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(
             out,
             "$.mutate(a, $.get(a).x = 1); $.mutate(b, $.get(b).y = 2);"
@@ -290,8 +431,13 @@ mod tests {
     fn nested_mutation_in_rhs_fixed_point() {
         // `a.x = b.y++` — wait, ++ isn't handled.
         // Try `a.x = (b.y = 5)` — inner b.y=5 picked up first
-        let out =
-            transform_state_member_mutate_ast("a.x = (b.y = 5);", &ssv(&["a", "b"]), &[]).unwrap();
+        let out = transform_state_member_mutate_ast(
+            "a.x = (b.y = 5);",
+            &ssv(&["a", "b"]),
+            &[],
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(
             out,
             "$.mutate(a, $.get(a).x = ($.mutate(b, $.get(b).y = 5)));"
@@ -301,28 +447,61 @@ mod tests {
     #[test]
     fn function_call_on_member_is_not_a_mutation() {
         // `state.foo()` is a CallExpression, not a mutation.
-        assert!(transform_state_member_mutate_ast("state.foo();", &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(
+                "state.foo();",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn empty_state_vars_is_no_op() {
-        assert!(transform_state_member_mutate_ast("state.prop = 5;", &[], &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast("state.prop = 5;", &[], &[], &Default::default())
+                .is_none()
+        );
     }
 
     #[test]
     fn parse_error_returns_none() {
         assert!(
-            transform_state_member_mutate_ast("state.prop = (", &ssv(&["state"]), &[]).is_none()
+            transform_state_member_mutate_ast(
+                "state.prop = (",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
         );
     }
 
     #[test]
     fn no_op_without_equals() {
-        assert!(transform_state_member_mutate_ast("foo(state);", &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(
+                "foo(state);",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn no_op_without_state_name() {
-        assert!(transform_state_member_mutate_ast("let x = 1;", &ssv(&["state"]), &[]).is_none());
+        assert!(
+            transform_state_member_mutate_ast(
+                "let x = 1;",
+                &ssv(&["state"]),
+                &[],
+                &Default::default()
+            )
+            .is_none()
+        );
     }
 }

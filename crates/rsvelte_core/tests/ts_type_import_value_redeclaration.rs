@@ -53,7 +53,7 @@ fn type_imports_collide_with_value_declarations_at_the_second_name() {
             "expected acorn's wording for {body:?}, got: {error}"
         );
         assert!(
-            error.contains(&format!("start: Some({at}), end: Some({at})")),
+            error.contains(&format!("span: ({at}, {at})")),
             "expected the zero-width span at {at} for {body:?}, got: {error}"
         );
     }

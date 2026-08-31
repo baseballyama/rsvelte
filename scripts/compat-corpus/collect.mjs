@@ -31,6 +31,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeGeneration } from './artifacts.mjs';
+import { ignoredPaths } from './gitignored.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -143,10 +144,17 @@ function addEntry(repo, relPath, kind, source) {
 // for those projects only their SHIPPED source files are collected.
 function collectRepo(repo, dir, { markdown = true } = {}) {
 	const files = walk(dir);
+	const ignored = ignoredPaths(dir);
 	let real = 0;
 	let md = 0;
+	let skipped = 0;
 	for (const file of files) {
 		const rel = path.relative(dir, file);
+		const collectable = isSvelteModule(file) || isSvelteFile(file) || (markdown && file.endsWith('.md'));
+		if (collectable && ignored.has(rel.split(path.sep).join('/'))) {
+			skipped++;
+			continue;
+		}
 		if (isSvelteModule(file)) {
 			addEntry(repo, rel, 'module', fs.readFileSync(file, 'utf8'));
 			real++;
@@ -162,7 +170,7 @@ function collectRepo(repo, dir, { markdown = true } = {}) {
 			}
 		}
 	}
-	console.log(`[collect] ${repo}: ${real} files + ${md} markdown snippets`);
+	console.log(`[collect] ${repo}: ${real} files + ${md} markdown snippets` + (skipped ? ` (${skipped} gitignored skipped)` : ''));
 }
 
 for (const src of SOURCES) {

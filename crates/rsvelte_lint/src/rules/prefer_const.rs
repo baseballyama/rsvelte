@@ -852,11 +852,20 @@ fn collect_binding_writes(
             && let AstKind::VariableDeclaration(var_decl) =
                 semantic.nodes().parent_kind(declaration_node.id())
             && var_decl.kind == oxc_ast::ast::VariableDeclarationKind::Let
+            // ESLint merges a redeclared `let` into one variable carrying two
+            // write references, which its single-writer check then rejects.
+            && scoping.symbol_redeclarations(id).is_empty()
         {
             let init_span = init.span();
+            // ESLint reports the binding through its declarator, so a TypeScript
+            // annotation is inside the reported range.
+            let binding_end = declarator
+                .type_annotation
+                .as_ref()
+                .map_or(identifier.span.end, |annotation| annotation.span.end);
             out.semantic_initialized_lets.push(SemanticLetCandidate {
                 start: base + identifier.span.start,
-                end: base + identifier.span.end,
+                end: base + binding_end,
                 name: identifier.name.to_string(),
                 init_start: base + init_span.start,
                 init_end: base + init_span.end,
@@ -1174,7 +1183,7 @@ fn append_semantic_fallback_reports(
             return;
         };
         for declaration in declarations {
-            if !declaration.get("init").is_some_and(|init| !init.is_null()) {
+            if declaration.get("init").is_none_or(|init| init.is_null()) {
                 continue;
             }
             let Some(id) = declaration

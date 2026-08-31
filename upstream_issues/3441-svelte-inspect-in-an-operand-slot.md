@@ -106,7 +106,7 @@ leaves is `body()`-elided nowhere but is a legal pair of empty statements.
 rsvelte fills the slot with the value the rune evaluates to — `undefined` outside dev, the
 real lowering in dev — rather than reproducing an unparseable file or leaving `$inspect(…)`
 in place (which would be a `ReferenceError`). Recorded in
-`compatibility/deliberate-divergences.md` and pinned by
+`compatibility/GATES.md#deliberate-divergences` and pinned by
 `crates/rsvelte_core/tests/inspect_operand_slot_3441.rs`.
 
 The plain-`$inspect` half of the allow-list gap — `const t = $inspect(a)` alone — is

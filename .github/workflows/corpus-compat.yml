@@ -239,6 +239,9 @@ jobs:
       # 28k compared pairs, against ~59 minutes for one shard of the job that
       # currently costs the most.
       - name: Verify public parse() AST parity (ratchet)
+        # A failing step skips every unguarded step after it, and a skipped
+        # comparison reads exactly like a passing one. Run regardless.
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/parse-ast-verify.mjs --comment-owners
 
       # Asserts a PROPERTY of the transform rather than comparing its output, so
@@ -246,9 +249,21 @@ jobs:
       # `b::getter_call` and 7,888 of 27,566 corpus units violate it while the
       # output gate still scores 0 divergences. Hard gate, no ratchet.
       - name: Transform idempotency (client identifier transforms)
+        if: ${{ !cancelled() }}
         env:
           RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT: '1'
         run: node scripts/compat-corpus/idempotency-verify.mjs
+
+      # The other property gate: a write lowering must not claim an identifier
+      # that resolves to a shadow in its own input. It found a defect the output
+      # ratchet structurally could not report, because the one real-world file
+      # carrying the shape is already listed for two unrelated divergences.
+      # Hard gate, no ratchet.
+      - name: Signal discipline (client write lowerings)
+        if: ${{ !cancelled() }}
+        env:
+          RSVELTE_ASSERT_SIGNAL_DISCIPLINE: '1'
+        run: node scripts/compat-corpus/signal-discipline-verify.mjs
 
       - name: Compile corpus (official svelte + rsvelte, CSR + SSR + CSR dev)
         # The parse-AST and idempotency checks are independent gates. Keep
@@ -276,6 +291,7 @@ jobs:
       # deterministic sample; main gets the full sweep, which is what the
       # two-sided ratchet needs to judge a stale entry.
       - name: Mutation fuzz parity (ratchet against mutation-known-failures.json)
+        if: ${{ !cancelled() }}
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             node scripts/compat-corpus/mutate-corpus.mjs --full
@@ -309,6 +325,7 @@ jobs:
       # per-sibling-traversal prune bugs the happy-path corpus can't (issue
       # #1700). Reuses the binding staged above; shrink-only ratchet.
       - name: Verify CSS-prune sweep (no new divergences)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/css-prune-sweep.mjs --check
 
       # The expected/actual trees cluster.mjs reads are not uploaded (too large),
@@ -482,55 +499,67 @@ jobs:
       # needs no submodule sources and fails fast on a rule regression that
       # published code does not happen to contain.
       - name: Verify adversarial lint parity (ratchet against lint-adversarial-known-failures.json)
+        # A failing step skips every unguarded step after it, and a skipped
+        # comparison reads exactly like a passing one. Run regardless.
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-adversarial.mjs
 
       # The report gate above compares diagnostics; a rule's autofix is a
       # separate output that no other gate reads.
       - name: Verify adversarial lint autofix parity (ratchet against lint-adversarial-fix-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-adversarial-fix.mjs
 
       # The step above enables one rule per pattern, so it says nothing about
       # `--fix` on the config users run — all 74 rules editing one file at once.
       - name: Verify whole-config lint autofix parity (ratchet against lint-adversarial-fix-all-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-adversarial-fix-all.mjs
 
       # And a suggestion is neither a report nor a fix, so it is outside both
       # of the steps above.
       - name: Verify adversarial lint suggestion parity (ratchet against lint-adversarial-suggest-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-adversarial-suggest.mjs
 
       # The start position is compared by the report gate; the END is not, and a
       # rule can underline the wrong region while agreeing about everything else.
       - name: Verify adversarial lint end-position parity (ratchet against lint-adversarial-end-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-adversarial-end.mjs
 
       # Same sources, different project manifests: the adversarial corpus
       # declares @sveltejs/kit for its whole tree, so it cannot vary the one
       # input that decides whether five SvelteKit-gated rules run at all.
       - name: Verify lint environment parity (ratchet against lint-env-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-env.mjs
 
       # Every gate above configures all shared rules to "warn" on both sides, so
       # the set a user gets with NO config is a constant none of them can vary.
       - name: Verify lint default-preset parity (ratchet against lint-preset-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-preset.mjs
 
       # And the step above reads the two presets' declared TABLES. What a run
       # emits under them — each finding's severity and the process exit code —
       # is what this one compares, with no rule configuration on either side.
       - name: Verify lint default-configuration parity (ratchet against lint-severity-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-severity.mjs
 
       # Whether a rule runs at all in a given Svelte mode. A wrong flag is
       # invisible to every finding-level gate unless the corpus happens to hold a
       # file in the mode the flag wrongly excludes.
       - name: Verify lint rule conditions (ratchet against lint-conditions-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-conditions.mjs
 
       - name: Collect lint corpus
         run: node scripts/compat-corpus/lint-collect.mjs --ci
 
       - name: Verify lint parity (ratchet against lint-known-failures.json)
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/lint-verify.mjs
 
   check-parity:
@@ -732,6 +761,9 @@ jobs:
           mv .corpus-cache/rsvelte.node.staging .corpus-cache/rsvelte.node
 
       - name: Shape matrix parity (ratchet against matrix-known-failures.json)
+        # A failing step skips every unguarded step after it, and a skipped
+        # comparison reads exactly like a passing one. Run regardless.
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/matrix/run.mjs
 
       # The only gate here that RUNS the compiled output instead of reading it.
@@ -739,6 +771,7 @@ jobs:
       # either passes or does not, so a text comparison can be green while the
       # warning is disarmed — which is the state #2540 shipped in.
       - name: await_waterfall runtime parity
+        if: ${{ !cancelled() }}
         run: node scripts/compat-corpus/await-waterfall-runtime.mjs
 
       - name: Upload matrix artifacts on failure
@@ -795,6 +828,8 @@ jobs:
           cd submodules/language-tools
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --filter svelte-language-server... build
+          cd "$GITHUB_WORKSPACE"
+          node scripts/compat-lsp/pin-official-svelte.mjs
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -873,6 +908,8 @@ jobs:
           cd submodules/language-tools
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --filter svelte-language-server... build
+          cd "$GITHUB_WORKSPACE"
+          node scripts/compat-lsp/pin-official-svelte.mjs
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2

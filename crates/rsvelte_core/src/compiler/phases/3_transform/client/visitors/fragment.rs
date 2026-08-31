@@ -305,6 +305,11 @@ pub fn fragment(
             if let [TemplateNode::ExpressionTag(tag)] = element.fragment.nodes.as_slice()
                 && let Some(region) = CommentRegion::of(&context.state, tag, name_start)
             {
+                super::shared::utils::drop_folded_tag_comments(
+                    &mut context.state,
+                    tag.start,
+                    tag.end,
+                );
                 append_id = region.anchor(&context.arena, append_id, name_start, name_end);
                 comment_anchored = true;
             }

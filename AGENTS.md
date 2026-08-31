@@ -221,7 +221,7 @@ of its examples were measured and which were inferred from the mechanism** — t
 four were only ever the latter.
 
 **And #3027 is not one bug, it is the shape of a class — the inventory is
-[`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
+[`compatibility/GATES.md#two-ports-inventory`](compatibility/GATES.md#two-ports-inventory).** Every gate here
 compares rsvelte to *upstream*; **none compares rsvelte to itself**, so a second port of one
 upstream function is only ever exercised on whatever inputs a real file happens to supply. On
 2026-08-22 four instances were reported on one day by four people in four files — #3403, #3427,
@@ -292,13 +292,13 @@ apportioned.
 - Retained Phase-1 programs are immutable; Phase 3 uses source-range transforms and falls back after text rewrites
 - No backward compatibility for internal APIs (refactor freely)
 
-### What each gate cannot see ([`compatibility/gate-coverage.md`](compatibility/gate-coverage.md))
+### What each gate cannot see ([`compatibility/GATES.md#gate-coverage`](compatibility/GATES.md#gate-coverage))
 
 The sections below describe what the ~34 gates *do* compare. Every one of them can be green
 while a real defect ships, because each has a field its comparison key drops, a normalization
 step that erases the divergence, or a population its unit never reaches — and rediscovering
 those blind spots ad hoc has cost this project several shipped bugs (#2403, #2424, #2425).
-`compatibility/gate-coverage.md` is the inventory: per gate, the unit compared, what it
+`compatibility/GATES.md#gate-coverage` is the inventory: per gate, the unit compared, what it
 structurally cannot observe with the responsible flag/field/filter cited by file and line, and
 evidence classified as a **discriminating case**, a **structural argument from code**, or an
 explicit **unmeasured**. Never fill a row with a plausible guess — an unsupported blind-spot
@@ -338,7 +338,7 @@ rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
 `scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
-may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
+may only shrink, and each remaining failure is justified in `compatibility/KNOWN-FAILURES.md#known-failures`. Every
 ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
 that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
 same directory holds five sibling shrink-only ratchets, each with per-entry justification in a paired
@@ -374,7 +374,7 @@ number, and fixing the compiler turns that row red until the harness mirrors the
 
 The same `verify.mjs` run also gates compiler **warnings** — `(code, line, column)` per entry —
 on ratchets of their own (`warning-known-failures.{client,server,client-dev}.json` and
-`warning-position-known-failures.*`, justified in `compatibility/warning-known-failures.md`).
+`warning-position-known-failures.*`, justified in `compatibility/KNOWN-FAILURES.md#warning-known-failures`).
 Codes and positions ratchet separately: a wrong set of codes is a semantic bug, a wrong position
 is one systemic cause, and folded together the larger position backlog would hide every semantic
 regression. Until #2281 the pipeline discarded `result.warnings` entirely, so this whole class was
@@ -384,7 +384,7 @@ not look at, not only what the input does not contain.
 
 Compiler **errors** ratchet the same way and for the same reason
 (`error-{message,position,end,frame}-known-failures.{client,server,client-dev}.json`, justified
-in `compatibility/error-known-failures.md`). The output verdict compares an error's `code` and
+in `compatibility/KNOWN-FAILURES.md#error-known-failures`). The output verdict compares an error's `code` and
 nothing else, and that field is **saturated**: 0 divergences over the 2,843 `(id, target)` pairs
 both compilers reject. Every other field was invisible until it was captured — `message` 121
 ids, `start` 226, `end` 243, `frame` 5 — so growing the corpus could never have found them.
@@ -407,12 +407,15 @@ whole-corpus `rust_panic` when `sources/` is missing, are tracked in #2707.
 The public `parse()` export had **no gate at all** until #3389 — the other ~38 compare compiled
 text, warnings, errors, TSX, lint findings and LSP responses, and svelte2tsx and `rsvelte_lint`
 consume rsvelte's AST without ever diffing it against official's. One unit is (source, mode):
-every `.svelte` file in `compatibility/pattern-corpus/` under `{modern: true}` and under the
-default legacy shape, diffed as JSON after a round-trip on **both** sides — official keeps
+every `.svelte` entry of `compatibility/manifest.json` under `{modern: true}`, the default
+legacy shape and `loose`, diffed as JSON after a round-trip on **both** sides — official keeps
 `EachBlock.index`, `EachBlock.key` and `SnippetBlock.typeParams` as present-but-undefined keys,
 and rsvelte's binding returns a JSON *string*, so a naive comparison reports a catastrophe that is
-entirely the harness. It needs no corpus collect and no submodule but `svelte`, so it rides the
-shape-matrix job.
+entirely the harness. It needs the **collected corpus** (`parse-ast-verify.mjs:168` fails without
+`compatibility/manifest.json`) and a staged NAPI binding, and it runs in `corpus-compat.yml`
+immediately after `Collect corpus` — not, as this paragraph claimed until 2026-08-30, on
+pattern-corpus alone with no collect. That claim cost a runbook step: it was scheduled to run
+before the collect, where it can only fail.
 
 Three defects were shipped behind that gap and are fixed with it: `modern`/`loose` ignored
 (#3385), `Root.end` short of EOF (#3386), and comments never attaching to statements (#3387).
@@ -433,6 +436,42 @@ the two swapped. `parser_fixtures.rs` strips `character` from every `loc` before
 is why that suite reads 100% while the class exists. **A gate's first baseline measures how long
 the surface was ungated, not how much someone let rot.**
 
+**Those three numbers are the FIRST baseline (2721 entries) and none of them is a current work
+item.** The ratchet stands at 304 over ten clusters — `span` 78, `node-type` 62,
+`comment-attachment` 50, `estree-fields` 38, `unclustered` 36, `child-count` 14, `css-shape` 14,
+`loc-presence` 9, `ast-mode` 2, `accepts-what-official-rejects` 1 — and there is no
+`character` cluster at all. Grepping the keys for `character` returns 0 and **means nothing**,
+because `verify.mjs` folds `start`/`end`/`loc` into one key per node type, so a
+`loc.start.character` divergence sits inside `span`. Measured directly on one input, both
+compilers emit zero `character`-bearing `loc`s and `phases/1-parse` does not import
+`locate-character` at all (only `preprocess/index.js`, `state.js` and
+`utils/compile_diagnostic.js` do) — which suggests the paragraph above describes the
+*diagnostic* path rather than `parse()` output, but one input is not a population. Count the
+JSON, not this paragraph — and this paragraph has already been wrong once: it read 459 over a
+cluster split that summed to 459 while the file held 321, so **the count and the split go stale
+together and neither checks the other**. And read `304` as `165 bases × axis`: 139 of those bases
+carry a key on both axes and 26 on one, so the defect ceiling is 165, not 304. The collapse is not
+uniform across clusters (2.00x for `estree-fields` and `comment-attachment`, 1.56x for
+`css-shape`), so a per-cluster estimate cannot be had by scaling the total.
+
+**And the clusters partition KEY SHAPES, not causes, so a mechanism can span three rows while
+each row reads as its own backlog.** `lang="ts"` does not merely enable extra syntax — it selects
+`acorn.Parser.extend(tsPlugin())`, and that parser emits **different shapes for the same
+statement**: acorn always writes `attributes` (`[]` when absent) and `options` (null when
+absent), acorn-typescript writes `attributes` only where a `with` clause exists, spells a dynamic
+import's second argument as an `arguments` LIST, and stamps `exportKind` on `export default`.
+rsvelte emitted acorn's shape under both. Its four ratcheted keys sat in `unclustered`,
+`estree-fields` and `child-count`. **The axis that finds this class is one construct hosted in a
+plain `<script>` and in `lang="ts"`, diffed against each other** — 41 constructs found five such
+shapes where only two had a corpus carrier, and the same 164-cell grid re-found a defect this file
+already records (`params.rest` missing on a `function` statement) plus one nothing recorded:
+`export * from` was dropped from `parse()`'s body entirely while `compile()` kept it. Two of the
+five are unreachable from any collected corpus at any size, because `export default` is illegal in
+every script a component can hold — `parse()` accepts it and `compile()` does not, so the only
+gate that can hold them is a unit test. `crates/rsvelte_core/tests/import_export_parser_shapes.rs`
+is that gate. **Do not read a `Literal.value` bigint key as work**: `parse()`'s NAPI binding
+returns a JSON *string*, `bigint` and `raw` agree exactly, and matching would mean emitting the
+harness's own normalization shape.
 ### Generated shape matrix (`scripts/compat-corpus/matrix/`)
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
@@ -826,6 +865,24 @@ They inherit no `CARGO_TARGET_DIR`, so a plain `git commit` builds into the work
 `target/` — 1.4 GB per worktree, on a disk that has run out twice. Prefix the commit itself
 (`CARGO_TARGET_DIR=… git commit -m …`) rather than reaching for `--no-verify`.
 
+**In debug, disk runs out before time does, and chunking does not help.** The instruction above
+to scope a run with `--test` is not only about the hour a `--release` build costs: a debug build
+of `rsvelte_core`'s 589 test targets is **83 GB** of `target/debug/deps` at ~140 MB a binary —
+**170× the 499 MB the whole release profile occupies** — and it filled the dev disk to zero
+twice in one day. Splitting 589 targets into three chunks lowers peak memory and leaves
+**exactly the same 83 GB**, because each chunk's binaries stay. `target/debug/incremental` is a
+rounding error against this (measured at 445 MB when free space was 0), so `CARGO_INCREMENTAL=0`
+is worth setting and will not save you. Read `df -g /System/Volumes/Data` before invoking cargo,
+and do not start a build under ~20 GiB free: ENOSPC does not fail loudly, it leaves a partial
+artifact and the *next* run fails for an unrelated-looking reason. Reclaim with
+`find target/debug/deps -maxdepth 1 -type f -mmin +360 -delete`.
+
+**A guard that kills a build by matching its path does not work.** `cargo`'s own cmdline carries
+neither the worktree path nor `CARGO_TARGET_DIR` (both arrive through cwd and the environment),
+so `pkill -f '<path>'` leaves the parent alive and only the `rustc` children — which do carry
+`--out-dir` — are matched. Record cargo's pid at launch and `kill` that, or resolve cwd per pid
+with `lsof -a -d cwd -p <pid>`.
+
 **acorn checks JavaScript's early errors while parsing; OXC settles them after it, and rsvelte
 ran only the parser.** An early error is syntactically shaped but illegal, and none of the class
 is decidable from the token stream — each needs the enclosing scope or class — so OXC leaves them
@@ -926,6 +983,27 @@ Rules, in the order they are cheap:
    which one (`-p <crate> --lib --tests`), because the reader cannot tell from
    the output whether your file was in it.
 
+### Three things answer to "the official compiler", and they disagree
+
+An ad-hoc probe that does `import { compile } from 'svelte/compiler'` does **not** get the
+compiler the gates use. Measured on one input (`{ a: function () {} }` in an instance script):
+
+| entry point | `VERSION` | output |
+|---|---|---|
+| `svelte/compiler` (npm) | 5.56.10 | `a: function () {` |
+| `submodules/svelte/packages/svelte/src/compiler/index.js` | 5.56.10 | `a() {` |
+| `submodules/svelte/packages/svelte/compiler/index.js` (built) | **5.56.8** | `a() {` |
+
+The gates use the **source** path, centralised as `OFFICIAL_COMPILER_REL` in
+`scripts/compat-corpus/oracle.mjs`; use it in a probe too. **`VERSION` proves nothing** — two
+of the three disagree on output while reporting the same string, and the third reports a
+different string while agreeing. This cost a near-miss: a correct `auto_method` lowering was
+diagnosed as a defect and nearly deleted from three ports, because the npm build prints
+`close: function ($$arg) {` where the submodule prints `close($$arg) {`.
+
+No gate compares generated code against the npm build (`test-wasm-compile-options.mjs` imports
+it only to ask whether an option *throws*), so the hazard is probes, not gates.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
@@ -1008,9 +1086,25 @@ The `Sourcemaps` row above only compares generated `client.js` / `server.js` out
 from `packages/svelte/tests/sourcemaps` and adds two structural budgets (official segments
 reproduced; segments pointing outside the source), ratcheted shrink-only through
 `compatibility/sourcemap-known-failures.json` with per-entry justification in the paired `.md`.
-Server maps are accurate; client maps are chunk-granular (issue #1781) and are the burndown
-target — regenerate the baseline with `UPDATE_SOURCEMAP_RATCHET=1 cargo test -p rsvelte_core
---test sourcemaps_gate -- --ignored sourcemap_gate_measure`.
+The ratchet is **empty** as of 2026-08-30: all 770 official segments are reproduced and no
+segment points outside its source. Regenerate the baseline with
+`UPDATE_SOURCEMAP_RATCHET=1 cargo test -p rsvelte_core --test sourcemaps_gate -- --ignored
+sourcemap_gate_measure`.
+
+**The last two entries were one symptom over four defects, and two of them were hiding behind
+the other two.** Upstream anchors a keyword with `write_source_keyword` — `location(column)`,
+write `kind + ' '`, `location(column + keyword.length)` — and pushes one segment per `Location`
+with no collapse. rsvelte had a rsvelte-only guard dropping the end anchor when it exceeded the
+source line's length, a `push_mapping` that **overwrote** a mapping at a repeated generated
+position, keyword writers that mapped builder-made nodes upstream skips on `node.loc`, and — in
+the **server**, whose map is not built by esrap at all but by a text token scan in
+`3_transform/mod.rs` — an end anchor at `column + 3` for the token `let` rather than
+`column + 4` for the fragment `let `. Removing the collapse alone takes the gate from 2 wrong to
+13, and twelve of those thirteen are the synthesized-node anchors it had been repairing:
+**a "last write wins" rule is not a normalization, it is a repair that hides what it repaired.**
+And the two halves are two ports of one upstream function that no gate compares to each other
+(`two-ports-inventory.md` row 17) — only one of the 29 sourcemaps samples has a `let` alone on
+its source line, which is the entire reason either half was visible.
 
 ### Formatter parity corpus (svelte.dev)
 

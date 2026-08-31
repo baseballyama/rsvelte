@@ -48,8 +48,8 @@
   "unit_coverage": {
     "upstream_it_call_sites": 168,
     "ported_behavior_cases": 168,
-    "exact_behavior_cases": 109,
-    "known_difference_cases": 59,
+    "exact_behavior_cases": 110,
+    "known_difference_cases": 58,
     "unported_it_call_sites": 0
   },
   "unit_suites": [
@@ -1646,9 +1646,7 @@
       "method": "textDocument/hover",
       "source": "<h¦1>Hello, world!</h1>",
       "params": { "adapter": "hover" },
-      "expected": { "response": "some" },
-      "native_expected": { "response": "none" },
-      "difference_reason": "rsvelte does not embed vscode-html-languageservice's rich HTML element hover data."
+      "expected": { "response": "some" }
     },
     {
       "id": "html-smoke-hover-uppercase",

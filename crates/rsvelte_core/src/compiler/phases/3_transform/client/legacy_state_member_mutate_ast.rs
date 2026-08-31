@@ -531,7 +531,7 @@ mod tests {
             transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb()).unwrap();
         assert_eq!(
             out,
-            "function local(obj) { obj.count++; }\nfunction captured() { $.mutate(obj, obj.count++); }"
+            "function local(obj) {\n\tobj.count++;\n}\n\nfunction captured() {\n\t$.mutate(obj, obj.count++);\n}"
         );
     }
 
@@ -619,7 +619,7 @@ mod tests {
             transform_legacy_state_member_mutate_ast(src, &ssv(&["obj"]), &[], &[], &eb()).unwrap();
         assert_eq!(
             out,
-            "function local(obj) { obj.prop = 1; }\nfunction captured() { $.mutate(obj, obj.prop = 2); }"
+            "function local(obj) {\n\tobj.prop = 1;\n}\n\nfunction captured() {\n\t$.mutate(obj, obj.prop = 2);\n}"
         );
     }
 }

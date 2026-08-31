@@ -815,6 +815,44 @@ export async function preprocess(source, configured, options) {
         .unwrap();
     }
 
+    /// The shape npm actually ships. `svelte/compiler` is a bundle that assigns
+    /// its exports through a getter table, which `cjs-module-lexer` cannot read
+    /// statically — so `import()` gives a namespace carrying `default` alone and
+    /// no `preprocess`. The ESM fake above is the one shape that needed no
+    /// unwrapping, which is why the loader's `module.default` gap survived.
+    fn write_fake_cjs_compiler(root: &Path) {
+        let package = root.join("node_modules/svelte");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(
+            package.join("package.json"),
+            r#"{"name":"svelte","exports":{"./compiler":"./compiler.js"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            package.join("compiler.js"),
+            r#"
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+  for (var name in all) __defProp(target, name, { get: all[name], enumerable: true });
+};
+var api = {};
+__export(api, { preprocess: () => preprocess });
+async function preprocess(source, configured, options) {
+  const groups = Array.isArray(configured) ? configured : [configured];
+  let code = source;
+  for (const group of groups) {
+    if (!group?.markup) continue;
+    const result = await group.markup({ content: code, filename: options?.filename });
+    if (result?.code != null) code = result.code;
+  }
+  return { code, map: null, dependencies: [] };
+}
+module.exports = api;
+"#,
+        )
+        .unwrap();
+    }
+
     fn input(root: &Path, version: i32, text: &str) -> PreprocessInput {
         PreprocessInput {
             workspace: root.to_path_buf(),
@@ -871,6 +909,45 @@ export async function preprocess(source, configured, options) {
         assert_eq!(restart_delay(&config, 2), Duration::from_millis(20));
         assert_eq!(restart_delay(&config, 3), Duration::from_millis(25));
         assert_eq!(restart_delay(&config, u32::MAX), Duration::from_millis(25));
+    }
+
+    #[test]
+    fn a_commonjs_svelte_compiler_is_unwrapped() {
+        let Some(node) = node() else {
+            return;
+        };
+        let root = temp_dir("cjs-compiler");
+        write_fake_cjs_compiler(&root);
+        fs::write(
+            root.join("svelte.config.mjs"),
+            r#"
+export default {
+  preprocess: {
+    markup({ content }) {
+      return { code: `processed:${content}` };
+    }
+  }
+};
+"#,
+        )
+        .unwrap();
+
+        let (sender, events) = unbounded();
+        let sidecar = PreprocessSidecar::spawn(test_config(node), sender).unwrap();
+        sidecar.preprocess(input(&root, 1, "body")).unwrap();
+        let output = loop {
+            match events.recv_timeout(Duration::from_secs(5)).unwrap() {
+                PreprocessEvent::Result(output) => break output,
+                PreprocessEvent::Failed { message, .. } => panic!("{message}"),
+                PreprocessEvent::Crashed { error, .. }
+                | PreprocessEvent::CircuitOpen { error, .. } => panic!("{error}"),
+                PreprocessEvent::Ready { .. } => {}
+            }
+        };
+        assert_eq!(output.code, "processed:body");
+        assert!(output.has_preprocessor);
+        drop(sidecar);
+        fs::remove_dir_all(root).ok();
     }
 
     #[test]

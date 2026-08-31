@@ -38,6 +38,7 @@ use crate::svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions,
     SvelteVersion, svelte2tsx,
 };
+use rsvelte_projection::is_typescript_component;
 
 /// svelte2tsx shim declarations, vendored from
 /// `submodules/language-tools/packages/svelte2tsx/svelte-{shims,jsx}-v4.d.ts`
@@ -50,19 +51,45 @@ use crate::svelte2tsx::{
 /// to upstream — tsgo consumes them verbatim.
 const SHIM_SVELTE_SHIMS_V4: &str = include_str!("shims/svelte-shims-v4.d.ts");
 const SHIM_SVELTE_JSX_V4: &str = include_str!("shims/svelte-jsx-v4.d.ts");
+const SHIM_SVELTE_NATIVE_JSX: &str = include_str!("shims/svelte-native-jsx.d.ts");
 
 /// Filenames the shims are written under inside the cache dir. Names
 /// match upstream so diagnostics / `isSvelteShim`-style checks line up.
-const SHIM_FILES: &[(&str, &str)] = &[
+pub const SHIM_FILES: &[(&str, &str)] = &[
     (SHIM_SHIMS_V4_NAME, SHIM_SVELTE_SHIMS_V4),
     (SHIM_JSX_V4_NAME, SHIM_SVELTE_JSX_V4),
+    (SHIM_NATIVE_JSX_NAME, SHIM_SVELTE_NATIVE_JSX),
 ];
 
-const SHIM_SHIMS_V4_NAME: &str = "svelte-shims-v4.d.ts";
-const SHIM_JSX_V4_NAME: &str = "svelte-jsx-v4.d.ts";
+pub const SHIM_SHIMS_V4_NAME: &str = "svelte-shims-v4.d.ts";
+pub const SHIM_JSX_V4_NAME: &str = "svelte-jsx-v4.d.ts";
+pub const SHIM_NATIVE_JSX_NAME: &str = "svelte-native-jsx.d.ts";
 
 /// The `svelte` package file that supersedes the vendored JSX shim.
 const SVELTE_HTML_DTS: &str = "svelte-html.d.ts";
+
+/// The global type files upstream's `get_global_types` names for the svelte
+/// installed above `workspace`: the vendored shim basenames, plus the
+/// package's own `svelte-html.d.ts` when it has one
+/// (`svelte2tsx/src/helpers/files.ts:15-27`). The JSX shim is a *fallback*
+/// for a package without that file, so shipping both puts two `svelteHTML`
+/// namespaces in one program.
+#[must_use]
+pub fn global_type_files(workspace: &Path) -> (Vec<&'static str>, Option<PathBuf>) {
+    let root = fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
+    let svelte_html = resolve_svelte_package(&root).and_then(|pkg| {
+        if pkg.major == Some(3) {
+            return None;
+        }
+        let path = pkg.dir.join(SVELTE_HTML_DTS);
+        path.is_file().then_some(path)
+    });
+    let mut shims = vec![SHIM_SHIMS_V4_NAME, SHIM_NATIVE_JSX_NAME];
+    if svelte_html.is_none() {
+        shims.push(SHIM_JSX_V4_NAME);
+    }
+    (shims, svelte_html)
+}
 
 /// Cache-dir name of the rewritten copy of the installed svelte's bundled
 /// declarations (see [`materialize_svelte_types_shadow`]).
@@ -123,21 +150,9 @@ fn select_global_types(workspace: &Path, cache_dir: &Path) -> GlobalTypes {
     // a different directory than the CLI's cwd a relative `--workspace`
     // resolves against.
     let root = fs::canonicalize(workspace).unwrap_or_else(|_| workspace.to_path_buf());
-    let package = resolve_svelte_package(&root);
-    let svelte_html = package.as_ref().and_then(|pkg| {
-        if pkg.major == Some(3) {
-            return None;
-        }
-        let path = pkg.dir.join(SVELTE_HTML_DTS);
-        path.is_file().then_some(path)
-    });
-    let svelte_types = package
-        .as_ref()
+    let (shims, svelte_html) = global_type_files(&root);
+    let svelte_types = resolve_svelte_package(&root)
         .and_then(|pkg| materialize_svelte_types_shadow(&pkg.dir, cache_dir));
-    let mut shims = vec![SHIM_SHIMS_V4_NAME];
-    if svelte_html.is_none() {
-        shims.push(SHIM_JSX_V4_NAME);
-    }
     GlobalTypes {
         shims,
         svelte_html,
@@ -579,6 +594,8 @@ pub fn materialize_overlay_with(
             let cached_entry = manifest.entries.get(abs_source);
             // An unchanged file keeps the extension its own shadow already has, so
             // the cache hit below still costs no read.
+            // `None` only on the cached-extension arms, which never read the source.
+            let mut sniffed: Option<(String, bool)> = None;
             let ext = match (stats, cached_entry) {
                 (Some((mtime, size)), Some(entry))
                     if incremental
@@ -593,7 +610,16 @@ pub fn materialize_overlay_with(
                 {
                     ".tsx"
                 }
-                _ => shadow_extension(abs_source),
+                _ => match fs::read_to_string(abs_source) {
+                    Ok(text) => {
+                        let is_ts = is_typescript_component(&text);
+                        sniffed = Some((text, is_ts));
+                        shadow_extension_for(is_ts)
+                    }
+                    // An unreadable source produces what the caller would have
+                    // produced anyway; the emit branch below reports the error.
+                    Err(_) => ".tsx",
+                },
             };
             let is_js_shadow = ext == ".jsx";
             let tsx_rel = append_extension(&rel, ext);
@@ -652,8 +678,14 @@ pub fn materialize_overlay_with(
                 };
                 (cached_map, None)
             } else {
-                let source = fs::read_to_string(abs_source)?;
-                let is_ts_file = looks_like_ts_svelte(&source);
+                let (source, is_ts_file) = match sniffed {
+                    Some(pair) => pair,
+                    None => {
+                        let text = fs::read_to_string(abs_source)?;
+                        let is_ts = is_typescript_component(&text);
+                        (text, is_ts)
+                    }
+                };
                 let opts = Svelte2TsxOptions {
                     filename: abs_source.display().to_string(),
                     is_ts_file,
@@ -1233,7 +1265,7 @@ fn emit_external_shadows(
     for abs_source in &pkg.svelte_files {
         let rel = safe_relative(abs_source, &pkg.real_dir);
         let source = fs::read_to_string(abs_source)?;
-        let is_ts_file = looks_like_ts_svelte(&source);
+        let is_ts_file = is_typescript_component(&source);
         let ext = shadow_extension_for(is_ts_file);
         any_js_shadow |= ext == ".jsx";
         let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
@@ -1563,13 +1595,6 @@ fn safe_relative(abs: &Path, base: &Path) -> PathBuf {
         .map_or_else(|| PathBuf::from("__unnamed"), PathBuf::from)
 }
 
-/// Quick lexical sniff for `<script lang="ts">` so the v0.2 overlay can
-/// pass the right `is_ts_file` to svelte2tsx without re-parsing.
-fn looks_like_ts_svelte(source: &str) -> bool {
-    let lower = source.to_ascii_lowercase();
-    lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
-}
-
 /// The extension a component's shadow carries: `.tsx` for a `lang="ts"`
 /// component, `.jsx` for a JavaScript one.
 ///
@@ -1586,7 +1611,7 @@ fn looks_like_ts_svelte(source: &str) -> bool {
 /// would have produced anyway.
 fn shadow_extension(source_path: &Path) -> &'static str {
     fs::read_to_string(source_path).map_or(".tsx", |source| {
-        shadow_extension_for(looks_like_ts_svelte(&source))
+        shadow_extension_for(is_typescript_component(&source))
     })
 }
 
@@ -5705,7 +5730,10 @@ mod tests {
         fake_svelte_package(&tmp, "5.56.8", true);
 
         let selected = select_global_types(&tmp, &tmp.join(".svelte-check"));
-        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME]);
+        assert_eq!(
+            selected.shims,
+            vec![SHIM_SHIMS_V4_NAME, SHIM_NATIVE_JSX_NAME]
+        );
         assert_eq!(selected.svelte_html, expected_svelte_html(&tmp));
 
         let _ = fs::remove_dir_all(&tmp);
@@ -5720,7 +5748,7 @@ mod tests {
         let selected = select_global_types(&tmp, &tmp.join(".svelte-check"));
         assert_eq!(
             selected.shims,
-            vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME],
+            vec![SHIM_SHIMS_V4_NAME, SHIM_NATIVE_JSX_NAME, SHIM_JSX_V4_NAME],
             "without a project `svelte-html.d.ts` the vendored JSX shim is the \
              only source of `svelteHTML.IntrinsicElements`"
         );
@@ -5738,7 +5766,10 @@ mod tests {
         fake_svelte_package(&tmp, "3.59.2", true);
 
         let selected = select_global_types(&tmp, &tmp.join(".svelte-check"));
-        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME]);
+        assert_eq!(
+            selected.shims,
+            vec![SHIM_SHIMS_V4_NAME, SHIM_NATIVE_JSX_NAME, SHIM_JSX_V4_NAME]
+        );
         assert_eq!(selected.svelte_html, None);
 
         let _ = fs::remove_dir_all(&tmp);
@@ -5751,7 +5782,10 @@ mod tests {
         fs::create_dir_all(tmp.join("src")).unwrap();
 
         let selected = select_global_types(&tmp.join("src"), &tmp.join(".svelte-check"));
-        assert_eq!(selected.shims, vec![SHIM_SHIMS_V4_NAME, SHIM_JSX_V4_NAME]);
+        assert_eq!(
+            selected.shims,
+            vec![SHIM_SHIMS_V4_NAME, SHIM_NATIVE_JSX_NAME, SHIM_JSX_V4_NAME]
+        );
         assert_eq!(selected.svelte_html, None);
 
         let _ = fs::remove_dir_all(&tmp);

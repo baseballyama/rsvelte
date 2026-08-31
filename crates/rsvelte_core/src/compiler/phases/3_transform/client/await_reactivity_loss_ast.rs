@@ -309,22 +309,46 @@ impl AwaitCommentRuns {
         }
     }
 
-    /// The run to move, as `(start of the run, text to re-emit before the
-    /// argument)`, or `None` when it belongs outside the wrapper.
-    pub(super) fn relocatable_run(&self, source: &str, await_start: u32) -> Option<(u32, String)> {
+    /// The run to move, as `(start of the run, the `(` run to re-emit ahead of
+    /// the wrapper, text to re-emit before the argument)`, or `None` when it
+    /// belongs outside the wrapper.
+    pub(super) fn relocatable_run(
+        &self,
+        source: &str,
+        await_start: u32,
+    ) -> Option<(u32, String, String)> {
         if self.enclosing_starts.contains(&await_start) {
             return None;
         }
 
         let mut run_start = await_start;
         let mut first = self.comments.len();
+        // Parentheses the run has to reach across. Their `)` stays in the source
+        // past the edit, so each one is re-emitted ahead of the wrapper.
+        let mut skipped_parens: Vec<u32> = Vec::new();
         for (index, &(start, end, _)) in self.comments.iter().enumerate().rev() {
             if end > run_start {
                 continue;
             }
-            if !source[end as usize..run_start as usize].trim().is_empty() {
+            let gap = &source[end as usize..run_start as usize];
+            if !gap.chars().all(|c| c.is_whitespace() || c == '(') {
                 break;
             }
+            let parens: Vec<u32> = gap
+                .char_indices()
+                .filter(|&(_, c)| c == '(')
+                .map(|(offset, _)| end + offset as u32)
+                .collect();
+            // A `(` that begins a node is a node this comment leads, so the run
+            // stops there; one that begins only a parenthesis is invisible to
+            // acorn and the run reaches across it.
+            if parens
+                .iter()
+                .any(|offset| self.enclosing_starts.contains(offset))
+            {
+                break;
+            }
+            skipped_parens.extend(parens);
             run_start = start;
             first = index;
         }
@@ -347,7 +371,7 @@ impl AwaitCommentRuns {
             let broken = is_line || source[end as usize..next as usize].contains('\n');
             text.push(if broken { '\n' } else { ' ' });
         }
-        Some((run_start, text))
+        Some((run_start, "(".repeat(skipped_parens.len()), text))
     }
 }
 
@@ -373,7 +397,12 @@ struct StartScan {
 
 impl<'a> Visit<'a> for StartScan {
     fn enter_node(&mut self, kind: AstKind<'a>) {
-        if !matches!(kind, AstKind::AwaitExpression(_)) {
+        // acorn builds no `ParenthesizedExpression`, so a `(` is not a node a
+        // comment can lead upstream; only what oxc parses around it counts.
+        if !matches!(
+            kind,
+            AstKind::AwaitExpression(_) | AstKind::ParenthesizedExpression(_)
+        ) {
             self.starts.insert(kind.span().start);
         }
     }
@@ -442,9 +471,12 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
             // A statement whose own start is the `await` is exactly the shape
             // that keeps its leading comments outside, so the two never mix.
             None => match self.runs.relocatable_run(self.source, expr.span.start) {
-                Some((run_start, comments)) => (
+                Some((run_start, parens, comments)) => (
                     run_start,
-                    track_reactivity_loss_wrap(&format!("{comments}{arg_text}")),
+                    format!(
+                        "{parens}{}",
+                        track_reactivity_loss_wrap(&format!("{comments}{arg_text}"))
+                    ),
                 ),
                 None => (expr.span.start, track_reactivity_loss_wrap(arg_text)),
             },

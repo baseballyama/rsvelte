@@ -4,6 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { refuseUnrepresentativeBaseline } from "../compat-corpus/baseline-guard.mjs";
+import { svelteForDocument } from "./pin-official-svelte.mjs";
+import { projectionFailures } from "./projection-preflight.mjs";
+import { resolveTsgo } from "./tsgo.mjs";
 import {
   calibrationView,
   normalizeExpected,
@@ -132,52 +135,16 @@ const rsvelteCommand = parseCommand(process.env.RSVELTE_LSP_COMMAND, [
   path.join(ROOT, "target/debug/rsvelte-language-server"),
 ]);
 
-function resolveTsgo() {
-  if (process.env.TSGO_BIN) return process.env.TSGO_BIN;
-  const packageRoot = path.join(
-    ROOT,
-    "submodules/language-tools/packages/language-server/node_modules/@typescript/native-preview",
-  );
-  for (const candidate of [
-    path.join(ROOT, "submodules/language-tools/node_modules/.bin/tsgo"),
-    path.join(
-      ROOT,
-      "submodules/language-tools/packages/language-server/node_modules/.bin/tsgo",
-    ),
-    path.join(packageRoot, "lib/tsgo"),
-    path.join(packageRoot, "bin/tsgo"),
-    path.join(packageRoot, "bin/tsgo.js"),
-  ]) {
-    if (fs.existsSync(candidate)) return fs.realpathSync(candidate);
-  }
-  const scope = path.join(
-    ROOT,
-    "submodules/language-tools/packages/language-server/node_modules/@typescript",
-  );
-  if (fs.existsSync(scope)) {
-    for (const entry of fs.readdirSync(scope)) {
-      if (!entry.startsWith("native-preview-")) continue;
-      for (const relative of [
-        "lib/tsgo",
-        "lib/tsgo.exe",
-        "bin/tsgo",
-        "bin/tsgo.exe",
-      ]) {
-        const candidate = path.join(scope, entry, relative);
-        if (fs.existsSync(candidate)) return fs.realpathSync(candidate);
-      }
-    }
-  }
-  throw new Error(
-    "pinned @typescript/native-preview tsgo was not found; build/install submodules/language-tools first",
-  );
-}
-
 function requireExecutable(command, label) {
   if (command[0].includes(path.sep) && !fs.existsSync(command[0])) {
     throw new Error(`${label} executable not found at ${command[0]}`);
   }
 }
+// Read by `initializationOptions` below and by the two preconditions, which
+// must agree: it decides whether the server resolves `svelte` from a document's
+// own workspace or from beside itself, and a precondition measuring the other
+// arm reports a version this run never loads.
+const TRUSTED = !selectedSuites.includes("corpus");
 requireExecutable(officialCommand, "official language server");
 requireExecutable(rsvelteCommand, "rsvelte language server");
 if (!process.env.OFFICIAL_LSP_COMMAND) {
@@ -204,6 +171,68 @@ const population = loadCases(ROOT, selectedSuites, selectedRepos);
 const cases = shardCorpusCases(population.cases, SHARD);
 assertNonemptySuites(cases, selectedSuites);
 const measuredPopulation = corpusPopulation(cases);
+
+// A run is allowed a residue: `svelte2tsx` legitimately refuses a handful of
+// real components. What it is not allowed is a systematically wrong parser —
+// under Svelte 4 the rate on bits-ui is 64.8%, which is why no meaningful
+// ceiling could exist before the oracle was pinned.
+const PROJECTION_FAILURE_CEILING = 0.05;
+
+// A document the official server cannot project is compared anyway: `svelte2tsx`
+// throws, `DocumentSnapshot.ts:291` keeps the instance script alone, and the
+// answer that produces is well formed enough to enrol into a shrink-only
+// ratchet. Asserted before any request is sent, so a degraded oracle costs no
+// measurement, and therefore before the current artifact exists at all.
+{
+  const script = officialCommand.find((argument) => argument.endsWith(".js"));
+  // Resolved per document, because `TRUSTED` decides which arm the server reads.
+  // Reported as a set: a trusted run over several workspaces can legitimately
+  // load more than one Svelte, and collapsing that to a scalar hides it.
+  const roots = new Set(
+    cases
+      .map((entry) => entry.file ?? entry.path)
+      .filter((file) => file?.endsWith(".svelte"))
+      .map((file) => path.dirname(file)),
+  );
+  const loaded = new Map();
+  for (const root of roots) {
+    const resolved = script
+      ? svelteForDocument(script, root, TRUSTED)
+      : { version: null, path: null };
+    if (resolved.version) loaded.set(resolved.version, resolved.path);
+  }
+  for (const [version, from] of [...loaded].sort())
+    console.log(
+      `[lsp-verify] official server resolves svelte ${version} from ${from}${TRUSTED ? "" : " (untrusted run: the server's own fallback)"}`,
+    );
+  const stale = [...loaded].filter(([version]) => Number(version.split(".")[0]) < 5);
+  if (stale.length) {
+    throw new Error(
+      `the official server resolves svelte ${stale.map(([version]) => version).join(", ")} for this run's documents; run \`node scripts/compat-lsp/pin-official-svelte.mjs\` so it projects with the Svelte 5 parser this repository pins`,
+    );
+  }
+  const { failures, total, versions } = script
+    ? projectionFailures(script, cases, TRUSTED)
+    : { failures: [], total: 0, versions: [] };
+  if (total) {
+    const rate = failures.length / total;
+    console.log(
+      `[lsp-verify] official server projects ${total - failures.length}/${total} of this run's components with svelte ${versions.join(", ") || "(none)"} (${failures.length} fail, ${(rate * 100).toFixed(1)}%)`,
+    );
+    // Asserted on the corpus only. The fixture and upstream suites are chosen
+    // inputs and include documents written to be unparseable — 45 of 154 —
+    // so a ceiling there would measure the suite's intent, not the oracle's
+    // health. The rate is printed for every run either way.
+    if (
+      selectedSuites.includes("corpus") &&
+      rate > PROJECTION_FAILURE_CEILING
+    ) {
+      throw new Error(
+        `the official server fails to project ${failures.length}/${total} (${(rate * 100).toFixed(1)}%) of this run's components, above the ${(PROJECTION_FAILURE_CEILING * 100).toFixed(0)}% ceiling; it would answer those documents from the instance script alone, so every divergence they produce is against a reference that never saw a template. First: ${failures.slice(0, 3).join(", ")}`,
+      );
+    }
+  }
+}
 const universeIds = population.cases.map((entry) => entry.id);
 const populationFile = path.join(
   ROOT,
@@ -224,7 +253,7 @@ if (selectedSuites.includes("corpus") && !UPDATE_POPULATION) {
 }
 
 const initializationOptions = {
-  isTrusted: !selectedSuites.includes("corpus"),
+  isTrusted: TRUSTED,
   configuration: {
     svelte: { plugin: {} },
     typescript: {
@@ -422,11 +451,105 @@ function oracleCalibrationReport() {
   };
 }
 
+/// Drive upstream's own snapshots against the official server alone.
+///
+/// Calibration used to be a by-product of running `upstream-features`, so the
+/// suite that produces two thirds of the ratchet — `corpus` — never asked
+/// whether its oracle was sane.
+///
+/// It runs in a SECOND official process with the workspace an `upstream-features`
+/// run would give it. Reusing the measured run's process reproduces 75/92 where
+/// that suite reproduces 88/92, because the snapshots' `checkJs` and `tsconfig`
+/// settings come from workspace folders a fixtures- or corpus-scoped run does not
+/// declare — and adding them to the measured run would move the population this
+/// gate exists to compare. A preflight that measures a different number than the
+/// suite it stands in for is not a calibration.
+async function calibrationPreflight() {
+  if (selectedSuites.includes("upstream-features")) return;
+  const { cases: snapshots } = loadCases(ROOT, ["upstream-features"], []);
+  const featuresRoot = path.join(
+    ROOT,
+    "submodules/language-tools/packages/language-server/test/plugins/typescript/features",
+  );
+  const roots = [
+    featuresRoot,
+    path.join(featuresRoot, "diagnostics/fixtures/style-directive"),
+  ];
+  const server = new LspProcess("oracle calibration", officialCommand, {
+    cwd: ROOT,
+  });
+  // `clientRequest` answers `workspace/workspaceFolders` from one module-level
+  // value, so the measured run's folders would be handed to this server.
+  const measuredWorkspaceFolders = initializedWorkspaceFolders;
+  let id = 0;
+  initializedWorkspaceFolders = roots.map((workspace) => ({
+    name: path.basename(workspace),
+    uri: pathToFileURL(workspace).href,
+  }));
+  const request = async (method, params, timeoutMs) => {
+    const messageId = ++id;
+    server.send({ jsonrpc: "2.0", id: messageId, method, params });
+    return await server.response(messageId, clientRequest, timeoutMs);
+  };
+  try {
+    await request("initialize", {
+      processId: process.pid,
+      rootUri: pathToFileURL(featuresRoot).href,
+      workspaceFolders: initializedWorkspaceFolders,
+      capabilities,
+      initializationOptions,
+    });
+    server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
+    for (const entry of snapshots) {
+      if (!entry.expected) continue;
+      const text = entry.text ?? entry.loadText();
+      server.send({
+        jsonrpc: "2.0",
+        method: "textDocument/didOpen",
+        params: {
+          textDocument: {
+            uri: entry.uri,
+            languageId: "svelte",
+            version: 1,
+            text,
+          },
+        },
+      });
+      const requests =
+        typeof entry.requests === "function"
+          ? entry.requests(entry.uri, text)
+          : entry.requests;
+      for (const each of requests) {
+        let message;
+        try {
+          message = await request(each.method, each.params, REQUEST_TIMEOUT_MS);
+        } catch {
+          continue;
+        }
+        if (entry.expected.method !== each.method) continue;
+        calibrateOracle(
+          entry,
+          each.method,
+          normalizeExpected(each.method, entry.expected.value, entry.root),
+          normalizeResponse(each.method, message, entry.root),
+        );
+      }
+      server.send({
+        jsonrpc: "2.0",
+        method: "textDocument/didClose",
+        params: { textDocument: { uri: entry.uri } },
+      });
+    }
+  } finally {
+    initializedWorkspaceFolders = measuredWorkspaceFolders;
+    server.child.kill();
+  }
+}
+
 function assertOracleCalibration(calibration) {
-  if (!selectedSuites.includes("upstream-features")) return;
   if (!calibration.total) {
     throw new Error(
-      "upstream-features was selected but no expected snapshot was compared against the official server",
+      "no upstream expected snapshot was compared against the official server; the run measured divergence against an uncalibrated oracle",
     );
   }
   for (const [suite, bucket] of Object.entries(calibration.suites)) {
@@ -609,7 +732,7 @@ async function main() {
   });
   rsvelte = new LspProcess("rsvelte language server", rsvelteCommand, {
     cwd: ROOT,
-    env: { TSGO_BIN: resolveTsgo() },
+    env: { TSGO_BIN: resolveTsgo(ROOT) },
   });
   const rootUri = pathToFileURL(positiveRoot).href;
   const initializeParams = {
@@ -717,6 +840,8 @@ async function main() {
   };
   official.send(positiveClose);
   rsvelte.send(positiveClose);
+
+  await calibrationPreflight();
 
   for (const entry of cases) {
     const text = entry.text ?? entry.loadText();

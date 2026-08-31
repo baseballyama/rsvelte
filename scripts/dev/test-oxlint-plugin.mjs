@@ -39,7 +39,10 @@ function findOxlintBin() {
 }
 
 const FIXTURES = {
-	'ScriptRule.svelte': `<script>\n  let count = 1;\n</script>\n\n<p>{count}</p>\n`,
+	// `no-unused-vars` rather than `prefer-const`: the plugin lints through the
+	// engine's DEFAULT preset, so a rule that preset leaves off cannot be
+	// re-enabled from the oxlint config this suite writes.
+	'ScriptRule.svelte': `<script>\n  let count = 1;\n</script>\n\n<p>hi</p>\n`,
 	'TemplateRule.svelte': `<script>\n  const html = '<b>hi</b>';\n</script>\n\n{@html html}\n`,
 	'Scriptless.svelte': `<img src="a.png">\n<div>{@html unsafe}</div>\n`,
 	// Regression for #1724: a dual `<script module>` + `<script>` component is
@@ -55,8 +58,8 @@ const FIXTURES = {
 	// bug this guards is a per-rule "already reported" Set piggybacked on that
 	// same content-keyed entry, which would make IdenticalB's diagnostic look
 	// already-emitted (from IdenticalA's visit) and silently disappear.
-	'IdenticalA.svelte': `<script>\n  let dup = 1;\n</script>\n\n<p>{dup}</p>\n`,
-	'IdenticalB.svelte': `<script>\n  let dup = 1;\n</script>\n\n<p>{dup}</p>\n`,
+	'IdenticalA.svelte': `<script>\n  let dup = 1;\n</script>\n\n<p>hi</p>\n`,
+	'IdenticalB.svelte': `<script>\n  let dup = 1;\n</script>\n\n<p>hi</p>\n`,
 };
 
 let failures = 0;
@@ -150,12 +153,12 @@ async function main() {
 		);
 		{
 			const s = svelteDiags(native.report, 'ScriptRule.svelte');
-			const preferConst = s.find((d) => d.code === 'prefer-const');
-			check('surfaces svelte/prefer-const', !!preferConst);
+			const unusedVar = s.find((d) => d.code === 'no-unused-vars');
+			check('surfaces svelte/no-unused-vars', !!unusedVar);
 			check(
 				'in-script diagnostic mapped to 2:7',
-				preferConst?.line === 2 && preferConst?.column === 7,
-				`got ${preferConst?.line}:${preferConst?.column}`,
+				unusedVar?.line === 2 && unusedVar?.column === 7,
+				`got ${unusedVar?.line}:${unusedVar?.column}`,
 			);
 			const t = svelteDiags(native.report, 'TemplateRule.svelte');
 			check('surfaces svelte/no-at-html-tags (markup)', t.some((d) => d.code === 'no-at-html-tags'));
@@ -209,13 +212,13 @@ async function main() {
 			// what the *expensive-lint* cache is keyed by).
 			const identical = runOxlint(oxlint, configPath, dir, undefined, ['IdenticalA.svelte', 'IdenticalB.svelte']);
 			const aCount = svelteDiags(identical.report, 'IdenticalA.svelte').filter(
-				(d) => d.code === 'prefer-const',
+				(d) => d.code === 'no-unused-vars',
 			).length;
 			const bCount = svelteDiags(identical.report, 'IdenticalB.svelte').filter(
-				(d) => d.code === 'prefer-const',
+				(d) => d.code === 'no-unused-vars',
 			).length;
 			check(
-				'two byte-identical files each report prefer-const exactly once (no cross-file drop or dup)',
+				'two byte-identical files each report no-unused-vars exactly once (no cross-file drop or dup)',
 				aCount === 1 && bCount === 1,
 				`got IdenticalA.svelte=${aCount}, IdenticalB.svelte=${bCount}`,
 			);
@@ -240,9 +243,9 @@ async function main() {
 		// ── Cross-check against a direct engine lint ──────────────────────────
 		const { lintSource } = await import(pathToFileURL(join(pluginDir, 'src/engine.js')).href);
 		check(
-			'direct engine agrees on prefer-const location',
+			'direct engine agrees on no-unused-vars location',
 			lintSource(FIXTURES['ScriptRule.svelte'], join(dir, 'ScriptRule.svelte')).some(
-				(d) => d.code === 'svelte/prefer-const' && d.line === 2 && d.column === 6,
+				(d) => d.code === 'svelte/no-unused-vars' && d.line === 2 && d.column === 6,
 			),
 		);
 

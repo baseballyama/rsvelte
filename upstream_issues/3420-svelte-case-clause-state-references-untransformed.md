@@ -81,6 +81,23 @@ if it were, the braced form would behave the same way.
 | `case 1: { let s = /* c */ $state(1) }` | agrees |
 | `outer: { let s = /* c */ $state(1) }` | agrees |
 
+**`$derived` is the same defect, and the title's `$state` understates the class.** Measured
+the same way, on 5.56.10:
+
+| shape | official's client output | verdict |
+|---|---|---|
+| `case 1: let d = $derived(1); return d` | `let d = $.derived(() => 1); return d` | **diverges** |
+| `case 1: let d = $derived.by(() => 1); return d` | `let d = $.derived(() => 1); return d` | **diverges** |
+| `case 1: { let d = $derived(1); return d }` | `return $.get(d)` | agrees |
+| `outer: { let d = $derived(1); return d }` | `return $.get(d)` | agrees |
+
+`$.derived(…)` returns a `Derived` object, so the brace-less form hands the object back
+instead of `1` — the same "the declarator is lowered and its references are not"
+contradiction as the `$state` rows, with the same braced control ruling out intent. It was
+found by widening a matrix probe's declaration axis while measuring something else; the
+family's `SERVER_ONLY` exclusion covered `state-let × switch-case-bare` only, so the
+`$derived` half had no cell at all until the axis was added.
+
 The labeled-block row is the second control: it is the other statement kind that can host
 a declaration without a function boundary, and it is handled correctly. So the defect is
 specific to `SwitchCase`, not to "a declaration somewhere unusual".

@@ -5,7 +5,7 @@
 //! `upstream_issues/3082-svelte-abstract-property-not-erased.md`).
 //!
 //! rsvelte drops it. That is a deliberate divergence, recorded in
-//! `compatibility/deliberate-divergences.md`: byte parity here would mean
+//! `compatibility/GATES.md#deliberate-divergences`: byte parity here would mean
 //! emitting a module that does not parse. This test is what pins the choice, so
 //! a later "improve parity" change fails here instead of shipping.
 

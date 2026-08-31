@@ -342,7 +342,7 @@ runes 率が huly 0.4% / open-webui 0.3% / carbon 0.0% / SMUI 59.9% と大きく
 > **アプリ母集団のコンパイル時間の ~23%。うち ~2 ポイントは純 runes でも到達する。
 > 残りはコード構造上 legacy ゲート付きだが、そのようには計測されていない `[S]`。**
 
-**→ 性能ゲートの母集団ずれについては [`compatibility/gate-coverage.md`](../compatibility/gate-coverage.md) を見ること。**
+**→ 性能ゲートの母集団ずれについては [`compatibility/GATES.md#gate-coverage`](../compatibility/GATES.md#gate-coverage) を見ること。**
 CodSpeed のフィクスチャは 9 個中 8 個が runes、ライブラリコーパスは legacy 12.34%（バイト）、
 アプリは 68.89%。**我々の性能計測器は全て 1〜2% の端を向いている。**
 

@@ -710,6 +710,35 @@ fn dollar_function_param_body_range(
         return None;
     }
 
+    // A `$name` after the current parameter's default `=` is a reference in
+    // the initializer, not a declaration slot (`page = $search_params.page`).
+    // Track only the outer parameter-list level so defaults nested inside a
+    // destructuring pattern remain part of that same parameter.
+    let mut nested = 0usize;
+    let mut default_before_reference = false;
+    let mut i = open + 1;
+    while i < ident_start {
+        match chars[i] {
+            '(' | '[' | '{' => nested += 1,
+            ')' | ']' | '}' => nested = nested.saturating_sub(1),
+            ',' if nested == 0 => default_before_reference = false,
+            '=' if chars.get(i.wrapping_sub(1)) != Some(&'=')
+                && chars.get(i.wrapping_sub(1)) != Some(&'!')
+                && chars.get(i.wrapping_sub(1)) != Some(&'<')
+                && chars.get(i.wrapping_sub(1)) != Some(&'>')
+                && chars.get(i + 1) != Some(&'=')
+                && chars.get(i + 1) != Some(&'>') =>
+            {
+                default_before_reference = true;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if default_before_reference {
+        return None;
+    }
+
     let mut paren_depth = 0usize;
     let mut close = None;
     for (m, c) in chars.iter().enumerate().skip(open) {
@@ -922,6 +951,68 @@ fn is_dollar_ident_variable_declaration(chars: &[char], ident_start: usize) -> b
 
 /// Index of the `{` or `[` that opens the pattern enclosing `from`, or `None`
 /// when the scan leaves the pattern before finding one.
+/// `chars` with every comment interior replaced by a space, so the BACKWARD
+/// structural scans below cannot read a `(`, `)` or `;` that only exists inside
+/// a comment. Indices are preserved, so a char index is valid in either view.
+fn blank_comments(chars: &[char]) -> Vec<char> {
+    let mut out = chars.to_vec();
+    let len = chars.len();
+    let mut i = 0usize;
+    let mut string: Option<char> = None;
+    let mut templates = 0usize;
+    while i < len {
+        let c = chars[i];
+        if let Some(quote) = string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == quote {
+                string = None;
+            }
+            i += 1;
+            continue;
+        }
+        if templates > 0 && c == '`' {
+            templates -= 1;
+            i += 1;
+            continue;
+        }
+        match c {
+            '\'' | '"' => string = Some(c),
+            '`' => templates += 1,
+            '/' if i + 1 < len && chars[i + 1] == '/' => {
+                while i < len && chars[i] != '\n' {
+                    out[i] = ' ';
+                    i += 1;
+                }
+                continue;
+            }
+            '/' if i + 1 < len && chars[i + 1] == '*' => {
+                out[i] = ' ';
+                out[i + 1] = ' ';
+                i += 2;
+                while i < len {
+                    if chars[i] == '*' && i + 1 < len && chars[i + 1] == '/' {
+                        out[i] = ' ';
+                        out[i + 1] = ' ';
+                        i += 2;
+                        break;
+                    }
+                    if chars[i] != '\n' {
+                        out[i] = ' ';
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    out
+}
+
 fn enclosing_pattern_open(chars: &[char], from: usize) -> Option<usize> {
     let (mut curly, mut square) = (0usize, 0usize);
     let mut k = from as isize - 1;
@@ -1154,6 +1245,16 @@ fn collect_dollar_identifiers_pass(
     // name slot is decided from it, so `a = 1⏎$abc() {}` — where ASI ends the
     // field — reads the same as `a = 1;⏎$abc() {}`.
     let mut prev_code: Option<usize> = None;
+    // Built on first use: only a script that actually spells a `$name` in a
+    // pattern-shaped slot pays for it.
+    let mut blanked: Option<Vec<char>> = None;
+    macro_rules! code_view {
+        () => {
+            blanked
+                .get_or_insert_with(|| blank_comments(chars))
+                .as_slice()
+        };
+    }
 
     while i < len {
         let c = chars[i];
@@ -1352,13 +1453,13 @@ fn collect_dollar_identifiers_pass(
                         })
                         .or_else(|| dollar_catch_param_body_range(chars, ident_start, i));
                     let is_var_decl = is_dollar_ident_variable_declaration(chars, ident_start)
-                        || is_dollar_ident_destructuring_declaration(chars, ident_start);
+                        || is_dollar_ident_destructuring_declaration(code_view!(), ident_start);
                     let is_class_member_name = class_bodies.last() == Some(&brace_depth)
                         && starts_a_class_member(chars, prev_code);
                     let is_declaration = param_range.is_some()
                         || is_var_decl
                         || is_class_member_name
-                        || is_dollar_ident_import_specifier(chars, ident_start);
+                        || is_dollar_ident_import_specifier(code_view!(), ident_start);
                     if collect_declared {
                         if let Some((bs, be)) = param_range {
                             // A param shadows only inside its own arrow body.

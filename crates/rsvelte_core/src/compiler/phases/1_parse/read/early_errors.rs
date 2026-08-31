@@ -197,9 +197,12 @@ pub fn find_early_error(
         .iter()
         .filter_map(|d| translate(d, source, program, is_script, &mut functions))
         .min_by_key(|(at, _)| *at);
-    semantic
+    // The compensation can report the same byte as OXC's semantic diagnostic
+    // for `import { type X, X }`. Prefer its acorn-typescript wording on that
+    // tie; `min_by_key` keeps the first equal item.
+    type_import_value_redeclaration(program)
         .into_iter()
-        .chain(type_import_value_redeclaration(program))
+        .chain(semantic)
         .min_by_key(|(at, _)| *at)
 }
 

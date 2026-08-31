@@ -105,6 +105,21 @@ fn uses_indented_syntax_for_lang_sass() {
 }
 
 #[test]
+fn accepts_common_indentation_in_svelte_sass_blocks() {
+    let processed = preprocess_sass(
+        &SassOptions::default(),
+        &FilterOptions::default(),
+        Some("Component.svelte"),
+        "\n\t.card\n\t\tdisplay: block\n",
+        &attrs(&[("lang", "sass")]),
+    )
+    .expect("common Svelte indentation should compile")
+    .expect("sass filter should select the style");
+
+    assert_eq!(processed.code, ".card {\n  display: block;\n}");
+}
+
+#[test]
 fn uses_indented_syntax_from_sass_options() {
     let opts = || SassOptions {
         indented_syntax: Some(true),

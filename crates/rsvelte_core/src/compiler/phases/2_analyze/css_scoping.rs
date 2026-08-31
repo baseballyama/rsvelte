@@ -53,23 +53,6 @@ fn gather_possible_values(
                 }
             }
         }
-        "TemplateLiteral" => {
-            // Only handle template literals with no interpolations
-            let expressions = node.get("expressions").and_then(|e| e.as_array());
-            let quasis = node.get("quasis").and_then(|q| q.as_array());
-            if let (Some(exprs), Some(qs)) = (expressions, quasis)
-                && exprs.is_empty()
-                && qs.len() == 1
-                && let Some(cooked) = qs[0]
-                    .get("value")
-                    .and_then(|v| v.get("cooked"))
-                    .and_then(|c| c.as_str())
-            {
-                values.push(cooked.to_string());
-                return;
-            }
-            *unknown = true;
-        }
         "ConditionalExpression" => {
             if let Some(cons) = node.get("consequent") {
                 gather_possible_values(cons, is_class, is_nested, values, unknown);
@@ -189,7 +172,7 @@ fn get_possible_attr_values(
     if let Some(node_type) = expr.node_type() {
         let inspected = matches!(
             node_type,
-            "Literal" | "ConditionalExpression" | "LogicalExpression" | "TemplateLiteral"
+            "Literal" | "ConditionalExpression" | "LogicalExpression"
         ) || (is_class
             && matches!(node_type, "ArrayExpression" | "ObjectExpression"));
         if !inspected {
@@ -555,17 +538,12 @@ fn extract_selectors_from_css_node(
             }
         }
         "Atrule" => {
-            let is_keyframes = node
-                .get("name")
-                .and_then(|n| n.as_str())
-                .is_some_and(|name| {
-                    matches!(
-                        name,
-                        "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
-                    )
-                });
-            if !is_keyframes
-                && let Some(block) = node.get("block")
+            // Keyframe steps are walked like any other nested rule. Upstream's
+            // prune skips a `Percentage` selector rather than the block holding
+            // it, so a step still has to satisfy its parent rule chain; the
+            // parser emits an empty relative selector for `0%`, which matches
+            // any element, and `from` / `to` stay type selectors that match none.
+            if let Some(block) = node.get("block")
                 && let Some(children) = block.get("children").and_then(|c| c.as_array())
             {
                 for child in children {
@@ -717,6 +695,11 @@ fn substitute_explicit_nesting(
             // discard the child rule and omits the scope class from markup.
             merged.is_global = rel.is_global;
             merged.is_global_like = rel.is_global_like;
+            // Keep the child subject distinguishable from an unnested
+            // `:global(...):hover` compound. The marker is a no-op for matching
+            // and mirrors the upstream NestingSelector that this flattened
+            // representation otherwise loses.
+            merged.selectors.push(CssSimpleSelector::Nesting);
             result.push(merged);
         } else {
             // No parent to substitute with — keep the rel as-is minus the nesting
@@ -1253,13 +1236,31 @@ fn element_matches_simple_selectors(
 
 /// Truncate trailing global selectors from a complex selector's children.
 fn truncate_globals(children: &[CssRelativeSelector]) -> &[CssRelativeSelector] {
-    let last_non_global = children
+    // A bare `:global` opens a global block, so it and the entire tail are
+    // unscoped. Inline functional pseudos are different: `:is(:global(.x))`
+    // is still a local relative selector which can cause the element carrying
+    // `:is` to be scoped. Upstream's `truncate` uses the strict
+    // `metadata.is_global` meaning here, not the recursive matcher used by
+    // selector pruning. A substituted nesting selector keeps its child's
+    // metadata; ordinary selectors use the strict shape calculation because
+    // the extracted parser metadata classifies functional pseudo arguments
+    // recursively and would make `:is(:global(.x))` global as a whole.
+    let scoped_prefix_end = children
         .iter()
-        // This mirrors upstream `truncate`, which deliberately uses the
-        // analysis metadata rather than its recursive `is_global` matcher.
-        // In particular, a nested `&:hover` has non-global child metadata even
-        // when `&` resolves to a fully-global parent.
-        .rposition(|rel| !rel.is_global && !rel.is_global_like);
+        .position(is_bare_global_relative)
+        .unwrap_or(children.len());
+    let last_non_global = children[..scoped_prefix_end].iter().rposition(|rel| {
+        let substituted_nesting = rel
+            .selectors
+            .iter()
+            .any(|selector| matches!(selector, CssSimpleSelector::Nesting));
+        let is_global = if substituted_nesting {
+            rel.is_global
+        } else {
+            compute_is_global(&rel.selectors)
+        };
+        !is_global && !rel.is_global_like
+    });
     match last_non_global {
         Some(idx) => &children[..=idx],
         None => &[],
@@ -1418,108 +1419,6 @@ pub fn mark_elements_scoped(
         &snippet_ancestors,
         analysis,
     );
-}
-
-/// Mark ALL elements in the fragment as scoped (used when @keyframes rules exist).
-pub fn mark_all_elements_scoped(fragment: &mut Fragment) {
-    for node in &mut fragment.nodes {
-        mark_all_elements_scoped_node(node);
-    }
-}
-
-fn mark_all_elements_scoped_node(node: &mut TemplateNode) {
-    match node {
-        TemplateNode::RegularElement(el) => {
-            el.metadata.scoped = true;
-            for child in &mut el.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteElement(el) => {
-            el.metadata.scoped = true;
-            for child in &mut el.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::Component(comp) => {
-            for child in &mut comp.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::IfBlock(if_block) => {
-            for child in &mut if_block.consequent.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-            if let Some(alt) = &mut if_block.alternate {
-                for child in &mut alt.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-        }
-        TemplateNode::EachBlock(each) => {
-            for child in &mut each.body.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-            if let Some(fallback) = &mut each.fallback {
-                for child in &mut fallback.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-        }
-        TemplateNode::AwaitBlock(await_block) => {
-            if let Some(pending) = &mut await_block.pending {
-                for child in &mut pending.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-            if let Some(then) = &mut await_block.then {
-                for child in &mut then.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-            if let Some(catch) = &mut await_block.catch {
-                for child in &mut catch.nodes {
-                    mark_all_elements_scoped_node(child);
-                }
-            }
-        }
-        TemplateNode::KeyBlock(key) => {
-            for child in &mut key.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SnippetBlock(snippet) => {
-            for child in &mut snippet.body.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteHead(head) => {
-            for child in &mut head.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteBoundary(boundary) => {
-            for child in &mut boundary.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteFragment(frag) => {
-            for child in &mut frag.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteComponent(comp) => {
-            for child in &mut comp.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        TemplateNode::SvelteSelf(comp) => {
-            for child in &mut comp.fragment.nodes {
-                mark_all_elements_scoped_node(child);
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Walk a fragment and mark elements as scoped.

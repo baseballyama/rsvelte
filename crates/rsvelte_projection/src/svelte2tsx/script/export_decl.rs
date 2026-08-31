@@ -129,11 +129,27 @@ pub(super) fn handle_export_named_decl(
                         // export so it round-trips into the legacy props return
                         // (`props: { /** @type {boolean} */ visible: visible }`),
                         // mirroring official's `value.doc`.
-                        let leading_doc = cached_leading_doc
-                            .get_or_insert_with(|| {
+                        // Official `getDoc` reads the DECLARATOR's own leading
+                        // trivia first and only falls back to the statement's,
+                        // so `export let /* c */ g = 8, h = 9` gives the comment
+                        // to `g` alone. TypeScript starts that trivia at the
+                        // previous token, so the floor keeps the walk from
+                        // crossing `let` (`export /* x */ let a` carries nothing).
+                        let doc_floor = if decl_idx == 0 {
+                            var_decl.span.start as usize + kind.as_str().len()
+                        } else {
+                            var_decl.declarations[decl_idx - 1].span().end as usize
+                        };
+                        let leading_doc = leading_doc_after(
+                            raw_content,
+                            doc_floor,
+                            declarator.id.span().start as usize,
+                        )
+                        .or_else(|| {
+                            *cached_leading_doc.get_or_insert_with(|| {
                                 leading_jsdoc_comment(raw_content, export_span.start as usize)
                             })
-                            .as_ref();
+                        });
                         if let Some(name) = binding_pattern_simple_name(&declarator.id)
                             && let Some(doc) = leading_doc
                         {
@@ -251,7 +267,7 @@ pub(super) fn handle_export_named_decl(
                                 str.append_left_fmt(
                                     id_end,
                                     format_args!(
-                                        "/*\u{03A9}ignore_start\u{03A9}*/: {kit}; {name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
+                                        "/*\u{03A9}ignore_start\u{03A9}*/: {kit};{name} = __sveltets_2_any({name});/*\u{03A9}ignore_end\u{03A9}*/"
                                     ),
                                 );
                             } else {
@@ -413,6 +429,16 @@ pub(super) fn handle_export_named_decl(
             }
         }
     }
+}
+
+/// `leading_jsdoc_comment` bounded below by `floor`, the end of the previous
+/// token — where TypeScript's `node.pos` starts a node's leading trivia.
+pub(super) fn leading_doc_after(source: &str, floor: usize, before: usize) -> Option<&str> {
+    if floor >= before || before > source.len() {
+        return None;
+    }
+    let sub = &source[floor..before];
+    leading_jsdoc_comment(sub, sub.len())
 }
 
 /// Return the leading `/** … */` `JSDoc` comment immediately before `before`

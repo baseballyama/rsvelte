@@ -192,7 +192,7 @@ impl ScriptContent {
                         && retained_matches_source
                 })
                 .map_or_else(
-                    || (strip_typescript(raw_source), None),
+                    || strip_typescript_with_projection(raw_source),
                     |program| {
                         strip_typescript_from_program_with_projection(raw_source, program.program())
                     },
@@ -592,6 +592,21 @@ fn extract_import_source(import_line: &str) -> Option<String> {
 /// Uses OXC parser to parse TypeScript, then walks the AST to find
 /// TypeScript-specific source regions to remove.
 pub fn strip_typescript(source: &str) -> String {
+    strip_typescript_parsed(source, false).0
+}
+
+/// Strip TypeScript while retaining the source/output projection needed by
+/// Phase 3. This is the fallback for a script whose Phase-1 program cannot be
+/// reused; dropping the projection here would make comments copied out
+/// of erased module declarations indistinguishable from live JS comments.
+fn strip_typescript_with_projection(source: &str) -> (String, Option<ScriptProjection>) {
+    strip_typescript_parsed(source, true)
+}
+
+fn strip_typescript_parsed(
+    source: &str,
+    include_projection: bool,
+) -> (String, Option<ScriptProjection>) {
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;
     use oxc_span::SourceType;
@@ -606,10 +621,11 @@ pub fn strip_typescript(source: &str) -> String {
 
     if result.panicked {
         // The AST is a stub; nothing can be stripped from it.
-        return source.to_string();
+        return (source.to_string(), None);
     }
 
-    let stripped = strip_typescript_from_program(source, &result.program);
+    let (stripped, projection) =
+        strip_typescript_from_program_impl(source, &result.program, include_projection);
 
     // OXC reports rules the official parser does not enforce (a required
     // parameter after an optional one, say) as parse errors even though it
@@ -620,11 +636,11 @@ pub fn strip_typescript(source: &str) -> String {
         let allocator = Allocator::default();
         let check = Parser::new(&allocator, &stripped, SourceType::mjs()).parse();
         if check.panicked || !check.diagnostics.is_empty() {
-            return source.to_string();
+            return (source.to_string(), None);
         }
     }
 
-    stripped
+    (stripped, projection)
 }
 
 pub(crate) fn strip_typescript_from_program(
@@ -728,23 +744,23 @@ fn strip_typescript_from_program_impl(
         merged.push((start, end));
     }
 
-    let erased_leading_comments_before_export_props = include_projection
-        .then(|| {
-            program
-                .comments
-                .iter()
-                .filter(|comment| comment.is_leading())
-                .filter_map(|comment| {
-                    let (_, remove_end) = merged.iter().find(|(start, end)| {
-                        *start <= comment.attached_to && comment.attached_to < *end
-                    })?;
-                    let after = source.get(*remove_end as usize..)?.trim_start();
-                    (after.starts_with("export let ") || after.starts_with("export var "))
-                        .then(|| comment.span.start..comment.span.end)
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let erased_leading_comments_before_export_props = if include_projection {
+        program
+            .comments
+            .iter()
+            .filter(|comment| comment.is_leading())
+            .filter_map(|comment| {
+                let (_, remove_end) = merged.iter().find(|(start, end)| {
+                    *start <= comment.attached_to && comment.attached_to < *end
+                })?;
+                let after = source.get(*remove_end as usize..)?.trim_start();
+                (after.starts_with("export let ") || after.starts_with("export var "))
+                    .then_some(comment.span.start..comment.span.end)
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     // Build output by skipping removed regions
     let mut output = String::with_capacity(source.len());
@@ -2312,13 +2328,6 @@ pub struct CssAnalysis {
     /// Keyframe names for scoping
     pub keyframes: Vec<String>,
 
-    /// True if any `@keyframes` rule contains at least one step whose prelude is a
-    /// percentage (e.g. `0%`, `50%`). When true, the official compiler's css-prune
-    /// walker visits those `Percentage` selectors and treats them as possibly matching
-    /// any element, which effectively scopes ALL elements in the component. Keyframes
-    /// using only keyword steps (`from`, `to`) do NOT trigger this behavior.
-    pub has_percentage_keyframe_step: bool,
-
     /// Whether the CSS contains :global
     pub has_global: bool,
 
@@ -2609,6 +2618,7 @@ count! += 1;
             raw_content: "",
             content_offset: 0,
             is_typescript: true,
+            leading_comments: Vec::new(),
         };
         let retained = RetainedProgram::parse(source, true);
         STRIP_TYPESCRIPT_REPARSES.with(|count| count.set(0));

@@ -12,6 +12,7 @@ use super::reactive::extract_names_from_labeled_body;
 use super::runes::excluded_rune_init;
 
 use super::super::magic_string::MagicString;
+use super::super::utils::htmlxparser::blank_style_content;
 
 fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("script source offsets are represented as u32")
@@ -65,6 +66,10 @@ pub struct StoreScanContext<'s> {
     pub(super) dollar_param_shadow: HashMap<String, Vec<(u32, u32)>>,
     pub(super) self_named_rune_calls: Vec<u32>,
     pub(super) regex_literal_spans: Vec<(u32, u32)>,
+    /// Source ranges official's store walker structurally cannot see a
+    /// reference in: a string literal, a template literal's text chunks, and
+    /// the imported (property) name of an aliased import specifier.
+    pub(super) opaque_dollar_spans: Vec<(u32, u32)>,
     import_store_names: Vec<&'s str>,
     seen_import_store_names: HashSet<&'s str>,
 }
@@ -87,6 +92,7 @@ impl<'s> StoreScanContext<'s> {
             dollar_param_shadow: HashMap::new(),
             self_named_rune_calls: Vec::new(),
             regex_literal_spans: Vec::new(),
+            opaque_dollar_spans: Vec::new(),
             import_store_names: Vec::new(),
             seen_import_store_names: HashSet::new(),
         }
@@ -96,6 +102,7 @@ impl<'s> StoreScanContext<'s> {
         self.dollar_param_shadow.clear();
         self.self_named_rune_calls.clear();
         self.regex_literal_spans.clear();
+        self.opaque_dollar_spans.clear();
     }
 
     pub(super) fn has_dollar(&mut self) -> bool {
@@ -126,11 +133,17 @@ impl<'s> StoreScanContext<'s> {
         self.regex_literal_spans.push(span);
     }
 
+    pub(super) fn add_opaque_dollar_span(&mut self, span: (u32, u32)) {
+        self.opaque_dollar_spans.push(span);
+    }
+
     pub(super) fn finish_script_facts(&mut self) {
         self.self_named_rune_calls.sort_unstable();
         self.self_named_rune_calls.dedup();
         self.regex_literal_spans.sort_unstable();
         self.regex_literal_spans.dedup();
+        self.opaque_dollar_spans.sort_unstable();
+        self.opaque_dollar_spans.dedup();
     }
 
     pub(super) fn collect_loose_dollar_names(
@@ -178,6 +191,7 @@ impl<'s> StoreScanContext<'s> {
                     &self.dollar_param_shadow,
                     &self.self_named_rune_calls,
                     &self.regex_literal_spans,
+                    &self.opaque_dollar_spans,
                 ) {
                     self.accessed_stores.insert(name);
                 }
@@ -191,11 +205,17 @@ impl<'s> StoreScanContext<'s> {
         let shadow = &self.dollar_param_shadow;
         let rune_calls = &self.self_named_rune_calls;
         let regex_spans = &self.regex_literal_spans;
+        let opaque_spans = &self.opaque_dollar_spans;
         let stores = &mut self.accessed_stores;
         collect_store_candidates(source, self.script_spans, |candidate| {
-            if let Some(name) =
-                resolve_store_candidate(source, &candidate, shadow, rune_calls, regex_spans)
-            {
+            if let Some(name) = resolve_store_candidate(
+                source,
+                &candidate,
+                shadow,
+                rune_calls,
+                regex_spans,
+                opaque_spans,
+            ) {
                 stores.insert(name);
             }
         });
@@ -544,9 +564,16 @@ fn collect_store_candidates(
     // comment (e.g. a JSDoc `[`$on`](…$on)` link) is never a store reference.
     let needs_blank = source.contains("<!--")
         || script_spans.module().is_some()
+        || source.contains("<style")
         || instance_script_has_comment(source, script_spans.instance());
     let scan_source: &str = if needs_blank {
-        let mut buf = source.as_bytes().to_vec();
+        // `blank_style_content` walks comments, `<script>` and `<style>` in
+        // source order, so a `<style>` written inside a script comment or string
+        // is inside the script region it already skipped. A hand-rolled
+        // `find("<style")` here blanked from a `// … <style> …` comment to EOF
+        // (no closing tag follows) and swallowed the template's own `$store`
+        // reads.
+        let mut buf = blank_style_content(source).as_bytes().to_vec();
         let mut j = 0usize;
         while let Some(rel) = source[j..].find("<!--") {
             let start = j + rel;
@@ -642,7 +669,11 @@ fn collect_store_candidates(
         let mut end = next + 1;
         while end < len {
             let b = bytes[end];
-            if b.is_ascii_alphanumeric() || b == b'_' {
+            // `$` continues a JS identifier, so `$app$` is ONE name: official
+            // resolves the store `app$`, which nothing declares. Stopping at the
+            // inner `$` instead yields `app`, and a neighbouring `const app` then
+            // looks like a store.
+            if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
                 end += 1;
             } else {
                 break;
@@ -701,9 +732,10 @@ fn resolve_store_candidate<'s>(
     shadow: &HashMap<String, Vec<(u32, u32)>>,
     self_named_rune_calls: &[u32],
     regex_literal_spans: &[(u32, u32)],
+    opaque_dollar_spans: &[(u32, u32)],
 ) -> Option<&'s str> {
     let pos = candidate.pos();
-    if position_in_spans(regex_literal_spans, pos) {
+    if position_in_spans(regex_literal_spans, pos) || position_in_spans(opaque_dollar_spans, pos) {
         return None;
     }
     if candidate.may_be_self_named_rune() && self_named_rune_calls.binary_search(&pos).is_ok() {

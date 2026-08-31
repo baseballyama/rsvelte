@@ -36,11 +36,14 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
+use oxc_semantic::{Semantic, SemanticBuilder};
 use oxc_span::SourceType;
 use oxc_syntax::operator::UnaryOperator;
 use oxc_syntax::operator::UpdateOperator;
+use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
+use super::scope_analysis::{is_locally_shadowed, shadowed_reference_starts};
 
 thread_local! {
     static MODULE_REACTIVE_UPDATE_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -90,10 +93,12 @@ fn transform_reactive_update_spliced(
         },
         false,
         |program| {
+            let semantic_ret = SemanticBuilder::new().with_build_nodes(true).build(program);
             let mut collector = ReactiveUpdateCollector {
                 prop_vars,
                 state_vars,
                 non_reactive_state_vars,
+                semantic: &semantic_ret.semantic,
                 replacements: Vec::new(),
             };
             collector.visit_program(program);
@@ -102,10 +107,13 @@ fn transform_reactive_update_spliced(
     )
 }
 
-struct ReactiveUpdateCollector<'a> {
+struct ReactiveUpdateCollector<'a, 'sem> {
     prop_vars: &'a [String],
     state_vars: &'a [String],
     non_reactive_state_vars: &'a [String],
+    /// Upstream reaches the binding through `scope.get`, so a nested
+    /// declaration of the same name is neither the prop nor the state variable.
+    semantic: &'sem Semantic<'sem>,
     replacements: Vec<Edit>,
 }
 
@@ -132,7 +140,7 @@ fn classify(
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for ReactiveUpdateCollector<'a> {
+impl<'a, 'sem, 'ast> Visit<'ast> for ReactiveUpdateCollector<'a, 'sem> {
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
         walk::walk_update_expression(self, expr);
 
@@ -150,6 +158,9 @@ impl<'a, 'ast> Visit<'ast> for ReactiveUpdateCollector<'a> {
         ) else {
             return;
         };
+        if is_locally_shadowed(self.semantic, id) {
+            return;
+        }
 
         let rewrite = match (kind, expr.operator, expr.prefix) {
             (Kind::Prop, UpdateOperator::Increment, false) => {
@@ -189,6 +200,33 @@ mod tests {
 
     fn ssv(names: &[&str]) -> Vec<String> {
         names.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// A nested binding of the same name is neither the prop nor the state
+    /// variable: upstream classifies the target through `scope.get`.
+    #[test]
+    fn a_shadowing_binding_is_neither_prop_nor_state() {
+        for input in [
+            "xs.forEach((x) => { x++; });",
+            "function f(x) { --x; }",
+            "for (const x of xs) { x--; }",
+        ] {
+            assert!(
+                transform_reactive_update_ast(input, &ssv(&["x"]), &[], &[]).is_none(),
+                "prop {input}"
+            );
+            assert!(
+                transform_reactive_update_ast(input, &[], &ssv(&["x"]), &[]).is_none(),
+                "state {input}"
+            );
+        }
+    }
+
+    /// The control: the same update from an unshadowed position still rewrites.
+    #[test]
+    fn an_unshadowed_update_still_rewrites() {
+        let out = transform_reactive_update_ast("if (c) { x++; }", &[], &ssv(&["x"]), &[]).unwrap();
+        assert!(out.contains("$.update(x)"), "{out}");
     }
 
     #[test]
@@ -363,11 +401,17 @@ pub(crate) fn transform_reactive_update_in_place(
             ..ParseOptions::default()
         },
         |allocator, program| {
+            let shadowed = {
+                let built = SemanticBuilder::new().with_build_nodes(true).build(program);
+                let names: Vec<String> = prop_vars.iter().chain(state_vars).cloned().collect();
+                shadowed_reference_starts(program, &built.semantic, &names)
+            };
             let mut rewriter = ReactiveUpdateRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
                 prop_vars,
                 state_vars,
                 non_reactive_state_vars,
+                shadowed,
                 changed: false,
             };
             oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
@@ -381,6 +425,7 @@ struct ReactiveUpdateRewriter<'a, 'b> {
     prop_vars: &'b [String],
     state_vars: &'b [String],
     non_reactive_state_vars: &'b [String],
+    shadowed: FxHashSet<u32>,
     changed: bool,
 }
 
@@ -403,6 +448,9 @@ impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for ReactiveUpdateRewriter<'a, 'b> {
         ) else {
             return;
         };
+        if self.shadowed.contains(&id.span.start) {
+            return;
+        }
         let name = name.to_string();
 
         let callee = match (kind, update.prefix) {

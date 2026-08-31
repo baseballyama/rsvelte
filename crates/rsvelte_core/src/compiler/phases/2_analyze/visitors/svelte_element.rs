@@ -272,11 +272,27 @@ pub fn visit<'a, 'b: 'a>(
                 super::style_directive::visit(sd, context)?;
             }
             Attribute::BindDirective(bd) => {
-                if super::bind_directive::is_get_set_pair(bd) {
-                    super::bind_directive::walk_get_set_pair(bd, context)?;
-                } else {
-                    super::bind_directive::walk_bind_expression(bd, context)?;
+                // A `<svelte:element>`'s `bind:` never reaches `bind_directive::visit`,
+                // so the `non_reactive_update` rule for `bind:this` — only a reference
+                // under an `{#if}` / `{#each}` / `{#await}` / `{#key}` needs state — has
+                // to be repeated here, as it is for a component.
+                let prev_in_bind_this = context.in_bind_this;
+                if bd.name == "this" {
+                    context.in_bind_this = true;
+                    if context.bind_this_block_depth > 0
+                        && let Ok(name) = super::bind_directive::bind_target_name(bd, context)
+                        && let Some(idx) = context.analysis.root.get_binding(&name, context.scope)
+                    {
+                        context.analysis.root.bindings[idx].has_direct_template_read = true;
+                    }
                 }
+                let result = if super::bind_directive::is_get_set_pair(bd) {
+                    super::bind_directive::walk_get_set_pair(bd, context)
+                } else {
+                    super::bind_directive::walk_bind_expression(bd, context)
+                };
+                context.in_bind_this = prev_in_bind_this;
+                result?;
             }
             Attribute::SpreadAttribute(spread) => {
                 super::spread_attribute::visit(spread, context, true)?;

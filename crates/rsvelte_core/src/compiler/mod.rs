@@ -1079,6 +1079,7 @@ pub fn compile_module(
             raw_content: "",
             content_offset: 0,
             is_typescript: false,
+            leading_comments: Vec::new(),
         })),
         parse_warnings: Vec::new(),
         source: None,
