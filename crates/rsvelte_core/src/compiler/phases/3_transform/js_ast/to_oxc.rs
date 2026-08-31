@@ -839,6 +839,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         comments: &[(u32, u32, bool)],
         at: u32,
         at_end: u32,
+        claim_only: bool,
     ) -> Option<Span> {
         if at < region_start || at_end < at {
             return None;
@@ -860,7 +861,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             synth.source.push_str(region);
             synth.source.push('\n');
             for &(source_start, source_end, line) in comments {
-                if !synth.source_comments.insert((source_start, source_end)) {
+                if !synth.source_comments.insert((source_start, source_end)) || claim_only {
                     continue;
                 }
                 let start = base + (source_start - region_start);
@@ -892,6 +893,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             &anchor.comments,
             anchor.at,
             anchor.at_end,
+            anchor.claim_only,
         )
     }
 
@@ -1526,6 +1528,8 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     &anchor.comments,
                     anchor.at,
                     anchor.at_end,
+                    // A pattern anchor stands in for no builder-made wrapper.
+                    false,
                 ) {
                     *pattern.span_mut() = span;
                 }
@@ -2128,6 +2132,21 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 copied_spans,
             } => {
                 let mut stmts = self.parse_raw_statements(code, false, &[])?;
+                // The block conversion copies an own-line source comment into a
+                // chunk of its own, which carries it into the buffer verbatim.
+                // An enclosing `JsSourceAnchor` covers the same source range, so
+                // claim the range here — `source_comments` is the existing
+                // "this comment is already in the buffer" set, and the anchor
+                // consults it before adding one.
+                if stmts.is_empty()
+                    && (code.starts_with("//") || code.starts_with("/*"))
+                    && let Ok(len) = u32::try_from(code.trim_end().len())
+                {
+                    self.synth
+                        .borrow_mut()
+                        .source_comments
+                        .insert((*source_offset, *source_offset + len));
+                }
                 let region = self.take_chunk_region(Some(*source_offset), copied_spans);
                 if let Some((region_start, _)) = region {
                     unlocate_prop_declarations_after_erased_comments(

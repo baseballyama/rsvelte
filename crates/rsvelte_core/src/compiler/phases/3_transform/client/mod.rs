@@ -8982,6 +8982,12 @@ fn transform_instance_script_for_visitors(
         let trailing_comments = tail_comment_outlives_effects
             .then(|| split_trailing_comment_run(&mut result))
             .flatten();
+        // The split takes the newline that separated the last statement from the
+        // comment, so without restoring one the effects below are appended
+        // straight onto a semicolon-free declaration and fuse with it.
+        if trailing_comments.is_some() && !result.ends_with('\n') {
+            result.push('\n');
+        }
         let sorted = sort_reactive_statements(pending_reactive_statements);
         for (_, _, reactive_stmt) in &sorted {
             result.push_str(reactive_stmt);

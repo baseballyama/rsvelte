@@ -297,7 +297,77 @@ export function firstDiffLine(a, b) {
 	return null;
 }
 
-const COMMENT_RE = /\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
+/**
+ * Comment ranges, from the same single-pass scanner `stripBlankLines` uses.
+ *
+ * A plain regex cannot do this job: a `//` inside a string or template literal
+ * starts a "comment" that runs to the end of the line, and the commonest
+ * instance in generated Svelte output is `xmlns="http://www.w3.org/2000/svg"` —
+ * every inline SVG. Measured on the official compiler's client output, the
+ * regex discarded non-comment code from 3429 of 31546 corpus files, and
+ * mislabelled 15 of the 231 output-ratchet entries as comment fidelity when
+ * their sole difference was a CSS scope class.
+ */
+function commentRanges(src) {
+	const out = [];
+	let i = 0;
+	const n = src.length;
+	let state = 'code';
+	let from = 0;
+	const templateDepth = [];
+	while (i < n) {
+		const c = src[i];
+		const c2 = src[i + 1];
+		switch (state) {
+			case 'code':
+				if (c === '/' && c2 === '/') (state = 'line-comment'), (from = i), i++;
+				else if (c === '/' && c2 === '*') (state = 'block-comment'), (from = i), i++;
+				else if (c === "'") state = 'squote';
+				else if (c === '"') state = 'dquote';
+				else if (c === '`') (state = 'template'), templateDepth.push(0);
+				else if (c === '}' && templateDepth.length && templateDepth[templateDepth.length - 1] === 0) {
+					state = 'template';
+				} else if (c === '{' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]++;
+				} else if (c === '}' && templateDepth.length) {
+					templateDepth[templateDepth.length - 1]--;
+				}
+				break;
+			case 'line-comment':
+				if (c === '\n') (state = 'code'), out.push([from, i]);
+				break;
+			case 'block-comment':
+				if (c === '*' && c2 === '/') (state = 'code'), i++, out.push([from, i + 1]);
+				break;
+			case 'squote':
+				if (c === '\\') i++;
+				else if (c === "'" || c === '\n') state = 'code';
+				break;
+			case 'dquote':
+				if (c === '\\') i++;
+				else if (c === '"' || c === '\n') state = 'code';
+				break;
+			case 'template':
+				if (c === '\\') i++;
+				else if (c === '`') (state = 'code'), templateDepth.pop();
+				else if (c === '$' && c2 === '{') (state = 'code'), i++;
+				break;
+		}
+		i++;
+	}
+	if (state === 'line-comment' || state === 'block-comment') out.push([from, n]);
+	return out;
+}
+
+function stripComments(src) {
+	let out = '';
+	let at = 0;
+	for (const [from, to] of commentRanges(src)) {
+		out += src.slice(at, from);
+		at = to;
+	}
+	return out + src.slice(at);
+}
 
 /**
  * What is left of a program once everything a relocated comment can move is
@@ -312,8 +382,7 @@ const COMMENT_RE = /\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
  */
 export function codeIdentity(source) {
 	return (
-		source
-			.replace(COMMENT_RE, '')
+		stripComments(source)
 			.replace(/\s+/g, '')
 			.replace(/([^,]),(?=[)\]}])/g, '$1')
 			// Quote style is oxfmt's to choose, and it only survives here on pairs

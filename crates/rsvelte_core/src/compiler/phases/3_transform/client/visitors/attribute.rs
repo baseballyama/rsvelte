@@ -13,7 +13,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::events:
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_render_statement_with_memoizer, expression_has_await,
 };
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsArrowBody, JsExpr};
 use crate::compiler::phases::phase3_transform::utils::locate_in_source;
 #[cfg(test)]
 use crate::compiler::utils::can_delegate_event;
@@ -193,6 +193,13 @@ pub fn visit_event_attribute(
     // names from the conflicts set unnecessarily.
     // Reference: events.js build_event(): `if (dev && handler.type === 'ArrowFunctionExpression')`
     let named_function = context.state.options.dev && matches!(handler, JsExpr::Arrow(_));
+    // Only a block body carries the handler's own-line comments in a chunk of
+    // its own; an expression body has no statement list, so the anchor below is
+    // the only thing that can place them.
+    let body_carries_comments = matches!(
+        &handler,
+        JsExpr::Arrow(arrow) if matches!(arrow.body, JsArrowBody::Block(_))
+    );
     let mut handler = if named_function {
         let name = context.state.memoizer.generate_id(event_name);
         convert_arrow_to_named_function(handler, name.into())
@@ -201,13 +208,18 @@ pub fn visit_event_attribute(
     };
 
     // Upstream's dev wrapper is `b.function(…)` — a builder node with no `loc`,
-    // so the cursor reaches no position inside it and the element identifier
-    // printed before it is where the handler's comments flush instead.
+    // so the cursor reaches no position inside it. This anchor exists to stop
+    // the handler's own anchor from placing those comments a second time; the
+    // body's chunk already carries them, so it must not place a copy itself.
     let (name_start, name_end) = element_name_span;
     let mut event_node = context.state.node.clone();
     if named_function && let Some(region) = CommentRegion::of(&context.state, expr_tag, name_start)
     {
-        event_node = region.anchor(&context.arena, event_node, name_start, name_end);
+        event_node = if body_carries_comments {
+            region.anchor_claim_only(&context.arena, event_node, name_start, name_end)
+        } else {
+            region.anchor(&context.arena, event_node, name_start, name_end)
+        };
     }
 
     if let (Some(start), Some(end)) = (expr_tag.expression.start(), expr_tag.expression.end())

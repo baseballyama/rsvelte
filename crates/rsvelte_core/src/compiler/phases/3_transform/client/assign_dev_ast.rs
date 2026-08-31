@@ -68,10 +68,18 @@ fn is_known_primitive(expr: &Expression<'_>) -> bool {
         // A call to one of the `globals` upstream knows yields NUMBER/STRING,
         // and a function value is not UNKNOWN either.
         Expression::CallExpression(call) => oxc_keypath(&call.callee).is_some_and(|k| {
-            is_known_defined_global_call(
-                &k,
-                call.arguments.iter().any(oxc_ast::ast::Argument::is_spread),
-            )
+            // This pass runs over the settled script, after the dev equality
+            // rewrite has turned `a === b` into `$.strict_equals(a, b)`. Upstream
+            // evaluates the ORIGINAL right-hand side, where it is still a
+            // `BinaryExpression` and therefore primitive, so without looking
+            // through the lowering the same source is wrapped here and not there
+            // — the `$.track_reactivity_loss` lookthrough below exists for the
+            // same reason.
+            matches!(k.as_str(), "$.strict_equals" | "$.equals")
+                || is_known_defined_global_call(
+                    &k,
+                    call.arguments.iter().any(oxc_ast::ast::Argument::is_spread),
+                )
         }),
         Expression::StaticMemberExpression(_) => {
             oxc_keypath(expr.without_parentheses()).is_some_and(|k| is_global_constant(&k))

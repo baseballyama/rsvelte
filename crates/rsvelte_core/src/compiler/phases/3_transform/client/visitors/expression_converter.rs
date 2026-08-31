@@ -4062,6 +4062,11 @@ fn push_own_line_comment_raws(
     }
     let gap = &source[gap_start..stmt_start];
     let bytes = gap.as_bytes();
+    // The backward line scan can start above an enclosing `if`/`for` header, so
+    // the gap is not always pure trivia. Comments separated from the statement
+    // by code belong to that enclosing construct, whose own block already
+    // pushed them, and are dropped when the code is reached.
+    let base = body.len();
     // `clean` = only whitespace seen on the current line so far
     let mut clean = gap_start == 0 || source.as_bytes()[gap_start - 1] == b'\n';
     let mut i = 0;
@@ -4109,6 +4114,7 @@ fn push_own_line_comment_raws(
                 clean = false;
             }
             _ => {
+                body.truncate(base);
                 clean = false;
                 i += 1;
             }

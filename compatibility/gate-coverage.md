@@ -166,7 +166,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
 | 18 | Compatibility report (`AGENTS.md` numbers) | pass/fail per fixture | it asserts nothing — a number moving cannot fail CI | [S] |
 | 19 | Output parseability (`verify.mjs`) | rsvelte's `js.code` alone, parsed with acorn | says nothing about whether the output is *right*; no CSS, no maps | [S] |
-| 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size | [D] |
+| 20 | Corpus-seeded mutation fuzz | per-mutant × target JS text, normalized as gate 1 | the operator only **inserts comments** — a delimiter in a *string* is unreachable at any corpus size; and the `codeIdentity` reduction that decides which half is ratcheted deletes real code on **10.9%** of the corpus (20h) | [D] |
 | 21 | Published-artifact glibc floor | max `GLIBC_*` version referenced by each Linux artifact | whether the binary actually **runs** anywhere; every non-glibc dependency | [D] |
 | 22 | NAPI option boundary | per declared option key: baseline vs. one-key variant, through the raw addon | it never compares against **official** — a key wired to the wrong semantics stays green | [S] |
 | 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
@@ -1836,6 +1836,34 @@ What this row does **not** establish: rsvelte has phase-1, phase-2 and phase-3 c
 decisions, and only phase 2 has been measured this way. Whether a phase-3 per-visitor rule
 drifts on the same axis is **unmeasured**. **[S]**
 
+### Blind spot 5u — a construct that works as a SINK has no cell, so removing it scores as a repair [D]
+
+Every cell is a source shape the author wrote, so what a cell can express is what that shape
+*emits*. A construct whose whole effect is that some **other** code path stops firing has no
+cell at all, and the grid then scores its removal as an improvement.
+
+Measured on the dev event-handler anchor (`3_transform/client/visitors/attribute.rs`). It exists
+so that upstream's builder-made `function click(e) {…}` wrapper — which the comment cursor never
+reaches — does not let the handler's own anchor place the body's comments a second time. In
+every grid cell its own copy lands somewhere visible (inside the wrapper's parameter list), so
+the grid reads it as a redundant anchor rather than as a claim. Ablating it:
+
+| instrument | verdict |
+|---|---|
+| 336-cell comment × host × target grid | 121 → 112: **9 repaired, 0 regressed** |
+| every corpus `.svelte` on `client-dev`, byte-compared to official | **2 files LOST byte equality**, one of them `compatibility/pattern-corpus/issues/4046-dev-event-handler-comment.svelte` |
+
+The two files are an expression-bodied arrow (`onclick={() => /* c */ v++}`), which has no
+statement list and therefore no chunk, leaving the anchor the only thing that can place the
+comment. The grid has no such cell because its slots all put the comment inside a **block** body.
+
+This is the same shape as #2535's css-prune grid (green on all 1,955 rows while three real
+`svelte.dev` components reproduced an over-prune), one level more specific: there the missing
+axis value was an input shape, here it is the *direction* of the construct's effect. When a
+change **deletes** a construct and the grid improves, the grid is the wrong instrument —
+`scripts/dev/corpus-output-diff.mjs` is the one that can see it, and it reports byte-equality
+movement per file with the denominator printed.
+
 ## 6. svelte2tsx TSX text parity
 
 **Unit.** `expected-s2t/<id>/index.tsx` vs `actual-s2t/<id>/index.tsx`, both oxfmt-normalized
@@ -3041,6 +3069,86 @@ a hole, on the argument that "oxfmt does not delete comments, so the divergence 
 normalization artifact". That argument is sound and rules out the *normalizer* — and says nothing
 about the *comparator*, which is a different stage that ignores comments by design. Eliminating
 one candidate is not confirming another.
+
+### Blind spot 20h — the classifier that DEFINES the ratcheted class deletes real code on 10.9% of the corpus [D]
+
+*Also gate 5, which computes its `comment-mismatch` verdict from the same function.*
+
+Only `code-mismatch` is ratcheted here (`comment-mismatch` is ratcheted per id by gate 5
+instead), so the `codeIdentity` call at `mutate-corpus.mjs:73` / `matrix/run.mjs:363` is not a
+presentation detail — it decides which divergences this gate can fail on. It strips comments with
+a plain regex (`normalize.mjs:300`):
+
+```js
+const COMMENT_RE = /\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
+```
+
+A `//` inside a string or template literal therefore starts a "comment" that runs to the end of
+the line, on **both** sides, and whatever divergence sat after it is deleted before the
+comparison. The commonest instance in generated Svelte output is
+`xmlns="http://www.w3.org/2000/svg"` — every inline SVG.
+
+Discriminating case, as a positive control on the function itself:
+
+| input A | input B | `codeIdentity` |
+|---|---|---|
+| `var a = "x"; foo(1);` | `var a = "x"; foo(2);` | differ (correct) |
+| `var a = "http://x"; foo(1);` | `var a = "http://x"; foo(2);` | **equal** — both reduce to `vara="http:` |
+| `` var a = `<b href="http://x" class="svelte-1">`; `` | `` var a = `<b href="http://x">`; `` | **equal** |
+
+Measured over the corpus on 2026-08-31, comparing `codeIdentity` against an acorn `onComment`
+equivalent on the official compiler's client output: the regex discards non-comment code from
+**3,429 of 31,546 compiled files (10.9%)**, **3,202,954 characters** in total. Output acorn could
+not parse: **1**. So an exact stripper is available at essentially no coverage cost — this is a
+defect, not a tradeoff.
+
+It has already mislabelled real data. Sub-classifying the four output ratchets by cause put
+**15 of 231 entries** in "comment fidelity" whose sole difference was a CSS scope class: for
+`trakt-web/…/icons/MediaIcon.svelte` the only divergence is ` class="svelte-1rwg3wr"` on the
+`<svg>`, and the `xmlns` earlier on that line caused both sides to be truncated to the same
+prefix. With the exact stripper the comment count over all four ratchets is **0**.
+
+The generalisable part is not the regex. Both gates here are careful about their *keys* — 5's
+verdict split exists precisely so a comment entry cannot suppress a code regression — and that
+care is spent through a **shared reduction** that no test pins. `codeIdentity` has a doc comment
+asserting what it removes ("the comments, all whitespace, and the trailing comma oxfmt adds"),
+which is the shape recorded for `two-ports-inventory.md`: a comment asserting fidelity reads as a
+citation. Ask of a verdict-defining reduction what happens when its input contains the token it
+keys on **as data**.
+
+**Fixed on 2026-08-31, and the residue is not zero — nor is it one-directional.** `codeIdentity`
+now takes its comment ranges from the same single-pass string/template scanner `stripBlankLines`
+already used, which takes the population from **3,429 of 31,546 files to 27**. Read the 27 by
+direction, because they do not all mean the same thing:
+
+| | files | characters |
+|---|---|---|
+| before, reduction **shorter** than an acorn-exact stripper (real code deleted) | 3,429 | 3,202,954 |
+| before, reduction **longer** (a real comment kept) | 0 | 0 |
+| after, shorter | **21** | 2,942 |
+| after, longer | **6** | 2,453 |
+
+One cause, two directions: the scanner does not track regex literals, and whether a `/` opens one
+or is division is decided by the **previous significant token**. So a `//` inside a regex character
+class (`/[//]/`) still starts a comment (the 21), and a quote inside a regex (`/'/`) puts the
+scanner in a string state that swallows a *real* comment later on that line (the 6). That is the
+same ambiguity the `keyword-regex` matrix family exists for; closing it needs a tokenizer rather
+than a state machine over delimiters. The measurement itself is the second lesson here — the
+instrument summed the two directions signed, and reported **489** characters where the honest
+answer is 2,942 and 2,453. A total over a signed quantity cannot distinguish "small" from
+"cancelling", and the before-figure being one-directional was checked rather than assumed. `scripts/dev/test-code-identity-strings.mjs`
+pins both halves: the string cases as a **discriminating** control (the retired regex and the
+shipping reduction must disagree on the same pair), and the regex residue as an assertion that
+fails if it is ever fixed without updating this row.
+
+**The sibling reduction does NOT share the whole hole, and saying it does would be wrong.**
+`stripBlankLines` (`normalize.mjs:129`) has always had the string/template states, so it never had
+the `xmlns="http://…"` case; measured, the only input that moves it is a regex literal containing
+a **backtick** (`` /`/ ``), which puts it in template state and makes it *keep* newlines. Its blast
+radius differs too — the regex deletes code to the end of the line, this one only retains blank
+lines, and the same rule runs on both sides of the comparison. Two reductions can share a
+*cause* (neither tracks regex literals) and have entirely different *consequences*; the row has
+to state which.
 
 ---
 

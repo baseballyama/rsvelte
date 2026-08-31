@@ -1166,6 +1166,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: node scripts/dev/test-mutation-baseline-provenance.mjs
 
+      # `codeIdentity` decides the `code-mismatch` / `comment-mismatch` split
+      # that this gate and the shape matrix ratchet on, so a reduction that
+      # deletes real code makes a code regression report as comment noise.
+      - name: Check the code/comment classifier's string handling
+        if: ${{ !cancelled() }}
+        run: node scripts/dev/test-code-identity-strings.mjs
+
       # The lint gate's rewrite floor and its compared population. Both linters
       # are stubbed, so this runs without the lint submodules, the dist-lint
       # build or the eslint oracle that the Lint parity job needs.
