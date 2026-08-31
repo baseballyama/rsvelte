@@ -95,13 +95,22 @@ fn build_completions(
         if is_component_tag(element_tag) {
             return None;
         }
-        return Some(html_attribute_completions(
+        let mut list = html_attribute_completions(
             text,
             element_tag,
             replace,
             strict_mode,
             markdown_documentation,
-        ));
+        );
+        // `getIdClassCompletion.ts:29`: a `class:` directive's name is a class
+        // too, and upstream's CSS plugin contributes it beside the HTML names.
+        if let StartTag::Attribute(attribute) = start_tag_context(text, offset)
+            && let Some(node_type) = id_class_node_type(attribute.name, false)
+        {
+            list.items
+                .extend(crate::css::id_class_completions(text, node_type).items);
+        }
+        return Some(list);
     }
 
     if preceded_by_opening_brace(before) {
@@ -133,6 +142,13 @@ fn build_completions(
         if attribute.in_value && attribute.name == "style" {
             return crate::css::completions(text, offset);
         }
+        // `CSSPlugin.ts:252` answers a `class=` / `id=` value from the
+        // component's own selectors.
+        if attribute.in_value
+            && let Some(node_type) = id_class_node_type(attribute.name, true)
+        {
+            return Some(crate::css::id_class_completions(text, node_type));
+        }
         if !attribute.can_have_event_modifier() {
             return None;
         }
@@ -140,6 +156,22 @@ fn build_completions(
     }
 
     component_documentation(before)
+}
+
+/// `getCollectingType` (`getIdClassCompletion.ts:31-42`): which selector kind a
+/// position collects, or nothing when it collects neither.
+const fn id_class_node_type(name: &str, in_value: bool) -> Option<&'static str> {
+    if in_value {
+        match name.as_bytes() {
+            b"class" => Some("ClassSelector"),
+            b"id" => Some("IdSelector"),
+            _ => None,
+        }
+    } else if name.len() >= 6 && matches!(name.as_bytes().first_chunk::<6>(), Some(b"class:")) {
+        Some("ClassSelector")
+    } else {
+        None
+    }
 }
 
 fn language_completions(element: &str) -> CompletionList {

@@ -382,7 +382,7 @@ impl TsgoOverlay {
         let document = ShadowDocument {
             source_uri: path_to_uri(&source_path)?,
             shadow_uri: path_to_uri(&shadow_path)?,
-            language_id: "typescriptreact".to_string(),
+            language_id: shadow_language_id(preprocessed_text).to_string(),
             text: generated_text,
             version,
         };
@@ -443,7 +443,7 @@ impl TsgoOverlay {
         let document = ShadowDocument {
             source_uri: path_to_uri(source_path)?,
             shadow_uri: path_to_uri(shadow_path)?,
-            language_id: "typescriptreact".to_string(),
+            language_id: shadow_language_id(original_text).to_string(),
             text: generated_text.clone(),
             version,
         };
@@ -1601,6 +1601,17 @@ fn compose_source_map(
     ))
 }
 
+/// `DocumentSnapshot.ts:232-237` picks `ScriptKind.JS` unless a script tag says
+/// TypeScript, and tsgo reads the script kind off the LSP language id rather
+/// than off the `.tsx` shadow name.
+fn shadow_language_id(source: &str) -> &'static str {
+    if is_typescript_component(source) {
+        "typescriptreact"
+    } else {
+        "javascriptreact"
+    }
+}
+
 fn rewrite_plain_svelte_imports(source: &str) -> (String, Vec<(usize, std::ops::Range<usize>)>) {
     let bytes = source.as_bytes();
     let mut insertions = Vec::new();
@@ -2545,5 +2556,25 @@ mod tests {
         let error = TsgoOverlay::build(&workspace.0, None).unwrap_err();
         assert!(error.to_string().contains("symlink"));
         assert!(fs::read_dir(&outside.0).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn a_component_without_a_typescript_script_opens_as_javascript() {
+        // tsgo decides the script kind from the language id, not from the
+        // `.tsx` shadow name, so this is what keeps TypeScript-only keywords
+        // out of a plain component's completions.
+        assert_eq!(
+            shadow_language_id("<script>let a = 1;</script>"),
+            "javascriptreact"
+        );
+        assert_eq!(shadow_language_id("<div>{a}</div>"), "javascriptreact");
+        assert_eq!(
+            shadow_language_id("<script lang=\"ts\">let a: number = 1;</script>"),
+            "typescriptreact"
+        );
+        assert_eq!(
+            shadow_language_id("<script module lang=\"ts\">export const a = 1;</script>"),
+            "typescriptreact"
+        );
     }
 }
