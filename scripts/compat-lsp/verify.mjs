@@ -4,8 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { refuseUnrepresentativeBaseline } from "../compat-corpus/baseline-guard.mjs";
-import { svelteVersionForServer } from "./pin-official-svelte.mjs";
+import { svelteForDocument } from "./pin-official-svelte.mjs";
 import { projectionFailures } from "./projection-preflight.mjs";
+import { resolveTsgo } from "./tsgo.mjs";
 import {
   calibrationView,
   normalizeExpected,
@@ -134,52 +135,16 @@ const rsvelteCommand = parseCommand(process.env.RSVELTE_LSP_COMMAND, [
   path.join(ROOT, "target/debug/rsvelte-language-server"),
 ]);
 
-function resolveTsgo() {
-  if (process.env.TSGO_BIN) return process.env.TSGO_BIN;
-  const packageRoot = path.join(
-    ROOT,
-    "submodules/language-tools/packages/language-server/node_modules/@typescript/native-preview",
-  );
-  for (const candidate of [
-    path.join(ROOT, "submodules/language-tools/node_modules/.bin/tsgo"),
-    path.join(
-      ROOT,
-      "submodules/language-tools/packages/language-server/node_modules/.bin/tsgo",
-    ),
-    path.join(packageRoot, "lib/tsgo"),
-    path.join(packageRoot, "bin/tsgo"),
-    path.join(packageRoot, "bin/tsgo.js"),
-  ]) {
-    if (fs.existsSync(candidate)) return fs.realpathSync(candidate);
-  }
-  const scope = path.join(
-    ROOT,
-    "submodules/language-tools/packages/language-server/node_modules/@typescript",
-  );
-  if (fs.existsSync(scope)) {
-    for (const entry of fs.readdirSync(scope)) {
-      if (!entry.startsWith("native-preview-")) continue;
-      for (const relative of [
-        "lib/tsgo",
-        "lib/tsgo.exe",
-        "bin/tsgo",
-        "bin/tsgo.exe",
-      ]) {
-        const candidate = path.join(scope, entry, relative);
-        if (fs.existsSync(candidate)) return fs.realpathSync(candidate);
-      }
-    }
-  }
-  throw new Error(
-    "pinned @typescript/native-preview tsgo was not found; build/install submodules/language-tools first",
-  );
-}
-
 function requireExecutable(command, label) {
   if (command[0].includes(path.sep) && !fs.existsSync(command[0])) {
     throw new Error(`${label} executable not found at ${command[0]}`);
   }
 }
+// Read by `initializationOptions` below and by the two preconditions, which
+// must agree: it decides whether the server resolves `svelte` from a document's
+// own workspace or from beside itself, and a precondition measuring the other
+// arm reports a version this run never loads.
+const TRUSTED = !selectedSuites.includes("corpus");
 requireExecutable(officialCommand, "official language server");
 requireExecutable(rsvelteCommand, "rsvelte language server");
 if (!process.env.OFFICIAL_LSP_COMMAND) {
@@ -190,26 +155,6 @@ if (!process.env.OFFICIAL_LSP_COMMAND) {
   if (!fs.existsSync(builtServer)) {
     throw new Error(
       "official language server is not built; run `pnpm --dir submodules/language-tools --filter svelte-language-server build`",
-    );
-  }
-}
-// `importPackage.ts:29-31` pushes the project directory onto the official
-// server's resolution paths only `if (isTrusted)`, and this gate runs untrusted,
-// so the server loads the Svelte installed beside itself. Under Svelte 4 its
-// svelte2tsx falls back to a Svelte 4 parser and `document.isSvelte5` is false:
-// the oracle does not fail, it answers differently, and those answers enrol into
-// a shrink-only ratchet that then defends the degradation.
-{
-  const script = officialCommand.find((argument) => argument.endsWith(".js"));
-  const resolved = script
-    ? svelteVersionForServer(script)
-    : { version: null, path: null };
-  console.log(
-    `[lsp-verify] official server resolves svelte ${resolved.version ?? "(none)"}${resolved.path ? ` from ${resolved.path}` : ""}`,
-  );
-  if (resolved.version && Number(resolved.version.split(".")[0]) < 5) {
-    throw new Error(
-      `the official server resolves svelte ${resolved.version}; run \`node scripts/compat-lsp/pin-official-svelte.mjs\` so it projects with the Svelte 5 parser this repository pins`,
     );
   }
 }
@@ -240,13 +185,39 @@ const PROJECTION_FAILURE_CEILING = 0.05;
 // measurement, and therefore before the current artifact exists at all.
 {
   const script = officialCommand.find((argument) => argument.endsWith(".js"));
-  const { failures, total, version } = script
-    ? projectionFailures(script, cases)
-    : { failures: [], total: 0, version: null };
+  // Resolved per document, because `TRUSTED` decides which arm the server reads.
+  // Reported as a set: a trusted run over several workspaces can legitimately
+  // load more than one Svelte, and collapsing that to a scalar hides it.
+  const roots = new Set(
+    cases
+      .map((entry) => entry.file ?? entry.path)
+      .filter((file) => file?.endsWith(".svelte"))
+      .map((file) => path.dirname(file)),
+  );
+  const loaded = new Map();
+  for (const root of roots) {
+    const resolved = script
+      ? svelteForDocument(script, root, TRUSTED)
+      : { version: null, path: null };
+    if (resolved.version) loaded.set(resolved.version, resolved.path);
+  }
+  for (const [version, from] of [...loaded].sort())
+    console.log(
+      `[lsp-verify] official server resolves svelte ${version} from ${from}${TRUSTED ? "" : " (untrusted run: the server's own fallback)"}`,
+    );
+  const stale = [...loaded].filter(([version]) => Number(version.split(".")[0]) < 5);
+  if (stale.length) {
+    throw new Error(
+      `the official server resolves svelte ${stale.map(([version]) => version).join(", ")} for this run's documents; run \`node scripts/compat-lsp/pin-official-svelte.mjs\` so it projects with the Svelte 5 parser this repository pins`,
+    );
+  }
+  const { failures, total, versions } = script
+    ? projectionFailures(script, cases, TRUSTED)
+    : { failures: [], total: 0, versions: [] };
   if (total) {
     const rate = failures.length / total;
     console.log(
-      `[lsp-verify] official server projects ${total - failures.length}/${total} of this run's components with svelte ${version} (${failures.length} fail, ${(rate * 100).toFixed(1)}%)`,
+      `[lsp-verify] official server projects ${total - failures.length}/${total} of this run's components with svelte ${versions.join(", ") || "(none)"} (${failures.length} fail, ${(rate * 100).toFixed(1)}%)`,
     );
     // Asserted on the corpus only. The fixture and upstream suites are chosen
     // inputs and include documents written to be unparseable — 45 of 154 —
@@ -282,7 +253,7 @@ if (selectedSuites.includes("corpus") && !UPDATE_POPULATION) {
 }
 
 const initializationOptions = {
-  isTrusted: !selectedSuites.includes("corpus"),
+  isTrusted: TRUSTED,
   configuration: {
     svelte: { plugin: {} },
     typescript: {
@@ -761,7 +732,7 @@ async function main() {
   });
   rsvelte = new LspProcess("rsvelte language server", rsvelteCommand, {
     cwd: ROOT,
-    env: { TSGO_BIN: resolveTsgo() },
+    env: { TSGO_BIN: resolveTsgo(ROOT) },
   });
   const rootUri = pathToFileURL(positiveRoot).href;
   const initializeParams = {

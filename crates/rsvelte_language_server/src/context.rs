@@ -474,6 +474,59 @@ const fn is_attribute_name_byte(byte: u8) -> bool {
     !byte.is_ascii_whitespace() && !matches!(byte, b'"' | b'\'' | b'<' | b'>' | b'/' | b'=')
 }
 
+/// The `<script>` body upstream falls back to when svelte2tsx rejects a
+/// document: `Document.scriptInfo || Document.moduleScriptInfo`
+/// (`DocumentSnapshot.ts:289-291`), where the instance script is the one whose
+/// open tag declares neither `context="module"` nor a bare `module`
+/// (`lib/documents/utils.ts:156-160`).
+#[must_use]
+pub fn fallback_script_body(text: &str) -> Option<Range<usize>> {
+    let mut module = None;
+    let mut offset = 0;
+    while offset < text.len() {
+        let Some(start) = find_opening_tag(&text[offset..], "script").map(|idx| offset + idx)
+        else {
+            break;
+        };
+        let Some(open) = text[start..].find('>').map(|idx| start + idx + 1) else {
+            break;
+        };
+        let close = text[open..]
+            .find("</script")
+            .map_or(text.len(), |idx| open + idx);
+        let open_tag = &text[start..open];
+        let is_module = attribute_value(open_tag, "context").map(str::trim) == Some("module")
+            || has_attribute(open_tag, "module");
+        if is_module {
+            module.get_or_insert(open..close);
+        } else {
+            return Some(open..close);
+        }
+        offset = close.max(open);
+    }
+    module
+}
+
+/// Whether an open tag carries `name` at all, valued or bare — `'module' in
+/// s.attributes` is true for `<script module>`.
+fn has_attribute(open_tag: &str, name: &str) -> bool {
+    let mut rest = open_tag;
+    let mut base = 0;
+    while let Some(index) = rest.find(name) {
+        let start = base + index;
+        let before = open_tag[..start].chars().next_back();
+        let after = open_tag[start + name.len()..].chars().next();
+        if before.is_some_and(char::is_whitespace)
+            && !after.is_some_and(|c| c.is_alphanumeric() || c == '-')
+        {
+            return true;
+        }
+        base = start + name.len();
+        rest = &open_tag[base..];
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

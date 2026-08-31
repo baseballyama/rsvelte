@@ -111,14 +111,16 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `svelte-server-treats-a-dollar-parameter-as-a-store.md` | sveltejs/svelte | #4048 | unrecorded |
 | `svelte-snippet-name-colliding-with-an-import.md` | sveltejs/svelte | #3567 | unrecorded |
 | `svelte2tsx-shorthand-style-directive-modifier.md` | sveltejs/language-tools (svelte2tsx) | #3567, #3578 | unrecorded |
+| `svelte2tsx-transposes-an-unclosed-start-tag.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
+| `tsgo-lsp-completion-item-omits-the-typescript-kind.md` | microsoft/typescript-go (`tsgo --lsp`) | — | unrecorded |
 
-**19** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
+**21** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
 against `eslint-plugin-svelte`, one against `svelte-eslint-parser`), two out of the
-`two-ports-inventory.md` row 21 shadow probes, and seven out of the SCSS-backend burndown — five
+`two-ports-inventory.md` row 21 shadow probes, seven out of the SCSS-backend burndown — five
 covering every unit `scss-known-failures.json` lists as `grass-rejects-accepted`, plus the two
 classes in that ratchet whose output is not render-neutral (a hoisted declaration, and a slash list
-divided inside a nested rule). The remaining four are later: two `oxfmt` CSS reports from the
-formatter-parity corpus, one against `esrap`, and one against `language-tools`. None of them names
-an issue internally — `—` records that, rather than inventing a number, and
-`check-upstream-issues.mjs` holds the count above to the table so this paragraph cannot go stale
-the way it already had (it read "Fifteen" against 19 rows).
+divided inside a nested rule) — and two out of the LSP differential campaign. The remaining four
+are later: two `oxfmt` CSS reports from the formatter-parity corpus, one against `esrap`, and one
+against `language-tools`. None of them names an issue internally — `—` records that, rather than
+inventing a number, and `check-upstream-issues.mjs` holds the count above to the table so this
+paragraph cannot go stale the way it already had (it read "Fifteen" against 19 rows).

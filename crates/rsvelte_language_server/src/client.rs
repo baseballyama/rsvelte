@@ -22,6 +22,9 @@ pub struct ClientState {
     pub position_encodings: Vec<PositionEncodingKind>,
     /// Whether the client answers `workspace/configuration`.
     pub pull_configuration: bool,
+    /// `server.ts:191`: whether an incomplete completion list is narrowed here
+    /// rather than left to the editor.
+    pub filter_incomplete_completions: bool,
     /// Whether the client accepts `workspace/applyEdit` requests.
     pub apply_edit: bool,
     /// The one plugin setting upstream fixes into capabilities at initialize.
@@ -94,6 +97,10 @@ impl ClientState {
                 params.pointer("/capabilities/textDocument/semanticTokens/tokenModifiers"),
             )
             .unwrap_or_default(),
+            filter_incomplete_completions: !params
+                .pointer("/initializationOptions/dontFilterIncompleteCompletions")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
             is_trusted: params
                 .pointer("/initializationOptions/isTrusted")
                 .and_then(Value::as_bool)

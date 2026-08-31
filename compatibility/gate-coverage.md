@@ -586,6 +586,20 @@ asserted on the corpus only: the fixture and upstream suites are chosen inputs a
 documents written to be unparseable (45 of 154), so a ceiling there would measure the suite's
 intent rather than the oracle's health.
 
+**Which Svelte "the server itself resolves" is decided by the run, and both preconditions used to
+measure the other arm.** `importPackage.ts:27-38` puts a document's own directory ahead of the
+server's whenever `isTrusted`, and `verify.mjs` sends that false only for `corpus` — so on
+`fixtures` / `upstream-*` the server loads the Svelte of the *worktree*, while the version line and
+the projection preflight both resolved from beside the server script. The printed
+`resolves svelte X from Y` therefore named a package a trusted run never loads, and read as
+evidence that `pin-official-svelte.mjs` had taken effect. Measured: an A/B whose only variable was
+that symlink (4.2.20 vs 5.56.10) over `fixtures,upstream-features,upstream-testfiles` produced
+artifacts differing **only in `generatedAt`** — all 2138 keys and every count byte-identical —
+while forcing `isTrusted: false` on `fixtures` alone moves **122 of 290 keys** (68 / 54 by
+direction). Both preconditions now resolve per document through `svelteForDocument`, and the
+version line reports the set. What it still cannot see: a run whose documents span workspaces
+pinning different Svelte majors is reported, not rejected, below the 5.x floor.
+
 ### Blind spot 27l — the corpus repositories are never installed, so two thirds of the ratchet is measured on unresolved imports [D]
 
 `verify.mjs:303-308` names the hazard in a comment — "a server started against the wrong

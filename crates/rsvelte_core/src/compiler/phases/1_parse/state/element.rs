@@ -2219,7 +2219,9 @@ impl<'a> Parser<'a> {
                     .inspect_err(|_| {
                         self.index = self.source.len();
                     })?;
-                self.index = close_pos + 1;
+                // Loose mode answers an unterminated mustache with EOF, where
+                // there is no `}` to step over.
+                self.index = (close_pos + 1).min(self.bytes.len());
 
                 let expr_end = self.index;
 
@@ -2230,7 +2232,7 @@ impl<'a> Parser<'a> {
                 // In deferred mode this creates a Lazy expression whose error
                 // is raised by `resolve_lazy_expressions`; in loose mode the
                 // underlying parser still recovers with a placeholder.
-                let expr_content = &self.source[expr_start + 1..expr_end - 1];
+                let expr_content = &self.source[expr_start + 1..close_pos];
                 let expression = if self.in_root_script_or_style {
                     // Top-level <script>/<style> attributes are static
                     // upstream (`read_static_attribute`): `{...}` chunks in

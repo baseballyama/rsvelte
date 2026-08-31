@@ -38,6 +38,7 @@ use crate::svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions,
     SvelteVersion, svelte2tsx,
 };
+use rsvelte_projection::is_typescript_component;
 
 /// svelte2tsx shim declarations, vendored from
 /// `submodules/language-tools/packages/svelte2tsx/svelte-{shims,jsx}-v4.d.ts`
@@ -593,6 +594,8 @@ pub fn materialize_overlay_with(
             let cached_entry = manifest.entries.get(abs_source);
             // An unchanged file keeps the extension its own shadow already has, so
             // the cache hit below still costs no read.
+            // `None` only on the cached-extension arms, which never read the source.
+            let mut sniffed: Option<(String, bool)> = None;
             let ext = match (stats, cached_entry) {
                 (Some((mtime, size)), Some(entry))
                     if incremental
@@ -607,7 +610,16 @@ pub fn materialize_overlay_with(
                 {
                     ".tsx"
                 }
-                _ => shadow_extension(abs_source),
+                _ => match fs::read_to_string(abs_source) {
+                    Ok(text) => {
+                        let is_ts = is_typescript_component(&text);
+                        sniffed = Some((text, is_ts));
+                        shadow_extension_for(is_ts)
+                    }
+                    // An unreadable source produces what the caller would have
+                    // produced anyway; the emit branch below reports the error.
+                    Err(_) => ".tsx",
+                },
             };
             let is_js_shadow = ext == ".jsx";
             let tsx_rel = append_extension(&rel, ext);
@@ -666,8 +678,14 @@ pub fn materialize_overlay_with(
                 };
                 (cached_map, None)
             } else {
-                let source = fs::read_to_string(abs_source)?;
-                let is_ts_file = looks_like_ts_svelte(&source);
+                let (source, is_ts_file) = match sniffed {
+                    Some(pair) => pair,
+                    None => {
+                        let text = fs::read_to_string(abs_source)?;
+                        let is_ts = is_typescript_component(&text);
+                        (text, is_ts)
+                    }
+                };
                 let opts = Svelte2TsxOptions {
                     filename: abs_source.display().to_string(),
                     is_ts_file,
@@ -1247,7 +1265,7 @@ fn emit_external_shadows(
     for abs_source in &pkg.svelte_files {
         let rel = safe_relative(abs_source, &pkg.real_dir);
         let source = fs::read_to_string(abs_source)?;
-        let is_ts_file = looks_like_ts_svelte(&source);
+        let is_ts_file = is_typescript_component(&source);
         let ext = shadow_extension_for(is_ts_file);
         any_js_shadow |= ext == ".jsx";
         let tsx_path = pkg.mirror_dir.join(append_extension(&rel, ext));
@@ -1577,13 +1595,6 @@ fn safe_relative(abs: &Path, base: &Path) -> PathBuf {
         .map_or_else(|| PathBuf::from("__unnamed"), PathBuf::from)
 }
 
-/// Quick lexical sniff for `<script lang="ts">` so the v0.2 overlay can
-/// pass the right `is_ts_file` to svelte2tsx without re-parsing.
-fn looks_like_ts_svelte(source: &str) -> bool {
-    let lower = source.to_ascii_lowercase();
-    lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
-}
-
 /// The extension a component's shadow carries: `.tsx` for a `lang="ts"`
 /// component, `.jsx` for a JavaScript one.
 ///
@@ -1600,7 +1611,7 @@ fn looks_like_ts_svelte(source: &str) -> bool {
 /// would have produced anyway.
 fn shadow_extension(source_path: &Path) -> &'static str {
     fs::read_to_string(source_path).map_or(".tsx", |source| {
-        shadow_extension_for(looks_like_ts_svelte(&source))
+        shadow_extension_for(is_typescript_component(&source))
     })
 }
 

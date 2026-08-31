@@ -16,7 +16,7 @@ use lsp_types::{Position, Range, Uri};
 use rsvelte_check::overlay::{SHIM_FILES, global_type_files};
 use rsvelte_projection::{
     ProjectionEngine, ProjectionMap, RewriteExternalImportsOptions, Svelte2TsxMode,
-    Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
+    Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion, is_typescript_component,
 };
 use serde_json::json;
 use sourcemap::{SourceMap, SourceMapBuilder};
@@ -181,6 +181,11 @@ struct ShadowState {
     generated_ranges: Vec<std::ops::Range<usize>>,
     identity: bool,
     plain_insertions: Vec<(usize, std::ops::Range<usize>)>,
+    /// Byte offset in `source_text` that generated offset 0 corresponds to,
+    /// for the `FragmentMapper` upstream installs when there is no projection.
+    fragment_offset: usize,
+    /// svelte2tsx's message, when this shadow is the parser-error fallback.
+    parser_error: Option<String>,
 }
 
 /// Workspace-scoped diskless overlay used by the tsgo LSP proxy.
@@ -316,13 +321,20 @@ impl TsgoOverlay {
         };
 
         let options = self.projection_options(&source_path, &shadow_path, preprocessed_text);
-        let artifact = self
-            .engine
-            .project(preprocessed_text, options)
-            .map_err(|error| TsgoOverlayError::Projection {
-                path: source_path.clone(),
-                message: error.to_string(),
-            })?;
+        let artifact = match self.engine.project(preprocessed_text, options) {
+            Ok(artifact) => artifact,
+            // `DocumentSnapshot.ts:275-291`: a rejected document still gets a
+            // snapshot, over its extracted script, so TypeScript keeps answering.
+            Err(error) => {
+                return self.open_parser_error_fallback(
+                    &source_path,
+                    &shadow_path,
+                    original_text,
+                    version,
+                    error.to_string(),
+                );
+            }
+        };
         let mut exact_map = if preprocess_status == PreprocessStatus::Identity {
             artifact.exact_mappings.unwrap_or_default()
         } else {
@@ -399,6 +411,8 @@ impl TsgoOverlay {
             generated_ranges,
             identity: false,
             plain_insertions: Vec::new(),
+            fragment_offset: 0,
+            parser_error: None,
             document: document.clone(),
         };
         if let Some(old) = self.entries.insert(source_path.clone(), state) {
@@ -406,6 +420,67 @@ impl TsgoOverlay {
         }
         self.by_shadow.insert(shadow_path, source_path);
         Ok(document)
+    }
+
+    /// The snapshot upstream keeps when svelte2tsx rejects a document: the
+    /// instance script's body (else the module script's, else nothing) mapped
+    /// back by a constant shift, so TypeScript still answers and every caller
+    /// can see that the projection failed.
+    fn open_parser_error_fallback(
+        &mut self,
+        source_path: &Path,
+        shadow_path: &Path,
+        original_text: &str,
+        version: i32,
+        message: String,
+    ) -> Result<ShadowDocument, TsgoOverlayError> {
+        let fragment = crate::context::fallback_script_body(original_text);
+        let fragment_offset = fragment.as_ref().map_or(0, |body| body.start);
+        let generated_text = fragment
+            .and_then(|body| original_text.get(body))
+            .unwrap_or("")
+            .to_string();
+        let document = ShadowDocument {
+            source_uri: path_to_uri(source_path)?,
+            shadow_uri: path_to_uri(shadow_path)?,
+            language_id: "typescriptreact".to_string(),
+            text: generated_text.clone(),
+            version,
+        };
+        let state = ShadowState {
+            source_path: source_path.to_path_buf(),
+            shadow_path: shadow_path.to_path_buf(),
+            source_text: original_text.to_string(),
+            source_index: LineIndex::new(original_text),
+            preprocessed_text: None,
+            preprocessed_index: None,
+            preprocess_map: None,
+            preprocess_mappings: PreprocessMappings::default(),
+            preprocess_status: PreprocessStatus::Identity,
+            generated_index: LineIndex::new(&generated_text),
+            exact_map: ProjectionMap::default(),
+            tokens: Vec::new(),
+            source_map: None,
+            generated_ranges: Vec::new(),
+            identity: true,
+            plain_insertions: Vec::new(),
+            fragment_offset,
+            parser_error: Some(message),
+            document: document.clone(),
+        };
+        if let Some(old) = self.entries.insert(source_path.to_path_buf(), state) {
+            self.by_shadow.remove(&old.shadow_path);
+        }
+        self.by_shadow
+            .insert(shadow_path.to_path_buf(), source_path.to_path_buf());
+        Ok(document)
+    }
+
+    /// svelte2tsx's message for a document whose projection failed.
+    #[must_use]
+    pub fn parser_error(&self, source_path: &Path) -> Option<&str> {
+        let path = self.lookup_source_path(source_path);
+        self.entries.get(&path)?.parser_error.as_deref()
     }
 
     /// Route an open TypeScript or JavaScript buffer through the overlay
@@ -451,6 +526,8 @@ impl TsgoOverlay {
             generated_ranges: Vec::new(),
             identity: true,
             plain_insertions,
+            fragment_offset: 0,
+            parser_error: None,
             document: document.clone(),
         };
         if let Some(old) = self.entries.insert(source_path.clone(), state) {
@@ -649,7 +726,7 @@ impl TsgoOverlay {
         let source_offset = entry.source_index.offset(&entry.source_text, position);
 
         if entry.identity {
-            let generated_offset = source_offset
+            let generated_offset = source_offset.saturating_sub(entry.fragment_offset)
                 + entry
                     .plain_insertions
                     .iter()
@@ -715,7 +792,7 @@ impl TsgoOverlay {
             {
                 return None;
             }
-            let source_offset = generated_offset
+            let source_offset = entry.fragment_offset + generated_offset
                 - entry
                     .plain_insertions
                     .iter()
@@ -854,13 +931,16 @@ impl TsgoOverlay {
     ) -> Svelte2TsxOptions {
         Svelte2TsxOptions {
             filename: source_path.display().to_string(),
-            is_ts_file: looks_like_typescript(source),
+            is_ts_file: is_typescript_component(source),
             mode: Svelte2TsxMode::Ts,
             accessors: self.accessors,
             namespace: self.namespace,
             version: SvelteVersion::V5,
             runes: None,
             emit_jsdoc: true,
+            // `LSAndTSDocResolver.ts:138`: the language server projects a
+            // half-typed document; `svelte-check` deliberately does not.
+            emit_on_template_error: true,
             rewrite_external_imports: Some(RewriteExternalImportsOptions {
                 source_path: source_path.display().to_string(),
                 generated_path: shadow_path.display().to_string(),
@@ -1706,11 +1786,6 @@ fn ordered_range(start: Position, end: Position) -> Range {
     } else {
         Range::new(end, start)
     }
-}
-
-fn looks_like_typescript(source: &str) -> bool {
-    let lower = source.to_ascii_lowercase();
-    lower.contains("lang=\"ts\"") || lower.contains("lang='ts'") || lower.contains("lang=ts")
 }
 
 fn utf8_position(text: &str, offset: usize) -> Position {

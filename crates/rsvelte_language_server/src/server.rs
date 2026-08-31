@@ -24,7 +24,7 @@ use lsp_types::{
     ExecuteCommandParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
     FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability,
     ImplementationProviderCapability, LinkedEditingRangeParams,
-    LinkedEditingRangeServerCapabilities, NumberOrString, OneOf, PositionEncodingKind,
+    LinkedEditingRangeServerCapabilities, NumberOrString, OneOf, Position, PositionEncodingKind,
     PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, RenameOptions, RenameParams,
     SaveOptions, SelectionRangeParams, SelectionRangeProviderCapability, SemanticTokenModifier,
     SemanticTokenType, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
@@ -33,6 +33,8 @@ use lsp_types::{
     TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit,
     TypeDefinitionProviderCapability, Uri, WorkspaceFoldersServerCapabilities,
 };
+
+use rsvelte_projection::is_typescript_component;
 
 use crate::client::ClientState;
 use crate::completions::TRIGGER_CHARACTERS;
@@ -43,6 +45,7 @@ use crate::preprocess_sidecar::{
     find_preprocess_config,
 };
 use crate::settings::Settings;
+use crate::text::LineIndex;
 use crate::tsgo_client::{OpenBuffer, TsgoClient, TsgoConfig, TsgoEvent};
 use crate::tsgo_code_actions::{
     TsgoCodeActionContext, document_has_parser_error, rewrite_code_action_response,
@@ -2171,15 +2174,25 @@ impl Server {
             );
         }
         let before = text.get(..offset)?;
+        // `CompletionProvider.ts:204-214` tests the WORD at the cursor, which
+        // `getWordAtPosition` grows left while the character is neither
+        // whitespace nor `.` — so `{#i` is a block marker and `{#if cond` is
+        // not, because its word is `cond`.
+        let word_start = before
+            .char_indices()
+            .rev()
+            .find(|(_, character)| character.is_whitespace() || *character == '.')
+            .map_or(0, |(index, character)| index + character.len_utf8());
+        let word = before.get(word_start..)?;
+        if let Some(rest) = word.strip_prefix('{')
+            && rest.starts_with(['#', '@', ':', '/'])
+        {
+            return Some(CompletionSite::BlockMarker);
+        }
         let brace = before.rfind('{');
         let close = before.rfind('}');
         if brace > close {
-            let marker = before.get(brace? + 1..)?.trim_start();
-            return Some(if marker.starts_with(['#', ':', '/']) {
-                CompletionSite::BlockMarker
-            } else {
-                CompletionSite::TemplateExpression
-            });
+            return Some(CompletionSite::TemplateExpression);
         }
         Some(CompletionSite::RawTemplateText)
     }
@@ -3189,7 +3202,51 @@ impl Server {
                     }
                     match method.as_str() {
                         "textDocument/completion" => {
+                            let mut strip_commits = false;
                             rewrite_completion_response_for_context(result, completion_context);
+                            // `CompletionProvider.ts:451`: a document svelte2tsx
+                            // rejected is answered from a fragment, so the list
+                            // is incomplete and `PluginHost.ts:285-296` narrows
+                            // it here rather than leaving it to the editor.
+                            if let Some(path) = source_path.as_deref()
+                                && self
+                                    .tsgo
+                                    .as_ref()
+                                    .and_then(|runtime| runtime.overlay_for_source(path))
+                                    .is_some_and(|overlay| overlay.parser_error(path).is_some())
+                            {
+                                // `CompletionProvider.ts:785-789`: outside a
+                                // `<script>` such a response carries no commit
+                                // characters at all — applied after the adopt
+                                // below, which installs the default set.
+                                strip_commits =
+                                    completion_site_data.as_ref().is_some_and(|(_, position)| {
+                                        !position_is_in_script(
+                                            source_uri
+                                                .as_ref()
+                                                .and_then(|uri| self.documents.get(uri))
+                                                .map_or("", Document::text),
+                                            position,
+                                        )
+                                    });
+                                let prefix = self
+                                    .client
+                                    .filter_incomplete_completions
+                                    .then(|| {
+                                        source_uri
+                                            .as_ref()
+                                            .and_then(|uri| self.documents.get(uri))
+                                            .zip(completion_site_data.as_ref())
+                                            .map(|(document, (_, position))| {
+                                                incomplete_completion_filter(
+                                                    document.text(),
+                                                    position,
+                                                )
+                                            })
+                                    })
+                                    .flatten();
+                                mark_completion_list_incomplete(result, prefix.as_deref());
+                            }
                             if let Some((uri, position)) = &completion_site_data {
                                 adopted_completion_data = Some((
                                     completion_data_key(uri, position),
@@ -3204,6 +3261,9 @@ impl Server {
                                 ) {
                                     *result = empty_completion_list();
                                 }
+                            }
+                            if strip_commits {
+                                strip_commit_characters(result);
                             }
                         }
                         "completionItem/resolve" => {
@@ -3473,11 +3533,7 @@ impl Server {
         {
             return false;
         }
-        let lower = document.text().to_ascii_lowercase();
-        let language = if lower.contains("lang=\"ts\"")
-            || lower.contains("lang='ts'")
-            || lower.contains("lang=ts")
-        {
+        let language = if is_typescript_component(document.text()) {
             &self.typescript_settings
         } else {
             &self.javascript_settings
@@ -4175,6 +4231,83 @@ fn drop_degenerate_folding_ranges(result: &mut serde_json::Value, line_folding_o
             _ => true,
         }
     });
+}
+
+/// `PluginHost.ts:287-293`: the word the cursor sits in, looking back at most
+/// 20 UTF-16 units, lowercased. Nobody types an import name longer than that
+/// and still expects perfect autocompletion.
+fn incomplete_completion_filter(text: &str, position: &serde_json::Value) -> String {
+    let Ok(position) = serde_json::from_value::<Position>(position.clone()) else {
+        return String::new();
+    };
+    let offset = LineIndex::new(text).offset(text, position);
+    let before = text.get(..offset).unwrap_or(text);
+    let units = before.encode_utf16().collect::<Vec<_>>();
+    let window = String::from_utf16_lossy(&units[units.len().saturating_sub(20)..]);
+    let start = window
+        .char_indices()
+        .filter(|(_, character)| !(character.is_ascii_alphanumeric() || *character == '_'))
+        .map(|(index, character)| index + character.len_utf8())
+        .next_back()
+        .unwrap_or(0);
+    window[start..].to_lowercase()
+}
+
+/// `isInScript` (`plugins/typescript/utils.ts`): whether the cursor sits in an
+/// instance or module `<script>` body.
+fn position_is_in_script(text: &str, position: &serde_json::Value) -> bool {
+    let Ok(position) = serde_json::from_value::<Position>(position.clone()) else {
+        return false;
+    };
+    let offset = LineIndex::new(text).offset(text, position);
+    crate::context::EmbeddedRegions::new(text).in_script(offset)
+}
+
+/// `CompletionProvider.ts:828-830`: with `checkCommitCharacters` off every item
+/// answers `undefined`, so the field is absent rather than empty.
+fn strip_commit_characters(result: &mut serde_json::Value) {
+    let items = match result {
+        serde_json::Value::Array(items) => items,
+        other => {
+            let Some(items) = other
+                .get_mut("items")
+                .and_then(serde_json::Value::as_array_mut)
+            else {
+                return;
+            };
+            items
+        }
+    };
+    for item in items {
+        if let Some(object) = item.as_object_mut() {
+            object.remove("commitCharacters");
+        }
+    }
+}
+
+/// `CompletionProvider.ts:451` and `PluginHost.ts:286-297`: the list a rejected
+/// document produces is incomplete, and the server narrows it itself because
+/// not every editor filters client-side.
+fn mark_completion_list_incomplete(result: &mut serde_json::Value, filter: Option<&str>) {
+    if let Some(items) = result.as_array() {
+        *result = serde_json::json!({ "isIncomplete": true, "items": items });
+    }
+    if let Some(object) = result.as_object_mut() {
+        object.insert("isIncomplete".to_string(), serde_json::Value::Bool(true));
+    }
+    let Some(filter) = filter.filter(|filter| !filter.is_empty()) else {
+        return;
+    };
+    if let Some(items) = result
+        .get_mut("items")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        items.retain(|item| {
+            item.get("label")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|label| label.to_lowercase().contains(filter))
+        });
+    }
 }
 
 fn merge_tsgo_result(method: &str, result: &mut serde_json::Value, fallback: serde_json::Value) {

@@ -864,3 +864,61 @@ strips with esbuild before either compiler sees it. So the shape reaches no popu
 gate, today.
 
 Delete this entry when upstream erases the keyword.
+
+---
+
+## Completion `kind` for a `const`, and the `kindModifiers` filter it disables (language server)
+
+**Pinned by** `scripts/compat-lsp/tsgo-completion-kind.test.mjs`, which asserts the shape of
+**tsgo's own** response, not rsvelte's — the entry has to be removed when tsgo changes, and a
+test on rsvelte's output would keep passing after that.
+**Reported upstream** in
+`upstream_issues/tsgo-lsp-completion-item-omits-the-typescript-kind.md`.
+
+Official `svelte-language-server` reads completions from the TypeScript API and maps
+`ScriptElementKind` to an LSP kind in `plugins/typescript/utils.ts`
+(`scriptElementKindToCompletionItemKind`): `const` becomes `CompletionItemKind.Constant`,
+`let`/`var` become `Variable`. rsvelte's TypeScript features instead proxy a child `tsgo`
+LSP server, whose items carry neither `ScriptElementKind` nor `kindModifiers`.
+
+Measured directly on both backends at the same position of the same `.ts` file
+(`tsgo` 7.0.0-dev.20260703.1, `typescript` 6.0.3, 1071 items each):
+
+| declaration | TypeScript API | `tsgo --lsp` |
+|---|---|---|
+| `const aConst = 1` | `kind: "const"`, `kindModifiers: ""` | `kind: 6` (Variable) |
+| `let aLet = 2` | `kind: "let"` | `kind: 6` |
+| `var aVar = 3` | `kind: "var"` | `kind: 6` |
+| `declare const aDeclared` | `kind: "const"`, `kindModifiers: "declare"` | `kind: 6`, no `kindModifiers` |
+| `function aFunction() {}` | `kind: "function"` | `kind: 3` (Function) |
+| `class AClass {}` | `kind: "class"` | `kind: 7` (Class) |
+
+Three `ScriptElementKind`s collapse into one LSP kind, and `kindModifiers` is absent from all
+1071 items. The `function`/`class`/`enum` rows are the positive control: tsgo does emit kinds,
+so the collapse is a lost distinction rather than a degraded response.
+
+Through the two servers on `fixtures/completion-script-null`
+(`<script>co¦nst a = true</script><p>test</p>`), this surfaces as exactly three items —
+`a`, `name` and `CompletionScriptNull` — where official answers `Constant` and rsvelte answers
+`Variable` while every other compared field, `sortText` included, is equal.
+
+The second half is the deliberate one. `CompletionProvider.ts`'s `isNoSvelte2tsxCompletion`
+drops an item whose `kindModifiers` is `declare` and whose label is in its `svelteTypes` list;
+`tsgo_completion.rs`'s port leaves that arm unported, because without `kindModifiers` the
+condition degrades to a bare name match and would drop a user's own `SvelteStore`. Losing a
+correct completion is worse than keeping a spurious one, so the narrower filter is kept.
+
+Neither half is reachable by porting: rsvelte proxies tsgo rather than porting upstream's
+`typescript-plugin` (tsgo has no plugin API), so the information does not exist on this side.
+The LSP gate does observe the divergence, but not as a kind divergence — `diff.mjs`'s
+`identity()` digests `kind` into the pairing key, so a differing kind is reported as an
+unpaired extra plus an unpaired missing, which reads like two absent items.
+
+Do **not** widen this entry to the five other kind divergences in the same suite
+(`Variable -> Property` on `navigation`/`orientation`/`top`, `Keyword -> Property` on
+`var`/`continue`). Those are in `css-smoke-completion-interpolation` and
+`html-smoke-completions`, where rsvelte's own HTML/CSS completions fall through to `Property`;
+they are rsvelte-side defects and are not covered here.
+
+Remove this entry when `tsgo --lsp` carries the TypeScript kind — the pinned test fails at that
+point, and both halves become ordinary parity work.

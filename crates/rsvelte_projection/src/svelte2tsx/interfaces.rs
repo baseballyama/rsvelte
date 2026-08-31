@@ -85,6 +85,10 @@ pub struct Svelte2TsxOptions {
     /// so they remain valid from the generated `.tsx` location. Mirrors
     /// `helpers/rewriteExternalImports.ts` in the JS reference.
     pub rewrite_external_imports: Option<RewriteExternalImportsOptions>,
+    /// `utils/htmlxparser.ts:151`: parse the template in loose mode, so a
+    /// half-typed template still projects. The language server sets it
+    /// (`LSAndTSDocResolver.ts:138`); `svelte-check` deliberately does not.
+    pub emit_on_template_error: bool,
 }
 
 /// Inputs for the optional external-import rewrite pass — mirrors the JS
@@ -199,6 +203,7 @@ impl Default for Svelte2TsxOptions {
             typings_namespace: DEFAULT_TYPINGS_NAMESPACE.to_string(),
             no_svelte_component_typed: false,
             rewrite_external_imports: None,
+            emit_on_template_error: false,
         }
     }
 }
