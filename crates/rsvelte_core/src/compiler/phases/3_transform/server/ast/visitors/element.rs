@@ -1095,12 +1095,10 @@ pub(super) fn build_element_attributes<'a>(
                         if is_class && let Some(hash) = css_hash {
                             literal_value = format!("{literal_value} {hash}").trim().to_string();
                         }
-                        if !is_class || !literal_value.is_empty() {
-                            state.template.push(TemplateEntry::Literal(format!(
-                                " {name}=\"{}\"",
-                                escape_attr(&literal_value)
-                            )));
-                        }
+                        state.template.push(TemplateEntry::Literal(format!(
+                            " {name}=\"{}\"",
+                            escape_attr(&literal_value)
+                        )));
                         continue;
                     }
                     // Mixed text+expression where EVERY expression part folds to a
@@ -1126,12 +1124,10 @@ pub(super) fn build_element_attributes<'a>(
                         if is_class && let Some(hash) = css_hash {
                             literal_value = format!("{literal_value} {hash}").trim().to_string();
                         }
-                        if !is_class || !literal_value.is_empty() {
-                            state.template.push(TemplateEntry::Literal(format!(
-                                " {name}=\"{}\"",
-                                escape_attr(&literal_value)
-                            )));
-                        }
+                        state.template.push(TemplateEntry::Literal(format!(
+                            " {name}=\"{}\"",
+                            escape_attr(&literal_value)
+                        )));
                         continue;
                     }
                     // Mixed text+expression: fall through to the dynamic value build.
@@ -1146,12 +1142,10 @@ pub(super) fn build_element_attributes<'a>(
                         if is_class && let Some(hash) = css_hash {
                             literal_value = format!("{literal_value} {hash}").trim().to_string();
                         }
-                        if !is_class || !literal_value.is_empty() {
-                            state.template.push(TemplateEntry::Literal(format!(
-                                " {name}=\"{}\"",
-                                escape_attr(&literal_value)
-                            )));
-                        }
+                        state.template.push(TemplateEntry::Literal(format!(
+                            " {name}=\"{}\"",
+                            escape_attr(&literal_value)
+                        )));
                         continue;
                     }
                     // Other single expressions: fall through to dynamic value build.
