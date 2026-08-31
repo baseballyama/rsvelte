@@ -20,7 +20,6 @@
 	"sparrow-app/packages/@sparrow-workspaces/src/components/tabular-input/sub-component/BulkEditorMergeView.svelte",
 	"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte",
 	"svelte-commerce/src/lib/components/form/textbox.svelte",
-	"svelte-commerce/src/lib/components/nav/mega-menu.svelte",
 	"svelte-inspect-value/packages/svelte/src/lib/components/Options.svelte",
 	"svelte-inspect-value/packages/svelte/src/routes/(app)/reference/+page.svelte",
 	"svelte-virtuallists/src/lib/VirtualListNew.svelte",
