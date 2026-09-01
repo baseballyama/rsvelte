@@ -1,5 +1,7 @@
 # @rsvelte/language-server-darwin-x64
 
+## 0.5.5
+
 ## 0.5.4
 
 ## 0.5.3

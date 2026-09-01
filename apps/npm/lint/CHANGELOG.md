@@ -1,5 +1,14 @@
 # @rsvelte/lint
 
+## 0.11.0
+
+### Patch Changes
+
+- e72babb: Match unused Svelte ignore diagnostics after native SCSS, Sass, and Less-style transforms.
+- 2c9f151: Restrict the semantic `prefer-const` fallback to bindings hidden from the compatibility AST.
+- 846473c: `svelte/prefer-const` no longer reports a `let` that is declared twice in one scope. ESLint's scope analysis merges a redeclaration into a single variable carrying two write references, which its single-writer check rejects.
+- 846473c: Report `svelte/prefer-const` over the binding's TypeScript annotation, matching ESLint's range.
+
 ## 0.10.20
 
 ### Patch Changes

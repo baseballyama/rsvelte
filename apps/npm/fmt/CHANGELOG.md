@@ -1,5 +1,14 @@
 # @rsvelte/fmt
 
+## 0.7.15
+
+### Patch Changes
+
+- b6a0670: Preserve source indentation after comments inside CSS selector lists.
+- c1e1a03: Preserve the closing-line indentation of multiline attribute expressions containing escaped regex slashes.
+- ea32346: Hug an overflowing inline element that is glued to both sides of an if, each, key, or await block.
+- 57f985c: Stop parenthesizing the head of a markup `as`/`satisfies` cast: `{type as X}` no longer becomes `{(type) as X}`.
+
 ## 0.7.14
 
 ### Patch Changes

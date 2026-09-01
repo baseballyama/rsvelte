@@ -1,5 +1,17 @@
 # @rsvelte/svelte-check
 
+## 0.5.23
+
+### Patch Changes
+
+- f87bcc6: Stop aborting on a multi-byte character at a byte offset svelte2tsx slices a `str` with.
+
+  The opening-tag spacing model located a `bind:` directive's `=` with `source[..=expr_start]` — an _inclusive_ slice of a byte offset, so the cut fell one byte past the expression's start, inside its first character, and panicked. Under `panic = "abort"` that took `svelte-check` down with SIGABRT while materializing the overlay. A sweep of the same shape found a second live site: `--mode dts` reads the seven bytes before an interface's first heritage entry as the `extends` keyword, which a comment between the two puts inside the comment's text.
+
+- 793e169: Match upstream ordering when a top-level snippet and a generated component props type share the render-function hoist target, including generic props annotations
+- 6adc487: Preserve the source-width padding for attributes and actions on `<svelte:element>` when its `this` expression is a string literal.
+- 3d955fd: Ignore `$name` spellings inside instance-script regular-expression literals when collecting svelte2tsx store subscriptions and snippet-hoisting constraints. A regex containing an exported prop's name previously injected a false store declaration at the prop widener's insertion point and left an unmatched `/*Ωignore_startΩ*/` marker in the generated TSX.
+
 ## 0.5.22
 
 ### Patch Changes

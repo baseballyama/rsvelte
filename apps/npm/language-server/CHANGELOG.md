@@ -1,5 +1,14 @@
 # @rsvelte/language-server
 
+## 0.5.5
+
+### Patch Changes
+
+- cb290b5: A `{:then}` / `{:catch}` binding keeps its own source-map segments, so a diagnostic, symbol or hover on it reports the identifier's real range instead of a zero-width position at the start of the generated chunk
+- 4d24fac: Mark unused and deprecated code in diagnostics: fill `DiagnosticTag` from the TypeScript code, which tsgo's LSP omits.
+- 846473c: Load `svelte/compiler` from a bundle's `default` export, so preprocessing works in a real project.
+- 2152f06: Report an unknown `{#...}` block at its opening type with `expected_block_type`, matching the official compiler instead of deferring the error until a later closing tag. Return the language server's existing `null` result for invalid block-marker completions before attempting to map them through a projection that the malformed template cannot produce.
+
 ## 0.5.4
 
 ### Patch Changes

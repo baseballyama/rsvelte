@@ -1,5 +1,183 @@
 # @rsvelte/compiler
 
+## 0.11.0
+
+### Minor Changes
+
+- 30fa300: Add `rsvelte compare`, a CLI that scans Svelte components and byte-compares the official compiler's generated JavaScript/CSS with rsvelte for client, server, development, and JSON-configured compile modes.
+
+### Patch Changes
+
+- ea32346: Emit parseable client code for awaited `autofocus` and event attributes.
+- 45cc137: Match upstream client attribute routing for mixed-case class, static inert, folded is, and SVG content attributes.
+- 304cc52: Map comment-bearing client component function braces directly from AST positions.
+- 304cc52: Preserve source-map carriers for lowered legacy prop reads.
+- 95ed5a8: Pickle non-tail `await` expressions in async attribute values.
+- f9a6a3f: Keep instance-script tail comments with the generated await promise thunk.
+- 2d186c8: Prevent server-side derived-read transforms from panicking when rsvelte is built with the published OXC crates.
+- 38da4ad: Remove empty exports from TypeScript module scripts.
+- 09639f6: Preserve standalone module-script tail comments on generated component parameters.
+- 8d3ea2f: Match Acorn diagnostics for malformed object expressions and untyped snippet parameters.
+- 327bd0b: Keep server-side constant folding exclusions scoped to the binding they describe.
+- 793e169: Match upstream ordering when a top-level snippet and a generated component props type share the render-function hoist target, including generic props annotations
+- ea32346: Make lowercase-component warnings independent of template reference order.
+- 304cc52: Carry generated element-handle source spans directly through client code generation.
+- 207eac1: Fix lazy proxying for bindable prop defaults that reference rune bindings
+- ea32346: Match Svelte's client-side nullish guards by sharing its static expression evaluator across template chunks, document titles, and option values.
+- ea32346: Fold client template expressions through the shared typed evaluator so `void` of an unknown operand has the known value `undefined`, dev equality expressions in binding initializers remain foldable, `{@const}` uses the complete globals table, and aliases of function declarations retain their unknown marker.
+- dc44b77: A comment no longer ends a destructure's right-hand side, hides an object
+  shorthand, or leaves a non-ASCII prop name as an unquoted key
+- 1e08f2d: Report state references used as computed keys in destructuring patterns.
+- ea32346: Resolve dev console arguments against function-local bindings before same-named component bindings.
+- c87d35a: Scope only the subject's parent for a `>` combinator, not every matching ancestor.
+- ea32346: Accept balanced block token streams in CSS custom-property values.
+- 304cc52: Preserve source-map spans for hoisted client imports.
+- 0697e6c: Preserve explicit parentheses in snippet parameter defaults.
+- 7f03d5b: An attribute-free custom element no longer makes its ancestor elements dynamic,
+  so the generated component stops emitting `$.child` / `$.sibling` / `$.reset`
+  traversal that the official compiler omits entirely
+- 304cc52: Emit client source maps entirely from carried source spans instead of matching generated tokens back to the component source.
+- 05f1120: fix(compiler): a component `bind:` on an each item invalidates the collection's store
+
+  Upstream registers the each-block context's `assign` / `mutate` transforms as
+  `b.sequence([mutation, ...sequence])`, so a write to the item is always a
+  sequence and carries `$.invalidate_store($$stores, '$name')` when the collection
+  is a store subscription. rsvelte applied that only on the element
+  (`$.bind_value`) path; a component's generated `set value($$value)` emitted the
+  bare assignment, so `{#each $store.list as item}<Comp bind:value={item.x} />`
+  mutated the item without notifying the store.
+
+- 846473c: Read a reassigned each item as `collection[index]` in a `bind:` on one of its members, matching the read transform upstream registers for every site
+- a653fd4: Preserve empty SSR renderer chunks produced by constant-folded template expressions.
+- 846473c: `parse()` now returns `export * from '…'` as an `ExportAllDeclaration` instead of
+  dropping the statement from the program body. Compiled output is unchanged.
+- 52d747a: Count real references to exported class declarations when deciding whether to emit `export_let_unused`.
+- 6637db9: Distinguish prefix logical-not expressions from TypeScript non-null assertions when scanning regex literals after keywords.
+- 4b8acf8: Preserve the full source callee span when a member rune lowers to a shorter runtime identifier.
+- 81fb994: Fix server reads of function-local derived variables declared inside statement containers.
+- 32677e2: Avoid wrapping a nested `$derived` read twice when its declaration is directly inside a `switch` case.
+- 64ac925: Align workspace and published-crate builds on OXC 0.146 so compiler behavior does not depend on whether Cargo patches are active.
+- 846473c: Keep a function expression's directive prologue. A `function () { 'use strict'; … }` written in a template attribute lost its leading string-literal statements, which the arrow and module paths already preserved.
+- ea32346: Hoist awaited attributes on dynamic server-rendered elements.
+- ea32346: Preserve block comments at the start of keyed-each expressions in client and server output.
+- a2df07f: Preserve trailing comment placement when compileModule rewrites reactive reads.
+- 9ce6bf9: Preserve JavaScript comments in every public parse API binding.
+- ea32346: Match Svelte's diagnostic position for malformed mustache expressions followed by an enclosing block close.
+- 846473c: `parse()` now emits an import or export's `with { … }` attributes and a dynamic
+  import's second argument, and matches acorn-typescript's node shapes under
+  `lang="ts"` (no empty `attributes`, `arguments` instead of `options`, an
+  `exportKind` on `export default`). Compiled output is unchanged.
+- 846473c: Compile an indented `<style lang="sass">` block instead of aborting: the base-indentation
+  removal now runs before `grass` sees the document, because the `catch_unwind` it was reached
+  from does nothing under the `panic = "abort"` release profile.
+- 846473c: `parse()` now returns a `TSIndexSignature`'s `parameters`, `typeAnnotation` and
+  `readonly` instead of a bare span-bearing envelope. Compiled output is unchanged.
+- d4b35d4: Match client-dev `$inspect.trace()` lowering for async functions and labels for arrows, class methods, and constructors.
+- ea32346: Match Svelte's reactivity analysis for `$derived` bindings whose values are known at compile time.
+- 846473c: Match upstream's legacy AST `loc` shape: the synthesized `{@const}` assignment carries none, and an attached comment keeps the `{ type, value, start, end }` object `add_comments` produces.
+- 846473c: Read `$.invalidate_inner_signals` bodies at the site that emits them, mirroring `build_getter`: a prop read is no longer re-wrapped into `trails()()`, an each item now reads as `$.get(item)`, and a legacy-state component `bind:` setter carries the invalidation it was missing.
+- 729abce: Ship the fix for `??=` / `||=` / `&&=` on a private `$state` field in
+  `compileModule`: the logical compound is split into a read plus a conditional
+  write instead of being emitted as an assignment into `$.get(...)`, which is not
+  valid JavaScript and fails `vite build`
+- 846473c: Keep a named function expression's own identifier in the serialized program. Both
+  program converters set `id: null`, so the name was invisible to every consumer —
+  including the scope walk, which therefore never reserved it and generated a
+  colliding dev event-handler name.
+- 846473c: Scope a `slot="name"` child of a component from the component's own scope, so a `let:` binding is not visible inside a named slot
+- 43daf9c: Match Svelte's contextual errors for reserved words in destructuring bindings.
+- 2152f06: Report an unknown `{#...}` block at its opening type with `expected_block_type`, matching the official compiler instead of deferring the error until a later closing tag. Return the language server's existing `null` result for invalid block-marker completions before attempting to map them through a projection that the malformed template cannot produce.
+- 356a946: Match Svelte's missing-parenthesis diagnostic for malformed snippet headers.
+- 9b6d56c: A `&` whose parent rule is entirely `:global(...)` scopes every element, the way upstream's `NestingSelector` case does — eight components had lost the scoping class on most of their markup
+- b8989dd: Determine automatic runes mode after excluding rune-named store subscriptions, matching Svelte's scope-analysis order.
+- 5621c24: Emit nested snippet array-pattern temporaries before leaf bindings to match Svelte.
+- 846473c: Serialize TypeScript tuple types (`TSTupleType`, `TSNamedTupleMember`, `TSOptionalType`, `TSRestType`) as real nodes instead of a `TSUnknownKeyword` stub, so a comment inside one attaches to the member that carries it.
+- ea32346: Match the official compiler's message and byte position when TypeScript-only syntax is used in a JavaScript component script or `.svelte.js` module. The parser now reports the token where acorn stops instead of OXC's enclosing TypeScript node, and uses acorn's generic or reserved-keyword wording rather than OXC's TypeScript-aware diagnostic.
+- 1aeb321: Preserve production client calls to a locally bound `$inspect` value.
+- 846473c: Reserve the names declared inside a destructuring default so a generated dev event-handler name does not collide with them
+- ea32346: Match Svelte's client output placement for comments between a destructured `$props()` assignment and the rune call.
+- ea32346: Preserve reactive attachment bindings when Phase 3 consumes expression metadata produced during analysis.
+- ea32346: Skip materializing the public component AST for native buffer and envelope APIs whose binary formats do not expose it.
+- 43d2fcb: Restore the low-level lazy-expression resolver export after the OXC update.
+- ea32346: Match Svelte's legacy export-const diagnostic precedence when an exported constant is updated and referenced from the template.
+- 19832fe: Allow declaration tags with an uninitialized `let` binding.
+- e991f6e: Match Svelte's server comment placement after rune arguments and removed effects.
+- 846473c: Preserve compatibility for compiler output, source maps, bindings, and nested inspect lowering.
+- 304cc52: Delete the redundant rune source-map text-matching pass now that runtime identifiers carry rune spans.
+- 67e0d18: Preserve parentheses around single-dependency legacy reactive statement and block thunks.
+- 25f16ad: fix(compiler): a semicolon-free `$: { … }` block reads its state through `$.get`
+
+  `transform_state_reads_ast` told an object literal from a statement block by
+  scanning for a top-level `;`. Source written without semicolons (`standard`
+  style) has none, so `$: { void w }` was wrapped in `(`…`)` to force the
+  expression goal, the parse failed, and the state-read pass was skipped
+  entirely — the dependency thunk still read `$.get(w)` while the body read the
+  bare variable, so the effect re-ran without seeing the new value. The parse
+  verdict now decides in both directions.
+
+- 30ebc15: Match Svelte's client comment attachment around rebuilt legacy reactive statements.
+- 6271cc2: Match Svelte's comment placement before a final legacy reactive statement with CR and Unicode line endings
+- cbcf2db: Match Svelte's comment attachment order for reactive labeled statements returned by `parse`.
+- 846473c: Treat a `let` declared in a `switch` case as shadowing the outer binding when collecting a legacy `$:` statement's dependencies, so reactive statements are no longer reordered around it
+- 0644013: Preserve leading and trailing comments around removed SSR `$inspect` statements.
+- ea32346: Remove unreachable phase-two call metadata writes.
+- dc44b77: A removed `$effect` leaves the `;` upstream leaves: esrap drops an `EmptyStatement` only from a body sequence, so a switch case consequent and an unbraced `if` / `else` / `for` / `while` / `do` / label body keep it
+- 4b058e3: Match Svelte's purity-aware memoization of `{@render}` arguments, leaving pure calls inline while continuing to memoize impure and reactive calls.
+- ea32346: Cover rune declarations inside statement containers, preserving `var`-safe client reads and
+  optional SSR derived reads.
+- 65e81d6: svelte2tsx: a `<style>` written inside an HTML comment no longer opens a style element
+
+  The fallback scanner that blanks style tags the parser did not capture searched the source for
+  `<style` with no regard for comments, so a comment mentioning `<style>` was treated as a start
+  tag and everything up to the file's real `</style>` was blanked — taking the attributes of every
+  element in between. Upstream's `findNextVerbatimElement` matches a comment before either verbatim
+  tag and skips it; the scan now does the same.
+
+- dc2c0ca: Preserve comments from removed server-side effect statements at the end of dev-mode component callbacks.
+- c87d35a: Keep `class={""}` in server output; only a static empty `class` is dropped.
+- ea32346: Match server comment placement for line and multiline comments before `$props()` initializers.
+- 846473c: Order a `$:` statement that updates a member expression by the object it assigns on the server, as the client already did
+- ea32346: Match upstream diagnostics for shadowed each bindings and snippet parameter assignments.
+- ea32346: Preserve import attributes on side-effect imports.
+- c18d32c: Keep source spans when converting assignment and update targets to the client output AST.
+- 846473c: A multi-declarator `const a = $derived(await p), b = $derived(await q);` preceded by an own-line comment no longer leaks that comment into the generated async callback's parameter list, and keeps the `$.template_effect` promise dependency it had.
+- 6adc487: Preserve the source-width padding for attributes and actions on `<svelte:element>` when its `this` expression is a string literal.
+- 846473c: Read a store member binding's computed key through the site's transform, so `bind:value={$values[$key]}` emits `$.untrack($values)[$key()]` rather than the raw identifier. The same site covers a prop, a store subscription, legacy state and a member of legacy state.
+- f42d483: Attach the offending `$name` identifier range to `store_invalid_scoped_subscription` diagnostics in scripts and templates, matching the official compiler's start, end and code frame.
+- 846473c: Read a store's source binding the same way in all six rewriters, and leave an each-item member mutation out of the dev `$.assign` wrap
+- 3d955fd: Ignore `$name` spellings inside instance-script regular-expression literals when collecting svelte2tsx store subscriptions and snippet-hoisting constraints. A regex containing an exported prop's name previously injected a false store declaration at the prop widener's insertion point and left an unmatched `/*Ωignore_startΩ*/` marker in the generated TSX.
+- 9782ae8: Match Svelte's nested-class warning depth and duplicate warning count inside legacy reactive statements.
+- ea32346: Keep comments in await headers and snippet parameter lists in the same generated positions as the official compiler on client and server output.
+- ea32346: Comments inside template block and directive expressions now follow the official compiler's source cursor on client and server output, including each collections, if and key tests, html and render arguments, and event handlers.
+- 64fcc4b: Indent class declarations inside template expressions at their generated client-output nesting.
+- 6094cc9: Match Svelte's comment attachment order inside JavaScript template literals returned by `parse`.
+- 9a99c49: Reject invalid `super`, `await`, and `arguments` references in template expressions.
+- ebe8b1f: Align the secondary N-API compile entries with the main compiler boundary: `compileBuffers` and `compileModuleBuffers` now throw structured `CompileError` objects, `compileBuffers` accepts `modernAst`, and `compileWithCssHash` no longer hides an invalid non-function `cssHash` option.
+- 304cc52: Remove the redundant text-matching source-map pass for declarations collapsed onto one line.
+- 982721d: Reject strict-mode reserved names in template binding patterns.
+- ea32346: Resolve writes to destructured each-block bindings through their lexical template scope.
+- ea32346: Replace a bare universal selector with the component scope class when it appears directly before `:global(...)`.
+- c90c619: Preserve upstream's parenthesized each-item mutation output when no invalidation follows it.
+- ca05f8b: Match Svelte's reserved-word error for incomplete let declaration tags.
+- 304cc52: Preserve source-map spans for normalized inline client scripts.
+- 1d1ba92: Preserve inspect argument comment positions in server dev output.
+- 40f1aed: Preserve statement-position inspect holes after leading line comments.
+- 457601d: Recognize the full JavaScript whitespace set while detecting store subscriptions.
+- ea32346: Use scope-defined values when compiling title elements.
+- e3fc003: Lower `$inspect.trace()` in development component module scripts.
+- b94bf08: Warn for classes declared inside functions in component instance scripts.
+- e04241b: Match Svelte's strict-mode error for legacy octal escapes in template expressions.
+- 6b1e245: Validate WebAssembly compiler options against Svelte's public option contract, including unknown and removed keys, invalid values, legacy warnings, and nested options.
+- 52f933e: Accept a deprecated TypeScript import-assertions clause when `assert` begins on the line after the module specifier, matching the official Svelte compiler while retaining the clause in generated output.
+- 304cc52: Map generated component binding accessor keys to their source directives.
+- 958a818: Match Svelte's parser error for a comma after a destructuring rest element.
+- ea32346: Recognize JavaScript whitespace and comments between class-field assignments and runes, including client class and constructor initializers that start on a later line.
+- ea32346: Allocate generated server slot names in source order.
+- 1ba3f37: Match Svelte's parse error message for top-level return statements.
+- ea32346: fix: avoid adding a props parameter for an exported TypeScript import-equals declaration
+- 1b5aaf6: fix: retain TypeScript type aliases, interfaces, and their nested comments in the public parse AST
+- 17c5509: Match Svelte warning messages for namespaced self-closing elements and ARIA roles with multiple required properties.
+
 ## 0.10.20
 
 ### Patch Changes

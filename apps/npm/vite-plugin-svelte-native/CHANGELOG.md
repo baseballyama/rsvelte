@@ -1,5 +1,13 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.10
+
+### Patch Changes
+
+- 9ce6bf9: Preserve JavaScript comments in every public parse API binding.
+- ea32346: Skip materializing the public component AST for native buffer and envelope APIs whose binary formats do not expose it.
+- ebe8b1f: Align the secondary N-API compile entries with the main compiler boundary: `compileBuffers` and `compileModuleBuffers` now throw structured `CompileError` objects, `compileBuffers` accepts `modernAst`, and `compileWithCssHash` no longer hides an invalid non-function `cssHash` option.
+
 ## 0.3.9
 
 ### Patch Changes
