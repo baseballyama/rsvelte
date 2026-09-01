@@ -232,6 +232,7 @@ fn build_block_with_argument(
     let saved_transform = context.state.transform.clone();
     let saved_transform_deep_read = context.state.transform_deep_read.clone();
     let saved_await_binding_names = context.state.await_binding_names.clone();
+    let saved_shadowed_prop_names = context.state.shadowed_prop_names.clone();
 
     // Build the argument and declarations
     let (arg_pattern, declarations) = if let Some(pattern) = argument_pattern {
@@ -258,6 +259,7 @@ fn build_block_with_argument(
     context.state.transform = saved_transform;
     context.state.transform_deep_read = saved_transform_deep_read;
     context.state.await_binding_names = saved_await_binding_names;
+    context.state.shadowed_prop_names = saved_shadowed_prop_names;
 
     // Log for debugging if needed
     let _ = block_type;
@@ -307,6 +309,9 @@ fn create_derived_block_argument(
         // compiler and need deep_read_state wrapping in legacy reactivity.
         context.state.transform_deep_read.insert(name.clone(), ());
         context.state.await_binding_names.insert(name.clone(), ());
+        // A non-source prop is read as `$$props.name` before any transform is
+        // consulted, so the transform above cannot shadow one on its own.
+        context.state.shadowed_prop_names.insert(name.clone());
         return (Some(JsPattern::Identifier(name.into())), vec![]);
     }
 
@@ -385,6 +390,7 @@ fn create_derived_block_argument(
         // Destructured await then/catch values are template-kind.
         context.state.transform_deep_read.insert(id.clone(), ());
         context.state.await_binding_names.insert(id.clone(), ());
+        context.state.shadowed_prop_names.insert(id.clone());
 
         // Build: var id = $.derived(() => $.get($$value).id)
         let get_value_call = b::call(
