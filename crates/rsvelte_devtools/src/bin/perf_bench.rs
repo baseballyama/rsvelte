@@ -1,7 +1,8 @@
-//! Single-thread throughput baseline over a deterministic slice of the collected
-//! corpus, through the public `compile()` entry point the gates and the NAPI
-//! addon both use. Reports a median over N runs so a change is judged against
-//! run-to-run spread rather than one sample.
+//! Throughput baseline over a deterministic slice of the collected corpus,
+//! through the public `compile()` entry point the gates and the NAPI addon both
+//! use. Reports a median over N runs so a change is judged against run-to-run
+//! spread rather than one sample. `--threads N` runs the same slice on a rayon
+//! pool of exactly N threads.
 
 #[cfg(all(
     feature = "mimalloc-alloc",
@@ -15,19 +16,53 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
-/// Process CPU time (user + system). Wall clock on a box running other builds
-/// measured the same binary at 1172 ms and 2414 ms an hour apart, so every
-/// verdict here is read off CPU time and wall clock is printed only as context.
-fn cpu_ms() -> f64 {
+/// Process CPU time (user + system) plus the kernel counters that separate a
+/// parallel arm's *added work* from its *wait*. Wall clock on a box running
+/// other builds measured the same binary at 1172 ms and 2414 ms an hour apart,
+/// so every verdict here is read off CPU time and wall clock is printed only as
+/// context. Under `--threads`, CPU time that grows with the thread count is
+/// contention rather than scheduling, and `minflt` / `nivcsw` say which.
+#[derive(Clone, Copy, Default)]
+struct Usage {
+    cpu_ms: f64,
+    sys_ms: f64,
+    minflt: i64,
+    majflt: i64,
+    nvcsw: i64,
+    nivcsw: i64,
+}
+
+impl std::ops::Sub for Usage {
+    type Output = Usage;
+    fn sub(self, r: Usage) -> Usage {
+        Usage {
+            cpu_ms: self.cpu_ms - r.cpu_ms,
+            sys_ms: self.sys_ms - r.sys_ms,
+            minflt: self.minflt - r.minflt,
+            majflt: self.majflt - r.majflt,
+            nvcsw: self.nvcsw - r.nvcsw,
+            nivcsw: self.nivcsw - r.nivcsw,
+        }
+    }
+}
+
+fn usage() -> Usage {
     // SAFETY: `getrusage` writes the whole `rusage` it is handed and reads
     // nothing else; the zeroed value is a valid `rusage`.
-    let usage = unsafe {
-        let mut usage: libc::rusage = std::mem::zeroed();
-        libc::getrusage(libc::RUSAGE_SELF, &mut usage);
-        usage
+    let u = unsafe {
+        let mut u: libc::rusage = std::mem::zeroed();
+        libc::getrusage(libc::RUSAGE_SELF, &mut u);
+        u
     };
     let secs = |t: libc::timeval| t.tv_sec as f64 * 1000.0 + t.tv_usec as f64 / 1000.0;
-    secs(usage.ru_utime) + secs(usage.ru_stime)
+    Usage {
+        cpu_ms: secs(u.ru_utime) + secs(u.ru_stime),
+        sys_ms: secs(u.ru_stime),
+        minflt: u.ru_minflt as i64,
+        majflt: u.ru_majflt as i64,
+        nvcsw: u.ru_nvcsw as i64,
+        nivcsw: u.ru_nivcsw as i64,
+    }
 }
 
 use rsvelte_core::compiler::compile_without_ast;
@@ -35,9 +70,10 @@ use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let manifest: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(root.join("compatibility/manifest.json")).unwrap())
-            .unwrap();
+    let manifest: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(root.join("compatibility/manifest.json")).unwrap(),
+    )
+    .unwrap();
 
     let mut args = std::env::args().skip(1);
     let mut limit = 3000usize;
@@ -45,6 +81,18 @@ fn main() {
     let mut target = "client".to_string();
     let mut no_ast = false;
     let mut no_sourcemap = false;
+    // 0 = the plain sequential loop. Any other value builds a rayon pool of
+    // exactly that size, so the scaling curve is measured rather than assumed.
+    let mut threads = 0usize;
+    // Longest-processing-time-first: rayon steals work, but it cannot start a
+    // task that is still queued behind the whole slice, so the largest file
+    // arriving last is a tail no amount of stealing recovers.
+    let mut sort = false;
+    let mut dump_times: Option<String> = None;
+    // macOS schedules a DEFAULT-QoS thread onto an efficiency core, so a rayon
+    // pool sized to the core count can end up with two workers running at a
+    // fraction of the others' speed. Naming the class makes that measurable.
+    let mut qos: Option<String> = None;
     while let Some(a) = args.next() {
         match a.as_str() {
             "--limit" => limit = args.next().unwrap().parse().unwrap(),
@@ -52,6 +100,10 @@ fn main() {
             "--target" => target = args.next().unwrap(),
             "--no-ast" => no_ast = true,
             "--no-sourcemap" => no_sourcemap = true,
+            "--threads" => threads = args.next().unwrap().parse().unwrap(),
+            "--sort" => sort = true,
+            "--dump-times" => dump_times = Some(args.next().unwrap()),
+            "--qos" => qos = Some(args.next().unwrap()),
             other => panic!("unknown arg {other}"),
         }
     }
@@ -76,6 +128,10 @@ fn main() {
         }
     }
 
+    if sort {
+        sources.sort_by_key(|s| std::cmp::Reverse(s.len()));
+    }
+
     let (generate, dev) = match target.as_str() {
         "client" => (GenerateMode::Client, false),
         "server" => (GenerateMode::Server, false),
@@ -90,49 +146,148 @@ fn main() {
         ..Default::default()
     };
 
+    let one = |s: &String| -> Option<usize> {
+        let compiled = if no_ast {
+            compile_without_ast(s, options.clone())
+        } else {
+            compile(s, options.clone())
+        };
+        compiled.ok().map(|r| r.js.code.len())
+    };
+
+    let qos_class = qos.as_deref().map(|q| match q {
+        "interactive" => libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE,
+        "initiated" => libc::qos_class_t::QOS_CLASS_USER_INITIATED,
+        "default" => libc::qos_class_t::QOS_CLASS_DEFAULT,
+        "utility" => libc::qos_class_t::QOS_CLASS_UTILITY,
+        // Apple silicon confines a background-QoS thread to the efficiency
+        // cores, so this arm measures the P/E ratio for this workload — which
+        // is what bounds a pool sized to the total core count.
+        "background" => libc::qos_class_t::QOS_CLASS_BACKGROUND,
+        other => panic!("unknown qos {other}"),
+    });
+    if let Some(class) = qos_class {
+        // SAFETY: sets the QoS of the calling thread only; no arguments are borrowed.
+        unsafe { libc::pthread_set_qos_class_self_np(class, 0) };
+    }
+    let pool = (threads > 0).then(|| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .start_handler(move |_| {
+                if let Some(class) = qos_class {
+                    // SAFETY: as above, on the worker thread this handler runs on.
+                    unsafe { libc::pthread_set_qos_class_self_np(class, 0) };
+                }
+            })
+            .build()
+            .unwrap()
+    });
+
     let mut ok = 0usize;
     let mut sink = 0usize;
     let mut timings = Vec::new();
     let mut cpu_timings = Vec::new();
+    let mut usages = Vec::new();
+    // (run, bytes, us). A parallel run's task-length vector is not reproducible
+    // — a file's elapsed time depends on which other files happened to be
+    // resident alongside it — so every run is kept and the caller checks
+    // whether a conclusion holds across them.
+    let mut per_file: Vec<(usize, usize, f64)> = Vec::new();
     for run in 0..runs + 1 {
-        let cpu_start = cpu_ms();
+        let u_start = usage();
         let start = Instant::now();
-        ok = 0;
-        for s in &sources {
-            let compiled = if no_ast {
-                compile_without_ast(s, options.clone())
-            } else {
-                compile(s, options.clone())
-            };
-            if let Ok(r) = compiled {
-                ok += 1;
-                sink = sink.wrapping_add(r.js.code.len());
+        let (run_ok, run_sink) = match &pool {
+            Some(pool) => pool.install(|| {
+                use rayon::prelude::*;
+                // Under `--dump-times`, keep each file's own elapsed time. A
+                // single-threaded task-length vector says nothing about the
+                // parallel one if contention slows allocation-dense files more
+                // than others, which is exactly the hypothesis being tested.
+                let rows: Vec<(usize, f64, Option<usize>)> = sources
+                    .par_iter()
+                    .map(|s| {
+                        let t0 = Instant::now();
+                        let r = one(s);
+                        (s.len(), t0.elapsed().as_secs_f64() * 1e6, r)
+                    })
+                    .collect();
+                let mut o = 0usize;
+                let mut k = 0usize;
+                for (b, us, r) in rows {
+                    if dump_times.is_some() {
+                        per_file.push((run, b, us));
+                    }
+                    if let Some(len) = r {
+                        o += 1;
+                        k = k.wrapping_add(len);
+                    }
+                }
+                (o, k)
+            }),
+            None => {
+                let mut o = 0usize;
+                let mut k = 0usize;
+                for s in &sources {
+                    let t0 = Instant::now();
+                    let r = one(s);
+                    if dump_times.is_some() {
+                        per_file.push((run, s.len(), t0.elapsed().as_secs_f64() * 1e6));
+                    }
+                    if let Some(len) = r {
+                        o += 1;
+                        k = k.wrapping_add(len);
+                    }
+                }
+                (o, k)
             }
-        }
+        };
+        ok = run_ok;
+        sink = run_sink;
         let ms = start.elapsed().as_secs_f64() * 1000.0;
-        let cpu = cpu_ms() - cpu_start;
+        let u = usage() - u_start;
         // First run is a warmup (page cache, allocator arenas).
         if run > 0 {
             timings.push(ms);
-            cpu_timings.push(cpu);
+            cpu_timings.push(u.cpu_ms);
+            usages.push(u);
         }
     }
     timings.sort_by(|a, b| a.partial_cmp(b).unwrap());
     cpu_timings.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let median = timings[timings.len() / 2];
     let cpu_median = cpu_timings[cpu_timings.len() / 2];
+    let ast_tag = if no_ast { " no-ast" } else { "" };
+    let map_tag = if no_sourcemap { " no-sourcemap" } else { "" };
     println!(
-        "target={target}{} files={} ok={ok} bytes={bytes} \
+        "target={target}{ast_tag}{map_tag} files={} ok={ok} bytes={bytes} \
          CPU_median={cpu_median:.1}ms CPU_min={:.1}ms \
          wall_median={median:.1}ms wall_min={:.1}ms MB/s={:.2} sink={sink}",
-        format!(
-            "{}{}",
-            if no_ast { " no-ast" } else { "" },
-            if no_sourcemap { " no-sourcemap" } else { "" }
-        ),
         sources.len(),
         cpu_timings[0],
         timings[0],
         (bytes as f64 / 1_048_576.0) / (cpu_median / 1000.0),
     );
+    if let Some(path) = &dump_times {
+        let mut out = String::from("run,bytes,us\n");
+        for (run, b, us) in &per_file {
+            let _ = std::fmt::Write::write_fmt(&mut out, format_args!("{run},{b},{us:.1}\n"));
+        }
+        fs::write(path, out).unwrap();
+        eprintln!("wrote {} rows to {path}", per_file.len());
+    }
+    if threads > 0 {
+        usages.sort_by(|a, b| a.cpu_ms.partial_cmp(&b.cpu_ms).unwrap());
+        let u = usages[usages.len() / 2];
+        println!(
+            "  threads={threads} qos={} sort={sort} parallelism={:.2} sys_ms={:.1} \
+             minflt={} majflt={} nvcsw={} nivcsw={}",
+            qos.as_deref().unwrap_or("inherit"),
+            cpu_median / median,
+            u.sys_ms,
+            u.minflt,
+            u.majflt,
+            u.nvcsw,
+            u.nivcsw,
+        );
+    }
 }

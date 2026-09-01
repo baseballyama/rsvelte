@@ -10,9 +10,10 @@ use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let manifest: serde_json::Value =
-        serde_json::from_str(&fs::read_to_string(root.join("compatibility/manifest.json")).unwrap())
-            .unwrap();
+    let manifest: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(root.join("compatibility/manifest.json")).unwrap(),
+    )
+    .unwrap();
     let limit: usize = std::env::args()
         .nth(1)
         .and_then(|s| s.parse().ok())
@@ -48,7 +49,11 @@ fn main() {
             };
             let mut hasher = DefaultHasher::new();
             out.hash(&mut hasher);
-            println!("{id}\t{label}\t{:016x}\t{}", hasher.finish(), out.map_or(0, |s| s.len()));
+            println!(
+                "{id}\t{label}\t{:016x}\t{}",
+                hasher.finish(),
+                out.map_or(0, |s| s.len())
+            );
         }
     }
 }
