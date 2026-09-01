@@ -991,6 +991,15 @@ after `trim()` but differing leading whitespace → **indent-only**; one side bl
 equal after swapping quote characters → **quote-style**; equal after removing all
 whitespace → **intra-line-ws**; anything else → **other**.
 
+**The table below is the wave-2 enrolment measurement, over a population of 765 —
+it is NOT a partition of the current 549.** Its `n` column sums to **766**, one
+more than the 765 the paragraph above claims, so it was already inconsistent with
+its own stated population before this ratchet shrank. What each of its rows would
+be against the current 549 is **unmeasured**: re-deriving it needs every entry's
+first differing line, which lives only in the CI report. The live partition is the
+`Partition of …` line above, which `known-failures-md-check.mjs` verifies; this
+table is kept for the per-cluster descriptions, not for its counts.
+
 | n | cluster | what the first differing line looks like |
 |---|---|---|
 | 386 | **20 — breaks-later** | rsvelte keeps on one line what the oracle has already broken (`{#each …sort( (a,b) => {` vs a wrapped form) |
@@ -1018,8 +1027,12 @@ separate product bug and was fixed by #3629. These two entries remain because
 gate 9 intentionally compares the shipped native CSS path rather than replacing
 it with `--no-native-css`; #3628 records that decision and the engine boundary.
 
-**624 of 765 (82%) are cluster 20 or 21 — one question, where a line breaks** —
-and that is the burndown target, not the tail. Nothing here is an oracle bug: the
+**472 of 549 (86%) are cluster 20 or 21 — one question, where a line breaks** —
+and that is the burndown target, not the tail. That is the live `Partition of …`
+line above (258 + 214), the one the doc check verifies. The figure this sentence
+carried until #4062, *624 of 765 (82%)*, was the wave-2 table's population, and it
+did not agree with that table either — its own rows give 386 + 239 = 625.
+Nothing here is an oracle bug: the
 `oracle-invalid` classification already carries those and is a pass, not a ratchet
 entry.
 
