@@ -1,9 +1,6 @@
 [
 	"appwrite-console/src/lib/components/sortButton.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateServices.svelte",
 	"carbon-components-svelte/src/Notification/NotificationQueue.svelte",
 	"gitlight/src/lib/components/dashboard/notifications/NotificationLabels.svelte",
 	"ha-fusion/src/lib/Main/Views.svelte",

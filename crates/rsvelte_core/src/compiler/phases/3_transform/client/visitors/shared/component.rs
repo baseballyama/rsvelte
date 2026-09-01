@@ -2150,6 +2150,8 @@ fn process_bind_directive<'a>(
         }
     };
 
+    let setter_body = sequence_each_item_write(setter_body, &raw_expression, context);
+
     let setter = b::with_property_key_span(
         b::setter(&context.arena, bind.name.as_str(), "$$value", setter_body),
         bind_key_start,
@@ -3566,6 +3568,49 @@ fn is_var_store_subscribed(name: &str, context: &ComponentContext) -> bool {
         .is_some_and(|b| {
             b.kind == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
         })
+}
+
+/// Upstream registers the each-block context's `assign` / `mutate` transforms as
+/// `b.sequence([mutation, ...sequence])`, so a write to the item is always a
+/// sequence — parenthesised even when `sequence` is empty — and carries
+/// `$.invalidate_store` when the collection is a store subscription. Legacy mode
+/// reaches the same rule through `build_each_block_getter_setter`.
+fn sequence_each_item_write(
+    body: Vec<JsStatement>,
+    raw_expression: &JsExpr,
+    context: &ComponentContext,
+) -> Vec<JsStatement> {
+    if !context.state.analysis.runes {
+        return body;
+    }
+    let Some(each) = context.state.each_binding_context.last() else {
+        return body;
+    };
+    let root = crate::compiler::phases::phase3_transform::client::visitors::bind_directive::get_expression_root_identifier(
+        raw_expression,
+        &context.arena,
+    );
+    let Some(root) = root else { return body };
+    let writes_item = each.item_name == root.as_str()
+        || each.destructured_update_paths.contains_key(root.as_str());
+    if !writes_item {
+        return body;
+    }
+
+    let mut body = body;
+    let Some(JsStatement::Expression(stmt)) = body.last_mut() else {
+        return body;
+    };
+    let mut expressions = vec![context.arena.get_expr(stmt.expression).clone()];
+    if let Some(store) = &each.store_to_invalidate {
+        expressions.push(b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.invalidate_store"),
+            vec![b::id("$$stores"), b::string(store.as_str())],
+        ));
+    }
+    stmt.expression = context.arena.alloc_expr(b::sequence(expressions));
+    body
 }
 
 #[cfg(test)]

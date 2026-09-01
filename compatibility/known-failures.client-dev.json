@@ -1,8 +1,5 @@
 [
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte",
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateProtocols.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/settings/updateServices.svelte",
 	"carbon-components-svelte/src/Notification/NotificationQueue.svelte",
 	"chatgpt-web/src/lib/ChatCompletionResponse.svelte",
 	"gitlight/src/lib/components/dashboard/notifications/NotificationLabels.svelte",
