@@ -175,7 +175,11 @@ pub fn handle_if_block(
 }
 
 fn rewrite_plain_else_tag(source: &str, alternate_start: u32, str: &mut MagicString<'_>) {
-    let else_close = source[..alternate_start as usize].rfind('}');
+    // `alternate_start` is a byte offset; keep the search off the `str` index
+    // so a multi-byte char at that offset cannot panic. `}` is ASCII.
+    let else_close = source.as_bytes()[..alternate_start as usize]
+        .iter()
+        .rposition(|&b| b == b'}');
     let colon = else_close.and_then(|end| source[..end].rfind(":else"));
     let else_open = colon.and_then(|word| source[..word].rfind('{'));
     if let (Some(else_open), Some(colon), Some(else_close)) = (else_open, colon, else_close) {

@@ -438,7 +438,15 @@ fn push_binding_ranges(out: &mut Vec<Range>, bind: &BindDirective, source: &str,
         }
         return;
     }
-    let equals = source_offset(source[..=expr_start as usize].rfind('=').unwrap_or(0));
+    // `expr_start` is a byte offset, so `source[..=expr_start]` cuts at
+    // `expr_start + 1` — inside the expression's first char when it is
+    // multi-byte. `=` is ASCII, so search the bytes instead.
+    let equals = source_offset(
+        source.as_bytes()[..=expr_start as usize]
+            .iter()
+            .rposition(|&b| b == b'=')
+            .unwrap_or(0),
+    );
     out.push((
         if preserve_bind {
             bind.start

@@ -802,8 +802,11 @@ pub(super) fn rewrite_interface_to_type_dts(
             // `extends` must exist).
             let extends_end = p;
             if extends_end >= 7 {
-                let prev_kw = &raw_content[extends_end - 7..extends_end];
-                if prev_kw == "extends" {
+                // A comment may sit between `extends` and the heritage entry, so
+                // `extends_end - 7` can land inside a multi-byte char. The keyword
+                // is ASCII, so compare bytes rather than slicing the `str`.
+                let prev_kw = &raw_content.as_bytes()[extends_end - 7..extends_end];
+                if prev_kw == b"extends" {
                     str.overwrite(
                         u32_index(extends_end - 7) + offset,
                         u32_index(extends_end) + offset,
