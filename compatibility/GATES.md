@@ -151,6 +151,44 @@ both worth knowing before it is merged, and neither visible in a diff.
 
 ---
 
+### A named blind-spot class: the environment failure wearing a verdict's name
+
+**A comparison step guarded so that it cannot be silently skipped will instead run without
+the environment it needs, and its failure is reported under the comparison's name.** The
+guard is right; what it did not say is that *setup* is also "an unguarded step after the
+failing one".
+
+`corpus-compat.yml` opens `shape-matrix` with a doc-count check, then checks out the Svelte
+submodule, installs, and builds the binding — all unguarded — and closes with two steps
+carrying `if: ${{ !cancelled() }}`, whose comment reads *"A failing step skips every unguarded
+step after it, and a skipped comparison reads exactly like a passing one. Run regardless."*
+On #4140 the doc-count check failed, every setup step was skipped, and the two comparisons ran
+anyway: `matrix/run.mjs` died on `Cannot find package 'acorn'` and the waterfall runtime gate
+on `official compiler missing`. What reached the branch header was
+**`Shape matrix parity (generated inputs): FAILURE`** — read by two people in succession as a
+divergence verdict, on a job where the matrix had never run at all. Fixing *a skipped
+comparison reads as a pass* had introduced *an environment failure reads as a divergence*:
+the same defect with the sign reversed.
+
+It is a class, not an instance. Counting, per job, the unguarded steps preceding the first
+`!cancelled()` step: `corpus` 13, `fmt-parity` 12, `shape-matrix` 11, `lsp-corpus` 10,
+`lsp-fixtures-current` 9, `lint-parity` 8, `lsp-benchmark` 9. Any of those failing — a doc
+check, or a `pnpm install` that hit a network blip — produces a red parity verdict whose cause
+is not parity.
+
+The defence is a precondition rather than the removal of the guard, because the guard's own
+reason still holds: a comparison runs on `!cancelled() && steps.<setup>.outcome == 'success'`,
+so it is skipped exactly when its environment is absent — and the job is already red from the
+real cause, so nothing is swallowed. `scripts/ci/step-environment-guard.mjs` enforces it, with
+`test-step-environment-guard.mjs` as the control set: the rule has to reject the #4140 shape
+**and** accept a sibling check guarded for the reason `!cancelled()` was written for, since a
+rule that requires a sibling check's outcome puts the original bug straight back.
+
+The generalisable question, asked of any `if:` on a CI step: **what else does this condition
+let through, and under whose name does that arrive?**
+
+---
+
 ### Reading the corpus in one sentence
 
 The collected corpus samples the *marginal* distribution of published Svelte code. That is

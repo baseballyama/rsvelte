@@ -69,6 +69,7 @@ jobs:
       # official measured 9.7 s. Raising it publishes the figure instead of losing
       # the run; the gap itself is tracked separately.
       - name: Run LSP benchmark
+        id: benchmark-run
         run: >-
           node scripts/bench-lsp/run.mjs
           --project submodules/bits-ui
@@ -80,7 +81,10 @@ jobs:
         timeout-minutes: 45
 
       - name: Validate LSP benchmark report
-        if: always()
+        # `always()` so a failing *validation* never hides behind a skip. It
+        # still needs the run to have produced a report: without the outcome
+        # test, a build failure is reported as "the report is invalid".
+        if: ${{ always() && steps.benchmark-run.outcome == 'success' }}
         run: |
           node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
