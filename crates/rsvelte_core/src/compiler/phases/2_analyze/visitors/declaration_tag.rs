@@ -57,7 +57,7 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
                 | FragmentOwnerType::EachBlock
                 | FragmentOwnerType::AwaitBlock
                 | FragmentOwnerType::KeyBlock
-                | FragmentOwnerType::SnippetBlock(_, _)
+                | FragmentOwnerType::SnippetBlock(_, _, _)
                 | FragmentOwnerType::SvelteFragment
                 | FragmentOwnerType::SvelteBoundary
                 | FragmentOwnerType::Component

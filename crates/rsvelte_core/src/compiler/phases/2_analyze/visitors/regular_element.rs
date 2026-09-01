@@ -744,7 +744,7 @@ pub fn visit<'a, 'b: 'a>(
             has_content: !element.fragment.nodes.is_empty(),
             has_opaque_content,
             is_dynamic_tag: false,
-            snippet_name: context.current_snippet_name(),
+            snippet_start: context.current_snippet_key(),
             sibling_walk_incomplete: false,
             prev_is_opaque_boundary: false,
             prev_has_opaque_boundary: false,

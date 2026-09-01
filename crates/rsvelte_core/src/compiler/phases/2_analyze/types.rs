@@ -2391,9 +2391,15 @@ pub struct DomStructure {
     /// All elements in the template, with their relationships
     pub elements: Vec<CssDomElement>,
     pub general_siblings_linked: bool,
-    /// `{@render name(...)}` call sites, keyed by snippet name. A snippet-declared
-    /// element's real DOM ancestors are the union of its sites' ancestors.
-    pub snippet_render_sites: FxHashMap<String, Vec<CssRenderSite>>,
+    /// Render sites, keyed by the start of the snippet's NAME expression. Upstream
+    /// keys `SnippetBlock.metadata.sites` on the block node itself, and two
+    /// snippets in different scopes may share a name.
+    pub snippet_render_sites: FxHashMap<u32, Vec<CssRenderSite>>,
+    /// Sites of renderers that resolve to no specific declaration. Upstream's
+    /// `if (!resolved) node.metadata.snippets = analysis.snippets` makes such a
+    /// site one of EVERY snippet here — stronger than "unknown", so it must not
+    /// be modelled as one.
+    pub unresolved_render_sites: Vec<CssRenderSite>,
 }
 
 /// A `{@render}` call site: where the snippet body is spliced into the DOM.
@@ -2401,8 +2407,8 @@ pub struct DomStructure {
 pub struct CssRenderSite {
     /// Enclosing element index, `None` at the fragment root.
     pub parent_idx: Option<usize>,
-    /// Innermost `{#snippet}` the call site itself sits in, if any.
-    pub snippet_name: Option<String>,
+    /// Innermost `{#snippet}` the call site itself sits in, keyed as above.
+    pub snippet_start: Option<u32>,
 }
 
 /// Certainty level of sibling relationships.
@@ -2469,9 +2475,9 @@ pub struct CssDomElement {
     /// Whether this element has a dynamic tag name (svelte:element)
     /// When true, any type selector matches this element
     pub is_dynamic_tag: bool,
-    /// Innermost enclosing `{#snippet}` name — its real DOM ancestors are that
-    /// snippet's render sites, not its lexical `parent_idx`.
-    pub snippet_name: Option<String>,
+    /// Innermost enclosing `{#snippet}`, keyed by its name expression's start —
+    /// its real DOM ancestors are that snippet's render sites, not `parent_idx`.
+    pub snippet_start: Option<u32>,
     /// Set when the sibling walk stopped at something it could not enumerate, so
     /// the four lists above are a subset of the real siblings rather than all of
     /// them. A `{#if}` / `{#each}` / `{#await}` / `{#key}` branch does not set it:

@@ -11,6 +11,7 @@ use super::super::super::errors;
 use super::super::VisitorContext;
 use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
+use super::snippets::is_resolved_snippet;
 use super::utils::{
     validate_assignment_node, validate_attribute_name as validate_attribute_name_colon,
 };
@@ -61,17 +62,11 @@ pub fn visit_component<'a, 'b: 'a>(
         }
     }
 
-    // Determine which snippets this component might render. `resolved` is
-    // true when we can list those candidates exactly; if false, the official
-    // compiler treats every locally-defined snippet as a possible render
-    // target, so Phase 3 must not rely on the set being a precise list.
-    //
-    // We currently only resolve the easy cases — an expression attribute
-    // whose value is a literal can never reference a snippet, so it doesn't
-    // taint resolution. Identifier / member / call expressions, spreads,
-    // and bind directives all leave us with no static knowledge of which
-    // snippet the component will receive, so they fall back to "unresolved".
+    // Determine which snippets this component might render. `resolved` is true when
+    // we can list those candidates exactly; if false, upstream treats every snippet
+    // in the component as a possible target, so Phase 3 must not rely on the set.
     let mut resolved = true;
+    let mut attr_snippet_keys: Vec<u32> = Vec::new();
     for attr in &component.attributes {
         match attr {
             Attribute::SpreadAttribute(_) | Attribute::BindDirective(_) => {
@@ -79,10 +74,31 @@ pub fn visit_component<'a, 'b: 'a>(
             }
             Attribute::Attribute(a) => {
                 if let crate::ast::template::AttributeValue::Expression(expr_tag) = &a.value {
-                    let expr_type = expr_tag.expression.node_type().unwrap_or("");
-                    if expr_type != "Literal" {
-                        // Identifier / member / call etc. — could reference a
-                        // snippet binding we can't statically resolve here.
+                    // An identifier is resolvable: it either names a snippet here, or
+                    // comes from outside the component and so names none of ours.
+                    // Anything else that is not a literal leaves us with no static
+                    // knowledge of which snippet the component will receive.
+                    if let Some(name) = expr_tag.expression.identifier_name() {
+                        let binding_idx = context
+                            .analysis
+                            .root
+                            .get_binding(name, context.scope)
+                            .filter(|&i| {
+                                let declared = context.analysis.root.bindings[i].scope_index;
+                                context
+                                    .analysis
+                                    .root
+                                    .is_scope_ancestor_of(declared, context.scope)
+                            });
+                        let binding = binding_idx.map(|i| &context.analysis.root.bindings[i]);
+                        resolved &= is_resolved_snippet(binding);
+                        if let Some(b) = binding
+                            && b.initial_node_type.as_deref() == Some("SnippetBlock")
+                            && let Some(start) = b.declaration_start
+                        {
+                            attr_snippet_keys.push(start);
+                        }
+                    } else if expr_tag.expression.node_type().unwrap_or("") != "Literal" {
                         resolved = false;
                     }
                 }
@@ -112,6 +128,31 @@ pub fn visit_component<'a, 'b: 'a>(
         .analysis
         .snippet_renderers
         .insert(format!("Component@{}", component.start), resolved);
+
+    // Upstream `2-analyze/index.js:847`: an UNRESOLVED renderer is a site of every
+    // snippet in the component, which is stronger than "unknown". A resolved one is
+    // a site of the snippets its attributes name (its own children are registered by
+    // the SnippetBlock visitor, which `<svelte:self>` reaches and this does not).
+    let site = crate::compiler::phases::phase2_analyze::types::CssRenderSite {
+        parent_idx: context.current_parent_idx(),
+        snippet_start: context.current_snippet_key(),
+    };
+    if resolved {
+        let dom = &mut context.analysis.css.dom_structure;
+        for key in attr_snippet_keys {
+            dom.snippet_render_sites
+                .entry(key)
+                .or_default()
+                .push(site.clone());
+        }
+    } else {
+        context
+            .analysis
+            .css
+            .dom_structure
+            .unresolved_render_sites
+            .push(site);
+    }
 
     // Mark the subtree as dynamic
     super::super::shared::fragment::mark_subtree_dynamic(&context.path);

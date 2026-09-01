@@ -29,26 +29,32 @@ pub fn visit<'a, 'b: 'a>(
     validate_snippet(block, context)?;
 
     // A snippet declared directly inside a component is rendered by that
-    // component, so the component's position is one of its render sites.
+    // component, so the component's position is one of its render sites. This
+    // holds whether or not the component resolved: upstream's unresolved branch
+    // replaces `metadata.snippets` with EVERY snippet, which still contains this
+    // one. `<svelte:self>` / `<svelte:component>` never reach `visit_component`,
+    // so this is also the only site registration they get.
+    // `visit_node` pushes the node before dispatching, so `path.last()` is this
+    // SnippetBlock; the enclosing node is one further back.
     if matches!(
-        context.path.last(),
+        context.path.iter().rev().nth(1),
         Some(
             TemplateNode::Component(_)
                 | TemplateNode::SvelteComponent(_)
                 | TemplateNode::SvelteSelf(_)
         )
-    ) && let Some(name) = super::shared::snippets::get_snippet_name(block)
+    ) && let Some(key) = block.expression.start()
     {
         let site = super::super::types::CssRenderSite {
             parent_idx: context.current_parent_idx(),
-            snippet_name: context.current_snippet_name(),
+            snippet_start: context.current_snippet_key(),
         };
         context
             .analysis
             .css
             .dom_structure
             .snippet_render_sites
-            .entry(name)
+            .entry(key)
             .or_default()
             .push(site);
     }
@@ -87,8 +93,12 @@ pub fn visit<'a, 'b: 'a>(
     context
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SnippetBlock(
+            // Pushed BEFORE `context.scope` is switched to the body scope below,
+            // so this is the DECLARING scope. Moving the push after the switch
+            // silently changes what every consumer of this variant resolves.
             context.scope,
             snippet_name,
+            block.expression.start().unwrap_or(block.start),
         ));
 
     // Reset parent_element to None for snippet body analysis

@@ -3553,52 +3553,48 @@ fn structural_ancestry_is_lexical(ctx: &CssContext) -> bool {
 /// outside the element's `{#snippet}` body, in which case the union of the
 /// parents of every `{@render}` site of that snippet (upstream
 /// `get_ancestor_elements` breaking the path walk at a `SnippetBlock`).
-/// `None` when a snippet's render sites are unknown, in which case callers must
-/// stay conservative rather than treat the ancestor set as empty.
+/// A snippet nothing renders has an empty set; a renderer that resolved to nothing
+/// is a site of every snippet. Neither is modelled as "unknown".
 fn effective_parents(ctx: &CssContext, el_idx: usize) -> Option<Vec<usize>> {
     let el = &ctx.dom_structure.elements[el_idx];
     let mut out = Vec::new();
-    let mut seen: FxHashSet<&str> = FxHashSet::default();
-    expand_effective_parents(
-        ctx,
-        el.parent_idx,
-        el.snippet_name.as_deref(),
-        &mut seen,
-        &mut out,
-    )?;
+    let mut seen: FxHashSet<u32> = FxHashSet::default();
+    expand_effective_parents(ctx, el.parent_idx, el.snippet_start, &mut seen, &mut out)?;
     out.sort_unstable();
     out.dedup();
     Some(out)
 }
 
-fn expand_effective_parents<'a>(
-    ctx: &'a CssContext,
+fn expand_effective_parents(
+    ctx: &CssContext,
     parent_idx: Option<usize>,
-    snippet: Option<&'a str>,
-    seen: &mut FxHashSet<&'a str>,
+    snippet: Option<u32>,
+    seen: &mut FxHashSet<u32>,
     out: &mut Vec<usize>,
 ) -> Option<()> {
     if let Some(p) = parent_idx
-        && ctx.dom_structure.elements[p].snippet_name.as_deref() == snippet
+        && ctx.dom_structure.elements[p].snippet_start == snippet
     {
         out.push(p);
         return Some(());
     }
     // The lexical walk left the snippet body (or hit the root): continue from
     // wherever the snippet is rendered.
-    let Some(name) = snippet else { return Some(()) };
-    if !seen.insert(name) {
+    let Some(key) = snippet else { return Some(()) };
+    if !seen.insert(key) {
         return Some(());
     }
-    let sites = ctx.dom_structure.snippet_render_sites.get(name)?;
-    for site in sites {
-        expand_effective_parents(
-            ctx,
-            site.parent_idx,
-            site.snippet_name.as_deref(),
-            seen,
-            out,
-        )?;
+    // Upstream reads `SnippetBlock.metadata.sites`, so a snippet nothing renders
+    // contributes no ancestors — an empty set is knowledge. A renderer that
+    // resolved to nothing is a site of every snippet, which is also knowledge and
+    // the other end of the same axis; neither is "unknown".
+    if let Some(sites) = ctx.dom_structure.snippet_render_sites.get(&key) {
+        for site in sites {
+            expand_effective_parents(ctx, site.parent_idx, site.snippet_start, seen, out)?;
+        }
+    }
+    for site in &ctx.dom_structure.unresolved_render_sites {
+        expand_effective_parents(ctx, site.parent_idx, site.snippet_start, seen, out)?;
     }
     Some(())
 }

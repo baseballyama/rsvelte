@@ -568,8 +568,9 @@ pub enum FragmentOwnerType {
     AwaitBlock,
     /// Inside a KeyBlock
     KeyBlock,
-    /// Inside a SnippetBlock (scope index, snippet name)
-    SnippetBlock(usize, String),
+    /// Inside a SnippetBlock (declaring scope index, snippet name, and the start
+    /// of its name expression — the identity upstream keys `metadata.sites` on).
+    SnippetBlock(usize, String, u32),
     /// Inside a SvelteFragment
     SvelteFragment,
     /// Inside a SvelteBoundary
@@ -664,13 +665,15 @@ impl<'a> VisitorContext<'a> {
         self.dom_element_stack.last().copied()
     }
 
-    /// Name of the innermost enclosing `{#snippet}`, if any.
-    pub fn current_snippet_name(&self) -> Option<String> {
+    /// The innermost enclosing `{#snippet}`, keyed by its name expression's
+    /// start. Upstream keys `metadata.sites` on the block node, so a name is not
+    /// an identity: two scopes may declare the same one.
+    pub fn current_snippet_key(&self) -> Option<u32> {
         self.fragment_owner_stack
             .iter()
             .rev()
             .find_map(|o| match o {
-                FragmentOwnerType::SnippetBlock(_, name) => Some(name.clone()),
+                FragmentOwnerType::SnippetBlock(_, _, key) => Some(*key),
                 _ => None,
             })
     }

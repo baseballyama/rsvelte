@@ -6,6 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
+use super::shared::snippets::is_resolved_snippet;
 use super::shared::utils::validate_opening_tag;
 use crate::ast::template::{ExpressionMetadata, RenderTag, TemplateNode};
 use crate::ast::typed_expr::JsNode;
@@ -85,20 +86,7 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     // In JavaScript: binding?.kind !== 'normal' - when binding is null, this returns true
     tag.metadata.dynamic = binding.is_none_or(|b| b.kind != BindingKind::Normal);
 
-    // Determine if we can unambiguously resolve this to a specific snippet declaration
-    // It's resolved if:
-    // - No binding (external/import)
-    // - Binding is an import
-    // - Binding is a prop/rest_prop/bindable_prop
-    // - Binding's initial value is a SnippetBlock
-    let _resolved = is_resolved_snippet(binding);
-
-    // If the callee is an identifier that unambiguously references a local snippet, track it
-    if let Some(_binding) = binding {
-        // Check if the binding's initial node is a SnippetBlock
-        // For now, we'll track snippet indices separately
-        // TODO: Link to actual snippet blocks when we have a proper index mapping
-    }
+    let resolved = callee_name.is_some() && is_resolved_snippet(binding);
 
     // Track this render tag in the analysis (for Phase 3)
     // In JavaScript: context.state.analysis.snippet_renderers.set(node, resolved);
@@ -110,19 +98,26 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     // content, so mark this as an opaque boundary for sibling detection.
     context.analysis.css.has_opaque_elements = true;
 
-    if let Some(name) = callee_name {
-        let site = crate::compiler::phases::phase2_analyze::types::CssRenderSite {
-            parent_idx: context.current_parent_idx(),
-            snippet_name: context.current_snippet_name(),
-        };
-        context
-            .analysis
-            .css
-            .dom_structure
-            .snippet_render_sites
-            .entry(name.to_string())
-            .or_default()
-            .push(site);
+    // Upstream adds this site to `binding.initial`'s sites when the callee
+    // resolves to a local snippet, to EVERY snippet when it resolves to nothing,
+    // and to none at all when it resolves outside the component (a prop or an
+    // import) — `2-analyze/index.js:847`.
+    let site = crate::compiler::phases::phase2_analyze::types::CssRenderSite {
+        parent_idx: context.current_parent_idx(),
+        snippet_start: context.current_snippet_key(),
+    };
+    let snippet_key = binding.and_then(|b| {
+        if b.initial_node_type.as_deref() == Some("SnippetBlock") {
+            b.declaration_start
+        } else {
+            None
+        }
+    });
+    let dom = &mut context.analysis.css.dom_structure;
+    if let Some(key) = snippet_key {
+        dom.snippet_render_sites.entry(key).or_default().push(site);
+    } else if !resolved {
+        dom.unresolved_render_sites.push(site);
     }
 
     // Validate arguments - no spread elements allowed
@@ -159,28 +154,6 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
 
     Ok(())
 }
-/// Check if a binding unambiguously resolves to a specific snippet declaration,
-/// or is external to the current component.
-///
-/// Corresponds to `is_resolved_snippet` in Svelte's visitors/shared/snippets.js.
-fn is_resolved_snippet(binding: Option<&crate::compiler::phases::phase2_analyze::Binding>) -> bool {
-    if binding.is_none() {
-        return true; // No binding = external/global
-    }
-
-    let binding = binding.unwrap();
-
-    // It's resolved if it's an import, prop, bindable prop, or directly bound
-    // to a `{#snippet ...}` block in the same component.
-    matches!(
-        binding.declaration_kind,
-        crate::compiler::phases::phase2_analyze::DeclarationKind::Import
-    ) || matches!(
-        binding.kind,
-        BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-    ) || binding.initial_node_type.as_deref() == Some("SnippetBlock")
-}
-
 /// Get a string representation of a template node type.
 fn node_type_string(node: &TemplateNode) -> String {
     match node {

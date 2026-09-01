@@ -628,7 +628,7 @@ fn check_const_tag_snippet_reference(
 
     for i in (0..stack.len()).rev() {
         match &stack[i] {
-            super::FragmentOwnerType::SnippetBlock(scope, sname) => {
+            super::FragmentOwnerType::SnippetBlock(scope, sname, _) => {
                 found_snippet = true;
                 snippet_scope = Some(*scope);
                 snippet_name = Some(sname.clone());
