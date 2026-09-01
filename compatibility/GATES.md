@@ -5410,6 +5410,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [20](#20-what-does-a--reactive-statement-assign--d-closed) | What does a `$:` reactive statement assign? | 2 | **[D]** | closed |
 | [21](#21-does-this-write-target-resolve-to-the-components-binding-or-to-a-shadow--d) | Does this write target resolve to the component's binding, or to a shadow? | 44 rewrite passes, 8 scope-aware | **[D]** | 4 ports closed at degree 1 |
 | [28](#28-how-is-an-elements-attribute-list-rendered--d) | How is an element's attribute list rendered? | 2 emitters (+2 copies of `action_arguments`) | **[D]** | 1 defect open |
+| [29](#29-is-a-name-inside-a-named-slots-body-reactive--d) | Is a name inside a named slot's body reactive? | 2 (phase 2 scope fork, phase 3 name lookup) | **[D]** | open |
 
 **Rows 22–27 have bodies below and no line in this table** — measured 2026-09-02 by
 enumerating the `#### <n>.` headings against the table's own `[n]` links. The index is the
@@ -6959,6 +6960,50 @@ folded into `attributes/directive_suffix.rs:102`; `special_element.rs:396` still
 the comparable surface is their *text*. The template is § *The one place this is already
 defended* — feed one attribute list to both and pin the expected string independently, so a pair
 that is wrong in the same way cannot pass.
+
+#### 29. Is a name inside a named slot's body reactive? — [D]
+
+**Upstream:** one `Component` visitor in `phases/scope.js`, which builds a named slot's body scope
+as `node.metadata.scopes[slot_name] = context.state.scope.child()` — a child of the **component's
+own** scope, not of the `let:` scope. A `let:` name is therefore *global* inside a `slot="…"`
+child, and the reactivity question about it is answered the same way as for any other free name.
+
+**Ports.** rsvelte forks the scope the same way in phase 2
+(`2_analyze/scope_builder.rs::visit_component_children:2925`), and then answers the reactivity
+question again in phase 3: `expression_has_reactive_state`
+(`3_transform/client/visitors/shared/utils.rs:4685`) → `identifier_has_reactive_state` (`:4814`),
+whose positional narrowing `by_position` (`:4861-4868`) **filters `BindingKind::Let` out** and
+whose surviving lookups are keyed by name (`context.state.transform.get(name)`, `:4883`). The
+phase-2 answer is correct and the phase-3 lookup does not consult it.
+
+**The exclusion carries a comment stating its reason** — "`let:` bindings are excluded: their
+reactivity is decided by whether the directive's transform is installed … not by the binding
+itself" — which is the shape this file warns about above: a comment asserting fidelity reads as a
+citation. It is right about the `let:` directive's own scope and says nothing about a named slot's
+body, where upstream has re-parented the scope out from under the directive.
+
+**[D]** — named input:
+
+```svelte
+<M let:options={db}>
+  <span slot="title">{db.name}</span>
+</M>
+```
+
+official emits `span.textContent = db.name;`, rsvelte
+`$.template_effect(() => $.set_text(text, db.name));`. Measured on a 9-case × 4-target grid:
+**`EQ 32 | DIFF 4`** — `named-slot/text` and `named-slot/attr` on `client` and `client-dev` only.
+**All four `server` cells are EQ**, which locates the defect in the client lowering rather than in
+the shared analysis.
+
+**One hypothesis is falsified, and it is recorded because it is the cheap wrong answer.** Routing
+`is_pure_node`'s `find_binding_any_scope` through `get_binding` does **not** move this grid: the
+two arms differ by binary hash and the grid stays `EQ 32 | DIFF 4`. What that change does to
+*other* inputs is a 4-target 139,252-unit sweep that has not returned — **unmeasured**, and it must
+not be written up as a no-op on the strength of this grid.
+
+**Unmeasured:** the blast radius of making the `let:` transform scope-aware. Two corpus entries
+reproduce this, so nobody has priced the fix.
 
 ## AST equivalence — what the gates compare
 
