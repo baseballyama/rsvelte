@@ -4991,7 +4991,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **304 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **301 entries**.
 
 ### The question it asks
 
@@ -5061,7 +5061,7 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 9 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
@@ -5073,18 +5073,18 @@ Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 14 | 9 | an array of children with a different length. |
-| `loc-presence` | 9 | 5 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
+| `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 304 keys are **165 distinct bases**: 139 appear on both axes and 26 on one
-(139x2 + 26 = 304, a 1.84x collapse). The defect ceiling is 165. The per-cluster collapse is not
+`legacy`, so 301 keys are **163 distinct bases**: 138 appear on both axes and 25 on one
+(138x2 + 25 = 301, a 1.85x collapse). The defect ceiling is 163. The per-cluster collapse is not
 uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on both axes),
 `css-shape` and `child-count` 1.56x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
-**No base's two axes sit in different clusters** (0 of 139), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 138), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
