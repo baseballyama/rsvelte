@@ -678,7 +678,7 @@ a necessary condition, never as parity.
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
 The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the corpus entries
-stop being the test set and become a **seed set** (33,406 eligible after the wave-2 enrolment).
+stop being the test set and become a **seed set** (34,721 eligible on the 2026-09-01 sweep).
 One semantics-preserving comment is inserted at a line boundary inside a `<script>` region and
 parity is required on the mutant. PRs get a deterministic sample; main gets the full sweep
 (which is what the two-sided ratchet needs). It found **#2351** (a comment containing `}`/`)`/`;`
@@ -688,21 +688,34 @@ parses, attributes silently vanish) in its first run.
 
 **Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
 survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
-otherwise. The full sweep yields **160** of the former and 41,802 of the latter; ratcheting per
-id without that split would be a 40,000-entry file that churns on every submodule bump. Comment
+otherwise. The full sweep yields **0** of the former and 15,351 of the latter; ratcheting per
+id without that split would be a five-figure file that churns on every submodule bump. Comment
 fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
-submodule bumps.
+submodule bumps. **The ratchet is empty as of 2026-09-01**, so 0 is now the bar — and the
+15,351 is why that zero must not be read as "the operator finds nothing": it finds them, and
+this gate scores none of them.
 
 **Two things this gate taught, and both were taught by adding inputs rather than by a fix.**
 The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66×
-(post-burndown), **0.92×** (enrolled corpus) and **1.13×** (the same corpus after a rebase onto
-`main`, with no change to this gate): it tracks the normalizer and the current residue, not the
-mechanism's importance, so do not cite it as a constant — and it has now crossed 1.0 in both
-directions without the mechanism moving, with `svelte-ignore`
-(no delimiter at all) accounting for two of the four units whose output does not parse. And
-**#2347's shape came back**: `cnblocks/src/lib/svgs/vercel` drops the `$.rest_props`
+(post-burndown), **0.92×** (enrolled corpus), **1.13×** (the same corpus after a rebase onto
+`main`, with no change to this gate), **1.22×**, and now **undefined** (0 findings for both
+groups): it tracks the normalizer and the current residue, not the mechanism's importance, so do
+not cite it as a constant — it crossed 1.0 in both directions without the mechanism moving, with
+`svelte-ignore` (no delimiter at all) accounting for two of the four units whose output did not
+parse. Recompute it if the bucket goes non-zero; do not carry a value forward. And
+**#2347's shape came back**: `cnblocks/src/lib/svgs/vercel` dropped the `$.rest_props`
 initializer under a mutant, on a seed the corpus did not hold when #2347 was fixed. A closed
 defect class reappearing on new seeds is evidence about coverage, not about the fix.
+
+**The last three findings it held were all one shape, and one of them no other gate can see.**
+A destructure's right-hand side ending inside a following comment, an object shorthand hidden by
+a comment between two entries — and a removed `$effect`, which upstream replaces with `b.empty`.
+esrap filters an `EmptyStatement` **only** inside its `body` helper (`Program`,
+`BlockStatement`, `ClassBody`, `StaticBlock`, `TSModuleBlock`), so a switch case consequent and
+every unbraced `if`/`else`/`while`/`do`/`for`/label body print the `;`. rsvelte deleted the
+statement in every slot, in **both** ports of that rule (the `compileModule` text rewrite and the
+component `visit_statements`), and the corpus output gate is blind to it because oxfmt drops a
+lone empty statement from both sides. It reached the ratchet as a mutant of exactly one seed.
 
 **This gate's population is the complement of another gate's ratchet**, which is worth knowing
 before reading a `NEW` here as a regression: `eligible` is `manifest ∖ (union of the four output
