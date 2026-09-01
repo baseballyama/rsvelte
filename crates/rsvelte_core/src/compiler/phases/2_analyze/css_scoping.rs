@@ -475,10 +475,53 @@ fn mark_global_block_tail(sel: &mut CssComplexSelector) {
     }
 }
 
+/// Upstream's `NestingSelector` case tests the IMMEDIATE parent rule's prelude
+/// and short-circuits on `complex_selector.children.every(is_global)`, so a `&`
+/// under a fully-global parent matches every element without the parent chain
+/// ever being tested. The flattened representation here has no parent rule to
+/// consult, so the answer is computed where the parent is still known.
+fn prelude_has_fully_global_selector(selectors: &[CssComplexSelector]) -> bool {
+    selectors
+        .iter()
+        .any(|cs| !cs.children.is_empty() && cs.children.iter().all(is_relative_selector_global))
+}
+
+/// Whether the SUBJECT (last) relative selector carries a `&`.
+fn subject_has_nesting(sel: &CssComplexSelector) -> bool {
+    sel.children
+        .last()
+        .is_some_and(|rel| rel.selectors.iter().any(simple_has_nesting))
+}
+
+/// `child` with every `&` dropped and a no-op nesting marker kept, so it matches
+/// any element and carries no ancestor requirement.
+fn nesting_matches_anything(child: &CssComplexSelector) -> CssComplexSelector {
+    let mut children = Vec::with_capacity(child.children.len());
+    for rel in &child.children {
+        let mut r = rel.clone();
+        if r.selectors.iter().any(simple_has_nesting) {
+            r.selectors
+                .retain(|s| !matches!(s, CssSimpleSelector::Nesting));
+            r.selectors.push(CssSimpleSelector::Nesting);
+        }
+        children.push(r);
+    }
+    CssComplexSelector { children }
+}
+
 fn extract_selectors_from_css_node(
     node: &serde_json::Value,
     selectors: &mut Vec<CssComplexSelector>,
     parent_selectors: &[CssComplexSelector],
+) {
+    extract_selectors_from_rule(node, selectors, parent_selectors, false);
+}
+
+fn extract_selectors_from_rule(
+    node: &serde_json::Value,
+    selectors: &mut Vec<CssComplexSelector>,
+    parent_selectors: &[CssComplexSelector],
+    parent_is_fully_global: bool,
 ) {
     let node_type = match node.get("type").and_then(|t| t.as_str()) {
         Some(t) => t,
@@ -516,12 +559,22 @@ fn extract_selectors_from_css_node(
             } else {
                 let mut out: Vec<CssComplexSelector> = Vec::new();
                 for own in &own_selectors {
+                    // Only the SUBJECT `&` needs this. A `&` in an earlier
+                    // relative selector is already answered by the ordinary
+                    // substitution plus ancestor matching, and rewriting it
+                    // loses the ancestor the child rule wrote itself
+                    // (`:global(.holder) { & svg { … } }`).
+                    if parent_is_fully_global && subject_has_nesting(own) {
+                        out.push(nesting_matches_anything(own));
+                        continue;
+                    }
                     for parent in parent_selectors {
                         out.push(substitute_nesting(own, parent));
                     }
                 }
                 out
             };
+            let own_is_fully_global = prelude_has_fully_global_selector(&own_selectors);
 
             for sel in effective.iter().cloned() {
                 selectors.push(sel);
@@ -533,7 +586,7 @@ fn extract_selectors_from_css_node(
                 && let Some(children) = block.get("children").and_then(|c| c.as_array())
             {
                 for child in children {
-                    extract_selectors_from_css_node(child, selectors, &effective);
+                    extract_selectors_from_rule(child, selectors, &effective, own_is_fully_global);
                 }
             }
         }
@@ -547,7 +600,12 @@ fn extract_selectors_from_css_node(
                 && let Some(children) = block.get("children").and_then(|c| c.as_array())
             {
                 for child in children {
-                    extract_selectors_from_css_node(child, selectors, parent_selectors);
+                    extract_selectors_from_rule(
+                        child,
+                        selectors,
+                        parent_selectors,
+                        parent_is_fully_global,
+                    );
                 }
             }
         }

@@ -1,16 +1,9 @@
 [
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"flare/src/lib/views/grid.svelte.ts",
-	"huly/plugins/gmail-resources/src/components/NewMessage.svelte",
-	"huly/plugins/gmail-resources/src/components/NewMessages.svelte",
-	"huly/plugins/text-editor-resources/src/components/CollaborativeTextEditor.svelte",
-	"huly/plugins/text-editor-resources/src/components/StyledTextBox.svelte",
 	"immich/web/src/lib/components/shared-components/map/Map.svelte",
 	"kampsy-ui/src/lib/tabs/tabs.svelte",
 	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
-	"networking-toolbox/src/lib/components/tools/CIDRSplitter.svelte",
-	"networking-toolbox/src/lib/components/tools/IPv6NotationConverter.svelte",
-	"networking-toolbox/src/lib/components/tools/IPv6SubnetCalculator.svelte",
 	"pattern/issues/dollar-function-parameter.svelte",
 	"svelte-commerce/src/lib/theme/sections/tile-grid.svelte",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
@@ -20,6 +13,5 @@
 	"trakt-web/projects/client/src/lib/components/icons/ShowIcon.svelte",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/TopNavbar.svelte",
-	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte",
-	"trakt-web/projects/client/src/lib/sections/summary/components/rating/_internal/RatingsDistribution.svelte"
+	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte"
 ]
