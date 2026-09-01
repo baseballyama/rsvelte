@@ -4871,6 +4871,22 @@ fn compound_op_to_binary(op: AssignmentOperator) -> &'static str {
     }
 }
 
+/// Whether a string / template literal opening `text` is closed by its LAST
+/// byte, i.e. the whole text is that one literal.
+fn ends_own_quote(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let quote = bytes[0];
+    let mut i = 1;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => i += 2,
+            b if b == quote => return i == bytes.len() - 1,
+            _ => i += 1,
+        }
+    }
+    false
+}
+
 /// Check if the RHS expression of a compound assignment needs parentheses
 /// for correct precedence when expanded. Simple expressions (identifiers,
 /// literals, function calls, member expressions) don't need them.
@@ -4893,11 +4909,10 @@ fn needs_compound_parens(expr: &str, _op: &str) -> bool {
         return false;
     }
 
-    // String literals
-    if (trimmed.starts_with('"') && trimmed.ends_with('"'))
-        || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('`') && trimmed.ends_with('`'))
-    {
+    // A string literal — but only when the closing quote is the one that opens
+    // it. `'a' + x + 'b'` also starts and ends with a quote, and returning here
+    // dropped the parens the expansion needs.
+    if matches!(trimmed.as_bytes().first(), Some(b'"' | b'\'' | b'`')) && ends_own_quote(trimmed) {
         return false;
     }
 
