@@ -10,6 +10,26 @@ use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
+/// The source range of `{:then VALUE}`'s binding, when it lies inside the
+/// `[lo, hi)` region the caller is about to overwrite.
+///
+/// A binding outside that region cannot be preserved by splitting the
+/// overwrite, so the caller keeps the interpolated spelling — the text is the
+/// same either way, only the map differs.
+fn value_range(block: &AwaitBlock, lo: u32, hi: u32) -> Option<(u32, u32)> {
+    range_within(block.value.as_ref()?, lo, hi)
+}
+
+/// The same for `{:catch ERROR}`.
+fn error_range(block: &AwaitBlock, lo: u32, hi: u32) -> Option<(u32, u32)> {
+    range_within(block.error.as_ref()?, lo, hi)
+}
+
+fn range_within(expr: &crate::ast::js::Expression, lo: u32, hi: u32) -> Option<(u32, u32)> {
+    let (start, end) = get_expression_range(expr)?;
+    (lo <= start && start < end && end <= hi).then_some((start, end))
+}
+
 /// Handle an await block: `{#await promise}...{:then value}...{:catch error}...{/await}`.
 ///
 /// Generates patterns like:
@@ -118,15 +138,28 @@ pub fn handle_await_block(
                         (false, true) => "await (",
                     },
                 );
+                // The `{:then VALUE}` binding sits in the gap this branch blanks,
+                // and the moved expression chunk is inserted just before that gap,
+                // so splitting the blank around VALUE keeps it a real source chunk
+                // (upstream's `[value.start, end]` range) without moving any text.
+                let then_value = if prev_end < then_start {
+                    value_range(block, prev_end, then_start)
+                } else {
+                    None
+                };
                 if value_text.is_empty() {
                     str.append_left(expr_end, ");");
+                } else if let Some((vs, ve)) = then_value {
+                    str.append_left(expr_end, ");{ const ");
+                    str.overwrite(prev_end, vs, "");
+                    str.overwrite(ve, then_start, " = $$_value; ");
                 } else {
                     str.append_left_fmt(
                         expr_end,
                         format_args!(");{{ const {value_text} = $$_value; "),
                     );
                 }
-                if prev_end < then_start {
+                if then_value.is_none() && prev_end < then_start {
                     str.overwrite(prev_end, then_start, "");
                 }
                 hoist_snippet_blocks(pending, source, str);
@@ -182,6 +215,13 @@ pub fn handle_await_block(
                         catch_start,
                         format_args!("{close_before_catch} catch($$_e) {{ "),
                     );
+                } else if let Some((es, ee)) = error_range(block, then_end, catch_start) {
+                    str.overwrite_fmt(
+                        then_end,
+                        es,
+                        format_args!("{close_before_catch} catch($$_e) {{ const "),
+                    );
+                    str.overwrite(ee, catch_start, " = __sveltets_2_any();");
                 } else {
                     str.overwrite_fmt(
                         then_end,
@@ -316,7 +356,19 @@ pub fn handle_await_block(
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
             str.overwrite(block.start, expr_start, &header_prefix);
             if expr_end < then_start {
-                str.overwrite(expr_end, then_start, &header_suffix);
+                // Upstream pushes `[value.start, end]` as a source RANGE, so the
+                // binding identifier keeps its own map segment; interpolating its
+                // text into the overwrite leaves a diagnostic on it with no
+                // position to map back to (it lands zero-width at the chunk start).
+                match value_range(block, expr_end, then_start) {
+                    Some((vs, ve)) => {
+                        str.overwrite(expr_end, vs, ");{ const ");
+                        str.overwrite(ve, then_start, " = $$_value; ");
+                    }
+                    None => {
+                        str.overwrite(expr_end, then_start, &header_suffix);
+                    }
+                }
             } else {
                 str.append_left(expr_end, &header_suffix);
             }
@@ -354,6 +406,13 @@ pub fn handle_await_block(
                     catch_start,
                     format_args!("{value_close}}} catch($$_e) {{ "),
                 );
+            } else if let Some((es, ee)) = error_range(block, then_end, catch_start) {
+                str.overwrite_fmt(
+                    then_end,
+                    es,
+                    format_args!("{value_close}}} catch($$_e) {{ const "),
+                );
+                str.overwrite(ee, catch_start, " = __sveltets_2_any();");
             } else {
                 str.overwrite_fmt(
                     then_end,
@@ -407,7 +466,15 @@ pub fn handle_await_block(
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
             str.overwrite(block.start, expr_start, &header_prefix);
             if expr_end < catch_start {
-                str.overwrite(expr_end, catch_start, &header_suffix);
+                match error_range(block, expr_end, catch_start) {
+                    Some((es, ee)) => {
+                        str.overwrite(expr_end, es, ");} catch($$_e) { const ");
+                        str.overwrite(ee, catch_start, " = __sveltets_2_any();");
+                    }
+                    None => {
+                        str.overwrite(expr_end, catch_start, &header_suffix);
+                    }
+                }
             } else {
                 str.append_left(expr_end, &header_suffix);
             }

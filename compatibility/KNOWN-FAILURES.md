@@ -4085,19 +4085,19 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23750 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23746 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
-Partition of `lsp-known-failures.json` by key kind: `21630 + 1778 + 342` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21630 + 1776 + 340` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11880 + 11870`
+Partition of `lsp-known-failures.json` by request phase: `11878 + 11868`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -4202,6 +4202,34 @@ merge requires their sums to equal that manifest. It counts the **input** univer
 identifiers, and identifiers × 3 methods — not the compared request count, which is twice that
 because every unit is requested in both phases; `report.json`'s `compared` is what carries the
 latter.
+
+### Measured causes
+
+The entries have never been partitioned by cause, and the two facts that partition
+matters most are these. First, **the `aggregate:corpus/` half is not 21,630 defects**: it is
+3,632 distinct files × 3 methods × 2 phases, i.e. essentially *every* corpus file on
+`textDocument/{completion,definition,hover}`. Read a shrink there as a systemic fix, and a
+count as a population size.
+
+Second, the first cause traced end to end came out of one fixture rather than out of the count.
+`upstream-features/const-tag/input.svelte` diverged on four `textDocument/diagnostic` items, and
+diffing the two servers' raw responses separated three mechanisms in one file:
+
+| what differed | cause |
+|---|---|
+| `tags` absent on every rsvelte diagnostic | tsgo's LSP omits it; #4067 derives it from the code |
+| `'result' …` at `28:15-28:15` against official's `28:21-28:27` | the `{:then}` / `{:catch}` binding had **no map segment**: upstream pushes `[value.start, end]` as a source range and rsvelte interpolated its text into the surrounding overwrite, so the identifier lived in an edited chunk and every position on it collapsed to that chunk's start |
+| two extra `svelte/require-each-key` items, `source: "rsvelte"` | this server answers with its own lint findings, which the official server has no counterpart for |
+
+The middle row is the one worth generalising: **the emitted TSX is byte-identical either way**, so
+the svelte2tsx text gate cannot see it, the svelte2tsx *map* gate asserts well-formedness rather
+than equality, and this ratchet is the only gate in the repository that compares the resulting
+positions. `crates/rsvelte_projection/tests/svelte2tsx_await_binding_map.rs` pins all five
+`{#await}` shapes; ablating the range predicate reddens every one.
+
+The third row is not a defect on either side and is the first candidate for
+`deliberate-divergences` in this ratchet — but only once it is pinned by a test, which it is not
+yet.
 
 Normalization removes only these non-parity fields and path-specific values:
 
