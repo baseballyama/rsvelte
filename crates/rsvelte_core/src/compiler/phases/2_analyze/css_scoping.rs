@@ -1408,6 +1408,23 @@ fn get_snippet_block_name(snippet: &template::SnippetBlock) -> Option<String> {
     snippet.expression.identifier_name().map(String::from)
 }
 
+/// The snippet names a component may render because they were passed to it as
+/// an attribute value. Upstream's `analysis.snippet_renderers` holds a component
+/// alongside every `{@render}` tag, so a snippet reached only through a prop
+/// still has the component's position as one of its sites.
+fn attribute_snippet_names(attributes: &[template::Attribute]) -> Vec<String> {
+    let mut names = Vec::new();
+    for attribute in attributes {
+        if let template::Attribute::Attribute(node) = attribute
+            && let template::AttributeValue::Expression(tag) = &node.value
+            && let Some(name) = tag.expression.identifier_name()
+        {
+            names.push(name.to_string());
+        }
+    }
+    names
+}
+
 /// Mapping from snippet name to the list of ancestor chains at each render site.
 type SnippetAncestorMap = FxHashMap<String, Vec<Vec<ElementInfo>>>;
 
@@ -1453,6 +1470,9 @@ fn collect_render_sites_in_node(
             }
         }
         TemplateNode::Component(comp) => {
+            for name in attribute_snippet_names(&comp.attributes) {
+                map.entry(name).or_default().push(ancestors.clone());
+            }
             collect_render_sites_in_fragment(&comp.fragment, ancestors, map);
         }
         TemplateNode::IfBlock(if_block) => {
@@ -1494,9 +1514,15 @@ fn collect_render_sites_in_node(
             collect_render_sites_in_fragment(&frag.fragment, ancestors, map);
         }
         TemplateNode::SvelteComponent(comp) => {
+            for name in attribute_snippet_names(&comp.attributes) {
+                map.entry(name).or_default().push(ancestors.clone());
+            }
             collect_render_sites_in_fragment(&comp.fragment, ancestors, map);
         }
         TemplateNode::SvelteSelf(comp) => {
+            for name in attribute_snippet_names(&comp.attributes) {
+                map.entry(name).or_default().push(ancestors.clone());
+            }
             collect_render_sites_in_fragment(&comp.fragment, ancestors, map);
         }
         TemplateNode::SlotElement(slot) => {
