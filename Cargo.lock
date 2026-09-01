@@ -2608,6 +2608,7 @@ dependencies = [
  "backtrace",
  "chrono",
  "codspeed-criterion-compat",
+ "libc",
  "mimalloc",
  "oxc_allocator",
  "oxc_ast",

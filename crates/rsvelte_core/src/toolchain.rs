@@ -527,7 +527,7 @@ impl<'source> PreparedComponent<'source> {
             // deliberately omit this field.
             result.ast = self
                 .deferred_ast
-                .get_or_init(|| crate::compiler::CompiledAst::deferred(self.source, options))
+                .get_or_init(|| crate::compiler::CompiledAst::deferred(self.source, &self.options))
                 .clone();
         }
         Ok(result)

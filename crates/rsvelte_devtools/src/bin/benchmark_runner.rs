@@ -144,12 +144,15 @@ fn load_files(files_path: &str) -> io::Result<Vec<(String, String)>> {
 
 fn process_file(source: &str, filename: &str, task: &Task, dev: bool) {
     match task {
+        // Svelte 5 removed `enableSourcemap`, so `svelte.compile()` always
+        // builds `js.map`. Leaving rsvelte's default (`true`) in place is what
+        // makes the two arms the same work; the option was `false` here, which
+        // charged the official compiler for a map and this one for nothing.
         Task::CompileClient => {
             let options = CompileOptions {
                 name: Some(filename.to_string()),
                 generate: GenerateMode::Client,
                 dev,
-                enable_sourcemap: false,
                 ..Default::default()
             };
             let _ = compile(source, options);
@@ -159,7 +162,6 @@ fn process_file(source: &str, filename: &str, task: &Task, dev: bool) {
                 name: Some(filename.to_string()),
                 generate: GenerateMode::Server,
                 dev,
-                enable_sourcemap: false,
                 ..Default::default()
             };
             let _ = compile(source, options);

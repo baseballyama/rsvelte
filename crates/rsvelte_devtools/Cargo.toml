@@ -32,6 +32,7 @@ measure-tf-split = ["rsvelte_core/measure-tf-split"]
 oxc-formatter-probe = ["dep:oxc_formatter"]
 
 [dependencies]
+libc = "0.2"
 rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_esrap = { path = "../rsvelte_esrap" }
