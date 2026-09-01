@@ -92,11 +92,16 @@ fn svelte_self_member_binding_skips_dev_assign_behind_a_mutate_transform() {
             "{#if true}<svelte:self bind:value={v.x} />{/if}",
             "$.get(v).x = $$value;",
         ),
+        // Parenthesised, because upstream registers the each-block context's
+        // `assign` transform as `b.sequence([mutation, ...sequence])` and a
+        // sequence of one still prints its parentheses. This row read
+        // `$.get(item).x = $$value;` while rsvelte emitted the bare assignment,
+        // so it pinned the defect rather than the official output.
         (
             "each_item",
             "\n\tlet list = $state([{ x: 1 }]);\n",
             "{#each list as item}<svelte:self bind:value={item.x} />{/each}",
-            "$.get(item).x = $$value;",
+            "($.get(item).x = $$value);",
         ),
     ] {
         let out = compile(
