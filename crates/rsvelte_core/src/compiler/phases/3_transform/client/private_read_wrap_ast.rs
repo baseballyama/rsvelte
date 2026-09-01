@@ -66,7 +66,7 @@ pub fn transform_private_read_wrap_ast(source: &str, qualified: &str) -> Option<
     // Callers also hand this a single class MEMBER, where a private field
     // outside a class body is a parse error — re-host it so the walk runs
     // instead of the source falling through to the text scan.
-    let (open, close) = class_host(source)?;
+    let (open, close) = ast_rewrite::class_host(source)?;
     let hosted = format!("{open}{source}{close}");
     let out = ast_rewrite::fixed_point(&hosted, |src| run_once(src, qualified, &mut parsed))?;
     Some(out.strip_prefix(&open)?.strip_suffix(&close)?.to_string())
@@ -106,45 +106,6 @@ fn run_once(src: &str, qualified: &str, parsed: &mut bool) -> Option<String> {
         }
         ast_rewrite::ParseAttempt::NotParsed => None,
     }
-}
-
-/// A class body to host a bare member in, declaring every `#name` it mentions
-/// because a private field must be declared in an enclosing class to parse.
-fn class_host(source: &str) -> Option<(String, String)> {
-    let bytes = source.as_bytes();
-    let mut names: Vec<&str> = Vec::new();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'#' {
-            let start = i + 1;
-            let mut end = start;
-            while end < bytes.len()
-                && (bytes[end] == b'_' || bytes[end] == b'$' || bytes[end].is_ascii_alphanumeric())
-            {
-                end += 1;
-            }
-            if end > start && !bytes[start].is_ascii_digit() {
-                let name = &source[start..end];
-                if !names.contains(&name) {
-                    names.push(name);
-                }
-                i = end;
-                continue;
-            }
-        }
-        i += 1;
-    }
-    if names.is_empty() {
-        return None;
-    }
-    let mut open = String::from("class __RSVELTE_HOST__ {");
-    for name in names {
-        open.push('#');
-        open.push_str(name);
-        open.push(';');
-    }
-    open.push('\n');
-    Some((open, String::from("\n}")))
 }
 
 struct PrivateReadWrapCollector<'a> {

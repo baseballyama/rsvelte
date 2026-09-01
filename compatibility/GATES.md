@@ -1021,6 +1021,29 @@ rule: adding real-world repositories could not have found any of them.
 artifact cost. `preserveComments` is the cheapest and highest-value one (it would make 1a
 observable without a compiler change). Cost: unknown until measured.
 
+### Blind spot 1h — the population's sensitivity: a 900-cell regression reaches this gate as 4 entries **[D]**
+
+Measured on #4079's first submission. Reviving `private_read_wrap_ast` for a bare class
+member — without reviving the sibling `private_member_read_wrap_ast`, which is dead for the
+same reason — regressed **900 of 8,640** cells of a generated private-read grid (declaration
+rune x host x preceding statement x write form x read shape x target). The corpus reported
+**4**, in two files, both on `client` and `client-dev` of the same two sources.
+
+The 4 are not a sample of the 900. The shape needs a `this.#x[<expr>]` read *and* a standalone
+`this.#x` read of the same field in the same class: the standalone read is what makes the AST
+pass fire, and the AST pass skips a member-chain object on the premise that the sibling pass
+took it. Published code holds that pairing rarely, so the corpus's own hit rate on this axis is
+0.44% of what the product actually broke.
+
+Two things follow. Sizing a regression from this gate's count understates it whenever the
+defect needs two constructs *co-located*, which is the same argument recorded for #2254's
+interaction shapes one level up — and the fix has to be pinned by a generated grid, because
+re-breaking it would again cost only 4 corpus entries and those are two files away from being
+removed from the corpus for unrelated reasons.
+
+**Closing it:** not closable by corpus growth. `crates/rsvelte_core/tests/private_member_read_object_position.rs`
+holds the witnesses instead.
+
 ---
 
 ## 2-3. Compiler warning parity — codes and positions

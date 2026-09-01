@@ -73,37 +73,57 @@ pub fn transform_private_member_read_wrap_ast(
         return None;
     }
 
-    ast_rewrite::fixed_point(source, |src| {
-        ast_rewrite::rewrite_once(
-            &MODULE_PRIVATE_MEMBER_READ_WRAP_ALLOC,
-            src,
-            SourceType::mjs(),
-            ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            },
-            true,
-            |program| {
-                let mut collector = PrivateMemberReadWrapCollector {
-                    source: src,
-                    qualified_names,
-                    wrap_spans: Vec::new(),
-                    skip_spans: Vec::new(),
-                };
-                collector.visit_program(program);
-                let skip = collector.skip_spans;
-                let mut wraps = collector.wrap_spans;
-                wraps.retain(|(s, e)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
-                wraps
-                    .into_iter()
-                    .map(|(start, end)| {
-                        let qualified = &src[start as usize..end as usize];
-                        (start, end, format!("$.get({})", qualified))
-                    })
-                    .collect()
-            },
-        )
-    })
+    let mut parsed = false;
+    let plain = ast_rewrite::fixed_point(source, |src| run_once(src, qualified_names, &mut parsed));
+    if plain.is_some() || parsed {
+        return plain;
+    }
+
+    // A caller hands this a single class MEMBER too, where a private field
+    // outside a class body is a parse error — re-host it so the walk runs.
+    let (open, close) = ast_rewrite::class_host(source)?;
+    let hosted = format!("{open}{source}{close}");
+    let out = ast_rewrite::fixed_point(&hosted, |src| run_once(src, qualified_names, &mut parsed))?;
+    Some(out.strip_prefix(&open)?.strip_suffix(&close)?.to_string())
+}
+
+fn run_once(src: &str, qualified_names: &[String], parsed: &mut bool) -> Option<String> {
+    let attempt = ast_rewrite::rewrite_once_attempt(
+        &MODULE_PRIVATE_MEMBER_READ_WRAP_ALLOC,
+        src,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        true,
+        |program| {
+            let mut collector = PrivateMemberReadWrapCollector {
+                source: src,
+                qualified_names,
+                wrap_spans: Vec::new(),
+                skip_spans: Vec::new(),
+            };
+            collector.visit_program(program);
+            let skip = collector.skip_spans;
+            let mut wraps = collector.wrap_spans;
+            wraps.retain(|(s, e)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
+            wraps
+                .into_iter()
+                .map(|(start, end)| {
+                    let qualified = &src[start as usize..end as usize];
+                    (start, end, format!("$.get({})", qualified))
+                })
+                .collect()
+        },
+    );
+    match attempt {
+        ast_rewrite::ParseAttempt::Parsed(out) => {
+            *parsed = true;
+            out
+        }
+        ast_rewrite::ParseAttempt::NotParsed => None,
+    }
 }
 
 struct PrivateMemberReadWrapCollector<'a> {
