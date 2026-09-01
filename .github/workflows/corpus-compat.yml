@@ -334,8 +334,12 @@ jobs:
         if: failure()
         run: node scripts/compat-corpus/cluster.mjs > compatibility/cluster.txt || true
 
-      - name: Upload report on failure
-        if: failure()
+      # Uploaded on a PASSING run too: a ratchet entry is a divergence we ship,
+      # and the only per-entry record of what diverges lives here. Gating this on
+      # `failure()` means the accepted entries are observable only while the gate
+      # is red, which is exactly when nobody is attributing them.
+      - name: Upload report
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: corpus-report
@@ -405,8 +409,8 @@ jobs:
       - name: Verify formatter parity (ratchet, byte-identical)
         run: node scripts/compat-corpus/fmt-verify.mjs
 
-      - name: Upload fmt report on failure
-        if: failure()
+      - name: Upload fmt report
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: corpus-fmt-report
