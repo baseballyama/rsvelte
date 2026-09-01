@@ -2847,11 +2847,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 42 entries)
+### Client (`known-failures.client.json`, 37 entries)
 
-Partition of `known-failures.client.json` by verdict: `41 + 1`
+Partition of `known-failures.client.json` by verdict: `36 + 1`
 
-- **41 — the generated JS differs** (`js` / `code-differs`).
+- **36 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2887,7 +2887,29 @@ A prop with a default was unaffected, because a default makes it a source prop, 
 why the shape looked narrower than it was. Hashing all 104,439 (entry, target) outputs
 before and after attributes exactly these four to the change.
 
-Every one of the remaining 43 arrived with the wave-2 enrolment (#3130) and is described
+Four entries (`carbon-components-svelte/…/NotificationQueue.svelte`,
+`gitlight/…/NotificationLabels.svelte`, `huly/…/Timeline.svelte`,
+`huly/…/InboxCard.svelte`) plus `svelte-tweakpane-ui/…/ClsPad.svelte` left this target and
+`client-dev` when a `style:` directive's chunk metadata started reaching phase 3. Upstream's
+`StyleDirective` visitor calls `context.next()` and `ExpressionTag` swaps `state.expression`
+for the **tag's own** metadata before walking, merging each chunk up afterwards; rsvelte wrote
+into the directive's metadata, so the chunk stayed empty — and `build_attribute_value` reads
+the chunk, so `has_call` was always false and `build_expression` returned early, dropping the
+legacy `($.deep_read_state(dep), $.untrack(() => value))` wrapper. Only a **call** diverged,
+because `has_member_expression` and `has_assignment` are re-derived in phase 3. Hashing all
+69,626 client (entry, target) outputs before and after reports 14 changed units over 7 ids,
+`match -> MISMATCH = 0`, and 10 of the 14 newly matching.
+
+The other two of those seven ids stay listed, and one of them is the reason to state the unit.
+`open-webui/…/Models.svelte` is #4142's own subject and **is fixed** — the two arms' outputs
+differ on exactly one line, `importModels(localStorage.token, models)` against
+`importModels(localStorage.token, $.get(models))`, and the former is byte-identical to
+official. Its entry does not retire because line 134 of the same file carries an unrelated
+comment-placement divergence. **A ratchet entry's unit is the file, not the defect**, so a
+defect can be closed and move the count by zero; the same arithmetic in the other direction
+is why a count that moves is not a count of defects.
+
+Every one of the remaining 37 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -2994,15 +3016,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 56 entries)
+### Client dev (`known-failures.client-dev.json`, 51 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `56`
+Partition of `known-failures.client-dev.json` by verdict: `51`
 
-- **56 — the generated JS differs.**
+- **51 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 56 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 51 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
