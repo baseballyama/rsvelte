@@ -6083,32 +6083,58 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 33 carry no target yet: every one measured so far is an rsvelte
-defect, so the end state for them is elimination rather than attribution. The
-classification below is the input to that work.
+The remaining 33 carry **no target, and cannot have one**: every one of them was
+measured against official on 2026-09-01 and every one is an rsvelte defect, so
+the only end state open to them is elimination. The classification below is the
+input to that work; it is not an attribution, and this gate stays red until the
+entries are gone.
 
-### The 33 `ts-mismatch` entries, measured 2026-09-01
+### The 33 `ts-mismatch` entries, classified by mechanism (2026-09-01)
 
 Both implementations run directly on the 33 listed sources with the options
 `svelte2tsx-compile.mjs` passes (`{filename, isTsFile, mode:'ts', namespace:'html',
-version:'5'}`); the key is the first differing line after blank-line normalization.
-Read it the way the paragraphs above tell you to read every first-differing-line
-key: it is a **symptom**, so a mechanism can span rows and two mechanisms can
-share one.
+version:'5'}`). This table replaces the earlier one keyed by the first differing
+line: that key is a **symptom**, so it split one mechanism across rows and put two
+mechanisms in one row. Rows are keyed by mechanism instead, and the last column
+says how far each was actually pinned — **reduced** (a hand-written input of a few
+lines reproduces it), **source** (the construct is identified in the listed file),
+or **output only** (the outputs differ and the cause is *not* isolated). Read an
+"output only" row as an open question rather than a finding: one of them,
+`appwrite`'s `settings/+page.svelte`, had a plausible cause — `$permissions` as a
+destructuring-rename KEY — and a five-line reduction of that has both tools
+agreeing, so the cause is something else.
 
-| n | first differing line |
-|---|---|
-| 5 | official has reached `async () => {` while rsvelte is still emitting an `import` — the instance/module statement order |
-| 3 | `App.Error` on official against `any` on rsvelte, in a `+error.svelte`'s `$$ComponentProps` typedef |
-| 3 | `* @type {{` against `* @typedef {{` |
-| 2 | `return { props: {` — a JSDoc comment placed after the brace |
-| 2 | the props object's entries, from a wider `return { props: {…}` line |
-| 2 | `;` against `function $$render() {` |
-| 1 | store declarations emitted in a different order |
-| 1 | `ensureTransition(fade(…))` against `ensureTransition(fade)(…)` |
-| 1 | `function $$render/*Ωignore_startΩ*/<T>/*Ωignore_endΩ*/()` against a bare `;` |
-| 1 | a dev-mode `__sveltets_2_any` assignment rsvelte adds to a typed declaration |
-| 13 | one entry each |
+| n | mechanism | pinned |
+|---|---|---|
+| 5 | a `<script>` **inside an HTML comment** is parsed as a script: official emits its eight-line empty projection, rsvelte emits the whole commented-out body | source |
+| 4 | a **commented-out `dispatch("name", …)`** is collected as a component event, so `events:` carries a name the component never dispatches | source |
+| 3 | a `+error.svelte`'s `error` prop is typed `any` instead of `App.Error` — upstream's `ExportedNames.ts:330` has an `isKitErrorFile` arm, and rsvelte's kit table in `props_rune.rs` has `data` / `form` / `params` and no error arm | source |
+| 3 | an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into a `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`; official leaves the block alone and copies it verbatim into `return { props: … }` | reduced |
+| 3 | a JSDoc block copied into `return { props: {` starts on the wrong line — official breaks before the `/**`, rsvelte keeps it on the `{` line and breaks inside | reduced |
+| 3 | `function $$render() {` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte opens it BEFORE an `interface $$Props` / `type …Props` that official puts first (2), and AFTER an `interface Props` in the `type T = $$Generic` case, where official emits `function $$render<T>()` first (1). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
+| 2 | a renamed export (`export { componentClass as class }`) is dropped from `exports:`, where official emits `class: typeof componentClass` | source |
+| 1 | a **commented-out `$store` reference** is collected as a store subscription, adding a `__sveltets_2_store_get` official does not emit | source |
+| 1 | `export let x: T` with **no statement terminator** (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding a `;` and a newline makes the two agree | reduced |
+| 1 | `bind:this` on an element is emitted as an attribute rather than as an assignment to the bound variable | output only |
+| 1 | a `use:` action is emitted inside the attribute object rather than as a preceding `$$action_0` const | output only |
+| 1 | a transition is `__sveltets_2_ensureTransition(f)(…)` rather than `__sveltets_2_ensureTransition(f(…))` | output only |
+| 1 | a `//` comment inside a template-literal hole in an attribute value is collapsed onto one line | output only |
+| 1 | a `//` comment is emitted before `type $$ComponentProps` | output only |
+| 1 | two `/*Ωignore_startΩ*/` regions are merged into one | output only |
+| 1 | official emits a `$permissions` store-get that rsvelte omits — **cause not isolated** | output only |
+| 1 | rsvelte emits an extra `dragItem` slot prop — **cause not isolated** | output only |
+
+**Three of those rows are one class, and it is the largest thing here.** The
+commented-out `<script>`, the commented-out `dispatch(…)` and the commented-out
+`$store` are all a scan that does not exclude code inside a comment — **10 of 33
+entries, 30%**, against a largest mechanism of 5 when the table was keyed by
+symptom. It is the class the compiler side keeps rediscovering (#2986, #2987,
+#3127), reached here through a different port, and no gate compares the two ports.
+
+**Six rows are `output only`, and the count is not their size.** The symptom-keyed
+table put 13 of these entries in a "one entry each" tail, which is where a
+mechanism goes to look unimportant; all the count above says is that nobody has
+reduced them yet.
 
 ### Wave-2 enrolment (#3130)
 
