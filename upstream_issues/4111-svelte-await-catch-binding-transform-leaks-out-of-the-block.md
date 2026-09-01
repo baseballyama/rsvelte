@@ -146,4 +146,40 @@ is wrapped in `$.template_effect` where official emits a static `nodeValue` assi
 `has_state` judgement rather than a transform, it reproduces without any of the changes here, and
 its expression text already matches.
 
+## What is deliberately NOT conformed: the write half
+
+`create_derived_block_argument` writes `state.transform[node.name] = { read: get_value }`, so the
+entry it leaves behind carries no `assign`, `mutate` or `update`. What outlives a `{:catch}` block
+is therefore not only the read override but the **absence of the setter**, and upstream then puts
+the read expression on the left of a later write to the outer binding:
+
+```svelte
+<script>let v = "OUTER";</script>
+{#await Promise.reject("A")}w{:catch v}{String(v)}{/await}
+<button onclick={() => { v = "W"; }}>b</button>
+```
+
+```js
+// official
+$.delegated('click', button, () => {
+	$.get(v) = "W";        // acorn: Assigning to rvalue
+});
+```
+
+That is the class `upstream_issues/3306-svelte-a-bindings-read-expression-lands-on-the-lhs-of-a-write.md`
+records and `crates/rsvelte_core/tests/upstream_unparseable_3306.rs` pins, and it is the one
+documented exception to byte equality: output no JS parser accepts. rsvelte therefore restores
+`assign` / `mutate` / `update` from the outer entry when leaving the block, and leaks only the read.
+
+The join of the two decisions is measured rather than argued. Over a 360-cell grid crossing the
+tail after the block (`read` / `write` / `read-write`) with arm, binding form, ten hosts and three
+targets, the cells whose output the write-half restore changes number **56**, and acorn rejects
+official's output in **56 of 56** — the count of cells where the two disagree while official's
+output parses is **0**. Those 56 stay non-matching by construction: byte equality with text that
+is not JavaScript is unobtainable, so they are not a backlog.
+
+The read-only version of that grid could not see this. It reached the catch-arm leak on every run
+and had no cell in which the setter mattered, which is why the first version of the conformance
+shipped green here and red on the pin.
+
 Tracked in rsvelte issue #4111.

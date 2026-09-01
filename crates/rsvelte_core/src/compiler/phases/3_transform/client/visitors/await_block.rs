@@ -260,6 +260,30 @@ fn build_block_with_argument(
     if block_type != "catch" {
         context.state.transform = saved_transform;
         context.state.shadowed_prop_names = saved_shadowed_prop_names;
+    } else {
+        // The leaked entry is read-only, so a write to the outer binding past the
+        // block loses its setter. Upstream then puts the read on the left of the
+        // assignment and emits output no JS parser accepts (#3306), which is the
+        // one class this port deliberately diverges on — so the write halves are
+        // restored while the read stays leaked.
+        let introduced: Vec<String> = context
+            .state
+            .await_binding_names
+            .keys()
+            .filter(|name| !saved_await_binding_names.contains_key(name.as_str()))
+            .cloned()
+            .collect();
+        for name in introduced {
+            let Some(outer) = saved_transform.get(name.as_str()) else {
+                continue;
+            };
+            let (assign, mutate, update) = (outer.assign, outer.mutate, outer.update);
+            if let Some(current) = context.state.transform.get_mut(name.as_str()) {
+                current.assign = assign;
+                current.mutate = mutate;
+                current.update = update;
+            }
+        }
     }
     context.state.transform_deep_read = saved_transform_deep_read;
     context.state.await_binding_names = saved_await_binding_names;

@@ -12,6 +12,16 @@
 //! The `then` rows are the control: they must stay scoped, or "we conform" would be
 //! indistinguishable from "we lost the scoping everywhere".
 //!
+//! The leaked entry is READ-ONLY, and that half is not conformed. Upstream replaces the
+//! whole `transform` entry, so a write to the outer binding past the block loses its
+//! setter and upstream puts the read expression on the left of the assignment —
+//! `$.get(v) = "W"`, which acorn rejects. That is the one class this port deliberately
+//! diverges on (`upstream_unparseable_3306.rs`), so the write halves are restored while
+//! the read stays leaked. Measured on the grid this file's issue carries: over the cells
+//! whose tail is a write, the count of cells where the two disagree AND official's output
+//! parses is 0 — so "diverge only where upstream is unparseable" is a measurement here,
+//! not a description.
+//!
 //! Report: `upstream_issues/4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md`
 
 use rsvelte_core::{CompileOptions, CssMode, GenerateMode, compile};
@@ -89,5 +99,34 @@ fn a_non_colliding_catch_binding_leaves_the_prop_alone() {
     assert!(
         read.contains("$$props.code"),
         "the leak is keyed on the name; an unrelated one must not touch the prop; got: {read}"
+    );
+}
+
+/// The write half of the same leak. The read must still be the leaked `$.get(code)` and
+/// the write must still go through the outer binding's setter — a single assertion on
+/// either one is satisfied by getting the other wrong, which is how this shipped red.
+#[test]
+fn a_write_past_a_catch_block_keeps_the_outer_setter() {
+    let out = client(
+        "{#await p catch code}{code}{/await}\n{code}<button onclick={() => { code = 'W'; }}>b</button>",
+    );
+    let read = trailing_read(&out);
+    assert!(
+        read.contains("$.get(code)"),
+        "the read must still leak; got: {read}"
+    );
+    let write = out
+        .lines()
+        .find(|l| l.contains("'W'") || l.contains("\"W\""))
+        .unwrap_or_else(|| panic!("no write in:\n{out}"))
+        .trim()
+        .to_string();
+    assert!(
+        !write.starts_with("code ="),
+        "a bare assignment overwrites the signal and is silently non-reactive; got: {write}"
+    );
+    assert!(
+        !write.contains("$.get(code) ="),
+        "the upstream rvalue spelling must not reach the output; got: {write}"
     );
 }
