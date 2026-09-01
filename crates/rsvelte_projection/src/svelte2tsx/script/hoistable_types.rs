@@ -759,6 +759,7 @@ fn find_line_comment_start(line: &[u8]) -> Option<usize> {
 pub(super) fn rewrite_interface_to_type_dts(
     iface: &oxc_ast::ast::TSInterfaceDeclaration<'_>,
     raw_content: &str,
+    comments: &[oxc_ast::ast::Comment],
     offset: u32,
     str: &mut MagicString<'_>,
 ) {
@@ -766,78 +767,80 @@ pub(super) fn rewrite_interface_to_type_dts(
     let iface_kw_start = iface.span.start;
     let iface_kw_end = iface_kw_start + 9; // "interface".len()
     if (iface_kw_end as usize) <= raw_content.len()
-        && &raw_content[iface_kw_start as usize..iface_kw_end as usize] == "interface"
+        && &raw_content.as_bytes()[iface_kw_start as usize..iface_kw_end as usize] == b"interface"
     {
         str.overwrite(iface_kw_start + offset, iface_kw_end + offset, "type");
     }
 
     let extends = &iface.extends;
-    if extends.is_empty() {
-        // No extends: insert `=` immediately before the body's `{`.
+    let Some(first_heritage) = extends.first() else {
+        // No extends: insert `=` immediately before the body's `{`. Upstream
+        // reaches that brace with `indexOf('{')`, which a comment holding one
+        // sends into the comment's text; the body span is the same position
+        // without the scan.
         let body_start = iface.body.span.start;
         if (body_start as usize) <= raw_content.len() {
             str.append_left(body_start + offset, "=");
         }
-    } else {
-        {
-            // 2. `extends` -> `=`. The `extends` token sits between `iface.id`
-            //    (or its type-parameter list) and the first heritage entry.
-            let first_heritage = &extends[0];
-            let first_start = first_heritage.span.start as usize;
-            // Walk back from the heritage entry through whitespace, then
-            // expect "extends" right before. The OXC AST doesn't expose the
-            // keyword span directly.
-            let bytes = raw_content.as_bytes();
-            let mut p = first_start;
-            while p > 0 {
-                let prev = bytes[p - 1];
-                if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
-                    p -= 1;
-                } else {
-                    break;
-                }
-            }
-            // p is now just past "extends" (or at the closing `>` of generics
-            // if no `extends` token — but `iface.extends` is non-empty so
-            // `extends` must exist).
-            let extends_end = p;
-            if extends_end >= 7 {
-                // A comment may sit between `extends` and the heritage entry, so
-                // `extends_end - 7` can land inside a multi-byte char. The keyword
-                // is ASCII, so compare bytes rather than slicing the `str`.
-                let prev_kw = &raw_content.as_bytes()[extends_end - 7..extends_end];
-                if prev_kw == b"extends" {
-                    str.overwrite(
-                        u32_index(extends_end - 7) + offset,
-                        u32_index(extends_end) + offset,
-                        "=",
-                    );
-                }
-            }
+        return;
+    };
 
-            // 3. Replace each `,` between heritage entries with ` &`.
-            let mut prev_end = first_heritage.span.end;
-            for entry in extends.iter().skip(1) {
-                let entry_start = entry.span.start;
-                if entry_start > prev_end {
-                    let between = &raw_content[prev_end as usize..entry_start as usize];
-                    if let Some(comma_off) = between.find(',') {
-                        let comma_abs = prev_end + u32_index(comma_off);
-                        str.overwrite(comma_abs + offset, comma_abs + 1 + offset, " &");
-                    }
-                }
-                prev_end = entry.span.end;
-            }
-
-            // 4. Append ` & ` immediately before the body's `{`.
-            let last_extends_end = extends.last().unwrap().span.end;
-            let after = &raw_content[last_extends_end as usize..];
-            if let Some(brace_off) = after.find('{') {
-                let brace_abs = last_extends_end + u32_index(brace_off);
-                str.append_left(brace_abs + offset, " & ");
-            }
-        }
+    // 2. `extends` -> `=`. Upstream takes the position from the heritage
+    //    CLAUSE, which starts at the keyword; OXC's heritage span starts at the
+    //    type, so the keyword is the first code token after the interface head.
+    let head_end = iface
+        .type_parameters
+        .as_ref()
+        .map_or(iface.id.span.end, |params| params.span.end);
+    if let Some(kw) =
+        extends_keyword_start(raw_content, comments, head_end, first_heritage.span.start)
+    {
+        str.overwrite(kw + offset, kw + 7 + offset, "="); // "extends".len()
     }
+
+    // 3. Each gap between two heritage entries becomes ` & `. Upstream
+    //    overwrites the whole gap rather than locating the `,` in it, so a
+    //    comment there is dropped instead of surviving around the operator.
+    let mut prev_end = first_heritage.span.end;
+    for entry in extends.iter().skip(1) {
+        if entry.span.start > prev_end {
+            str.overwrite(prev_end + offset, entry.span.start + offset, " & ");
+        }
+        prev_end = entry.span.end;
+    }
+
+    // 4. ` & ` joins the last entry to the body. The anchor is that entry's
+    //    end, not the body's `{`: everything between them is source the
+    //    rewrite must not step over.
+    str.append_left(prev_end + offset, " & ");
+}
+
+/// Byte offset of the `extends` keyword between an interface's head and its
+/// first heritage entry, or `None` if the region does not hold one.
+///
+/// The region can only contain whitespace, comments and the keyword, and the
+/// parser has already located the comments — so this consumes trivia it is
+/// given rather than re-deciding where a comment ends.
+fn extends_keyword_start(
+    raw_content: &str,
+    comments: &[oxc_ast::ast::Comment],
+    from: u32,
+    to: u32,
+) -> Option<u32> {
+    const KEYWORD: &[u8] = b"extends";
+    let bytes = raw_content.as_bytes();
+    let end = (to as usize).min(bytes.len());
+    let mut i = (from as usize).min(end);
+    loop {
+        while i < end && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        let Some(comment) = comments.iter().find(|c| c.span.start as usize == i) else {
+            break;
+        };
+        i = (comment.span.end as usize).min(end);
+    }
+    (i + KEYWORD.len() <= end && &bytes[i..i + KEYWORD.len()] == KEYWORD).then_some(i as u32)
 }
 
 #[cfg(test)]

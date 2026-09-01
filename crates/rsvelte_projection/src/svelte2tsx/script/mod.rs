@@ -343,7 +343,13 @@ pub fn process_instance_script(
                                     });
                                 }
                                 if is_dts_mode {
-                                    rewrite_interface_to_type_dts(iface, raw_content, offset, str);
+                                    rewrite_interface_to_type_dts(
+                                        iface,
+                                        raw_content,
+                                        &program.comments,
+                                        offset,
+                                        str,
+                                    );
                                 }
                             }
                             _ => {}
@@ -369,7 +375,13 @@ pub fn process_instance_script(
                     // breaks .d.ts generation. Mirrors
                     // `processInstanceScriptContent.ts::transformInterfacesToTypes`.
                     if is_dts_mode {
-                        rewrite_interface_to_type_dts(iface, raw_content, offset, str);
+                        rewrite_interface_to_type_dts(
+                            iface,
+                            raw_content,
+                            &program.comments,
+                            offset,
+                            str,
+                        );
                     }
                 }
                 oxc::Statement::TSTypeAliasDeclaration(type_alias) => {
