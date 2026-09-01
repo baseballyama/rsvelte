@@ -253,7 +253,10 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 mappings.extend(runtime_mappings);
                 mappings.extend(template_name_mappings);
                 mappings.extend(remaining_result_mappings);
-                js_ast::codegen::sort_mappings_by_generated_position(&mut mappings);
+                // Measured: the packed-key sort the server path uses costs the
+                // client 0.35% rather than saving it. Why is not established.
+                mappings
+                    .sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
                 // Do not deduplicate source-map segments. Esrap deliberately
                 // emits identical entries when a container and its first child
                 // begin at the same generated and original positions. Their
