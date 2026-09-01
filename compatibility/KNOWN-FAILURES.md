@@ -2847,11 +2847,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 43 entries)
+### Client (`known-failures.client.json`, 42 entries)
 
-Partition of `known-failures.client.json` by verdict: `42 + 1`
+Partition of `known-failures.client.json` by verdict: `41 + 1`
 
-- **42 — the generated JS differs** (`js` / `code-differs`).
+- **41 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2970,15 +2970,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 57 entries)
+### Client dev (`known-failures.client-dev.json`, 56 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `57`
+Partition of `known-failures.client-dev.json` by verdict: `56`
 
-- **57 — the generated JS differs.**
+- **56 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 57 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 56 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
