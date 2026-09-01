@@ -327,6 +327,9 @@ pub struct PreparedComponent<'source> {
     // `compile_both` emits two results from one immutable AST, so the
     // serialized public tree is shared rather than rebuilt per target.
     ast_json: OnceCell<String>,
+    // Both targets hand out the same deferred handle, so a reader that touches
+    // one materializes the tree once for both.
+    deferred_ast: OnceCell<crate::compiler::CompiledAst>,
 }
 
 impl std::fmt::Debug for PreparedComponent<'_> {
@@ -368,6 +371,7 @@ impl<'source> PreparedComponent<'source> {
             retained_scripts,
             facts: OnceCell::new(),
             ast_json: OnceCell::new(),
+            deferred_ast: OnceCell::new(),
         })
     }
 
@@ -516,12 +520,24 @@ impl<'source> PreparedComponent<'source> {
         );
         if include_ast {
             // Upstream fills `result.ast` unconditionally — the modern tree under
-            // `modernAst`, the legacy one otherwise — from the same post-analysis
-            // AST this holds. Binary-only bindings opt out because their wire
-            // formats deliberately omit this field.
-            result.ast = Some(self.ast_json().to_string());
+            // `modernAst`, the legacy one otherwise. The conversion is derived
+            // from source + options alone, so it is deferred to the first reader
+            // rather than paid by every bundler call that never looks at it.
+            // Binary-only bindings opt out because their wire formats
+            // deliberately omit this field.
+            result.ast = self
+                .deferred_ast
+                .get_or_init(|| crate::compiler::CompiledAst::deferred(self.source, options))
+                .clone();
         }
         Ok(result)
+    }
+
+    /// The public AST JSON. Used by the deferred `CompiledAst` materialization,
+    /// which owns the only `PreparedComponent` it builds — and so has to install
+    /// the serialize arena that the eager path installs for the whole emit.
+    pub(crate) fn ast_json_owned(&self) -> String {
+        crate::ast::arena::with_serialize_arena(&self.ast.arena, || self.ast_json().to_string())
     }
 
     // Keyed on `self.options` rather than on the per-target copy, which only

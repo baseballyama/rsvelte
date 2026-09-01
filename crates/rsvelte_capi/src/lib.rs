@@ -1285,7 +1285,7 @@ fn compile_result_to_json(result: &rsvelte_core::compiler::CompileResult) -> Val
         "css": css_obj,
         "warnings": warnings,
         "metadata": { "runes": result.metadata.runes },
-        "ast": result.ast.as_deref()
+        "ast": result.ast.get()
             .and_then(|ast| serde_json::from_str::<Value>(ast).ok())
             .unwrap_or(Value::Null),
     })

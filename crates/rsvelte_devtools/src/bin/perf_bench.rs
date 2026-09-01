@@ -15,6 +15,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use rsvelte_core::compiler::compile_without_ast;
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
 fn main() {
@@ -27,11 +28,13 @@ fn main() {
     let mut limit = 3000usize;
     let mut runs = 5usize;
     let mut target = "client".to_string();
+    let mut no_ast = false;
     while let Some(a) = args.next() {
         match a.as_str() {
             "--limit" => limit = args.next().unwrap().parse().unwrap(),
             "--runs" => runs = args.next().unwrap().parse().unwrap(),
             "--target" => target = args.next().unwrap(),
+            "--no-ast" => no_ast = true,
             other => panic!("unknown arg {other}"),
         }
     }
@@ -76,7 +79,12 @@ fn main() {
         let start = Instant::now();
         ok = 0;
         for s in &sources {
-            if let Ok(r) = compile(s, options.clone()) {
+            let compiled = if no_ast {
+                compile_without_ast(s, options.clone())
+            } else {
+                compile(s, options.clone())
+            };
+            if let Ok(r) = compiled {
                 ok += 1;
                 sink = sink.wrapping_add(r.js.code.len());
             }
@@ -90,8 +98,9 @@ fn main() {
     timings.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let median = timings[timings.len() / 2];
     println!(
-        "target={target} files={} ok={ok} bytes={bytes} median={median:.1}ms \
+        "target={target}{} files={} ok={ok} bytes={bytes} median={median:.1}ms \
          min={:.1}ms max={:.1}ms MB/s={:.2} sink={sink}",
+        if no_ast { " no-ast" } else { "" },
         sources.len(),
         timings[0],
         timings[timings.len() - 1],

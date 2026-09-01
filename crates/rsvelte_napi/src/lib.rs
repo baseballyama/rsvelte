@@ -448,7 +448,7 @@ fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Valu
         "css": css_obj,
         "warnings": warnings_to_json(&result.warnings),
         "metadata": { "runes": result.metadata.runes },
-        "ast": result.ast.as_deref()
+        "ast": result.ast.get()
             .and_then(|ast| serde_json::from_str::<Value>(ast).ok())
             .unwrap_or(Value::Null),
     })
@@ -2649,7 +2649,7 @@ pub fn napi_compile_module_envelope_zero_copy(
         css: None,
         warnings: Vec::new(),
         metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
-        ast: None,
+        ast: rsvelte_core::CompiledAst::absent(),
     };
     create_zero_copy_envelope(env, &cr)
 }
@@ -2683,7 +2683,7 @@ pub fn napi_compile_module_envelope(
                 css: None,
                 warnings: Vec::new(),
                 metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
-                ast: None,
+                ast: rsvelte_core::CompiledAst::absent(),
             };
             ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_size(&cr))?;
             Ok(Buffer::from(

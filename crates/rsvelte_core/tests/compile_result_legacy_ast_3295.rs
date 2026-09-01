@@ -37,8 +37,8 @@ fn client_options() -> CompileOptions {
 
 fn ast_of(source: &str, options: CompileOptions) -> Value {
     let result = compile(source, options).expect("compiles");
-    let ast = result.ast.expect("compile() must fill `ast`");
-    serde_json::from_str(&ast).expect("`ast` is JSON")
+    let ast = result.ast.get().expect("compile() must fill `ast`");
+    serde_json::from_str(ast).expect("`ast` is JSON")
 }
 
 #[test]

@@ -507,7 +507,7 @@ mod bump_tests {
             css: None,
             warnings: vec![],
             metadata: CompileMetadata { runes: true },
-            ast: None,
+            ast: rsvelte_core::CompiledAst::absent(),
         };
 
         let via_vec = encode_to_vec(&result);
@@ -546,7 +546,7 @@ mod tests {
             css: None,
             warnings: vec![],
             metadata: CompileMetadata { runes: false },
-            ast: None,
+            ast: rsvelte_core::CompiledAst::absent(),
         };
         let buf = encode_to_vec(&result);
         round_trip_header(&buf);
@@ -591,7 +591,7 @@ mod tests {
                 frame: None,
             }],
             metadata: CompileMetadata { runes: true },
-            ast: None,
+            ast: rsvelte_core::CompiledAst::absent(),
         };
         let buf = encode_to_vec(&result);
         round_trip_header(&buf);
@@ -635,7 +635,7 @@ mod tests {
                 frame: None,
             }],
             metadata: CompileMetadata { runes: false },
-            ast: None,
+            ast: rsvelte_core::CompiledAst::absent(),
         };
         let estimated = estimate_size(&result);
         let actual = encode_to_vec(&result).len();
@@ -651,7 +651,7 @@ mod tests {
             css: None,
             warnings: vec![],
             metadata: CompileMetadata { runes: false },
-            ast: None,
+            ast: rsvelte_core::CompiledAst::absent(),
         }
     }
 
