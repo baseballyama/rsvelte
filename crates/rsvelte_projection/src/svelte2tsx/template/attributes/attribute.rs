@@ -99,6 +99,22 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
                 return wrap(&inner, is_data_attr, is_css_prop);
             }
 
+            // `svelte/elements` types this set as `number`, so a template literal
+            // fails to type-check — the same rule the segment-based emitter
+            // applies (`needsNumberConversion` in `Attribute.ts`).
+            if is_element
+                && parts.len() == 1
+                && let AttributeValuePart::Text(text) = &parts[0]
+                && is_number_only_attribute(name)
+                && !text.data.trim().is_empty()
+                && is_js_numeric(&text.data)
+            {
+                return format!(
+                    "\"{name}\":{},",
+                    &source[text.start as usize..text.end as usize]
+                );
+            }
+
             // Pure-static empty value (`class=""`): emit the quoted empty
             // string, matching official (not an empty template literal).
             let has_expr = parts

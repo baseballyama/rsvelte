@@ -143,6 +143,7 @@ pub fn add_component_export(
     // calls are excluded. See `collect_dispatched_events`.
     let inst_range = ast.instance.as_ref().map(|s| (s.content_offset, s.end));
     let mod_range = ast.module.as_ref().map(|s| (s.content_offset, s.end));
+    events.seed_forwarded_events(template_info.element_events.iter().map(|e| e.name));
     events.collect_dispatched_events(source, inst_range, mod_range);
 
     // A `$$Events` interface (official `ComponentEventsFromInterface`) overrides

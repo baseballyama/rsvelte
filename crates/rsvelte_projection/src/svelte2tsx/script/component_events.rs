@@ -90,11 +90,20 @@ enum PendingKind {
     Dispatched,
 }
 
+fn custom_event_type(detail_type: Option<String>) -> String {
+    detail_type.map_or_else(
+        || "CustomEvent<any>".to_string(),
+        |detail| format!("CustomEvent<{detail}>"),
+    )
+}
+
 /// Metadata about a single component event.
 #[derive(Debug, Clone)]
 pub struct EventInfo {
-    /// The TypeScript type of the event detail.
-    pub detail_type: Option<String>,
+    /// The full TypeScript type official stores in its `events` map — a
+    /// `CustomEvent<…>` for a declared or dispatched event, a bare `Event` for
+    /// one that only reaches the map by being forwarded.
+    pub type_text: String,
 }
 
 impl ComponentEvents {
@@ -106,7 +115,23 @@ impl ComponentEvents {
 
     /// Add an event declaration.
     pub fn add(&mut self, name: String, detail_type: Option<String>) {
-        self.events.insert(name, EventInfo { detail_type });
+        let type_text = custom_event_type(detail_type);
+        self.events.insert(name, EventInfo { type_text });
+    }
+
+    /// Official seeds its `events` map from the bubbled events in the
+    /// `ComponentEvents` constructor (`extractEvents`), so a later
+    /// `addToEvents` of a forwarded name sees a COLLISION and the event also
+    /// reaches the `'name': __sveltets_2_customEvent` list.
+    pub fn seed_forwarded_events<'name>(&mut self, names: impl IntoIterator<Item = &'name str>) {
+        for name in names {
+            self.events.insert(
+                name.to_owned(),
+                EventInfo {
+                    type_text: "Event".to_string(),
+                },
+            );
+        }
     }
 
     /// Official `ComponentEventsFromEventsMap.addToEvents`: a repeated name
@@ -115,12 +140,20 @@ impl ComponentEvents {
     /// `'name': __sveltets_2_customEvent` entry.
     fn add_to_events(&mut self, name: &str, detail_type: Option<String>) {
         if self.events.contains_key(name) {
-            self.events
-                .insert(name.to_owned(), EventInfo { detail_type: None });
+            self.events.insert(
+                name.to_owned(),
+                EventInfo {
+                    type_text: custom_event_type(None),
+                },
+            );
             self.push_dispatched(name);
         } else {
-            self.events
-                .insert(name.to_owned(), EventInfo { detail_type });
+            self.events.insert(
+                name.to_owned(),
+                EventInfo {
+                    type_text: custom_event_type(detail_type),
+                },
+            );
         }
     }
 
@@ -237,13 +270,7 @@ impl ComponentEvents {
         let mut entries: Vec<(String, String)> = self
             .events
             .iter()
-            .map(|(name, info)| {
-                let ty = info.detail_type.as_ref().map_or_else(
-                    || "CustomEvent<any>".to_string(),
-                    |detail| format!("CustomEvent<{detail}>"),
-                );
-                (name.clone(), ty)
-            })
+            .map(|(name, info)| (name.clone(), info.type_text.clone()))
             .collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
         entries
@@ -355,7 +382,9 @@ fn scan_dispatch_calls_with_observer<'source>(
         }
         let in_instance_script = in_range(start, inst_range);
 
-        let event = if bytes[p] == b'"' || bytes[p] == b'\'' || bytes[p] == b'`' {
+        // Official tests `ts.isStringLiteral`, which a template literal is not —
+        // neither a substituting one nor a bare `` `x` ``.
+        let event = if bytes[p] == b'"' || bytes[p] == b'\'' {
             let quote = bytes[p];
             p += 1;
             let name_start = p;

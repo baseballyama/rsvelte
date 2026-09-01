@@ -15,12 +15,14 @@ fn source_offset(value: usize) -> u32 {
 use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
 use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
+use crate::svelte2tsx::template::attributes::directive_suffix::{
+    action_arguments, build_directive_prefix_suffix,
+};
 use crate::svelte2tsx::template::attributes::event_handler::format_on_directive;
 use crate::svelte2tsx::template::attributes::let_::{
     build_let_destructure_string, has_let_directives,
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
-use crate::svelte2tsx::template::attributes::transition::format_transition_directive;
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
 use crate::svelte2tsx::template::segs::segs_to_string;
 use crate::svelte2tsx::template::utils::expr::get_expression_range;
@@ -31,7 +33,6 @@ use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_i
 use super::inline_component::{handle_component, handle_svelte_component, handle_svelte_self};
 use super::slot_element::slot_attr_static_name;
 use super::snippet_block::hoist_snippet_blocks;
-use crate::svelte2tsx::template::attributes::action::format_use_directive;
 
 /// True if `attributes` contains a `slot` attribute whose value is anything
 /// other than the static string `"default"` — i.e. a *non-default* slot target.
@@ -494,6 +495,12 @@ pub fn handle_named_slot_element(
         source,
     );
 
+    // Actions precede the element and transitions follow it, same as a regular
+    // element — see `handle_regular_element`.
+    let (directive_prefix, directive_suffix, action_count) =
+        build_directive_prefix_suffix(&el.attributes, source, &el.name, &options.typings_namespace);
+    let actions_arg = action_arguments(action_count);
+
     let spacing = opener_spacing(
         source,
         el.start,
@@ -515,16 +522,31 @@ pub fn handle_named_slot_element(
     // separate `bar;` reflection statement (that would duplicate the `{bar}`
     // content expression).
     let opener = format!(
-        "{}{}{{ {}.createElement(\"{}\", {{{}{}}});{}",
+        "{}{}{}{{ {}.createElement(\"{}\"{}, {{{}{}}});{}{}",
         " ".repeat(spacing.before_block),
         block_open,
+        // An action prefix gets its own block so `$$action_N` is scoped to the
+        // element, exactly as `handle_regular_element` wraps it.
+        if directive_prefix.is_empty() {
+            String::new()
+        } else {
+            format!("{{{directive_prefix}")
+        },
         options.typings_namespace,
         el.name,
+        actions_arg,
         " ".repeat(spacing.in_attr_object),
         attrs_str,
-        class_style_suffix
+        class_style_suffix,
+        directive_suffix
     );
     str.overwrite(el.start, opening_tag_end, &opener);
+    // An action prefix opens one more block, which the closer below has to match.
+    let close = if directive_prefix.is_empty() {
+        " }}"
+    } else {
+        " }}}"
+    };
 
     // This named-slot element is a RegularElement — its children are at depth+1.
     hoist_snippet_blocks(&el.fragment, source, str);
@@ -540,13 +562,13 @@ pub fn handle_named_slot_element(
         .ends_with("/>");
     let is_void = crate::compiler::utils::is_void_element(&el.name);
     if is_void || is_self_closing_source {
-        str.append_left(el.end, " }}");
+        str.append_left(el.end, close);
     } else {
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, " }}");
+            str.overwrite(closing_tag_start, el.end, close);
         } else {
-            str.append_left(el.end, " }}");
+            str.append_left(el.end, close);
         }
     }
 }
@@ -846,11 +868,11 @@ pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str, ns
                 // class:/style: are not props — they lower to statements after
                 // createElement (see the suffix in handle_named_slot_element).
             }
-            Attribute::TransitionDirective(transition) => {
-                parts.push(format_transition_directive(transition, source, ns));
-            }
-            Attribute::UseDirective(use_dir) => {
-                parts.push(format_use_directive(use_dir, source, ns));
+            Attribute::TransitionDirective(_) | Attribute::UseDirective(_) => {
+                // Not props: an action becomes a `const $$action_N = …` BEFORE the
+                // createElement and a transition a call AFTER it, exactly as on a
+                // regular element (`build_directive_prefix_suffix`). Emitting either
+                // inside the props object produces text no TS parser accepts.
             }
         }
     }

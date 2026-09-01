@@ -8,7 +8,7 @@ use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, sanitize_tag_for_var,
 };
 use crate::svelte2tsx::template::attributes::directive_suffix::{
-    build_directive_prefix_suffix, build_element_directive_suffix_segments,
+    action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
 };
 use crate::svelte2tsx::template::attributes::{build_attribute_segments, build_attributes_string};
 use crate::svelte2tsx::template::ctx::Counter;
@@ -286,17 +286,6 @@ fn finish_regular_element(
         str.append_left(el.end, "}");
     }
     counter.slot_inst = saved_slot;
-}
-
-fn action_arguments(action_count: usize) -> String {
-    if action_count == 0 {
-        return String::new();
-    }
-    let names = (0..action_count)
-        .map(|index| format!("$$action_{index}"))
-        .collect::<Vec<_>>()
-        .join(",");
-    format!(", __sveltets_2_union({names})")
 }
 
 fn close_regular_element(
