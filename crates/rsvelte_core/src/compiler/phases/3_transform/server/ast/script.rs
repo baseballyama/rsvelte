@@ -2290,6 +2290,12 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a> {
                     let start = es.span.start;
                     kept.push(self.b.empty_kept(start));
                     kept.push(self.b.empty_kept(start + 1));
+                } else {
+                    // `$effect*` becomes upstream's `b.empty`, which esrap drops
+                    // from a body sequence and prints as `;` everywhere else — a
+                    // switch case consequent above all, which this same visitor
+                    // reaches.
+                    kept.push(self.b.empty());
                 }
             }
             stmts.extend(kept);

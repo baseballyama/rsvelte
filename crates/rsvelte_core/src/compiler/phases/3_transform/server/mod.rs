@@ -595,6 +595,86 @@ fn previous_significant_code_byte(s: &str, pos: usize) -> Option<u8> {
     last
 }
 
+/// The token immediately preceding a position: an identifier/keyword, or a
+/// punctuator.
+enum PrevTok {
+    None,
+    Word(usize, usize),
+    Punct(u8),
+}
+
+/// Does the statement removed at `pos` still print a `;`?
+///
+/// Upstream returns `b.empty` for it, and esrap drops an `EmptyStatement` only
+/// from a `body` sequence — `Program`, `BlockStatement`, `ClassBody`,
+/// `StaticBlock`, `TSModuleBlock`. Every other statement slot prints it: a
+/// switch case consequent (`SwitchStatement` visits `block.consequent`
+/// directly), and the unbraced body of `if` / `else` / `for` / `while` / `do` /
+/// `with` or of a labelled statement.
+fn removed_statement_prints_semicolon(s: &str, pos: usize) -> bool {
+    const HEADS: &[&[u8]] = &[b"if", b"for", b"while", b"with"];
+    let bytes = s.as_bytes();
+    // `true` where the `{` opens a `switch` body.
+    let mut braces: Vec<bool> = Vec::new();
+    // 0 = other, 1 = `if`/`for`/`while`/`with` head, 2 = `switch` head.
+    let mut parens: Vec<u8> = Vec::new();
+    let mut closed_paren = 0u8;
+    let mut word_start: Option<usize> = None;
+    let mut prev = PrevTok::None;
+    let mut prev2 = PrevTok::None;
+
+    let word = |t: &PrevTok, w: &[u8]| matches!(t, PrevTok::Word(a, b) if &bytes[*a..*b] == w);
+
+    for (i, c) in js_scan::code_bytes(bytes) {
+        if i >= pos {
+            break;
+        }
+        if js_scan::is_ident_byte(c) {
+            word_start.get_or_insert(i);
+            continue;
+        }
+        if let Some(w) = word_start.take() {
+            prev2 = std::mem::replace(&mut prev, PrevTok::Word(w, i));
+        }
+        if c.is_ascii_whitespace() {
+            continue;
+        }
+        match c {
+            b'(' => {
+                // `for await (…)` puts `await` between the keyword and the `(`.
+                let head = if word(&prev, b"await") { &prev2 } else { &prev };
+                parens.push(if word(head, b"switch") {
+                    2
+                } else if HEADS.iter().any(|k| word(head, k)) {
+                    1
+                } else {
+                    0
+                });
+            }
+            b')' => closed_paren = parens.pop().unwrap_or(0),
+            b'{' => braces.push(matches!(prev, PrevTok::Punct(b')')) && closed_paren == 2),
+            b'}' => {
+                braces.pop();
+            }
+            _ => {}
+        }
+        prev2 = std::mem::replace(&mut prev, PrevTok::Punct(c));
+    }
+    if let Some(w) = word_start.take() {
+        prev = PrevTok::Word(w, pos);
+    }
+
+    if braces.last() == Some(&true) {
+        return true;
+    }
+    match prev {
+        PrevTok::Punct(b')') => closed_paren == 1,
+        PrevTok::Punct(b':') => true,
+        PrevTok::Word(a, b) => matches!(&bytes[a..b], b"else" | b"do"),
+        _ => false,
+    }
+}
+
 fn strip_effects_from_source(source: &str, binds_rune_name: bool) -> String {
     use super::client::find_matching_paren;
 
@@ -619,7 +699,11 @@ fn strip_effects_from_source(source: &str, binds_rune_name: bool) -> String {
 
     let remove_statement = |s: &str, pos: usize, expr_end: usize| -> (usize, String) {
         let end = consume_statement_tail(s, expr_end);
-        (end, kept_comments_of_removed_range(s, pos, end))
+        let mut replacement = kept_comments_of_removed_range(s, pos, end);
+        if removed_statement_prints_semicolon(s, pos) {
+            replacement.push(';');
+        }
+        (end, replacement)
     };
 
     // `$effect.root(...)` has two upstream lowerings:
