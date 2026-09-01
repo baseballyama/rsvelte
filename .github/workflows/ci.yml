@@ -1148,6 +1148,7 @@ jobs:
       # node_modules. No Rust build; the lint-severity step below is the only one
       # that needs a submodule.
       - name: Install dependencies
+        id: flags-env
         run: pnpm install --frozen-lockfile
 
       - name: Check --update-baseline / --update-warning-baseline compose
@@ -1159,25 +1160,25 @@ jobs:
       - name: Check the output-parseability gate
         # A failing step skips every unguarded step after it, and a skipped
         # check reads exactly like a passing one. Run regardless.
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-corpus-parse-gate.mjs
 
       - name: Check mutation baseline provenance
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-mutation-baseline-provenance.mjs
 
       # `codeIdentity` decides the `code-mismatch` / `comment-mismatch` split
       # that this gate and the shape matrix ratchet on, so a reduction that
       # deletes real code makes a code regression report as comment noise.
       - name: Check the code/comment classifier's string handling
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-code-identity-strings.mjs
 
       # The lint gate's rewrite floor and its compared population. Both linters
       # are stubbed, so this runs without the lint submodules, the dist-lint
       # build or the eslint oracle that the Lint parity job needs.
       - name: Check the lint gate's population floor
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-lint-verify-population-floor.mjs
 
       # The deliberate-divergence claim behind lint-severity's 56 exit-code
@@ -1185,34 +1186,34 @@ jobs:
       # one-time measurement until it runs. It needs the real oracle, so this is
       # the one step here that checks out a submodule.
       - name: Checkout svelte submodule (shallow)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: git submodule update --init --depth 1 submodules/svelte
 
       - name: Install Svelte compiler dependencies
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: pnpm --dir submodules/svelte install --frozen-lockfile
 
       - name: Check the lint-severity exit attribution
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-lint-severity-exit-attribution.mjs
 
       # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
       # it runs without the corpus: it needs no submodules and no build.
       - name: Check the known-failures doc count parser
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-known-failures-md-check.mjs
 
       # A recorded deliberate divergence is a decision not to close, so it has to
       # be held by a test; this reads the doc, not the corpus.
       - name: Check every deliberate divergence is pinned
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/deliberate-divergences-check.mjs
 
       # The CSS-prune sweep's comparison key. Same reason it lives here: the
       # comparator is a pure module, so it needs neither the NAPI binding nor
       # submodules that the sweep itself does.
       - name: Check the CSS-prune sweep compares warnings
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-css-prune-sweep-warning-verdict.mjs
 
   release-comment:
@@ -1352,6 +1353,18 @@ jobs:
       - name: Run upstream_issues index guard tests
         if: ${{ !cancelled() }}
         run: node scripts/ci/test-check-upstream-issues.mjs
+
+      # A guarded step that measures the environment rather than the code: the
+      # `!cancelled()` shape it enforces was itself the source of a red
+      # `Shape matrix parity` caused by a missing `node_modules`.
+      - name: Check no comparison can report an environment failure
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/step-environment-guard.mjs
+
+      - name: Run step environment guard tests
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/test-step-environment-guard.mjs
+
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest
