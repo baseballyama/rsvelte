@@ -69,18 +69,20 @@ fn reported_repro_file() {
 }
 
 /// Same class, a different site, found by sweeping the crate for byte-offset
-/// `str` slices rather than by a report: `rewrite_interface_to_type_dts` walks
-/// back from the first heritage entry over whitespace and reads the seven bytes
-/// before it as the `extends` keyword. A comment between `extends` and the entry
-/// puts those seven bytes inside the comment text, so a multi-byte char there is
-/// sliced mid-character. `--mode dts` only (`svelte-package`), which is why
+/// `str` slices rather than by a report: `rewrite_interface_to_type_dts` used to
+/// walk back from the first heritage entry over whitespace and read the seven
+/// bytes before it as the `extends` keyword, so a comment between the two put
+/// those bytes inside the comment's text and a multi-byte char there was sliced
+/// mid-character. `--mode dts` only (`svelte-package`), which is why
 /// `rsvelte-check` never reached it.
 ///
-/// The comment also defeats the keyword walk itself, so neither case rewrites
-/// `extends` — a separate, output-level divergence from upstream, which takes
-/// the position from `heritageClauses[0].getStart()` and never scans. The two
-/// cases must therefore agree with each other: that is what says the multi-byte
-/// char is not special, without pinning the wrong output as correct.
+/// That slice is gone — #4077 replaced all three of the function's text scans
+/// with spans, and `svelte2tsx_dts_interface_heritage_4077.rs` is where those
+/// live. What is still only here is the **multi-byte** comment: these rows say
+/// that a `/*日本*/` in the slot behaves exactly like the `/*hi*/` beside it,
+/// which is what would go red if byte arithmetic ever returned to the site.
+/// Both expectations are official's own output, so they no longer have to be
+/// stated as "the two agree with each other".
 mod dts_interface_extends {
     use rsvelte_projection::svelte2tsx::{Svelte2TsxMode, Svelte2TsxOptions, svelte2tsx};
 
@@ -99,28 +101,28 @@ mod dts_interface_extends {
             .code
     }
 
-    /// `/*日本*/` is 10 bytes, so the seven before its end land inside `日`.
+    /// `/*日本*/` is 10 bytes — the width that put the old `- 7` inside `日`.
     #[test]
     fn multibyte_comment_between_extends_and_its_heritage_entry() {
         let out = dts("日本");
         assert!(
-            out.contains("type A extends /*日本*/B  & { b: string }"),
+            out.contains("type A = /*日本*/B &  { b: string }"),
             "output:\n{out}"
         );
     }
 
-    /// The ASCII control: same shape, the boundary is never crossed.
+    /// The ASCII control: same shape, no boundary to cross.
     #[test]
     fn ascii_comment_between_extends_and_its_heritage_entry() {
         let out = dts("hi");
         assert!(
-            out.contains("type A extends /*hi*/B  & { b: string }"),
+            out.contains("type A = /*hi*/B &  { b: string }"),
             "output:\n{out}"
         );
     }
 
-    /// No comment: the walk finds the keyword and the rewrite lands, which is
-    /// what keeps the two rows above from reading as "this path never fires".
+    /// No comment: the row that keeps the two above from reading as "this path
+    /// never fires".
     #[test]
     fn no_comment_still_rewrites_extends() {
         let opts = Svelte2TsxOptions {
