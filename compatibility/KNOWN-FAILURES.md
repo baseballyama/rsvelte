@@ -2906,9 +2906,20 @@ reconstruction of the gate reported both as still mismatching on both targets, b
 stopped at the byte comparison of the oxfmt-normalized text; the gate runs an **AST
 comparison on every byte-different output** after that, and each of those two residues is a
 comment placement, which the AST comparator does not represent. So the reconstruction was
-strictly *stricter* than the gate it stood in for, and a stricter oracle reports a retirable
-entry as staying — the opposite direction from the usual reconstruction hazard, and equally
-wrong. Rebuild a gate's comparison down to its last stage or read the verdict from the gate.
+strictly *stricter* than the gate it stood in for — the opposite direction from the usual
+reconstruction hazard.
+
+Which direction a reconstruction misses in follows from **what kind of stage it dropped**: a
+gate's verdict is a pipeline, and dropping a *rescue* stage (this AST comparison, oxfmt) makes
+the reconstruction stricter, while dropping a *judging* stage makes it looser. That asymmetry
+is worth stating because it makes one side of the fidelity question free. A reconstruction
+that is stricter than the gate can report **zero** with no fidelity argument at all — a zero
+under a stricter comparison is a zero under the gate's. It is only a **non-zero** from a
+stricter reconstruction that is not a finding: it is a list of candidates to ask the gate
+about, and every entry on it can be a false positive. Both halves were exercised on the same
+day: these two entries are the false positives, and a 135,592-pair `compile()` sweep on raw
+hashes over four targets reported zero, which needed no gate confirmation for exactly this
+reason.
 
 One `huly/…/CreateIssueTemplate.svelte` entry left this target and `client-dev` when a legacy
 store or `$:` read **nested inside** a prop default stopped being judged simple. Upstream runs
