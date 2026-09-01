@@ -199,7 +199,10 @@ fn collect_opaque_ranges(source: &str, include_scripts: bool) -> Vec<(u32, u32)>
     }
     markup_gaps.push((gap_start, source.len()));
     for (start, end) in markup_gaps {
-        for expression in template_expression_ranges(&source[start..end]) {
+        let Some(markup) = source.get(start..end) else {
+            continue;
+        };
+        for expression in template_expression_ranges(markup) {
             push_js_opaque(
                 source,
                 (

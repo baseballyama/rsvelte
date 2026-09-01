@@ -776,7 +776,9 @@ const instance_marker = `<script data-marker>`;
         assert!(!can_skip(raw_html));
         assert!(!can_skip(comment));
         assert!(orphans(raw_html).is_empty());
-        assert_eq!(orphans(comment)[0].2, "comment");
+        // Upstream's `findNextVerbatimElement` regex opens with a `(<!--[^]*?-->)`
+        // arm and skips any match that starts with it, so this is not a script.
+        assert!(orphans(comment).is_empty());
     }
 
     #[test]

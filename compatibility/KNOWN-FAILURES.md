@@ -6166,6 +6166,16 @@ agreeing, so the cause is something else.
 | 1 | official emits a `$permissions` store-get that rsvelte omits — **cause not isolated** | output only |
 | 1 | rsvelte emits an extra `dragItem` slot prop — **cause not isolated** | output only |
 
+**Two of those rows could not be read off the first-differing-line key at all.**
+Under the old key they read `async () => {` against an `import` — an
+instance/module *statement order* defect — and "store declarations emitted in a
+different order". Both read as orderings and neither is one: the first is the
+commented-out `<script>`'s body injected at the head of `$$render()`, which
+pushes the imports down, and the second is a `//` comment inside a template
+expression (`appwrite-console`'s `databases/database-[database]/table-[table]/+layout.svelte`)
+yielding an extra `$columnsOrder` declaration. Running both implementations on
+the source is what showed it; the differing line named neither cause.
+
 **Three of those rows are one class, and it is the largest thing here.** The
 commented-out `<script>`, the commented-out `dispatch(…)` and the commented-out
 `$store` are all a scan that does not exclude code inside a comment — **10 of 30

@@ -207,7 +207,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | neither output is parsed — identical **non-JavaScript** scores `match`; CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [D] |
-| 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; whitespace inside a statement; anything about an error both sides raise | [S] [D] |
+| 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; whitespace inside a statement; anything about an error both sides raise; how the port decided a token was code | [S] [D] |
 | 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
@@ -2107,6 +2107,33 @@ The consequence for reading this gate: an entry leaving `svelte2tsx-known-failur
 evidence about the normalized text, never about the bytes the language server actually
 consumes. Gate 7 does not close it either — it validates rsvelte's map against *rsvelte's own*
 line lengths (6a).
+
+### Blind spot 6i — where the port decided a token was code, and the carrier that measured clean
+
+**[D]** The unit is text, so nothing here asks *how* the port reached its answer. Upstream
+answers "is this token code?" with a parser — `findNextVerbatimElement`'s regex opens with a
+`(<!--[^]*?-->)` alternation arm and skips any match that starts with it, `ComponentEvents`
+walks the TypeScript AST, and `Stores` is fed by the Svelte AST walk — while rsvelte answered
+it from bytes at **51 call sites carrying 36 distinct literal needles**, plus two scans whose
+pattern is constructed rather than literal (the dispatcher identifier, the `$` prefix).
+Crossing the needle with the carrier that hides it — 39 tokens x {instance, instance-ts,
+module, template-expression} x {`//`, `/* */`, JSDoc, `'…'`, `"…"`, `` `…` ``, `/…/`} plus two
+HTML-comment hosts, 1166 cells after the 32 a wrapper cannot carry verbatim — reported **29
+divergences** from official, and the fix took it to 8 with 0 regressed (#4114). The corpus
+holds this class (10 of the 35 ratchet entries are it), but its key is a file, so the mechanism
+is not in the ratchet — it took running both implementations on the listed sources to read it,
+and two rows of the mechanism table were still symptoms until then. 29 of the 36 needles appear
+verbatim inside a grid token; the 7 that do not are the four comment delimiters themselves
+(`//`, `/*`, `*/`, `/**` — a carrier cannot host its own delimiter), an error-message match, an
+attribute value (`infinity`), and `}),`, which is matched against the port's own generated text
+rather than against source.
+
+**The regex-literal carrier measured clean, and that is a measurement rather than a gap.** 132
+of its cells run (the rest cannot be spelled inside `/…/`), and **both** arms — before and
+after the fix — report **0 divergences** on all 132. It had read as unmeasured for a mechanical
+reason worth keeping: the grid's first usability table was hand-written and rejected 56 of
+those cells for a reason about regex *semantics* rather than about whether the cell compiles.
+Replacing it with `new Function` admitted them, and they were clean on both arms.
 
 ---
 

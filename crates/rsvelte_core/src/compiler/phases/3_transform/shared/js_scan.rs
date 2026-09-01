@@ -877,8 +877,54 @@ fn is_js_whitespace(c: char) -> bool {
 mod tests {
     use super::{
         KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_code_from, find_rune_call,
-        find_rune_code, line_starts_outside_opaque, skip_opaque, slash_starts_regex_at,
+        find_rune_code, line_starts_outside_opaque, opaque_runs, skip_opaque,
+        slash_starts_regex_at,
     };
+
+    fn runs(src: &str) -> Vec<&str> {
+        opaque_runs(src.as_bytes())
+            .into_iter()
+            .map(|(start, end)| &src[start..end])
+            .collect()
+    }
+
+    #[test]
+    fn a_line_comment_is_one_run_ending_before_the_newline() {
+        assert_eq!(runs("a // c\nb"), ["// c"]);
+    }
+
+    #[test]
+    fn a_block_comment_run_includes_its_terminator() {
+        assert_eq!(runs("a /* c */ b"), ["/* c */"]);
+    }
+
+    #[test]
+    fn a_string_run_includes_its_quotes() {
+        assert_eq!(runs("x = 's'"), ["'s'"]);
+    }
+
+    /// The whole point of this function against `skip_opaque`: a substitution
+    /// is code, so the run stops at `${` and resumes after `}`.
+    #[test]
+    fn a_template_substitution_is_code_between_two_quasi_runs() {
+        assert_eq!(runs("`t${x}u`"), ["t", "u"]);
+    }
+
+    #[test]
+    fn a_template_nested_in_a_substitution_keeps_its_own_substitution_readable() {
+        assert_eq!(runs("`a${`b${c}d`}e`"), ["a", "b", "d", "e"]);
+    }
+
+    #[test]
+    fn a_slash_after_an_operator_opens_a_regex_and_a_slash_after_a_value_does_not() {
+        assert_eq!(runs("x = /re/g"), ["/re/g"]);
+        assert!(runs("a / b").is_empty());
+    }
+
+    #[test]
+    fn an_unterminated_template_leaves_its_tail_opaque() {
+        assert_eq!(runs("`ab"), ["ab"]);
+    }
 
     #[test]
     fn a_rune_name_in_member_position_is_not_a_rune() {
