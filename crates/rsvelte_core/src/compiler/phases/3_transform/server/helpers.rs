@@ -703,6 +703,23 @@ fn extract_param_default(rest: &str) -> Option<String> {
     None
 }
 
+/// Offset of the first code byte at bracket depth 0 satisfying `matches`. The
+/// `?` and `:` that end a parameter's own name are at depth 0; one inside an
+/// object type (`b: { t?: string }`) belongs to a member.
+fn top_level_offset(src: &str, matches: impl Fn(&[u8], usize) -> bool) -> Option<usize> {
+    let bytes = src.as_bytes();
+    let mut depth = 0i32;
+    for (i, c) in code_bytes(bytes) {
+        match c {
+            b'{' | b'[' | b'(' => depth += 1,
+            b'}' | b']' | b')' => depth -= 1,
+            _ if depth == 0 && matches(bytes, i) => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
 pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
     let trimmed = param.trim();
 
@@ -748,34 +765,35 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
     // Strategy: extract the identifier name, then check for `= default` after type
 
     // Check for `?:` (optional typed) or `:` (typed)
-    let (ident_end, type_start) =
-        if let Some(qc_pos) = memchr::memmem::find(trimmed.as_bytes(), b"?:") {
-            // `name?: Type`
-            (qc_pos, Some(qc_pos + 2))
-        } else if let Some(colon_pos) = trimmed.find(':') {
-            let before = trimmed[..colon_pos].trim();
-            if is_valid_js_identifier(before) {
-                (colon_pos, Some(colon_pos + 1))
-            } else {
-                // Not a simple identifier before colon (e.g., destructuring rename)
-                return trimmed.to_string();
-            }
-        } else if let Some(q_pos) = trimmed.find('?') {
-            // `name?` (optional without type) - strip the `?`
-            let before = trimmed[..q_pos].trim();
-            if is_valid_js_identifier(before) {
-                // Check for `= default` after `?`
-                let after = trimmed[q_pos + 1..].trim();
-                if let Some(stripped) = after.strip_prefix('=') {
-                    return format!("{} = {}", before, stripped.trim());
-                }
-                return before.to_string();
-            }
-            return trimmed.to_string();
+    let (ident_end, type_start) = if let Some(qc_pos) =
+        top_level_offset(trimmed, |b, i| b[i] == b'?' && b.get(i + 1) == Some(&b':'))
+    {
+        // `name?: Type`
+        (qc_pos, Some(qc_pos + 2))
+    } else if let Some(colon_pos) = top_level_offset(trimmed, |b, i| b[i] == b':') {
+        let before = trimmed[..colon_pos].trim();
+        if is_valid_js_identifier(before) {
+            (colon_pos, Some(colon_pos + 1))
         } else {
-            // No type annotation at all
+            // Not a simple identifier before colon (e.g., destructuring rename)
             return trimmed.to_string();
-        };
+        }
+    } else if let Some(q_pos) = top_level_offset(trimmed, |b, i| b[i] == b'?') {
+        // `name?` (optional without type) - strip the `?`
+        let before = trimmed[..q_pos].trim();
+        if is_valid_js_identifier(before) {
+            // Check for `= default` after `?`
+            let after = trimmed[q_pos + 1..].trim();
+            if let Some(stripped) = after.strip_prefix('=') {
+                return format!("{} = {}", before, stripped.trim());
+            }
+            return before.to_string();
+        }
+        return trimmed.to_string();
+    } else {
+        // No type annotation at all
+        return trimmed.to_string();
+    };
 
     let ident = trimmed[..ident_end].trim();
 
