@@ -7,6 +7,7 @@ import { arch, cpus, loadavg, platform, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { flattenTemplateHoles, oxfmtTree, stripBlankLines } from "../compat-corpus/normalize.mjs";
+import { OXVELTE_REV, OXVELTE_VERSION, oxvelteInstalled } from "../bench/oxvelte-oracle.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const corpusDir = join(root, "compatibility/sources");
@@ -22,7 +23,7 @@ const fileLimit = Number(process.env.REPORT_FILE_LIMIT ?? 0);
 if (!existsSync(manifestPath) || !existsSync(corpusDir)) {
   throw new Error("The collected corpus is required; run pnpm corpus:collect first");
 }
-if (!existsSync(join(oracleDir, "node_modules"))) {
+if (!existsSync(join(oracleDir, "node_modules")) || !oxvelteInstalled()) {
   throw new Error("Competitor packages are missing; run pnpm report:competitors:install");
 }
 if (!existsSync(join(root, "submodules/svelte/packages/svelte/compiler/index.js"))) {
@@ -530,6 +531,7 @@ const toolTask = ({
   result,
   files,
   excludedFiles = 0,
+  rulesCount,
   note,
 }) => ({
   id,
@@ -537,6 +539,7 @@ const toolTask = ({
   dataset: id.startsWith("svelte-check") ? "synthetic-workspace" : "compatibility-corpus",
   files,
   excludedFiles,
+  ...(rulesCount ? { rulesCount } : {}),
   reference: {
     label: reference,
     version,
@@ -580,6 +583,8 @@ const svelteCheckRsVersion = packageVersion(
 const svelteCheckRsTsgoVersion = packageVersion(
   "scripts/bench/competitor-oracle/node_modules/@typescript/native-preview/package.json",
 );
+const oxvelteAlternative = toolResults.lint.alternatives.find(({ id }) => id === "oxvelte");
+if (!oxvelteAlternative) throw new Error("the lint task did not measure oxvelte");
 const toolTasks = [
   toolTask({
     id: "parser",
@@ -619,7 +624,8 @@ const toolTasks = [
     result: toolResults.lint,
     files: fixtureFiles,
     excludedFiles: fixtureExcluded,
-    note: `${toolResults.lint.rulesCount} rules implemented by both linters.`,
+    rulesCount: toolResults.lint.rulesCount,
+    note: `${toolResults.lint.rulesCount} rules implemented by both linters. oxvelte runs ${oxvelteAlternative.rulesCount} of them; it is a CLI, so its sample also carries process startup and its own file discovery.`,
   }),
   toolTask({
     id: "svelte-check-tsgo",
@@ -693,6 +699,7 @@ const result = {
       `svelte-check-rs@${svelteCheckRsVersion}`,
       `typescript@${typescriptVersion}`,
       `@typescript/native-preview@${tsgoVersion}`,
+      `oxvelte@${OXVELTE_VERSION}+${OXVELTE_REV}`,
     ],
     competitorReferences: ["svelte@5.56.4", "svelte@5.56.8"],
   },
@@ -739,7 +746,12 @@ const result = {
       detail: "End-to-end diagnostics, including svelte-check-rs",
     },
     { id: "format", label: "Format", status: "measured", detail: "Prettier and Oxfmt" },
-    { id: "lint", label: "Lint", status: "measured", detail: "72 equivalent rules" },
+    {
+      id: "lint",
+      label: "Lint",
+      status: "measured",
+      detail: `${toolResults.lint.rulesCount} equivalent rules, including oxvelte`,
+    },
     {
       id: "metadata",
       label: "Component metadata",
@@ -778,7 +790,7 @@ const result = {
       task: "lint",
       label: "Oxlint",
       status: "different-scope",
-      note: "Oxlint does not implement the 72 Svelte-specific rules used by this benchmark.",
+      note: `Oxlint does not implement the ${toolResults.lint.rulesCount} Svelte-specific rules used by this benchmark.`,
     },
     {
       task: "lint",
@@ -817,6 +829,7 @@ const result = {
     "Compiler elapsed time and correctness use the same complete corpus, with rejections included; partial implementations remain visible but are not equivalent-work speed rankings.",
     "Verter's published Node package requires an asset-path adapter; initialization is excluded from timed samples.",
     "Printer rows use a fixed generated-JavaScript corpus and native wall time. Each backend retains its parsed AST; parsing and process startup are excluded.",
+    `oxvelte is measured through its CLI on the same corpus, with every rule outside the shared universe turned off; its row is scoped to the ${oxvelteAlternative.rulesCount} universe rules it implements and carries process startup and file discovery the in-process rows do not.`,
   ],
 };
 

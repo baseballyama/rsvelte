@@ -50,13 +50,13 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Install version-pinned competitor oracle
-        run: npm run report:competitors:install
-
       - name: Cache cargo registry and target
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
+
+      - name: Install version-pinned competitor oracle
+        run: npm run report:competitors:install
 
       - name: Build Rust benchmark runner
         run: cargo build --release -p rsvelte_devtools --bin benchmark_runner --bin printer_benchmark_runner

@@ -15,9 +15,16 @@ import { createHash } from "crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "fs";
 import { arch as nodeArch, cpus, loadavg as osLoadAvg, platform as nodePlatform, tmpdir } from "os";
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, relative, basename, isAbsolute, sep } from "path";
 import { fileURLToPath } from "url";
 import { format as oxfmtFormat } from "oxfmt";
+import {
+  OXVELTE_BIN,
+  OXVELTE_REV,
+  OXVELTE_VERSION,
+  oxvelteInstalled,
+  oxvelteRules,
+} from "./oxvelte-oracle.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "../..");
@@ -722,9 +729,99 @@ function ensureLintBenchRunnerBuilt() {
   if (r.status !== 0) throw new Error("cargo build --bin lint_benchmark_runner failed");
 }
 
+// oxvelte's walker drops a directory with any of these names outright, which
+// would silently shrink the measured population.
+const OXVELTE_SKIPPED_DIRS = new Set(["node_modules", ".svelte-kit", "build", "dist", ".git"]);
+
+// Staging keeps each file's repo-relative path (renaming only a segment oxvelte
+// would skip) because its SvelteKit-aware rules key on `src/routes/…`; a flat
+// dir would silence them on one side of the comparison only.
+function oxvelteStageRelative(path, index) {
+  const rel = relative(REPO_ROOT, path);
+  const usable = rel && !rel.startsWith("..") && !isAbsolute(rel);
+  const source = usable ? rel : join("external", `${String(index).padStart(6, "0")}-${basename(path)}`);
+  return source
+    .split(sep)
+    .map((segment) => (OXVELTE_SKIPPED_DIRS.has(segment) ? `${segment}_` : segment))
+    .join(sep);
+}
+
+// oxvelte is a third implementation of this row, and the only one that is
+// neither in-process nor configurable upward: `oxvelte.config.json` can turn a
+// rule OFF but never ON, so the closest reachable set is `--all-rules` minus
+// everything outside the shared universe. Whatever survives is the row's scope,
+// and it is published as such — if oxvelte does not implement every rule the
+// universe holds, the two sides are not doing equivalent work and the row is a
+// separate scope rather than a ranking.
+//
+// Two asymmetries are left in and both count AGAINST oxvelte, so the number is
+// a lower bound on its speed rather than a flattering one: it is a CLI, so its
+// sample includes process startup and directory discovery that the in-process
+// ESLint and rsvelte samples never pay, and it re-reads every source from disk
+// inside the timed loop while the other two pre-read theirs.
+function benchmarkOxvelte(files, universe, iterations) {
+  const implemented = oxvelteRules();
+  const shared = universe.filter((id) => implemented.has(id));
+  const sharedSet = new Set(shared);
+  const configFile = join(REPO_ROOT, ".benchmark-oxvelte-config.json");
+  writeFileSync(
+    configFile,
+    JSON.stringify({
+      rules: Object.fromEntries(
+        [...implemented].filter((id) => !sharedSet.has(id)).map((id) => [id, "off"]),
+      ),
+    }),
+  );
+
+  const stage = mkdtempSync(join(tmpdir(), "rsvelte-oxvelte-benchmark-"));
+  try {
+    for (const [index, file] of files.entries()) {
+      const target = join(stage, oxvelteStageRelative(file.path, index));
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(file.path, target);
+    }
+
+    const run = (stdio) =>
+      spawnSync(
+        OXVELTE_BIN,
+        ["lint", "--all-rules", "--quiet", "--config", configFile, stage],
+        // `--quiet` keeps rendering out of the sample; exit 1 only means the
+        // corpus produced error-severity findings.
+        { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 1 << 26, stdio },
+      );
+
+    const completion = run(["ignore", "ignore", "pipe"]);
+    if (completion.error || ![0, 1].includes(completion.status)) {
+      throw completion.error ?? new Error(`oxvelte exited ${completion.status}`);
+    }
+    const scanned = Number(completion.stderr.match(/^(\d+) file\(s\) scanned/m)?.[1] ?? NaN);
+    if (scanned !== files.length) {
+      throw new Error(`oxvelte scanned ${scanned} files, expected ${files.length}`);
+    }
+    const panicked = (completion.stderr.match(/^oxvelte: internal error parsing /gm) ?? []).length;
+
+    for (let i = 0; i < WARMUP_ITERATIONS; i++) run("ignore");
+    const times = [];
+    for (let i = 0; i < iterations; i++) {
+      const start = performance.now();
+      run("ignore");
+      times.push(performance.now() - start);
+    }
+    return { times, completed: scanned - panicked, rules: shared };
+  } finally {
+    rmSync(stage, { recursive: true, force: true });
+    rmSync(configFile, { force: true });
+  }
+}
+
 async function runLintTask(files) {
   console.error("\n=== lint ===");
 
+  if (!oxvelteInstalled()) {
+    throw new Error(
+      `oxvelte is not installed at ${OXVELTE_BIN} — run \`pnpm run report:competitors:install\``,
+    );
+  }
   ensureLintBenchRunnerBuilt();
   const { ruleUniverse } = await import("../compat-corpus/lint-universe.mjs");
   const universe = ruleUniverse(LINT_BENCH_BIN);
@@ -770,6 +867,13 @@ async function runLintTask(files) {
     `    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
   );
 
+  console.error("  Benchmarking alternative (oxvelte)...");
+  const oxvelteResult = benchmarkOxvelte(files, universe, BENCHMARK_ITERATIONS);
+  const oxvelteStats = calculateStats(oxvelteResult.times, files.length);
+  console.error(
+    `    ${oxvelteStats.durationMs.toFixed(2)}ms (${oxvelteResult.completed}/${files.length} files, ${oxvelteResult.rules.length}/${universe.length} shared rules)`,
+  );
+
   console.error("  Benchmarking Rust (single-threaded)...");
   const rustSingleTimes = await benchmarkRust(files, true, "lint", "lint_benchmark_runner", [
     "--config",
@@ -801,6 +905,18 @@ async function runLintTask(files) {
     taskLabel: "lint",
     rulesCount: universe.length,
     javascript: { ...jsStats },
+    alternatives: [
+      {
+        id: "oxvelte",
+        label: "oxvelte",
+        version: `${OXVELTE_VERSION} (${OXVELTE_REV.slice(0, 7)})`,
+        completedFiles: oxvelteResult.completed,
+        rulesCount: oxvelteResult.rules.length,
+        comparable: oxvelteResult.rules.length === universe.length,
+        scope: `${oxvelteResult.rules.length} of ${universe.length} shared rules`,
+        ...oxvelteStats,
+      },
+    ],
     rustSingleThread: { ...rustSingleStats },
     rustMultiThread: { ...rustMultiStats },
     speedup: {

@@ -180,6 +180,10 @@ compatibility/lsp-current-*.json
 # Where `pnpm run lsp:update` expects the nine downloaded CI artifacts.
 .lsp-current/
 
+# `cargo install --root` prefix for the pinned oxvelte competitor (built on
+# demand by `pnpm run report:competitors:install`; never committed)
+scripts/bench/oxvelte-oracle/
+
 # Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
 /target-ast/
 /target-rt/

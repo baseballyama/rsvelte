@@ -28,7 +28,7 @@
 		"benchmark:fixtures": "node scripts/bench/run-benchmark.mjs",
 		"benchmark:reproduce": "node scripts/bench/reproduce-performance.mjs",
 		"report:compatibility": "node scripts/reports/publish-compatibility.mjs",
-		"report:competitors:install": "npm --prefix scripts/bench/competitor-oracle install --ignore-scripts",
+		"report:competitors:install": "npm --prefix scripts/bench/competitor-oracle install --ignore-scripts && node scripts/bench/oxvelte-oracle.mjs",
 		"report:performance": "node scripts/reports/run-performance.mjs",
 		"report:all": "pnpm run report:competitors:install && pnpm run report:performance && pnpm run report:compatibility",
 		"compatibility-report": "RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture",

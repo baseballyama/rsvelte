@@ -147,6 +147,8 @@ export interface PerformanceToolTask {
   dataset: "compatibility-corpus" | "svelte-test-fixtures" | "synthetic-workspace";
   files: number;
   excludedFiles: number;
+  // Rules both linters run. Present on the `lint` task only.
+  rulesCount?: number;
   reference: ToolPerformanceVariant;
   rsvelteSingle: ToolPerformanceVariant;
   rsvelteParallel: ToolPerformanceVariant;
@@ -154,6 +156,7 @@ export interface PerformanceToolTask {
     id: string;
     completedFiles: number;
     speedupVsRsvelteParallel: number;
+    rulesCount?: number;
     comparable?: boolean;
     scope?: string;
     compatibility?: {

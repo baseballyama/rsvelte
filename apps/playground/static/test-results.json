@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-08-12T08:09:02.989485+00:00",
-  "commit_sha": "44a781373057",
+  "generated_at": "2026-09-01T13:21:09.726061+00:00",
+  "commit_sha": "56a036f4ce87",
   "summary": {
-    "total": 3652,
-    "passed": 3566,
+    "total": 3672,
+    "passed": 3592,
     "failed": 0,
-    "skipped": 86,
+    "skipped": 80,
     "percentage": 100
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
-      "total": 27,
-      "passed": 27,
+      "total": 28,
+      "passed": 28,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -83,6 +83,10 @@
           "status": "pass"
         },
         {
+          "name": "css-nth-of-minified",
+          "status": "pass"
+        },
+        {
           "name": "if-block",
           "status": "pass"
         },
@@ -132,9 +136,9 @@
       "id": "parser-legacy",
       "name": "Parser Legacy",
       "total": 83,
-      "passed": 81,
+      "passed": 82,
       "failed": 0,
-      "skipped": 2,
+      "skipped": 1,
       "percentage": 100,
       "tests": [
         {
@@ -179,8 +183,7 @@
         },
         {
           "name": "javascript-comments",
-          "status": "skip",
-          "skip_reason": "Known incompatibility with OXC parser"
+          "status": "pass"
         },
         {
           "name": "if-block-else",
@@ -612,8 +615,8 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 181,
-      "passed": 181,
+      "total": 182,
+      "passed": 182,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -1176,6 +1179,10 @@
         },
         {
           "name": "siblings-combinator-each-nested",
+          "status": "pass"
+        },
+        {
+          "name": "namespaced-type-selector",
           "status": "pass"
         },
         {
@@ -3286,10 +3293,10 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 1011,
-      "passed": 1007,
+      "total": 1020,
+      "passed": 1020,
       "failed": 0,
-      "skipped": 4,
+      "skipped": 0,
       "percentage": 100,
       "tests": [
         {
@@ -3458,6 +3465,10 @@
         },
         {
           "name": "head-payload-validation",
+          "status": "pass"
+        },
+        {
+          "name": "labeled-statement-derived",
           "status": "pass"
         },
         {
@@ -4377,6 +4388,10 @@
           "status": "pass"
         },
         {
+          "name": "effect-teardown-multiple-writes",
+          "status": "pass"
+        },
+        {
           "name": "async-settled-after-dom",
           "status": "pass"
         },
@@ -5006,8 +5021,7 @@
         },
         {
           "name": "async-batch-derived",
-          "status": "skip",
-          "skip_reason": "On the documented runtime skip list in tests/common/mod.rs"
+          "status": "pass"
         },
         {
           "name": "async-each-await-stale-rows",
@@ -5406,6 +5420,10 @@
           "status": "pass"
         },
         {
+          "name": "class-private-fields-logical-assignment",
+          "status": "pass"
+        },
+        {
           "name": "each-was-empty",
           "status": "pass"
         },
@@ -5630,6 +5648,10 @@
           "status": "pass"
         },
         {
+          "name": "async-each-controlled-empty-pending",
+          "status": "pass"
+        },
+        {
           "name": "class-state-derived-3",
           "status": "pass"
         },
@@ -5699,11 +5721,14 @@
         },
         {
           "name": "hmr-removal",
-          "status": "skip",
-          "skip_reason": "On the documented runtime skip list in tests/common/mod.rs"
+          "status": "pass"
         },
         {
           "name": "derived-unowned-12",
+          "status": "pass"
+        },
+        {
+          "name": "class-private-state-increment-other-receiver",
           "status": "pass"
         },
         {
@@ -5984,8 +6009,7 @@
         },
         {
           "name": "hmr-each-keyed-unshift",
-          "status": "skip",
-          "skip_reason": "On the documented runtime skip list in tests/common/mod.rs"
+          "status": "pass"
         },
         {
           "name": "props-alias-weird",
@@ -6101,6 +6125,10 @@
         },
         {
           "name": "spread-element-input-select",
+          "status": "pass"
+        },
+        {
+          "name": "component-css-props-falsy",
           "status": "pass"
         },
         {
@@ -6840,6 +6868,10 @@
           "status": "pass"
         },
         {
+          "name": "async-custom-element-attribute",
+          "status": "pass"
+        },
+        {
           "name": "svelte-meta",
           "status": "pass"
         },
@@ -6921,8 +6953,7 @@
         },
         {
           "name": "async-style-after-await",
-          "status": "skip",
-          "skip_reason": "On the documented runtime skip list in tests/common/mod.rs"
+          "status": "pass"
         },
         {
           "name": "global-variable-assignment",
@@ -7030,6 +7061,10 @@
         },
         {
           "name": "async-redirect-initial",
+          "status": "pass"
+        },
+        {
+          "name": "derived-forward-ref-leading-comments",
           "status": "pass"
         },
         {
@@ -7266,6 +7301,10 @@
         },
         {
           "name": "async-attribute",
+          "status": "pass"
+        },
+        {
+          "name": "derived-destructured-from-derived",
           "status": "pass"
         },
         {
@@ -12324,9 +12363,9 @@
       "id": "hydration",
       "name": "Hydration",
       "total": 80,
-      "passed": 79,
+      "passed": 80,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 0,
       "percentage": 100,
       "tests": [
         {
@@ -12499,8 +12538,7 @@
         },
         {
           "name": "boundary-pending-attribute",
-          "status": "skip",
-          "skip_reason": "On the documented runtime skip list in tests/common/mod.rs"
+          "status": "pass"
         },
         {
           "name": "script",
@@ -12655,8 +12693,8 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 99,
-      "passed": 99,
+      "total": 100,
+      "passed": 100,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12998,6 +13036,10 @@
           "status": "pass"
         },
         {
+          "name": "head-with-multiple-binding-components",
+          "status": "pass"
+        },
+        {
           "name": "boundary-error-with-onerror",
           "status": "pass"
         },
@@ -13276,8 +13318,8 @@
     {
       "id": "print",
       "name": "Print",
-      "total": 44,
-      "passed": 43,
+      "total": 50,
+      "passed": 49,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -13287,7 +13329,15 @@
           "status": "pass"
         },
         {
+          "name": "css-escape-sequences",
+          "status": "pass"
+        },
+        {
           "name": "svelte-window",
+          "status": "pass"
+        },
+        {
+          "name": "preserve-whitespace-elements",
           "status": "pass"
         },
         {
@@ -13348,6 +13398,10 @@
           "status": "pass"
         },
         {
+          "name": "style-comments",
+          "status": "pass"
+        },
+        {
           "name": "const-tag",
           "status": "pass"
         },
@@ -13388,6 +13442,10 @@
           "status": "pass"
         },
         {
+          "name": "comment-inside-attribute",
+          "status": "pass"
+        },
+        {
           "name": "snippet-block",
           "status": "pass"
         },
@@ -13424,6 +13482,10 @@
           "status": "pass"
         },
         {
+          "name": "element-content-wrapping",
+          "status": "pass"
+        },
+        {
           "name": "bind-directive",
           "status": "pass"
         },
@@ -13445,6 +13507,10 @@
         },
         {
           "name": "attach-tag",
+          "status": "pass"
+        },
+        {
+          "name": "css-namespaced-type-selector",
           "status": "pass"
         },
         {
@@ -13855,8 +13921,8 @@
     {
       "id": "svelte2tsx",
       "name": "svelte2tsx",
-      "total": 254,
-      "passed": 254,
+      "total": 256,
+      "passed": 256,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -14390,6 +14456,10 @@
           "status": "pass"
         },
         {
+          "name": "script-tag-in-style-comment-with-real-script",
+          "status": "pass"
+        },
+        {
           "name": "script-with-src",
           "status": "pass"
         },
@@ -14495,6 +14565,10 @@
         },
         {
           "name": "style-in-script",
+          "status": "pass"
+        },
+        {
+          "name": "style-tag-in-script-comment-with-real-style",
           "status": "pass"
         },
         {

@@ -21,6 +21,15 @@ matching Svelte version, the runner compares normalized JavaScript by byte equal
 equivalence and requires identical CSS output. Inputs rejected by Svelte require rejection parity,
 so the displayed correctness denominator is the same complete corpus used by the elapsed-time row.
 
+The lint row compares three linters over one rule set: the parity corpus' rule universe, which is
+the intersection of what rsvelte and the pinned `eslint-plugin-svelte` implement. `oxvelte` ships no
+npm package, so it is pinned by commit and installed with `cargo install --git` into a gitignored
+prefix by `pnpm run report:competitors:install`; its config can only turn a rule *off*, so it runs
+`--all-rules` minus everything outside the universe. Its row is scoped to the universe rules it
+implements, and it is measured through its CLI — that sample carries process startup, directory
+discovery and per-file reads the in-process ESLint and rsvelte samples never pay, so it is a lower
+bound on oxvelte's speed.
+
 Formatter alternatives are timed across every attempted file even when they reject part of the
 corpus. Oxfmt uses its multi-threaded CLI with Svelte support enabled; its public single-file API is
 used only for the untimed completion check. Incomplete output is shown with its completion count
