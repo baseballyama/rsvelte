@@ -3224,24 +3224,15 @@ fn build_component_expression(
             }
             // Apply transforms to handle derived values (const B = $derived(A) -> $.get(B))
             //
-            // Svelte 5.55.6 (upstream commit `e00944ffd` "fix: correctly compile
-            // component member expressions for SSR") + the matching client
-            // change in `b.member_id(component_name)`: when the component name
-            // is a dotted path like `state.x.Y`, build the equivalent
-            // `MemberExpression` chain so transforms only apply to the root
-            // identifier (e.g. `$.get(state).x.Y`).
-            let parts: Vec<&str> = component_name.split('.').collect();
-            if parts.len() > 1 {
-                let base_expr = b::id(parts[0]);
-                let mut expr = super::utils::apply_transforms_to_expression(&base_expr, context);
-                for part in &parts[1..] {
-                    expr = b::member(&context.arena, expr, part.to_string());
-                }
-                expr
-            } else {
-                let id_expr = b::id(component_name);
-                super::utils::apply_transforms_to_expression(&id_expr, context)
+            // Upstream visits the whole `b.member_id(component_name)` chain, not its root:
+            // the rest-prop read rule is keyed on the parent member expression, so a root
+            // transformed on its own never meets it.
+            let mut parts = component_name.split('.');
+            let mut expr = b::id(parts.next().unwrap_or(component_name));
+            for part in parts {
+                expr = b::member(&context.arena, expr, part.to_string());
             }
+            super::utils::apply_transforms_to_expression(&expr, context)
         }
         ComponentNode::SvelteComponent(comp) => {
             // Use the `this` expression

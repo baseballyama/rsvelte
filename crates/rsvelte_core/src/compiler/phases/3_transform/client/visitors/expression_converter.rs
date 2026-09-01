@@ -655,19 +655,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let computed = *computed;
             let optional = *optional;
 
-            // Optimize rest_prop access: When accessing a property on a rest_prop binding
-            // (e.g., `others.bar` where `let { foo, ...others } = $props()`), replace the
-            // object with `$$props` for read access. Mirrors official Svelte Identifier.js.
-            if context.state.analysis.runes
-                && !computed
-                && !context.state.in_direct_assignment_lhs
-                && let Some(obj_name) =
-                    get_jsnode_identifier_name_unwrap_ts(pa.get_js_node(*object))
-                && !context.state.shadowed_prop_names.contains(&obj_name)
-                && let Some(binding) = context.state.get_binding(&obj_name)
-                && binding.kind == BindingKind::RestProp
+            if let Some(obj_name) = get_jsnode_identifier_name_unwrap_ts(pa.get_js_node(*object))
                 && let Some(prop_name) = get_jsnode_identifier_name(pa.get_js_node(*property))
-                && !binding.exclude_props.iter().any(|ep| ep == &prop_name)
+                && super::shared::utils::rest_prop_member_reads_props(
+                    context, computed, &obj_name, &prop_name,
+                )
             {
                 let prop_node = pa.get_js_node(*property);
                 return JsExpr::Member(JsMemberExpression {
@@ -2036,21 +2028,17 @@ fn convert_member_expression(
     // 3. Must NOT be computed (i.e., `others.bar`, not `others[bar]`)
     // 4. Must NOT be a direct assignment LHS (e.g., `others.bar = x` stays as-is)
     // 5. Property name must NOT be in the binding's exclude_props list
-    if context.state.analysis.runes
-        && !computed
-        && !context.state.in_direct_assignment_lhs
-        && let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
+    if let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
         && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
         && let Some(obj_name) = object_obj.get("name").and_then(|n| n.as_str())
-        && !context.state.shadowed_prop_names.contains(obj_name)
-        && let Some(binding) = context.state.get_binding(obj_name)
-        && binding.kind == BindingKind::RestProp
         && let Some(prop_name) = obj
             .get("property")
             .and_then(|p| p.as_object())
             .and_then(|p| p.get("name"))
             .and_then(|n| n.as_str())
-        && !binding.exclude_props.iter().any(|ep| ep == prop_name)
+        && super::shared::utils::rest_prop_member_reads_props(
+            context, computed, obj_name, prop_name,
+        )
     {
         // Replace object with $$props
         return JsExpr::Member(JsMemberExpression {

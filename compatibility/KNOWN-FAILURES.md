@@ -2847,11 +2847,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 46 entries)
+### Client (`known-failures.client.json`, 45 entries)
 
-Partition of `known-failures.client.json` by verdict: `45 + 1`
+Partition of `known-failures.client.json` by verdict: `44 + 1`
 
-- **45 — the generated JS differs** (`js` / `code-differs`).
+- **44 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2868,7 +2868,16 @@ official replaces with nothing. The third syntaxfm entry
 (`routes/(site)/guests/+page.svelte`) is a different cause and stays: its output is
 byte-identical before and after that fix.
 
-Every one of the remaining 46 arrived with the wave-2 enrolment (#3130) and is described
+One trakt-web entry (`test/beds/component/ComponentTestBed.svelte`) left this target and
+`client-dev` when a dotted component tag name started reading through its root binding's
+transform. Upstream lowers a tag name with `context.visit(b.member_id(name))` — the whole
+member expression — and the rest-prop read rule sits in `Identifier.js` keyed on the
+parent, so transforming the root alone never reached it and `<input.component />` stayed
+`input.component` where official emits `$$props.component`. Whether a corpus-wide sweep
+attributes anything else to that change is answerable rather than assumed: hashing all
+104,439 (entry, target) outputs before and after reports exactly these two as changed.
+
+Every one of the remaining 45 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -2951,15 +2960,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 60 entries)
+### Client dev (`known-failures.client-dev.json`, 59 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `60`
+Partition of `known-failures.client-dev.json` by verdict: `59`
 
-- **60 — the generated JS differs.**
+- **59 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 60 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 59 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

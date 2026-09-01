@@ -17,6 +17,25 @@ use crate::compiler::phases::phase3_transform::server::evaluate::{
     EvalScope, EvalValue, Evaluation, evaluate_binding_initial, evaluate_estree, to_js_string,
 };
 
+/// Does a rest-prop read `R.x` rewrite to `$$props.x`?
+///
+/// Upstream keys this on the parent (`Identifier.js` inspects `context.path`), so every
+/// walk here that carries no parent path has to ask from the member expression instead.
+pub fn rest_prop_member_reads_props(
+    context: &ComponentContext,
+    computed: bool,
+    object_name: &str,
+    property_name: &str,
+) -> bool {
+    context.state.analysis.runes
+        && !computed
+        && !context.state.in_direct_assignment_lhs
+        && !context.state.shadowed_prop_names.contains(object_name)
+        && context.state.get_binding(object_name).is_some_and(|b| {
+            b.kind == BindingKind::RestProp && !b.exclude_props.iter().any(|ep| ep == property_name)
+        })
+}
+
 /// Local scope information for tracking shadowed variables and their init expression types.
 ///
 /// This is used during expression transformation to:
@@ -606,6 +625,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         && context.state.each_index_name.is_none()
         && context.state.each_item_names.is_empty()
         && context.state.each_binding_context.is_empty()
+        && !holds_rest_prop_member(expr, context)
     {
         return expr.clone();
     }
@@ -615,6 +635,24 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         assert_transform_is_idempotent(&transformed, context);
     }
     transformed
+}
+
+/// Is `expr` a member chain rooted at a rest-prop read?
+///
+/// The fast path below returns early on "no transform can change this", and that premise
+/// stops holding once a rewrite is driven by a binding rather than by `state.transform`.
+fn holds_rest_prop_member(expr: &JsExpr, context: &ComponentContext) -> bool {
+    let mut cur = expr;
+    while let JsExpr::Member(m) = cur {
+        if let JsExpr::Identifier(obj) = context.arena.get_expr(m.object)
+            && let JsMemberProperty::Identifier(prop) = &m.property
+            && rest_prop_member_reads_props(context, m.computed, obj.as_str(), prop.as_str())
+        {
+            return true;
+        }
+        cur = context.arena.get_expr(m.object);
+    }
+    false
 }
 
 /// The store a `$.store_set` / `$.store_mutate` writes to is read through its own
@@ -879,6 +917,25 @@ pub fn apply_transforms_to_expression_with_shadowed(
         }
 
         JsExpr::Member(member) => {
+            if let JsExpr::Identifier(obj_name) = context.arena.get_expr(member.object)
+                && let JsMemberProperty::Identifier(prop_name) = &member.property
+                && rest_prop_member_reads_props(
+                    context,
+                    member.computed,
+                    obj_name.as_str(),
+                    prop_name.as_str(),
+                )
+            {
+                return JsExpr::Member(JsMemberExpression {
+                    object: context
+                        .arena
+                        .alloc_expr(JsExpr::Identifier("$$props".into())),
+                    property: member.property.clone(),
+                    computed: false,
+                    optional: member.optional,
+                });
+            }
+
             // Apply transform to the object, but not the property (unless computed)
             let transformed_object = recurse!(context.arena.get_expr(member.object));
 
