@@ -2912,11 +2912,23 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](#deliberate-divergences), each pinned by a test.
 
-### Server (`known-failures.server.json`, 9 entries)
+### Server (`known-failures.server.json`, 5 entries)
 
-Partition of `known-failures.server.json` by verdict: `7 + 2`
+Partition of `known-failures.server.json` by verdict: `3 + 2`
 
-- **7 — the generated JS differs.**
+Attribution of `known-failures.server.json`:
+
+| n | target | cluster |
+|---|---|---|
+| 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
+
+The other 3 carry **no target yet**: each is a defect on rsvelte's side, so the
+only end state open to them is elimination. They are `networking-toolbox/…/SiteMapList.svelte`
+and `trakt-web/…/SegmentedSelect.svelte` (both drop a CSS scope class from an element
+inside a snippet — #4115) and `sveltepress/…/NavItem.svelte` (#4117).
+
+
+- **3 — the generated JS differs.**
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
@@ -2949,19 +2961,31 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-### Server dev (`known-failures.server-dev.json`, 9 entries)
+### Server dev (`known-failures.server-dev.json`, 5 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `7 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `3 + 2`
+
+Attribution of `known-failures.server-dev.json`:
+
+| n | target | cluster |
+|---|---|---|
+| 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
+
+The other 3 carry **no target yet**: each is a defect on rsvelte's side, so the
+only end state open to them is elimination. They are `networking-toolbox/…/SiteMapList.svelte`
+and `trakt-web/…/SegmentedSelect.svelte` (both drop a CSS scope class from an element
+inside a snippet — #4115) and `sveltepress/…/NavItem.svelte` (#4117).
+
 
 The trailing **2** is the same deliberate divergence as on `server` — the
 `$`-prefixed function parameter — carried on both targets because the server
 transform runs on both.
 
-- **7 — the generated JS differs.**
+- **3 — the generated JS differs.**
 - **2 — the same recorded deliberate divergence as on `server`.**
 
 All 13 arrived with the wave-2 enrolment (#3130); this target was at 0 before
