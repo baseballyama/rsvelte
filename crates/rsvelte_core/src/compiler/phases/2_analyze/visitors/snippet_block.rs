@@ -49,14 +49,19 @@ pub fn visit<'a, 'b: 'a>(
             parent_idx: context.current_parent_idx(),
             snippet_start: context.current_snippet_key(),
         };
-        context
-            .analysis
-            .css
-            .dom_structure
-            .snippet_render_sites
-            .entry(key)
-            .or_default()
-            .push(site);
+        let host_start = match context.path.iter().rev().nth(1) {
+            Some(TemplateNode::Component(c)) => Some(c.start),
+            Some(TemplateNode::SvelteComponent(c)) => Some(c.start),
+            Some(TemplateNode::SvelteSelf(c)) => Some(c.start),
+            _ => None,
+        };
+        let dom = &mut context.analysis.css.dom_structure;
+        dom.snippet_render_sites.entry(key).or_default().push(site);
+        // The ancestor-scoping pass walks the template and meets the component,
+        // not this block, so the same site has to be reachable from the host.
+        if let Some(host) = host_start {
+            dom.renderer_targets.entry(host).or_default().push(key);
+        }
     }
 
     // Validate block is not empty (warn if only whitespace)

@@ -116,8 +116,10 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     let dom = &mut context.analysis.css.dom_structure;
     if let Some(key) = snippet_key {
         dom.snippet_render_sites.entry(key).or_default().push(site);
+        dom.renderer_targets.entry(tag.start).or_default().push(key);
     } else if !resolved {
         dom.unresolved_render_sites.push(site);
+        dom.unresolved_renderers.insert(tag.start);
     }
 
     // Validate arguments - no spread elements allowed

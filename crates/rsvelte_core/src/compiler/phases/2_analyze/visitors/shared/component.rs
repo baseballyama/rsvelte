@@ -144,14 +144,15 @@ pub fn visit_component<'a, 'b: 'a>(
                 .entry(key)
                 .or_default()
                 .push(site.clone());
+            dom.renderer_targets
+                .entry(component.start)
+                .or_default()
+                .push(key);
         }
     } else {
-        context
-            .analysis
-            .css
-            .dom_structure
-            .unresolved_render_sites
-            .push(site);
+        let dom = &mut context.analysis.css.dom_structure;
+        dom.unresolved_render_sites.push(site);
+        dom.unresolved_renderers.insert(component.start);
     }
 
     // Mark the subtree as dynamic

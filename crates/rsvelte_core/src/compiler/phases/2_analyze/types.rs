@@ -2400,6 +2400,14 @@ pub struct DomStructure {
     /// site one of EVERY snippet here — stronger than "unknown", so it must not
     /// be modelled as one.
     pub unresolved_render_sites: Vec<CssRenderSite>,
+    /// Which `{#snippet}` each renderer resolves to, keyed by the renderer node's
+    /// own start. The ancestor-scoping pass walks the template rather than this
+    /// structure, so it reads the resolution from here instead of resolving the
+    /// callee a second time.
+    pub renderer_targets: FxHashMap<u32, Vec<u32>>,
+    /// Renderers that resolve to no declaration, keyed the same way. Upstream's
+    /// `!resolved` makes such a renderer a site of EVERY snippet.
+    pub unresolved_renderers: FxHashSet<u32>,
 }
 
 /// A `{@render}` call site: where the snippet body is spliced into the DOM.
