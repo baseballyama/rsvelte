@@ -993,7 +993,11 @@ Rules, in the order they are cheap:
    still lost the failure: a window that admits only passing lines answers "did
    it fail" and never "what failed", and the run that produced it did not
    reproduce. The failure has to be *inside* the window, not merely outside the
-   pipe — write to a file first, then read the file. And row 5 is the same class
+   pipe — write to a file first, then read the file. The trap is the *stage*, not
+   the command: `head`, `tail`, `sed -n`, `head -c` and `2>/dev/null` are one
+   hazard, and reading the table as "beware `tail`" is how row 4 was hit by
+   someone who had read it half an hour earlier. `cmd | head -20; echo $?` prints
+   `head`'s status, never `cmd`'s. And row 5 is the same class
    without any truncation at all: a stage that **pairs** two measurements can pair
    the wrong rows, so use an associative array keyed by id (`awk`) and never
    `join`, whose ordering precondition your data will violate the first time an
@@ -1027,7 +1031,12 @@ binary you are about to measure with. A probe only separates the hypothesis you
 handed it: an arm was probed with one fix's fingerprint, came back clean, and was
 then trusted as "named correctly" — the mislabelling surfaced only from a *second*
 probe carrying a *different* fix's fingerprint. Probe for what the arm should
-contain **and** for what it should lack. And **read the build's own
+contain **and** for what it should lack. **And a probe on the wrong half of a
+compound fix is powerless even when the hypothesis is right**: #4139 restores a
+leaked read *and* re-scopes the matching write, so an input exercising only the
+write returns identical output from both arms — not because the arms are the same
+but because that half of the change nets to zero. A fix built from two changes
+that cancel needs its probe on the half that does not. And **read the build's own
 `Compiling <crate> (<path>)` line** to learn which tree it read: that is the only
 signal `cd`, `CARGO_TARGET_DIR`, the file name and the artifact path cannot
 between them fake. Build as `cd <worktree> && CARGO_TARGET_DIR=<worktree>/target
@@ -1063,6 +1072,26 @@ diagnosed as a defect and nearly deleted from three ports, because the npm build
 
 No gate compares generated code against the npm build (`test-wasm-compile-options.mjs` imports
 it only to ask whether an option *throws*), so the hazard is probes, not gates.
+
+### A changed hash is not a fixed file, and five samples can be one sample
+
+Two independent measurements of a fix's blast radius converged on the same two
+stages on the same day, which is what makes it a procedure rather than a habit.
+**Stage one** hashes every corpus unit under both arms and reports the set that
+moved; it answers *what did this touch* and nothing else. **Stage two** takes only
+that set and compares it to the oracle through the gate's own normalization; it
+answers *which way*. Collapsing them reports the first number as the second: one
+sweep moved five ids and retired three, because the other two changed their output
+without changing their verdict — the first differing line was identical before and
+after. Print `match -> MISMATCH` on its own line at stage two; a fix that repairs
+n cells and breaks n is the same total as one that does nothing.
+
+The same asymmetry applies to a *sample*. Five samples drawn from five different
+files are not five independent cases if the sampler varied the file and held the
+position: an LSP label's five representatives turned out to sit at `0:2`, `0:9`,
+`0:15` and `1:11` — the `<script` tag name, the `lang` attribute name, its value,
+and the first import line — so "not-MANY at n=5" was really n=1 with the file
+varied. Report the sample's real denominator (`n=5, sites=1`), not its nominal one.
 
 ### The ORDER of an upstream guard can be the semantics, and only the oracle can say so
 
