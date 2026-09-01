@@ -996,6 +996,41 @@ Rules, in the order they are cheap:
    which one (`-p <crate> --lib --tests`), because the reader cannot tell from
    the output whether your file was in it.
 
+### Nothing about a measurement arm is evidence of what it measured
+
+An A/B here is two `.node` binaries, and every cheap way of saying which is which
+has been wrong on this repository within one day of the others:
+
+| the label | why it lies |
+|---|---|
+| the file name (`main.node`) | it was built from a feature branch an hour earlier and never renamed |
+| `buildInfo()` | `build.rs` stamps do not refresh on a rebuild |
+| the artifact's path | with `CARGO_TARGET_DIR` set, the path no longer depends on cwd — so it stops proving which tree was compiled |
+| the branch you think you are on | an agent's shell cwd silently resets to the main checkout, and `cargo` then compiles someone else's working tree with no error |
+| "the same branch as last time" | the branch was rebased between the two builds, so the arms differ by whatever landed on `main` in between |
+
+Two rules cover all five. **Identify an arm by a discriminating probe on its
+output** — one input whose answer differs between the two arms, run through the
+binary you are about to measure with. A probe only separates the hypothesis you
+handed it: an arm was probed with one fix's fingerprint, came back clean, and was
+then trusted as "named correctly" — the mislabelling surfaced only from a *second*
+probe carrying a *different* fix's fingerprint. Probe for what the arm should
+contain **and** for what it should lack. And **read the build's own
+`Compiling <crate> (<path>)` line** to learn which tree it read: that is the only
+signal `cd`, `CARGO_TARGET_DIR`, the file name and the artifact path cannot
+between them fake. Build as `cd <worktree> && CARGO_TARGET_DIR=<worktree>/target
+cargo …`: the `cd` protects your sources, the env var protects everyone else's
+`target/`, and neither protects the other.
+
+The last row is the expensive one, because its symptom is a plausible result.
+A `before -> after` sweep reported 4 output changes "toward official", two of
+them to byte-equality — in the right direction, at the right size, and
+flattering to the PR. The two arms had been built from different merge bases,
+and the four files were `.svelte.js`, which the changed template visitor cannot
+reach at all. **Ask what mechanism could carry the change to each moved file
+before attributing any of them**; a direction that matches your hypothesis is
+the cheapest thing for an artefact to imitate.
+
 ### Three things answer to "the official compiler", and they disagree
 
 An ad-hoc probe that does `import { compile } from 'svelte/compiler'` does **not** get the

@@ -1050,6 +1050,37 @@ fn post_process_for_server(source: &str) -> String {
 /// Used by `post_process_for_server` so reads via `$.get(X)` can be lowered
 /// to `X()` (the server runtime treats a derived as a callable) while plain
 /// state reads stay as `X`.
+/// Where the declarator list containing the `,` at `comma` begins: the last `;`
+/// seen at the comma's own bracket depth. Reading the nearest preceding `;`
+/// instead puts the start inside the previous declarator's function body, so a
+/// `const { a } = $derived.by(() => { return o; })` expansion loses its second
+/// declarator and every later read of `a` stays uncalled.
+fn declarator_list_start(bytes: &[u8], comma: usize) -> usize {
+    use crate::compiler::phases::phase3_transform::shared::js_scan;
+    let mut marks: Vec<usize> = vec![0];
+    for (i, b) in js_scan::code_bytes(bytes) {
+        if i >= comma {
+            break;
+        }
+        match b {
+            b'(' | b'[' | b'{' => marks.push(i + 1),
+            b')' | b']' | b'}' => {
+                marks.pop();
+                if marks.is_empty() {
+                    marks.push(0);
+                }
+            }
+            b';' => {
+                if let Some(last) = marks.last_mut() {
+                    *last = i + 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    marks.pop().unwrap_or(0)
+}
+
 fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
     use rustc_hash::FxHashSet;
     let mut names: FxHashSet<String> = FxHashSet::default();
@@ -1106,10 +1137,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
                 && (&bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var"))
                 || (kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const");
             let generated_decl = !keyword_decl && kw_end > 0 && bytes[kw_end - 1] == b',' && {
-                let statement_start = bytes[..kw_end - 1]
-                    .iter()
-                    .rposition(|byte| *byte == b';')
-                    .map_or(0, |pos| pos + 1);
+                let statement_start = declarator_list_start(bytes, kw_end - 1);
                 let prefix = &source[statement_start..kw_end - 1];
                 prefix.contains("let ") || prefix.contains("const ") || prefix.contains("var ")
             };

@@ -197,6 +197,11 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
         // body is hoistable AND the boundary is at the top level.
         failed_fn = Some(build_boundary_snippet(snippet, "failed", state));
         failed_fn_hoist = snippet.metadata.can_hoist && state.fragment_depth <= 1;
+        // Upstream marks every snippet function `___snippet`, which the
+        // component-bindings settle loop uses to keep snippets ahead of
+        // `$$render_inner`; this path builds the declaration itself, so it has to
+        // record the name the way `visit_snippet_block` does.
+        state.snippet_names.insert("failed".to_string());
         props.push(state.b.init("failed", state.b.id("failed")));
     } else if let Some(Attribute::Attribute(attr)) = failed_attribute {
         // `failed={expr}` (no snippet): `{ failed: <expr> }` (shorthand when the
