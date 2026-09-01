@@ -255,14 +255,14 @@ fn build_block_with_argument(
     context.state.in_control_flow_block = prev_in_control_flow;
     body_statements.extend(fragment_statements);
 
-    // Restore the transform state
-    context.state.transform = saved_transform;
+    // Upstream's `catch_context` spreads `state` without copying `transform`, so a catch
+    // binding's read override outlives its block; reproduced here for byte equality.
+    if block_type != "catch" {
+        context.state.transform = saved_transform;
+        context.state.shadowed_prop_names = saved_shadowed_prop_names;
+    }
     context.state.transform_deep_read = saved_transform_deep_read;
     context.state.await_binding_names = saved_await_binding_names;
-    context.state.shadowed_prop_names = saved_shadowed_prop_names;
-
-    // Log for debugging if needed
-    let _ = block_type;
 
     b::arrow_block(params, body_statements)
 }

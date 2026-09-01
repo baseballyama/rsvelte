@@ -79,6 +79,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `3635-esrap-side-effect-import-drops-attributes.md` | sveltejs/esrap | #3635 | unrecorded |
 | `3651-svelte-async-autofocus-and-event-output-is-unparseable.md` | sveltejs/svelte | #3651 | unrecorded |
 | `4046-svelte-a-reordered-reactive-statement-reprints-earlier-comments.md` | sveltejs/svelte | #4046 | unrecorded |
+| `4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md` | sveltejs/svelte | #4111 | unrecorded |
 | `grass-css-color-4-relative-syntax.md` | connorskees/grass | — | unrecorded |
 | `grass-explicit-extension-specifier.md` | connorskees/grass | — | unrecorded |
 | `grass-hoists-a-declaration-written-after-a-nested-rule.md` | connorskees/grass | — | unrecorded |
