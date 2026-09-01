@@ -2847,11 +2847,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 37 entries)
+### Client (`known-failures.client.json`, 34 entries)
 
-Partition of `known-failures.client.json` by verdict: `36 + 1`
+Partition of `known-failures.client.json` by verdict: `33 + 1`
 
-- **36 — the generated JS differs** (`js` / `code-differs`).
+- **33 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2900,16 +2900,32 @@ because `has_member_expression` and `has_assignment` are re-derived in phase 3. 
 69,626 client (entry, target) outputs before and after reports 14 changed units over 7 ids,
 `match -> MISMATCH = 0`, and 10 of the 14 newly matching.
 
-The other two of those seven ids stay listed, and one of them is the reason to state the unit.
-`open-webui/…/Models.svelte` is #4142's own subject and **is fixed** — the two arms' outputs
-differ on exactly one line, `importModels(localStorage.token, models)` against
-`importModels(localStorage.token, $.get(models))`, and the former is byte-identical to
-official. Its entry does not retire because line 134 of the same file carries an unrelated
-comment-placement divergence. **A ratchet entry's unit is the file, not the defect**, so a
-defect can be closed and move the count by zero; the same arithmetic in the other direction
-is why a count that moves is not a count of defects.
+The other two of those seven ids — `open-webui/…/Models.svelte` and
+`huly/…/OptimizeSkills.svelte` — retire as well, and **only CI could say so**. A local
+reconstruction of the gate reported both as still mismatching on both targets, because it
+stopped at the byte comparison of the oxfmt-normalized text; the gate runs an **AST
+comparison on every byte-different output** after that, and each of those two residues is a
+comment placement, which the AST comparator does not represent. So the reconstruction was
+strictly *stricter* than the gate it stood in for, and a stricter oracle reports a retirable
+entry as staying — the opposite direction from the usual reconstruction hazard, and equally
+wrong. Rebuild a gate's comparison down to its last stage or read the verdict from the gate.
 
-Every one of the remaining 37 arrived with the wave-2 enrolment (#3130) and is described
+One `huly/…/CreateIssueTemplate.svelte` entry left this target and `client-dev` when a legacy
+store or `$:` read **nested inside** a prop default stopped being judged simple. Upstream runs
+`is_simple_expression` on the *transformed* initializer, where `$s` is already the call `$s()`
+and a `$:` variable is already `$.get(r)` — hence non-simple, hence thunked with
+`PROPS_IS_LAZY_INITIAL`; rsvelte tested the untransformed source, where each is a plain
+identifier. A **bare** identifier already had its own three branches, so the divergence lived
+only where the read sat inside a logical / conditional / binary operand, and a 6 binding-kind ×
+5 position grid isolates it exactly: 8 diverging cells, all of them `store` or `$:` in one of
+the four non-bare positions, with a plain `let` in the same four positions as the control that
+stays simple. For a store the value itself was wrong, not only the flags — the post-pass that
+rewrites `$s` to `$s()` inside a default fires only when the default is already `() => …`, so
+the emitted default was the getter function rather than the store's value. Hashing all 69,626
+client (entry, target) outputs before and after reports **2** changed units over 1 id,
+`match -> MISMATCH = 0`; the other two ids of that cluster do not move and stay listed.
+
+Every one of the remaining 34 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3016,15 +3032,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 51 entries)
+### Client dev (`known-failures.client-dev.json`, 48 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `51`
+Partition of `known-failures.client-dev.json` by verdict: `48`
 
-- **51 — the generated JS differs.**
+- **48 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 51 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 48 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
