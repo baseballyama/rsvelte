@@ -486,6 +486,15 @@ fn prelude_has_fully_global_selector(selectors: &[CssComplexSelector]) -> bool {
         .any(|cs| !cs.children.is_empty() && cs.children.iter().all(is_relative_selector_global))
 }
 
+/// A bare `:global` (no argument) opens a global block: everything inside is
+/// emitted unscoped, so the fully-global short-circuit must not treat it as a
+/// prelude an implicit `&` can match through.
+fn prelude_opens_a_global_block(selectors: &[CssComplexSelector]) -> bool {
+    selectors
+        .iter()
+        .any(|cs| cs.children.iter().any(is_bare_global_relative))
+}
+
 /// Whether the SUBJECT (last) relative selector carries a `&`.
 fn subject_has_nesting(sel: &CssComplexSelector) -> bool {
     sel.children
@@ -503,6 +512,30 @@ fn nesting_matches_anything(child: &CssComplexSelector) -> CssComplexSelector {
             r.selectors
                 .retain(|s| !matches!(s, CssSimpleSelector::Nesting));
             r.selectors.push(CssSimpleSelector::Nesting);
+        }
+        children.push(r);
+    }
+    CssComplexSelector { children }
+}
+
+/// `child` prefixed with the implicit `&` upstream's `get_relative_selectors`
+/// unshifts when a nested rule writes no explicit one. Under a fully-global
+/// parent upstream's `is_global` resolves that `&` through the parent prelude
+/// and calls it global, which is what lets `apply_combinator` match with no
+/// ancestor at all; it still matches every ancestor that is there, so those get
+/// scoped too.
+fn implicit_nesting_matches_anything(child: &CssComplexSelector) -> CssComplexSelector {
+    let mut children = Vec::with_capacity(child.children.len() + 1);
+    children.push(CssRelativeSelector {
+        combinator: None,
+        selectors: vec![CssSimpleSelector::Nesting],
+        is_global: true,
+        is_global_like: false,
+    });
+    for (i, rel) in child.children.iter().enumerate() {
+        let mut r = rel.clone();
+        if i == 0 && r.combinator.is_none() {
+            r.combinator = Some(" ".to_string());
         }
         children.push(r);
     }
@@ -564,9 +597,24 @@ fn extract_selectors_from_rule(
                     // substitution plus ancestor matching, and rewriting it
                     // loses the ancestor the child rule wrote itself
                     // (`:global(.holder) { & svg { … } }`).
-                    if parent_is_fully_global && subject_has_nesting(own) {
-                        out.push(nesting_matches_anything(own));
-                        continue;
+                    if parent_is_fully_global {
+                        if subject_has_nesting(own) {
+                            out.push(nesting_matches_anything(own));
+                            continue;
+                        }
+                        // Upstream truncates the trailing globals BEFORE deciding
+                        // whether to unshift the implicit `&`, and unshifts nothing
+                        // when that leaves the list empty — an entirely `:global(…)`
+                        // child scopes nothing, ancestors included. A bare `:global`
+                        // is a global BLOCK: its contents are unscoped outright, so
+                        // there is no ancestor to mark either.
+                        if !complex_has_nesting(own)
+                            && !truncate_globals(&own.children).is_empty()
+                            && !prelude_opens_a_global_block(parent_selectors)
+                        {
+                            out.push(implicit_nesting_matches_anything(own));
+                            continue;
+                        }
                     }
                     for parent in parent_selectors {
                         out.push(substitute_nesting(own, parent));
