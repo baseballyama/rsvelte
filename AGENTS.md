@@ -1029,6 +1029,26 @@ diagnosed as a defect and nearly deleted from three ports, because the npm build
 No gate compares generated code against the npm build (`test-wasm-compile-options.mjs` imports
 it only to ask whether an option *throws*), so the hazard is probes, not gates.
 
+### The ORDER of an upstream guard can be the semantics, and only the oracle can say so
+
+A port is checked against "does it have all the same conditions". It is not checked against
+"does it have them **in the same order**", and for a guard that writes shared state the order is
+the rule. `build_bind_this` (`shared/utils.js:265-268`) pushes onto `seen` *before* it asks
+`is_reference`, so an identifier in a non-reference position **burns the name** and the real
+reference after it is dropped: upstream collects nothing from `els[{ k: k }.k]` and collects `k`
+from `els[{ kk: k }.kk]`. Write the readable thing — visit references, then record them — and you
+get a port that is easier to read and disagrees with official. **The symptom is
+indistinguishable from a missing condition**, which is what makes this expensive: reading the
+rsvelte side produced a confident, plausible, wrong cause (a missing `JsExpr::Object` arm in a
+hand-written walk), and adding that arm made the port *over*-collect while the count of failing
+cells stayed the same.
+
+What discriminated was probing the oracle with the shapes side by side — `{ k }`, `{ k: k }`,
+`{ kk: k }`, `[k][0]`, `` `${k}` ``, `k || 0` — which is where "the axis is whether the key repeats
+the name" becomes visible and "is it an object" stops being. **Reading your own side explains a
+divergence; only the oracle names it.** And print `match -> MISMATCH` on its own line when you
+re-measure: an over-collection and an under-collection of the same size are the same total.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
