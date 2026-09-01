@@ -1113,6 +1113,69 @@ the name" becomes visible and "is it an object" stops being. **Reading your own 
 divergence; only the oracle names it.** And print `match -> MISMATCH` on its own line when you
 re-measure: an over-collection and an under-collection of the same size are the same total.
 
+### Split the verdict before you split the cause
+
+A cell that reports one pass/fail per input tells you the input diverges; a cell that
+reports CSS text, warnings and JS separately tells you *which stage* diverges, and twice
+on one day that was the whole diagnosis: once the pruner agreed and only element scoping
+disagreed, once element scoping agreed byte-for-byte and only the prune verdict did not.
+The two are opposite defects with the same single-verdict signature. **What made the
+split diagnostic was that its axis was the compiler's own stages** — prune, diagnostics,
+element scoping — not an arbitrary partition of the output text: each field named a pass,
+so a divergence in one field named the pass to read.
+
+### A missing key can spell two things, and the conservative default reads the wrong one
+
+`expand_effective_parents` returned `None` — "stay conservative" — whenever
+`snippet_render_sites` had no entry for a name, and its own doc comment states that rule
+("`None` when a snippet's render sites are unknown, in which case callers must stay
+conservative rather than treat the ancestor set as empty"). The rule is right; its domain
+was not. An absent key meant *either* "nothing renders this snippet", where upstream's
+answer is an **empty** ancestor set and the selector is pruned, *or* "a `{@render}` whose
+callee could not be read", where any snippet may be the target. **An empty set is
+knowledge, not ignorance**, and conservatism applied to the first case is a silent
+over-match that reads exactly like caution.
+
+The two spellings needed separate *code paths* as well: fixing the pruner's domain moved
+2 cells and **0 of the 16** the same upstream rule explains, because rsvelte ports
+`get_ancestor_elements` twice (phase-3 `expand_effective_parents`, phase-2
+`subtree_has_matching_subject_inner`). **One upstream rule, two ports, two defects** —
+reading the upstream `break` settles what the rule is, never how many places got it wrong.
+A third then appeared under the same rule, so read "two" as the count at one moment.
+
+### A cell written to judge a design decision reports on the code that already exists
+
+Four shadowing cells were added to settle whether a phase-2 port could reuse phase 3's
+name-keyed `snippet_render_sites`. They came back naming a defect already in the tree: two
+same-named snippets in different scopes collapse onto one `FxHashMap<String, _>` key, so a
+snippet nothing renders has its elements counted as descendants of an unrelated ancestor.
+Pre-existing was measured, not assumed — both arms of the fix under audit show the same
+four cells diverging (22/44 matching before, 24/44 after, the +2 being exactly the cells
+that fix targets). Had the cells come after the decision, the name-keyed map would have
+been reused, the grid would have passed, and the defect would have gone from two ports to
+three. **Write the cell before the decision it is meant to inform, not after.**
+
+### A sieve reduces a sample to a key, and a key can agree by construction
+
+Where the key's range is smaller than the sample's, agreement is a property of the key
+rather than of the population. Measured on one gate: the same 10-sample uniformity sieve
+yielded 4 distinct pointer shapes for `textDocument/hover`, 4 for `definition` and 11 for
+`completion` — hover's divergences can only be `/contents:value-mismatch` or
+`/:value-mismatch`, so a hover label's samples agree *by construction* and the verdict
+there is not a measurement at all. Report the key's own cardinality beside any uniformity
+verdict. The same sieve, given a second axis that reduces the payload to a closed class set
+*with the direction of the difference in it*, took the "many mechanisms" count from 3 to 7
+on the identical samples — including one label whose samples ran in opposite directions
+(official answers with HTML data where rsvelte answers with TypeScript, and the reverse)
+and which a direction-free key had reported as uniform.
+
+### A shared crate reaches gates it was not written for
+
+`@rsvelte/svelte-check` is a separately-compiled artifact of `rsvelte_core` with no cascade
+edge, so a change under `crates/rsvelte_projection/src/svelte2tsx/` reaches it and a
+changeset naming only `@rsvelte/svelte2tsx` fails `check-core-consumer-changesets.mjs`.
+Name every consumer the checker lists, not the one whose directory you edited.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
