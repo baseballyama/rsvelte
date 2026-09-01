@@ -3045,7 +3045,8 @@ fn g_ancestor_elements(
     ancestors
 }
 
-/// Port of `get_descendant_elements`.
+/// Port of `get_descendant_elements`. It has no `Snippet` arm on purpose: upstream's walker
+/// descends into a lexically nested snippet body, where `get_ancestor_elements` breaks at one.
 fn g_descendant_elements(
     graph: &SGraph,
     node: usize,

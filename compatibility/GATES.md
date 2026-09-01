@@ -6690,7 +6690,7 @@ and a renderer that resolves outside the component (a prop, an import) is a site
 |---|---|---|
 | built by | `2_analyze/visitors/{render_tag,snippet_block,shared/component}.rs` | `css_scoping.rs:1432` `collect_render_site_ancestors`, its own template walk |
 | read by | `3_transform/css.rs` `effective_parents` — pruning and scoping | `css_scoping.rs` `subtree_has_matching_subject` — ancestor scoping |
-| a `{#snippet}` passed as an *attribute* (`<Comp foo={row} />`) | yes | yes (`attribute_snippet_names:1415`) |
+| a `{#snippet}` passed as an *attribute* (`<Comp foo={row} />`) | yes, since #4115's port-A fix | yes (`attribute_snippet_names:1415`) |
 | an **unresolved** renderer is a site of every snippet | yes | **no** |
 | resolves the callee through the scope chain | yes (`render_tag.rs:58`) | **no** — `get_render_tag_callee_name` returns the identifier's text |
 
@@ -6707,7 +6707,7 @@ this subtree holds no matching subject, so `.wrap` never receives its scope clas
 question, two answers, in the same output** — the CSS text and the template disagree about
 whether that `<span>` is inside `.wrap`.
 
-**Measured residue.** A 64-cell grid (snippet shape × render-site shape × `client`/`server`)
+**Measured residue.** A 70-cell grid (snippet shape × render-site shape × `client`/`server`)
 leaves **30 cells** diverging after port A was made faithful, and the *direction* splits: on 24
 rsvelte scopes **fewer** elements than official (port B's `RenderTag` arm computes a name, tests
 the map, and does nothing — `css_scoping.rs:2462`), and on 6 it scopes **more**, because port B
@@ -6715,6 +6715,12 @@ still keys by name and merges two same-named snippets in different scopes. That 
 **the same defect port A was just fixed for**: fixing one port of a decision does not narrow the
 other, and reporting the aggregate (`30 cells, all verdict JS`) hid the sign — the two directions
 were only separated by counting scope classes on each side.
+
+**The asymmetry runs both ways.** `attribute_snippet_names` (`css_scoping.rs:1415`) has no
+counterpart anywhere else in the tree: until the port-A fix, port B was the **more** faithful of
+the two on `<Comp foo={row} />`, and port A treated any non-literal attribute as making the
+component unresolved. A second port is not reliably the degraded one, so "fix the port the bug
+was reported against" is not a rule — read both before deciding which one moves.
 
 **Why closing port B is not a transcription.** Upstream walks the tree while reading another part
 of it; `propagate_ancestor_scoping` holds `&mut Fragment`, so Rust cannot take the immutable
