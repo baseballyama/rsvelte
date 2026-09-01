@@ -36,6 +36,34 @@ pub struct SourceMapping {
     pub name: Option<u32>,
 }
 
+/// Order mappings by generated position, keeping equal positions in insertion
+/// order: a repeated segment's rank is observable to map consumers.
+pub fn sort_mappings_by_generated_position(mappings: &mut Vec<SourceMapping>) {
+    // Below the stable sort's insertion-sort cutoff the key vector is pure cost.
+    if mappings.len() < 32 {
+        mappings.sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+        return;
+    }
+    // Carrying the index in the low bits makes this total order identical to
+    // the stable comparator's, so one 16-byte key compare stands in for a
+    // 28-byte struct's two-field compare and its wider swaps.
+    let mut keys: Vec<u128> = mappings
+        .iter()
+        .enumerate()
+        .map(|(index, mapping)| {
+            (u128::from(mapping.gen_line) << 96)
+                | (u128::from(mapping.gen_col) << 64)
+                | index as u128
+        })
+        .collect();
+    keys.sort_unstable();
+    let sorted: Vec<SourceMapping> = keys
+        .iter()
+        .map(|key| mappings[*key as u64 as usize].clone())
+        .collect();
+    *mappings = sorted;
+}
+
 /// Result of code generation with source map.
 pub struct CodegenResult {
     /// The generated JavaScript code
@@ -2805,6 +2833,20 @@ pub fn offset_to_line_col_utf16(
         column.encode_utf16().count()
     };
     (line, column)
+}
+
+/// `offset_to_line_col_utf16` for a string whose ASCII-ness is already known:
+/// with no multi-byte character the UTF-16 column is a byte subtraction.
+pub fn offset_to_line_col_utf16_in(
+    source: &str,
+    line_starts: &[usize],
+    offset: usize,
+    all_ascii: bool,
+) -> (usize, usize) {
+    if all_ascii {
+        return offset_to_line_col(line_starts, offset.min(source.len()));
+    }
+    offset_to_line_col_utf16(source, line_starts, offset)
 }
 
 /// Encode a list of source mappings into a VLQ-encoded mappings string.
