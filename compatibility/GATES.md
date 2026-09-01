@@ -902,6 +902,28 @@ the reason above, and to gate 20 (formatter parity) because the oxfmt oracle re-
 produces is *uniform*, so the round-trip gate cannot see it either — no gate here observes it
 today.
 
+**Third discriminating case [D], and the corollary that reads a ratchet.** A JSDoc cast around
+a private field read — `return /** @type {number} */ (this.#x);` in an instance script — is
+byte-different from official before #4096 (`return (/** @type {number} */ $.get(this.#x));`
+against `return $.get(/** @type {number} */ this.#x);`) and comes back **`equivalent`** from
+the comparator, so the gate scored it `match` on both arms. The class #4096 exists to fix was
+never gate-visible, on any corpus size.
+
+The corollary is what makes this worth re-reading: **an output ratchet cannot hold a
+"comment placement" cluster**, because an entry that reaches it is by construction not
+comment-only. Measured against a cluster of nine `known-failures.client{,-dev}.json` entries
+grouped as `comment-attachment` (the key was "a comment appears within six lines of the first
+differing line"): all 16 non-matching `(id, target)` cells come back **`code-differs`** with
+comments ignored, and the nine mechanisms are an each-block item read through a signal instead
+of a callback parameter, a lost `deep_read_state`/`untrack` wrapper, `$$props` where official
+reads `$$sanitized_props`, a `$.prop` default emitted as a `19`-flagged thunk instead of a
+`3`-flagged literal, an ownership-validator wrapping its argument instead of the call, a
+double-applied store call and a missing `$.get` — **none of them a comment**. CSS was compared
+too, on the same pairs and by the gate's own rule (raw bytes, no oxfmt): **0 of 18 cells
+differ**, with six of the nine carrying non-empty CSS, so the attribution is not resting on an
+empty comparison. `firstDiffLine` reports where a *line* first differs, so a comment that
+shifts lines becomes the face of a divergence it did not cause.
+
 **Tracked:** #2424, PR #2436. **Closing it** requires rsvelte preserving comments *plus*
 `--comments` here — a compiler change, not a harness one. Note that even
 `CommentPolicy::Meaningful` filters JSDoc `@type` as prose (`lib.rs:259-269`), so flipping the
