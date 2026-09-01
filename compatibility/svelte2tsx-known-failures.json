@@ -6,9 +6,6 @@
 	"cnblocks/src/routes/(app)/veil/+page.svelte",
 	"huly/plugins/view-resources/src/components/list/ListCategory.svelte",
 	"mathesar/mathesar_ui/src/component-library/button/Button.svelte",
-	"photon/src/lib/ui/form/Switch.svelte",
 	"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte",
-	"svelte-commerce/src/lib/components/form/textbox.svelte",
-	"sveltekit/packages/package/test/watch/expected/Test.svelte",
-	"trakt-web/projects/client/src/lib/components/buttons/share/ShareButton.svelte"
+	"sveltekit/packages/package/test/watch/expected/Test.svelte"
 ]

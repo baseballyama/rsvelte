@@ -73,6 +73,9 @@ pub(super) fn collect_type_body_deps<'a>(
     let mut references_script_generic = false;
     let bytes = body.as_bytes();
     let len = bytes.len();
+    // Innermost enclosing bracket, so a whole-slot identifier can be told apart
+    // from a tuple element (`[A, B, C]`), which IS a type reference.
+    let mut openers: Vec<u8> = Vec::new();
     let mut i = 0usize;
     while i < len {
         let b = bytes[i];
@@ -152,9 +155,20 @@ pub(super) fn collect_type_body_deps<'a>(
             let is_property_key = k < len
                 && (bytes[k] == b':' || (bytes[k] == b'?' && k + 1 < len && bytes[k + 1] == b':'));
 
+            // An identifier filling a whole slot of a `{ … }` group is a NAME in
+            // both readings of that syntax — a property signature without an
+            // annotation, or a shorthand in an object binding pattern such as the
+            // `title` of `({ title }: { title: string }) => string`. Upstream
+            // collects type REFERENCES from the AST, so neither is a dependency.
+            let is_member_name_slot = matches!(openers.last(), Some(b'{'))
+                && j > 0
+                && matches!(bytes[j - 1], b'{' | b',' | b';')
+                && k < len
+                && matches!(bytes[k], b'}' | b',' | b';');
+
             if preceded_by_typeof {
                 value_deps.insert(ident);
-            } else if is_property_key {
+            } else if is_property_key || is_member_name_slot {
                 // skip — property keys aren't dependencies
             } else if script_generic_names.contains(ident) {
                 references_script_generic = true;
@@ -170,6 +184,13 @@ pub(super) fn collect_type_body_deps<'a>(
                 value_deps.insert(ident);
             }
             continue;
+        }
+        match b {
+            b'{' | b'[' | b'(' => openers.push(b),
+            b'}' | b']' | b')' => {
+                openers.pop();
+            }
+            _ => {}
         }
         i += 1;
     }
@@ -383,8 +404,9 @@ where
 /// Determine which `HoistCandidate`s can be hoisted above `function $$render()`
 /// and record their absolute source ranges (and names) on `exported_names`.
 ///
-/// `script_generic_names` is the set of generic parameter names declared on
-/// the `<script generics="...">` attribute. Any candidate that references
+/// `script_generic_names` is the set of generic parameter names in scope on
+/// `$$render` — from the `<script generics="...">` attribute and from every
+/// `type T = $$Generic` alias. Any candidate that references
 /// one of those names (even transitively, via another candidate) can't be
 /// hoisted — `T` in scope on `function $$render<T>()` isn't visible at
 /// module scope.
@@ -860,6 +882,62 @@ mod tests {
             },
         )
         .expect("svelte2tsx ok")
+    }
+
+    /// Position of `name` relative to the `$$render()` opener: `true` when the
+    /// declaration was moved above it.
+    fn hoisted_above_render(source: &str, name: &str) -> bool {
+        let code = convert_ts(source).code;
+        let decl = code
+            .find(name)
+            .unwrap_or_else(|| panic!("{name} missing from output"));
+        let render = code.find("function $$render").expect("$$render missing");
+        decl < render
+    }
+
+    #[test]
+    fn dollar_generic_alias_is_a_generic_in_scope_on_render() {
+        // `Generics.getReferences()` holds the `$$Generic` alias names too, and
+        // `moveHoistableInterfaces` adds every one to `disallowed_types`.
+        assert!(!hoisted_above_render(
+            "<script lang=\"ts\">\n  type T = $$Generic\n  interface Props { a: T }\n  let { a }: Props = $props();\n</script>\n",
+            "interface Props",
+        ));
+        // An alias the props interface does not reference blocks nothing.
+        assert!(hoisted_above_render(
+            "<script lang=\"ts\">\n  type T = $$Generic\n  interface Props { a: string }\n  let { a }: Props = $props();\n  let u: T | undefined = undefined;\n</script>\n",
+            "interface Props",
+        ));
+    }
+
+    #[test]
+    fn sentinel_named_types_are_ordinary_hoist_candidates() {
+        // Upstream runs `analyzeInstanceScriptNode` on every top-level node, so
+        // `$$Props` / `$$Slots` / `$$Events` are candidates like any other.
+        assert!(hoisted_above_render(
+            "<script lang=\"ts\">\n  interface $$Props { label?: string }\n  let { label }: $$Props = $props();\n</script>\n",
+            "interface $$Props",
+        ));
+        assert!(hoisted_above_render(
+            "<script lang=\"ts\">\n  interface $$Slots { default: { a: string } }\n  interface Props { b: string }\n  let { b }: Props = $props();\n</script>\n",
+            "interface $$Slots",
+        ));
+    }
+
+    #[test]
+    fn object_binding_shorthand_in_a_type_is_not_a_value_reference() {
+        // `title` inside `({ title }: …)` is a binding name, not a type
+        // reference, so the prop of the same name must not block the hoist.
+        assert!(hoisted_above_render(
+            "<script lang=\"ts\">\n  type Props = {\n    title: string\n    textFactory: ({ title }: { title: string }) => string\n  }\n  const { title, textFactory }: Props = $props();\n</script>\n",
+            "type Props",
+        ));
+        // A tuple element is a real type reference, so the enclosing bracket has
+        // to be part of the test: `Inner` still blocks through `typeof v`.
+        assert!(!hoisted_above_render(
+            "<script lang=\"ts\">\n  let v = 1\n  type Inner = { q: typeof v }\n  type Props = { x: [string, Inner, number] }\n  let p: Props = $props();\n</script>\n",
+            "type Props",
+        ));
     }
 
     fn line_column(text: &str, offset: usize) -> (u32, u32) {

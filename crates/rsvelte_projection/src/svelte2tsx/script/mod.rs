@@ -322,13 +322,11 @@ pub fn process_instance_script(
                             oxc::Declaration::TSTypeAliasDeclaration(type_alias) => {
                                 let name = type_alias.id.name.to_string();
                                 exported_names.instance_type_names.insert(name.clone());
-                                if !is_special_type_name(&name) {
-                                    candidates.push(HoistCandidate {
-                                        name,
-                                        rel_start: export.span.start,
-                                        rel_end: type_alias.span.end,
-                                    });
-                                }
+                                candidates.push(HoistCandidate {
+                                    name,
+                                    rel_start: export.span.start,
+                                    rel_end: type_alias.span.end,
+                                });
                                 // Upstream models `export type T = …` as one
                                 // TypeAliasDeclaration carrying an `export`
                                 // modifier, so `addIfIsGeneric` reaches it and
@@ -345,13 +343,11 @@ pub fn process_instance_script(
                             oxc::Declaration::TSInterfaceDeclaration(iface) => {
                                 let name = iface.id.name.to_string();
                                 exported_names.instance_type_names.insert(name.clone());
-                                if !is_special_type_name(&name) {
-                                    candidates.push(HoistCandidate {
-                                        name,
-                                        rel_start: export.span.start,
-                                        rel_end: iface.span.end,
-                                    });
-                                }
+                                candidates.push(HoistCandidate {
+                                    name,
+                                    rel_start: export.span.start,
+                                    rel_end: iface.span.end,
+                                });
                                 if is_dts_mode {
                                     rewrite_interface_to_type_dts(
                                         iface,
@@ -371,13 +367,14 @@ pub fn process_instance_script(
                     let name = iface.id.name.to_string();
                     apply_special_type_name(&name, iface.span.start, exported_names, offset);
                     exported_names.instance_type_names.insert(name.clone());
-                    if !is_special_type_name(&name) {
-                        candidates.push(HoistCandidate {
-                            name,
-                            rel_start: iface.span.start,
-                            rel_end: iface.span.end,
-                        });
-                    }
+                    // Upstream calls `analyzeInstanceScriptNode` on EVERY top-level
+                    // node (`processInstanceScriptContent.ts:219`), so `$$Props` /
+                    // `$$Slots` / `$$Events` are ordinary hoist candidates there.
+                    candidates.push(HoistCandidate {
+                        name,
+                        rel_start: iface.span.start,
+                        rel_end: iface.span.end,
+                    });
 
                     // dts mode: rewrite `interface X { ... }` (and any `extends`
                     // clauses) into `type X = ... & { ... }` because indirectly
@@ -398,13 +395,11 @@ pub fn process_instance_script(
                     let name = type_alias.id.name.to_string();
                     apply_special_type_name(&name, type_alias.span.start, exported_names, offset);
                     exported_names.instance_type_names.insert(name.clone());
-                    if !is_special_type_name(&name) {
-                        candidates.push(HoistCandidate {
-                            name,
-                            rel_start: type_alias.span.start,
-                            rel_end: type_alias.span.end,
-                        });
-                    }
+                    candidates.push(HoistCandidate {
+                        name,
+                        rel_start: type_alias.span.start,
+                        rel_end: type_alias.span.end,
+                    });
                     add_if_is_dollar_generic(
                         type_alias,
                         type_alias.span.start,
@@ -613,12 +608,33 @@ pub fn process_instance_script(
             } else {
                 effective_type_text
             };
+            // Upstream passes `generics.getReferences()`, which `Generics.ts` fills
+            // from BOTH the `generics="…"` attribute (:26) and each
+            // `type T = $$Generic` alias (:70), so an alias name disallows hoisting
+            // exactly as an attribute generic does.
+            let generic_names: std::borrow::Cow<'_, HashSet<String>> =
+                if exported_names.dollar_generics.is_empty() {
+                    std::borrow::Cow::Borrowed(script_generic_names)
+                } else {
+                    std::borrow::Cow::Owned(
+                        script_generic_names
+                            .iter()
+                            .cloned()
+                            .chain(
+                                exported_names
+                                    .dollar_generics
+                                    .iter()
+                                    .map(|(n, _)| n.clone()),
+                            )
+                            .collect(),
+                    )
+                };
             resolve_hoistable_type_decls(
                 &candidates,
                 raw_content,
                 offset,
                 exported_names,
-                script_generic_names,
+                &generic_names,
                 props_named_ref.as_deref(),
                 props_inline_type,
             );
