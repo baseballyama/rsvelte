@@ -2048,6 +2048,171 @@ mod tests {
         );
     }
 
+    // Measures, not asserts: how many of the positions the LSP corpus gate
+    // requests survive `map_source_position` -> `map_generated_position`
+    // unchanged. `forward-none` is the correct answer where a position has no TS
+    // projection (a `<style>` body, markup text), so an equality assertion here
+    // would pin correct behaviour; only `moved` is a defect class. Measured on
+    // submodules/melt-ui 2026-09-01: positions=12043 identity=9344 moved=1239
+    // forward_none=1460 reverse_none=0, all 43 files preprocess_status=Identity.
+    // `ROUNDTRIP_ROOT` selects another corpus repo; `ROUNDTRIP_OUT` writes one
+    // `<file>\t<line>:<col>\t<class>` row per position.
+    #[test]
+    #[ignore]
+    fn projection_roundtrip_identity_measure() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let root = repo.join(
+            std::env::var("ROUNDTRIP_ROOT").unwrap_or_else(|_| "submodules/melt-ui".to_string()),
+        );
+        let mut files = Vec::new();
+        fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+            let Ok(entries) = fs::read_dir(dir) else {
+                return;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if path.is_dir() {
+                    if name != "node_modules" && !name.starts_with('.') {
+                        walk(&path, out);
+                    }
+                } else if name.ends_with(".svelte") {
+                    out.push(path);
+                }
+            }
+        }
+        walk(&root, &mut files);
+        files.sort();
+        assert!(
+            !files.is_empty(),
+            "no .svelte files under {}",
+            root.display()
+        );
+
+        let mut overlay = TsgoOverlay::build(&root, None).unwrap();
+        let (mut positions, mut identity, mut forward_none, mut reverse_none, mut moved) =
+            (0usize, 0usize, 0usize, 0usize, 0usize);
+        let mut open_failed = 0usize;
+        let mut by_status: std::collections::BTreeMap<String, usize> =
+            std::collections::BTreeMap::new();
+        let mut sample: Vec<String> = Vec::new();
+        let mut classes: Vec<String> = Vec::new();
+        for file in &files {
+            let text = fs::read_to_string(file).unwrap();
+            let rel = file.strip_prefix(&root).unwrap().display().to_string();
+            if overlay.open_or_update(file, &text, 0).is_err() {
+                open_failed += 1;
+                continue;
+            }
+            let shadow_path = overlay.shadow_path_for(file).unwrap();
+            let status = overlay
+                .entries
+                .get(&overlay.lookup_source_path(file))
+                .map(|entry| format!("{:?}/identity={}", entry.preprocess_status, entry.identity))
+                .unwrap_or_else(|| "missing".to_string());
+            *by_status.entry(status).or_default() += 1;
+            for (line, line_text) in text.split('\n').enumerate() {
+                for (column, position) in identifier_probe_positions(line_text) {
+                    let _ = column;
+                    positions += 1;
+                    let source = Position::new(line as u32, position);
+                    let Some(generated) = overlay.map_source_position(file, source) else {
+                        forward_none += 1;
+                        classes.push(format!(
+                            "{}\t{}:{}\tforward-none",
+                            rel, source.line, source.character
+                        ));
+                        continue;
+                    };
+                    let Some(back) = overlay.map_generated_position(&shadow_path, generated) else {
+                        reverse_none += 1;
+                        classes.push(format!(
+                            "{}\t{}:{}\treverse-none",
+                            rel, source.line, source.character
+                        ));
+                        continue;
+                    };
+                    if back == source {
+                        identity += 1;
+                        classes.push(format!(
+                            "{}\t{}:{}\tidentity",
+                            rel, source.line, source.character
+                        ));
+                    } else {
+                        classes.push(format!(
+                            "{}\t{}:{}\tmoved",
+                            rel, source.line, source.character
+                        ));
+                        moved += 1;
+                        if sample.len() < 20 {
+                            sample.push(format!(
+                                "{}  {}:{} -> gen {}:{} -> {}:{}",
+                                file.strip_prefix(&root).unwrap().display(),
+                                source.line,
+                                source.character,
+                                generated.line,
+                                generated.character,
+                                back.line,
+                                back.character
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        if let Ok(path) = std::env::var("ROUNDTRIP_OUT") {
+            fs::write(path, classes.join("\n") + "\n").unwrap();
+        }
+        println!("files={} open_failed={}", files.len(), open_failed);
+        println!(
+            "positions={positions} identity={identity} moved={moved} forward_none={forward_none} reverse_none={reverse_none}"
+        );
+        for (status, count) in &by_status {
+            println!("  entry status {status}: {count} files");
+        }
+        for line in &sample {
+            println!("  moved: {line}");
+        }
+    }
+
+    // Mirrors `identifierPositionIterator` in scripts/compat-lsp/suites.mjs: the
+    // gate requests the SECOND character of each identifier, never its start.
+    fn identifier_probe_positions(line: &str) -> Vec<(usize, u32)> {
+        let chars: Vec<char> = line.chars().collect();
+        let is_start = |c: char| c == '$' || c == '_' || c.is_alphabetic();
+        let is_continue = |c: char| c == '$' || c == '_' || c.is_alphanumeric();
+        let mut out = Vec::new();
+        let mut index = 0usize;
+        // UTF-16 column of each char index.
+        let mut utf16: Vec<u32> = Vec::with_capacity(chars.len() + 1);
+        let mut acc = 0u32;
+        for c in &chars {
+            utf16.push(acc);
+            acc += c.len_utf16() as u32;
+        }
+        utf16.push(acc);
+        while index < chars.len() {
+            if is_start(chars[index]) {
+                let start = index;
+                index += 1;
+                while index < chars.len() && is_continue(chars[index]) {
+                    index += 1;
+                }
+                let offset = if index - start > 1 { 1 } else { 0 };
+                out.push((start, utf16[start + offset]));
+            } else {
+                index += 1;
+            }
+        }
+        out
+    }
+
     #[test]
     fn build_is_diskless_and_discovers_project_components() {
         let workspace = TestWorkspace::new("build");
