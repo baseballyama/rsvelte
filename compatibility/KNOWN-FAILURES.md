@@ -902,7 +902,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 550 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 549 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -927,17 +927,24 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `258 + 214 + 15 + 47 + 14 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `258 + 214 + 15 + 47 + 13 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 550 entries**, where it
+**The partition is now the mechanical rule applied to all 549 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
 mechanical buckets, because the CI report names an entry's first differing line
 and not the cluster a human filed it under. The addends are, in order:
 20 breaks-later 258, 21 breaks-earlier 214, 22 intra-line-ws 15,
-23 indent-only 47, 24 other 14, 25 extra-line 1, 26 missing-line 1;
+23 indent-only 47, 24 other 13, 25 extra-line 1, 26 missing-line 1;
 27 quote-style is now empty.
+
+`svelte-inspect-value/packages/svelte/src/lib/CustomLine.svelte` left
+**24 — other** in #4062: its only differing line was
+`type={(type) as unknown as ValueType}` against the oracle's `type={type as …}`,
+which no rule above matches (not a prefix, not whitespace- or quote-equal). It is
+the one entry that fix moves, out of 34,686 real components whose output was
+diffed across the change.
 
 ### Wave-2 enrolment (#3130) — Clusters 20-27
 

@@ -475,7 +475,6 @@
 	"svelte-gantt/packages/svelte-gantt/src/modules/dependencies/Dependency.svelte",
 	"svelte-inspect-value/apps/docs/src/components/theming/DefineTheme.svelte",
 	"svelte-inspect-value/packages/svelte/src/doclib/examples/BasicEditable.svelte",
-	"svelte-inspect-value/packages/svelte/src/lib/CustomLine.svelte",
 	"svelte-inspect-value/packages/svelte/src/lib/components/Key.svelte",
 	"svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte",
 	"svelte-inspect-value/packages/svelte/src/lib/components/StringView.svelte",
