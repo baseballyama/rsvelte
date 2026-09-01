@@ -1176,6 +1176,127 @@ edge, so a change under `crates/rsvelte_projection/src/svelte2tsx/` reaches it a
 changeset naming only `@rsvelte/svelte2tsx` fails `check-core-consumer-changesets.mjs`.
 Name every consumer the checker lists, not the one whose directory you edited.
 
+### A reconstruction of a gate misses in a direction, and the direction is the stage it dropped
+
+A gate's verdict is a pipeline, and a local reconstruction of it drops stages. Which way the
+reconstruction is wrong follows from **what kind of stage went missing**: dropping a *rescue*
+stage — the corpus gate's `ast_equiv_batch` pass over every byte-different output, or the
+oxfmt normalization before it — makes the reconstruction **stricter** than the gate, while
+dropping a *judging* stage makes it **looser**. #4152 is the strict direction: a reconstruction
+that stopped at the normalized byte comparison reported two entries as still diverging, both on
+comment placement, which the AST comparator does not represent — so the gate retired them and
+the local answer had said to keep them. That is the opposite of the usual reconstruction hazard
+and equally wrong.
+
+The asymmetry makes one side of the fidelity question free. **A stricter reconstruction that
+reports zero needs no fidelity argument at all** — a zero under a stricter comparison is a zero
+under the gate's. It is only a **non-zero** from a stricter reconstruction that is not a
+finding: it is a list of candidates to ask the gate about, every one of which can be a false
+positive. Both halves landed on the same day, on the same tree: two false positives from a
+strict reconstruction, and a 135,592-pair `compile()` sweep over raw output hashes that needed
+no gate confirmation for exactly this reason.
+
+The instrument that reproduced the gate needed **its own positive control**, and the first
+version of it failed one: `ast_equiv_batch` reads its two sides as **file paths**, not as
+content, and reports `{verdict: "equivalent"}` rather than a boolean. Handed strings and read
+for `.equivalent`, it rescued **0 of 81** candidates and printed a clean, plausible table. Four
+pairs the gate had *already named* as passing were run through it first; they came back FAIL,
+which is the only reason the two bugs were found. **Reconstruct a gate against cases the gate
+has already ruled on, before running it on cases it has not.**
+
+### `pipestatus` protects the verdict; nothing protects the denominator
+
+The truncation table above is about reading a *verdict* through a stage that can drop it. There
+is a second, independent hazard with the same shape: reading a *population* through one. A run
+of `cargo test --lib --test a --test b …` for 64 targets printed 41 `running` lines, and the
+`--lib` unit tests — 1,952 of them, the very targets that had been added because "a `--test`
+list does not run the lib" — produced **no line at all**. `PIPESTATUS[0]` was cargo's and was
+0, so the verdict was read correctly; the denominator was not read at all.
+
+The generalisable half is about workarounds. **A workaround for a known trap is itself a change
+that has to be checked.** Knowing the trap and adding `--lib` does not entail that `--lib` ran;
+the two feel like one event because they are one intention. The check is one line: look in the
+output for a fingerprint only the workaround can produce — here, a four-digit `running` count.
+
+### An enumerated concern gets one item crossed off and reads as answered
+
+"That `loc` change reaches phase 3's comment decision **and** the source map, so 'only `parse()`
+output moves' is an assumption until measured" — a two-item list. The answer came back as a
+135,592-pair sweep with **0** differing, and the sweep hashed `js.code + css.code`. Generated
+text carries the comment decision; **nothing in that hash carries the map**. The measurement
+answered one of the two and was remembered as answering the concern.
+
+It is not a memory failure, it is an output-format one: a result of "0" has the same shape as
+an answer to the whole question, and an unmeasured mechanism prints as nothing at all. **Carry
+an enumerated concern as columns, one per mechanism, and print `UNMEASURED` where there is no
+carrier** — a blank and a zero are indistinguishable, and only one of them is a result.
+
+### A classifier that stops at the first matching predicate puts its own source order in the key
+
+A ratchet key derived by classification inherits whatever decides the classification. A rule
+that walks a table of rewrites and returns the first one that suffices assigns a label by the
+order the table was written, so **reordering the table relabels the ratchet** — and two
+divergences of the same mechanism land in different buckets depending on which predicate was
+added first. It showed up as 2 rows of a known union-ordering class sitting inside a generic
+label, invisible because the generic predicate came first. Collect **every** individually
+sufficient predicate; one hit is that label, two or more is an explicit `multiple`. Then the
+table can be sorted without moving a single entry.
+
+### A port that answers "is this an each-block binding" by name answers a different question
+
+Upstream's `build_bind_this` passes each-context variables into the getter and setter, and its
+test is `owner.type === 'EachBlock' && scope === binding.scope` — a question about the
+binding's **scope**. rsvelte matched the identifier's **name** against the block's item, index
+and destructured names. The two agree on every shape anyone thinks to write down and part
+company on `{@const}`: a const declared in an each body is declared in that block's scope, so
+upstream passes it, and passes it even when its initializer mentions no each variable at all
+(`{@const k = 7}`). A grid of 12 bind targets isolates it — 7 agree, 5 diverge, and 4 of the 5
+are a `{@const}`, the fifth an each index inside a template literal, which the hand-written
+walker had no arm for. Both are the same defect: **a name test needs an enumeration and a scope
+test does not**, so every shape the enumerator's author did not think of is a silent miss.
+
+### Nothing is always spelled as something, and the two ends of a measurement spell it differently
+
+The truncation table records tools that manufacture a datum — `|| echo 0`, a `comm` against an
+empty set, a JSON-stringified options bag the API ignores. The reporting end has the same
+failure and a different spelling. Collected on one day:
+
+| where the emptiness is | what it looks like instead |
+|---|---|
+| a mechanism nobody measured | a row that is simply not printed, beside rows that read `0` |
+| a gate stage the reconstruction lacks | the verdict that stage would have overturned (`MISMATCH`) |
+| a workflow run that never started | no check line at all, which reads as "not required here" |
+| a cancelled shard under a rollup | `FAILURE`, indistinguishable from a real regression |
+
+Two of these fake a **value** and two fake a **verdict**, and that is the useful split: a faked
+value is caught by printing the carrier beside the number (`mechanism | carrier | result`, with
+`UNMEASURED` where there is no carrier), a faked verdict only by asking what produced it.
+
+### Report a measurement as `mechanism | carrier | population | result`, and the mistakes cannot hide
+
+Three failures of the same family landed in one afternoon, and each one is a different column
+of that row going unwritten:
+
+| what was measured | what the question was | the column that was blank |
+|---|---|---|
+| the ratchet — the ids that fail today | did anything that passes today break | **population** (the set is the complement of the question's) |
+| `js.code + css.code` over 135,592 pairs | a `loc` change reaching phase 3 comments **and** the source map | **carrier** (nothing in that hash carries a map) |
+| the corpus manifest, 33,898 components | 58 samples under `packages/svelte/tests/sourcemaps` | **population** (same mechanism, disjoint inputs) |
+
+None of the three is visible as "measured / not measured", and all three produce a `0` that
+reads as an answer. Writing the population out loud is what makes the first one self-evident —
+"the ids that fail today" names its own unsuitability the moment it is a field rather than an
+assumption. And a mechanism with no carrier must print `UNMEASURED` rather than an empty cell:
+a blank and a zero are the same pixel.
+
+**`n passed` is a complete output that answers a different question, which is worse than a
+truncated one.** `cargo test --test sourcemaps_gate` reports `4 passed; 1 ignored`, and the
+ignored one is the ratchet-regeneration helper while the gate itself is among the four — but
+the same line would print if the arrangement were reversed. Nothing is missing from that output,
+so re-reading it more carefully cannot help; only a different operation can — **read the names
+of the tests that ran, not the count**, and where a suite prints its own denominators
+(`770/770 official segments`, `0/1634 out of range`) run it with `--nocapture` so those appear.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
