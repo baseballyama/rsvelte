@@ -1,0 +1,73 @@
+{
+	"$schema-note": "id -> mechanism slug for every entry of svelte2tsx-known-failures.json and svelte2tsx-unparseable-known-failures.json. The `Entries by mechanism` table in KNOWN-FAILURES.md is derived from this file: one row per `mechanisms` key, `n` = how many `entries` name it. The assignment is one-to-one, so a double count is unwritable.",
+	"mechanisms": {
+		"bind-this-shape": {
+			"description": "`bind:this` is emitted as a `\"bind:this\": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`)",
+			"pinned": "source"
+		},
+		"extra-slot-prop": {
+			"description": "an extra `dragItem: dragItem` slot prop is emitted",
+			"pinned": "output only"
+		},
+		"ignore-region-merge": {
+			"description": "two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens",
+			"pinned": "source"
+		},
+		"jsdoc-typedef-injected": {
+			"description": "an `@typedef {import('./TreeView.svelte').TreeNode<Id>} TreeNode<Id=(string|number)>` line is injected into the props JSDoc block official copies verbatim",
+			"pinned": "source"
+		},
+		"line-comment-swallows-type": {
+			"description": "a `//` line comment inside an `export let` type annotation swallows the rest of the emitted line, so the output is not TypeScript",
+			"pinned": "source"
+		},
+		"props-jsdoc-rewrite": {
+			"description": "an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`, and the block official copies verbatim into `return { props: … }` is dropped",
+			"pinned": "reduced"
+		},
+		"renamed-export-dropped": {
+			"description": "`export { componentClass as class }` is dropped from `exports:`; official emits `class: typeof componentClass`",
+			"pinned": "source"
+		},
+		"render-open-position": {
+			"description": "`function $$render()` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte hoists an `interface Props` ABOVE `function $$render<T>()` where official emits the function first (1), and keeps an `interface $$Props` / `type …Props` INSIDE where official hoists it above (2). Two directions of one shape, so read it as two defects until one fix moves both",
+			"pinned": "reduced"
+		},
+		"store-get-missing": {
+			"description": "the `let $permissions = __sveltets_2_store_get(permissions)` line is not emitted at all",
+			"pinned": "output only"
+		},
+		"template-hole-comment-dropped": {
+			"description": "a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped",
+			"pinned": "source"
+		},
+		"unterminated-export-let": {
+			"description": "`export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree",
+			"pinned": "reduced"
+		},
+		"upstream-bom-crash": {
+			"description": "official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it",
+			"pinned": "upstream"
+		}
+	},
+	"entries": {
+		"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte": "ignore-region-merge",
+		"appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/settings/+page.svelte": "store-get-missing",
+		"carbon-components-svelte/src/TreeView/TreeViewNode.svelte": "jsdoc-typedef-injected",
+		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
+		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash",
+		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",
+		"mathesar/mathesar_ui/src/component-library/button/Button.svelte": "bind-this-shape",
+		"photon/src/lib/ui/form/Switch.svelte": "render-open-position",
+		"sparrow-app/packages/@sparrow-library/src/forms/editor/Editor.svelte": "renamed-export-dropped",
+		"sparrow-app/packages/@sparrow-workspaces/src/components/tabular-input/sub-component/BulkEditEditor.svelte": "renamed-export-dropped",
+		"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte": "template-hole-comment-dropped",
+		"svelte-commerce/src/lib/components/form/textbox.svelte": "render-open-position",
+		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type",
+		"sveltekit/packages/package/test/watch/expected/Test.svelte": "unterminated-export-let",
+		"svelty-picker/src/lib/components/Calendar.svelte": "props-jsdoc-rewrite",
+		"svelty-picker/src/lib/components/SveltyPicker.svelte": "props-jsdoc-rewrite",
+		"svelty-picker/src/lib/components/Time.svelte": "props-jsdoc-rewrite",
+		"trakt-web/projects/client/src/lib/components/buttons/share/ShareButton.svelte": "render-open-position"
+	}
+}

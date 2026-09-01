@@ -37,6 +37,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`svelte2tsx-fixtures-known-failures`](#svelte2tsx-fixtures-known-failures) | `compatibility/svelte2tsx-fixtures-known-failures.md` |
 | [`svelte2tsx-known-failures`](#svelte2tsx-known-failures) | `compatibility/svelte2tsx-known-failures.md` |
 | [`svelte2tsx-map-known-failures`](#svelte2tsx-map-known-failures) | `compatibility/svelte2tsx-map-known-failures.md` |
+| [`svelte2tsx-unparseable-known-failures`](#svelte2tsx-unparseable-known-failures) | `compatibility/svelte2tsx-unparseable-known-failures.md` |
 | [`validator-known-failures`](#validator-known-failures) | `compatibility/validator-known-failures.md` |
 | [`validator-message-known-failures`](#validator-message-known-failures) | `compatibility/validator-message-known-failures.md` |
 | [`validator-message-not-comparable`](#validator-message-not-comparable) | `compatibility/validator-message-not-comparable.md` |
@@ -6215,16 +6216,20 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 22 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 17 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `20 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `15 + 2`
 
-- **20 — the emitted TSX differs** (`ts-mismatch`).
+- **15 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
   throw from `magic-string`, reduced and filed as
   `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md`.
+
+A third class left this file entirely: rsvelte emitting text no TypeScript parser
+accepts is now its own verdict with its own ratchet — see
+[`svelte2tsx-unparseable-known-failures.json`](#svelte2tsx-unparseable-known-failures).
 
 Attribution of `svelte2tsx-known-failures.json`:
 
@@ -6232,50 +6237,62 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 20 carry **no target, and cannot have one**: every one of them was
-measured against official on 2026-09-01 and every one is an rsvelte defect, so
-the only end state open to them is elimination. The classification below is the
-input to that work; it is not an attribution, and this gate stays red until the
-entries are gone.
+The remaining 15 carry **no target, and cannot have one**: every one was measured
+against official on 2026-09-02 and every one is an rsvelte defect, so the only end
+state open to them is elimination. The classification below is the input to that
+work; it is not an attribution, and this gate stays red until the entries are gone.
 
-### The 20 `ts-mismatch` entries, classified by mechanism (2026-09-01)
+### Entries by mechanism (2026-09-02)
 
-Both implementations run directly on the 20 listed sources with the options
+Both implementations are run on the listed sources with the options
 `svelte2tsx-compile.mjs` passes (`{filename, isTsFile, mode:'ts', namespace:'html',
-version:'5'}`). This table replaces the earlier one keyed by the first differing
-line: that key is a **symptom**, so it split one mechanism across rows and put two
-mechanisms in one row. Rows are keyed by mechanism instead, and the last column
-says how far each was actually pinned — **reduced** (a hand-written input of a few
-lines reproduces it), **source** (the construct is identified in the listed file),
+version:'5'}`), and the outputs are normalized exactly as the gate normalizes them.
+The last column says how far each was pinned — **reduced** (a hand-written input of a
+few lines reproduces it), **source** (the construct is identified in the listed file),
 or **output only** (the outputs differ and the cause is *not* isolated). Read an
-"output only" row as an open question rather than a finding: one of them,
+"output only" row as an open question rather than a finding. One of them,
 `appwrite`'s `settings/+page.svelte`, had a plausible cause — `$permissions` as a
-destructuring-rename KEY — and a five-line reduction of that has both tools
-agreeing, so the cause is something else.
+destructuring-rename KEY — and a five-line reduction of that has both tools agreeing,
+so the cause is something else.
+
+**This table is generated from a one-to-one id → mechanism assignment**
+(`compatibility/svelte2tsx-mechanisms.json`, which covers this ratchet and the
+unparseable one together), **and the `n` column is derived from it.** The previous table was written the other way
+round — mechanisms first, counts assigned by hand — and it summed to exactly the
+ratchet's entry count while not being a partition: `svelty-picker`'s three files
+were counted under two rows (the `@type` → `@typedef` rewrite and the `props:`
+JSDoc placement are two hunks of one file, not two files), and three mechanisms
+that did exist had no row at all. **An arithmetic check on the total cannot see a
+double count**, so the assignment has to be per entry.
 
 | n | mechanism | pinned |
 |---|---|---|
-| 3 | an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into a `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`; official leaves the block alone and copies it verbatim into `return { props: … }` | reduced |
-| 3 | a JSDoc block copied into `return { props: {` starts on the wrong line — official breaks before the `/**`, rsvelte keeps it on the `{` line and breaks inside | reduced |
-| 3 | `function $$render() {` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte opens it BEFORE an `interface $$Props` / `type …Props` that official puts first (2), and AFTER an `interface Props` in the `type T = $$Generic` case, where official emits `function $$render<T>()` first (1). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
-| 2 | a renamed export (`export { componentClass as class }`) is dropped from `exports:`, where official emits `class: typeof componentClass` | source |
-| 1 | `export let x: T` with **no statement terminator** (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding a `;` and a newline makes the two agree | reduced |
-| 1 | `bind:this` on an element is emitted as an attribute rather than as an assignment to the bound variable | output only |
-| 1 | a `use:` action is emitted inside the attribute object rather than as a preceding `$$action_0` const | output only |
-| 1 | a transition is `__sveltets_2_ensureTransition(f)(…)` rather than `__sveltets_2_ensureTransition(f(…))` | output only |
-| 1 | a `//` comment inside a template-literal hole in an attribute value is collapsed onto one line | output only |
-| 1 | a `//` comment is emitted before `type $$ComponentProps` | output only |
-| 1 | two `/*Ωignore_startΩ*/` regions are merged into one | output only |
-| 1 | official emits a `$permissions` store-get that rsvelte omits — **cause not isolated** | output only |
-| 1 | rsvelte emits an extra `dragItem` slot prop — **cause not isolated** | output only |
+| 3 | an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`, and the block official copies verbatim into `return { props: … }` is dropped | reduced |
+| 3 | `function $$render()` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte hoists an `interface Props` ABOVE `function $$render<T>()` where official emits the function first (1), and keeps an `interface $$Props` / `type …Props` INSIDE where official hoists it above (2). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
+| 2 | `export { componentClass as class }` is dropped from `exports:`; official emits `class: typeof componentClass` | source |
+| 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
+| 1 | `bind:this` is emitted as a `"bind:this": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`) | source |
+| 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
+| 1 | two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens | source |
+| 1 | an `@typedef {import('./TreeView.svelte').TreeNode<Id>} TreeNode<Id=(string|number)>` line is injected into the props JSDoc block official copies verbatim | source |
+| 1 | the `let $permissions = __sveltets_2_store_get(permissions)` line is not emitted at all | output only |
+| 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
+| 1 | `export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree | reduced |
+
+Partition of `svelte2tsx-known-failures.json` by mechanism: `3 + 3 + 2 + 2 + 1x7`
+
+### Previously: the comment-blind scans (2026-09-01, at 20 entries)
+
+Kept because the finding is about the KEY, not about the entries, and both the
+entries and the key are gone from the table above.
 
 **The largest mechanism this table ever carried is gone, and the ten entries it
-held are the ten this ratchet just lost.** The commented-out `<script>`, the
+held are the ten this ratchet lost at 30 → 20.** The commented-out `<script>`, the
 commented-out `dispatch(…)` and the commented-out `$store` were one class — a
 scan that does not exclude code inside a comment, **10 of 30 entries, 33%**,
 against a largest mechanism of 5 when the table was keyed by symptom. #4136
 routed those scans through the parser's own comment-, string- and regex-aware
-primitives. **The mapping from entry to mechanism is measured, not inferred from
+primitives. **The mapping from entry to mechanism was measured, not inferred from
 the arithmetic:** diffing the two arms' output on each of the ten names its cause
 — five drop an injected commented-out `<script>` body (9-128 lines), four drop an
 event name that only a comment dispatches (`BulkEditorMergeView` goes from two
@@ -6284,7 +6301,7 @@ events to none), and `appwrite-console`'s
 `$columnsOrder` store-get.
 
 **Two of those rows could not be read off the first-differing-line key at all**,
-which is why the table is keyed by mechanism. Under the old key they read
+which is why the table above is keyed by mechanism. Under the old key they read
 `async () => {` against an `import` — an instance/module *statement order* defect
 — and "store declarations emitted in a different order". Both read as orderings
 and neither was one: the first is the commented-out `<script>`'s body injected at
@@ -6296,12 +6313,11 @@ It is the class the compiler side keeps rediscovering (#2986, #2987, #3127),
 reached here through a different port, and **no gate compares the two ports** —
 `compatibility/GATES.md#two-ports-inventory` row 6 carries it.
 
-**Six rows are `output only`, and the count is not their size.** They are now six
-of twenty rather than six of thirty, and nothing about them changed — a share
-moves when the denominator does. The symptom-keyed table put 13 of these entries
-in a "one entry each" tail, which is where a
-mechanism goes to look unimportant; all the count above says is that nobody has
-reduced them yet.
+**Six rows were `output only`, and the count is not their size.** They were six
+of twenty rather than six of thirty, and nothing about them had changed — a share
+moves when the denominator does. The symptom-keyed table put 13 of those entries
+in a "one entry each" tail, which is where a mechanism goes to look unimportant;
+all such a count says is that nobody has reduced them yet.
 
 ### Wave-2 enrolment (#3130)
 
@@ -6496,6 +6512,51 @@ The control is the same source as JavaScript: it must keep the JSDoc and emit no
 alias. Both arms are pinned in
 `crates/rsvelte_projection/tests/svelte2tsx_ts_props_ignores_jsdoc.rs`; dropping
 the `!is_ts` guard turns the TS arm red and leaves the JS arm green.
+
+<a id="svelte2tsx-unparseable-known-failures"></a>
+
+## svelte2tsx-unparseable-known-failures.json — why entries are accepted
+
+rsvelte emitting TSX that no TypeScript parser accepts, while official's output for
+the same source parses. Kept apart from `svelte2tsx-known-failures.json` for the
+reason the compiler-error gates keep `start` and `end` apart: **a ratchet entry
+suppresses everything its key cannot tell apart**, and this file's ids were already
+listed there as ordinary `ts-mismatch` entries, so a newly unparseable output on any
+of them would have been scored green.
+
+The gate had only the mirror question. `oracle-invalid` asks whether OFFICIAL's
+output is unparseable while rsvelte's parses (a pass, because there is no valid
+target to match); the opposite direction had no name, so it had no ratchet. The
+`oracle-invalid` test already computed both sides' parseability and discarded one of
+the two answers, so the new verdict costs no extra work.
+
+**Current baseline: `svelte2tsx-unparseable-known-failures.json`, 1 entry.**
+
+Partition of `svelte2tsx-unparseable-known-failures.json` by mechanism: `1`
+
+The mechanism assignment is the same one-to-one map the other ratchet's table is
+derived from (`compatibility/svelte2tsx-mechanisms.json`), which covers both files.
+
+- **1 — a `//` comment swallows a hoisted type declaration.**
+  `svelte-virtuallists/src/lib/VirtualListNew.svelte` emits
+  `// ====== PROPERTIES ================;type $$ComponentProps =  {` on one line, so
+  the `//` runs to the end of the line and takes the declaration with it
+  (`Unexpected token`). Official emits no `$$ComponentProps` for this source at all,
+  so there are two defects here and only the second one is loud. **Not reduced**: a
+  three-line `<script lang="ts">` with a leading `//` and a typed `$props()`
+  destructure is byte-identical between the two tools, so the hand-written probe says
+  something about the probe rather than about the defect — the reduction has to come
+  from bisecting the real file.
+
+The two entries this file did NOT need are the reason it exists. Both were one
+mechanism: an element carrying `slot=` inside a component went through a second
+attribute emitter, which wrote a `use:` action as an entry *inside* the props object
+(`Expected function body`) and a transition as
+`__sveltets_2_ensureTransition(f)(tag, {})`. Routing named-slot elements through
+`build_directive_prefix_suffix` fixed both, and a third and fourth consequence of the
+same duplication with them (`$$action_N` block scoping, and `tabindex="0"` emitted as
+a template literal where `svelte/elements` types it `number`).
+
 
 <a id="svelte2tsx-map-known-failures"></a>
 

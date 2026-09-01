@@ -652,15 +652,16 @@ mod tests {
 
         events.collect_dispatched_events(source, None, None);
 
+        // No `backtick`: upstream's `checkIfCallExpressionIsDispatch` tests
+        // `ts.isStringLiteral`, which a template literal is not.
         assert_eq!(
             event_names(&events),
             vec![
                 "spaced-member",
                 "single",
                 "double",
-                "backtick",
                 "inside-string",
-                "inside-comment",
+                "inside-comment"
             ]
         );
     }

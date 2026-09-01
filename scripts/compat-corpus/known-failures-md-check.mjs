@@ -238,6 +238,11 @@ const RATCHETS = [
 	{ doc: 'svelte2tsx-known-failures.md', key: 'svelte2tsx-known-failures.json', jsons: ['svelte2tsx-known-failures.json'] },
 	{ doc: 'svelte2tsx-map-known-failures.md', key: 'svelte2tsx-map-known-failures.json', jsons: ['svelte2tsx-map-known-failures.json'] },
 	{
+		doc: 'svelte2tsx-unparseable-known-failures.md',
+		key: 'svelte2tsx-unparseable-known-failures.json',
+		jsons: ['svelte2tsx-unparseable-known-failures.json'],
+	},
+	{
 		doc: 'svelte2tsx-fixtures-known-failures.md',
 		key: 'svelte2tsx-fixtures-known-failures.json',
 		jsons: ['svelte2tsx-fixtures-known-failures.json'],
@@ -265,6 +270,16 @@ const PARTITIONS = [
 		doc: 'svelte2tsx-known-failures.md',
 		key: 'svelte2tsx-known-failures.json',
 		label: 'verdict',
+	},
+	{
+		doc: 'svelte2tsx-known-failures.md',
+		key: 'svelte2tsx-known-failures.json',
+		label: 'mechanism',
+	},
+	{
+		doc: 'svelte2tsx-unparseable-known-failures.md',
+		key: 'svelte2tsx-unparseable-known-failures.json',
+		label: 'mechanism',
 	},
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
