@@ -252,6 +252,15 @@ impl ComponentEvents {
 
 /// Template hits carry the index of the dispatcher declaration that claims them;
 /// script hits carry the call's own absolute position.
+/// `pos` inside one of the sorted, possibly overlapping ranges.
+fn position_in_ranges(ranges: &[(u32, u32)], pos: usize) -> bool {
+    let Ok(pos) = u32::try_from(pos) else {
+        return false;
+    };
+    let upto = ranges.partition_point(|&(start, _)| start <= pos);
+    ranges[..upto].iter().any(|&(_, end)| pos < end)
+}
+
 type DispatchScan<'source> = (Vec<(&'source str, usize)>, Vec<(&'source str, u32)>);
 
 fn scan_dispatch_calls<'source>(
@@ -296,6 +305,9 @@ fn scan_dispatch_calls_with_observer<'source>(
     }
 
     let bytes = source.as_bytes();
+    // Official's `ComponentEvents` walks the TypeScript AST, so a `dispatch(…)`
+    // written in a comment, a string or an HTML comment is not a call node.
+    let opaque = crate::svelte2tsx::utils::lexical::opaque_source_ranges(source);
     let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
     let in_range = |idx: usize, range: Option<(u32, u32)>| {
         range.is_some_and(|(start, end)| idx >= start as usize && idx < end as usize)
@@ -317,6 +329,9 @@ fn scan_dispatch_calls_with_observer<'source>(
         }
         observe_identifier();
 
+        if position_in_ranges(&opaque, start) {
+            continue;
+        }
         if start > 0 && bytes[start - 1] == b'.' {
             continue;
         }

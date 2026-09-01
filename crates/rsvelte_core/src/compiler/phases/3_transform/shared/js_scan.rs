@@ -264,6 +264,95 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
     }
 }
 
+/// Every opaque run of the JavaScript in `bytes`, at quasi granularity: a
+/// comment, a string, a regex literal, and each text chunk of a template
+/// literal — a `${…}` substitution is code, not opaque.
+///
+/// `skip_opaque` answers the coarser question on purpose (#3592), which is the
+/// rule a scan that must not step INTO a literal needs; a consumer that blanks
+/// text and then searches it needs a substitution left readable.
+pub fn opaque_runs(bytes: &[u8]) -> Vec<(usize, usize)> {
+    struct Tpl {
+        in_text: bool,
+        depth: u32,
+    }
+    let mut runs = Vec::new();
+    let mut stack: Vec<Tpl> = Vec::new();
+    let mut quasi_start = 0usize;
+    let mut prev: Option<u8> = None;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if stack.last().is_some_and(|top| top.in_text) {
+            match bytes[i] {
+                b'\\' => i += 2,
+                b'`' => {
+                    runs.push((quasi_start, i));
+                    stack.pop();
+                    prev = Some(b'x');
+                    i += 1;
+                }
+                b'$' if bytes.get(i + 1) == Some(&b'{') => {
+                    runs.push((quasi_start, i));
+                    let top = stack
+                        .last_mut()
+                        .expect("template text implies a stack entry");
+                    top.in_text = false;
+                    top.depth = 0;
+                    prev = Some(b'{');
+                    i += 2;
+                }
+                _ => i += 1,
+            }
+            continue;
+        }
+        match bytes[i] {
+            b'`' => {
+                stack.push(Tpl {
+                    in_text: true,
+                    depth: 0,
+                });
+                quasi_start = i + 1;
+                i += 1;
+                continue;
+            }
+            b'{' => {
+                if let Some(top) = stack.last_mut() {
+                    top.depth += 1;
+                }
+            }
+            b'}' => {
+                if let Some(top) = stack.last_mut() {
+                    if top.depth == 0 {
+                        top.in_text = true;
+                        quasi_start = i + 1;
+                        i += 1;
+                        continue;
+                    }
+                    top.depth -= 1;
+                }
+            }
+            _ => {}
+        }
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            runs.push((i, next));
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    // An unterminated template literal leaves its tail opaque.
+    if stack.last().is_some_and(|top| top.in_text) {
+        runs.push((quasi_start, bytes.len()));
+    }
+    runs
+}
+
 /// Byte just past the template literal that opens at `i`.
 ///
 /// A template is not a quote-delimited run: `${…}` re-enters code and may open

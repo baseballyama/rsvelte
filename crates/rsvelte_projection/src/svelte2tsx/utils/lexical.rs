@@ -163,6 +163,129 @@ pub fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
     out
 }
 
+/// Byte ranges of `source` that carry no JavaScript the official svelte2tsx
+/// walkers ever see: an HTML comment, and — inside every `<script>` body and
+/// every template `{ … }` expression — a JS comment, a string, a regex literal
+/// and a template literal's text chunks.
+///
+/// Upstream needs no such set: `ComponentEvents` walks the TypeScript AST and
+/// `Stores` is fed by the Svelte AST walk, so a token in a comment or a string
+/// is not a node. A raw-text scan here has to be told.
+pub fn opaque_source_ranges(source: &str) -> Vec<(u32, u32)> {
+    collect_opaque_ranges(source, true)
+}
+
+/// The template-expression half of [`opaque_source_ranges`], for a scan whose
+/// script half is already answered from the parsed program.
+pub fn template_opaque_ranges(source: &str) -> Vec<(u32, u32)> {
+    collect_opaque_ranges(source, false)
+}
+
+fn collect_opaque_ranges(source: &str, include_scripts: bool) -> Vec<(u32, u32)> {
+    let mut ranges = Vec::new();
+    let mut markup_gaps: Vec<(usize, usize)> = Vec::new();
+    let mut gap_start = 0usize;
+    for region in super::htmlxparser::verbatim_regions(source) {
+        markup_gaps.push((gap_start, region.start as usize));
+        gap_start = region.end as usize;
+        if !include_scripts {
+            continue;
+        }
+        match region.kind {
+            0 => ranges.push((region.start, region.end)),
+            1 => push_js_opaque(source, region.content, &mut ranges),
+            _ => {}
+        }
+    }
+    markup_gaps.push((gap_start, source.len()));
+    for (start, end) in markup_gaps {
+        for expression in template_expression_ranges(&source[start..end]) {
+            push_js_opaque(
+                source,
+                (
+                    u32::try_from(start + expression.0).unwrap_or(u32::MAX),
+                    u32::try_from(start + expression.1).unwrap_or(u32::MAX),
+                ),
+                &mut ranges,
+            );
+        }
+    }
+    ranges.sort_unstable();
+    ranges
+}
+
+fn push_js_opaque(source: &str, span: (u32, u32), out: &mut Vec<(u32, u32)>) {
+    let (start, end) = (span.0 as usize, span.1 as usize);
+    let Some(slice) = source.get(start..end) else {
+        return;
+    };
+    for (run_start, run_end) in
+        rsvelte_core::compiler::phases::phase3_transform::shared::js_scan::opaque_runs(
+            slice.as_bytes(),
+        )
+    {
+        out.push((
+            u32::try_from(start + run_start).unwrap_or(u32::MAX),
+            u32::try_from(start + run_end).unwrap_or(u32::MAX),
+        ));
+    }
+}
+
+/// Byte ranges of the `{ … }` expression regions in a run of template markup.
+fn template_expression_ranges(text: &str) -> Vec<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < len {
+        if bytes[i] != b'{' {
+            i += 1;
+            continue;
+        }
+        i += 1;
+        let mut depth = 1usize;
+        let expr_start = i;
+        while i < len && depth > 0 {
+            match bytes[i] {
+                b'{' => {
+                    depth += 1;
+                    i += 1;
+                }
+                b'}' => {
+                    depth -= 1;
+                    i += 1;
+                }
+                b'\'' | b'"' | b'`' => {
+                    let quote = bytes[i];
+                    i += 1;
+                    while i < len && bytes[i] != quote {
+                        i += if bytes[i] == b'\\' { 2 } else { 1 };
+                    }
+                    i = (i + 1).min(len);
+                }
+                b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                    while i < len && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                }
+                b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                    i += 2;
+                    while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        i += 1;
+                    }
+                    i = (i + 2).min(len);
+                }
+                _ => i += 1,
+            }
+        }
+        let expr_end = if depth == 0 { i - 1 } else { i };
+        if expr_start < expr_end {
+            out.push((expr_start, expr_end));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

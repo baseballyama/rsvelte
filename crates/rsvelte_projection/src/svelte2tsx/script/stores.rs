@@ -70,6 +70,9 @@ pub struct StoreScanContext<'s> {
     /// reference in: a string literal, a template literal's text chunks, and
     /// the imported (property) name of an aliased import specifier.
     pub(super) opaque_dollar_spans: Vec<(u32, u32)>,
+    /// The template half of the same question, which no parsed program answers
+    /// here. Computed on first use: a source with no `$` never needs it.
+    template_opaque: Option<Vec<(u32, u32)>>,
     import_store_names: Vec<&'s str>,
     seen_import_store_names: HashSet<&'s str>,
 }
@@ -93,6 +96,7 @@ impl<'s> StoreScanContext<'s> {
             self_named_rune_calls: Vec::new(),
             regex_literal_spans: Vec::new(),
             opaque_dollar_spans: Vec::new(),
+            template_opaque: None,
             import_store_names: Vec::new(),
             seen_import_store_names: HashSet::new(),
         }
@@ -182,8 +186,14 @@ impl<'s> StoreScanContext<'s> {
 
     fn resolve_accessed_stores(&mut self) {
         self.accessed_stores.clear();
+        if self.template_opaque.is_none() {
+            self.template_opaque = Some(crate::svelte2tsx::utils::lexical::template_opaque_ranges(
+                self.source,
+            ));
+        }
         if self.cache_candidates {
             self.ensure_candidates();
+            let template_opaque: &[(u32, u32)] = self.template_opaque.as_deref().unwrap_or(&[]);
             for candidate in &self.candidates {
                 if let Some(name) = resolve_store_candidate(
                     self.source,
@@ -192,6 +202,7 @@ impl<'s> StoreScanContext<'s> {
                     &self.self_named_rune_calls,
                     &self.regex_literal_spans,
                     &self.opaque_dollar_spans,
+                    template_opaque,
                 ) {
                     self.accessed_stores.insert(name);
                 }
@@ -202,6 +213,7 @@ impl<'s> StoreScanContext<'s> {
             return;
         }
         let source = self.source;
+        let template_opaque: &[(u32, u32)] = self.template_opaque.as_deref().unwrap_or(&[]);
         let shadow = &self.dollar_param_shadow;
         let rune_calls = &self.self_named_rune_calls;
         let regex_spans = &self.regex_literal_spans;
@@ -215,6 +227,7 @@ impl<'s> StoreScanContext<'s> {
                 rune_calls,
                 regex_spans,
                 opaque_spans,
+                template_opaque,
             ) {
                 stores.insert(name);
             }
@@ -733,9 +746,13 @@ fn resolve_store_candidate<'s>(
     self_named_rune_calls: &[u32],
     regex_literal_spans: &[(u32, u32)],
     opaque_dollar_spans: &[(u32, u32)],
+    template_opaque_ranges: &[(u32, u32)],
 ) -> Option<&'s str> {
     let pos = candidate.pos();
-    if position_in_spans(regex_literal_spans, pos) || position_in_spans(opaque_dollar_spans, pos) {
+    if position_in_spans(regex_literal_spans, pos)
+        || position_in_spans(opaque_dollar_spans, pos)
+        || position_in_spans(template_opaque_ranges, pos)
+    {
         return None;
     }
     if candidate.may_be_self_named_rune() && self_named_rune_calls.binary_search(&pos).is_ok() {
