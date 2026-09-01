@@ -2855,7 +2855,10 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
         return String::new();
     }
 
-    let mut result = String::with_capacity(mappings.len() * 8);
+    // Bytes, not `String`: every byte written here is ASCII, and `String::push`
+    // pays a `char::encode_utf8` branch per byte over a map that reaches
+    // megabytes on a large component.
+    let mut result: Vec<u8> = Vec::with_capacity(mappings.len() * 8);
     let mut prev_gen_line: u32 = 0;
     let mut prev_gen_col: i64 = 0;
     let mut prev_source: i64 = 0;
@@ -2867,14 +2870,14 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
     for m in mappings {
         // Add semicolons for line gaps
         while prev_gen_line < m.gen_line {
-            result.push(';');
+            result.push(b';');
             prev_gen_line += 1;
             prev_gen_col = 0;
             first_on_line = true;
         }
 
         if !first_on_line {
-            result.push(',');
+            result.push(b',');
         }
 
         // Field 1: generated column (relative)
@@ -2898,13 +2901,13 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
         first_on_line = false;
     }
 
-    result
+    // SAFETY: the only bytes written are `;`, `,` and entries of `B64`, all ASCII.
+    unsafe { String::from_utf8_unchecked(result) }
 }
 
-/// Encode a single integer as a VLQ value appended to the output string.
-/// Uses a pre-computed ASCII lookup table to avoid the `as char` conversion overhead.
+/// Encode a single integer as a VLQ value appended to the output buffer.
 #[inline]
-fn vlq_encode(out: &mut String, value: i64) {
+fn vlq_encode(out: &mut Vec<u8>, value: i64) {
     // Base64 chars as a static array for direct indexing
     const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut v = if value < 0 {
@@ -2921,7 +2924,7 @@ fn vlq_encode(out: &mut String, value: i64) {
         }
         // SAFETY: digit is at most 0x3F (63), which is within B64 bounds,
         // and B64 contains only ASCII bytes.
-        out.push(B64[digit as usize] as char);
+        out.push(B64[digit as usize]);
         if v == 0 {
             break;
         }
