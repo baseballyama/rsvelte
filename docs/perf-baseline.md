@@ -325,6 +325,55 @@ conclusion ("the Vite plugin gets no benefit from the deferred AST") that a
 grep for `svelte.compile(` appeared to support and that measuring the shipped
 wrapper immediately refuted.
 
+## "Pre-frag setup 11.7%" was a residual with a guessed label
+
+`compile_profile.rs:354` computes that row as `transform_time` minus six
+timers and `:667` prints it under a name asserting what is in it. A residual
+always makes the table sum to 100%, so the row reads as surveyed. Decomposed
+by adding three timers (instrumentation, not committed), on the profiler's own
+3889-file corpus:
+
+| bucket | share of compile |
+|---|---:|
+| CSS render (already had a row) | 4.6% |
+| map assembly — `MappingLineStarts`, the mapping classification loop, the sort | 3.6% |
+| map serialize — VLQ encode + sourcemap JSON + `remap_through_sourcemap` | 3.4% |
+| pre-script — dead comments, rune parens, prop sanitization | 2.2% |
+| still unattributed | 6.2% |
+
+Three things this cost, all of them method rather than result.
+
+**The hypothesis was wrong and the instrument was wrong in the same direction.**
+The 180 untimed lines between `visit_program` and the script-text transform
+looked like the obvious home for 11.7%; they are 2.2%. And the timer written to
+catch the rest spanned `3_transform/mod.rs:337-689`, which **contains the CSS
+render timer at :380-388** — so `map serialize` first read 8.0%, and `other`
+had CSS subtracted twice and first read 1.6%. A peer found it from an
+arithmetic contradiction, not from the code: their server profile put the same
+serialization at ~1.7% while the server sorts 4.5x more mappings than the
+client, and 8.0% cannot be reconciled with that.
+
+**A wrong instrument rejects the correct hypothesis.** With the over-wide
+timer, map work summed to 11.6% against a `--no-sourcemap` ablation of 12.2%,
+which reads as two independent measurements agreeing and leaves 0.6% for the
+~13 scattered `enable_sourcemap` sites. Corrected, map work is 7.0% and the
+scattered remainder is 5.2% — which is what the original reading of that code
+claimed. The agreement was the artifact.
+
+**`Phase3Breakdown` is summed field by field at `compile_profile.rs:181`.**
+Adding a field to the struct compiles and the new bucket silently reports
+`0.00ms`, which is indistinguishable from a timer that never fires; that
+misdiagnosis cost one build. And `compile_profile` calls `analyze_component`
+and `transform_component` **directly** (`:130`, `:174`), the same
+entry-point mismatch the `perf-loop` skill documents for `profiler.rs` and does
+not mention for this binary — `analyze_component` hard-codes
+`retained_scripts: None`, so the pre-script row above is an upper bound.
+
+The operational conclusion is negative: net of the CSS render nested inside it,
+**source-map serialization is 3.4% of client compile**, so removing all of it
+buys 1.035x. It is not a lever toward the throughput goal, and neither is any
+other single phase-3 bucket.
+
 ## The merged tree is a fourth tree, and it needed its own gate
 
 Three branches were each green on their own — `perf/pool-sizing`,
