@@ -870,6 +870,10 @@ impl std::error::Error for TransformError {}
 struct MappingLineStarts {
     generated: std::sync::Arc<[usize]>,
     source: std::sync::Arc<[usize]>,
+    // A UTF-16 column is a byte subtraction only while the whole string is
+    // ASCII, and the answer is the same for every offset into it.
+    generated_ascii: bool,
+    source_ascii: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -922,7 +926,21 @@ pub(crate) fn collect_source_token_positions(source: &str) -> SourceTokenPositio
 }
 
 fn advance_token_utf16(code: &str, from: usize, to: usize, line: &mut u32, col: &mut u32) {
-    for character in code[from..to].chars() {
+    let segment = &code[from..to];
+    // Every ASCII character is one UTF-16 unit, so the decode only has to run
+    // where the segment actually carries one that is not.
+    if segment.is_ascii() {
+        let bytes = segment.as_bytes();
+        let mut start = 0;
+        while let Some(offset) = memchr::memchr(b'\n', &bytes[start..]) {
+            *line += 1;
+            start += offset + 1;
+            *col = 0;
+        }
+        *col += (bytes.len() - start) as u32;
+        return;
+    }
+    for character in segment.chars() {
         if character == '\n' {
             *line += 1;
             *col = 0;
@@ -937,6 +955,8 @@ impl MappingLineStarts {
         Self {
             generated: std::sync::Arc::from(js_ast::codegen::build_line_starts(generated)),
             source: std::sync::Arc::from(js_ast::codegen::build_line_starts(source)),
+            generated_ascii: generated.is_ascii(),
+            source_ascii: source.is_ascii(),
         }
     }
 }
@@ -998,7 +1018,7 @@ fn generate_default_function_wrapper_mappings_with_starts(
     script_end: usize,
     starts: &MappingLineStarts,
 ) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
+    use js_ast::codegen::offset_to_line_col_utf16_in;
 
     let Some(function_start) = generated.find("export default function ") else {
         return Vec::new();
@@ -1043,9 +1063,14 @@ fn generate_default_function_wrapper_mappings_with_starts(
         *generated_offset <= generated.len() && *source_offset <= source.len()
     })
     .map(|(generated_offset, source_offset)| {
-        let (gen_line, gen_col) =
-            offset_to_line_col_utf16(generated, generated_starts, generated_offset);
-        let (orig_line, orig_col) = offset_to_line_col_utf16(source, source_starts, source_offset);
+        let (gen_line, gen_col) = offset_to_line_col_utf16_in(
+            generated,
+            generated_starts,
+            generated_offset,
+            starts.generated_ascii,
+        );
+        let (orig_line, orig_col) =
+            offset_to_line_col_utf16_in(source, source_starts, source_offset, starts.source_ascii);
         js_ast::codegen::SourceMapping {
             gen_line: gen_line as u32,
             gen_col: gen_col as u32,
@@ -1083,7 +1108,7 @@ fn generate_server_wrapper_mappings_with_starts(
     script_end: usize,
     starts: &MappingLineStarts,
 ) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
+    use js_ast::codegen::offset_to_line_col_utf16_in;
 
     let Some(callback_start) = generated.find("$$renderer.component(") else {
         return Vec::new();
@@ -1134,9 +1159,14 @@ fn generate_server_wrapper_mappings_with_starts(
         *generated_offset <= generated.len() && *source_offset <= source.len()
     })
     .map(|(generated_offset, source_offset)| {
-        let (gen_line, gen_col) =
-            offset_to_line_col_utf16(generated, generated_starts, generated_offset);
-        let (orig_line, orig_col) = offset_to_line_col_utf16(source, source_starts, source_offset);
+        let (gen_line, gen_col) = offset_to_line_col_utf16_in(
+            generated,
+            generated_starts,
+            generated_offset,
+            starts.generated_ascii,
+        );
+        let (orig_line, orig_col) =
+            offset_to_line_col_utf16_in(source, source_starts, source_offset, starts.source_ascii);
         js_ast::codegen::SourceMapping {
             gen_line: gen_line as u32,
             gen_col: gen_col as u32,
@@ -1184,7 +1214,7 @@ fn generate_server_declaration_mappings_with_starts(
     source: &str,
     starts: &MappingLineStarts,
 ) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
+    use js_ast::codegen::offset_to_line_col_utf16_in;
 
     // The three keywords begin with distinct letters and none is a border of
     // itself, so one `memchr3` pass sees exactly what three `find` loops saw,
@@ -1257,10 +1287,18 @@ fn generate_server_declaration_mappings_with_starts(
             if !generated_tail.is_char_boundary(offset) || !source_tail.is_char_boundary(offset) {
                 continue;
             }
-            let (gen_line, gen_col) =
-                offset_to_line_col_utf16(generated, &generated_starts, generated_start + offset);
-            let (orig_line, orig_col) =
-                offset_to_line_col_utf16(source, &source_starts, source_start + offset);
+            let (gen_line, gen_col) = offset_to_line_col_utf16_in(
+                generated,
+                &generated_starts,
+                generated_start + offset,
+                starts.generated_ascii,
+            );
+            let (orig_line, orig_col) = offset_to_line_col_utf16_in(
+                source,
+                &source_starts,
+                source_start + offset,
+                starts.source_ascii,
+            );
             mappings.push(js_ast::codegen::SourceMapping {
                 gen_line: gen_line as u32,
                 gen_col: gen_col as u32,
@@ -1283,7 +1321,7 @@ fn generate_verbatim_script_mappings_with_starts(
     source: &str,
     starts: &MappingLineStarts,
 ) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
+    use js_ast::codegen::offset_to_line_col_utf16_in;
 
     let source_lines = source.lines().collect::<Vec<_>>();
     let generated_lines = generated.lines().collect::<Vec<_>>();
@@ -1321,15 +1359,17 @@ fn generate_verbatim_script_mappings_with_starts(
             continue;
         };
         for &(generated_line, generated_indent) in generated_matches {
-            let (gen_line, mut gen_col) = offset_to_line_col_utf16(
+            let (gen_line, mut gen_col) = offset_to_line_col_utf16_in(
                 generated,
                 &starts.generated,
                 starts.generated[generated_line] + generated_indent,
+                starts.generated_ascii,
             );
-            let (orig_line, mut orig_col) = offset_to_line_col_utf16(
+            let (orig_line, mut orig_col) = offset_to_line_col_utf16_in(
                 source,
                 &starts.source,
                 starts.source[source_line] + source_indent,
+                starts.source_ascii,
             );
             for character in trimmed.chars() {
                 mappings.push(js_ast::codegen::SourceMapping {
@@ -1376,7 +1416,7 @@ fn generate_verbatim_import_mappings_with_starts(
     source: &str,
     starts: &MappingLineStarts,
 ) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
+    use js_ast::codegen::offset_to_line_col_utf16_in;
 
     let source_lines = source
         .lines()
@@ -1411,10 +1451,18 @@ fn generate_verbatim_import_mappings_with_starts(
                 (gen_offset, source_offset),
                 (gen_offset + token.len(), source_offset + token.len()),
             ] {
-                let (gen_line, gen_col) =
-                    offset_to_line_col_utf16(generated, &gen_line_starts, generated_offset);
-                let (orig_line, orig_col) =
-                    offset_to_line_col_utf16(source, &src_line_starts, original_offset);
+                let (gen_line, gen_col) = offset_to_line_col_utf16_in(
+                    generated,
+                    &gen_line_starts,
+                    generated_offset,
+                    starts.generated_ascii,
+                );
+                let (orig_line, orig_col) = offset_to_line_col_utf16_in(
+                    source,
+                    &src_line_starts,
+                    original_offset,
+                    starts.source_ascii,
+                );
                 mappings.push(js_ast::codegen::SourceMapping {
                     gen_line: gen_line as u32,
                     gen_col: gen_col as u32,
@@ -1435,10 +1483,18 @@ fn generate_verbatim_import_mappings_with_starts(
             }
             let generated_offset = gen_line_starts[gen_line] + indent + token_offset;
             let original_offset = src_line_starts[*source_line] + *source_indent + token_offset;
-            let (gen_line, gen_col) =
-                offset_to_line_col_utf16(generated, &gen_line_starts, generated_offset);
-            let (orig_line, orig_col) =
-                offset_to_line_col_utf16(source, &src_line_starts, original_offset);
+            let (gen_line, gen_col) = offset_to_line_col_utf16_in(
+                generated,
+                &gen_line_starts,
+                generated_offset,
+                starts.generated_ascii,
+            );
+            let (orig_line, orig_col) = offset_to_line_col_utf16_in(
+                source,
+                &src_line_starts,
+                original_offset,
+                starts.source_ascii,
+            );
             mappings.push(js_ast::codegen::SourceMapping {
                 gen_line: gen_line as u32,
                 gen_col: gen_col as u32,
