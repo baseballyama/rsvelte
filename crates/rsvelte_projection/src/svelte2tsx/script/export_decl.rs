@@ -336,7 +336,13 @@ pub(super) fn handle_export_named_decl(
         for spec in export_specifiers {
             let local = module_export_name_to_string(&spec.local);
             let exported = module_export_name_to_string(&spec.exported);
-            let possible = possible_exports.get(&local);
+            // Upstream fills `possibleExports` during ONE in-order walk, so an
+            // `export { x as y }` written ABOVE `let x` finds nothing and the
+            // entry is a value export rather than a prop (`ExportedNames.ts:634`).
+            // rsvelte collects them in a pre-pass, which is order-blind.
+            let possible = possible_exports
+                .get(&local)
+                .filter(|p| p.decl_end <= export_span.start);
             let is_let = possible.is_some_and(PossibleExport::is_let);
             let has_init = possible.is_none_or(PossibleExport::has_init);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());

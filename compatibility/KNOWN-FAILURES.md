@@ -6216,11 +6216,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 14 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 12 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `12 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `10 + 2`
 
-- **12 — the emitted TSX differs** (`ts-mismatch`).
+- **10 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6237,7 +6237,7 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 12 carry **no target, and cannot have one**: every one was measured
+The remaining 10 carry **no target, and cannot have one**: every one was measured
 against official on 2026-09-02 and every one is an rsvelte defect, so the only end
 state open to them is elimination. The classification below is the input to that
 work; it is not an attribution, and this gate stays red until the entries are gone.
@@ -6268,7 +6268,6 @@ double count**, so the assignment has to be per entry.
 | n | mechanism | pinned |
 |---|---|---|
 | 3 | `function $$render()` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte hoists an `interface Props` ABOVE `function $$render<T>()` where official emits the function first (1), and keeps an `interface $$Props` / `type …Props` INSIDE where official hoists it above (2). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
-| 2 | `export { componentClass as class }` is dropped from `exports:`; official emits `class: typeof componentClass` | source |
 | 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
 | 1 | `bind:this` is emitted as a `"bind:this": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`) | source |
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
@@ -6278,7 +6277,7 @@ double count**, so the assignment has to be per entry.
 | 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
 | 1 | `export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree | reduced |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `3 + 2 + 2 + 1x7`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `3 + 2 + 1x7`
 
 ### Previously: the comment-blind scans (2026-09-01, at 20 entries)
 
