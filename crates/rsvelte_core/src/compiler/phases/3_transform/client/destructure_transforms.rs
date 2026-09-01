@@ -991,12 +991,105 @@ fn can_continue_expression(c: char) -> bool {
     )
 }
 
+/// End of the comment that opens at `i`, or `None` when nothing does.
+///
+/// `//` and `/*` are unambiguous: a regex may not open with `/` or `*`, and
+/// `a / *b` is not JavaScript, so neither spelling can be a division.
+fn comment_end(chars: &[char], i: usize) -> Option<usize> {
+    if chars.get(i) != Some(&'/') {
+        return None;
+    }
+    match chars.get(i + 1) {
+        // The newline is left in place so the caller's ASI rule still sees it.
+        Some('/') => {
+            let mut j = i + 2;
+            while j < chars.len() && chars[j] != '\n' {
+                j += 1;
+            }
+            Some(j)
+        }
+        Some('*') => {
+            let mut j = i + 2;
+            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                j += 1;
+            }
+            Some(if j + 1 < chars.len() {
+                j + 2
+            } else {
+                chars.len()
+            })
+        }
+        _ => None,
+    }
+}
+
+/// First character after `from` that is neither whitespace nor comment text.
+fn next_code_char(chars: &[char], from: usize) -> Option<char> {
+    let mut j = from;
+    loop {
+        while j < chars.len() && chars[j].is_whitespace() {
+            j += 1;
+        }
+        match comment_end(chars, j) {
+            Some(end) if end > j => j = end,
+            _ => return chars.get(j).copied(),
+        }
+    }
+}
+
 /// Find the end of the RHS expression in a destructure assignment.
 /// Handles balanced brackets, parentheses, semicolons and line breaks.
 pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> CharOffset {
     let chars: Vec<char> = statement.chars().collect();
+    let mut end = scan_destructure_rhs_end(&chars, start.get());
+    // A trailing comment is not part of the value: leaving it in makes an
+    // identifier RHS spell something other than an identifier, which is the
+    // `should_cache` test in `generate_destructure_iife`. It stays outside the
+    // spliced range, so the printer keeps it.
+    loop {
+        while end > start.get() && chars[end - 1].is_whitespace() {
+            end -= 1;
+        }
+        match comment_start_ending_at(&chars, start.get(), end) {
+            Some(open) => end = open,
+            None => break,
+        }
+    }
+    CharOffset::new(end)
+}
+
+/// Start of the comment that ends exactly at `end`, or `None`.
+fn comment_start_ending_at(chars: &[char], lo: usize, end: usize) -> Option<usize> {
+    if end >= lo + 2 && chars[end - 1] == '/' && chars[end - 2] == '*' {
+        let mut k = end - 2;
+        while k > lo {
+            if chars[k - 1] == '/' && chars[k] == '*' {
+                return Some(k - 1);
+            }
+            k -= 1;
+        }
+        return None;
+    }
+    // A line comment runs to a newline, so it can only end at `end` when the
+    // whitespace trim above stopped there; find its opener on that line.
+    let line_start = chars[..end]
+        .iter()
+        .rposition(|&c| c == '\n')
+        .map_or(lo, |p| p + 1);
+    let from = line_start.max(lo);
+    let mut k = from;
+    while k + 1 < end {
+        if chars[k] == '/' && chars[k + 1] == '/' {
+            return Some(k);
+        }
+        k += 1;
+    }
+    None
+}
+
+fn scan_destructure_rhs_end(chars: &[char], start: usize) -> usize {
     let len = chars.len();
-    let mut i = start.get();
+    let mut i = start;
     let mut depth = 0;
     let mut in_string: Option<char> = None;
 
@@ -1010,8 +1103,16 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
     while i < len {
         let c = chars[i];
 
+        if in_string.is_none()
+            && let Some(end) = comment_end(chars, i)
+            && end > i
+        {
+            i = end;
+            continue;
+        }
+
         if in_string.is_some() {
-            if Some(c) == in_string && !is_escaped_char(&chars, i) {
+            if Some(c) == in_string && !is_escaped_char(chars, i) {
                 in_string = None;
             }
             i += 1;
@@ -1030,7 +1131,7 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
             ')' => {
                 if depth == 0 {
                     // This closing paren belongs to an outer context
-                    return CharOffset::new(i);
+                    return i;
                 }
                 depth -= 1;
                 i += 1;
@@ -1054,17 +1155,17 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
             }
             ']' | '}' => {
                 if depth == 0 {
-                    return CharOffset::new(i);
+                    return i;
                 }
                 depth -= 1;
                 i += 1;
             }
             ';' if depth == 0 => {
-                return CharOffset::new(i);
+                return i;
             }
             ',' if depth == 0 => {
                 // Could be end of expression in sequence
-                return CharOffset::new(i);
+                return i;
             }
             '\n' if depth == 0 => {
                 // Semicolon-free source ends the assignment here, by ASI. Apply
@@ -1075,12 +1176,10 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
                     .rev()
                     .find(|c| !c.is_whitespace())
                     .is_some_and(|&c| can_end_expression(c));
-                let continues_next = chars[i + 1..]
-                    .iter()
-                    .find(|c| !c.is_whitespace())
-                    .is_some_and(|&c| can_continue_expression(c));
+                let continues_next =
+                    next_code_char(chars, i + 1).is_some_and(can_continue_expression);
                 if ends && !continues_next {
-                    return CharOffset::new(i);
+                    return i;
                 }
                 i += 1;
             }
@@ -1096,7 +1195,7 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
     while end > expr_start && chars[end - 1].is_whitespace() {
         end -= 1;
     }
-    CharOffset::new(end)
+    end
 }
 
 /// Check if a generated code string contains `await` as a keyword (not inside string literals).

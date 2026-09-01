@@ -1459,6 +1459,107 @@ fn is_shadowed_by_function_param_by_scan(chars: &[char], var_start: usize, var_n
     false
 }
 
+/// Index just past the last code character at or before `j`, skipping
+/// whitespace and comments.
+///
+/// A backward walk cannot classify `*/` or `//` on its own, so the line-comment
+/// case is settled by re-scanning that line forward from its start.
+pub(super) fn skip_ws_and_comments_back(chars: &[char], mut j: usize) -> usize {
+    loop {
+        while j > 0 && chars[j - 1].is_whitespace() {
+            j -= 1;
+        }
+        if j >= 2 && chars[j - 1] == '/' && chars[j - 2] == '*' {
+            // Block comments do not nest, so the nearest `/*` opens this one.
+            let mut k = j - 2;
+            let mut opened = None;
+            while k >= 1 {
+                if chars[k - 1] == '/' && chars[k] == '*' {
+                    opened = Some(k - 1);
+                    break;
+                }
+                k -= 1;
+            }
+            match opened {
+                Some(start) => {
+                    j = start;
+                    continue;
+                }
+                None => return j,
+            }
+        }
+        match line_comment_covering(chars, j) {
+            Some(start) => j = start,
+            None => return j,
+        }
+    }
+}
+
+/// Start of the `//` comment that covers position `j - 1`, or `None`.
+fn line_comment_covering(chars: &[char], j: usize) -> Option<usize> {
+    if j == 0 {
+        return None;
+    }
+    let line_start = chars[..j - 1]
+        .iter()
+        .rposition(|&c| c == '\n')
+        .map_or(0, |p| p + 1);
+    let mut k = line_start;
+    let mut in_string: Option<char> = None;
+    while k + 1 < j {
+        let c = chars[k];
+        if let Some(q) = in_string {
+            if c == q && !is_escaped_char(chars, k) {
+                in_string = None;
+            }
+        } else if c == '\'' || c == '"' || c == '`' {
+            in_string = Some(c);
+        } else if c == '/' && chars[k + 1] == '/' {
+            return Some(k);
+        } else if c == '/' && chars[k + 1] == '*' {
+            // A block comment on this line cannot reach past its own `*/`, and
+            // the caller has already handled the case where it ends at `j`.
+            let mut m = k + 2;
+            while m + 1 < j && !(chars[m] == '*' && chars[m + 1] == '/') {
+                m += 1;
+            }
+            k = m + 1;
+        }
+        k += 1;
+    }
+    None
+}
+
+/// Index of the first code character at or after `k`, skipping whitespace and
+/// comments.
+pub(super) fn skip_ws_and_comments_fwd(chars: &[char], mut k: usize) -> usize {
+    loop {
+        while k < chars.len() && chars[k].is_whitespace() {
+            k += 1;
+        }
+        if k + 1 < chars.len() && chars[k] == '/' && chars[k + 1] == '/' {
+            k += 2;
+            while k < chars.len() && chars[k] != '\n' {
+                k += 1;
+            }
+            continue;
+        }
+        if k + 1 < chars.len() && chars[k] == '/' && chars[k + 1] == '*' {
+            let mut m = k + 2;
+            while m + 1 < chars.len() && !(chars[m] == '*' && chars[m + 1] == '/') {
+                m += 1;
+            }
+            k = if m + 1 < chars.len() {
+                m + 2
+            } else {
+                chars.len()
+            };
+            continue;
+        }
+        return k;
+    }
+}
+
 /// Check if a variable at the given position is a shorthand property in an object literal.
 /// This detects patterns like:
 /// - `{ foo, bar }` - shorthand properties
@@ -1474,11 +1575,7 @@ pub(super) fn is_shorthand_object_property(
 ) -> bool {
     let var_end = var_start + var_len;
 
-    // Skip whitespace after the variable
-    let mut k = var_end;
-    while k < chars.len() && chars[k].is_whitespace() {
-        k += 1;
-    }
+    let k = skip_ws_and_comments_fwd(chars, var_end);
 
     if k >= chars.len() {
         return false;
@@ -1492,7 +1589,7 @@ pub(super) fn is_shorthand_object_property(
 
     // Now we need to verify this is inside an object literal
     // by checking what's before the variable.
-    is_object_literal_property_position(index, chars, var_start)
+    is_object_literal_property_position(index, chars, skip_ws_and_comments_back(chars, var_start))
 }
 
 /// Check whether the identifier at `var_start` occupies a *binding* slot of a
@@ -1618,11 +1715,7 @@ pub(super) fn is_explicit_property_key(
 ) -> bool {
     let var_end = var_start + var_len;
 
-    // Skip whitespace after the variable.
-    let mut k = var_end;
-    while k < chars.len() && chars[k].is_whitespace() {
-        k += 1;
-    }
+    let k = skip_ws_and_comments_fwd(chars, var_end);
 
     if k >= chars.len() {
         return false;
@@ -1634,7 +1727,7 @@ pub(super) fn is_explicit_property_key(
         return false;
     }
 
-    is_object_literal_property_position(index, chars, var_start)
+    is_object_literal_property_position(index, chars, skip_ws_and_comments_back(chars, var_start))
 }
 
 /// Shared backward heuristic: returns true when the identifier at `var_start`

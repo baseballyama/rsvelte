@@ -138,25 +138,11 @@ pub fn empty_object() -> JsExpr {
 }
 
 /// Check if a string is a valid JavaScript identifier.
-fn is_valid_js_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let mut chars = s.chars();
-    // First character must be a letter, underscore, or dollar sign
-    let first = chars.next().unwrap();
-    if !first.is_alphabetic() && first != '_' && first != '$' {
-        return false;
-    }
-    // Rest can also include digits
-    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-}
-
 /// Create an object property (init).
 /// If the key contains invalid characters (like hyphens), it will be quoted.
 pub fn prop(arena: &JsArena, key: impl Into<CompactString>, value: JsExpr) -> JsObjectMember {
     let key_str: CompactString = key.into();
-    let property_key = if is_valid_js_identifier(&key_str) {
+    let property_key = if is_valid_identifier(&key_str) {
         JsPropertyKey::Identifier(key_str)
     } else {
         JsPropertyKey::Literal(JsLiteral::String(key_str))
@@ -205,7 +191,7 @@ pub fn prop_method(
     body: Vec<JsStatement>,
 ) -> JsObjectMember {
     let name_str: CompactString = name.into();
-    let key = if is_valid_js_identifier(&name_str) {
+    let key = if is_valid_identifier(&name_str) {
         JsPropertyKey::Identifier(name_str)
     } else {
         JsPropertyKey::Literal(JsLiteral::String(name_str))
