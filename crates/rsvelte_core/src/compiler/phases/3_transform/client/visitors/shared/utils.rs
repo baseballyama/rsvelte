@@ -2418,9 +2418,17 @@ fn apply_transforms_to_statement_with_shadowed(
         ),
 
         JsStatement::Try(try_stmt) => {
-            let transformed_block = JsBlockStatement::with_body(
-                try_stmt.block.body.iter().map(transform_stmt).collect(),
-            );
+            // Each of the three bodies is a block, so its own declarations shadow
+            // an outer transform exactly as `JsStatement::Block` handles.
+            let in_block = |body: &[JsStatement], base: &LocalScope| {
+                let mut scope = base.clone();
+                register_block_local_vars(body, &context.arena, &mut scope);
+                body.iter()
+                    .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &scope))
+                    .collect::<Vec<_>>()
+            };
+            let transformed_block =
+                JsBlockStatement::with_body(in_block(&try_stmt.block.body, local_scope));
             let transformed_handler = try_stmt.handler.as_ref().map(|handler| {
                 // The catch parameter shadows outer transforms
                 let mut catch_scope = local_scope.clone();
@@ -2429,24 +2437,11 @@ fn apply_transforms_to_statement_with_shadowed(
                 }
                 JsCatchClause {
                     param: handler.param.clone(),
-                    body: JsBlockStatement::with_body(
-                        handler
-                            .body
-                            .body
-                            .iter()
-                            .map(|s| {
-                                apply_transforms_to_statement_with_shadowed(
-                                    s,
-                                    context,
-                                    &catch_scope,
-                                )
-                            })
-                            .collect(),
-                    ),
+                    body: JsBlockStatement::with_body(in_block(&handler.body.body, &catch_scope)),
                 }
             });
             let transformed_finalizer = try_stmt.finalizer.as_ref().map(|finalizer| {
-                JsBlockStatement::with_body(finalizer.body.iter().map(transform_stmt).collect())
+                JsBlockStatement::with_body(in_block(&finalizer.body, local_scope))
             });
             JsStatement::Try(JsTryStatement {
                 block: transformed_block,
