@@ -2584,6 +2584,10 @@ fn is_call_becoming_binding(name: &str, analysis: &ComponentAnalysis) -> bool {
                     | BindingKind::State
                     | BindingKind::RawState
                     | BindingKind::Derived
+                    // A store read becomes `$s()` and a `$:` variable `$.get(r)`,
+                    // so neither stays simple once the transform has run.
+                    | BindingKind::StoreSub
+                    | BindingKind::LegacyReactive
             )
         })
 }
