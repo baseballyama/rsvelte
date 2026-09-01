@@ -99,24 +99,246 @@ CSS row, no function exceeds ~5% and every one of those is diffuse
 infrastructure rather than a call site. Inside `script-text transform`,
 `process_accumulated` (7.8% of compile) splits into 22 stages whose largest is
 0.97%; their `work` columns are all ~1.47-1.51 MB over ~8,497 statements, i.e.
-**22 independent full scans of the same statement text** — a structure worth
-gating with one marker prescan, but worth ~3-4%, not 15%.
+**22 independent full scans of the same statement text**. Reading the stages
+rather than the timers lowers what a marker prescan is worth: each already
+guards on its own variable set being non-empty, so what a prescan adds is a
+per-statement check for the three that guard only on `!analysis.runes`
+(`state_assigns`, `prop_assignments`, `state_reads`). Call it ~2%, not the 3-4%
+the timer table alone suggests — and nowhere near 15%.
 
-## Parallel efficiency: what has been ruled out
+The CSS row's 12.45% also needs its population stated: only **26 of the 3,000
+sampled files carry an `@keyframes`** (0.87% of the files, 2.71% of the bytes;
+316 of 33,897 across the whole corpus). That is the signature of a quadratic
+rather than a contradiction — those 26 average 6,570 bytes against the sample's
+2,101 — but it means the A/B's run-to-run spread is concentrated in 26 files,
+and that the two instruments agreeing agree **on the same sample**, not on
+independent populations.
 
-- **Task-length spread is not the cause.** Per-file times dumped from a
-  sequential run (`perf_bench --dump-times`) give a total of 2107.2 ms with a
-  largest single file of 133.6 ms, against a 10-way ideal share of 210.7 ms — so
-  the biggest task fits inside one thread's share and LPT reaches 100% for
-  N = 2..12. This assumes a sequential task-length vector transfers to the
-  parallel case, which contention would break; `--dump-times` now also works
-  under `--threads N` so the same LPT calculation can be run on the parallel
-  vector instead of assumed.
-- **Kernel/VM contention is not the cause.** `ru_stime` is 2.7 ms at one thread
-  and 7.9 ms at ten, against hundreds of ms of CPU. `madvise`/`mmap` under the
-  process VM lock cannot hide there.
+## Parallel efficiency: the pool may be sized to the wrong number
 
-What remains: efficiency cores (8P + 2E caps a 10-thread pool near 8.7x) and
-user-space memory contention. `perf_bench --qos background` confines a thread to
-the E cores, which measures the P/E ratio for this workload as a load-robust
-*ratio* rather than an absolute.
+**Measured 2026-09-02 05:57-06:00, one quiet window, every spec run forward and
+then in reverse order.** `perf_bench --threads N`, client, 3000 files, 3 runs
+after a warmup, `CPU_min` / `wall_min` (best of the two orders):
+
+| pool | wall | speedup vs 1 thread | CPU | CPU vs 1 thread |
+|---|---:|---:|---:|---:|
+| 1 | 1156.5 ms | 1.00x | 1156.4 ms | — |
+| **6** | **208.9 ms** | **5.54x** | 1234.7 ms | **+6.8%** |
+| 8 | 267.2 ms | 4.33x | 1628.2 ms | +40.8% |
+| 10 (`available_parallelism`) | 282.8 ms | 4.09x | 1756.1 ms | +51.9% |
+| 12 | 267.2 ms | 4.33x | 1629.0 ms | +40.9% |
+
+The cliff sits at this machine's performance-core count. **Read the wall column
+only together with *The 1.354x was max-of-one-arm over min-of-the-other* below:
+each row here is one run, the window held four same-configuration ten-thread
+runs whose wall clock spanned 236.4-284.1 ms, and the row below is the slowest
+of them.** The CPU column is the one that separates cleanly and has since
+reproduced.
+
+**An efficiency core runs this workload at 0.22-0.24x a performance core** —
+`--qos background`, which macOS confines to the E cluster, measures `CPU_min`
+4928.3 / 5497.8 ms against `--qos interactive`'s 1159.1 / 1198.0. That is a
+measurement, replacing the 1/3 figure this file used to quote as a guess.
+
+The CPU column is what identifies the mechanism rather than merely reporting it.
+If a fraction `f` of the work lands on cores that are `1/0.227` times slower,
+total CPU inflates by `1 + 3.4f`; inverting the measured inflation gives an
+E-core work share of 12.0% at eight threads, 15.2% at ten and 12.0% at twelve,
+against 7.0% / 13.1% / 13.1% predicted by splitting work in proportion to core
+speed. The model fits, so the extra CPU is E cores doing work slowly — not lock
+contention, not allocator contention, not cache thrash.
+
+**And the additive ceiling is refuted by its own arithmetic — under either
+reduction.** `6 + 4x0.227` is 6.91x against 6.00x for a P-only pool, so on paper
+the four E cores should *add* 15%. Reducing both arms by minima they subtract
+12% (5.54x at six workers, 4.89x at ten); by medians, 18% (5.38x, 4.42x). The
+cost of heterogeneity exceeds what the slow cores contribute either way, which
+is a statement about the scheduler rather than about the cores. The packing
+numbers put a size on it: six workers reach 92% of `sequential / 6` (90% on
+medians), ten reach 71% of `sequential / 6.91` (64%).
+
+Separate the two strengths here, because they are not the same claim.
+**Measured:** the cliff in CPU sits at the performance-core count, and the CPU
+inflation inverts to an E-core work share that matches a speed-proportional
+split. **Weak positive, effect the size of the noise:** that six workers finish
+sooner. **A consistent explanation, not verified:** that
+rayon splits a range by item count and a worker which is 4.4x slow is not an
+*idle* worker, so it holds a chunk sized for a fast core and becomes a tail no
+steal recovers. Rayon's splitter is adaptive and stealing does happen, so
+"cannot be stolen" is very likely too simple. The evidence that does bear on
+the splitter is the `--sort` result below — an ordering that is optimal for a
+weight-aware scheduler and 2.2x pessimal here is direct evidence that the split
+is by index rather than by weight. **The pool-size conclusion does not rest on
+the mechanism** being right.
+
+Three supporting measurements, all from the same window:
+
+- **QoS pinning adds nothing; the thread count is the whole effect.**
+  `--threads 6 --qos interactive` is 208.9 / 218.4 ms against plain
+  `--threads 6`'s 246.2 / 211.4 — inside the spread. macOS already puts six
+  threads on the P cluster. No `pthread_set_qos_class_self_np` is needed in the
+  product.
+- **Per-file slowdown is not size-correlated, so it is not cache contention.**
+  The `t10/t1` ratio over the same 3000 files has median 1.10, and splitting by
+  size gives 1.10 for the 137 files >= 8 KiB against 1.11 for the 1491 under
+  800 B. What the distribution does have is a tail — p95 3.51, p99 7.41 — which
+  is the E-core arm of a bimodal population, not a gradient in file size.
+- **Load imbalance is not the cause, now measured rather than assumed.**
+  `--dump-times` under `--threads 10` gives the task-length vector *as the
+  parallel run experienced it*; LPT recomputed on that vector reaches 100%
+  efficiency on all three runs, with a largest task of 79-85 ms against an ideal
+  share of 163-187 ms. This closes the transfer assumption the earlier
+  sequential-vector version of this bullet rested on.
+
+**`--sort` (longest-processing-time-first ordering) makes it 2.6x worse**, at
+616.9-660.6 ms against an unsorted ten-thread minimum of 236.4 (2.2x against
+that arm's slowest run — the direction of this one does not depend on which
+statistic, which is why it is the only wall result here worth quoting), with
+parallelism falling to 2.2. Rayon splits a
+slice by *index range*, so presenting the work in descending size order
+concentrates every heavy file in the leftmost ranges — the ordering LPT theory
+recommends is the one rayon's splitter handles worst. Recorded as a documented
+negative: do not reach for it again.
+
+`MIMALLOC_PURGE_DELAY=-1` measured 296.0 ms forward and 233.2 ms reverse. That
+spread is larger than the effect being looked for, so it is **unresolved**, not
+a result.
+
+### The 1.354x was max-of-one-arm over min-of-the-other
+
+The window ran four plain ten-thread client measurements, not one — the `t=10`
+spec forward and reverse, plus the four-surface headline sweep and the
+`--dump-times` run, all the same configuration. Collected:
+
+| arm | min | median | max | within-arm spread |
+|---|---:|---:|---:|---:|
+| wall, 6 threads | 208.9 | 214.9 | 246.2 | +17.9% |
+| wall, 10 threads | **236.4** | 261.9 | 284.1 | +20.2% |
+| CPU, 6 threads | 1234.7 | 1256.9 | 1291.1 | +4.6% |
+| CPU, 10 threads | 1523.6 | 1651.5 | 1841.9 | +20.9% |
+
+**The wall ranges overlap**, and the 1.354x quoted above is `max(t=10) /
+min(t=6)`. Like for like it is 1.13x on minima and 1.22x on medians, against a
+within-arm spread of 18-20% — the effect and the noise are the same size.
+Three of the four six-thread runs do come in under all four ten-thread runs
+(rank sum 1,2,3,6 of 8, one-sided p ~ 0.06), so this is weak positive evidence,
+not a null. It is not a measurement of 1.354x.
+
+**And it dissolves the discrepancy that looked like a harness defect.**
+`benchmark_runner`'s 233.0 ms sits just below `perf_bench`'s own ten-thread
+minimum of 236.4 — the two instruments agree, and the "loaded machine produced
+the faster number" puzzle was created entirely by comparing that harness against
+the *worst* of my four same-configuration runs. Nothing needs explaining about
+`--warmup`, the allocator (both binaries set `mimalloc`), the timed region, or
+what `compile()` each one calls. The defect was arm selection.
+
+**The CPU column is the one that survives**, and it is clean: `max(t=6)` =
+1291.1 is below `min(t=10)` = 1523.6, so the ranges do not overlap at all, and
+the loaded re-run reproduced the direction in 6 of 6 ABBA pairings (round means
+1.13x, 1.23x, 1.15x). A six-worker pool does the same work for 20-33% less CPU.
+
+| claim | status |
+|---|---|
+| a 6-worker pool uses less CPU | **reproduced** — disjoint ranges in the window, 6/6 pairings under load |
+| an E core runs this at 0.22-0.24x a P core | measured once, mechanism-level |
+| a 6-worker pool is faster in wall clock | **weak positive, ~1.1-1.2x, effect ≈ noise** |
+| **1.354x, and the 22.71x / 20.45x it projected** | **withdrawn — an artefact of arm selection** |
+
+Two rules come out of this, and the first is the one that was actually broken.
+**Take the same statistic from both arms.** Min-vs-min and median-vs-median each
+answer a question; min-vs-max answers none, and it is the easiest mistake to
+make when the arms were not run as pairs — the extra ten-thread runs arrived
+from *other* parts of the battery (a headline sweep, a dump run) and were never
+lined up against the six-thread rows. **Print the within-arm spread next to
+every ratio**: 1.354x with `±20%` beside it would not have been believed for
+the twenty minutes it was.
+
+The measurement that would settle the wall question: a quiet window, both
+binaries, interleaved ABBA, at least four rounds per arm, reporting min, median
+and spread per arm. If the effect is 1.1-1.2x against an 18% spread, four rounds
+is the floor, not a comfortable margin.
+
+**And the change does not reach the published report at all, as the harness
+stands.** The pool is installed by `compile_batch*`, which is what the NAPI
+`compileBatch` export and therefore `@rsvelte/vite-plugin-svelte` call.
+`benchmark_runner --mode multi` does not: `run_multi_threaded` is a bare
+`files.par_iter().for_each(|| process_file(...))` calling `compile()` one file
+at a time on rayon's global pool. So the report's multi column is unaffected
+whatever the wall question resolves to. Pointing the benchmark at
+`compile_batch` would change that — and would also be changing the benchmark to
+move a number, which needs to be argued on its own merits (it *is* the entry
+point a bundler uses, which is the argument for it) rather than slipped in
+beside a performance change.
+
+**What the surviving claim is worth, stated narrowly.** 20-33% less CPU for the
+same work is real for anything billed or budgeted in CPU-seconds — CI minutes, a
+laptop's battery. It is *not* a claim that the machine is freer for other
+processes: what shrinks is this process's CPU-seconds, and if wall clock is
+unchanged then its occupancy of the machine is unchanged too. The E cores do
+come free, which would be that claim — and it has not been measured.
+
+## The deferred AST changes what the two arms do, and that has to be stated
+
+`benchmark_runner` calls `rsvelte_core::compile()`; `run-performance.mjs` calls
+official's `svelte.compile()`. Official's sets `result.ast = to_public_ast(…)`
+unconditionally (`compiler/index.js:58`) — for the legacy shape that is a full
+`convert(source, ast)` walk. rsvelte's now defers the same field to its first
+reader, and neither the benchmark nor a bundler ever reads it. So after
+`c4e32d4a9` the arms no longer perform the same work, and the report's speedup
+column includes that difference.
+
+It is still the comparison a bundler experiences, which is why it stands:
+`@sveltejs/vite-plugin-svelte` calls `svelte.compile()` and is charged for the
+AST whether it wants it or not, and `@rsvelte/vite-plugin-svelte` is not.
+But the report should say so in `provenance.benchmarkDesign` rather than leave a
+reader to infer that both compilers built the same outputs.
+
+Note the direction this cuts. Before the change the *benchmark* was the outlier,
+not the product: `@rsvelte/vite-plugin-svelte` reaches
+`binding.compileEnvelopeExternalSources` → `compile_without_ast` and has never
+built the AST, so `benchmark_runner` was measuring a path no rsvelte consumer
+uses.
+
+## An rsvelte NAPI probe has two arms too, and only one of them ships
+
+`apps/npm/vite-plugin-svelte-native/index.cjs` **wraps** the binding: its
+`compile()` routes to `binding.compileEnvelopeExternalSources` unless
+`modernAst` is set, and only `compileLegacy` reaches `binding.compile`. Measured
+over 1,477 corpus components, ABBA:
+
+| entry | min |
+|---|---:|
+| wrapper `compile()` (what the plugin imports) | 2119 ms |
+| `binding.compile` (raw `.node`, JSON + AST) | 8105 ms |
+
+3.82x apart, and the two arms agree: `js.code` + `css.code` hashed **per file**
+over the same 1,477 gives 0 differing and 1,477 distinct hashes, with a
+one-byte control the comparison detects. A summed output length would not have
+shown this — two files differing by +3 and -3 bytes sum the same, and
+`compile_result_to_json` and `decodeEnvelope` are different serializers.
+
+A probe that `require`s the `.dylib` directly measures the second
+one and reads as a finding about the product. It is not — it is the same shape
+as *Three things answer to "the official compiler"* in AGENTS.md, one level
+over: **`require` the package, not the artifact.** This cost one wrong
+conclusion ("the Vite plugin gets no benefit from the deferred AST") that a
+grep for `svelte.compile(` appeared to support and that measuring the shipped
+wrapper immediately refuted.
+
+## Regenerating the published report
+
+`pnpm report:performance` (`scripts/reports/run-performance.mjs`) is the
+authoritative number — `perf_bench` and `benchmark_runner` are proxies validated
+against it, not substitutes. It needs the collected corpus, a built
+`submodules/svelte/packages/svelte/compiler/index.js`, and
+`scripts/bench/competitor-oracle/node_modules`; all three were present on
+2026-09-02. Three knobs, and no way to skip the competitor arms:
+`REPORT_WARMUPS` (1), `REPORT_RUNS` (5), `REPORT_FILE_LIMIT` (0 = all 33,897).
+
+It runs four surfaces × {official, rsvelte-single, rsvelte-multi} × 5 runs over
+33,897 components at ~39 s per official run, so budget the better part of an
+hour of exclusive machine. `REPORT_FILE_LIMIT=3000 REPORT_RUNS=3` is the smoke
+test; only the unrestricted run may be committed.
+
+Baseline it replaces (single / multi speedup): client 1.21x / 5.14x, server
+1.24x / 5.06x, client-dev 1.20x / 5.40x, server-dev 1.27x / 5.00x.
