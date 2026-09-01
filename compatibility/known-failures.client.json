@@ -40,6 +40,5 @@
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
-	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte",
-	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte"
+	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte"
 ]

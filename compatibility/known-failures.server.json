@@ -7,6 +7,5 @@
 	"svelte-commerce/src/lib/theme/sections/tile-grid.svelte",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
 	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
-	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
-	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte"
+	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte"
 ]
