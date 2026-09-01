@@ -53,6 +53,13 @@ jobs:
           submodules: false
           token: ${{ secrets.GH_PAT || github.token }}
 
+      # `crates/rsvelte_lint_types` is its own Cargo workspace and path-depends
+      # on this submodule, so the oxc-rev sync step's `cargo update
+      # --manifest-path crates/rsvelte_lint_types/Cargo.toml` cannot even load
+      # the manifest without it. Same step the `Lint-types lockfile` job runs.
+      - name: Checkout corsa-bind submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/corsa-bind
+
       - uses: ./.github/actions/setup-node-pnpm
 
       # Needed to regenerate Cargo.lock against the new oxc rev (see the oxc-rev
