@@ -54,6 +54,5 @@
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"threlte/packages/extras/src/lib/hooks/useGamepad/useGamepad.svelte.ts",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
-	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte",
-	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte"
+	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte"
 ]

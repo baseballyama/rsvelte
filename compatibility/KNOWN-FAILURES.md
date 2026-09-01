@@ -2847,11 +2847,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 43 entries)
+### Client (`known-failures.client.json`, 42 entries)
 
-Partition of `known-failures.client.json` by verdict: `42 + 1`
+Partition of `known-failures.client.json` by verdict: `41 + 1`
 
-- **42 — the generated JS differs** (`js` / `code-differs`).
+- **41 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2912,11 +2912,11 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](#deliberate-divergences), each pinned by a test.
 
-### Server (`known-failures.server.json`, 10 entries)
+### Server (`known-failures.server.json`, 9 entries)
 
-Partition of `known-failures.server.json` by verdict: `8 + 2`
+Partition of `known-failures.server.json` by verdict: `7 + 2`
 
-- **8 — the generated JS differs.**
+- **7 — the generated JS differs.**
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
@@ -2949,19 +2949,19 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-### Server dev (`known-failures.server-dev.json`, 10 entries)
+### Server dev (`known-failures.server-dev.json`, 9 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `8 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `7 + 2`
 
 The trailing **2** is the same deliberate divergence as on `server` — the
 `$`-prefixed function parameter — carried on both targets because the server
 transform runs on both.
 
-- **8 — the generated JS differs.**
+- **7 — the generated JS differs.**
 - **2 — the same recorded deliberate divergence as on `server`.**
 
 All 13 arrived with the wave-2 enrolment (#3130); this target was at 0 before
@@ -2970,15 +2970,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 57 entries)
+### Client dev (`known-failures.client-dev.json`, 56 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `57`
+Partition of `known-failures.client-dev.json` by verdict: `56`
 
-- **57 — the generated JS differs.**
+- **56 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 57 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 56 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
