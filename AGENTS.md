@@ -971,13 +971,16 @@ control on a string you know is there.
 eyes that can drop the part carrying the verdict**. It never reports that it
 dropped it, so the output is not "wrong", it is *indistinguishable from success*
 — which is why re-reading it more carefully cannot help. Three of these were hit
-on one day, by three different people, each already knowing the rule:
+on one day, by three different people, each already knowing the rule, and two more
+followed on the next:
 
 | What was read | What it actually showed | Why it read as a pass |
 |---|---|---|
 | `cargo test 2>&1 \| tail -25` | `[exited with code 0]` for a run that **failed to compile** (`no field 'errors'`; it is `diagnostics`) | the compile error scrolled past the window, and `$?` came from `tail` |
 | `cargo clippy 2>&1 \| tail -40` | dependency crates and `Finished` — the target crate's own line was outside the window | a clippy run that is clean and one that never reached your file print the *same nothing* |
 | `pgrep -c … \|\| echo 0` | `0` | the `\|\|` arm fabricated a datum that reads exactly like a measurement |
+| `cargo test … \| grep -E '^test \|test result' \| head -20` | `TEST_EXIT=101` from `$pipestatus[1]`, and twenty *passing* lines | the **verdict** was read correctly and the lines explaining it were outside the window |
+| `join before.tsv after.tsv` over paths sorted by Rust's byte order | two non-ASCII paths reported as **changed** that were byte-identical | `join` requires its inputs in the locale's collating order and silently **mispairs** rows when they are not |
 
 Rules, in the order they are cheap:
 
@@ -986,6 +989,15 @@ Rules, in the order they are cheap:
    file and grep the file). `2>/dev/null` and `|| echo <literal>` are the same
    hazard wearing different clothes: the first throws away the half that carries
    the failure, the second manufactures the answer.
+   **Capturing the status is not enough.** Row 4 above kept the exit code and
+   still lost the failure: a window that admits only passing lines answers "did
+   it fail" and never "what failed", and the run that produced it did not
+   reproduce. The failure has to be *inside* the window, not merely outside the
+   pipe — write to a file first, then read the file. And row 5 is the same class
+   without any truncation at all: a stage that **pairs** two measurements can pair
+   the wrong rows, so use an associative array keyed by id (`awk`) and never
+   `join`, whose ordering precondition your data will violate the first time an
+   id contains a non-ASCII byte.
 2. **When "pass" is spelled as silence, the run needs a positive control.**
    Introduce the defect the check exists to catch, confirm the check goes red,
    remove it, and confirm the tree is byte-identical again (`git diff` empty).
