@@ -1167,6 +1167,21 @@ the name" becomes visible and "is it an object" stops being. **Reading your own 
 divergence; only the oracle names it.** And print `match -> MISMATCH` on its own line when you
 re-measure: an over-collection and an under-collection of the same size are the same total.
 
+### And whether it unwinds is the complexity bound
+
+`get_ancestor_elements` (`css-prune.js:845`) adds a `SnippetBlock` to `seen` and never deletes
+it, so each snippet is expanded at most once per resolution. That single missing `delete` is two
+rules at once: the answer becomes a function of where the walk started rather than of the node —
+which is why it cannot be memoised — and the walk stays linear. Port it as the readable
+depth-first walk that unwinds `seen` on the way out and you get a function that enumerates every
+acyclic path: same answers, and it does not terminate on
+`svelte.dev/apps/svelte.dev/src/routes/tutorial/[...slug]/+page.svelte`, which `main` compiles in
+19 ms. **No output gate can see this class** — it is not a wrong answer, it is an answer that
+never arrives, so there is nothing to compare. A 70-cell grid, three committed repros and 121
+release test targets were all green. What attributed it was a completed *previous* run of the
+same corpus sweep: without a baseline rate, a sweep that stops printing is indistinguishable from
+a sweep competing with a build for CPU.
+
 ### Split the verdict before you split the cause
 
 A cell that reports one pass/fail per input tells you the input diverges; a cell that
