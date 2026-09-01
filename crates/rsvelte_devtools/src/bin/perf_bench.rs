@@ -146,13 +146,22 @@ fn main() {
         ..Default::default()
     };
 
+    // Every output the compile produced, not just the JS: a sink over `js.code`
+    // alone reads as "the two arms did the same work" while saying nothing about
+    // the maps, which is exactly what a source-map change moves.
     let one = |s: &String| -> Option<usize> {
         let compiled = if no_ast {
             compile_without_ast(s, options.clone())
         } else {
             compile(s, options.clone())
         };
-        compiled.ok().map(|r| r.js.code.len())
+        compiled.ok().map(|r| {
+            r.js.code.len()
+                + r.js.map.as_ref().map_or(0, String::len)
+                + r.css
+                    .as_ref()
+                    .map_or(0, |c| c.code.len() + c.map.as_ref().map_or(0, String::len))
+        })
     };
 
     let qos_class = qos.as_deref().map(|q| match q {
