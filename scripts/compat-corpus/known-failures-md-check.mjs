@@ -514,6 +514,79 @@ for (const { doc, key, prefix, label } of PARTITIONS) {
 	}
 }
 
+// ---- 2b. a partition's own restatements must not go stale ---------------------
+// The header count and the partition line are both checked against the JSON, and
+// the numbers restating them a few lines down are not — so a section can read
+// `45 entries` / `Partition …: \`45\`` above `- **48 — the generated JS differs.**`
+// and pass. Both restatements are derivable from the partition line, so both are
+// checked here; nothing else in the prose is, because nothing else is derivable.
+for (const doc of new Set(PARTITIONS.map((p) => p.doc))) {
+	const body = docText(doc);
+	if (body === null) continue;
+	const lines = body.split('\n');
+	for (let i = 0; i < lines.length; i++) {
+		const partition = partitionLines(lines[i].trim())[0];
+		if (!partition) continue;
+		const terms = partition.expression
+			.split('+')
+			.map((t) => t.trim())
+			.filter(Boolean);
+
+		// (a) A bullet list immediately below restates the addends, one per bullet.
+		// Triggered by shape, so a doc that puts its clusters in a table or in prose
+		// is not required to grow one — but a doc that has the list has it checked.
+		// A `NxM` addend covers M clusters at once and has no one-bullet form, so
+		// those partitions are left to the sum check above.
+		if (!terms.some((t) => t.includes('x'))) {
+			let j = i + 1;
+			while (j < lines.length && lines[j].trim() === '') j++;
+			if (j < lines.length && /^\s*-\s/.test(lines[j])) {
+				const bullets = [];
+				for (; j < lines.length; j++) {
+					const line = lines[j];
+					if (/^\s*-\s/.test(line)) {
+						const m = line.match(/\d[\d,]*/);
+						bullets.push(m ? m[0].replace(/,/g, '') : 'no-number');
+					} else if (line.trim() === '') {
+						let k = j;
+						while (k < lines.length && lines[k].trim() === '') k++;
+						if (k < lines.length && /^\s*-\s/.test(lines[k])) {
+							j = k - 1;
+							continue;
+						}
+						break;
+					} else if (/^\s+\S/.test(line)) {
+						continue; // a continuation line of the bullet above
+					} else break;
+				}
+				const want = terms.map((t) => t.replace(/,/g, '')).sort();
+				const got = [...bullets].sort();
+				if (want.join(' ') !== got.join(' ')) {
+					fail(
+						`${doc}:${i + 1}: the bullets under \`${partition.key}\`'s partition read ` +
+							`[${got.join(', ')}] but the partition is \`${partition.expression}\`.\n` +
+							`    The addends and the bullets restating them are the same claim; one of them is stale.`,
+					);
+				}
+			}
+		}
+
+		// (b) `All remaining N arrived …` states the whole population, which is the
+		// partition's sum. Only this phrasing: `remaining 20` a few sections down
+		// means the residue after an attributed cluster, which is a different number.
+		const end = lines.findIndex((l, at) => at > i && /^### /.test(l));
+		const section = lines.slice(i + 1, end === -1 ? lines.length : end).join('\n');
+		for (const m of section.matchAll(/(?:All|Every one of the) remaining \*{0,2}([\d,]+)/g)) {
+			const stated = Number(m[1].replace(/,/g, ''));
+			if (stated !== partition.sum) {
+				fail(
+					`${doc}:${i + 1}: the section says "remaining ${m[1]}" but its partition sums to ${partition.sum}.`,
+				);
+			}
+		}
+	}
+}
+
 // ---- 3. doc-specific reconciliations that no generic rule can derive ----------
 const knownFailuresMd = docText('known-failures.md') ?? '';
 const clientDevLen = JSON.parse(
