@@ -237,53 +237,28 @@ fn push_js_opaque(source: &str, span: (u32, u32), out: &mut Vec<(u32, u32)>) {
 /// Byte ranges of the `{ … }` expression regions in a run of template markup.
 fn template_expression_ranges(text: &str) -> Vec<(usize, usize)> {
     let bytes = text.as_bytes();
-    let len = bytes.len();
     let mut out = Vec::new();
     let mut i = 0usize;
-    while i < len {
+    while i < bytes.len() {
         if bytes[i] != b'{' {
             i += 1;
             continue;
         }
-        i += 1;
-        let mut depth = 1usize;
-        let expr_start = i;
-        while i < len && depth > 0 {
-            match bytes[i] {
-                b'{' => {
-                    depth += 1;
-                    i += 1;
+        // The parser's own matcher, which steps over comments, strings AND regex
+        // literals: a regex holding an odd number of quotes otherwise pairs them
+        // as string delimiters and the scan runs past the real `}`.
+        match crate::compiler::phases::phase1_parse::utils::bracket::find_matching_bracket(
+            text,
+            i + 1,
+            '{',
+        ) {
+            Some(close) => {
+                if i + 1 < close {
+                    out.push((i + 1, close));
                 }
-                b'}' => {
-                    depth -= 1;
-                    i += 1;
-                }
-                b'\'' | b'"' | b'`' => {
-                    let quote = bytes[i];
-                    i += 1;
-                    while i < len && bytes[i] != quote {
-                        i += if bytes[i] == b'\\' { 2 } else { 1 };
-                    }
-                    i = (i + 1).min(len);
-                }
-                b'/' if bytes.get(i + 1) == Some(&b'/') => {
-                    while i < len && bytes[i] != b'\n' {
-                        i += 1;
-                    }
-                }
-                b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                    i += 2;
-                    while i + 1 < len && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                        i += 1;
-                    }
-                    i = (i + 2).min(len);
-                }
-                _ => i += 1,
+                i = close + 1;
             }
-        }
-        let expr_end = if depth == 0 { i - 1 } else { i };
-        if expr_start < expr_end {
-            out.push((expr_start, expr_end));
+            None => i += 1,
         }
     }
     out

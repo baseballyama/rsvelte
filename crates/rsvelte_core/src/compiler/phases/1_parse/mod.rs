@@ -49,7 +49,7 @@ pub(crate) mod read;
 pub mod remove_typescript_nodes;
 pub(crate) mod resolve_lazy;
 mod state;
-pub(crate) mod utils;
+pub mod utils;
 
 // Re-export CSS parsing for external use
 pub use read::style::parse_css;

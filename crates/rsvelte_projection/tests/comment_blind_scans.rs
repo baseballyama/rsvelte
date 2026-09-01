@@ -113,6 +113,18 @@ fn store_in_template_expression_template_literal() {
     check("store-in-template-expression-template-literal");
 }
 
+// A regex literal carrying an odd number of quotes desynchronizes a quote-pairing
+// scan of a template expression, so the run swallows the markup after it.
+#[test]
+fn store_after_regex_with_quotes_in_const_tag() {
+    check("store-after-regex-with-quotes-in-const-tag");
+}
+
+#[test]
+fn store_after_plain_call_in_const_tag() {
+    check("store-after-plain-call-in-const-tag");
+}
+
 #[test]
 fn store_live_read_is_collected() {
     check("store-live-read-is-collected");
