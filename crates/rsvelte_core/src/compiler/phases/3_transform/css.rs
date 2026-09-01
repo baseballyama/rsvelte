@@ -764,6 +764,30 @@ fn is_css_name_boundary(c: char) -> bool {
     c.is_whitespace() || c == ',' || c == ';' || c == '}'
 }
 
+/// Whether `chars[i..]` starts with `needle` under the case mapping
+/// `str::to_lowercase` applies. `needle` must be ASCII lowercase: the only
+/// character lowering to more than one is `U+0130`, whose second character is
+/// not ASCII, so no expansion can ever complete an ASCII needle and a
+/// per-character mapping decides one exactly — without copying the tail.
+fn starts_with_lowercased(chars: &[char], i: usize, needle: &str) -> bool {
+    debug_assert!(needle.is_ascii() && !needle.chars().any(|c| c.is_ascii_uppercase()));
+    for (k, want) in (i..).zip(needle.chars()) {
+        let Some(&c) = chars.get(k) else {
+            return false;
+        };
+        let matched = if c.is_ascii() {
+            c.to_ascii_lowercase() == want
+        } else {
+            let mut lower = c.to_lowercase();
+            lower.next() == Some(want) && lower.next().is_none()
+        };
+        if !matched {
+            return false;
+        }
+    }
+    true
+}
+
 /// Replace animation keyframe name references in the CSS output
 /// This follows the official Svelte implementation approach: scan through animation property
 /// values and prefix any tokens that match defined keyframe names.
@@ -823,27 +847,27 @@ fn replace_animation_keyframes(
             continue;
         }
 
-        // Look for animation or animation-name property
-        let remaining: String = chars[i..].iter().collect();
-        let lower = remaining.to_lowercase();
-
-        // Check for animation properties (including vendor prefixes)
-        let property_match = if lower.starts_with("animation-name") {
+        // Look for animation or animation-name property. Every candidate below
+        // opens with `a` or `-`, and no character outside ASCII lowers to either,
+        // so this rejects the overwhelming majority of positions in one compare.
+        let starts = |needle| starts_with_lowercased(&chars, i, needle);
+        let property_match = if !matches!(chars[i], 'a' | 'A' | '-') {
+            None
+        } else if starts("animation-name") {
             Some(("animation-name", 14))
-        } else if lower.starts_with("animation") && !lower.starts_with("animation-") {
+        } else if starts("animation") && !starts("animation-") {
             Some(("animation", 9))
-        } else if lower.starts_with("-webkit-animation-name") {
+        } else if starts("-webkit-animation-name") {
             Some(("-webkit-animation-name", 22))
-        } else if lower.starts_with("-webkit-animation") && !lower.starts_with("-webkit-animation-")
-        {
+        } else if starts("-webkit-animation") && !starts("-webkit-animation-") {
             Some(("-webkit-animation", 17))
-        } else if lower.starts_with("-moz-animation-name") {
+        } else if starts("-moz-animation-name") {
             Some(("-moz-animation-name", 19))
-        } else if lower.starts_with("-moz-animation") && !lower.starts_with("-moz-animation-") {
+        } else if starts("-moz-animation") && !starts("-moz-animation-") {
             Some(("-moz-animation", 14))
-        } else if lower.starts_with("-o-animation-name") {
+        } else if starts("-o-animation-name") {
             Some(("-o-animation-name", 17))
-        } else if lower.starts_with("-o-animation") && !lower.starts_with("-o-animation-") {
+        } else if starts("-o-animation") && !starts("-o-animation-") {
             Some(("-o-animation", 12))
         } else {
             None
@@ -9204,14 +9228,11 @@ pub fn generate_raw_hash(source: &str) -> String {
     // on any CSS holding a non-BMP character — `.a🙂b` scoped to `svelte-liey9s`
     // where upstream said `svelte-1pwkicr`, and the scoping class has to agree
     // byte-for-byte or nothing the selector was rewritten for still matches.
-    let units: Vec<u16> = source
-        .chars()
-        .filter(|&c| c != '\r')
-        .flat_map(|c| {
-            let mut buf = [0u16; 2];
-            c.encode_utf16(&mut buf).to_vec()
-        })
-        .collect();
+    let mut units: Vec<u16> = Vec::with_capacity(source.len());
+    for c in source.chars().filter(|&c| c != '\r') {
+        let mut buf = [0u16; 2];
+        units.extend_from_slice(c.encode_utf16(&mut buf));
+    }
     let mut hash: i32 = 5381;
     for unit in units.into_iter().rev() {
         hash = ((hash << 5).wrapping_sub(hash)) ^ i32::from(unit);
