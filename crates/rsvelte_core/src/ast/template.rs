@@ -1501,6 +1501,18 @@ impl ExpressionMetadata {
         // For now, return false
         false
     }
+
+    /// Fold another expression's metadata into this one (upstream `nodes.js`
+    /// `ExpressionMetadata.merge`).
+    pub fn merge(&mut self, source: &Self) {
+        self.flags |= source.flags;
+        for r in &source.references {
+            self.references.insert(*r);
+        }
+        for d in &source.dependencies {
+            self.dependencies.insert(*d);
+        }
+    }
 }
 
 // Custom Serialize implementation for backward compatibility

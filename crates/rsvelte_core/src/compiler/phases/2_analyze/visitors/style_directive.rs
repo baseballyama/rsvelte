@@ -31,8 +31,12 @@ pub fn visit(
 
     mark_subtree_dynamic(&context.path);
 
+    // Upstream walks each chunk into the CHUNK's own metadata and only then
+    // merges it up, so phase 3 — which reads the chunk — sees `has_call`.
+    let mut chunks: Vec<crate::ast::template::ExpressionMetadata> = Vec::new();
+
     // Analyze the expression value
-    match &directive.value {
+    match &mut directive.value {
         AttributeValue::True(_) => {
             // Shorthand: `style:color` means use the variable `color`
             // Look up the binding for the directive name and add a reference
@@ -64,12 +68,13 @@ pub fn visit(
         AttributeValue::Expression(expr_tag) => {
             // Single expression: `style:color={expr}`
             let node = expr_tag.expression.as_node();
-            walk_js_expression_node(&node, context, &mut directive.metadata.expression)?;
+            walk_js_expression_node(&node, context, &mut expr_tag.metadata.expression)?;
             super::await_block::collect_pickled_awaits_node(
                 &node,
                 &mut context.analysis.pickled_awaits,
                 context.parse_arena,
             );
+            chunks.push(expr_tag.metadata.expression.clone());
         }
         AttributeValue::Sequence(parts) => {
             // Mixed content: `style:color="prefix{expr}suffix"`
@@ -77,16 +82,13 @@ pub fn visit(
                 match part {
                     AttributeValuePart::ExpressionTag(expr_tag) => {
                         let node = expr_tag.expression.as_node();
-                        walk_js_expression_node(
-                            &node,
-                            context,
-                            &mut directive.metadata.expression,
-                        )?;
+                        walk_js_expression_node(&node, context, &mut expr_tag.metadata.expression)?;
                         super::await_block::collect_pickled_awaits_node(
                             &node,
                             &mut context.analysis.pickled_awaits,
                             context.parse_arena,
                         );
+                        chunks.push(expr_tag.metadata.expression.clone());
                     }
                     AttributeValuePart::Text(text) => {
                         super::text::check_bidirectional_control_characters(
@@ -96,6 +98,10 @@ pub fn visit(
                 }
             }
         }
+    }
+
+    for chunk in &chunks {
+        directive.metadata.expression.merge(chunk);
     }
 
     Ok(())
