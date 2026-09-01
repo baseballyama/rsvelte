@@ -325,6 +325,32 @@ conclusion ("the Vite plugin gets no benefit from the deferred AST") that a
 grep for `svelte.compile(` appeared to support and that measuring the shipped
 wrapper immediately refuted.
 
+## The merged tree is a fourth tree, and it needed its own gate
+
+Three branches were each green on their own — `perf/pool-sizing`,
+`perf/resync-window`, `perf/css-keyframes` — and all three touch
+`3_transform`. Three greens are not a fourth green: the merge is a tree nobody
+had compiled, and a file-set-disjoint merge (which this was, zero conflicts)
+says nothing about whether the *behaviours* interact.
+
+Measured on `ef4247f80` at 2026-09-02 07:42-07:54: **1973 passed, 0 failed**
+across seven binaries — `--lib` (1956), `compiler_fixtures`, `css`,
+`css_keyframes_property_case_folding`, `sourcemaps`, `sourcemaps_gate`, `ssr`.
+Read the `Running` lines and the seven `test result:` denominators, not
+`TESTS_EXIT`: a run that fails to *compile* also exits through this path, and
+the two are indistinguishable from the status alone.
+
+Two process notes that cost real time here. A `cargo test` launched from a tool
+wrapper dies with the wrapper — three runs in a row were killed at 3-11 minutes
+with no OOM or jetsam entry in the system log, which reads exactly like a
+memory failure and is not one; `nohup … & disown` survives, and macOS has **no
+`setsid`**, so a launcher built around one silently does nothing while printing
+whatever `echo` follows it. And editing a source file mid-run does not
+invalidate the run: cargo fingerprints at planning time, so the in-flight
+binary is the tree as of launch. That is a *correct* verdict for the commit and
+a *stale* one for the working tree, so a second `--lib` pass is the only thing
+that speaks for what is on disk.
+
 ## Regenerating the published report
 
 `pnpm report:performance` (`scripts/reports/run-performance.mjs`) is the

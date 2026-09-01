@@ -3752,3 +3752,27 @@ fn common_run_stops_at_the_resync_window() {
     assert_eq!(common_run(&long[..7], &long), 7);
     assert_eq!(common_run(&long, &long[..7]), 7);
 }
+
+/// The sweep above changes exactly one byte per case, so the chunked loop's
+/// `(a ^ b).trailing_zeros() / 8` never has to pick the LOWEST of several
+/// differing bytes in one word — a variant returning the highest would pass it.
+#[test]
+fn common_prefix_len_finds_the_lowest_of_several_differences_in_one_word() {
+    let byte_at_a_time = |l: &[u8], r: &[u8]| l.iter().zip(r).take_while(|(a, b)| a == b).count();
+    let base = b"abcdefghijklmnopqrstuvwxyz0123456789";
+    for lo in 0..base.len() {
+        for hi in lo + 1..base.len() {
+            let mut other = base.to_vec();
+            other[lo] = b'!';
+            other[hi] = b'?';
+            assert_eq!(
+                common_prefix_len(base, &other),
+                byte_at_a_time(base, &other),
+                "differences at {lo} and {hi}"
+            );
+            assert_eq!(common_prefix_len(base, &other), lo, "must report the lower");
+        }
+    }
+    let all: Vec<u8> = base.iter().map(|b| b ^ 0xff).collect();
+    assert_eq!(common_prefix_len(base, &all), 0);
+}
