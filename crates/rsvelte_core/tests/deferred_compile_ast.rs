@@ -26,7 +26,10 @@ fn the_deferred_ast_is_typescript_stripped() {
     let source = "<script lang=\"ts\">\n\tlet count: number = 0;\n</script>\n<b>{count}</b>\n";
     let ast = ast_of(source, options());
     let text = ast.to_string();
-    assert!(text.contains("\"count\""), "the declaration is missing: {text}");
+    assert!(
+        text.contains("\"count\""),
+        "the declaration is missing: {text}"
+    );
     assert!(
         !text.contains("TSTypeAnnotation"),
         "the deferred AST kept a TypeScript node: {text}"
