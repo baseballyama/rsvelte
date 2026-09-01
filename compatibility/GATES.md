@@ -6675,6 +6675,69 @@ probe is the 11-input structural round trip described above, which is not in the
 the open half of this row.**
 
 
+#### 27. Where in the DOM is a `{#snippet}` body rendered? — [D], both ports still live
+
+**Upstream** answers once. `SnippetBlock.metadata.sites` is filled in a single pass over
+`analysis.snippet_renderers` (`2-analyze/index.js:847`): a renderer whose callee resolves to a
+local snippet is a site of **that block node** (`binding.initial`), a renderer that resolves to
+nothing gets `node.metadata.snippets = analysis.snippets` and so is a site of **every** snippet,
+and a renderer that resolves outside the component (a prop, an import) is a site of **none**.
+`get_ancestor_elements` (`css-prune.js:845`) then reads that one set.
+
+**rsvelte answers twice, and the two are not even subsets of each other.**
+
+| | port A | port B |
+|---|---|---|
+| built by | `2_analyze/visitors/{render_tag,snippet_block,shared/component}.rs` | `css_scoping.rs:1432` `collect_render_site_ancestors`, its own template walk |
+| read by | `3_transform/css.rs` `effective_parents` — pruning and scoping | `css_scoping.rs` `subtree_has_matching_subject` — ancestor scoping |
+| a `{#snippet}` passed as an *attribute* (`<Comp foo={row} />`) | yes | yes (`attribute_snippet_names:1415`) |
+| an **unresolved** renderer is a site of every snippet | yes | **no** |
+| resolves the callee through the scope chain | yes (`render_tag.rs:58`) | **no** — `get_render_tag_callee_name` returns the identifier's text |
+
+**Discriminating input, and both answers are observable in ONE compile:**
+
+```svelte
+{#snippet row()}<span>x</span>{/snippet}
+<div class="wrap">{@render row()}</div>
+<style>.wrap span { color: red; }</style>
+```
+
+Port A says the selector is used, so the emitted CSS is byte-identical to official's. Port B says
+this subtree holds no matching subject, so `.wrap` never receives its scope class. **One upstream
+question, two answers, in the same output** — the CSS text and the template disagree about
+whether that `<span>` is inside `.wrap`.
+
+**Measured residue.** A 64-cell grid (snippet shape × render-site shape × `client`/`server`)
+leaves **30 cells** diverging after port A was made faithful, and the *direction* splits: on 24
+rsvelte scopes **fewer** elements than official (port B's `RenderTag` arm computes a name, tests
+the map, and does nothing — `css_scoping.rs:2462`), and on 6 it scopes **more**, because port B
+still keys by name and merges two same-named snippets in different scopes. That second half is
+**the same defect port A was just fixed for**: fixing one port of a decision does not narrow the
+other, and reporting the aggregate (`30 cells, all verdict JS`) hid the sign — the two directions
+were only separated by counting scope classes on each side.
+
+**Why closing port B is not a transcription.** Upstream walks the tree while reading another part
+of it; `propagate_ancestor_scoping` holds `&mut Fragment`, so Rust cannot take the immutable
+borrow of a *different* snippet body from inside that walk. The port needs the decision lifted
+into a prior immutable pass. **Same algorithm, different number of passes** — a reason to deviate
+that this file's other rows do not have.
+
+**Not [M].** Nothing compares the two ports to each other; the grid compares each to official, so
+both ports failing the same way would score green. `is_resolved_snippet` was briefly a third
+implementation of the neighbouring "does this callee resolve" question (`render_tag.rs` private,
+`shared/snippets.rs` public); the two were read side by side, found to agree on all four
+conditions in the same order, and merged into one — an inventory entry that was retired rather
+than added.
+
+**One more thing a reader of `css-prune.js` needs.** Its two neighbouring walkers treat
+`SnippetBlock` **oppositely**: `get_ancestor_elements` (:845) `break`s the lexical path walk at
+one and continues from the render sites, while `get_descendant_elements` (:907) has no
+`SnippetBlock` case at all — the `_` catch-all calls `context.next()`, so it *does* descend into a
+lexically nested snippet body, and only `RenderTag` is special-cased. A port that carries the
+`break` intuition into the descending walker prunes real descendants; one that carries the
+descending intuition upward invents ancestors.
+
+
 ### Adding a row, and closing one
 
 **Finding a candidate.** Start from *one upstream function*, not from a rsvelte symbol. Grep the
