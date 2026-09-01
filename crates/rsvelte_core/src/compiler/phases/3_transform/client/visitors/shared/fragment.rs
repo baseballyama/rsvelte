@@ -78,8 +78,13 @@ pub(crate) fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
             TemplateNode::SvelteBoundary(_) => return true,
             TemplateNode::SlotElement(_) => return true,
             TemplateNode::RegularElement(elem) => {
-                // Check if this child element has special attributes that need runtime handling
-                if is_custom_element_node(elem) {
+                // A custom element takes its attributes through properties, so it makes an
+                // ANCESTOR fragment dynamic only when it has one — upstream's
+                // `2-analyze/visitors/RegularElement.js` gates its `mark_subtree_dynamic` on
+                // `node.attributes.length > 0`. The unconditional form is the same mistake
+                // `has_dynamic_children_for_merge` records below: a predicate about the node
+                // itself used to decide about its parent.
+                if is_custom_element_node(elem) && !elem.attributes.is_empty() {
                     return true;
                 }
 

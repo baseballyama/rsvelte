@@ -2827,11 +2827,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 53 entries)
+### Client (`known-failures.client.json`, 51 entries)
 
-Partition of `known-failures.client.json` by verdict: `52 + 1`
+Partition of `known-failures.client.json` by verdict: `50 + 1`
 
-- **52 — the generated JS differs** (`js` / `code-differs`).
+- **50 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2839,7 +2839,16 @@ baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
 no entry here is "both compilers reject with a different code", "one compiler
 rejects and the other compiles", or "rsvelte's output is not JavaScript".
 
-Every one of the remaining 53 arrived with the wave-2 enrolment (#3130) and is described
+Two syntaxfm-website entries left this target and `client-dev` when an attribute-free
+custom element stopped making its ancestors dynamic: upstream gates that
+`mark_subtree_dynamic` on `node.attributes.length > 0`
+(`2-analyze/visitors/RegularElement.js`) and rsvelte's stand-in predicate dropped the
+attribute half, so every ancestor emitted a `$.child` / `$.sibling` / `$.reset` chain
+official replaces with nothing. The third syntaxfm entry
+(`routes/(site)/guests/+page.svelte`) is a different cause and stays: its output is
+byte-identical before and after that fix.
+
+Every one of the remaining 51 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -2922,15 +2931,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 67 entries)
+### Client dev (`known-failures.client-dev.json`, 65 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `67`
+Partition of `known-failures.client-dev.json` by verdict: `65`
 
-- **67 — the generated JS differs.**
+- **65 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 67 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 65 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

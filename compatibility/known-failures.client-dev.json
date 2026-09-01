@@ -54,8 +54,6 @@
 	"sveltekit/packages/kit/src/runtime/components/root.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"svelvet/src/lib/components/Edge/Edge.svelte",
-	"syntaxfm-website/src/lib/player/Player.svelte",
-	"syntaxfm-website/src/routes/(blank)/embed/[show_number]/+page.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"threlte/packages/extras/src/lib/hooks/useGamepad/useGamepad.svelte.ts",
 	"trakt-web/projects/client/src/lib/components/icons/MediaIcon.svelte",
