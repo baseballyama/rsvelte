@@ -2157,6 +2157,29 @@ reason worth keeping: the grid's first usability table was hand-written and reje
 those cells for a reason about regex *semantics* rather than about whether the cell compiles.
 Replacing it with `new Function` admitted them, and they were clean on both arms.
 
+**That clean measurement is true and it did not cover the carrier's other role, which is how
+the fix for this blind spot shipped a regression.** Every cell of the grid binds carrier to
+needle: one token is placed *inside* one carrier, and the question asked is whether the port
+reads the hidden token as code. A carrier has a second role the grid holds fixed — it delimits
+a **region**, and the region computation runs identically in all 1166 cells because no cell
+varies the markup *around* the needle. `svelte2tsx/utils/lexical.rs`'s
+`template_expression_ranges` paired `"` and `'` with no regex rule, so
+`{@const m = t.match(/<file type="html" id="([^"]+)"/)}` desynchronized it: the expression's
+range ran past its own `}` and swallowed the following attribute, whose **live** `$settings`
+read was then dropped from the projection as if it were inside a string. **[D]** — named input
+above, reproduced on `open-webui/…/Markdown/HTMLToken.svelte`, and the pair
+`store-after-regex-with-quotes-in-const-tag` / `store-after-plain-call-in-const-tag`
+(`comment_blind_scans.rs`) discriminates it: ablating the fix reddens only the former.
+
+Two things generalize. The needle axis asks *is this token code*; the carrier axis, crossed
+with **position relative to the region boundary** rather than with the needle, asks *where does
+this region end* — and only the second reaches a range defect. And the local measurement that
+missed it used the **ratchet** as its population: `svelte2tsx-known-failures.json` is the list
+of entries that are already wrong, so it structurally excludes every entry a regression could
+break. Re-measured over all 33,898 manifest components the fix moves 10 files, 9 toward
+official and 0 away, and the broken intermediate scores 1 away — which is the positive control
+for the wider population, not for the fix.
+
 ---
 
 ## 7. svelte2tsx source map
@@ -5333,7 +5356,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [3](#3-is-this-assignments-rhs-a-known-primitive--d) | Is this assignment's RHS a known primitive? | 3 | **[D]** | no |
 | [4](#4-which-trailing-global-are-truncated-before-matching--d) | Which trailing `:global(...)` are truncated before matching? | 2 | **[D]** | no |
 | [5](#5-is-this-fragment-standalone--d) | Is this fragment standalone? | 2 | **[D]** | no |
-| [6](#6-is-this-byte-code-or-comment--string--template--regex--d) | Is this byte code, or comment / string / template / regex? | 2 predicates + ≥8 inline copies | **[D]** | no |
+| [6](#6-is-this-byte-code-or-comment--string--template--regex--d) | Is this byte code, or comment / string / template / regex? | 3 predicates + ≥7 inline copies | **[D]** | one copy folded onto `find_matching_bracket` |
 | [7](#7-does-this-element-match-this-selector--d-one-pair-closed) | Does this element match this selector? | 4 in phase 2 | **[D]** | #3403 fixed one pair |
 | [8](#8-where-does-the-scoping-class-go-inside-a-compound--d-open-as-3402) | Where does the scoping class go inside a compound? | 2 | **[D]** | #3402 open |
 | [9](#9-is-this-expressions-value-known--defined--d) | Is this expression's value known / defined? | ≥6 | **[D]** | no |
@@ -5548,6 +5571,28 @@ rediscovered here: once a chunk containing a multi-line template literal reaches
 rewrite, the reprint **re-indents the template's interior lines**, which is another silent value
 change. It reproduces on a binary built before any of today's fixes, so it is pre-existing and
 belongs to the printer rather than to the member scan.
+
+**A fifth instance, closed — and it names a THIRD shared predicate rather than a further copy.**
+`svelte2tsx/utils/lexical.rs`'s `template_expression_ranges` was one of the inline machines this
+row counts: it paired `"` and `'` as string delimiters, handled `//` and `/* */`, and had no
+regex branch. Named input, reproduced on `open-webui/…/Markdown/HTMLToken.svelte`:
+
+```svelte
+{@const m = t.match(/<file type="html" id="([^"]+)"/)}
+```
+
+The odd `"` count desynchronizes the pairing, the expression's range runs past its own `}`, and
+the markup after it is absorbed — so a **live** `$settings` read in the following attribute was
+dropped from the projection as if it sat inside a string. It is the same shape as #2988, one
+port over.
+
+It is closed by routing through `phases/1_parse/utils/bracket.rs`'s `find_matching_bracket`,
+which has stepped over comments, strings **and** regex literals since #2253. That is not
+`skip_opaque`: it is a third shared predicate answering the same question with a different
+return, and the fold went to it because this caller needs the matching bracket's *position*,
+not the set of opaque runs. **The row does not close on this** — that two shared predicates
+both answer "is this byte code" and nothing compares them to each other is exactly what this
+file is indexed on, and it is now the residue here rather than the eight inline copies.
 
 #### 7. Does this element match this selector? — [D], one pair closed
 
