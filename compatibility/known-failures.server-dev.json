@@ -1,10 +1,6 @@
 [
-	"flare/src/lib/views/grid.svelte.ts",
-	"immich/web/src/lib/components/shared-components/map/Map.svelte",
-	"kampsy-ui/src/lib/tabs/tabs.svelte",
 	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
 	"pattern/issues/dollar-function-parameter.svelte",
-	"svelte-commerce/src/lib/theme/sections/tile-grid.svelte",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
 	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte"

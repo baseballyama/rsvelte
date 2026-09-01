@@ -1011,7 +1011,11 @@ has been wrong on this repository within one day of the others:
 
 Two rules cover all five. **Identify an arm by a discriminating probe on its
 output** — one input whose answer differs between the two arms, run through the
-binary you are about to measure with. And **read the build's own
+binary you are about to measure with. A probe only separates the hypothesis you
+handed it: an arm was probed with one fix's fingerprint, came back clean, and was
+then trusted as "named correctly" — the mislabelling surfaced only from a *second*
+probe carrying a *different* fix's fingerprint. Probe for what the arm should
+contain **and** for what it should lack. And **read the build's own
 `Compiling <crate> (<path>)` line** to learn which tree it read: that is the only
 signal `cd`, `CARGO_TARGET_DIR`, the file name and the artifact path cannot
 between them fake. Build as `cd <worktree> && CARGO_TARGET_DIR=<worktree>/target
