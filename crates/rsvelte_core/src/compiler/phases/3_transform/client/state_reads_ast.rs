@@ -221,6 +221,12 @@ pub fn transform_state_reads_ast(
         ast_rewrite::ParseAttempt::NotParsed if !needs_paren_wrap && trimmed.starts_with('{') => {
             run_state_reads_pass(source, &paren_wrapped(source), 1, &effective).into_option()
         }
+        // The mirror image: a semicolon-free statement block (`standard` style)
+        // satisfies the byte scan's object-literal test, and the `(`…`)` it then
+        // adds is what makes the parse fail. The same verdict decides here.
+        ast_rewrite::ParseAttempt::NotParsed if needs_paren_wrap => {
+            run_state_reads_pass(source, source, 0, &effective).into_option()
+        }
         ast_rewrite::ParseAttempt::NotParsed => None,
     }
 }
