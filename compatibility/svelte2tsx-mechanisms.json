@@ -21,10 +21,6 @@
 			"description": "a `//` line comment inside an `export let` type annotation swallows the rest of the emitted line, so the output is not TypeScript",
 			"pinned": "source"
 		},
-		"props-jsdoc-rewrite": {
-			"description": "an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`, and the block official copies verbatim into `return { props: … }` is dropped",
-			"pinned": "reduced"
-		},
 		"renamed-export-dropped": {
 			"description": "`export { componentClass as class }` is dropped from `exports:`; official emits `class: typeof componentClass`",
 			"pinned": "source"
@@ -65,9 +61,6 @@
 		"svelte-commerce/src/lib/components/form/textbox.svelte": "render-open-position",
 		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type",
 		"sveltekit/packages/package/test/watch/expected/Test.svelte": "unterminated-export-let",
-		"svelty-picker/src/lib/components/Calendar.svelte": "props-jsdoc-rewrite",
-		"svelty-picker/src/lib/components/SveltyPicker.svelte": "props-jsdoc-rewrite",
-		"svelty-picker/src/lib/components/Time.svelte": "props-jsdoc-rewrite",
 		"trakt-web/projects/client/src/lib/components/buttons/share/ShareButton.svelte": "render-open-position"
 	}
 }

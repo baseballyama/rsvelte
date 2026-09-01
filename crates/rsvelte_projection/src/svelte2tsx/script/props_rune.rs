@@ -14,6 +14,46 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("script source offsets are represented as u32")
 }
 
+/// Upstream gates the `@type` -> `@typedef $$ComponentProps` rewrite on
+/// `/\/\*\*[^@]*?@type\s*\{\s*\{.*\}\s*\}\s*\*\//` (`ExportedNames.ts:269`), which
+/// has no `s` flag — so the inner object must CLOSE on the line it opens, and the
+/// first `@` in the block must be the `@type`. A multi-line `@type {{ … }}` falls
+/// to the else arm, where the comment is emitted verbatim instead.
+fn upstream_rewrites_inline_object_jsdoc(comment: &str) -> bool {
+    // JS `.` excludes these four; Rust's excludes only `\n`.
+    const NOT_DOT: [char; 4] = ['\n', '\r', '\u{2028}', '\u{2029}'];
+    let Some(open) = comment.find("/**") else {
+        return false;
+    };
+    let rest = &comment[open + 3..];
+    // `[^@]*?@type`: the first `@` has to be the one `@type` starts with.
+    let Some(at) = rest.find('@') else {
+        return false;
+    };
+    let Some(after_type) = rest[at..].strip_prefix("@type") else {
+        return false;
+    };
+    fn skip_ws(s: &str) -> &str {
+        s.trim_start_matches(char::is_whitespace)
+    }
+    let Some(after_outer) = skip_ws(after_type).strip_prefix('{') else {
+        return false;
+    };
+    let Some(inner) = skip_ws(after_outer).strip_prefix('{') else {
+        return false;
+    };
+    // `.*` cannot cross a line terminator, so every candidate for the first `}`
+    // of the closing `}}` lies on the inner brace's own line. Greedy: rightmost
+    // first, though the tail test makes the order immaterial here.
+    let line = inner.split(NOT_DOT).next().unwrap_or("");
+    line.rmatch_indices('}').any(|(i, _)| {
+        let tail = skip_ws(&inner[i + 1..]);
+        tail.strip_prefix('}')
+            .map(skip_ws)
+            .is_some_and(|t| t.starts_with("*/"))
+    })
+}
+
 /// Position info for $`props()` typedef generation, collected during OXC walk.
 #[derive(Debug, Clone)]
 pub(super) struct PropsRuneInfo {
@@ -241,12 +281,11 @@ pub(super) fn apply_props_typedef(
         // `if (!this.isTsFile)` (`ExportedNames.ts:242`), so a `lang="ts"` script
         // whose `$props()` carries a `/** @type {…} */` derives `$$ComponentProps`
         // from the destructuring instead of honouring the comment.
-        // Check if the type is an inline object type `{{ ... }}` or a named reference `{SomeType}`
-        let inner = jsdoc_type
-            .strip_prefix('{')
-            .and_then(|s| s.strip_suffix('}'))
-            .unwrap_or("");
-        let is_inline_object_type = inner.starts_with('{');
+        let orig_comment = info
+            .jsdoc_start
+            .zip(info.jsdoc_end)
+            .map(|(a, b)| &raw_content[a as usize..b as usize]);
+        let is_inline_object_type = orig_comment.is_some_and(upstream_rewrites_inline_object_jsdoc);
 
         if is_inline_object_type {
             // Inline object type: transform `/** @type {{ a: number }} */` to
@@ -261,8 +300,9 @@ pub(super) fn apply_props_typedef(
             // contributes another space → two spaces between `}}` and `$$ComponentProps`.
             // We replicate by finding the `*/` position in the original and capturing
             // the trailing whitespace between the type text and `*/`.
-            if let (Some(jsdoc_start), Some(jsdoc_end)) = (info.jsdoc_start, info.jsdoc_end) {
-                let orig_comment = &raw_content[jsdoc_start as usize..jsdoc_end as usize];
+            if let (Some(jsdoc_start), Some(jsdoc_end), Some(orig_comment)) =
+                (info.jsdoc_start, info.jsdoc_end, orig_comment)
+            {
                 // Locate `@type` and `*/` positions within the original comment text
                 let typedef = if let (Some(at_type_rel), Some(star_slash_rel)) =
                     (orig_comment.find("@type"), orig_comment.rfind("*/"))
@@ -290,9 +330,11 @@ pub(super) fn apply_props_typedef(
                 str.overwrite(abs_start, abs_end, &typedef);
             }
             exported_names.set_has_component_props_typedef(true);
-        } else {
-            // Named type reference: keep `/** @type {SomeType} */` as-is
-            // Use the type name directly in create_props_str
+        } else if let Some(orig_comment) = orig_comment {
+            // Upstream's else arm keeps the comment ITSELF (`$props.comment = comment`,
+            // emitted as `comment + '({})'`), not a reconstruction from the type text —
+            // which is the whole output for a multi-line `@type {{ … }}`.
+            exported_names.props_jsdoc_comment = Some(orig_comment.to_string());
         }
         exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
     } else if info.prop_types.is_empty()
@@ -941,6 +983,27 @@ fn find_matching_brace(text: &str) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    use super::upstream_rewrites_inline_object_jsdoc as gate;
+
+    #[test]
+    fn inline_object_jsdoc_gate_matches_upstreams_regex() {
+        // One line: the shape upstream rewrites.
+        assert!(gate("/** @type {{ a?: number, b?: string }} */"));
+        // `\s*` may cross a newline, so only the inner object's own span may not.
+        assert!(gate("/** @type {{ a }}\n */"));
+        assert!(gate("/** @type {{ a: {b: 1} }} */"));
+        assert!(gate("/** @type {{ a }}\r\n */"));
+
+        // No `s` flag: an inner object that opens and closes on different lines
+        // is left alone, and its comment is emitted verbatim instead.
+        assert!(!gate("/**\n * @type {{\n *  a?: number,\n * }}\n */"));
+        // `[^@]*?` — the first `@` has to be the `@type`.
+        assert!(!gate("/** @description x @type {{ a }} */"));
+        // A named reference is not an inline object.
+        assert!(!gate("/** @type {Props} */"));
+        assert!(!gate("/** no type here */"));
+    }
+
     use super::super::test_support::{run_svelte2tsx, run_svelte2tsx_ts};
 
     #[test]

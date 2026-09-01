@@ -12,8 +12,5 @@
 	"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte",
 	"svelte-commerce/src/lib/components/form/textbox.svelte",
 	"sveltekit/packages/package/test/watch/expected/Test.svelte",
-	"svelty-picker/src/lib/components/Calendar.svelte",
-	"svelty-picker/src/lib/components/SveltyPicker.svelte",
-	"svelty-picker/src/lib/components/Time.svelte",
 	"trakt-web/projects/client/src/lib/components/buttons/share/ShareButton.svelte"
 ]

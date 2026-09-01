@@ -2232,6 +2232,25 @@ calibrate. Official's map serves as a *veto*: if it violates an invariant, the e
 generated lines; generated columns sorted within a line; no 3+ "stalled copy run"; generated
 column in bounds; original line in bounds; original column in bounds.
 
+### Where this gate sits in the family, which is one rung below idempotency
+
+The parity a diff would assert is not merely hard here, it is **empty**. Measured over the
+13,464 corpus components for which both tools return a map
+(`KNOWN-FAILURES.md#svelte2tsx-map-known-failures`): `mappings` byte-identical **0 of 13,464**,
+decoded segment sets identical **0 of 13,464**, `originalPositionFor` identical at every
+generated position **0 of a 245-component sample**, and per-generated-line sets of referenced
+original lines identical **4 of the same 245**. A parity ratchet would therefore start at ~100%
+of the corpus and gate nothing — that is the measurement behind "official is used only to
+calibrate", not a preference.
+
+So this is the second gate here whose subject is a **property of rsvelte's own output** rather
+than a comparison, the other being transform idempotency. It is one rung weaker. Idempotency is
+a *necessary* condition — a correct compiler is idempotent on that step, so a violation is a
+defect. Well-formedness of a map is **not even that**: a map can satisfy all seven invariants
+and point everywhere wrong (blind spot 7b measures exactly that, with two hand-written maps the
+gate accepts). Read a green here as "nothing is structurally broken", never as "the map is
+right".
+
 ### Blind spot 7a — closed: corpus-wide mapped-line coverage floor (#2453)
 
 `mappedLineCoverage` counts non-empty generated lines carrying a source-bearing segment, and
@@ -6998,9 +7017,11 @@ the shared analysis.
 
 **One hypothesis is falsified, and it is recorded because it is the cheap wrong answer.** Routing
 `is_pure_node`'s `find_binding_any_scope` through `get_binding` does **not** move this grid: the
-two arms differ by binary hash and the grid stays `EQ 32 | DIFF 4`. What that change does to
-*other* inputs is a 4-target 139,252-unit sweep that has not returned — **unmeasured**, and it must
-not be written up as a no-op on the strength of this grid.
+two arms differ by binary hash and the grid stays `EQ 32 | DIFF 4`. It is also a no-op everywhere
+else — **0 changed units over 139,252 (4 targets)**, measured by rsvelte-75 — so it was withdrawn
+rather than shipped, even though it is the spelling that matches upstream. The grid alone could
+not have said that: a change can leave one grid still and move a corpus, and the two questions
+take two measurements.
 
 **Unmeasured:** the blast radius of making the `let:` transform scope-aware. Two corpus entries
 reproduce this, so nobody has priced the fix.
