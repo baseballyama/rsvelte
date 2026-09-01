@@ -1,5 +1,4 @@
 [
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"carbon-components-svelte/src/Notification/NotificationQueue.svelte",
 	"chatgpt-web/src/lib/ChatCompletionResponse.svelte",
 	"gitlight/src/lib/components/dashboard/notifications/NotificationLabels.svelte",
@@ -56,11 +55,7 @@
 	"svelvet/src/lib/components/Edge/Edge.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"threlte/packages/extras/src/lib/hooks/useGamepad/useGamepad.svelte.ts",
-	"trakt-web/projects/client/src/lib/components/icons/MediaIcon.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/MovieIcon.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/ShowIcon.svelte",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
-	"trakt-web/projects/client/src/lib/sections/navbar/TopNavbar.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte",
 	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte",
 	"trakt-web/projects/client/test/beds/component/ComponentTestBed.svelte"

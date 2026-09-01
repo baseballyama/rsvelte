@@ -2847,11 +2847,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 51 entries)
+### Client (`known-failures.client.json`, 46 entries)
 
-Partition of `known-failures.client.json` by verdict: `50 + 1`
+Partition of `known-failures.client.json` by verdict: `45 + 1`
 
-- **50 — the generated JS differs** (`js` / `code-differs`).
+- **45 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2868,7 +2868,7 @@ official replaces with nothing. The third syntaxfm entry
 (`routes/(site)/guests/+page.svelte`) is a different cause and stays: its output is
 byte-identical before and after that fix.
 
-Every one of the remaining 51 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 46 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -2893,11 +2893,11 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](#deliberate-divergences), each pinned by a test.
 
-### Server (`known-failures.server.json`, 15 entries)
+### Server (`known-failures.server.json`, 10 entries)
 
-Partition of `known-failures.server.json` by verdict: `13 + 2`
+Partition of `known-failures.server.json` by verdict: `8 + 2`
 
-- **13 — the generated JS differs.**
+- **8 — the generated JS differs.**
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
@@ -2930,19 +2930,19 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-### Server dev (`known-failures.server-dev.json`, 15 entries)
+### Server dev (`known-failures.server-dev.json`, 10 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `13 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `8 + 2`
 
 The trailing **2** is the same deliberate divergence as on `server` — the
 `$`-prefixed function parameter — carried on both targets because the server
 transform runs on both.
 
-- **13 — the generated JS differs.**
+- **8 — the generated JS differs.**
 - **2 — the same recorded deliberate divergence as on `server`.**
 
 All 13 arrived with the wave-2 enrolment (#3130); this target was at 0 before
@@ -2951,15 +2951,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 65 entries)
+### Client dev (`known-failures.client-dev.json`, 60 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `65`
+Partition of `known-failures.client-dev.json` by verdict: `60`
 
-- **65 — the generated JS differs.**
+- **60 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 65 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 60 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

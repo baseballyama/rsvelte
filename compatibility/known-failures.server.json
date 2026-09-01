@@ -1,5 +1,4 @@
 [
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"flare/src/lib/views/grid.svelte.ts",
 	"immich/web/src/lib/components/shared-components/map/Map.svelte",
 	"kampsy-ui/src/lib/tabs/tabs.svelte",
@@ -8,10 +7,6 @@
 	"svelte-commerce/src/lib/theme/sections/tile-grid.svelte",
 	"sveltepress/packages/theme-default/src/components/NavItem.svelte",
 	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
-	"trakt-web/projects/client/src/lib/components/icons/MediaIcon.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/MovieIcon.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/ShowIcon.svelte",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
-	"trakt-web/projects/client/src/lib/sections/navbar/TopNavbar.svelte",
 	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte"
 ]

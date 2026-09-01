@@ -1,6 +1,5 @@
 [
 	"appwrite-console/src/lib/components/sortButton.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte",
 	"carbon-components-svelte/src/Notification/NotificationQueue.svelte",
 	"gitlight/src/lib/components/dashboard/notifications/NotificationLabels.svelte",
 	"ha-fusion/src/lib/Main/Views.svelte",
@@ -42,11 +41,7 @@
 	"sveltekit/packages/kit/src/runtime/components/root.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/MediaIcon.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/MovieIcon.svelte",
-	"trakt-web/projects/client/src/lib/components/icons/ShowIcon.svelte",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
-	"trakt-web/projects/client/src/lib/sections/navbar/TopNavbar.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte",
 	"trakt-web/projects/client/src/lib/sections/settings/_internal/plex/PlexSyncedServers.svelte",
 	"trakt-web/projects/client/test/beds/component/ComponentTestBed.svelte"
