@@ -1,0 +1,170 @@
+[
+	{
+		"name": "+error.svelte::error-only",
+		"filename": "+error.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: App.Error };/*Ωignore_endΩ*/\n\tlet { error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "error-only"
+	},
+	{
+		"name": "+error.svelte::error-and-other",
+		"filename": "+error.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error, other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: App.Error };/*Ωignore_endΩ*/\n\tlet { error, other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "error-and-other"
+	},
+	{
+		"name": "+error.svelte::no-error",
+		"filename": "+error.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\tlet { other } = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "no-error"
+	},
+	{
+		"name": "+error.svelte::data-and-error",
+		"filename": "+error.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { data, error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: App.Error };/*Ωignore_endΩ*/\n\tlet { data, error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "data-and-error"
+	},
+	{
+		"name": "+error@foo.svelte::error-only",
+		"filename": "+error@foo.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: any };/*Ωignore_endΩ*/\n\tlet { error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Errorfoo__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Errorfoo__SvelteComponent_ = ReturnType<typeof Errorfoo__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Errorfoo__SvelteComponent_;",
+		"group": "error-only"
+	},
+	{
+		"name": "+error@foo.svelte::error-and-other",
+		"filename": "+error@foo.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error, other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: any, other: any };/*Ωignore_endΩ*/\n\tlet { error, other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Errorfoo__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Errorfoo__SvelteComponent_ = ReturnType<typeof Errorfoo__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Errorfoo__SvelteComponent_;",
+		"group": "error-and-other"
+	},
+	{
+		"name": "+error@foo.svelte::no-error",
+		"filename": "+error@foo.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { other: any };/*Ωignore_endΩ*/\n\tlet { other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Errorfoo__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Errorfoo__SvelteComponent_ = ReturnType<typeof Errorfoo__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Errorfoo__SvelteComponent_;",
+		"group": "no-error"
+	},
+	{
+		"name": "+error@foo.svelte::data-and-error",
+		"filename": "+error@foo.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { data, error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { data: any, error: any };/*Ωignore_endΩ*/\n\tlet { data, error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Errorfoo__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Errorfoo__SvelteComponent_ = ReturnType<typeof Errorfoo__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Errorfoo__SvelteComponent_;",
+		"group": "data-and-error"
+	},
+	{
+		"name": "+page.svelte::error-only",
+		"filename": "+page.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\tlet { error } = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Page__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Page__SvelteComponent_ = ReturnType<typeof Page__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Page__SvelteComponent_;",
+		"group": "error-only"
+	},
+	{
+		"name": "+page.svelte::error-and-other",
+		"filename": "+page.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error, other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\tlet { error, other } = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Page__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Page__SvelteComponent_ = ReturnType<typeof Page__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Page__SvelteComponent_;",
+		"group": "error-and-other"
+	},
+	{
+		"name": "+page.svelte::no-error",
+		"filename": "+page.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\tlet { other } = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Page__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Page__SvelteComponent_ = ReturnType<typeof Page__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Page__SvelteComponent_;",
+		"group": "no-error"
+	},
+	{
+		"name": "+page.svelte::data-and-error",
+		"filename": "+page.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { data, error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { data: import('./$types.js').PageData };/*Ωignore_endΩ*/\n\tlet { data, error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Page__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Page__SvelteComponent_ = ReturnType<typeof Page__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Page__SvelteComponent_;",
+		"group": "data-and-error"
+	},
+	{
+		"name": "+layout.svelte::error-only",
+		"filename": "+layout.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { children: import('svelte').Snippet };/*Ωignore_endΩ*/\n\tlet { error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Layout__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Layout__SvelteComponent_ = ReturnType<typeof Layout__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Layout__SvelteComponent_;",
+		"group": "error-only"
+	},
+	{
+		"name": "+layout.svelte::error-and-other",
+		"filename": "+layout.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error, other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { children: import('svelte').Snippet };/*Ωignore_endΩ*/\n\tlet { error, other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Layout__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Layout__SvelteComponent_ = ReturnType<typeof Layout__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Layout__SvelteComponent_;",
+		"group": "error-and-other"
+	},
+	{
+		"name": "+layout.svelte::no-error",
+		"filename": "+layout.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { children: import('svelte').Snippet };/*Ωignore_endΩ*/\n\tlet { other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Layout__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Layout__SvelteComponent_ = ReturnType<typeof Layout__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Layout__SvelteComponent_;",
+		"group": "no-error"
+	},
+	{
+		"name": "+layout.svelte::data-and-error",
+		"filename": "+layout.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { data, error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { data: import('./$types.js').LayoutData, children: import('svelte').Snippet };/*Ωignore_endΩ*/\n\tlet { data, error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Layout__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Layout__SvelteComponent_ = ReturnType<typeof Layout__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Layout__SvelteComponent_;",
+		"group": "data-and-error"
+	},
+	{
+		"name": "Widget.svelte::error-only",
+		"filename": "Widget.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: any };/*Ωignore_endΩ*/\n\tlet { error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Widget__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Widget__SvelteComponent_ = ReturnType<typeof Widget__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Widget__SvelteComponent_;",
+		"group": "error-only"
+	},
+	{
+		"name": "Widget.svelte::error-and-other",
+		"filename": "Widget.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error, other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: any, other: any };/*Ωignore_endΩ*/\n\tlet { error, other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Widget__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Widget__SvelteComponent_ = ReturnType<typeof Widget__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Widget__SvelteComponent_;",
+		"group": "error-and-other"
+	},
+	{
+		"name": "Widget.svelte::no-error",
+		"filename": "Widget.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { other: any };/*Ωignore_endΩ*/\n\tlet { other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Widget__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Widget__SvelteComponent_ = ReturnType<typeof Widget__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Widget__SvelteComponent_;",
+		"group": "no-error"
+	},
+	{
+		"name": "Widget.svelte::data-and-error",
+		"filename": "Widget.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { data, error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { data: any, error: any };/*Ωignore_endΩ*/\n\tlet { data, error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Widget__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Widget__SvelteComponent_ = ReturnType<typeof Widget__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Widget__SvelteComponent_;",
+		"group": "data-and-error"
+	},
+	{
+		"name": "+error.other.svelte::error-only",
+		"filename": "+error.other.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: any };/*Ωignore_endΩ*/\n\tlet { error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "error-only"
+	},
+	{
+		"name": "+error.other.svelte::error-and-other",
+		"filename": "+error.other.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { error, other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { error: any, other: any };/*Ωignore_endΩ*/\n\tlet { error, other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "error-and-other"
+	},
+	{
+		"name": "+error.other.svelte::no-error",
+		"filename": "+error.other.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { other } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { other: any };/*Ωignore_endΩ*/\n\tlet { other }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "no-error"
+	},
+	{
+		"name": "+error.other.svelte::data-and-error",
+		"filename": "+error.other.svelte",
+		"source": "<script lang=\"ts\">\n\tlet { data, error } = $props();\n</script>\n",
+		"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n/*Ωignore_startΩ*/;type $$ComponentProps = { data: any, error: any };/*Ωignore_endΩ*/\n\tlet { data, error }: $$ComponentProps = $props();\n;\nasync () => {\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Error__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Error__SvelteComponent_ = ReturnType<typeof Error__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Error__SvelteComponent_;",
+		"group": "data-and-error"
+	}
+]

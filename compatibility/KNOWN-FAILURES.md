@@ -6085,11 +6085,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 35 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 32 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `33 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `30 + 2`
 
-- **33 — the emitted TSX differs** (`ts-mismatch`).
+- **30 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6102,15 +6102,15 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 33 carry **no target, and cannot have one**: every one of them was
+The remaining 30 carry **no target, and cannot have one**: every one of them was
 measured against official on 2026-09-01 and every one is an rsvelte defect, so
 the only end state open to them is elimination. The classification below is the
 input to that work; it is not an attribution, and this gate stays red until the
 entries are gone.
 
-### The 33 `ts-mismatch` entries, classified by mechanism (2026-09-01)
+### The 30 `ts-mismatch` entries, classified by mechanism (2026-09-01)
 
-Both implementations run directly on the 33 listed sources with the options
+Both implementations run directly on the 30 listed sources with the options
 `svelte2tsx-compile.mjs` passes (`{filename, isTsFile, mode:'ts', namespace:'html',
 version:'5'}`). This table replaces the earlier one keyed by the first differing
 line: that key is a **symptom**, so it split one mechanism across rows and put two
@@ -6127,7 +6127,6 @@ agreeing, so the cause is something else.
 |---|---|---|
 | 5 | a `<script>` **inside an HTML comment** is parsed as a script: official emits its eight-line empty projection, rsvelte emits the whole commented-out body | source |
 | 4 | a **commented-out `dispatch("name", …)`** is collected as a component event, so `events:` carries a name the component never dispatches | source |
-| 3 | a `+error.svelte`'s `error` prop is typed `any` instead of `App.Error` — upstream's `ExportedNames.ts:330` has an `isKitErrorFile` arm, and rsvelte's kit table in `props_rune.rs` has `data` / `form` / `params` and no error arm | source |
 | 3 | an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into a `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`; official leaves the block alone and copies it verbatim into `return { props: … }` | reduced |
 | 3 | a JSDoc block copied into `return { props: {` starts on the wrong line — official breaks before the `/**`, rsvelte keeps it on the `{` line and breaks inside | reduced |
 | 3 | `function $$render() {` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte opens it BEFORE an `interface $$Props` / `type …Props` that official puts first (2), and AFTER an `interface Props` in the `type T = $$Generic` case, where official emits `function $$render<T>()` first (1). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
@@ -6145,8 +6144,8 @@ agreeing, so the cause is something else.
 
 **Three of those rows are one class, and it is the largest thing here.** The
 commented-out `<script>`, the commented-out `dispatch(…)` and the commented-out
-`$store` are all a scan that does not exclude code inside a comment — **10 of 33
-entries, 30%**, against a largest mechanism of 5 when the table was keyed by
+`$store` are all a scan that does not exclude code inside a comment — **10 of 30
+entries, 33%**, against a largest mechanism of 5 when the table was keyed by
 symptom. It is the class the compiler side keeps rediscovering (#2986, #2987,
 #3127), reached here through a different port, and no gate compares the two ports.
 

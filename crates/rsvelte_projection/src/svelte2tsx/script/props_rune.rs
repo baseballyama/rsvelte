@@ -4,8 +4,8 @@ use oxc_ast::ast as oxc;
 use oxc_span::GetSpan;
 
 use super::ast_utils::{binding_pattern_simple_name, property_key_to_string};
-use super::classify_kit_route_file;
 use super::hoistable_types::walk_back_through_trivia;
+use super::{classify_kit_route_file, is_kit_error_file};
 
 use super::super::magic_string::MagicString;
 use super::ExportedNames;
@@ -329,6 +329,10 @@ pub(super) fn apply_props_typedef(
         // `params` with `import('./$types.js').*` references — matches the JS
         // reference's `isKitRouteFile` branch in `ExportedNames.handle$propsRune`.
         let kit_layout = classify_kit_route_file(basename);
+        // `+error.svelte` is not a route file, so it takes upstream's own
+        // `else if` arm: `error` alone is typed, every other prop keeps its
+        // inferred type.
+        let kit_error = kit_layout.is_none() && is_kit_error_file(basename);
         // Build type entries for each named prop.
         //
         // For SvelteKit route files, the official code only includes the well-known
@@ -366,6 +370,12 @@ pub(super) fn apply_props_typedef(
                         _ => return None, // skip non-kit props; they're not inferred for kit files
                     };
                     Some(format!("{}: {}", name, kit_type.unwrap()))
+                } else if kit_error {
+                    if name == "error" {
+                        Some("error: App.Error".to_string())
+                    } else {
+                        None
+                    }
                 } else {
                     // Non-kit file: include all props with inferred types
                     let resolved = inferred_type.as_str();

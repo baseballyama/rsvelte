@@ -86,6 +86,16 @@ pub fn classify_kit_route_file(basename: &str) -> Option<bool> {
     }
 }
 
+/// `+error.svelte`. Upstream's `isKitErrorFile` strips only the extension — it
+/// has no `@anchor` arm, unlike `isKitRouteFile` — so `+error@foo.svelte` is not
+/// one.
+pub fn is_kit_error_file(basename: &str) -> bool {
+    basename
+        .rfind('.')
+        .map_or(basename, |position| &basename[..position])
+        == "+error"
+}
+
 /// Process an instance script block (`<script>`).
 ///
 /// Extracts:
