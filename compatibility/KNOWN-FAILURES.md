@@ -6109,11 +6109,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 32 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 22 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `30 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `20 + 2`
 
-- **30 — the emitted TSX differs** (`ts-mismatch`).
+- **20 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6126,15 +6126,15 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 30 carry **no target, and cannot have one**: every one of them was
+The remaining 20 carry **no target, and cannot have one**: every one of them was
 measured against official on 2026-09-01 and every one is an rsvelte defect, so
 the only end state open to them is elimination. The classification below is the
 input to that work; it is not an attribution, and this gate stays red until the
 entries are gone.
 
-### The 30 `ts-mismatch` entries, classified by mechanism (2026-09-01)
+### The 20 `ts-mismatch` entries, classified by mechanism (2026-09-01)
 
-Both implementations run directly on the 30 listed sources with the options
+Both implementations run directly on the 20 listed sources with the options
 `svelte2tsx-compile.mjs` passes (`{filename, isTsFile, mode:'ts', namespace:'html',
 version:'5'}`). This table replaces the earlier one keyed by the first differing
 line: that key is a **symptom**, so it split one mechanism across rows and put two
@@ -6149,13 +6149,10 @@ agreeing, so the cause is something else.
 
 | n | mechanism | pinned |
 |---|---|---|
-| 5 | a `<script>` **inside an HTML comment** is parsed as a script: official emits its eight-line empty projection, rsvelte emits the whole commented-out body | source |
-| 4 | a **commented-out `dispatch("name", …)`** is collected as a component event, so `events:` carries a name the component never dispatches | source |
 | 3 | an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into a `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`; official leaves the block alone and copies it verbatim into `return { props: … }` | reduced |
 | 3 | a JSDoc block copied into `return { props: {` starts on the wrong line — official breaks before the `/**`, rsvelte keeps it on the `{` line and breaks inside | reduced |
 | 3 | `function $$render() {` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte opens it BEFORE an `interface $$Props` / `type …Props` that official puts first (2), and AFTER an `interface Props` in the `type T = $$Generic` case, where official emits `function $$render<T>()` first (1). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
 | 2 | a renamed export (`export { componentClass as class }`) is dropped from `exports:`, where official emits `class: typeof componentClass` | source |
-| 1 | a **commented-out `$store` reference** is collected as a store subscription, adding a `__sveltets_2_store_get` official does not emit | source |
 | 1 | `export let x: T` with **no statement terminator** (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding a `;` and a newline makes the two agree | reduced |
 | 1 | `bind:this` on an element is emitted as an attribute rather than as an assignment to the bound variable | output only |
 | 1 | a `use:` action is emitted inside the attribute object rather than as a preceding `$$action_0` const | output only |
@@ -6166,25 +6163,37 @@ agreeing, so the cause is something else.
 | 1 | official emits a `$permissions` store-get that rsvelte omits — **cause not isolated** | output only |
 | 1 | rsvelte emits an extra `dragItem` slot prop — **cause not isolated** | output only |
 
-**Two of those rows could not be read off the first-differing-line key at all.**
-Under the old key they read `async () => {` against an `import` — an
-instance/module *statement order* defect — and "store declarations emitted in a
-different order". Both read as orderings and neither is one: the first is the
-commented-out `<script>`'s body injected at the head of `$$render()`, which
-pushes the imports down, and the second is a `//` comment inside a template
-expression (`appwrite-console`'s `databases/database-[database]/table-[table]/+layout.svelte`)
-yielding an extra `$columnsOrder` declaration. Running both implementations on
-the source is what showed it; the differing line named neither cause.
+**The largest mechanism this table ever carried is gone, and the ten entries it
+held are the ten this ratchet just lost.** The commented-out `<script>`, the
+commented-out `dispatch(…)` and the commented-out `$store` were one class — a
+scan that does not exclude code inside a comment, **10 of 30 entries, 33%**,
+against a largest mechanism of 5 when the table was keyed by symptom. #4136
+routed those scans through the parser's own comment-, string- and regex-aware
+primitives. **The mapping from entry to mechanism is measured, not inferred from
+the arithmetic:** diffing the two arms' output on each of the ten names its cause
+— five drop an injected commented-out `<script>` body (9-128 lines), four drop an
+event name that only a comment dispatches (`BulkEditorMergeView` goes from two
+events to none), and `appwrite-console`'s
+`databases/database-[database]/table-[table]/+layout.svelte` drops an extra
+`$columnsOrder` store-get.
 
-**Three of those rows are one class, and it is the largest thing here.** The
-commented-out `<script>`, the commented-out `dispatch(…)` and the commented-out
-`$store` are all a scan that does not exclude code inside a comment — **10 of 30
-entries, 33%**, against a largest mechanism of 5 when the table was keyed by
-symptom. It is the class the compiler side keeps rediscovering (#2986, #2987,
-#3127), reached here through a different port, and no gate compares the two ports.
+**Two of those rows could not be read off the first-differing-line key at all**,
+which is why the table is keyed by mechanism. Under the old key they read
+`async () => {` against an `import` — an instance/module *statement order* defect
+— and "store declarations emitted in a different order". Both read as orderings
+and neither was one: the first is the commented-out `<script>`'s body injected at
+the head of `$$render()`, which pushes the imports down, and the second is the
+`$columnsOrder` declaration above. Running both implementations on the source is
+what showed it; the differing line named neither cause.
 
-**Six rows are `output only`, and the count is not their size.** The symptom-keyed
-table put 13 of these entries in a "one entry each" tail, which is where a
+It is the class the compiler side keeps rediscovering (#2986, #2987, #3127),
+reached here through a different port, and **no gate compares the two ports** —
+`compatibility/GATES.md#two-ports-inventory` row 6 carries it.
+
+**Six rows are `output only`, and the count is not their size.** They are now six
+of twenty rather than six of thirty, and nothing about them changed — a share
+moves when the denominator does. The symptom-keyed table put 13 of these entries
+in a "one entry each" tail, which is where a
 mechanism goes to look unimportant; all the count above says is that nobody has
 reduced them yet.
 
