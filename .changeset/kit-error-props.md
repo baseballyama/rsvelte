@@ -1,5 +1,7 @@
 ---
 '@rsvelte/svelte2tsx': patch
+'@rsvelte/compiler': patch
+'@rsvelte/svelte-check': patch
 ---
 
 A `+error.svelte`'s `error` prop is now typed `App.Error`. Upstream's `ExportedNames`
