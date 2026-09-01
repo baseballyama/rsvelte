@@ -373,25 +373,19 @@ pub(super) fn format_expr_core(
                 )
         );
 
-    // Detect an object literal that is the HEAD of a larger expression — the
-    // object of a member access or callee of a call (`{ … }[key]`, `{ … }.foo`,
-    // `{ … }()`). OXC parenthesizes the leading object because at statement
-    // position a bare `{` would start a block, so it emits `({ … })[key]`. In a
-    // mustache/attribute value the expression is in expression position, so
-    // prettier-plugin-svelte keeps no parens (`{ … }[key]`). `strip_outer_parens`
-    // can't help here because the formatted string ends with `]`/`.`/`)` of the
-    // postfix, not the wrapper `)`. Flag it so the leading pair is stripped below.
-    let leading_object_head = !use_const_wrapper
+    // Detect a head OXC parenthesizes only because the `(expr);` wrapper puts it
+    // at statement position — a leading object literal (`{ … }[key]`, `{ … }.foo`,
+    // `{ … } as T`), where a bare `{` would start a block, or a declaration-name
+    // identifier under an `as`/`satisfies` chain (`(type) as T`), where the
+    // statement would read as `type X = …`. In a mustache/attribute value the
+    // expression is in expression position, so prettier-plugin-svelte keeps no
+    // parens. `strip_outer_parens` can't help: the formatted string ends with the
+    // postfix's `]`/`.`/`)` or the type annotation, not the wrapper `)`.
+    let statement_position_head = !use_const_wrapper
         && matches!(
             parser_ret.program.body.first(),
             Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
-                if expr_has_object_head(&stmt.expression)
-        );
-    let object_type_assertion = !use_const_wrapper
-        && matches!(
-            parser_ret.program.body.first(),
-            Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
-                if expr_is_object_type_assertion(&stmt.expression)
+                if expr_head_parenthesized_at_statement_position(&stmt.expression)
         );
 
     let mut js = options.js.clone();
@@ -481,7 +475,7 @@ pub(super) fn format_expr_core(
                 inner = stripped;
             }
             format!("({inner})")
-        } else if leading_object_head || object_type_assertion {
+        } else if statement_position_head {
             // Strip the leading `( … )` pair OXC wrapped around the head object,
             // keeping the postfix or type operator verbatim.
             strip_leading_paren_pair(s).unwrap_or_else(|| s.to_string())
@@ -493,14 +487,60 @@ pub(super) fn format_expr_core(
     Ok(result)
 }
 
-fn expr_is_object_type_assertion(expr: &oxc_ast::ast::Expression) -> bool {
+/// Innermost operand of a non-empty `as`/`satisfies` chain, mirroring the chain
+/// OXC walks in `needs_parens_in_cast_chain` — a `!` in the chain stops it there
+/// too, so the two must skip the same node kinds or the strip below fires where
+/// OXC added no parens.
+fn as_satisfies_chain_operand<'a>(
+    expr: &'a oxc_ast::ast::Expression<'a>,
+) -> Option<&'a oxc_ast::ast::Expression<'a>> {
     use oxc_ast::ast::Expression as E;
 
-    match expr {
-        E::TSAsExpression(expr) => matches!(expr.expression, E::ObjectExpression(_)),
-        E::TSSatisfiesExpression(expr) => matches!(expr.expression, E::ObjectExpression(_)),
-        _ => false,
+    let mut cur = match expr {
+        E::TSAsExpression(_) | E::TSSatisfiesExpression(_) => expr,
+        _ => return None,
+    };
+    loop {
+        cur = match cur {
+            E::TSAsExpression(e) => &e.expression,
+            E::TSSatisfiesExpression(e) => &e.expression,
+            operand => return Some(operand),
+        };
     }
+}
+
+/// An identifier OXC parenthesizes as the operand of a statement-position
+/// `as`/`satisfies` chain, because the statement would otherwise read as the
+/// head of a declaration (`type X = …`, `using x = …`, `interface X {}`).
+fn is_declaration_head_name(name: &str) -> bool {
+    matches!(
+        name,
+        "await"
+            | "component"
+            | "hook"
+            | "interface"
+            | "let"
+            | "module"
+            | "type"
+            | "using"
+            | "yield"
+    )
+}
+
+/// Whether OXC wraps this expression's HEAD in parens purely because the
+/// `(expr);` wrapper puts it at statement position. A template expression sits
+/// in expression position, where prettier-plugin-svelte — the oxfmt oracle —
+/// keeps the head bare, so the leading pair is stripped below.
+fn expr_head_parenthesized_at_statement_position(expr: &oxc_ast::ast::Expression) -> bool {
+    use oxc_ast::ast::Expression as E;
+
+    if expr_has_object_head(expr) {
+        return true;
+    }
+    matches!(
+        as_satisfies_chain_operand(expr),
+        Some(E::Identifier(id)) if is_declaration_head_name(&id.name)
+    )
 }
 
 /// AST gate for [`reflow_flat_as_satisfies_unions`]: does the program contain
@@ -694,11 +734,13 @@ fn try_flatten_union_block(
     Some((flat_line, n))
 }
 
-/// Returns `true` when `expr` is a member access or call whose left-most leaf
-/// (walking down `.object` / `.callee`) is an object literal — i.e. the shape
-/// `{ … }[key]` / `{ … }.foo` / `{ … }()` that OXC parenthesizes at statement
-/// position but prettier keeps bare in expression position. A bare object (with
-/// no postfix) returns `false`: that case is handled by `strip_outer_parens`.
+/// Returns `true` when `expr` is a postfix wrapper — a member access, a call, or
+/// an `as`/`satisfies`/`!` type operator — whose left-most leaf (walking down
+/// `.object` / `.callee` / `.expression`) is an object literal: the shapes
+/// `{ … }[key]` / `{ … }.foo` / `{ … }()` / `{ … } as T` / `{ … }!` that OXC
+/// parenthesizes at statement position but prettier keeps bare in expression
+/// position. A bare object (with no postfix) returns `false`: that case is
+/// handled by `strip_outer_parens`.
 fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
     use oxc_ast::ast::{ChainElement, Expression as E};
     // The top node must be a postfix wrapper, not a bare object.
@@ -708,7 +750,10 @@ fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
         | E::PrivateFieldExpression(_)
         | E::CallExpression(_)
         | E::TaggedTemplateExpression(_)
-        | E::ChainExpression(_) => expr,
+        | E::ChainExpression(_)
+        | E::TSAsExpression(_)
+        | E::TSSatisfiesExpression(_)
+        | E::TSNonNullExpression(_) => expr,
         _ => return false,
     };
     loop {
@@ -719,6 +764,9 @@ fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
             E::PrivateFieldExpression(m) => &m.object,
             E::CallExpression(c) => &c.callee,
             E::TaggedTemplateExpression(t) => &t.tag,
+            E::TSAsExpression(e) => &e.expression,
+            E::TSSatisfiesExpression(e) => &e.expression,
+            E::TSNonNullExpression(e) => &e.expression,
             E::ChainExpression(ch) => match &ch.expression {
                 ChainElement::CallExpression(c) => &c.callee,
                 ChainElement::ComputedMemberExpression(m) => &m.object,
