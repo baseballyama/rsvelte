@@ -458,12 +458,9 @@ impl CompiledAst {
         deferred
             .json
             .get_or_init(|| {
-                crate::toolchain::PreparedComponent::new(
-                    &deferred.source,
-                    deferred.options.clone(),
-                )
-                .ok()
-                .map(|prepared| prepared.ast_json_owned())
+                crate::toolchain::PreparedComponent::new(&deferred.source, deferred.options.clone())
+                    .ok()
+                    .map(|prepared| prepared.ast_json_owned())
             })
             .as_deref()
     }
@@ -1618,6 +1615,98 @@ fn strip_ts_from_attribute_value(
     Ok(())
 }
 
+/// Worker count for the batch pool, or `None` to run on the caller's pool.
+///
+/// `available_parallelism` counts a slow core as a whole one, and on a
+/// heterogeneous CPU that is the wrong number: measured on an M2 Pro
+/// (6 performance + 4 efficiency cores), an efficiency core runs a Svelte
+/// compile at 0.22-0.24x a performance core, and a pool of 10 burns 20-33% more
+/// CPU for the same work than a pool of 6. Whether it is also slower in wall
+/// clock is measured but not established: `docs/perf-baseline.md`.
+#[cfg(feature = "parallel")]
+fn batch_pool_threads() -> Option<usize> {
+    if let Ok(raw) = std::env::var("RSVELTE_BATCH_THREADS")
+        && let Ok(n) = raw.parse::<usize>()
+        && n > 0
+    {
+        return Some(n);
+    }
+    // `RAYON_NUM_THREADS` sizes the global pool, so a caller who set it has
+    // answered this. Comparing against `current_num_threads` instead would
+    // spawn that pool, which is the thread count we are trying not to add to.
+    if std::env::var_os("RAYON_NUM_THREADS").is_some() {
+        return None;
+    }
+    let available = std::thread::available_parallelism().ok()?.get();
+    choose_batch_threads(performance_core_count(), available)
+}
+
+/// The bound above, without the environment: the pool is capped by the fast-core
+/// count *and* by what this process may actually run on. `available_parallelism`
+/// honours a cgroup CPU quota, a `--cpus` limit and an affinity mask; the sysctl
+/// reports hardware regardless, so under `docker compose --cpus=2` the fast-core
+/// count alone would ask for 6.
+#[cfg(feature = "parallel")]
+fn choose_batch_threads(fast: Option<usize>, available: usize) -> Option<usize> {
+    let want = fast?.min(available);
+    (want != available).then_some(want)
+}
+
+/// Physical cores in the fastest cluster, or `None` where the platform reports
+/// no clusters — there `available_parallelism` is already the right answer.
+///
+/// macOS only. A heterogeneous Linux (big.LITTLE ARM) has the same defect and
+/// is not handled. `physicalcpu` rather than `logicalcpu` because that is the
+/// count the 6-versus-10 measurement was taken against; no shipping part with
+/// these keys has SMT, so the two are equal everywhere it currently runs.
+#[cfg(all(feature = "parallel", target_os = "macos"))]
+fn performance_core_count() -> Option<usize> {
+    let mut out: u32 = 0;
+    let mut len = std::mem::size_of::<u32>();
+    // SAFETY: the name is a NUL-terminated C string, and `sysctlbyname` writes
+    // at most `len` bytes to `out`, which is a `u32` and `len` is its size.
+    let rc = unsafe {
+        libc::sysctlbyname(
+            c"hw.perflevel0.physicalcpu".as_ptr(),
+            (&raw mut out).cast(),
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (rc == 0 && out > 0).then_some(out as usize)
+}
+
+#[cfg(all(feature = "parallel", not(target_os = "macos")))]
+fn performance_core_count() -> Option<usize> {
+    None
+}
+
+/// Run a batch on a pool sized to the fast cores, where that differs from the
+/// pool the caller would otherwise get. Already being on a rayon worker means
+/// a caller installed a pool, and that answer wins over this one.
+#[cfg(feature = "parallel")]
+fn in_batch_pool<T: Send>(f: impl FnOnce() -> T + Send) -> T {
+    static POOL: std::sync::OnceLock<Option<rayon::ThreadPool>> = std::sync::OnceLock::new();
+    if rayon::current_thread_index().is_some() {
+        return f();
+    }
+    let Some(want) = batch_pool_threads() else {
+        return f();
+    };
+    let pool = POOL.get_or_init(|| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(want)
+            .thread_name(|i| format!("rsvelte-compile-{i}"))
+            .build()
+            .ok()
+    });
+    match pool {
+        Some(pool) => pool.install(f),
+        None => f(),
+    }
+}
+
 /// Compile multiple Svelte components in parallel.
 ///
 /// This function uses Rayon to compile multiple components concurrently,
@@ -1653,10 +1742,12 @@ fn strip_ts_from_attribute_value(
 pub fn compile_batch(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
-    inputs
-        .par_iter()
-        .map(|(source, options)| catch_compile_panic(|| compile(source, options.clone())))
-        .collect()
+    in_batch_pool(|| {
+        inputs
+            .par_iter()
+            .map(|(source, options)| catch_compile_panic(|| compile(source, options.clone())))
+            .collect()
+    })
 }
 
 #[doc(hidden)]
@@ -1664,12 +1755,16 @@ pub fn compile_batch(
 pub fn compile_batch_with_external_sourcemap_content(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
-    inputs
-        .par_iter()
-        .map(|(source, options)| {
-            catch_compile_panic(|| compile_with_external_sourcemap_content(source, options.clone()))
-        })
-        .collect()
+    in_batch_pool(|| {
+        inputs
+            .par_iter()
+            .map(|(source, options)| {
+                catch_compile_panic(|| {
+                    compile_with_external_sourcemap_content(source, options.clone())
+                })
+            })
+            .collect()
+    })
 }
 
 #[doc(hidden)]
@@ -1677,12 +1772,14 @@ pub fn compile_batch_with_external_sourcemap_content(
 pub fn compile_batch_without_ast(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
-    inputs
-        .par_iter()
-        .map(|(source, options)| {
-            catch_compile_panic(|| compile_without_ast(source, options.clone()))
-        })
-        .collect()
+    in_batch_pool(|| {
+        inputs
+            .par_iter()
+            .map(|(source, options)| {
+                catch_compile_panic(|| compile_without_ast(source, options.clone()))
+            })
+            .collect()
+    })
 }
 
 #[doc(hidden)]
@@ -1690,14 +1787,16 @@ pub fn compile_batch_without_ast(
 pub fn compile_batch_without_ast_with_external_sourcemap_content(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
-    inputs
-        .par_iter()
-        .map(|(source, options)| {
-            catch_compile_panic(|| {
-                compile_without_ast_with_external_sourcemap_content(source, options.clone())
+    in_batch_pool(|| {
+        inputs
+            .par_iter()
+            .map(|(source, options)| {
+                catch_compile_panic(|| {
+                    compile_without_ast_with_external_sourcemap_content(source, options.clone())
+                })
             })
-        })
-        .collect()
+            .collect()
+    })
 }
 
 /// Run one batch item's `compile()` call behind `catch_unwind`. Rayon
@@ -1876,6 +1975,25 @@ impl std::error::Error for CompileError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A cgroup quota and the fast-core count are two independent caps, and
+    /// only the first is visible to `available_parallelism`; taking the sysctl
+    /// alone would ask for six workers inside `docker compose --cpus=2`.
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn batch_pool_is_capped_by_both_the_fast_cores_and_the_cpu_budget() {
+        // M2 Pro, no limit: six fast cores out of ten.
+        assert_eq!(choose_batch_threads(Some(6), 10), Some(6));
+        // Same machine under a two-CPU quota: never more than the budget, and
+        // asking for exactly the budget is what the caller's pool already does.
+        assert_eq!(choose_batch_threads(Some(6), 2), None);
+        assert_eq!(choose_batch_threads(Some(6), 6), None);
+        // Homogeneous, or a platform that reports no clusters.
+        assert_eq!(choose_batch_threads(Some(8), 8), None);
+        assert_eq!(choose_batch_threads(None, 8), None);
+        // A budget between the two counts still prefers the fast cores.
+        assert_eq!(choose_batch_threads(Some(6), 8), Some(6));
+    }
 
     /// Upstream's `compiler-errors/test.ts` compares messages with the help URL
     /// removed, because the compiler itself always emits it.
