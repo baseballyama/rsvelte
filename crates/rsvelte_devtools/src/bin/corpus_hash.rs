@@ -1,7 +1,10 @@
 //! Hash every compiled output over a corpus, so two builds can be compared for
 //! byte identity without keeping the outputs themselves on disk.
 //!
-//! Usage: `corpus_hash <dir> --label <build-id> [--server] [--dev]`
+//! Usage: `corpus_hash <dir> --label <build-id> [--server] [--dev] [--map]`
+//!
+//! Without `--map` the source map is not compared at all, so a change that
+//! rewrites `js.map` and leaves `js.code` alone reads as byte identity.
 //!
 //! `--label` is **required** and names the build this run measures — normally the
 //! commit it was built from. A differential result is meaningless without it: the
@@ -17,7 +20,7 @@ use rsvelte_core::{CompileOptions, GenerateMode, compile};
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(dir) = args.iter().find(|a| !a.starts_with("--")) else {
-        eprintln!("usage: corpus_hash <dir> --label <build-id> [--server] [--dev]");
+        eprintln!("usage: corpus_hash <dir> --label <build-id> [--server] [--dev] [--map]");
         std::process::exit(1);
     };
     let Some(label) = args
@@ -31,6 +34,9 @@ fn main() {
         std::process::exit(2);
     };
     let dev = args.iter().any(|a| a == "--dev");
+    // Off by default: folding the map in moves every hash, so a baseline taken
+    // without it stays comparable.
+    let hash_map = args.iter().any(|a| a == "--map");
     let generate = if args.iter().any(|a| a == "--server") {
         GenerateMode::Server
     } else {
@@ -68,6 +74,10 @@ fn main() {
                 let mut hasher = DefaultHasher::new();
                 result.js.code.hash(&mut hasher);
                 result.css.as_ref().map(|c| &c.code).hash(&mut hasher);
+                if hash_map {
+                    result.js.map.hash(&mut hasher);
+                    result.css.as_ref().map(|c| &c.map).hash(&mut hasher);
+                }
                 // Output equality alone cannot see a changed warning set, which is
                 // how a whole class of divergences stayed invisible before.
                 for w in &result.warnings {
