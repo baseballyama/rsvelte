@@ -415,9 +415,32 @@ pub fn rewrite_once(
     innermost_only: bool,
     collect: impl FnOnce(&Program<'_>) -> Vec<Edit>,
 ) -> Option<String> {
+    rewrite_once_attempt(
+        arena,
+        source,
+        source_type,
+        parse_options,
+        innermost_only,
+        collect,
+    )
+    .into_option()
+}
+
+/// [`rewrite_once`], reporting whether the parse itself succeeded — a caller
+/// that can re-host an unparseable fragment needs to tell that apart from a
+/// parse that found nothing to rewrite.
+#[track_caller]
+pub fn rewrite_once_attempt(
+    arena: &'static LocalKey<RefCell<Allocator>>,
+    source: &str,
+    source_type: SourceType,
+    parse_options: ParseOptions,
+    innermost_only: bool,
+    collect: impl FnOnce(&Program<'_>) -> Vec<Edit>,
+) -> ParseAttempt<String> {
     let _pass =
         dual_run::PassGuard::enter(dual_run::pass_of(std::panic::Location::caller().file()));
-    with_program(arena, source, source_type, parse_options, |program| {
+    with_program_attempt(arena, source, source_type, parse_options, |program| {
         splice(source, collect(program), innermost_only)
     })
 }

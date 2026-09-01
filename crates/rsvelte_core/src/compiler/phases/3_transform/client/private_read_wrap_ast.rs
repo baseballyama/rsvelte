@@ -57,38 +57,109 @@ pub fn transform_private_read_wrap_ast(source: &str, qualified: &str) -> Option<
     // Fast probe — bail if `qualified` doesn't appear at all.
     memchr::memmem::find(source.as_bytes(), qualified.as_bytes())?;
 
-    ast_rewrite::fixed_point(source, |src| {
-        ast_rewrite::rewrite_once(
-            &MODULE_PRIVATE_READ_WRAP_ALLOC,
-            src,
-            SourceType::mjs(),
-            ParseOptions {
-                allow_return_outside_function: true,
-                ..ParseOptions::default()
-            },
-            true,
-            |program| {
-                let mut collector = PrivateReadWrapCollector {
-                    source: src,
-                    qualified,
-                    replacements: Vec::new(),
-                    skip_spans: Vec::new(),
-                };
-                collector.visit_program(program);
-                let skip = collector.skip_spans;
-                let mut replacements = collector.replacements;
-                replacements
-                    .retain(|(s, e, _)| !skip.iter().any(|(s2, e2)| *s2 == *s && *e2 == *e));
-                replacements
-            },
-        )
-    })
+    let mut parsed = false;
+    let plain = ast_rewrite::fixed_point(source, |src| run_once(src, qualified, &mut parsed));
+    if plain.is_some() || parsed {
+        return plain;
+    }
+
+    // Callers also hand this a single class MEMBER, where a private field
+    // outside a class body is a parse error — re-host it so the walk runs
+    // instead of the source falling through to the text scan.
+    let (open, close) = class_host(source)?;
+    let hosted = format!("{open}{source}{close}");
+    let out = ast_rewrite::fixed_point(&hosted, |src| run_once(src, qualified, &mut parsed))?;
+    Some(out.strip_prefix(&open)?.strip_suffix(&close)?.to_string())
+}
+
+fn run_once(src: &str, qualified: &str, parsed: &mut bool) -> Option<String> {
+    let attempt = ast_rewrite::rewrite_once_attempt(
+        &MODULE_PRIVATE_READ_WRAP_ALLOC,
+        src,
+        SourceType::mjs(),
+        ParseOptions {
+            allow_return_outside_function: true,
+            ..ParseOptions::default()
+        },
+        true,
+        |program| {
+            let mut collector = PrivateReadWrapCollector {
+                source: src,
+                qualified,
+                comments: &program.comments,
+                replacements: Vec::new(),
+                wrapped_by_paren: Vec::new(),
+                object_parens: Vec::new(),
+                skip_spans: Vec::new(),
+            };
+            collector.visit_program(program);
+            let skip = collector.skip_spans;
+            let mut replacements = collector.replacements;
+            replacements.retain(|(field, _)| !skip.contains(field));
+            replacements.into_iter().map(|(_, edit)| edit).collect()
+        },
+    );
+    match attempt {
+        ast_rewrite::ParseAttempt::Parsed(out) => {
+            *parsed = true;
+            out
+        }
+        ast_rewrite::ParseAttempt::NotParsed => None,
+    }
+}
+
+/// A class body to host a bare member in, declaring every `#name` it mentions
+/// because a private field must be declared in an enclosing class to parse.
+fn class_host(source: &str) -> Option<(String, String)> {
+    let bytes = source.as_bytes();
+    let mut names: Vec<&str> = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'#' {
+            let start = i + 1;
+            let mut end = start;
+            while end < bytes.len()
+                && (bytes[end] == b'_' || bytes[end] == b'$' || bytes[end].is_ascii_alphanumeric())
+            {
+                end += 1;
+            }
+            if end > start && !bytes[start].is_ascii_digit() {
+                let name = &source[start..end];
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+                i = end;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    if names.is_empty() {
+        return None;
+    }
+    let mut open = String::from("class __RSVELTE_HOST__ {");
+    for name in names {
+        open.push('#');
+        open.push_str(name);
+        open.push(';');
+    }
+    open.push('\n');
+    Some((open, String::from("\n}")))
 }
 
 struct PrivateReadWrapCollector<'a> {
     source: &'a str,
     qualified: &'a str,
-    replacements: Vec<Edit>,
+    comments: &'a [oxc_ast::Comment],
+    /// Keyed by the field's own span so `skip_spans` still matches after the
+    /// edit has been widened over a leading comment.
+    replacements: Vec<((u32, u32), Edit)>,
+    /// Field spans an enclosing parenthesised group has already emitted an
+    /// edit for.
+    wrapped_by_paren: Vec<(u32, u32)>,
+    /// Parenthesised groups that are the object of a deeper chain, where the
+    /// comment leads that chain rather than the field.
+    object_parens: Vec<(u32, u32)>,
     /// Spans of `PrivateFieldExpression`s that should NOT be
     /// rewritten (assignment LHS, update target, deeper-member
     /// object, $.get/$.set/$.update/$.update_pre argument).
@@ -115,6 +186,49 @@ impl<'a> PrivateReadWrapCollector<'a> {
         }
     }
 
+    /// The `qualified` private field `expr` is, through any number of source
+    /// parentheses.
+    fn qualified_field<'x, 'ast>(
+        &self,
+        expr: &'x Expression<'ast>,
+    ) -> Option<&'x PrivateFieldExpression<'ast>> {
+        let mut e = expr;
+        while let Expression::ParenthesizedExpression(p) = e {
+            e = &p.expression;
+        }
+        let Expression::PrivateFieldExpression(field) = e else {
+            return None;
+        };
+        (&self.source[field.span.start as usize..field.span.end as usize] == self.qualified)
+            .then(|| field.as_ref())
+    }
+
+    /// Start of the comment run immediately leading `at`, or `at` itself.
+    fn comment_run_start(&self, at: u32) -> u32 {
+        let bytes = self.source.as_bytes();
+        let mut pos = at as usize;
+        loop {
+            let mut i = pos;
+            while i > 0 && bytes[i - 1].is_ascii_whitespace() {
+                i -= 1;
+            }
+            match self
+                .comments
+                .iter()
+                .find(|c| c.span.end as usize == i && (c.span.start as usize) < i)
+            {
+                Some(c) => pos = c.span.start as usize,
+                None => return pos as u32,
+            }
+        }
+    }
+
+    fn note_object_paren(&mut self, expr: &Expression<'_>) {
+        if let Expression::ParenthesizedExpression(p) = expr {
+            self.object_parens.push((p.span.start, p.span.end));
+        }
+    }
+
     fn push_skip<S: oxc_span::GetSpan>(&mut self, node: &S) {
         let s = node.span();
         self.skip_spans.push((s.start, s.end));
@@ -123,13 +237,46 @@ impl<'a> PrivateReadWrapCollector<'a> {
 
 impl<'a, 'ast> Visit<'ast> for PrivateReadWrapCollector<'a> {
     fn visit_private_field_expression(&mut self, expr: &PrivateFieldExpression<'ast>) {
+        self.note_object_paren(&expr.object);
         walk::walk_private_field_expression(self, expr);
         let span_text = &self.source[expr.span.start as usize..expr.span.end as usize];
-        if span_text == self.qualified {
-            let rewrite = format!("$.get({})", self.qualified);
-            self.replacements
-                .push((expr.span.start, expr.span.end, rewrite));
+        if span_text == self.qualified
+            && !self
+                .wrapped_by_paren
+                .contains(&(expr.span.start, expr.span.end))
+        {
+            // Upstream wraps the NODE, so a comment leading it ends up inside
+            // the generated call; a wrap that starts at the field would leave
+            // it outside, where esrap then parenthesizes the whole statement.
+            let start = self.comment_run_start(expr.span.start);
+            let text = &self.source[start as usize..expr.span.end as usize];
+            self.replacements.push((
+                (expr.span.start, expr.span.end),
+                (start, expr.span.end, format!("$.get({text})")),
+            ));
         }
+    }
+
+    fn visit_parenthesized_expression(&mut self, paren: &ParenthesizedExpression<'ast>) {
+        // Source parens are gone from upstream's acorn AST, so a comment before
+        // them leads the FIELD there. Widening the edit over the whole group
+        // puts it inside the call; the printer then drops the parens as it
+        // already does without a comment.
+        if let Some(field) = self.qualified_field(&paren.expression)
+            && !self
+                .object_parens
+                .contains(&(paren.span.start, paren.span.end))
+        {
+            let start = self.comment_run_start(paren.span.start);
+            if start != paren.span.start {
+                let key = (field.span.start, field.span.end);
+                self.wrapped_by_paren.push(key);
+                let text = &self.source[start as usize..paren.span.end as usize];
+                self.replacements
+                    .push((key, (start, paren.span.end, format!("$.get({text})"))));
+            }
+        }
+        walk::walk_parenthesized_expression(self, paren);
     }
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
@@ -150,6 +297,7 @@ impl<'a, 'ast> Visit<'ast> for PrivateReadWrapCollector<'a> {
         if let Expression::PrivateFieldExpression(pf) = &member.object {
             self.push_skip(pf.as_ref());
         }
+        self.note_object_paren(&member.object);
         walk::walk_static_member_expression(self, member);
     }
 
@@ -157,6 +305,7 @@ impl<'a, 'ast> Visit<'ast> for PrivateReadWrapCollector<'a> {
         if let Expression::PrivateFieldExpression(pf) = &member.object {
             self.push_skip(pf.as_ref());
         }
+        self.note_object_paren(&member.object);
         walk::walk_computed_member_expression(self, member);
     }
 
@@ -164,10 +313,12 @@ impl<'a, 'ast> Visit<'ast> for PrivateReadWrapCollector<'a> {
         // `$.get(<pf>)` / `$.set(<pf>, ...)` / `$.update(<pf>, ...)` /
         // `$.update_pre(<pf>, ...)` — skip the FIRST arg's PrivateField.
         if Self::callee_is_dollar_member(&call.callee).is_some()
-            && let Some(Argument::PrivateFieldExpression(pf)) = call.arguments.first()
+            && let Some(first) = call.arguments.first().and_then(Argument::as_expression)
+            && let Some(pf) = self.qualified_field(first)
         {
-            self.push_skip(pf.as_ref());
+            self.push_skip(pf);
         }
+        self.note_object_paren(&call.callee);
         walk::walk_call_expression(self, call);
     }
 }
@@ -345,5 +496,61 @@ mod tests {
         let src = "let x = this.#count > 0 ? a : b;";
         let out = transform_private_read_wrap_ast(src, "this.#count").unwrap();
         assert_eq!(out, "let x = $.get(this.#count) > 0 ? a : b;");
+    }
+
+    /// The text a class-method caller hands this: a bare member, which is not a
+    /// parseable program because a private field needs an enclosing class.
+    /// Before the re-host the walk never ran and the text scan did every wrap.
+    #[test]
+    fn a_bare_class_member_is_rewritten_by_the_ast_walk() {
+        let out =
+            transform_private_read_wrap_ast("\tm() {\n\t\treturn this.#raw;\n\t}", "this.#raw");
+        assert_eq!(
+            out.as_deref(),
+            Some("\tm() {\n\t\treturn $.get(this.#raw);\n\t}")
+        );
+    }
+
+    /// The re-host must not leak into the output when the member declares more
+    /// than one private name.
+    #[test]
+    fn a_bare_class_member_mentioning_two_private_names_round_trips() {
+        let out = transform_private_read_wrap_ast(
+            "\tm() {\n\t\treturn this.#a + this.#b;\n\t}",
+            "this.#a",
+        );
+        assert_eq!(
+            out.as_deref(),
+            Some("\tm() {\n\t\treturn $.get(this.#a) + this.#b;\n\t}")
+        );
+    }
+
+    /// A whole module still takes the direct path — the control that the
+    /// re-host is reached only by the shape that needs it.
+    #[test]
+    fn a_whole_class_declaration_is_rewritten_without_the_host() {
+        let out = transform_private_read_wrap_ast(
+            "class C {\n\t#raw;\n\tm() {\n\t\treturn this.#raw;\n\t}\n}",
+            "this.#raw",
+        );
+        assert_eq!(
+            out.as_deref(),
+            Some("class C {\n\t#raw;\n\tm() {\n\t\treturn $.get(this.#raw);\n\t}\n}")
+        );
+    }
+
+    /// An assignment target is not a read on the re-hosted path either. The
+    /// read in the same member is what makes this fail rather than return
+    /// `None` when the re-host is ablated.
+    #[test]
+    fn a_bare_class_member_write_is_not_wrapped() {
+        let out = transform_private_read_wrap_ast(
+            "\tm() {\n\t\tthis.#raw = 1;\n\t\treturn this.#raw;\n\t}",
+            "this.#raw",
+        );
+        assert_eq!(
+            out.as_deref(),
+            Some("\tm() {\n\t\tthis.#raw = 1;\n\t\treturn $.get(this.#raw);\n\t}")
+        );
     }
 }
