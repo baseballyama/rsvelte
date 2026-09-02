@@ -34,9 +34,10 @@ use crate::error::ParseError;
 //     `TSEnumDeclaration`, and `TSModuleDeclaration` (namespace) — handled
 //     structurally below.
 //   * The opaque `type_annotation` blobs on Identifier/ObjectPattern/ArrayPattern
-//     are intentionally NOT cleared: analyze never walks into them and the
-//     stripped program is never serialized as compile output, so leaving them is
-//     byte-identical for the only consumer (analyze).
+//     ARE cleared, along with an identifier's TS `optional` marker: analyze
+//     never reads either, but `compile()` serializes this same stripped tree as
+//     `result.ast`, which upstream's catch-all visitor leaves with no
+//     `typeAnnotation` / `optional` key at all.
 //   * The `Program.ignore_comment_map` is preserved automatically: we never
 //     rebuild the `Program` node, only mutate its body entries in place.
 
@@ -266,8 +267,34 @@ pub fn remove_typescript_nodes_typed(
         _ => {}
     }
 
+    clear_type_annotation(node);
+
     // Recurse into children.
     visit_typed_children(node, arena)
+}
+
+/// Drop the output-only TS annotation upstream's catch-all visitor deletes
+/// (`delete n.typeAnnotation` / `delete n.optional`). `result.ast` is
+/// serialized from this tree, so an annotation left here reaches a public
+/// output; nothing else reads either field.
+fn clear_type_annotation(node: &mut JsNode) {
+    match node {
+        JsNode::Identifier {
+            optional,
+            type_annotation,
+            ..
+        } => {
+            *optional = false;
+            *type_annotation = None;
+        }
+        JsNode::ObjectPattern {
+            type_annotation, ..
+        }
+        | JsNode::ArrayPattern {
+            type_annotation, ..
+        } => *type_annotation = None,
+        _ => {}
+    }
 }
 
 /// Strip a `TSModuleDeclaration` (typed). Mirrors upstream: visit every body
