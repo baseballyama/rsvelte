@@ -946,6 +946,44 @@ reported, because it does not discriminate — `formatting` and `documentHighlig
 `colorPresentation` and `prepareRename` are 0% in the same group, and those two zeroes may be
 empty denominators rather than agreement.
 
+### Blind spot 27q — the cache cleanup spares exactly the caches that matter [D]
+
+`rsvelte-language-server` digs an overlay cache at whatever project root it is pointed at
+(`CACHE_DIRECTORY = ".rsvelte-language-server"`, `tsgo_overlay.rs:26`), and this gate points it at
+fixtures inside the pinned `submodules/language-tools`. The harness does clean up: `verify.mjs`
+snapshots the caches that exist before the run and, in a `finally`, deletes the ones that appeared
+(`verify.mjs:1120-1135`, `removeNewServerCaches`). A completed run therefore leaves the submodule
+byte-clean — measured, 5 created and 5 removed, `git status --porcelain` empty afterwards.
+
+**The gap is that it deletes only the caches it created.** One that is already present when the run
+starts is classified as pre-existing and spared — by every subsequent run, permanently. So a cache
+that survives once, because a run was interrupted or aborted between creating it and reaching the
+`finally`, is never collected again. That is not hypothetical: one checkout carried a `tsgo/` two
+days older than the run that noticed it, while another was clean, and the difference was whether a
+run had ever been killed part-way.
+
+A survivor is not inert. `build` (`tsgo_overlay.rs:222-258`) calls `create_dir_all` on the shadow
+directory and **never clears it**, rewriting a shadow per `.svelte` it finds — so a shadow whose
+source is gone, renamed, or no longer discovered simply stays. And the generated tsconfig includes
+that directory by **glob**, `"include": ["svelte/**/*", …]` (`write_tsconfig`,
+`tsgo_overlay.rs:963-1001`), so whatever remains is in the next run's program. Nothing in the path,
+the file names or the config records which binary produced them, and there is no `tsBuildInfoFile`
+in this crate (grep returns none; positive control: `rootDirs` is present). **A measurement taken
+after changing the binary can therefore read a projection the previous binary wrote** — the input
+side of the rule that an artifact's name, path and branch never establish what it is.
+
+Delete any surviving cache before measuring across a binary change, and treat "does the answer move
+when it is deleted" as its own measurement.
+
+**Evidence [D]:** the create-and-remove counts, the empty `git status` after a completed run, and
+the globbed `include` are read from one run's own output; the spare-the-pre-existing rule from
+`removeNewServerCaches`, and the never-cleared and not-binary-keyed properties from `build` and
+`write_tsconfig`. **Unmeasured:** whether a stale shadow has ever actually changed a recorded
+answer here, and whether the corpus suite writes the same cache — only the fixture suite was
+observed. And a count of zero untracked directories proves nothing on its own: it is equally what a
+checkout shows *before* a run reaches its first fixture, which is how this was first reported as
+reproducing on one machine and not another.
+
 ---
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
