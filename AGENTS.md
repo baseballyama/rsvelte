@@ -419,7 +419,7 @@ fixture suite was green on #3386 by **compensation**, two different inputs produ
 number, and fixing the compiler turns that row red until the harness mirrors the trim.
 
 The same `verify.mjs` run also gates compiler **warnings** — `(code, line, column)` per entry —
-on ratchets of their own (`warning-known-failures.{client,server,client-dev}.json` and
+on ratchets of their own (`warning-known-failures.{client,server,server-dev,client-dev}.json` and
 `warning-position-known-failures.*`, justified in `compatibility/KNOWN-FAILURES.md#warning-known-failures`).
 Codes and positions ratchet separately: a wrong set of codes is a semantic bug, a wrong position
 is one systemic cause, and folded together the larger position backlog would hide every semantic
@@ -429,7 +429,7 @@ scored the very entry that reproduces it as `MATCH`. When adding a gate, ask wha
 not look at, not only what the input does not contain.
 
 Compiler **errors** ratchet the same way and for the same reason
-(`error-{message,position,end,frame}-known-failures.{client,server,client-dev}.json`, justified
+(`error-{message,position,end,frame}-known-failures.{client,server,server-dev,client-dev}.json`, justified
 in `compatibility/KNOWN-FAILURES.md#error-known-failures`). The output verdict compares an error's `code` and
 nothing else, and that field is **saturated**: 0 divergences over the 2,843 `(id, target)` pairs
 both compilers reject. Every other field was invisible until it was captured — `message` 121
