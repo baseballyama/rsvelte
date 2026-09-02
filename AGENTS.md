@@ -1702,6 +1702,33 @@ Run the filter with the actual file list (`node scripts/ci/corpus-compat-job-fil
 different halves of one question, and the half you did not read is the one that makes your
 answer confident.
 
+**And "will this job run" is still not "can this change move it" — there are three
+quantities, not two.** The filter derives a blast radius from the *build closure*
+(`cargo metadata`), which is a deliberate over-approximation: running a job you did not need
+is cheaper than skipping one you did. So a change to `crates/rsvelte_formatter/src/script.rs`
+yields `lsp-corpus=true`, and the filter is not wrong — it is answering the outer question.
+
+```
+in the job's build closure          (the filter says true)
+  ⊋ the changed code is reachable from the gate's population   (measured: false)
+      ⊋ the output actually moves
+```
+
+Measured on that PR: the real-world LSP suite issues ten methods
+(`codeAction`, `completion`, `definition`, `diagnostic`, `documentSymbol`, `foldingRange`,
+`hover`, `inlayHint`, `linkedEditingRange`, `selectionRange`) and **`textDocument/formatting`
+is not among them** — it appears only in the fixture manifest, a different suite — while the
+language server reaches the formatter from exactly one file,
+`crates/rsvelte_language_server/src/format.rs`. The binary links the crate and no request
+can reach it, so waiting on a 950-job-minute run would have bought zero bits.
+
+Two controls made that a measurement rather than a grep. The method list needs a **positive
+control** (`hover` returns 3, so the pattern works) before `formatting` returning 0 means
+anything. And a literal grep is blind to a **dynamically composed** method name
+(`"textDocument/" + x`), so the bare `textDocument/` matches have to be read: here all three
+are `startsWith` filters and nothing is composed, which is what closes the set. Without that
+second check the zero is a statement about the instrument, not about the suite.
+
 
 ### Widening a set to close an enumeration hazard moves you along a new axis
 
