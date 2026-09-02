@@ -15,6 +15,34 @@ options `{filename, generate, dev:false, css:'external'}` — the report's own
 
 Parallel efficiency 4.83x on 10 cores (was 4.24x before the deferred AST).
 
+## 20x is met on the slice (2026-09-02 10:11)
+
+Merged tree `b86c8e26e` (three perf branches + a peer's Tier 1 + this session's
+VLQ change), 3000-file slice, **paired** protocol — official and rsvelte run
+back to back inside each round and the ratio is formed inside the round, so it
+cannot divide two numbers taken under different load:
+
+| target | median | mean | range | rounds >= 20x |
+|---|---:|---:|---|---:|
+| client | **22.64x** | 22.00 | 15.99-23.93 | 14/16 |
+| server | **25.61x** | 24.55 | 19.50-27.14 | 14/16 |
+
+Published report for comparison: client 5.14x, server 5.06x.
+
+**Pairing is what made this measurable.** The same tree read 16.3x-20.3x an
+hour earlier, and that spread was not noise — it was drift: official ran once
+and rsvelte ran minutes later, so the ratio divided two numbers taken under
+different load. Alternating them inside a round collapsed the spread and the
+median moved by more than either arm's own variation. When a ratio is the
+result, pair the arms in time; ABBA across arms does not cover the case where
+the *comparison target* is measured separately.
+
+Two caveats stand. This is the 3000-file slice, not the 33,890 the published
+report compiles — and the evidence that the slice reproduces the report is
+itself from `e9fe42c04`, an older tree, which is the same "measured somewhere
+else" hazard this document keeps recording. And the box was not idle: load
+3.9-4.5, free memory 12-14%, a 22.6 GB resident `llama-server` throughout.
+
 ## Where the merged tree actually stands (2026-09-02 09:00, NOISY machine)
 
 The 14.19x / 12.66x in the table above is `e9fe42c04`, **before** the three
