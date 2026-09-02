@@ -885,6 +885,45 @@ only ones with live discriminating power.
 **Evidence [D]:** the file counts and the key distribution above are measured; the suppression
 follows from the key's own definition at `ratchet.mjs:55`.
 
+
+### Blind spot 27p — a rejected request and an unchanged document are the same empty response [D]
+
+`on_formatting` answers a params deserialization failure with `respond_no_edits`
+(`server.rs:736-742`), and `worker.rs:659` states the same rule for the pass below it —
+"Formatting is never an error to the client: a failure yields no edits". So four distinct
+outcomes — the session has no formatter config, the formatter panicked, the formatter errored,
+and the document was already formatted — all reach the client as `[]`. The ratchet key records
+the response, so **it cannot say which of the four produced it**, and a malformed request is
+indistinguishable from agreement about a document that needs no change.
+
+That is not hypothetical here: the harness's own `textDocument/formatting` request omits
+`options`, which `lsp-types` declares without `#[serde(default)]`
+(`DocumentFormattingParams`, `formatting.rs:27-33`), because `suites.mjs:150-179` adds extra
+params only for `completion` / `hover` / `linkedEditingRange` (position), `selectionRange`
+(positions) and `codeAction` (range + context). Measured against the debug server on the ten
+`plugin-format-*` fixture documents' text:
+
+| request | response | stderr |
+|---|---|---|
+| `{textDocument}` — what the gate sends | `[]` | ``textDocument/formatting: missing field `options` `` |
+| `{textDocument, options}` | one edit, `newText: "unformatted\n"` | — |
+
+The twenty `differential:fixtures/plugin-format-*|textDocument/formatting` entries therefore
+measure the harness, not the compiler, and their recorded payload confirms it: the entry's
+`hash=f411dae2ecdd` is `digest(["item-" + digest(edit)])` over official's single edit, and
+recomputing that chain from the *measured rsvelte* edit reproduces `f411dae2ecdd` exactly — so
+the two edits are byte-identical and supplying `options` retires all twenty rather than
+converting them. The same omission reaches `documentHighlight`, whose `position` is likewise
+never sent although the ratchet key displays one (`|0:13|`): `request()`'s third argument is a
+label, not a parameter.
+
+**Evidence [D]:** the two responses and the stderr line are one measured probe against
+`target/debug/rsvelte-language-server`; the digest reconstruction is arithmetic over the
+committed ratchet. Note the population this does **not** settle — `prepareRename` (4 cases) and
+`colorPresentation` (3) also declare a manifest `params` that `suites.mjs` never reads, and both
+hold **zero** ratchet entries; that zero is consistent with both servers returning nothing, so it
+is not evidence they are unaffected.
+
 ---
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
