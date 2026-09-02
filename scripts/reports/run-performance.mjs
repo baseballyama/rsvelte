@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { arch, cpus, loadavg, platform, tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { flattenTemplateHoles, oxfmtTree, stripBlankLines } from "../compat-corpus/normalize.mjs";
 import { OXVELTE_REV, OXVELTE_VERSION, oxvelteInstalled } from "../bench/oxvelte-oracle.mjs";
@@ -14,7 +14,9 @@ const corpusDir = join(root, "compatibility/sources");
 const manifestPath = join(root, "compatibility/manifest.json");
 const compatibilityPath = join(root, "compatibility/report.json");
 const oracleDir = join(root, "scripts/bench/competitor-oracle");
-const outputPath = join(root, "apps/playground/static/performance-report.json");
+const outputPath = process.env.RSVELTE_REPORT_OUT
+  ? resolve(process.env.RSVELTE_REPORT_OUT)
+  : join(root, "apps/playground/static/performance-report.json");
 const astEquivBin = join(root, "target/release/ast_equiv_batch");
 const warmups = Number(process.env.REPORT_WARMUPS ?? 1);
 const runs = Number(process.env.REPORT_RUNS ?? 5);
@@ -53,12 +55,30 @@ const referenceModule = await import(
 const referenceCompile = (referenceModule.default ?? referenceModule).compile;
 const { createVerterCompiler } = await import(pathToFileURL(join(oracleDir, "verter-adapter.mjs")));
 
-const targets = [
+const allTargets = [
   { id: "client", generate: "client", dev: false },
   { id: "server", generate: "server", dev: false },
   { id: "client-dev", generate: "client", dev: true },
   { id: "server-dev", generate: "server", dev: true },
 ];
+// Re-measuring one surface must not cost the other three. A surface's own arms are
+// interleaved within its iteration, so dropping later targets cannot change an earlier
+// one's conditions; `outputPath` is refused below for a subset, because a report missing
+// three surfaces is not the published artifact.
+const requestedTargets = process.env.RSVELTE_REPORT_TARGETS?.split(",").map((s) => s.trim());
+const targets = requestedTargets
+  ? allTargets.filter((t) => requestedTargets.includes(t.id))
+  : allTargets;
+if (requestedTargets && !process.env.RSVELTE_REPORT_OUT) {
+  throw new Error(
+    "RSVELTE_REPORT_TARGETS measures a subset; set RSVELTE_REPORT_OUT so the published report is not overwritten with missing surfaces",
+  );
+}
+if (requestedTargets && targets.length !== requestedTargets.length) {
+  throw new Error(
+    `RSVELTE_REPORT_TARGETS names an unknown surface: ${requestedTargets.join(",")}; known: ${allTargets.map((t) => t.id).join(",")}`,
+  );
+}
 
 const optionsFor = (target, filename) => ({
   filename,
