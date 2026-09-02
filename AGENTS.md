@@ -1218,6 +1218,27 @@ against a task-output file rather than the log it wrapped; a `debug_assert_eq!`
 written into an instrument whose own comment said it would run under
 `--release`. The knowledge was present every time and the trigger was not.
 
+Two shapes of the same failure are worth naming separately, because neither
+looks like forgetting the rule. **A control you designed yourself still has to
+be run**: a key-set difference was reduced by grep, the difference looked
+explicable, and the runtime step of the author's own four-step procedure — check
+that a key in the difference really is absent at runtime — was skipped because
+step 3 had already produced an answer. That step would have failed instantly on
+the first key in the list. The procedure was written when the hazard was clearly
+in view and abandoned at the moment it would have paid.
+
+**And a disqualified number keeps circulating as a number.** Two client figures
+existed, 14.35x from an instrument whose defect had been found and 9.63x from a
+window its own author had contaminated. Both were rejected, in writing, in this
+file. A delegation written afterwards still opened with "the factor needed is
+14.35x → 20x = 1.39x", and the same message explained a paragraph later why
+9.63x was untrustworthy — the contradiction survived because the rejection and
+the reuse sat in different paragraphs. The needed factor is 1.39x or 2.08x
+depending on which is current, and 2.08x is above what the largest known lever
+can deliver, so the two readings point at different work. **When you retract a
+measurement, retract the quantity, not just the sentence around it** — otherwise
+the retraction is a note and the number is still load-bearing.
+
 ### Three things answer to "the official compiler", and they disagree
 
 An ad-hoc probe that does `import { compile } from 'svelte/compiler'` does **not** get the
