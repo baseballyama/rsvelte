@@ -1644,6 +1644,36 @@ outputs. It is comparing a *projection* of outputs. Before widening a family, as
 throw away — and prefer the widest key the assertion can carry, because rows are expensive and a
 key change is free.
 
+### A filter's error lives in the bucket it discarded, so sample the REJECTED side
+
+This file already says a population of only-invalid inputs is blind to one direction of a
+compiler's accept/reject check. The same hazard applies to a **classifier that sorts work**,
+and there it is worse, because the kept side is not merely uninformative — it looks perfect.
+
+Measured on a 1,316-item inventory of catch-all `match` arms. The pre-filter was "a sibling
+arm whose head is an enum path is a *kind* dispatch (keep); a sibling arm whose head is a
+literal is a *value* dispatch (discard)", giving 714 kept and 590 discarded. Sampling twelve
+from the **discarded** bucket found four that were kind dispatches *spelled as strings* —
+`match node_type(e) { Some("Identifier") … }` — and counting the whole bucket rather than
+extrapolating gave **149 of 590, 25%**. The correct candidate set was 863. Every one of the
+149 sat in the JSON-walking lint rules, which is precisely the population where a dropped
+node type is invisible, so the filter's error was concentrated on the inputs that most
+needed inspecting.
+
+Reading the kept side can never find this: each of the 714 really is a kind dispatch, so the
+filter scores 100% against the only sample most people take. Spend the first probe on what
+the filter threw away — and count the whole rejected bucket once a single counterexample
+appears there, because the rate in a sample of twelve is not the rate you need to act on.
+
+The same inventory's second sieve is the honest companion to this. "Is the `_` arm reachable
+at all", computed as the enum's variants minus what the siblings name, eliminated **1 of 714**
+— a visitor handling 3 of `Expression`'s 47 variants is ordinary here, so a residue of 44 says
+nothing about whether dropping them is safe. What discriminates is whether the caller discards
+the `None`, which is not a property of the arm and is not syntactically decidable. Reporting
+that sieve as "zero discriminating power" is worth more than a sieve that removes a few rows
+for a reason nobody can state.
+
+
 ### Widening a set to close an enumeration hazard moves you along a new axis
 
 A hand-written list of "the kinds this applies to" is only right if the domain is closed, so
