@@ -6242,11 +6242,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 4 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 3 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `2 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `1 + 2`
 
-- **2 — the emitted TSX differs** (`ts-mismatch`).
+- **1 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6263,10 +6263,10 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 2 carry **no target, and cannot have one**: every one was measured
-against official on 2026-09-02 and every one is an rsvelte defect, so the only end
-state open to them is elimination. The classification below is the input to that
-work; it is not an attribution, and this gate stays red until the entries are gone.
+The remaining 1 carries **no target, and cannot have one**: it was measured
+against official on 2026-09-02 and is an rsvelte defect, so the only end state open
+to it is elimination. The classification below is the input to that work; it is not
+an attribution, and this gate stays red until the entry is gone.
 
 ### Entries by mechanism (2026-09-02)
 
@@ -6292,9 +6292,35 @@ double count**, so the assignment has to be per entry.
 |---|---|---|
 | 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
-| 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x2`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1`
+
+### Previously: `template-hole-comment-dropped` (2026-09-02, at 4 entries)
+
+Kept because the description named a **comment**, and the axis is the mustache's
+interior against the expression node's span. Official copies the text between the
+braces into its template literal; rsvelte copied the expression's own span, so
+everything the braces hold that the node does not was dropped — a comment, yes,
+but also a newline and plain padding. `class="x { a } z"` lost its two spaces and
+has no comment in it anywhere.
+
+A repro written from the justification would have been all comments, and half of
+the 25 cells the fix moves carry none. **A justification is a hypothesis about
+why an entry diverges; it is not the identification of the axis**, and a repro
+built from it inherits the hypothesis.
+
+The interior reaches a template literal through **two ports** — the string
+builder and the segment builder in `template/attributes/attribute.rs` — and no
+gate compares them to each other. Measured one arm at a time on the same 46-cell
+grid: reverting only the string builder leaves 10 cells failing (`<slot>` and
+named-slot-element attributes), reverting only the segment builder leaves 15
+(element, `style`, component attributes), reverting both leaves 25. This is the
+third of the three svelte2tsx entries retired on 2026-09-02 to be a two-ports
+defect.
+
+`crates/rsvelte_projection/tests/svelte2tsx_mustache_interior.rs` is the grid.
+The whole-corpus sweep moved 4 units of 33,901 and changed one verdict:
+`MISMATCH -> match` 1, `match -> MISMATCH` 0.
 
 ### Previously: `bind-this-shape` (2026-09-02, at 5 entries)
 

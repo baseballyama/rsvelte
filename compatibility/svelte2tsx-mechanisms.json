@@ -9,10 +9,6 @@
 			"description": "a `//` line comment inside an `export let` type annotation swallows the rest of the emitted line, so the output is not TypeScript",
 			"pinned": "source"
 		},
-		"template-hole-comment-dropped": {
-			"description": "a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped",
-			"pinned": "source"
-		},
 		"upstream-bom-crash": {
 			"description": "official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it",
 			"pinned": "upstream"
@@ -22,7 +18,6 @@
 		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
 		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash",
 		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",
-		"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte": "template-hole-comment-dropped",
 		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type"
 	}
 }

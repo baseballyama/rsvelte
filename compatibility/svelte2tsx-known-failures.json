@@ -1,6 +1,5 @@
 [
 	"cnblocks/src/routes/(app)/veil/+layout.svelte",
 	"cnblocks/src/routes/(app)/veil/+page.svelte",
-	"huly/plugins/view-resources/src/components/list/ListCategory.svelte",
-	"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte"
+	"huly/plugins/view-resources/src/components/list/ListCategory.svelte"
 ]

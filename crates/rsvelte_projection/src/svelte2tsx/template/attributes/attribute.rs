@@ -145,14 +145,31 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
                         value_parts.push(escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
-                        let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{expr_text}}}"));
+                        // Official copies the mustache's INTERIOR verbatim, so a
+                        // comment or the author's whitespace inside `{ … }`
+                        // survives; the expression node's own span starts after
+                        // both.
+                        value_parts.push(format!("${{{}}}", mustache_interior(expr, source)));
                     }
                 }
             }
             let inner = format!("\"{}\":`{}`", name, value_parts.join(""));
             wrap(&inner, is_data_attr, is_css_prop)
         }
+    }
+}
+
+/// The text between a mustache's braces. Official's `Attribute.ts` copies that
+/// range into the template literal rather than the expression node's own span,
+/// so a comment or whitespace inside `{ … }` reaches the output.
+fn mustache_interior<'s>(
+    expr: &crate::ast::template::ExpressionTag<'_>,
+    source: &'s str,
+) -> &'s str {
+    if expr.end > expr.start + 1 {
+        slice_src(source, expr.start as usize + 1, expr.end as usize - 1)
+    } else {
+        get_expression_text(&expr.expression, source)
     }
 }
 
@@ -704,9 +721,12 @@ pub fn append_attribute_node_segments(
                             segs_push_lit(out, &escaped);
                         }
                         AttributeValuePart::ExpressionTag(expr) => {
-                            let range = get_expression_range(&expr.expression);
                             segs_push_lit(out, "${");
-                            if let Some((s, e)) = range {
+                            // See `mustache_interior`: the slice is the braces'
+                            // contents, not the expression node's span.
+                            if expr.end > expr.start + 1 {
+                                segs_push_src(out, expr.start + 1, expr.end - 1);
+                            } else if let Some((s, e)) = get_expression_range(&expr.expression) {
                                 segs_push_src(out, s, e);
                             } else {
                                 segs_push_lit(out, get_expression_text(&expr.expression, source));
