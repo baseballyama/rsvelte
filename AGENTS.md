@@ -1098,6 +1098,23 @@ the shortfall next to the spread of whichever arm the ratio is most sensitive
 to; a within-run trend is not visible in a cv or a median, so it has to be
 looked for on purpose.
 
+**Before designing an experiment, check whether the instrument already answers
+it.** Asked to separate a thermal cause from a contention one, the proposed
+design was two arms — with and without a cool-down between rounds — which
+confounds the thing being varied with total wall-clock exposure to external
+load (the long arm sits in the world longer, so an external cause makes the
+*cooled* arm look worse and reads as "cooling does not help, so not thermal").
+The redesign that replaced it needed one arm. But the deeper miss is that
+`perf_bench` already prints CPU time beside wall clock, and its own doc comment
+states the discriminator: a frequency drop spends more CPU seconds on the same
+instructions, while contention raises wall alone. The experiment was being built
+to measure something the existing output separates for free. And a second
+deduction was available with no measurement at all — the harness spawns a fresh
+process per sample, so anything carried between samples is not process state,
+which eliminates allocator arena growth and pool warm-up before any run starts.
+Read what the instrument already emits, and ask what the measurement design
+already rules out, before adding an arm.
+
 ### Nothing about a measurement arm is evidence of what it measured
 
 An A/B here is two `.node` binaries, and every cheap way of saying which is which
