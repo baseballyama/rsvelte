@@ -1342,6 +1342,38 @@ release test targets were all green. What attributed it was a completed *previou
 same corpus sweep: without a baseline rate, a sweep that stops printing is indistinguishable from
 a sweep competing with a build for CPU.
 
+### If the mechanism already has a name in the code, measure the name
+
+Asked whether two CSS residuals were one mechanism or two, the instruction given was "flip one
+arm and see whether the fix moves both" — which needs two builds and answers only *after* a fix
+exists. The cheaper answer was already in the tree: the empty-rule elision sits inside
+`!ctx.dev`, so varying `dev` reports **which path a case takes** directly. One build, and the
+two rows separate (`DIFF/DIFF` for the one that is not the empty check, `DIFF/EQ` for the one
+that is). A two-arm probe measures *what a change does*; an existing flag measures *where the
+input goes*, and the second question is usually the one being asked. This is the sibling of
+"a mechanism with a name is settled by `git log -S`" — that one is about provenance, this one
+about path.
+
+The same episode carries the shape of a well-run zero. The carrier count over 32,650 collected
+components was **0**, and it is only readable because the detector was positive-controlled
+first: 11 constructed cells, **two of which must answer `none`**, so the instrument is shown to
+produce both a hit and a miss; and the target selector was checked by running a known-diverging
+file through the identical wiring and watching it swing per target, which is what rules out a
+silently ignored argument. State the denominator's own deviation too — 32,650 is not the
+pipeline's 33,893 (no markdown blocks, one submodule unexpanded) — and say the difference could
+contain a carrier rather than asserting it cannot.
+
+### Say which of the summary and the distribution is primary
+
+"Keep the distribution beside the summary so a wrong summary can be recomputed" is the rule this
+repository nearly adopted after a `6.00` that should have been `5.96` — recoverable exactly
+because the distribution (3,551 files at 6, 81 at 4) was written next to it. It is not the rule.
+The `parse-ast` paragraph has the opposite failure on record: a summary of `459` above a cluster
+split that *also* summed to 459, while the JSON held **321** — the two went stale together and
+neither checks the other. The recoverable form is **naming the primary source**: the map's
+numbers are recomputable because the JSON is primary and the prose is derived. A distribution
+transcribed into prose is just a second summary.
+
 ### A guard and the computation behind it are two claims about one shape
 
 `try_hug_mixed` admitted a line prefix with `indent.ends_with('>')` — written for a parent's

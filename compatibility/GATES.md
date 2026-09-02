@@ -5386,6 +5386,15 @@ entry that reproduces it as `MATCH`.
 If you cannot answer with a discriminating case or a file:line citation, write `[U]` and say
 what would resolve it.
 
+**A fourth evidence form, and it fails differently from the other three.** A *positive-controlled
+exhaustive search that came back empty* is not a **structural argument from code**: nothing was
+derived, a range was swept and found bare. `completions.emmet` has no reader outside
+`settings.rs`, shown against `settings.html.enable` (read from `server.rs`) as the control that
+the search can find a reader when one exists. The two are refuted by different things — a
+structural argument falls to an error in the reasoning, an empty search falls to an error in the
+search's *range* — so labelling one as the other tells the next reader to re-check the wrong
+half. Write it as its own form and name the range that was swept.
+
 <a id="two-ports-inventory"></a>
 
 ## One upstream decision, N rsvelte implementations
