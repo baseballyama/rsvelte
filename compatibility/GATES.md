@@ -5430,6 +5430,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [21](#21-does-this-write-target-resolve-to-the-components-binding-or-to-a-shadow--d) | Does this write target resolve to the component's binding, or to a shadow? | 44 rewrite passes, 8 scope-aware | **[D]** | 4 ports closed at degree 1 |
 | [28](#28-how-is-an-elements-attribute-list-rendered--d) | How is an element's attribute list rendered? | 2 emitters (+2 copies of `action_arguments`) | **[D]** | 1 defect open |
 | [29](#29-is-a-name-inside-a-named-slots-body-reactive--d) | Is a name inside a named slot's body reactive? | 2 (phase 2 scope fork, phase 3 name lookup) | **[D]** | open |
+| [30](#30-is-this-rule-a-global-block--d) | Is this rule a global block? | 4 predicates, 13 decision sites | **[D]** | 4 defects closed, 1 open |
 
 **Rows 22–27 have bodies below and no line in this table** — measured 2026-09-02 by
 enumerating the `#### <n>.` headings against the table's own `[n]` links. The index is the
@@ -7025,6 +7026,60 @@ take two measurements.
 
 **Unmeasured:** the blast radius of making the `let:` transform scope-aware. Two corpus entries
 reproduce this, so nobody has priced the fix.
+
+#### 30. Is this rule a global block? — [D]
+
+**Upstream:** one flag. `is_global_block_selector` (`2-analyze/css/css-analyze.js:24-30`) is
+`type === 'PseudoClassSelector' && name === 'global' && args === null`, and the `Rule` visitor
+sets `node.metadata.is_global_block` when such a selector is **first in any compound** (`:222`).
+Every consumer — `css-warn.js:44`, `css-prune.js:133`, the transform's `is_in_global_block(path)`
+(`3-transform/css/index.js:390`) and `is_empty`'s own opening line (`:432`) — reads that one flag.
+
+**Ports.** rsvelte splits it across four predicates, and **no two of them agree**:
+
+|                                  | `:global` | `.x :global` | `:global(.a)` | `.x :global(.a)` |
+|----------------------------------|-----------|--------------|---------------|------------------|
+| `is_global_block`                | true      | **false**    | false         | false            |
+| `selector_contains_global_block` | true      | true         | false         | false            |
+| `is_global_selector_rule`        | true      | **false**    | **true**      | false            |
+| `is_in_bare_global_block` (flag) | true      | true         | false         | false            |
+
+Only `selector_contains_global_block` is equivalent to upstream's flag on accepted input. Thirteen
+decision sites read one of the four; enumerated one by one against the upstream line each answers,
+**four disagreed** — `collect_keyframe_names_from_node` (`is_global_block`, so a descendant-position
+block hashed an `animation` reference whose `@keyframes` it left alone: output naming a keyframe
+nothing defines), `is_rule_empty` (no counterpart for `is_empty`'s `children.length === 0`
+short-circuit), the empty check's flag (`is_global_selector_rule`, so an unused child of
+`:global(.foo)` counted toward its parent), and `transform_complex_selector` (returns the selector's
+source verbatim, skipping `remove_global_pseudo_class` along with the modifier). Six agree, and two
+have **no upstream counterpart** at all (the specificity-bump inputs) — those are recorded
+separately rather than counted as agreeing.
+
+**The variant matters, because it decides what a gate could have seen.** This inventory's older rows
+are all *two ports that answer differently*; a port-vs-port comparison finds them. Three of these
+four are a second kind — **a port that has no answer**, reached only through a branch the other
+port's callers never take — and one is a third: **two sites answering one question with different
+predicates**, where each is self-consistent and only upstream shows they are the same question.
+
+**A defect of the second kind is spelled "called from m of n paths", not "missing".** Both of the
+functions involved already existed and were already correct:
+
+| function | paths that should reach it | actually reached from |
+|---|---|---|
+| `collect_global_pseudo_cuts` | 2 | the global-block body copy only, never the selector return |
+| `transform_rule_preserving` | 2 | the minify branch only, never the non-minify one |
+| `ScopeRoot::is_scope_ancestor_of` | 1 | nobody, with a doc comment explaining the hazard it exists for |
+
+**`grep` does not find this shape**, because the question is not "does the rule exist" but "how many
+paths should reach it" — which is answered on the upstream side, by counting where one upstream rule
+is consulted, and then matched against the rsvelte call sites. The thirteen-site enumeration above is
+that work; the fourth defect was **predicted from the table and witnessed afterwards**, not found
+from a failing input.
+
+**Still open:** the non-minify body copy of a `:global { … }` block is a verbatim splice with
+deletion ranges, so it can express `remove_global_pseudo_class` (a deletion) and cannot express
+`/* (empty) … */` (an insertion). A nested empty rule inside a lone `:global { … }` is therefore
+still not commented out.
 
 ## AST equivalence — what the gates compare
 

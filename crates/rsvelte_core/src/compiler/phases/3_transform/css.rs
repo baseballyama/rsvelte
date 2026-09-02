@@ -743,8 +743,9 @@ fn collect_keyframe_names_from_node(
             }
         }
         Some("Rule") => {
-            // Check if this rule is a :global {} block
-            let is_global = is_global_block(node);
+            // `metadata.is_global_block` is set by a bare `:global` in the FIRST position of
+            // any compound, not only by a lone one — `.x :global { … }` is a global block too.
+            let is_global = selector_contains_global_block(node);
             let child_in_global = in_global_block || is_global;
 
             if let Some(block) = node.get("block")
@@ -1364,8 +1365,13 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
         None => return true,
     };
 
-    // Check if this rule contains :global (without arguments), which creates a global block context
-    let this_is_global_block = is_in_global_block || selector_contains_global_block(rule);
+    // A rule that IS a global block is empty only when it has no children at all
+    // (`is_empty`, `3-transform/css/index.js:432`); the flag its children see is the
+    // ancestor-derived one, which upstream threads unchanged.
+    if selector_contains_global_block(rule) {
+        return children.is_empty();
+    }
+    let this_is_global_block = is_in_global_block;
 
     for child in children {
         let child_type = child.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -7672,9 +7678,11 @@ fn transform_complex_selector(
     is_in_bare_global_block: bool,
     ctx: Option<&CssContext>,
 ) -> String {
-    // If inside a bare :global {} block, output selectors without any scoping
+    // Inside a bare `:global {}` block only the scoping modifier is skipped —
+    // upstream's ComplexSelector visitor still runs `remove_global_pseudo_class`
+    // on every `:global` it walks past (`3-transform/css/index.js:283-318`).
     if is_in_bare_global_block {
-        return get_complex_selector_text(node, css_source, css_start);
+        return global_stripped_complex_selector_text(node, css_source, css_start);
     }
 
     let mut result = String::new();
@@ -9123,6 +9131,37 @@ fn strip_bare_global_from_text(
     }
 
     raw
+}
+
+/// A complex selector's source text with the `:global(...)` wrappers that
+/// `remove_global_pseudo_class` deletes already removed.
+fn global_stripped_complex_selector_text(
+    node: &Value,
+    css_source: &str,
+    css_start: usize,
+) -> String {
+    let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let from = start.saturating_sub(css_start);
+    let to = end.saturating_sub(css_start);
+    if to > css_source.len() || from >= to {
+        return get_complex_selector_text(node, css_source, css_start);
+    }
+    let mut ranges = Vec::new();
+    collect_global_pseudo_cuts(node, css_source, css_start, &mut ranges);
+    ranges.retain(|&(a, b)| a >= from && b <= to && a < b);
+    ranges.sort_unstable();
+    let mut out = String::new();
+    let mut cursor = from;
+    for (a, b) in ranges {
+        if a < cursor {
+            continue;
+        }
+        out.push_str(&css_source[cursor..a]);
+        cursor = b;
+    }
+    out.push_str(&css_source[cursor..to]);
+    out
 }
 
 fn get_complex_selector_text(node: &Value, css_source: &str, css_start: usize) -> String {
