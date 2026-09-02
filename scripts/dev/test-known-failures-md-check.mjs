@@ -225,6 +225,19 @@ const bump = (dir, file, re, wrong, replace) => {
 	return { real, wrong };
 };
 
+// Put a line-anchored sentence into a doc immediately before `at`. For a
+// spelling the tree no longer carries, the case has to supply its own carrier —
+// a rule with no live input is shown to fire or it is not shown at all.
+const inject = (dir, file, at, line) => {
+	const direct = docText(dir, file);
+	if (!direct || !at.test(direct.text)) {
+		throw new Error(`self-test is stale: ${file} has no ${at} to inject before`);
+	}
+	const m = direct.text.match(at);
+	fs.writeFileSync(direct.p, direct.text.replace(m[0], `${line}\n\n${m[0]}`));
+	return { line };
+};
+
 // The control. Without it, every mutation below "passing" would also be
 // explained by the harness failing on any input at all.
 withCorpus(
@@ -325,18 +338,21 @@ withCorpus(
 // counting something other than ratchet entries sits under a partition of 0 in
 // `matrix-known-failures.md`, and 22 of the 24 reports the unscoped rule produced
 // were that one doc.
+// This one INJECTS its carrier instead of mutating a live sentence, because the
+// spelling has no live carrier left: #4165 retired the entries the two `The
+// other N` lines described and the prose that replaced them states no residue.
+// The two survivors in the tree are mid-line, which the rule's `^` does not
+// match, so mutating either would have measured nothing.
 let seen;
 withCorpus(
 	(d) => {
-		seen = bump(d, 'known-failures.md', /The other (\d[\d,]*) arrived with the wave-2 enrolment/, 999, (whole, n) =>
-			whole.replace(n, '999'),
-		);
+		seen = inject(d, 'known-failures.md', /^All remaining [\d,]+ arrived/m, 'The other 999 arrived with the wave-2 enrolment.');
 	},
 	(r) =>
 		check(
 			'a stale `The other N` fails',
-			[r.code, new RegExp(`"The other 999".*leaving ${seen.real}`, 's').test(r.out)],
-			[1, true],
+			[r.code, /"The other 999".*leaving (\d+)/s.test(r.out), /"The other 999".*leaving 999/s.test(r.out)],
+			[1, true, false],
 		),
 );
 
