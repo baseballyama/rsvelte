@@ -82,6 +82,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md` | sveltejs/svelte | #4111 | unrecorded |
 | `4117-svelte-class-shorthand-reaches-attributes-untransformed.md` | sveltejs/svelte | #4117 | unrecorded |
 | `4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md` | sveltejs/language-tools (svelte2tsx) | #4177 | unrecorded |
+| `4197-svelte-class-index-signature-typeerror.md` | sveltejs/svelte | #4197 | unrecorded |
 | `grass-css-color-4-relative-syntax.md` | connorskees/grass | — | unrecorded |
 | `grass-explicit-extension-specifier.md` | connorskees/grass | — | unrecorded |
 | `grass-hoists-a-declaration-written-after-a-nested-rule.md` | connorskees/grass | — | unrecorded |
