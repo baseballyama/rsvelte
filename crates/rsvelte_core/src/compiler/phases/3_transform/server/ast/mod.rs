@@ -1119,12 +1119,24 @@ impl<'a> ServerTransformState<'a> {
     /// statements) from the throwaway classification arena into the output AST.
     pub fn reparse_statement(&self, src: &str) -> Option<Statement<'a>> {
         let owned = self.allocator.alloc_str(src.trim());
-        let ret =
+        let mut ret =
             oxc_parser::Parser::new(self.allocator, owned, oxc_span::SourceType::mjs()).parse();
         comment_stats::bump::REPARSE_STMT_CALLS(1);
         comment_stats::bump::REPARSE_STMT_DROPPED_COMMENTS(ret.program.comments.len() as u64);
         if !ret.diagnostics.is_empty() {
-            return None;
+            // The classification parse accepts the TypeScript-only statement forms
+            // upstream emits verbatim, so the re-home has to accept them too or the
+            // statement is silently dropped from a component that still compiles.
+            let ts = oxc_parser::Parser::new(
+                self.allocator,
+                owned,
+                oxc_span::SourceType::mjs().with_typescript(true),
+            )
+            .parse();
+            if !ts.diagnostics.is_empty() {
+                return None;
+            }
+            ret = ts;
         }
         ret.program.body.into_iter().next()
     }

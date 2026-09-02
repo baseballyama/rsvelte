@@ -900,6 +900,32 @@ fn record_classification_failure(
     ));
 }
 
+/// Classify the erased script. Upstream erases type ANNOTATIONS and leaves the
+/// TypeScript-only statement forms (`import x = require(…)`, `export =`,
+/// `export as namespace`) in its output verbatim, so a TypeScript retry here is
+/// parity rather than leniency; a rejection by BOTH parsers is still a failure.
+fn classification_parse<'p>(
+    alloc: &'p oxc_allocator::Allocator,
+    owned: &'p str,
+    state: &ServerTransformState<'_>,
+    is_instance: bool,
+) -> Option<oxc_parser::ParserReturn<'p>> {
+    let ret = oxc_parser::Parser::new(alloc, owned, oxc_span::SourceType::mjs()).parse();
+    if ret.diagnostics.is_empty() {
+        return Some(ret);
+    }
+    let ts = oxc_parser::Parser::new(
+        alloc,
+        owned,
+        oxc_span::SourceType::mjs().with_typescript(true),
+    )
+    .parse();
+    if ts.diagnostics.is_empty() {
+        return Some(ts);
+    }
+    record_classification_failure(state, is_instance, &ret.diagnostics);
+    None
+}
 /// Prepare a TypeScript script for the server's independent JavaScript
 /// classification parse. Phase 1 accepts one deprecated import-attributes
 /// spelling through a same-length parser-only repair, so every server port must
@@ -971,11 +997,9 @@ fn transform_script<'a>(
     // allocator instead.
     let alloc = oxc_allocator::Allocator::default();
     let owned = alloc.alloc_str(src);
-    let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
-    if !ret.diagnostics.is_empty() {
-        record_classification_failure(state, is_instance, &ret.diagnostics);
+    let Some(ret) = classification_parse(&alloc, owned, state, is_instance) else {
         return Vec::new();
-    }
+    };
 
     classify_comments(&ret.program.body, &ret.program.comments);
 
@@ -3731,11 +3755,9 @@ fn transform_script_legacy<'a>(
 
     let alloc = oxc_allocator::Allocator::default();
     let owned = alloc.alloc_str(src);
-    let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
-    if !ret.diagnostics.is_empty() {
-        record_classification_failure(state, is_instance, &ret.diagnostics);
+    let Some(ret) = classification_parse(&alloc, owned, state, is_instance) else {
         return Vec::new();
-    }
+    };
 
     classify_comments(&ret.program.body, &ret.program.comments);
 
