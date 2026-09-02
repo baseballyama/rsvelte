@@ -16,6 +16,7 @@
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
+use oxc_semantic::SemanticBuilder;
 use oxc_span::GetSpan;
 use rustc_hash::FxHashSet;
 
@@ -161,9 +162,9 @@ enum PathElement {
 
 /// The root identifier of a member chain, pushing each element it walks past
 /// onto `path` in source order. `None` when the root is not a plain identifier.
-fn member_root(expr: &Expression<'_>, path: &mut Vec<PathElement>) -> Option<String> {
+fn member_root(expr: &Expression<'_>, path: &mut Vec<PathElement>) -> Option<(String, u32)> {
     match expr {
-        Expression::Identifier(id) => Some(id.name.to_string()),
+        Expression::Identifier(id) => Some((id.name.to_string(), id.span.start)),
         Expression::StaticMemberExpression(member) => {
             let root = member_root(&member.object, path)?;
             path.push(PathElement::Name(member.property.name.to_string()));
@@ -178,12 +179,53 @@ fn member_root(expr: &Expression<'_>, path: &mut Vec<PathElement>) -> Option<Str
     }
 }
 
+/// Spans of the identifier references in `program` that resolve to a declaration
+/// inside it. Upstream stops at `if (!binding) return null`, so a member chain
+/// rooted at a global is never instrumented.
+fn resolved_reference_spans(program: &Program<'_>) -> FxHashSet<u32> {
+    let semantic = super::super::profile::semantic_build(
+        super::super::profile::SEM_ASSIGN_DEV,
+        program.source_text.len(),
+        || SemanticBuilder::new().build(program),
+    )
+    .semantic;
+    let scoping = semantic.scoping();
+    let mut resolved = FxHashSet::default();
+    let mut collector = ResolvedRefs {
+        scoping,
+        spans: &mut resolved,
+    };
+    collector.visit_program(program);
+    resolved
+}
+
+struct ResolvedRefs<'a> {
+    scoping: &'a oxc_semantic::Scoping,
+    spans: &'a mut FxHashSet<u32>,
+}
+
+impl<'ast> Visit<'ast> for ResolvedRefs<'_> {
+    fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
+        if let Some(reference_id) = ident.reference_id.get()
+            && self
+                .scoping
+                .get_reference(reference_id)
+                .symbol_id()
+                .is_some()
+        {
+            self.spans.insert(ident.span.start);
+        }
+        walk::walk_identifier_reference(self, ident);
+    }
+}
+
 /// Collect the `$.assign` rewrites for one settled script.
 pub(super) fn collect_assign_edits(
     program: &Program<'_>,
     source: &str,
     original: &str,
     filename: &str,
+    component_bindings: &FxHashSet<&str>,
 ) -> Vec<Edit> {
     let mut collector = AssignCollector {
         source,
@@ -191,6 +233,12 @@ pub(super) fn collect_assign_edits(
         filename: filename.replace('/', "/\u{200b}"),
         statement_expressions: FxHashSet::default(),
         concise_arrow_bodies: FxHashSet::default(),
+        // The two halves cover each other's blind spot: this fragment is the
+        // instance body, so an import is declared outside it and only the
+        // component's bindings know it, while a name declared inside a function
+        // here is not a component binding and only the fragment resolves it.
+        resolved: resolved_reference_spans(program),
+        component_bindings,
         edits: Vec::new(),
     };
     collector.visit_program(program);
@@ -209,6 +257,11 @@ struct AssignCollector<'src> {
     /// would read `(v) => (obj.x = v)` — whose value the arrow returns — as a
     /// statement.
     concise_arrow_bodies: FxHashSet<u32>,
+    /// Identifier-reference spans that resolve inside this fragment.
+    resolved: FxHashSet<u32>,
+    /// Every name the component declares anywhere, which is what carries the
+    /// hoisted imports this fragment no longer contains.
+    component_bindings: &'src FxHashSet<&'src str>,
     edits: Vec<Edit>,
 }
 
@@ -235,25 +288,27 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
         };
         let mut path = Vec::new();
         let slice = |span: oxc_span::Span| &self.source[span.start as usize..span.end as usize];
-        let (root, object_span, property) = match &assign.left {
+        let (root, root_span, object_span, property) = match &assign.left {
             AssignmentTarget::StaticMemberExpression(member) => {
-                let Some(root) = member_root(&member.object, &mut path) else {
+                let Some((root, root_span)) = member_root(&member.object, &mut path) else {
                     return;
                 };
                 path.push(PathElement::Name(member.property.name.to_string()));
                 (
                     root,
+                    root_span,
                     member.object.span(),
                     format!("'{}'", member.property.name),
                 )
             }
             AssignmentTarget::ComputedMemberExpression(member) => {
-                let Some(root) = member_root(&member.object, &mut path) else {
+                let Some((root, root_span)) = member_root(&member.object, &mut path) else {
                     return;
                 };
                 path.push(PathElement::Computed);
                 (
                     root,
+                    root_span,
                     member.object.span(),
                     slice(member.expression.span()).to_string(),
                 )
@@ -266,6 +321,11 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
         let Some((line, column)) = self.sites.take(&root, &path, operator) else {
             return;
         };
+        // Upstream's `if (!binding) return null` — a chain rooted at a global
+        // (`document.body.onfocus = …`) is not instrumented at all.
+        if !self.resolved.contains(&root_span) && !self.component_bindings.contains(root.as_str()) {
+            return;
+        }
         if is_known_primitive(&assign.right)
             || (self.statement_expressions.contains(&assign.span.start)
                 && !self.concise_arrow_bodies.contains(&assign.span.start))
