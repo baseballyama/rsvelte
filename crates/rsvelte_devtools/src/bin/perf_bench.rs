@@ -68,6 +68,49 @@ fn usage() -> Usage {
 use rsvelte_core::compiler::compile_without_ast;
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
+/// `--qos` names a Darwin QoS class, which has no counterpart elsewhere: Apple
+/// confines a background-QoS thread to the efficiency cores, and Linux leaves
+/// placement to the scheduler. The flag is rejected off Apple rather than
+/// silently ignored, so an arm can never be labelled with a QoS it did not get.
+#[cfg(target_vendor = "apple")]
+mod qos {
+    pub type Class = libc::qos_class_t;
+
+    pub fn parse(name: &str) -> Class {
+        match name {
+            "interactive" => libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE,
+            "initiated" => libc::qos_class_t::QOS_CLASS_USER_INITIATED,
+            "default" => libc::qos_class_t::QOS_CLASS_DEFAULT,
+            "utility" => libc::qos_class_t::QOS_CLASS_UTILITY,
+            // Apple silicon confines a background-QoS thread to the efficiency
+            // cores, so this arm measures the P/E ratio for this workload —
+            // which is what bounds a pool sized to the total core count.
+            "background" => libc::qos_class_t::QOS_CLASS_BACKGROUND,
+            other => panic!("unknown qos {other}"),
+        }
+    }
+
+    /// Set the calling thread's QoS class.
+    pub fn apply(class: Option<Class>) {
+        if let Some(class) = class {
+            // SAFETY: sets the QoS of the calling thread only; no arguments are borrowed.
+            unsafe { libc::pthread_set_qos_class_self_np(class, 0) };
+        }
+    }
+}
+
+#[cfg(not(target_vendor = "apple"))]
+mod qos {
+    #[derive(Clone, Copy)]
+    pub struct Class;
+
+    pub fn parse(name: &str) -> Class {
+        panic!("--qos {name} is Darwin-only; this target has no QoS classes");
+    }
+
+    pub fn apply(_class: Option<Class>) {}
+}
+
 fn main() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let manifest: serde_json::Value = serde_json::from_str(
@@ -164,30 +207,12 @@ fn main() {
         })
     };
 
-    let qos_class = qos.as_deref().map(|q| match q {
-        "interactive" => libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE,
-        "initiated" => libc::qos_class_t::QOS_CLASS_USER_INITIATED,
-        "default" => libc::qos_class_t::QOS_CLASS_DEFAULT,
-        "utility" => libc::qos_class_t::QOS_CLASS_UTILITY,
-        // Apple silicon confines a background-QoS thread to the efficiency
-        // cores, so this arm measures the P/E ratio for this workload — which
-        // is what bounds a pool sized to the total core count.
-        "background" => libc::qos_class_t::QOS_CLASS_BACKGROUND,
-        other => panic!("unknown qos {other}"),
-    });
-    if let Some(class) = qos_class {
-        // SAFETY: sets the QoS of the calling thread only; no arguments are borrowed.
-        unsafe { libc::pthread_set_qos_class_self_np(class, 0) };
-    }
+    let qos_class = qos.as_deref().map(qos::parse);
+    qos::apply(qos_class);
     let pool = (threads > 0).then(|| {
         rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
-            .start_handler(move |_| {
-                if let Some(class) = qos_class {
-                    // SAFETY: as above, on the worker thread this handler runs on.
-                    unsafe { libc::pthread_set_qos_class_self_np(class, 0) };
-                }
-            })
+            .start_handler(move |_| qos::apply(qos_class))
             .build()
             .unwrap()
     });
