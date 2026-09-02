@@ -1103,6 +1103,19 @@ Rules, in the order they are cheap:
 3. **State the denominator.** "No warnings" is a claim about a population; say
    which one (`-p <crate> --lib --tests`), because the reader cannot tell from
    the output whether your file was in it.
+4. **A control that shares the measurement's broken stage certifies nothing.**
+   Checking whether a build was still progressing, `find target/release -newermt
+   '3 minutes ago' -type f 2>/dev/null | wc -l` returned `0`. The positive control
+   — the same command at `'60 minutes ago'`, which cannot be zero during a live
+   build — *also* returned `0`, and that was read as "so the build writes nowhere
+   near here" rather than as "so my instrument is broken". `find` here is `bfs`,
+   which rejects `'3 minutes ago'` outright (it wants ISO 8601); the `2>/dev/null`
+   turned the parse error into a `0` **in both the measurement and its control**,
+   because they differed only in the argument that was invalid in both. Vary the
+   control along an axis the suspected failure does not pass through, or run it
+   without the stage you are trusting. This is the instrument-level twin of a
+   port-vs-port test whose oracle is the other port: both are passed by a fault
+   the two halves share.
 
 **A control has a direction, and one direction is not two.** Rule 2 asks for a
 positive control; the corresponding negative one — an input the instrument must
