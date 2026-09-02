@@ -1256,11 +1256,22 @@ rather than before it, and that changes its signature. A filter that drops the c
 **asymmetrically** produces a loud `DIFF`; one that drops it **symmetrically** produces a
 silent `EQ`. So the positive control has to run **before** the result is read, not after:
 here the control (the real corpus file the entry came from) reproduced immediately and
-named the instrument, but the six green cells had already been reported. The same session
-then armed a CI monitor whose green predicate required four heavy gates matching a regex
-containing `^Tests$` — no check is named `Tests`, they are `Test (ubuntu-latest, N)` — so
-a guard added to fix a false green was replaced by one that could never fire. **Both
-directions of a dead predicate cost the same thing, and neither announces itself.**
+named the instrument, but the six green cells had already been reported. The same session then armed a
+CI monitor three times and made its green predicate unsatisfiable twice, in two different
+ways. First it required four heavy gates matching a regex containing `^Tests$` — no check is
+named `Tests`, they are `Test (ubuntu-latest, N)` — so the count could never reach four.
+Corrected to a real name list and verified against live data at 7, it then required all seven
+to be `SUCCESS`, and `Output-preserving corpus diff` is legitimately **SKIPPED** on a
+path-filtered PR, so seven-of-seven could never happen either.
+
+That is the reusable list. A success predicate has three independent ways to be unsatisfiable
+— **a name that matches nothing**, **a count that cannot be reached**, and **a conclusion
+value that never legitimately occurs** — and a skip is the one people forget, because it is
+neither success nor failure and reads as neither. Each guard here was added to fix a false
+green and replaced it with a permanent silence. **Both directions of a dead predicate cost the
+same thing, and neither announces itself**, so evaluate the predicate against live data
+*before* arming it, and confirm it would fire on a state you have actually observed rather
+than on the state you imagine "done" looks like.
 
 
 ### A grid's cells carry a direction; the mechanism does not have to
