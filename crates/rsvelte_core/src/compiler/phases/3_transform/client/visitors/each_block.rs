@@ -418,6 +418,12 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         store_to_invalidate: store_to_invalidate.clone(),
         item_reassigned,
         context_is_identifier,
+        scope_index: context
+            .state
+            .scope_root
+            .template_scope_map
+            .get(&node.start)
+            .copied(),
     });
 
     // Visit the each block body to get the body block

@@ -2046,6 +2046,13 @@ pub struct EachBindingContext {
     /// do NOT set `uses_index = true`, while Identifier patterns do.
     /// This field controls whether `binding_used` should propagate to `uses_index`.
     pub context_is_identifier: bool,
+
+    /// This each block's own Phase-2 scope. Upstream's `build_bind_this` decides
+    /// which identifiers become callback parameters by scope identity
+    /// (`scope === binding.scope`), which a name comparison cannot express: a
+    /// `{@const}` declared in the block is collected, the same name declared one
+    /// `{#if}` deeper is not.
+    pub scope_index: Option<usize>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {

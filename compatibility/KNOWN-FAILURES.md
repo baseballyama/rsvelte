@@ -2878,11 +2878,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 22 entries)
+### Client (`known-failures.client.json`, 17 entries)
 
-Partition of `known-failures.client.json` by verdict: `21 + 1`
+Partition of `known-failures.client.json` by verdict: `16 + 1`
 
-- **21 — the generated JS differs** (`js` / `code-differs`).
+- **16 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -3042,7 +3042,23 @@ the emitted default was the getter function rather than the store's value. Hashi
 client (entry, target) outputs before and after reports **2** changed units over 1 id,
 `match -> MISMATCH = 0`; the other two ids of that cluster do not move and stay listed.
 
-Every one of the remaining 22 arrived with the wave-2 enrolment (#3130) and is described
+All five entries the `bind:this` collection fix touched left this target and `client-dev`
+(#4121): `ha-fusion/…/Main/Views.svelte`, the two `svelte-bits` text animations,
+`ha-fusion/…/Sidebar/Navigate.svelte` and `kite-public/…/CategoryNavigation.svelte`. The
+callback parameters are now decided from the DECLARATION's scope rather than from the loop
+variable's name. The sweep over all 104,439 (entry, target) outputs moved those five ids and
+no others, and every one was already listed — so no passing entry changed.
+
+The last two of the five were reported here as *still diverging*, and only CI could say
+otherwise. A local sweep compares output text; the gate runs an **AST comparison on every
+byte-different output** afterwards, and the residue on both is comment placement, which that
+comparator does not represent. So the local reconstruction was strictly *stricter* than the
+gate — the direction that reports a **false** remaining divergence, not a missed one. It is
+the same reconstruction defect recorded above for the `style:`-directive cluster, found the
+same day by a different person on a different file: **a reconstruction that drops a rescue
+stage is over-strict, and its non-zero is a candidate list, not a finding.**
+
+Every one of the remaining 17 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3149,15 +3165,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 36 entries)
+### Client dev (`known-failures.client-dev.json`, 31 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `36`
+Partition of `known-failures.client-dev.json` by verdict: `31`
 
-- **36 — the generated JS differs.**
+- **31 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 36 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 31 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
