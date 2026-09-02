@@ -1216,6 +1216,10 @@ jobs:
         if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/ci/test-attribution-check.mjs
 
+      - name: Check the progress checker's own controls
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
+        run: node scripts/ci/test-attribution-progress-check.mjs
+
       # The CSS-prune sweep's comparison key. Same reason it lives here: the
       # comparator is a pure module, so it needs neither the NAPI binding nor
       # submodules that the sweep itself does.
@@ -1421,3 +1425,11 @@ jobs:
       - name: Verify the attribution tables that exist
         if: ${{ !cancelled() }}
         run: node scripts/ci/attribution-check.mjs --gate-known
+
+      # Entry-level refinement of `attribution-pending.json`: which listed id has
+      # a located cause and an issue tracking its elimination. It reports coverage
+      # and never lowers the bar -- the step above is unchanged, and the default
+      # mode still counts every recorded id as unattributed.
+      - name: Verify the entry-level progress records
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/attribution-progress-check.mjs
