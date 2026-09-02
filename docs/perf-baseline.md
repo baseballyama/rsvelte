@@ -763,6 +763,41 @@ be sound while the row you build on is contaminated, and `min` over two samples
 is not a measurement.** Both were caught the same way, by taking the obvious
 follow-up measurement before reporting the lead as a result.
 
+## One micro-optimization, opposite signs on the two targets (2026-09-02)
+
+`CodeBytes::next` called `skip_opaque` for every byte of every script, and that
+function answers `None` for all but four opener bytes (`` ` ``, `'`, `"`, `/`).
+Guarding the call is the obvious win. Measured as two separately-built binaries
+(distinct sha256), ABBA-paired inside each of 8 rounds, on the **single-thread**
+arm because that arm's cv is 0.63% and it is nearly immune to the ~15% of the box
+that belongs to other processes:
+
+| target | before/after CPU_min | rounds the guard wins | range |
+|---|---|---|---|
+| server | **1.0241** (+2.41%) | 8/8 | 1.021-1.065 |
+| client | **0.9838** (-1.62%) | 1/8 | 0.950-1.002 |
+
+Output is byte-identical — the `sink` checksum over every compiled file matches
+exactly on both targets (client 23372018, server 31488179, 2887 files) — so this
+is purely a cost question. Both directions are consistent rather than noisy:
+8/8 one way, 7/8 the other.
+
+**A guard that skips a call is not free, and where the scan is a smaller share
+the guard's own cost dominates.** The first version used a `[bool; 256]` table,
+which is a memory load in a loop that runs once per script byte; the four-way
+`matches!` costs four immediate compares instead. The table was there so a test
+could assert the guard and `skip_opaque` agree over all 256 values — that test is
+worth keeping, so the table moved *into* the test as an independent statement of
+the set, and the assertion now checks the predicate against it rather than
+against itself.
+
+The reusable part is the shape of the result, not the fix. **The same change was
++2.41% and -1.62% depending only on which target ran**, and a single-target
+measurement would have shipped it or binned it with equal confidence. Byte
+scanning is 14.73% of a server compile and 11.53% of a client one; a saving
+proportional to that share, against a cost proportional to source length, changes
+sign somewhere between them. Measure a shared-path change on both.
+
 ## Sizing the remaining gap: two arithmetic errors to avoid (2026-09-02)
 
 **Do not write `1/(1-0.403) = 1.68x` for "if the whole alloc+hash+memcpy bucket
