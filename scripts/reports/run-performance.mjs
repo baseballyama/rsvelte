@@ -569,6 +569,35 @@ for (const target of targets) {
   });
 }
 
+// Everything below this line is corpus-wide -- tool tasks, the printer, and
+// competitor arms -- and a subset run wants none of it. It is also where this
+// script has hung: @verter/wasm panics on a non-ASCII char boundary and the run
+// blocked there for 30 minutes with the surfaces already measured, then lost
+// them because the artifact is only written at the very end. Write the measured
+// surfaces first so a kill in the tail cannot discard a completed measurement.
+if (requestedTargets) {
+  writeFileSync(
+    outputPath,
+    `${JSON.stringify(
+      {
+        schemaVersion: 10,
+        kind: "rsvelte-performance-report",
+        generatedAt: new Date().toISOString(),
+        partial: {
+          surfacesMeasured: targets.map((t) => t.id),
+          surfacesOmitted: allTargets.filter((t) => !targets.includes(t)).map((t) => t.id),
+          incomplete: "surfaces only; tool tasks, printer and competitor arms not run",
+          note: "Subset run (RSVELTE_REPORT_TARGETS). Not the published report; do not quote as one.",
+        },
+        surfaces,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  console.error(`[report] wrote surfaces-only artifact to ${outputPath}`);
+}
+
 console.error("[report] benchmarking parser and toolchain tasks");
 const toolFileListDir = mkdtempSync(join(tmpdir(), "rsvelte-tool-corpus-"));
 const toolFileList = join(toolFileListDir, "files.txt");
