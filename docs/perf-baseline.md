@@ -700,7 +700,26 @@ claim would feed on. The core-equivalent conclusion survives: by CPU-second delt
 third-party load is 1.04-1.59 cores (median 1.49), so a 10-thread arm sees ~8.4
 cores. **~15% of the box belongs to someone else** either way.
 
-Second, **this explains the variance and NOT the drift.** A steady 1.5-core
+**Third, and measured after the two above: contention does not explain the drift at all,
+and the sign is wrong for it.** A clean 20-point run — positive control passed (a planted
+`rustc` read 0.98 cores), all 20 points `build = 0.00`, no peer build present — splits into
+two phases. In the ramp phase, `wall_min` rises 13.9% while `CPU_min` is flat (1.0226) *and
+the measured third-party load falls from 0.79 to 0.69 cores*: `r(other, wall) = -0.376`, and
+regressing wall on contention leaves a residual ramp that is **larger** (+81 ms), not
+smaller. The second phase does correlate the expected way (`r = +0.533`). So the earlier
+paragraph's "contention is a strong candidate for the variance" holds for one phase and is
+**refuted for the phase where the front/back asymmetry actually lives**. All three named
+hypotheses are now eliminated there — a peer's build (positive control), clock/thermal (CPU
+flat), and third-party contention (wrong sign) — leaving `wall` up with neither CPU nor
+competitor CPU up, i.e. **effective parallelism falling for an unidentified reason**. The
+honest state is *unexplained*, with three candidates struck off rather than one confirmed.
+
+Read the magnitude as a range: `CPU_min`/`wall_min` are minima over different runs, so their
+ratio implies a 10.2% parallelism loss while the binary's own printed `parallelism` (a
+median) says 2.7%. **13.9% is the upper bound, 2.7% the lower**, and the two differ by 3x
+because minima were recorded where medians were printed on the same line.
+
+Second, **the steady-contention argument explains the variance and NOT the drift.** A steady 1.5-core
 competitor produces round-to-round dispersion; it produces no monotone component,
 and the monotone front/back asymmetry is what was reported. Two minutes of
 sampling says nothing about a trend across a 20-minute run. So the honest split is:
