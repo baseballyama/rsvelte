@@ -110,6 +110,10 @@ pub(super) fn transform_module_dev_tail_ast(
         && !trace_thunks.is_empty()
         && super::inspect_rune_ast::source_has_inspect_trace(source);
     let has_await = dev && super::await_reactivity_loss_ast::source_has_await(source);
+    // Upstream's `AssignmentExpression` visitor is one map entry for every
+    // script, so a module script reaches the same rule as an instance one.
+    let has_assign =
+        dev && analysis.is_some() && super::assign_dev_ast::source_has_assignment(source);
     let experimental_async = analysis.is_some_and(|a| a.experimental_async);
     // A rune call whose callee resolves to a declaration is a plain call
     // (upstream `get_rune`). Only a module that declares such a name pays for
@@ -121,7 +125,14 @@ pub(super) fn transform_module_dev_tail_ast(
             .any(|b| rune_shadow::is_rune_name(&b.name))
     });
 
-    if !has_effect && !has_strict && !has_console && !has_tag && !has_inspect && !has_await {
+    if !has_effect
+        && !has_strict
+        && !has_console
+        && !has_tag
+        && !has_inspect
+        && !has_await
+        && !has_assign
+    {
         return None;
     }
     let _ = has_trace;
@@ -185,6 +196,18 @@ pub(super) fn transform_module_dev_tail_ast(
                         experimental_async,
                     ),
                 );
+            }
+            if has_assign && let Some(analysis) = analysis {
+                // A module script's whole program is the fragment, so every
+                // name it declares is resolved here; the instance path's
+                // second resolver exists only because its fragment is a body.
+                edits.extend(super::assign_dev_ast::collect_assign_edits(
+                    program,
+                    src,
+                    &analysis.source,
+                    &analysis.filename,
+                    &rustc_hash::FxHashSet::default(),
+                ));
             }
             edits
         },
