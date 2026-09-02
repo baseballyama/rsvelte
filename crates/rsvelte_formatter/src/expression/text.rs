@@ -78,6 +78,54 @@ pub(super) fn first_line_ends_with_logical_op(first_line: &str) -> bool {
     t.ends_with("&&") || t.ends_with("||") || t.ends_with("??")
 }
 
+/// Whether `line` ends with a top-level binary operator, i.e. OXC wrapped the
+/// chain there rather than at a delimiter.
+///
+/// A delimiter break (`(`, `,`) is deliberately excluded: those layouts carry
+/// prettier's expanded-argument spacing and are rejoined by
+/// [`collapse_block_header_expanded_call`] / [`collapse_multiline_to_single_line`],
+/// which know where the spaces go.
+fn ends_with_binary_op(line: &str) -> bool {
+    const SYMBOLIC: [&str; 19] = [
+        "&&", "||", "??", "===", "!==", "==", "!=", "<=", ">=", "**", "+", "-", "*", "/", "%", "<",
+        ">", "&", "|",
+    ];
+    const WORDS: [&str; 2] = ["instanceof", "in"];
+    let t = line.trim_end();
+    if SYMBOLIC.iter().any(|op| t.ends_with(op)) {
+        return true;
+    }
+    WORDS.iter().any(|w| {
+        t.strip_suffix(w).is_some_and(|head| {
+            head.chars()
+                .next_back()
+                .is_some_and(|c| !c.is_alphanumeric() && c != '_' && c != '$')
+        })
+    })
+}
+
+/// Collapse a chain OXC broke only at top-level binary operators back to one
+/// line.
+///
+/// `format_inline_expression` prints at `LineWidth::MAX` (320), so an
+/// expression wider than that breaks no matter what the caller asks for.
+/// prettier-plugin-svelte's `removeLines` rejoins such a break, which is why a
+/// block header stays on one line at any width. Returns `None` when any break
+/// sits somewhere else, so a real statement body is left alone.
+pub(super) fn collapse_logical_chain(formatted: &str) -> Option<String> {
+    let lines: Vec<&str> = formatted.lines().collect();
+    if lines.len() < 2 {
+        return None;
+    }
+    if !lines[..lines.len() - 1]
+        .iter()
+        .all(|l| ends_with_binary_op(l))
+    {
+        return None;
+    }
+    Some(lines.iter().map(|l| l.trim()).collect::<Vec<_>>().join(" "))
+}
+
 /// Returns `true` when the expression source starts with `[` or `{`
 /// (an array literal or object literal).  prettier-plugin-svelte never breaks
 /// these in block-header positions even when they are far wider than the print

@@ -2256,6 +2256,13 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
+    // `should_proxy` proxies everything it does not recognise; this sniff only
+    // proxies what it DOES recognise, so a shape none of the predicates below
+    // parse falls out on the opposite side. Optional chaining is that shape:
+    // `p?.x` splits into `p?` and `x`, so no member or call predicate matches.
+    let unchained = strip_optional_chaining(trimmed);
+    let trimmed = unchained.as_str();
+
     // Check for top-level function call pattern: identifier followed by (
     // But not operators like !, -, etc.
     // Also check for method calls like foo.bar()
@@ -2295,6 +2302,35 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
     }
 
     false
+}
+
+/// Rewrite optional chaining into its plain form (`?.` -> `.`, `?.[` -> `[`,
+/// `?.(` -> `(`) so the member and call predicates can read the chain. A `?`
+/// followed by a digit is the one spelling where `?.` opens a ternary rather
+/// than a chain (`c ?.5 : 1`), so it is left alone.
+fn strip_optional_chaining(expr: &str) -> String {
+    let bytes = expr.as_bytes();
+    let mut out = String::with_capacity(expr.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'?'
+            && bytes.get(i + 1) == Some(&b'.')
+            && !bytes.get(i + 2).is_some_and(u8::is_ascii_digit)
+        {
+            match bytes.get(i + 2) {
+                Some(b'[') | Some(b'(') => i += 2,
+                _ => {
+                    out.push('.');
+                    i += 2;
+                }
+            }
+            continue;
+        }
+        let ch = expr[i..].chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    out
 }
 
 /// Check if an expression is a `BinaryExpression` at the top level — an infix

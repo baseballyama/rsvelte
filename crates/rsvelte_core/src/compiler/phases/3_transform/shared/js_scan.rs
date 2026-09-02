@@ -277,6 +277,95 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
     }
 }
 
+/// Every opaque run of the JavaScript in `bytes`, at quasi granularity: a
+/// comment, a string, a regex literal, and each text chunk of a template
+/// literal — a `${…}` substitution is code, not opaque.
+///
+/// `skip_opaque` answers the coarser question on purpose (#3592), which is the
+/// rule a scan that must not step INTO a literal needs; a consumer that blanks
+/// text and then searches it needs a substitution left readable.
+pub fn opaque_runs(bytes: &[u8]) -> Vec<(usize, usize)> {
+    struct Tpl {
+        in_text: bool,
+        depth: u32,
+    }
+    let mut runs = Vec::new();
+    let mut stack: Vec<Tpl> = Vec::new();
+    let mut quasi_start = 0usize;
+    let mut prev: Option<u8> = None;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if stack.last().is_some_and(|top| top.in_text) {
+            match bytes[i] {
+                b'\\' => i += 2,
+                b'`' => {
+                    runs.push((quasi_start, i));
+                    stack.pop();
+                    prev = Some(b'x');
+                    i += 1;
+                }
+                b'$' if bytes.get(i + 1) == Some(&b'{') => {
+                    runs.push((quasi_start, i));
+                    let top = stack
+                        .last_mut()
+                        .expect("template text implies a stack entry");
+                    top.in_text = false;
+                    top.depth = 0;
+                    prev = Some(b'{');
+                    i += 2;
+                }
+                _ => i += 1,
+            }
+            continue;
+        }
+        match bytes[i] {
+            b'`' => {
+                stack.push(Tpl {
+                    in_text: true,
+                    depth: 0,
+                });
+                quasi_start = i + 1;
+                i += 1;
+                continue;
+            }
+            b'{' => {
+                if let Some(top) = stack.last_mut() {
+                    top.depth += 1;
+                }
+            }
+            b'}' => {
+                if let Some(top) = stack.last_mut() {
+                    if top.depth == 0 {
+                        top.in_text = true;
+                        quasi_start = i + 1;
+                        i += 1;
+                        continue;
+                    }
+                    top.depth -= 1;
+                }
+            }
+            _ => {}
+        }
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            runs.push((i, next));
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    // An unterminated template literal leaves its tail opaque.
+    if stack.last().is_some_and(|top| top.in_text) {
+        runs.push((quasi_start, bytes.len()));
+    }
+    runs
+}
+
 /// Byte just past the template literal that opens at `i`.
 ///
 /// A template is not a quote-delimited run: `${…}` re-enters code and may open
@@ -801,9 +890,54 @@ fn is_js_whitespace(c: char) -> bool {
 mod tests {
     use super::{
         KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_code_from, find_rune_call,
-        find_rune_code, line_starts_outside_opaque, opens_opaque, skip_opaque,
+        find_rune_code, line_starts_outside_opaque, opaque_runs, opens_opaque, skip_opaque,
         slash_starts_regex_at,
     };
+
+    fn runs(src: &str) -> Vec<&str> {
+        opaque_runs(src.as_bytes())
+            .into_iter()
+            .map(|(start, end)| &src[start..end])
+            .collect()
+    }
+
+    #[test]
+    fn a_line_comment_is_one_run_ending_before_the_newline() {
+        assert_eq!(runs("a // c\nb"), ["// c"]);
+    }
+
+    #[test]
+    fn a_block_comment_run_includes_its_terminator() {
+        assert_eq!(runs("a /* c */ b"), ["/* c */"]);
+    }
+
+    #[test]
+    fn a_string_run_includes_its_quotes() {
+        assert_eq!(runs("x = 's'"), ["'s'"]);
+    }
+
+    /// The whole point of this function against `skip_opaque`: a substitution
+    /// is code, so the run stops at `${` and resumes after `}`.
+    #[test]
+    fn a_template_substitution_is_code_between_two_quasi_runs() {
+        assert_eq!(runs("`t${x}u`"), ["t", "u"]);
+    }
+
+    #[test]
+    fn a_template_nested_in_a_substitution_keeps_its_own_substitution_readable() {
+        assert_eq!(runs("`a${`b${c}d`}e`"), ["a", "b", "d", "e"]);
+    }
+
+    #[test]
+    fn a_slash_after_an_operator_opens_a_regex_and_a_slash_after_a_value_does_not() {
+        assert_eq!(runs("x = /re/g"), ["/re/g"]);
+        assert!(runs("a / b").is_empty());
+    }
+
+    #[test]
+    fn an_unterminated_template_leaves_its_tail_opaque() {
+        assert_eq!(runs("`ab"), ["ab"]);
+    }
 
     #[test]
     fn a_rune_name_in_member_position_is_not_a_rune() {

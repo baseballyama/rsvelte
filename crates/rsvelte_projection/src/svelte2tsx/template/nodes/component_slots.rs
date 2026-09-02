@@ -12,18 +12,24 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("template source offsets are represented as u32")
 }
 
-use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
-use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
-use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
+use crate::svelte2tsx::template::attributes::attribute::{
+    AttrHost, element_is_custom, format_attribute_node,
+};
+use crate::svelte2tsx::template::attributes::binding::{
+    any_bind_needs_element_var, bind_is_filtered_from_props, format_bind_directive,
+    sanitize_tag_for_var,
+};
+use crate::svelte2tsx::template::attributes::directive_suffix::{
+    action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
+};
 use crate::svelte2tsx::template::attributes::event_handler::format_on_directive;
 use crate::svelte2tsx::template::attributes::let_::{
     build_let_destructure_string, has_let_directives,
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
-use crate::svelte2tsx::template::attributes::transition::format_transition_directive;
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
 use crate::svelte2tsx::template::segs::segs_to_string;
-use crate::svelte2tsx::template::utils::expr::get_expression_range;
+use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_set_binding_ranges};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_inplace};
@@ -31,7 +37,6 @@ use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_i
 use super::inline_component::{handle_component, handle_svelte_component, handle_svelte_self};
 use super::slot_element::slot_attr_static_name;
 use super::snippet_block::hoist_snippet_blocks;
-use crate::svelte2tsx::template::attributes::action::format_use_directive;
 
 /// True if `attributes` contains a `slot` attribute whose value is anything
 /// other than the static string `"default"` — i.e. a *non-default* slot target.
@@ -479,18 +484,45 @@ pub fn handle_named_slot_element(
     );
 
     // Build attributes string excluding `slot` and `let:` directives
-    let attrs_str =
-        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace);
+    let attrs_str = build_named_slot_element_attrs(
+        &el.attributes,
+        source,
+        &options.typings_namespace,
+        &el.name,
+        true,
+        options.namespace.preserves_attribute_case(),
+    );
 
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
 
-    // class:/style: directives lower to statements after createElement
-    // (`class:bar` → ` bar;`), same as a regular element. The `let:` binding
+    // Actions precede the element, same as a regular element — see
+    // `handle_regular_element`. Its `directive_suffix` is unused for the same
+    // reason it is there: the segment builder below covers transitions too.
+    let (directive_prefix, _directive_suffix, action_count) =
+        build_directive_prefix_suffix(&el.attributes, source, &el.name, &options.typings_namespace);
+    let actions_arg = action_arguments(action_count);
+
+    // A `bind:this` / one-way binding needs the created element in a variable to
+    // assign from. The index is the element's nesting DEPTH, as on a regular
+    // element.
+    let element_var = any_bind_needs_element_var(&el.attributes, source)
+        .then(|| format!("$$_{}{depth}", sanitize_tag_for_var(&el.name)));
+
+    // class:/style:/transition:/bind: lower to statements after createElement in
+    // ONE source-order pass, exactly as on a regular element. The `let:` binding
     // itself is consumed by the `$$slot_def[…]` destructure above (and any use
     // in the body emits its own reference), so it is NOT re-emitted here.
-    let class_style_suffix = segs_to_string(
-        &build_class_style_directive_suffix_segments(&el.attributes, source),
+    let directive_suffix = segs_to_string(
+        &build_element_directive_suffix_segments(
+            &el.attributes,
+            source,
+            element_var.as_deref(),
+            &el.name,
+            options.is_ts_file || !options.emit_jsdoc,
+            &el.name,
+            &options.typings_namespace,
+        ),
         source,
     );
 
@@ -514,17 +546,36 @@ pub fn handle_named_slot_element(
     // destructure (`{ …, foo: bar } = …$$slot_def["…"]`); official emits NO
     // separate `bar;` reflection statement (that would duplicate the `{bar}`
     // content expression).
+    let element_var_decl = element_var
+        .as_ref()
+        .map_or_else(String::new, |var| format!("const {var} = "));
     let opener = format!(
-        "{}{}{{ {}.createElement(\"{}\", {{{}{}}});{}",
+        "{}{}{}{{ {}{}.createElement(\"{}\"{}, {{{}{}}});{}",
         " ".repeat(spacing.before_block),
         block_open,
+        // An action prefix gets its own block so `$$action_N` is scoped to the
+        // element, exactly as `handle_regular_element` wraps it.
+        if directive_prefix.is_empty() {
+            String::new()
+        } else {
+            format!("{{{directive_prefix}")
+        },
+        element_var_decl,
         options.typings_namespace,
         el.name,
+        actions_arg,
         " ".repeat(spacing.in_attr_object),
         attrs_str,
-        class_style_suffix
+        directive_suffix
     );
     str.overwrite(el.start, opening_tag_end, &opener);
+    // An action prefix opens one more block, which the closer below has to match.
+    // The leading space is the one the overwritten `</tag>` leaves behind, so an
+    // element that has no closing tag to overwrite does not get it — same rule
+    // as `close_regular_element`.
+    let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
+    let close = format!(" }}}}{extra_close}");
+    let close_no_tag = format!("}}}}{extra_close}");
 
     // This named-slot element is a RegularElement — its children are at depth+1.
     hoist_snippet_blocks(&el.fragment, source, str);
@@ -540,13 +591,13 @@ pub fn handle_named_slot_element(
         .ends_with("/>");
     let is_void = crate::compiler::utils::is_void_element(&el.name);
     if is_void || is_self_closing_source {
-        str.append_left(el.end, " }}");
+        str.append_left(el.end, &close_no_tag);
     } else {
         let closing_tag_start = find_closing_tag_start(source, el.end);
         if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, " }}");
+            str.overwrite(closing_tag_start, el.end, &close);
         } else {
-            str.append_left(el.end, " }}");
+            str.append_left(el.end, &close_no_tag);
         }
     }
 }
@@ -569,11 +620,8 @@ pub fn handle_named_slot_svelte_fragment(
     let slot_name = slot_attr_static_name(&el.attributes).unwrap_or_default();
     let let_destructure = build_let_destructure_string(&el.attributes, source);
 
-    // Leading ` ` matches the JS reference, which produces
-    // `\t {const ... ;{ svelteHTML.createElement(...)` after the tab indent
-    // is preserved.
     let block_open = format!(
-        " {{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     let opening_tag_end =
@@ -586,34 +634,39 @@ pub fn handle_named_slot_svelte_fragment(
     // position-preserving emission leaves one space per stripped attribute
     // visible inside the empty `{}` (so `slot="x" let:y` → 2 spaces,
     // `slot="x" let:y let:z` → 3 spaces, etc.).
-    let attrs_str =
-        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace);
-    let inner = if attrs_str.is_empty() {
-        let stripped_count = el
-            .attributes
-            .iter()
-            .filter(|a| {
-                matches!(
-                    a,
-                    Attribute::Attribute(node)
-                        if node.name == "slot"
-                ) || matches!(a, Attribute::LetDirective(_))
-            })
-            .count();
-        // A self-closing tag's ` /` is one more source column the emission
-        // preserves, and it lands inside the braces rather than after them.
-        let width = if has_closing_tag {
-            stripped_count.max(1)
-        } else {
-            stripped_count + 1
-        };
-        " ".repeat(width)
-    } else {
-        attrs_str
-    };
+    let attrs_str = build_named_slot_element_attrs(
+        &el.attributes,
+        source,
+        &options.typings_namespace,
+        &el.name,
+        // `<svelte:fragment>` emits no binding suffix — and takes only `slot`
+        // and `let:`, so there is nothing to lower.
+        false,
+        options.namespace.preserves_attribute_case(),
+    );
+    // The opener is position-preserving, exactly as on a named-slot element:
+    // the columns the stripped `slot=` / `let:` take up reappear as spaces.
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        Some((el.start + 1, el.start + 1 + source_offset(el.name.len()))),
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: true,
+            tag_name: &el.name,
+            is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
+        },
+    );
     let opener = format!(
-        "{block_open}{{ {}.createElement(\"svelte:fragment\", {{{inner}}});",
-        options.typings_namespace
+        "{}{block_open}{{ {}.createElement(\"svelte:fragment\", {{{}{attrs_str}}});",
+        " ".repeat(spacing.before_block),
+        options.typings_namespace,
+        " ".repeat(spacing.in_attr_object),
     );
 
     if !has_closing_tag {
@@ -812,7 +865,17 @@ pub fn handle_named_slot_svelte_self(
 }
 
 /// Build attribute string for a named slot element, excluding `slot` and `let:` directives.
-pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str, ns: &str) -> String {
+/// `lower_bindings` says the caller also emits the post-`createElement` binding
+/// suffix, so `bind:this` and the one-way binding attributes must leave the
+/// props object — the hosts that do not emit that suffix would drop them.
+pub fn build_named_slot_element_attrs(
+    attributes: &[Attribute],
+    source: &str,
+    ns: &str,
+    tag: &str,
+    lower_bindings: bool,
+    preserve_case: bool,
+) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for attr in attributes {
@@ -823,17 +886,37 @@ pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str, ns
                 }
                 // Named-slot elements become `svelteHTML.createElement(…)` calls,
                 // so they are real DOM elements — apply data-* wrapping.
-                parts.push(format_attribute_node(node, source, true));
+                // `<svelte:fragment>` is an `Element` whose node type is not
+                // `Element`, so neither name rewrite reaches it.
+                let host = if tag == "svelte:fragment" {
+                    AttrHost::SpecialTag { tag }
+                } else {
+                    AttrHost::Element {
+                        tag,
+                        preserve_case,
+                        is_custom_element: element_is_custom(tag, attributes),
+                    }
+                };
+                parts.push(format_attribute_node(node, source, host));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));
             }
             Attribute::BindDirective(bind) => {
-                parts.push(format_bind_directive(
-                    bind,
-                    source,
-                    ns == crate::svelte2tsx::interfaces::DEFAULT_TYPINGS_NAMESPACE,
-                ));
+                // Same rule as a regular element's props object: `bind:this` and
+                // the one-way binding attributes are lowered to statements after
+                // `createElement`, not carried as props.
+                let is_get_set = get_set_binding_ranges(&bind.expression, source).is_some();
+                if !lower_bindings
+                    || (is_get_set && bind.name != "this")
+                    || !bind_is_filtered_from_props(&bind.name, tag)
+                {
+                    parts.push(format_bind_directive(
+                        bind,
+                        source,
+                        ns == crate::svelte2tsx::interfaces::DEFAULT_TYPINGS_NAMESPACE,
+                    ));
+                }
             }
             Attribute::OnDirective(on) => {
                 parts.push(format_on_directive(on, source));
@@ -846,11 +929,11 @@ pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str, ns
                 // class:/style: are not props — they lower to statements after
                 // createElement (see the suffix in handle_named_slot_element).
             }
-            Attribute::TransitionDirective(transition) => {
-                parts.push(format_transition_directive(transition, source, ns));
-            }
-            Attribute::UseDirective(use_dir) => {
-                parts.push(format_use_directive(use_dir, source, ns));
+            Attribute::TransitionDirective(_) | Attribute::UseDirective(_) => {
+                // Not props: an action becomes a `const $$action_N = …` BEFORE the
+                // createElement and a transition a call AFTER it, exactly as on a
+                // regular element (`build_directive_prefix_suffix`). Emitting either
+                // inside the props object produces text no TS parser accepts.
             }
         }
     }

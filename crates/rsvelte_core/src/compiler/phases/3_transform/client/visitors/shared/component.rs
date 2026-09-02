@@ -2514,6 +2514,18 @@ fn build_slot_function(
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )> = Vec::new();
     let saved_deep_read = context.state.transform_deep_read.clone();
+    let saved_lets_out_of_scope = context.state.lets_out_of_scope.clone();
+
+    // A named slot is a child of the scope OUTSIDE the component, so the
+    // component's `let:` names are globals there — which is what decides whether
+    // the expression is reactive, not only whether it gets a `$.get`.
+    for (name, _) in let_names {
+        if should_apply_let_transforms {
+            context.state.lets_out_of_scope.remove(name);
+        } else {
+            context.state.lets_out_of_scope.insert(name.clone(), ());
+        }
+    }
 
     // Register let directive transforms if this is the appropriate slot
     if should_apply_let_transforms {
@@ -2562,6 +2574,7 @@ fn build_slot_function(
         }
         context.state.transform_deep_read = saved_deep_read;
     }
+    context.state.lets_out_of_scope = saved_lets_out_of_scope;
 
     // If no statements were generated, return None
     if child_statements.is_empty() {

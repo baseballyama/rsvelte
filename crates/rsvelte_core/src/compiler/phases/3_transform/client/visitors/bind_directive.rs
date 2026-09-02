@@ -1304,12 +1304,15 @@ fn collect_each_block_ids(
             collect_each_block_ids(arena, arena.get_expr(*inner), context, result, seen);
         }
         JsExpr::Identifier(name) => {
-            if seen.contains(name.as_str()) {
+            // Upstream marks the name seen *before* testing whether this
+            // occurrence is a reference, so a non-reference position burns the
+            // name for every later one: in `els[{ k: k }.k]` the property key
+            // is walked first and nothing is collected.
+            if !seen.insert(name.to_string()) {
                 return;
             }
             for each_ctx in &context.state.each_binding_context {
                 if name == each_ctx.index_name {
-                    seen.insert(name.to_string());
                     result.push(EachBlockId {
                         name: name.to_string(),
                         reactive: each_ctx.index_reactive,
@@ -1317,7 +1320,6 @@ fn collect_each_block_ids(
                     return;
                 }
                 if name == each_ctx.item_name {
-                    seen.insert(name.to_string());
                     result.push(EachBlockId {
                         name: name.to_string(),
                         reactive: each_ctx.item_reactive,
@@ -1332,7 +1334,6 @@ fn collect_each_block_ids(
                     .destructured_update_paths
                     .contains_key(name.as_str())
                 {
-                    seen.insert(name.to_string());
                     // Destructured each vars are always reactive (they have read transforms)
                     result.push(EachBlockId {
                         name: name.to_string(),
@@ -1341,13 +1342,55 @@ fn collect_each_block_ids(
                     return;
                 }
             }
+            // Upstream keys this on scope identity, not on the loop variable's
+            // name: any binding *declared in* an each block's own scope becomes a
+            // callback parameter, so a `{@const}` written directly in the block is
+            // collected while the same name one `{#if}` deeper is not. The two
+            // exclusions are upstream's and must travel with the rule — without
+            // them the scope test over-collects declaration tags.
+            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+            use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
+            if let Some(binding) = context.state.get_binding(name)
+                && !is_state_source(binding, context.state.analysis)
+                && binding.kind != BindingKind::Derived
+                && context
+                    .state
+                    .each_binding_context
+                    .iter()
+                    .any(|each_ctx| each_ctx.scope_index == Some(binding.scope_index))
+            {
+                let reactive = context
+                    .state
+                    .transform
+                    .get(name.as_str())
+                    .is_some_and(|transform| transform.read.is_some());
+                result.push(EachBlockId {
+                    name: name.to_string(),
+                    reactive,
+                });
+            }
         }
         JsExpr::Member(member) => {
             collect_each_block_ids(arena, arena.get_expr(member.object), context, result, seen);
-            if member.computed
-                && let JsMemberProperty::Expression(prop_expr) = &member.property
-            {
-                collect_each_block_ids(arena, arena.get_expr(*prop_expr), context, result, seen);
+            match &member.property {
+                JsMemberProperty::Expression(prop_expr) if member.computed => {
+                    collect_each_block_ids(
+                        arena,
+                        arena.get_expr(*prop_expr),
+                        context,
+                        result,
+                        seen,
+                    );
+                }
+                // A non-computed property is walked by upstream too. It is not a
+                // reference, so it collects nothing — but it still burns the name.
+                JsMemberProperty::Identifier(name)
+                | JsMemberProperty::SpannedIdentifier { name, .. }
+                    if !member.computed =>
+                {
+                    seen.insert(name.to_string());
+                }
+                _ => {}
             }
         }
         JsExpr::Call(call) => {
@@ -1389,6 +1432,97 @@ fn collect_each_block_ids(
             for e in &seq.expressions {
                 collect_each_block_ids(arena, e, context, result, seen);
             }
+        }
+        // Upstream walks the getter with zimmerframe, which visits every node; a
+        // hand-written match silently drops whatever it has no arm for, so an
+        // `items[i.id || 0]` subject lost its each reference to the missing
+        // `Logical` arm and a template-literal key lost one to `TemplateLiteral`.
+        JsExpr::Logical(log) => {
+            collect_each_block_ids(arena, arena.get_expr(log.left), context, result, seen);
+            collect_each_block_ids(arena, arena.get_expr(log.right), context, result, seen);
+        }
+        JsExpr::Unary(un) => {
+            collect_each_block_ids(arena, arena.get_expr(un.argument), context, result, seen);
+        }
+        JsExpr::Update(up) => {
+            collect_each_block_ids(arena, arena.get_expr(up.argument), context, result, seen);
+        }
+        JsExpr::TemplateLiteral(tl) => {
+            for e in &tl.expressions {
+                collect_each_block_ids(arena, e, context, result, seen);
+            }
+        }
+        JsExpr::TaggedTemplate(tt) => {
+            collect_each_block_ids(arena, arena.get_expr(tt.tag), context, result, seen);
+            for e in &tt.quasi.expressions {
+                collect_each_block_ids(arena, e, context, result, seen);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for member in &obj.properties {
+                match member {
+                    JsObjectMember::Property(prop) => {
+                        match &prop.key {
+                            JsPropertyKey::Computed(key_expr) if prop.computed => {
+                                collect_each_block_ids(
+                                    arena,
+                                    arena.get_expr(*key_expr),
+                                    context,
+                                    result,
+                                    seen,
+                                );
+                            }
+                            JsPropertyKey::Identifier(name)
+                            | JsPropertyKey::SpannedIdentifier { name, .. }
+                                if !prop.computed =>
+                            {
+                                seen.insert(name.to_string());
+                            }
+                            _ => {}
+                        }
+                        collect_each_block_ids(
+                            arena,
+                            arena.get_expr(prop.value),
+                            context,
+                            result,
+                            seen,
+                        );
+                    }
+                    JsObjectMember::SpreadElement(spread) => {
+                        collect_each_block_ids(
+                            arena,
+                            arena.get_expr(*spread),
+                            context,
+                            result,
+                            seen,
+                        );
+                    }
+                }
+            }
+        }
+        JsExpr::New(new_expr) => {
+            collect_each_block_ids(
+                arena,
+                arena.get_expr(new_expr.callee),
+                context,
+                result,
+                seen,
+            );
+            for arg in &new_expr.arguments {
+                collect_each_block_ids(arena, arg, context, result, seen);
+            }
+        }
+        JsExpr::Chain(chain) => {
+            collect_each_block_ids(
+                arena,
+                arena.get_expr(chain.expression),
+                context,
+                result,
+                seen,
+            );
+        }
+        JsExpr::Await(inner) | JsExpr::Spread(inner) | JsExpr::Void(inner) => {
+            collect_each_block_ids(arena, arena.get_expr(*inner), context, result, seen);
         }
         _ => {}
     }

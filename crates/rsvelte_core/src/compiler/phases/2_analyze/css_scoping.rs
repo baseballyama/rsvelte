@@ -6,6 +6,7 @@
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::types::DomStructure;
 use crate::ast::template::{self, Fragment, TemplateNode};
 
 /// Represents the value of an attribute for CSS matching purposes.
@@ -1408,130 +1409,251 @@ fn get_snippet_block_name(snippet: &template::SnippetBlock) -> Option<String> {
     snippet.expression.identifier_name().map(String::from)
 }
 
-/// The snippet names a component may render because they were passed to it as
-/// an attribute value. Upstream's `analysis.snippet_renderers` holds a component
-/// alongside every `{@render}` tag, so a snippet reached only through a prop
-/// still has the component's position as one of its sites.
-fn attribute_snippet_names(attributes: &[template::Attribute]) -> Vec<String> {
-    let mut names = Vec::new();
-    for attribute in attributes {
-        if let template::Attribute::Attribute(node) = attribute
-            && let template::AttributeValue::Expression(tag) = &node.value
-            && let Some(name) = tag.expression.identifier_name()
-        {
-            names.push(name.to_string());
-        }
+/// Every child fragment of a node, in document order.
+fn child_fragments<'a, 'b>(node: &'a TemplateNode<'b>) -> Vec<&'a Fragment<'b>> {
+    match node {
+        TemplateNode::RegularElement(el) => vec![&el.fragment],
+        TemplateNode::SvelteElement(el) => vec![&el.fragment],
+        TemplateNode::Component(c) => vec![&c.fragment],
+        TemplateNode::SvelteComponent(c) => vec![&c.fragment],
+        TemplateNode::SvelteSelf(c) => vec![&c.fragment],
+        TemplateNode::IfBlock(b) => match b.alternate {
+            Some(ref alt) => vec![&b.consequent, alt],
+            None => vec![&b.consequent],
+        },
+        TemplateNode::EachBlock(b) => match b.fallback {
+            Some(ref f) => vec![&b.body, f],
+            None => vec![&b.body],
+        },
+        TemplateNode::AwaitBlock(b) => [b.pending.as_ref(), b.then.as_ref(), b.catch.as_ref()]
+            .into_iter()
+            .flatten()
+            .collect(),
+        TemplateNode::KeyBlock(b) => vec![&b.fragment],
+        TemplateNode::SnippetBlock(b) => vec![&b.body],
+        TemplateNode::SvelteHead(el)
+        | TemplateNode::SvelteBoundary(el)
+        | TemplateNode::SvelteFragment(el)
+        | TemplateNode::SvelteBody(el)
+        | TemplateNode::SvelteDocument(el)
+        | TemplateNode::SvelteWindow(el) => vec![&el.fragment],
+        TemplateNode::SlotElement(el) => vec![&el.fragment],
+        TemplateNode::TitleElement(el) => vec![&el.fragment],
+        _ => Vec::new(),
     }
-    names
 }
 
-/// Mapping from snippet name to the list of ancestor chains at each render site.
-type SnippetAncestorMap = FxHashMap<String, Vec<Vec<ElementInfo>>>;
+/// Every `{#snippet}` body, keyed by the same start `renderer_targets` uses. A
+/// render tag is followed into the snippet it renders, so the walker needs the
+/// body of a block it is not lexically inside.
+fn collect_snippet_bodies<'a, 'b>(
+    fragment: &'a Fragment<'b>,
+    out: &mut FxHashMap<u32, &'a Fragment<'b>>,
+) {
+    for node in &fragment.nodes {
+        if let TemplateNode::SnippetBlock(snippet) = node
+            && let Some(key) = snippet.expression.start()
+        {
+            out.insert(key, &snippet.body);
+        }
+        for child in child_fragments(node) {
+            collect_snippet_bodies(child, out);
+        }
+    }
+}
 
-/// Pre-pass: Walk the template tree to collect render site ancestor chains.
-fn collect_render_site_ancestors(fragment: &Fragment) -> SnippetAncestorMap {
-    let mut map: SnippetAncestorMap = FxHashMap::default();
+/// One renderer (a `{@render}` tag, or a component that is handed a snippet) as
+/// the pre-pass sees it, before the chains are resolved.
+struct RendererRecord {
+    /// Element ancestors between the enclosing snippet body (or the root) and
+    /// this renderer. Upstream's `get_ancestor_elements` `break`s at a
+    /// `SnippetBlock`, so nothing lexically above one belongs here.
+    lexical: Vec<ElementInfo>,
+    /// The snippet this renderer is written inside, if any.
+    enclosing_snippet: Option<u32>,
+    /// The snippets it renders. Upstream's `RenderTag.metadata.snippets`.
+    targets: Vec<u32>,
+}
+
+/// Ancestor chains at each render site, keyed by the snippet a renderer resolves
+/// to. Upstream keys `SnippetBlock.metadata.sites` on the block node, so two
+/// snippets sharing a name must not share an entry; the resolution itself comes
+/// from `DomStructure::renderer_targets` rather than being decided again here.
+#[derive(Default)]
+struct SnippetAncestorMap {
+    per_snippet: FxHashMap<u32, Vec<Vec<ElementInfo>>>,
+    /// The other direction of the same relation — upstream's
+    /// `RenderTag.metadata.snippets`, which `get_descendant_elements` follows.
+    renderer_snippets: FxHashMap<u32, Vec<u32>>,
+}
+
+impl SnippetAncestorMap {
+    fn chains_for(&self, key: Option<u32>) -> &[Vec<ElementInfo>] {
+        key.and_then(|k| self.per_snippet.get(&k))
+            .map_or(&[][..], Vec::as_slice)
+    }
+}
+
+/// Pre-pass state: the raw records, before a renderer written inside a snippet
+/// has had its own site's ancestors prepended.
+#[derive(Default)]
+struct RenderSiteScan {
+    records: FxHashMap<u32, RendererRecord>,
+    all_snippets: Vec<u32>,
+    unresolved: Vec<u32>,
+}
+
+/// Pre-pass: walk the template tree to collect render site ancestor chains.
+fn collect_render_site_ancestors(fragment: &Fragment, dom: &DomStructure) -> SnippetAncestorMap {
+    let mut scan = RenderSiteScan::default();
     let mut ancestors: Vec<ElementInfo> = Vec::new();
-    collect_render_sites_in_fragment(fragment, &mut ancestors, &mut map);
+    let mut enclosing: Option<u32> = None;
+    collect_render_sites_in_fragment(fragment, &mut ancestors, &mut enclosing, dom, &mut scan);
+
+    // An unresolved renderer is a site of EVERY snippet, which is why it cannot
+    // be modelled as "unknown": it is stronger, not weaker.
+    for start in &scan.unresolved {
+        if let Some(rec) = scan.records.get_mut(start) {
+            rec.targets = scan.all_snippets.clone();
+        }
+    }
+
+    let mut map = SnippetAncestorMap::default();
+    for (start, rec) in &scan.records {
+        map.renderer_snippets.insert(*start, rec.targets.clone());
+    }
+    for key in &scan.all_snippets {
+        let mut seen = FxHashSet::default();
+        let chains = resolve_snippet_chains(*key, &scan, &mut seen);
+        map.per_snippet.insert(*key, chains);
+    }
     map
+}
+
+/// The ancestor chains of one snippet's body: for every renderer that targets
+/// it, that renderer's own position — which, when the renderer is itself written
+/// inside a snippet, is the enclosing snippet's chains extended by the lexical
+/// tail.
+///
+/// `seen` grows and is never unwound, as upstream's `get_ancestor_elements` does
+/// (`css-prune.js:845` adds to its `Set` and never deletes): a snippet is expanded
+/// at most once per resolution, which both bounds the walk and makes the answer a
+/// function of where it started rather than of `key` — so it cannot be memoised.
+fn resolve_snippet_chains(
+    key: u32,
+    scan: &RenderSiteScan,
+    seen: &mut FxHashSet<u32>,
+) -> Vec<Vec<ElementInfo>> {
+    if !seen.insert(key) {
+        return Vec::new();
+    }
+    let mut out: Vec<Vec<ElementInfo>> = Vec::new();
+    for rec in scan.records.values() {
+        if !rec.targets.contains(&key) {
+            continue;
+        }
+        match rec.enclosing_snippet {
+            None => out.push(rec.lexical.clone()),
+            Some(host) => {
+                for base in resolve_snippet_chains(host, scan, seen) {
+                    let mut chain = base;
+                    chain.extend(rec.lexical.iter().cloned());
+                    out.push(chain);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Record one renderer's position against every snippet it resolves to.
+fn record_renderer(
+    start: u32,
+    ancestors: &[ElementInfo],
+    enclosing: Option<u32>,
+    dom: &DomStructure,
+    scan: &mut RenderSiteScan,
+) {
+    let targets = dom
+        .renderer_targets
+        .get(&start)
+        .cloned()
+        .unwrap_or_default();
+    let unresolved = dom.unresolved_renderers.contains(&start);
+    if targets.is_empty() && !unresolved {
+        return;
+    }
+    if unresolved {
+        scan.unresolved.push(start);
+    }
+    scan.records.insert(
+        start,
+        RendererRecord {
+            lexical: ancestors.to_vec(),
+            enclosing_snippet: enclosing,
+            targets,
+        },
+    );
 }
 
 fn collect_render_sites_in_fragment(
     fragment: &Fragment,
     ancestors: &mut Vec<ElementInfo>,
-    map: &mut SnippetAncestorMap,
+    enclosing: &mut Option<u32>,
+    dom: &DomStructure,
+    scan: &mut RenderSiteScan,
 ) {
     for node in &fragment.nodes {
-        collect_render_sites_in_node(node, ancestors, map);
+        collect_render_sites_in_node(node, ancestors, enclosing, dom, scan);
     }
 }
 
 fn collect_render_sites_in_node(
     node: &TemplateNode,
     ancestors: &mut Vec<ElementInfo>,
-    map: &mut SnippetAncestorMap,
+    enclosing: &mut Option<u32>,
+    dom: &DomStructure,
+    scan: &mut RenderSiteScan,
 ) {
     match node {
         TemplateNode::RegularElement(el) => {
-            let element_info = ElementInfo::from_element(el);
-            ancestors.push(element_info);
-            collect_render_sites_in_fragment(&el.fragment, ancestors, map);
+            ancestors.push(ElementInfo::from_element(el));
+            collect_render_sites_in_fragment(&el.fragment, ancestors, enclosing, dom, scan);
             ancestors.pop();
         }
         TemplateNode::SvelteElement(el) => {
-            let element_info = ElementInfo::from_svelte_element(el);
-            ancestors.push(element_info);
-            collect_render_sites_in_fragment(&el.fragment, ancestors, map);
+            ancestors.push(ElementInfo::from_svelte_element(el));
+            collect_render_sites_in_fragment(&el.fragment, ancestors, enclosing, dom, scan);
             ancestors.pop();
         }
         TemplateNode::RenderTag(render_tag) => {
-            if let Some(name) = get_render_tag_callee_name(render_tag) {
-                map.entry(name).or_default().push(ancestors.clone());
-            }
-        }
-        TemplateNode::Component(comp) => {
-            for name in attribute_snippet_names(&comp.attributes) {
-                map.entry(name).or_default().push(ancestors.clone());
-            }
-            collect_render_sites_in_fragment(&comp.fragment, ancestors, map);
-        }
-        TemplateNode::IfBlock(if_block) => {
-            collect_render_sites_in_fragment(&if_block.consequent, ancestors, map);
-            if let Some(ref alt) = if_block.alternate {
-                collect_render_sites_in_fragment(alt, ancestors, map);
-            }
-        }
-        TemplateNode::EachBlock(each) => {
-            collect_render_sites_in_fragment(&each.body, ancestors, map);
-            if let Some(ref fallback) = each.fallback {
-                collect_render_sites_in_fragment(fallback, ancestors, map);
-            }
-        }
-        TemplateNode::AwaitBlock(await_block) => {
-            if let Some(ref pending) = await_block.pending {
-                collect_render_sites_in_fragment(pending, ancestors, map);
-            }
-            if let Some(ref then) = await_block.then {
-                collect_render_sites_in_fragment(then, ancestors, map);
-            }
-            if let Some(ref catch) = await_block.catch {
-                collect_render_sites_in_fragment(catch, ancestors, map);
-            }
-        }
-        TemplateNode::KeyBlock(key) => {
-            collect_render_sites_in_fragment(&key.fragment, ancestors, map);
+            record_renderer(render_tag.start, ancestors, *enclosing, dom, scan);
         }
         TemplateNode::SnippetBlock(snippet) => {
-            collect_render_sites_in_fragment(&snippet.body, ancestors, map);
-        }
-        TemplateNode::SvelteHead(head) => {
-            collect_render_sites_in_fragment(&head.fragment, ancestors, map);
-        }
-        TemplateNode::SvelteBoundary(boundary) => {
-            collect_render_sites_in_fragment(&boundary.fragment, ancestors, map);
-        }
-        TemplateNode::SvelteFragment(frag) => {
-            collect_render_sites_in_fragment(&frag.fragment, ancestors, map);
-        }
-        TemplateNode::SvelteComponent(comp) => {
-            for name in attribute_snippet_names(&comp.attributes) {
-                map.entry(name).or_default().push(ancestors.clone());
+            if let Some(key) = snippet.expression.start() {
+                scan.all_snippets.push(key);
             }
-            collect_render_sites_in_fragment(&comp.fragment, ancestors, map);
+            // A snippet body starts a new chain: upstream stops the ancestor
+            // walk at the block and continues from the render sites instead.
+            let saved_ancestors = std::mem::take(ancestors);
+            let saved_enclosing = *enclosing;
+            *enclosing = snippet.expression.start();
+            collect_render_sites_in_fragment(&snippet.body, ancestors, enclosing, dom, scan);
+            *enclosing = saved_enclosing;
+            *ancestors = saved_ancestors;
         }
-        TemplateNode::SvelteSelf(comp) => {
-            for name in attribute_snippet_names(&comp.attributes) {
-                map.entry(name).or_default().push(ancestors.clone());
+        _ => {
+            if let TemplateNode::Component(c) = node {
+                record_renderer(c.start, ancestors, *enclosing, dom, scan);
+            } else if let TemplateNode::SvelteComponent(c) = node {
+                record_renderer(c.start, ancestors, *enclosing, dom, scan);
+            } else if let TemplateNode::SvelteSelf(c) = node {
+                record_renderer(c.start, ancestors, *enclosing, dom, scan);
             }
-            collect_render_sites_in_fragment(&comp.fragment, ancestors, map);
+            for child in child_fragments(node) {
+                collect_render_sites_in_fragment(child, ancestors, enclosing, dom, scan);
+            }
         }
-        TemplateNode::SlotElement(slot) => {
-            collect_render_sites_in_fragment(&slot.fragment, ancestors, map);
-        }
-        TemplateNode::TitleElement(title) => {
-            collect_render_sites_in_fragment(&title.fragment, ancestors, map);
-        }
-        _ => {}
     }
 }
 
@@ -1541,8 +1663,11 @@ pub fn mark_elements_scoped(
     css_selectors: &[CssComplexSelector],
     analysis: Option<&super::types::ComponentAnalysis>,
 ) {
-    // Pre-pass: collect render site ancestors for each snippet
-    let snippet_ancestors = collect_render_site_ancestors(fragment);
+    // Pre-pass: collect render site ancestors for each snippet. The resolution of
+    // a renderer to a snippet is read from the analysis, not decided again here.
+    let empty_dom = DomStructure::default();
+    let dom = analysis.map_or(&empty_dom, |a| &a.css.dom_structure);
+    let snippet_ancestors = collect_render_site_ancestors(fragment, dom);
     let mut ancestors: Vec<ElementInfo> = Vec::new();
     mark_elements_in_fragment(
         fragment,
@@ -1583,8 +1708,27 @@ fn mark_elements_in_fragment(
         apply_scoping_marks(fragment, &marks);
     }
 
-    // Third pass: propagate scoping to ancestor elements
-    propagate_ancestor_scoping(fragment, &direct_selectors, ancestors, snippet_ancestors);
+    // Third pass: propagate scoping to ancestor elements. Collected immutably
+    // and applied afterwards, as the graph pass above already does, so the walk
+    // can read one snippet's body while deciding about another.
+    let mut ancestor_marks: FxHashSet<(u32, u32)> = FxHashSet::default();
+    {
+        // Borrowed from the tree, so it must go out of scope before the marks
+        // are written back.
+        let mut bodies: FxHashMap<u32, &Fragment> = FxHashMap::default();
+        collect_snippet_bodies(fragment, &mut bodies);
+        collect_ancestor_scoping_marks(
+            fragment,
+            &direct_selectors,
+            ancestors,
+            snippet_ancestors,
+            &mut ancestor_marks,
+            &bodies,
+        );
+    }
+    if !ancestor_marks.is_empty() {
+        apply_scoping_marks(fragment, &ancestor_marks);
+    }
 }
 
 /// Process a single node for direct CSS selector matching.
@@ -1597,7 +1741,8 @@ fn process_node_scoping(
     match node {
         TemplateNode::RegularElement(el) => {
             let element_info = ElementInfo::from_element(el);
-            el.metadata.scoped = css_selectors.iter().any(|selector| {
+            // `|=`: a snippet body is walked once per render site, and `scoped` is the union.
+            el.metadata.scoped |= css_selectors.iter().any(|selector| {
                 complex_selector_matches_element(selector, &element_info, ancestors)
             });
             ancestors.push(element_info);
@@ -1608,7 +1753,7 @@ fn process_node_scoping(
         }
         TemplateNode::SvelteElement(el) => {
             let element_info = ElementInfo::from_svelte_element(el);
-            el.metadata.scoped = css_selectors.iter().any(|selector| {
+            el.metadata.scoped |= css_selectors.iter().any(|selector| {
                 complex_selector_matches_element(selector, &element_info, ancestors)
             });
             ancestors.push(element_info);
@@ -1665,26 +1810,24 @@ fn process_node_scoping(
             }
         }
         TemplateNode::SnippetBlock(snippet) => {
-            // Get the snippet name and look up render site ancestors
-            let snippet_name = get_snippet_block_name(snippet);
-            let render_ancestors = snippet_name
-                .as_ref()
-                .and_then(|name| snippet_ancestors.get(name));
-
-            if let Some(render_site_chains) = render_ancestors {
-                // Process snippet body with each render site's ancestor chain.
-                // This ensures elements inside snippets inherit CSS scoping from
-                // where they are rendered ({@render} call site), not where defined.
-                for site_ancestors in render_site_chains {
-                    let mut merged = site_ancestors.clone();
+            // Elements inside a snippet inherit their ancestors from the render
+            // site, not from where the snippet is written. An empty chain set is
+            // an answer, not a missing one: a snippet nothing renders has no
+            // ancestors at all, which is what upstream's `break` leaves behind.
+            let chains: Vec<Vec<ElementInfo>> = snippet_ancestors
+                .chains_for(snippet.expression.start())
+                .to_vec();
+            if chains.is_empty() {
+                let mut none: Vec<ElementInfo> = Vec::new();
+                for child in &mut snippet.body.nodes {
+                    process_node_scoping(child, css_selectors, &mut none, snippet_ancestors);
+                }
+            } else {
+                for site_ancestors in chains {
+                    let mut merged = site_ancestors;
                     for child in &mut snippet.body.nodes {
                         process_node_scoping(child, css_selectors, &mut merged, snippet_ancestors);
                     }
-                }
-            } else {
-                // No render sites found (or dynamic render), process with current ancestors
-                for child in &mut snippet.body.nodes {
-                    process_node_scoping(child, css_selectors, ancestors, snippet_ancestors);
                 }
             }
         }
@@ -2030,19 +2173,21 @@ fn element_is_ancestor_in_matching_selector(
 }
 
 /// Propagate scoping to ancestor elements.
-fn propagate_ancestor_scoping(
-    fragment: &mut Fragment,
+fn collect_ancestor_scoping_marks(
+    fragment: &Fragment,
     css_selectors: &[CssComplexSelector],
     ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
+    marks: &mut FxHashSet<(u32, u32)>,
+    bodies: &FxHashMap<u32, &Fragment>,
 ) {
-    for node in &mut fragment.nodes {
+    for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {
                 let element_info = ElementInfo::from_element(el);
 
-                if !el.metadata.scoped {
-                    el.metadata.scoped = css_selectors.iter().any(|selector| {
+                if !el.metadata.scoped
+                    && css_selectors.iter().any(|selector| {
                         element_is_ancestor_in_matching_selector(&element_info, selector)
                             && subtree_has_matching_subject(
                                 &el.fragment,
@@ -2050,150 +2195,200 @@ fn propagate_ancestor_scoping(
                                 &element_info,
                                 ancestors,
                                 snippet_ancestors,
+                                marks,
+                                bodies,
                             )
-                    });
+                    })
+                {
+                    marks.insert((el.start, el.end));
                 }
 
                 ancestors.push(element_info);
-                propagate_ancestor_scoping(
-                    &mut el.fragment,
+                collect_ancestor_scoping_marks(
+                    &el.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
                 ancestors.pop();
             }
             TemplateNode::Component(comp) => {
-                propagate_ancestor_scoping(
-                    &mut comp.fragment,
+                collect_ancestor_scoping_marks(
+                    &comp.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::IfBlock(if_block) => {
-                propagate_ancestor_scoping(
-                    &mut if_block.consequent,
+                collect_ancestor_scoping_marks(
+                    &if_block.consequent,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
-                if let Some(ref mut alt) = if_block.alternate {
-                    propagate_ancestor_scoping(alt, css_selectors, ancestors, snippet_ancestors);
+                if let Some(ref alt) = if_block.alternate {
+                    collect_ancestor_scoping_marks(
+                        alt,
+                        css_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                        marks,
+                        bodies,
+                    );
                 }
             }
             TemplateNode::EachBlock(each) => {
-                propagate_ancestor_scoping(
-                    &mut each.body,
+                collect_ancestor_scoping_marks(
+                    &each.body,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
-                if let Some(ref mut fallback) = each.fallback {
-                    propagate_ancestor_scoping(
+                if let Some(ref fallback) = each.fallback {
+                    collect_ancestor_scoping_marks(
                         fallback,
                         css_selectors,
                         ancestors,
                         snippet_ancestors,
+                        marks,
+                        bodies,
                     );
                 }
             }
             TemplateNode::AwaitBlock(await_block) => {
-                if let Some(ref mut pending) = await_block.pending {
-                    propagate_ancestor_scoping(
+                if let Some(ref pending) = await_block.pending {
+                    collect_ancestor_scoping_marks(
                         pending,
                         css_selectors,
                         ancestors,
                         snippet_ancestors,
+                        marks,
+                        bodies,
                     );
                 }
-                if let Some(ref mut then) = await_block.then {
-                    propagate_ancestor_scoping(then, css_selectors, ancestors, snippet_ancestors);
-                }
-                if let Some(ref mut catch) = await_block.catch {
-                    propagate_ancestor_scoping(catch, css_selectors, ancestors, snippet_ancestors);
-                }
-            }
-            TemplateNode::KeyBlock(key) => {
-                propagate_ancestor_scoping(
-                    &mut key.fragment,
-                    css_selectors,
-                    ancestors,
-                    snippet_ancestors,
-                );
-            }
-            TemplateNode::SnippetBlock(snippet) => {
-                let snippet_name = get_snippet_block_name(snippet);
-                let render_site_chains = snippet_name
-                    .as_ref()
-                    .and_then(|name| snippet_ancestors.get(name));
-                if let Some(chains) = render_site_chains {
-                    for site_anc in chains {
-                        // Snippet bodies use the render-site ancestor chain
-                        // rather than the current one. Clone is bounded by the
-                        // (small) chain length and the snippet count.
-                        let mut chain = site_anc.clone();
-                        propagate_ancestor_scoping(
-                            &mut snippet.body,
-                            css_selectors,
-                            &mut chain,
-                            snippet_ancestors,
-                        );
-                    }
-                } else {
-                    propagate_ancestor_scoping(
-                        &mut snippet.body,
+                if let Some(ref then) = await_block.then {
+                    collect_ancestor_scoping_marks(
+                        then,
                         css_selectors,
                         ancestors,
                         snippet_ancestors,
+                        marks,
+                        bodies,
+                    );
+                }
+                if let Some(ref catch) = await_block.catch {
+                    collect_ancestor_scoping_marks(
+                        catch,
+                        css_selectors,
+                        ancestors,
+                        snippet_ancestors,
+                        marks,
+                        bodies,
                     );
                 }
             }
-            TemplateNode::SvelteHead(head) => {
-                propagate_ancestor_scoping(
-                    &mut head.fragment,
+            TemplateNode::KeyBlock(key) => {
+                collect_ancestor_scoping_marks(
+                    &key.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
+                );
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                let chains: Vec<Vec<ElementInfo>> = snippet_ancestors
+                    .chains_for(snippet.expression.start())
+                    .to_vec();
+                if chains.is_empty() {
+                    let mut none: Vec<ElementInfo> = Vec::new();
+                    collect_ancestor_scoping_marks(
+                        &snippet.body,
+                        css_selectors,
+                        &mut none,
+                        snippet_ancestors,
+                        marks,
+                        bodies,
+                    );
+                } else {
+                    for site_anc in chains {
+                        let mut chain = site_anc;
+                        collect_ancestor_scoping_marks(
+                            &snippet.body,
+                            css_selectors,
+                            &mut chain,
+                            snippet_ancestors,
+                            marks,
+                            bodies,
+                        );
+                    }
+                }
+            }
+            TemplateNode::SvelteHead(head) => {
+                collect_ancestor_scoping_marks(
+                    &head.fragment,
+                    css_selectors,
+                    ancestors,
+                    snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::SvelteBoundary(boundary) => {
-                propagate_ancestor_scoping(
-                    &mut boundary.fragment,
+                collect_ancestor_scoping_marks(
+                    &boundary.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::SvelteFragment(frag) => {
-                propagate_ancestor_scoping(
-                    &mut frag.fragment,
+                collect_ancestor_scoping_marks(
+                    &frag.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::SvelteComponent(comp) => {
-                propagate_ancestor_scoping(
-                    &mut comp.fragment,
+                collect_ancestor_scoping_marks(
+                    &comp.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::SvelteSelf(comp) => {
-                propagate_ancestor_scoping(
-                    &mut comp.fragment,
+                collect_ancestor_scoping_marks(
+                    &comp.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::SvelteElement(el) => {
                 let element_info = ElementInfo::from_svelte_element(el);
 
-                if !el.metadata.scoped {
-                    el.metadata.scoped = css_selectors.iter().any(|selector| {
+                if !el.metadata.scoped
+                    && css_selectors.iter().any(|selector| {
                         element_is_ancestor_in_matching_selector(&element_info, selector)
                             && subtree_has_matching_subject(
                                 &el.fragment,
@@ -2201,38 +2396,88 @@ fn propagate_ancestor_scoping(
                                 &element_info,
                                 ancestors,
                                 snippet_ancestors,
+                                marks,
+                                bodies,
                             )
-                    });
+                    })
+                {
+                    marks.insert((el.start, el.end));
                 }
 
                 ancestors.push(element_info);
-                propagate_ancestor_scoping(
-                    &mut el.fragment,
+                collect_ancestor_scoping_marks(
+                    &el.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
                 ancestors.pop();
             }
             TemplateNode::SlotElement(slot) => {
-                propagate_ancestor_scoping(
-                    &mut slot.fragment,
+                collect_ancestor_scoping_marks(
+                    &slot.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             TemplateNode::TitleElement(title) => {
-                propagate_ancestor_scoping(
-                    &mut title.fragment,
+                collect_ancestor_scoping_marks(
+                    &title.fragment,
                     css_selectors,
                     ancestors,
                     snippet_ancestors,
+                    marks,
+                    bodies,
                 );
             }
             _ => {}
         }
     }
+}
+
+/// Follow one renderer into every snippet it renders. Upstream's
+/// `get_descendant_elements` does this for a `RenderTag`; a component handed a
+/// snippet as an attribute or as a child is the same relation, and the body is a
+/// descendant of the renderer's position rather than of where it is written.
+#[allow(clippy::too_many_arguments)]
+fn follow_renderer(
+    start: u32,
+    selector: &CssComplexSelector,
+    ancestors: &mut Vec<ElementInfo>,
+    snippet_ancestors: &SnippetAncestorMap,
+    required: usize,
+    marks: &FxHashSet<(u32, u32)>,
+    bodies: &FxHashMap<u32, &Fragment>,
+    seen: &mut FxHashSet<u32>,
+) -> bool {
+    let Some(keys) = snippet_ancestors.renderer_snippets.get(&start) else {
+        return false;
+    };
+    for key in keys {
+        if !seen.insert(*key) {
+            continue;
+        }
+        if let Some(body) = bodies.get(key)
+            && subtree_has_matching_subject_inner(
+                body,
+                selector,
+                ancestors,
+                snippet_ancestors,
+                required,
+                marks,
+                bodies,
+                seen,
+            )
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Check if any element in the subtree matches the subject of a selector.
@@ -2242,6 +2487,8 @@ fn subtree_has_matching_subject(
     ancestor_element: &ElementInfo,
     ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
+    marks: &FxHashSet<(u32, u32)>,
+    bodies: &FxHashMap<u32, &Fragment>,
 ) -> bool {
     // Push the immediate ancestor element onto the shared chain rather than
     // cloning the entire chain. Clone of `ancestor_element` is unavoidable
@@ -2250,12 +2497,16 @@ fn subtree_has_matching_subject(
     // The subject must match through a binding that consumes THIS element: a
     // `>` link is a position, and "the subtree holds a subject" does not carry one.
     let required = ancestors.len() - 1;
+    let mut seen: FxHashSet<u32> = FxHashSet::default();
     let result = subtree_has_matching_subject_inner(
         fragment,
         selector,
         ancestors,
         snippet_ancestors,
         required,
+        marks,
+        bodies,
+        &mut seen,
     );
     ancestors.pop();
     result
@@ -2267,6 +2518,9 @@ fn subtree_has_matching_subject_inner(
     ancestors: &mut Vec<ElementInfo>,
     snippet_ancestors: &SnippetAncestorMap,
     required: usize,
+    marks: &FxHashSet<(u32, u32)>,
+    bodies: &FxHashMap<u32, &Fragment>,
+    seen: &mut FxHashSet<u32>,
 ) -> bool {
     let effective = truncate_globals(&selector.children);
     let subject_sel = effective.last();
@@ -2288,7 +2542,7 @@ fn subtree_has_matching_subject_inner(
                 // any selector, so without the sibling test a subject scoped by an
                 // unrelated rule satisfies an ancestor test the chain rejects.
                 if has_sibling_combinator(selector)
-                    && el.metadata.scoped
+                    && (el.metadata.scoped || marks.contains(&(el.start, el.end)))
                     && let Some(subj) = subject_sel
                     && element_matches_simple_selectors(&element_info, &subj.selectors)
                 {
@@ -2301,6 +2555,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 );
                 ancestors.pop();
                 if matched {
@@ -2318,7 +2575,7 @@ fn subtree_has_matching_subject_inner(
                     return true;
                 }
                 if has_sibling_combinator(selector)
-                    && el.metadata.scoped
+                    && (el.metadata.scoped || marks.contains(&(el.start, el.end)))
                     && let Some(subj) = subject_sel
                     && element_matches_simple_selectors(&element_info, &subj.selectors)
                 {
@@ -2331,6 +2588,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 );
                 ancestors.pop();
                 if matched {
@@ -2344,6 +2604,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 ) =>
             {
                 return true;
@@ -2355,6 +2618,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 ) {
                     return true;
                 }
@@ -2365,6 +2631,9 @@ fn subtree_has_matching_subject_inner(
                         ancestors,
                         snippet_ancestors,
                         required,
+                        marks,
+                        bodies,
+                        seen,
                     )
                 {
                     return true;
@@ -2377,6 +2646,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 ) {
                     return true;
                 }
@@ -2387,6 +2659,9 @@ fn subtree_has_matching_subject_inner(
                         ancestors,
                         snippet_ancestors,
                         required,
+                        marks,
+                        bodies,
+                        seen,
                     )
                 {
                     return true;
@@ -2400,6 +2675,9 @@ fn subtree_has_matching_subject_inner(
                         ancestors,
                         snippet_ancestors,
                         required,
+                        marks,
+                        bodies,
+                        seen,
                     )
                 {
                     return true;
@@ -2411,6 +2689,9 @@ fn subtree_has_matching_subject_inner(
                         ancestors,
                         snippet_ancestors,
                         required,
+                        marks,
+                        bodies,
+                        seen,
                     )
                 {
                     return true;
@@ -2422,6 +2703,9 @@ fn subtree_has_matching_subject_inner(
                         ancestors,
                         snippet_ancestors,
                         required,
+                        marks,
+                        bodies,
+                        seen,
                     )
                 {
                     return true;
@@ -2434,6 +2718,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 ) =>
             {
                 return true;
@@ -2445,6 +2732,9 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 ) =>
             {
                 return true;
@@ -2456,23 +2746,51 @@ fn subtree_has_matching_subject_inner(
                     ancestors,
                     snippet_ancestors,
                     required,
+                    marks,
+                    bodies,
+                    seen,
                 ) =>
             {
                 return true;
             }
+            TemplateNode::Component(comp) => {
+                if follow_renderer(
+                    comp.start,
+                    selector,
+                    ancestors,
+                    snippet_ancestors,
+                    required,
+                    marks,
+                    bodies,
+                    seen,
+                ) || subtree_has_matching_subject_inner(
+                    &comp.fragment,
+                    selector,
+                    ancestors,
+                    snippet_ancestors,
+                    required,
+                    marks,
+                    bodies,
+                    seen,
+                ) {
+                    return true;
+                }
+            }
             TemplateNode::RenderTag(render_tag) => {
-                // When we encounter a render tag, follow into the rendered snippet's body
-                // to check if it contains matching elements (as descendants of the current ancestors)
-                if let Some(name) = get_render_tag_callee_name(render_tag) {
-                    // Find snippets with this name in the fragment tree
-                    // We can check snippet_ancestors to know if there's a snippet with this name
-                    if snippet_ancestors.contains_key(&name) {
-                        // Look for snippet blocks with this name in the global fragment
-                        // For now, we just return true conservatively - the snippet
-                        // could contain matching elements
-                        // This is handled by the fact that snippet body elements
-                        // are already processed with render-site ancestors
-                    }
+                // Upstream's `get_descendant_elements` follows a render tag into
+                // every snippet it resolves to; the snippet body is a descendant
+                // of the tag's position, not of where the snippet is written.
+                if follow_renderer(
+                    render_tag.start,
+                    selector,
+                    ancestors,
+                    snippet_ancestors,
+                    required,
+                    marks,
+                    bodies,
+                    seen,
+                ) {
+                    return true;
                 }
             }
             node => {
@@ -2483,6 +2801,9 @@ fn subtree_has_matching_subject_inner(
                         ancestors,
                         snippet_ancestors,
                         required,
+                        marks,
+                        bodies,
+                        seen,
                     )
                 {
                     return true;
@@ -3045,7 +3366,8 @@ fn g_ancestor_elements(
     ancestors
 }
 
-/// Port of `get_descendant_elements`.
+/// Port of `get_descendant_elements`. It has no `Snippet` arm on purpose: upstream's walker
+/// descends into a lexically nested snippet body, where `get_ancestor_elements` breaks at one.
 fn g_descendant_elements(
     graph: &SGraph,
     node: usize,

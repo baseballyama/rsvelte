@@ -14,6 +14,26 @@ use super::{
 /// immediately follows the parent's closing `>` on the same line. Pass 1 did
 /// not process the child independently (the parent edit owned the range), so
 /// this pass applies the hug-mixed transform specifically for those cases.
+/// `true` when a line prefix is the artifact of a parent's hug: leading
+/// whitespace, the parent's dropped `>`, then only comments (which the hug
+/// glues onto that same line).
+fn is_hug_bracket_prefix(indent: &str) -> bool {
+    let Some(rest) = indent.trim_start_matches([' ', '\t']).strip_prefix('>') else {
+        return false;
+    };
+    let mut rest = rest;
+    while !rest.is_empty() {
+        let Some(after_open) = rest.strip_prefix("<!--") else {
+            return false;
+        };
+        let Some(i) = after_open.find("-->") else {
+            return false;
+        };
+        rest = &after_open[i + 3..];
+    }
+    true
+}
+
 pub(super) fn collect_hug_mixed_non_ws_prefix(
     out: &str,
     fragment: &Fragment,
@@ -31,17 +51,16 @@ pub(super) fn collect_hug_mixed_non_ws_prefix(
                 if is_whitespace_preserving(e.name.as_str()) {
                     continue;
                 }
-                // Check if this element has a non-ws-prefix indent that is exactly
-                // `{spaces}>` — a parent's hugged closing `>` immediately before this
-                // element.  We intentionally reject longer non-ws indents (e.g. the
-                // element follows a sibling's close-tag `</span>`) because those
-                // produce incorrect `ws_indent` values in `try_hug_mixed`.
+                // A prefix of the parent's hugged closing `>` plus any comments
+                // it glued after it. A prefix ending in some *other* `>` (a
+                // sibling's close or self-close tag) is a different shape and
+                // this pass does not own it.
                 let s = e.start as usize;
                 let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..s).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
-                if is_simple_gt_prefix
+                let gt_prefix = non_ws && is_hug_bracket_prefix(indent);
+                if gt_prefix
                     && let Some(edit) = try_hug_mixed(
                         out,
                         e.name.as_str(),
@@ -62,8 +81,8 @@ pub(super) fn collect_hug_mixed_non_ws_prefix(
                 let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..s).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
-                if is_simple_gt_prefix
+                let gt_prefix = non_ws && is_hug_bracket_prefix(indent);
+                if gt_prefix
                     && let Some(edit) = try_hug_mixed(
                         out,
                         c.name.as_str(),
@@ -84,8 +103,8 @@ pub(super) fn collect_hug_mixed_non_ws_prefix(
                 let line_start = out[..ss].rfind('\n').map_or(0, |i| i + 1);
                 let indent = out.get(line_start..ss).unwrap_or("");
                 let non_ws = !indent.bytes().all(|b| b == b' ' || b == b'\t');
-                let is_simple_gt_prefix = non_ws && indent.trim_start_matches([' ', '\t']) == ">";
-                if is_simple_gt_prefix
+                let gt_prefix = non_ws && is_hug_bracket_prefix(indent);
+                if gt_prefix
                     && let Some(edit) = try_hug_mixed(
                         out,
                         s.name.as_str(),
@@ -301,14 +320,13 @@ pub(super) fn try_hug_mixed(
     // allowed here: when a non-block element contains a flow block, prettier
     // force-breaks it with the hug form even when it would fit on one line
     // (prettier's `forceBreakContent` / `breakParent` for flow blocks).
+    // A Comment is not a line boundary here: prettier glues `><!-- … -->` to the
+    // wrapped open tag exactly as it glues text.
     let mut has_non_text = false;
     let mut has_flow_block = false;
     for n in &fragment.nodes {
         if !matches!(n, TemplateNode::Text(_)) {
             has_non_text = true;
-            if matches!(n, TemplateNode::Comment(_)) {
-                return None;
-            }
             let is_flow = matches!(
                 n,
                 TemplateNode::IfBlock(_)
@@ -461,23 +479,15 @@ pub(super) fn try_hug_mixed(
 
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
     let indent = out.get(line_start..s)?;
-    // Allow a non-whitespace prefix only when it ends with `>` — this happens
-    // when an element is immediately preceded by a parent's closing `>` on the
-    // same line (e.g. `    ><clipPath …>` inside a `<defs\n    >`). In that
-    // case the pure-whitespace part of the prefix is used for inner indentation
-    // and the closing `>` position.
     let non_ws_prefix = !indent.bytes().all(|b| b == b' ' || b == b'\t');
     if non_ws_prefix && !indent.ends_with('>') {
         return None;
     }
-    // Extract the pure-whitespace portion of the prefix (everything up to and
-    // not including a trailing non-whitespace `>`) for use in indented output.
-    let ws_indent: &str = if non_ws_prefix {
-        let trim_end_pos = indent.rfind([' ', '\t']).map_or(0, |i| i + 1);
-        &indent[..trim_end_pos]
-    } else {
-        indent
-    };
+    // The hug's indentation is the line's own leading whitespace: anything after
+    // it is markup this element merely follows (a parent's wrapped `>`, a
+    // comment, a sibling's close tag), and slicing the prefix up to its last
+    // space instead re-emits that markup as indentation.
+    let ws_indent: &str = &indent[..indent.len() - indent.trim_start_matches([' ', '\t']).len()];
 
     // When the content is already multi-line (e.g. a child element whose
     // attributes wrapped), prettier still applies the hug form: `>` glues

@@ -90,11 +90,20 @@ enum PendingKind {
     Dispatched,
 }
 
+fn custom_event_type(detail_type: Option<String>) -> String {
+    detail_type.map_or_else(
+        || "CustomEvent<any>".to_string(),
+        |detail| format!("CustomEvent<{detail}>"),
+    )
+}
+
 /// Metadata about a single component event.
 #[derive(Debug, Clone)]
 pub struct EventInfo {
-    /// The TypeScript type of the event detail.
-    pub detail_type: Option<String>,
+    /// The full TypeScript type official stores in its `events` map — a
+    /// `CustomEvent<…>` for a declared or dispatched event, a bare `Event` for
+    /// one that only reaches the map by being forwarded.
+    pub type_text: String,
 }
 
 impl ComponentEvents {
@@ -106,7 +115,23 @@ impl ComponentEvents {
 
     /// Add an event declaration.
     pub fn add(&mut self, name: String, detail_type: Option<String>) {
-        self.events.insert(name, EventInfo { detail_type });
+        let type_text = custom_event_type(detail_type);
+        self.events.insert(name, EventInfo { type_text });
+    }
+
+    /// Official seeds its `events` map from the bubbled events in the
+    /// `ComponentEvents` constructor (`extractEvents`), so a later
+    /// `addToEvents` of a forwarded name sees a COLLISION and the event also
+    /// reaches the `'name': __sveltets_2_customEvent` list.
+    pub fn seed_forwarded_events<'name>(&mut self, names: impl IntoIterator<Item = &'name str>) {
+        for name in names {
+            self.events.insert(
+                name.to_owned(),
+                EventInfo {
+                    type_text: "Event".to_string(),
+                },
+            );
+        }
     }
 
     /// Official `ComponentEventsFromEventsMap.addToEvents`: a repeated name
@@ -115,12 +140,20 @@ impl ComponentEvents {
     /// `'name': __sveltets_2_customEvent` entry.
     fn add_to_events(&mut self, name: &str, detail_type: Option<String>) {
         if self.events.contains_key(name) {
-            self.events
-                .insert(name.to_owned(), EventInfo { detail_type: None });
+            self.events.insert(
+                name.to_owned(),
+                EventInfo {
+                    type_text: custom_event_type(None),
+                },
+            );
             self.push_dispatched(name);
         } else {
-            self.events
-                .insert(name.to_owned(), EventInfo { detail_type });
+            self.events.insert(
+                name.to_owned(),
+                EventInfo {
+                    type_text: custom_event_type(detail_type),
+                },
+            );
         }
     }
 
@@ -237,13 +270,7 @@ impl ComponentEvents {
         let mut entries: Vec<(String, String)> = self
             .events
             .iter()
-            .map(|(name, info)| {
-                let ty = info.detail_type.as_ref().map_or_else(
-                    || "CustomEvent<any>".to_string(),
-                    |detail| format!("CustomEvent<{detail}>"),
-                );
-                (name.clone(), ty)
-            })
+            .map(|(name, info)| (name.clone(), info.type_text.clone()))
             .collect();
         entries.sort_by(|a, b| a.0.cmp(&b.0));
         entries
@@ -252,6 +279,15 @@ impl ComponentEvents {
 
 /// Template hits carry the index of the dispatcher declaration that claims them;
 /// script hits carry the call's own absolute position.
+/// `pos` inside one of the sorted, possibly overlapping ranges.
+fn position_in_ranges(ranges: &[(u32, u32)], pos: usize) -> bool {
+    let Ok(pos) = u32::try_from(pos) else {
+        return false;
+    };
+    let upto = ranges.partition_point(|&(start, _)| start <= pos);
+    ranges[..upto].iter().any(|&(_, end)| pos < end)
+}
+
 type DispatchScan<'source> = (Vec<(&'source str, usize)>, Vec<(&'source str, u32)>);
 
 fn scan_dispatch_calls<'source>(
@@ -296,6 +332,9 @@ fn scan_dispatch_calls_with_observer<'source>(
     }
 
     let bytes = source.as_bytes();
+    // Official's `ComponentEvents` walks the TypeScript AST, so a `dispatch(…)`
+    // written in a comment, a string or an HTML comment is not a call node.
+    let opaque = crate::svelte2tsx::utils::lexical::opaque_source_ranges(source);
     let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$';
     let in_range = |idx: usize, range: Option<(u32, u32)>| {
         range.is_some_and(|(start, end)| idx >= start as usize && idx < end as usize)
@@ -317,6 +356,9 @@ fn scan_dispatch_calls_with_observer<'source>(
         }
         observe_identifier();
 
+        if position_in_ranges(&opaque, start) {
+            continue;
+        }
         if start > 0 && bytes[start - 1] == b'.' {
             continue;
         }
@@ -340,7 +382,9 @@ fn scan_dispatch_calls_with_observer<'source>(
         }
         let in_instance_script = in_range(start, inst_range);
 
-        let event = if bytes[p] == b'"' || bytes[p] == b'\'' || bytes[p] == b'`' {
+        // Official tests `ts.isStringLiteral`, which a template literal is not —
+        // neither a substituting one nor a bare `` `x` ``.
+        let event = if bytes[p] == b'"' || bytes[p] == b'\'' {
             let quote = bytes[p];
             p += 1;
             let name_start = p;
@@ -608,15 +652,16 @@ mod tests {
 
         events.collect_dispatched_events(source, None, None);
 
+        // No `backtick`: upstream's `checkIfCallExpressionIsDispatch` tests
+        // `ts.isStringLiteral`, which a template literal is not.
         assert_eq!(
             event_names(&events),
             vec![
                 "spaced-member",
                 "single",
                 "double",
-                "backtick",
                 "inside-string",
-                "inside-comment",
+                "inside-comment"
             ]
         );
     }

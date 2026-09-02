@@ -25,6 +25,10 @@ pub struct ExportedNames {
     pub bindable_props: Vec<String>,
     /// `JSDoc` type text found before $`props()` (e.g., "{{ a: number, b: string }}")
     pub props_jsdoc_type: Option<String>,
+    /// Upstream's `$props.comment` — the JSDoc block VERBATIM, emitted as
+    /// `comment + '({})'`; a reconstruction from `props_jsdoc_type` loses a
+    /// multi-line block's own text.
+    pub props_jsdoc_comment: Option<String>,
     /// Whether a legacy `type $$Props` / `interface $$Props` is declared.
     /// Whether `$$Slots` type/interface is declared in the script
     /// Whether `$$Events` type/interface is declared in the script
@@ -335,6 +339,7 @@ impl ExportedNames {
             props_type_text: None,
             bindable_props: Vec::new(),
             props_jsdoc_type: None,
+            props_jsdoc_comment: None,
             events_type_decl_pos: None,
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
@@ -661,8 +666,10 @@ impl ExportedNames {
             if let Some(doc) = &info.doc
                 && dont_add_type_def
             {
+                // `createReturnElements`: `\n${doc}${name}` — the newline is
+                // before the comment and nothing separates it from the name.
+                entries.push('\n');
                 entries.push_str(doc);
-                entries.push(' ');
             }
             entries.push_str(en);
             entries.push_str(": ");
@@ -695,6 +702,9 @@ impl ExportedNames {
         }
         if let Some(type_text) = &self.props_type_text {
             return format!("{{}} as any as {type_text}");
+        }
+        if let Some(comment) = &self.props_jsdoc_comment {
+            return format!("{comment}({{}})");
         }
         if let Some(jsdoc_type) = &self.props_jsdoc_type {
             return format!("/** @type {jsdoc_type} */({{}})");
@@ -927,8 +937,8 @@ impl ExportedNames {
 
     fn write_type_entry(output: &mut String, name: &str, info: &ExportedNameInfo) {
         if let Some(doc) = &info.doc {
+            output.push('\n');
             output.push_str(doc);
-            output.push(' ');
         }
         output.push_str(name);
         // Official `createReturnElementsType`: `${name}${value.required ? '' : '?'}`.

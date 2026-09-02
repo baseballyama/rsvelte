@@ -4,7 +4,7 @@
 use std::borrow::Cow;
 
 use super::svg::is_svg_attribute;
-use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart};
+use crate::ast::template::{Attribute, AttributeNode, AttributeValue, AttributeValuePart};
 use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
@@ -24,23 +24,67 @@ fn valueless_value(source_name: &str) -> &'static str {
     }
 }
 
+/// Which of `Attribute.ts`'s two host tests an attribute is being formatted under.
+///
+/// Upstream asks them separately: `element instanceof Element` picks the
+/// `data-` / `--` wrapper, while the case and number rewrites additionally need
+/// `parent.type === 'Element'`. A `<slot>` is built as an `Element` whose parent
+/// node is a `Slot`, so it is the one host where the two answers differ.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AttrHost<'a> {
+    /// `element instanceof Element && parent.type === 'Element'` — a real tag
+    /// and `<svelte:element>`, the only hosts that fold the name's case and
+    /// rewrite a number-only attribute.
+    Element {
+        tag: &'a str,
+        preserve_case: bool,
+        /// Upstream's `Element.isCustomElement()`, which the caller answers
+        /// because its second half reads a sibling `is=` attribute.
+        is_custom_element: bool,
+    },
+    /// An `Element` whose node type is not `Element`: `<slot>`,
+    /// `<svelte:body|window|document|head|fragment>`.
+    SpecialTag {
+        tag: &'a str,
+    },
+    Component,
+}
+
+impl<'a> AttrHost<'a> {
+    pub fn tag(self) -> &'a str {
+        match self {
+            Self::Element { tag, .. } | Self::SpecialTag { tag } => tag,
+            Self::Component => "",
+        }
+    }
+}
+
 /// Format a regular attribute: `name="value"` → `"name":value,`.
 ///
 /// Shorthand attributes like `{propB}` (where name equals expression text)
 /// produce `propB,` instead of `"propB":propB,`.
 ///
 /// Wrapping rules (mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`):
-/// - `is_element` && name starts with `data-` (but NOT `data-sveltekit-`):
+/// - element or slot && name starts with `data-` (but NOT `data-sveltekit-`):
 ///   `...__sveltets_2_empty({ "data-foo": value })` — boolean/no-value → `__sveltets_2_any()`.
-/// - `!is_element` && name starts with `--`:
-///   `...__sveltets_2_cssProp({ "--x": value })` — boolean/no-value → `""`.
-pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -> String {
-    let name = &node.name;
+/// - component && name starts with `--`:
+///   `...__sveltets_2_cssProp({ "--x": value })`.
+pub fn format_attribute_node(node: &AttributeNode, source: &str, host: AttrHost) -> String {
+    let is_element = matches!(host, AttrHost::Element { .. });
+    let name = &match host {
+        AttrHost::Element {
+            preserve_case,
+            is_custom_element,
+            ..
+        } => transform_attribute_case(&node.name, is_custom_element, true, preserve_case),
+        AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
+    };
 
     // Determine wrapping: data-* on elements, --* on components.
-    let is_data_attr =
-        is_element && name.starts_with("data-") && !name.starts_with("data-sveltekit-");
-    let is_css_prop = !is_element && name.starts_with("--");
+    let is_data_attr = !matches!(host, AttrHost::Component)
+        && name.starts_with("data-")
+        && !name.starts_with("data-sveltekit-");
+    let is_css_prop = matches!(host, AttrHost::Component) && name.starts_with("--");
 
     /// Wrap the inner `"name":value` (without trailing comma) in the
     /// appropriate helper and re-attach the comma.
@@ -62,11 +106,16 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
             // `__sveltets_2_any()` fallback in upstream `Attribute.ts` only applies
             // when the attribute has no value at all, which never happens for a
             // boolean attribute.)
-            // For --* on components: boolean means no value → ""
+            // A `--x` with no value is `true` too: the `""` fallback in
+            // `addProp` only fires when `addAttribute` is called with no value
+            // argument, which the `attr.value === true` branch never does.
             if is_data_attr {
                 format!("...__sveltets_2_empty({{\"{name}\":true}}),")
             } else if is_css_prop {
-                format!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),")
+                format!(
+                    "...__sveltets_2_cssProp({{\"{name}\":{}}}),",
+                    valueless_value(&node.name)
+                )
             } else {
                 format!("\"{name}\":{},", valueless_value(&node.name))
             }
@@ -99,6 +148,22 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
                 return wrap(&inner, is_data_attr, is_css_prop);
             }
 
+            // `svelte/elements` types this set as `number`, so a template literal
+            // fails to type-check — the same rule the segment-based emitter
+            // applies (`needsNumberConversion` in `Attribute.ts`).
+            if is_element
+                && parts.len() == 1
+                && let AttributeValuePart::Text(text) = &parts[0]
+                && is_number_only_attribute(name)
+                && !text.data.trim().is_empty()
+                && is_js_numeric(&text.data)
+            {
+                return format!(
+                    "\"{name}\":{},",
+                    &source[text.start as usize..text.end as usize]
+                );
+            }
+
             // Pure-static empty value (`class=""`): emit the quoted empty
             // string, matching official (not an empty template literal).
             let has_expr = parts
@@ -129,14 +194,31 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
                         value_parts.push(escaped);
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
-                        let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{expr_text}}}"));
+                        // Official copies the mustache's INTERIOR verbatim, so a
+                        // comment or the author's whitespace inside `{ … }`
+                        // survives; the expression node's own span starts after
+                        // both.
+                        value_parts.push(format!("${{{}}}", mustache_interior(expr, source)));
                     }
                 }
             }
             let inner = format!("\"{}\":`{}`", name, value_parts.join(""));
             wrap(&inner, is_data_attr, is_css_prop)
         }
+    }
+}
+
+/// The text between a mustache's braces. Official's `Attribute.ts` copies that
+/// range into the template literal rather than the expression node's own span,
+/// so a comment or whitespace inside `{ … }` reaches the output.
+fn mustache_interior<'s>(
+    expr: &crate::ast::template::ExpressionTag<'_>,
+    source: &'s str,
+) -> &'s str {
+    if expr.end > expr.start + 1 {
+        slice_src(source, expr.start as usize + 1, expr.end as usize - 1)
+    } else {
+        get_expression_text(&expr.expression, source)
     }
 }
 
@@ -227,11 +309,10 @@ pub fn is_js_numeric(data: &str) -> bool {
 /// `preserve_case` (the `foreign` namespace) suppresses the fold entirely.
 pub fn transform_attribute_case<'a>(
     name: &'a str,
-    tag: &str,
+    is_custom_element: bool,
     is_element: bool,
     preserve_case: bool,
 ) -> Cow<'a, str> {
-    let is_custom_element = tag.contains('-');
     if !preserve_case
         && is_element
         && !is_svg_attribute(name)
@@ -250,6 +331,23 @@ pub fn transform_attribute_case<'a>(
     } else {
         Cow::Borrowed(name)
     }
+}
+
+/// Upstream's `Element.isCustomElement()`: a dash in the tag name, or an `is=`
+/// attribute whose FIRST value chunk is text containing a dash.
+pub fn element_is_custom(tag: &str, attributes: &[Attribute]) -> bool {
+    if tag.contains('-') {
+        return true;
+    }
+    attributes.iter().any(|attr| match attr {
+        Attribute::Attribute(node) if node.name == "is" => match &node.value {
+            AttributeValue::Sequence(parts) => {
+                matches!(parts.first(), Some(AttributeValuePart::Text(t)) if t.raw.contains('-'))
+            }
+            _ => false,
+        },
+        _ => false,
+    })
 }
 
 /// Build the leading-comment prefix segs for an attribute starting at
@@ -453,8 +551,8 @@ fn push_attribute_name(out: &mut Vec<Seg>, node: &AttributeNode, source: &str, n
 /// retain per-character source-map fidelity.
 ///
 /// Applies the same wrapping rules as `format_attribute_node`:
-/// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
-/// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
+/// - element or slot && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
+/// - component && `--*` → `__sveltets_2_cssProp({…})`
 ///
 /// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
 pub fn append_attribute_node_segments(
@@ -462,18 +560,25 @@ pub fn append_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
     comments: &ElementOpenerCommentIndex,
-    is_element: bool,
-    tag: &str,
+    host: AttrHost,
     leading_comment: &str,
-    preserve_case: bool,
 ) {
     let leading = leading_attr_comment_segs(node.start, source, comments);
-    let is_data_attr =
-        is_element && node.name.starts_with("data-") && !node.name.starts_with("data-sveltekit-");
-    let is_css_prop = !is_element && node.name.starts_with("--");
+    let is_element = matches!(host, AttrHost::Element { .. });
+    let is_data_attr = !matches!(host, AttrHost::Component)
+        && node.name.starts_with("data-")
+        && !node.name.starts_with("data-sveltekit-");
+    let is_css_prop = matches!(host, AttrHost::Component) && node.name.starts_with("--");
     // Element attribute names are lowercased to match intrinsic typings
     // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
-    let name_owned = transform_attribute_case(&node.name, tag, is_element, preserve_case);
+    let name_owned = match host {
+        AttrHost::Element {
+            preserve_case,
+            is_custom_element,
+            ..
+        } => transform_attribute_case(&node.name, is_custom_element, true, preserve_case),
+        AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
+    };
     let name = name_owned.as_ref();
 
     match &node.value {
@@ -496,7 +601,7 @@ pub fn append_attribute_node_segments(
             } else if is_css_prop {
                 segs_push_lit(out, "...__sveltets_2_cssProp({");
                 push_attribute_name(out, node, source, name);
-                segs_push_lit(out, ":\"\"}),");
+                segs_push_fmt(out, format_args!(":{}}}),", valueless_value(&node.name)));
             } else {
                 push_attribute_name(out, node, source, name);
                 segs_push_fmt(out, format_args!(":{},", valueless_value(&node.name)));
@@ -688,9 +793,12 @@ pub fn append_attribute_node_segments(
                             segs_push_lit(out, &escaped);
                         }
                         AttributeValuePart::ExpressionTag(expr) => {
-                            let range = get_expression_range(&expr.expression);
                             segs_push_lit(out, "${");
-                            if let Some((s, e)) = range {
+                            // See `mustache_interior`: the slice is the braces'
+                            // contents, not the expression node's span.
+                            if expr.end > expr.start + 1 {
+                                segs_push_src(out, expr.start + 1, expr.end - 1);
+                            } else if let Some((s, e)) = get_expression_range(&expr.expression) {
                                 segs_push_src(out, s, e);
                             } else {
                                 segs_push_lit(out, get_expression_text(&expr.expression, source));
@@ -910,22 +1018,22 @@ mod tests {
 
     #[test]
     fn transform_attribute_case_borrows_unchanged_names() {
-        let lowercase = transform_attribute_case("class", "div", true, false);
+        let lowercase = transform_attribute_case("class", false, true, false);
         assert!(matches!(lowercase, Cow::Borrowed("class")));
         assert!(matches!(
-            transform_attribute_case("viewBox", "svg", true, false),
+            transform_attribute_case("viewBox", false, true, false),
             Cow::Borrowed("viewBox")
         ));
         assert!(matches!(
-            transform_attribute_case("defaultValue", "my-input", true, false),
+            transform_attribute_case("defaultValue", true, true, false),
             Cow::Borrowed("defaultValue")
         ));
         assert!(matches!(
-            transform_attribute_case("onClick", "button", true, false),
+            transform_attribute_case("onClick", false, true, false),
             Cow::Borrowed("onClick")
         ));
         assert!(matches!(
-            transform_attribute_case("defaultValue", "Component", false, false),
+            transform_attribute_case("defaultValue", false, false, false),
             Cow::Borrowed("defaultValue")
         ));
     }
@@ -933,11 +1041,11 @@ mod tests {
     #[test]
     fn transform_attribute_case_allocates_only_for_changed_names() {
         assert_eq!(
-            transform_attribute_case("defaultValue", "input", true, false),
+            transform_attribute_case("defaultValue", false, true, false),
             Cow::Owned::<str>("defaultvalue".to_string())
         );
         assert_eq!(
-            transform_attribute_case("İD", "div", true, false),
+            transform_attribute_case("İD", false, true, false),
             Cow::Owned::<str>("i\u{307}d".to_string())
         );
     }

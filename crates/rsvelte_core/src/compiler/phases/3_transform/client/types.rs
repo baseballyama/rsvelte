@@ -1278,6 +1278,7 @@ impl<'a> ComponentContext<'a> {
         // so we can restore them after visiting children.
         let mut saved_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
         let saved_deep_read_for_svelte_fragment = self.state.transform_deep_read.clone();
+        let saved_lets_out_of_scope = self.state.lets_out_of_scope.clone();
 
         for attribute in &frag.attributes {
             if let Attribute::LetDirective(let_dir) = attribute {
@@ -1340,6 +1341,10 @@ impl<'a> ComponentContext<'a> {
                     );
                     // Let directive bindings are template-kind.
                     self.state.transform_deep_read.insert(name.clone(), ());
+                    // A slotted node's OWN `let:` is declared in the ENCLOSING
+                    // scope upstream, so it is in scope here even when the
+                    // component's `let:` of the same name is not.
+                    self.state.lets_out_of_scope.remove(&name);
                 } else if let Some((derived_name, binding_names, const_stmt)) =
                     crate::compiler::phases::phase3_transform::client::visitors::shared::component::build_destructured_let_directive(
                         let_dir, self,
@@ -1375,6 +1380,7 @@ impl<'a> ComponentContext<'a> {
                                 store_source: None,
                             },
                         );
+                        self.state.lets_out_of_scope.remove(&name);
                         self.state.transform_deep_read.insert(name, ());
                     }
 
@@ -1408,6 +1414,7 @@ impl<'a> ComponentContext<'a> {
             }
         }
         self.state.transform_deep_read = saved_deep_read_for_svelte_fragment;
+        self.state.lets_out_of_scope = saved_lets_out_of_scope;
 
         TransformResult::None
     }
@@ -1724,6 +1731,12 @@ pub struct ComponentClientTransformState<'a> {
     /// binding (e.g., an each item named `x` versus a `{@const x = ...}`
     /// inside a sibling `{#if}`).
     pub transform_deep_read: ImHashMap<String, ()>,
+
+    /// `let:` names a component declared for its DEFAULT slot while a NAMED
+    /// slot of that same component is being visited. Upstream gives a named
+    /// slot a child of the scope OUTSIDE the component, so the name is a
+    /// global there and `is_pure` reports the expression as non-reactive.
+    pub lets_out_of_scope: ImHashMap<String, ()>,
 
     /// Await then/catch bindings whose active read transform is `$.get(name)`.
     /// Await fragments scope these alongside `transform`; text-based template
@@ -2046,6 +2059,13 @@ pub struct EachBindingContext {
     /// do NOT set `uses_index = true`, while Identifier patterns do.
     /// This field controls whether `binding_used` should propagate to `uses_index`.
     pub context_is_identifier: bool,
+
+    /// This each block's own Phase-2 scope. Upstream's `build_bind_this` decides
+    /// which identifiers become callback parameters by scope identity
+    /// (`scope === binding.scope`), which a name comparison cannot express: a
+    /// `{@const}` declared in the block is collected, the same name declared one
+    /// `{#if}` deeper is not.
+    pub scope_index: Option<usize>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -2081,6 +2101,7 @@ impl<'a> ComponentClientTransformState<'a> {
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
             transform_deep_read: ImHashMap::new(),
+            lets_out_of_scope: ImHashMap::new(),
             await_binding_names: ImHashMap::new(),
             each_shadowing_names: ImHashMap::new(),
             events: indexmap::IndexSet::default(),
@@ -2139,6 +2160,16 @@ impl<'a> ComponentClientTransformState<'a> {
 
     /// Get a binding by name from the current scope or parent scopes.
     pub fn get_binding(&self, name: &str) -> Option<&Binding> {
+        let binding = self.lookup_binding(name)?;
+        // A component's `let:` binding is not in scope inside that component's
+        // named slots, and the lookup below is by name across every scope.
+        if self.lets_out_of_scope.contains_key(name) && binding.kind == BindingKind::Let {
+            return None;
+        }
+        Some(binding)
+    }
+
+    fn lookup_binding(&self, name: &str) -> Option<&Binding> {
         // First check current scope
         if let Some(&index) = self.scope.declarations.get(name) {
             return self.scope_root.bindings.get(index);

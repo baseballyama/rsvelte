@@ -608,9 +608,9 @@ fn collect_slot_prop_entries(
                 continue; // Skip the name attribute
             }
             match &node.value {
-                AttributeValue::True(_) => {
-                    props.push(format!("{}:{}", node.name, resolve(&node.name)));
-                }
+                // `handleSlot` skips any attribute with no value at all
+                // (`!attr.value?.length`), so `<slot a />` contributes nothing.
+                AttributeValue::True(_) => {}
                 AttributeValue::Expression(expr) => {
                     let expr_text = get_expression_text(&expr.expression, source);
                     props.push(format!("{}:{}", node.name, resolve(expr_text)));

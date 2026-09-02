@@ -433,6 +433,14 @@ pub(super) fn transform_reactive_statement(
                 let transformed_rhs =
                     transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
                 // Also wrap state vars in $.get() calls
+                // A mutation nested in the RHS (an arrow body, say) is a mutation too;
+                // it must be wrapped before the read pass rewrites its root to `$.get`.
+                let transformed_rhs = transform_state_member_mutations_in_expr(
+                    &transformed_rhs,
+                    state_vars,
+                    non_reactive_state_vars,
+                    prop_invalidate_bodies,
+                );
                 let transformed_rhs = wrap_state_vars_in_expr(
                     &transformed_rhs,
                     state_vars,
@@ -455,6 +463,12 @@ pub(super) fn transform_reactive_statement(
                     &transformed_rhs,
                     prop_assignment_transform_vars,
                     &[],
+                    prop_invalidate_bodies,
+                );
+                let transformed_rhs = transform_state_member_mutations_in_expr(
+                    &transformed_rhs,
+                    state_vars,
+                    non_reactive_state_vars,
                     prop_invalidate_bodies,
                 );
                 let transformed_rhs = wrap_state_vars_in_expr(
@@ -491,6 +505,12 @@ pub(super) fn transform_reactive_statement(
                     let member_part = &lhs[base.len()..]; // ".foo" or "[idx]"
                     let transformed_rhs =
                         transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = transform_state_member_mutations_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        prop_invalidate_bodies,
+                    );
                     let transformed_rhs = wrap_state_vars_in_expr(
                         &transformed_rhs,
                         state_vars,
@@ -530,6 +550,12 @@ pub(super) fn transform_reactive_statement(
 
                     let transformed_rhs =
                         transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = transform_state_member_mutations_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        prop_invalidate_bodies,
+                    );
                     let transformed_rhs = wrap_state_vars_in_expr(
                         &transformed_rhs,
                         state_vars,
@@ -550,6 +576,12 @@ pub(super) fn transform_reactive_statement(
                         transform_prop_reads_in_expr(member_part, prop_assignment_transform_vars);
                     let transformed_rhs =
                         transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = transform_state_member_mutations_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        prop_invalidate_bodies,
+                    );
                     let transformed_rhs = wrap_state_vars_in_expr(
                         &transformed_rhs,
                         state_vars,
@@ -568,6 +600,12 @@ pub(super) fn transform_reactive_statement(
                     // Regular assignment - still transform prop reads on RHS
                     let transformed_rhs =
                         transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = transform_state_member_mutations_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        prop_invalidate_bodies,
+                    );
                     let transformed_rhs = wrap_state_vars_in_expr(
                         &transformed_rhs,
                         state_vars,
@@ -1075,6 +1113,27 @@ fn wrap_legacy_invalidate(
 ///
 /// This must run BEFORE `wrap_state_vars_in_expr` to operate on the original
 /// identifier names before they are rewritten to `$.get(state_var)`.
+/// `transform_state_member_mutations` parses its input as a program, so an
+/// expression that is not also a statement — an object literal with more than
+/// one property, say — never reaches the pass at all. Parenthesise it, and drop
+/// the parens back off: every edit the pass makes lands inside them.
+fn transform_state_member_mutations_in_expr(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
+) -> String {
+    let out = transform_state_member_mutations(
+        &format!("({expr})"),
+        state_vars,
+        non_reactive_vars,
+        invalidate_bodies,
+    );
+    out.strip_prefix('(')
+        .and_then(|rest| rest.strip_suffix(')'))
+        .map_or_else(|| expr.to_string(), str::to_string)
+}
+
 pub(super) fn transform_state_member_mutations(
     expr: &str,
     state_vars: &[String],

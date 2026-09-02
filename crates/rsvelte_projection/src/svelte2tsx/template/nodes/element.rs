@@ -4,11 +4,12 @@ use crate::ast::template::{RegularElement, SlotElement, TitleElement};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
+use crate::svelte2tsx::template::attributes::attribute::{AttrHost, element_is_custom};
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, sanitize_tag_for_var,
 };
 use crate::svelte2tsx::template::attributes::directive_suffix::{
-    build_directive_prefix_suffix, build_element_directive_suffix_segments,
+    action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
 };
 use crate::svelte2tsx::template::attributes::{build_attribute_segments, build_attributes_string};
 use crate::svelte2tsx::template::ctx::Counter;
@@ -191,10 +192,13 @@ fn regular_opener_attributes(
         &el.attributes,
         source,
         &counter.element_opener_comments,
-        &el.name,
         in_component_slot,
         Some(content_start),
-        options.namespace.preserves_attribute_case(),
+        AttrHost::Element {
+            tag: &el.name,
+            preserve_case: options.namespace.preserves_attribute_case(),
+            is_custom_element: element_is_custom(&el.name, &el.attributes),
+        },
         options.preserves_bind_prefix(),
     );
     let spacing = opener_spacing(
@@ -288,17 +292,6 @@ fn finish_regular_element(
     counter.slot_inst = saved_slot;
 }
 
-fn action_arguments(action_count: usize) -> String {
-    if action_count == 0 {
-        return String::new();
-    }
-    let names = (0..action_count)
-        .map(|index| format!("$$action_{index}"))
-        .collect::<Vec<_>>()
-        .join(",");
-    format!(", __sveltets_2_union({names})")
-}
-
 fn close_regular_element(
     el: &RegularElement,
     source: &str,
@@ -347,7 +340,11 @@ pub fn handle_title_element(
         source,
         &counter.element_opener_comments,
         saved_slot.is_some(),
-        options.namespace.preserves_attribute_case(),
+        AttrHost::Element {
+            tag: &el.name,
+            preserve_case: options.namespace.preserves_attribute_case(),
+            is_custom_element: element_is_custom(&el.name, &el.attributes),
+        },
         options.preserves_bind_prefix(),
     );
 

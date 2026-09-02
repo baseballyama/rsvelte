@@ -216,7 +216,7 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
     let mut nesting = 0i32;
     let mut angle = 0i32;
     let mut heritage_start: Option<usize> = None;
-    let mut nested_classes = 0u32;
+    let mut pending_bodies = 0u32;
     let mut skip_depth = 0i32;
     // One past the last byte of a multi-byte JS whitespace character, whose
     // continuation bytes `is_ident_byte` would otherwise read as identifier.
@@ -263,10 +263,13 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
                 nesting = 0;
                 angle = 0;
                 heritage_start = None;
-                nested_classes = 0;
+                pending_bodies = 0;
             } else if keyword.is_some() && nesting == 0 && angle == 0 && !is_property {
-                if word == b"class" {
-                    nested_classes += 1;
+                if word == b"class" || (word == b"function" && heritage_start.is_some()) {
+                    // A heritage is a LeftHandSideExpression, so its primary can
+                    // be a class OR a function expression; either one's body
+                    // brace precedes the class body's.
+                    pending_bodies += 1;
                 } else if word == b"extends" && heritage_start.is_none() {
                     heritage_start = Some(prev_end);
                 }
@@ -311,8 +314,15 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
             b'<' if nesting == 0 => angle += 1,
             b'>' if nesting == 0 && angle > 0 => angle -= 1,
             b'{' if nesting == 0 && angle == 0 => {
-                if nested_classes > 0 {
-                    nested_classes -= 1;
+                if pending_bodies > 0 {
+                    pending_bodies -= 1;
+                    skip_depth = 1;
+                } else if heritage_start
+                    .is_some_and(|start| skip_ws_and_comments(source, start) == i)
+                {
+                    // Nothing but whitespace since `extends`, so this brace is
+                    // that primary's own object literal and the class body's is
+                    // the one after it.
                     skip_depth = 1;
                 } else {
                     return Some(ClassHeader {
@@ -326,7 +336,7 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
             b';' if nesting == 0 => {
                 keyword = None;
                 heritage_start = None;
-                nested_classes = 0;
+                pending_bodies = 0;
             }
             _ => {}
         }

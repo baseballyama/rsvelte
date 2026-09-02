@@ -7,6 +7,7 @@ use crate::ast::template::{SvelteElement, TemplateNode};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
+use crate::svelte2tsx::template::attributes::attribute::AttrHost;
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, build_bind_directive_suffix, element_var_base_name,
 };
@@ -188,14 +189,23 @@ pub fn handle_svelte_special_element(
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
     let attrs_str = if named_slot.is_some() {
-        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace)
+        build_named_slot_element_attrs(
+            &el.attributes,
+            source,
+            &options.typings_namespace,
+            &el.name,
+            true,
+            options.namespace.preserves_attribute_case(),
+        )
     } else {
         build_attributes_string(
             &el.attributes,
             source,
             &counter.element_opener_comments,
             saved_slot.is_some(),
-            options.namespace.preserves_attribute_case(),
+            // `<svelte:body|window|document|head|fragment>` is an `Element` whose
+            // node type is not `Element`, so neither name rewrite applies.
+            AttrHost::SpecialTag { tag: &el.name },
             options.preserves_bind_prefix(),
         )
     };

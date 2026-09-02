@@ -1,5 +1,78 @@
 # @rsvelte/compiler
 
+## 0.11.1
+
+### Patch Changes
+
+- bc7db4d: An `{#await … then X}` or `{:catch X}` binding now shadows a prop of the same name. Every read of
+  `X` inside the block was lowered as the prop read `$$props.X` instead of the block's own binding,
+  because a non-source prop is answered before `state.transform` is consulted and the await visitor
+  never registered the binding as shadowing. A prop declared with a default was unaffected.
+- 878afb0: An `{#await}` catch binding's read transform now leaks past its block, matching the official
+  compiler. `AwaitBlock.js` gives `then_context` a copy of `state.transform` and gives
+  `catch_context` the parent's own object, so the catch binding's read override outlives the
+  block and every later read of that name is rewritten — including reads of a prop, a `$state`
+  or a legacy `export let`. rsvelte scoped both arms and emitted the unrewritten read. The
+  divergence and its runtime consequence are recorded in
+  `upstream_issues/4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md`.
+
+  Only the read half is conformed. Upstream replaces the whole `transform` entry, so the
+  setter is lost too and a later write to the outer binding is emitted as an assignment to a
+  call expression — the unparseable class `upstream_unparseable_3306.rs` already pins, where
+  this port deliberately diverges. The write halves are therefore restored on the way out of
+  the block.
+
+- 56c430e: A `{#snippet}` declared inside `<svelte:boundary>` is now emitted ahead of the server's
+  component-bindings settle loop, where upstream puts every snippet, instead of inside the
+  `$$render_inner` wrapper. The boundary visitor builds that declaration itself rather than through
+  the snippet visitor, so the name it must be recognised by was never recorded. Only a component
+  that also `bind:`s a child was affected.
+- 6fde071: A `class:` directive whose value is the identifier of the same name now reaches `$.attributes`
+  untransformed on the server, matching the official compiler. Upstream's `prepare_element_spread`
+  skips the read transform for that shape, so a `$derived` is passed as the derived function —
+  always truthy — and SSR renders the class unconditionally; rsvelte called it. The condition is on
+  the expression rather than the syntax, so `class:active={active}` is affected identically, while
+  an element with no spread goes through `build_attr_class`, which has no such arm and still
+  transforms. Recorded in
+  `upstream_issues/4117-svelte-class-shorthand-reaches-attributes-untransformed.md`.
+- 2e4ccee: A dotted component tag name now reads through its root binding's transform. Upstream lowers a
+  tag name by visiting the whole `b.member_id(name)` chain, and the rest-prop read rule is keyed
+  on the parent member expression — so transforming the root identifier alone never reached it,
+  and `<rest.Sub />` compiled to `rest.Sub` where the official compiler emits `$$props.Sub`,
+  while `{rest.Sub}` in the same component was already correct.
+- 2b3a7bd: Match a nested rule whose parent prelude is fully global. A child that writes no
+  explicit `&` gets one unshifted by upstream's `get_relative_selectors`, and
+  `is_global` resolves that `&` through the parent prelude — so it matches every
+  ancestor that is there (scoping each one) and `apply_combinator` still matches
+  when there is no ancestor at all. rsvelte matched only the child's own subject
+  against a real ancestor, so a wrapper carrying no selector of its own lost its
+  scope class and a subject at the root of the template lost it entirely
+- f9219d8: A `+error.svelte`'s `error` prop is now typed `App.Error`. Upstream's `ExportedNames`
+  answers "which props does SvelteKit type here" with two arms — `isKitRouteFile`
+  (data / form / params) and an `else if (isKitErrorFile(...))` arm that types `error`
+  alone — and rsvelte had only the first, so an error page's props fell through to
+  ordinary inference. `isKitErrorFile` strips only the extension, so `+error@foo.svelte`
+  is not one.
+- 56c430e: A destructured `$derived.by()` in a `.svelte.js` / `.svelte.ts` module now reads as a call on the
+  server even when its callback has a block body. The pass that decides `$.get(x)` → `x()` located a
+  comma-continued declarator by walking back to the nearest `;`, which a block body puts inside the
+  previous declarator, so the second name was dropped and every later read came out bare — output
+  that parses and runs with the wrong value. The client target and component instance scripts were
+  unaffected.
+- 56c430e: A `{#snippet}` whose parameter carries an object type with an optional member (`b: { t?: string }`)
+  keeps its parameters. The type-annotation stripper searched for `?:` anywhere in the parameter's
+  source, so the member's marker ended the parameter's name, the list failed to re-parse, and every
+  parameter was dropped — the snippet body could no longer see its arguments at run time.
+- 2732815: Scope a `{#snippet}`'s body from the ancestors of every place the snippet is
+  used, not only from its `{@render}` tags. Upstream's `analysis.snippet_renderers`
+  holds a component alongside each render tag, so a snippet handed to a component
+  as a prop still has that component's position as one of its sites; rsvelte
+  collected only the render tags, so an element in such a snippet was scoped as if
+  it had no ancestor and lost its scope class
+- 13d2d44: Print a JSDoc cast around a private class-field read where official does. Upstream wraps the field node, so a comment leading it lands inside the generated `$.get(...)`; rsvelte spliced the wrap at the field's own offset and left the comment outside, where esrap's `ReturnStatement` rule then parenthesised the whole statement. The wrap now starts at the leading comment run, and at the parenthesised group when the source spells the cast `/** @type {T} */ (this.#x)` — acorn elides those parens while oxc keeps them as a node, so the comment leads the group rather than the field.
+
+  Both AST read passes are reached for a bare class member now, not just one. A private field outside a class body is a parse error, so `private_read_wrap_ast` and its member-chain sibling were both falling through to a text scan; reviving only the first one made it claim the standalone reads while continuing to skip a member-chain object on the premise that the sibling took it — so `this.#x[i]` lost its `$.get(...)` in any class that also holds a standalone read of the same field.
+
 ## 0.11.0
 
 ### Minor Changes

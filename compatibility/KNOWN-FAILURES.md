@@ -37,6 +37,7 @@ resolve. Do not rename an anchor — they are machine-facing.
 | [`svelte2tsx-fixtures-known-failures`](#svelte2tsx-fixtures-known-failures) | `compatibility/svelte2tsx-fixtures-known-failures.md` |
 | [`svelte2tsx-known-failures`](#svelte2tsx-known-failures) | `compatibility/svelte2tsx-known-failures.md` |
 | [`svelte2tsx-map-known-failures`](#svelte2tsx-map-known-failures) | `compatibility/svelte2tsx-map-known-failures.md` |
+| [`svelte2tsx-unparseable-known-failures`](#svelte2tsx-unparseable-known-failures) | `compatibility/svelte2tsx-unparseable-known-failures.md` |
 | [`validator-known-failures`](#validator-known-failures) | `compatibility/validator-known-failures.md` |
 | [`validator-message-known-failures`](#validator-message-known-failures) | `compatibility/validator-message-known-failures.md` |
 | [`validator-message-not-comparable`](#validator-message-not-comparable) | `compatibility/validator-message-not-comparable.md` |
@@ -700,7 +701,7 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-position-known-failures.<target>.json` hold 0 entries, all four of
 `error-end-known-failures.<target>.json` hold 0 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
-(#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
+(#3176) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
 that more than doubled. The counts above are the re-measurement against the tree
 this branch was rebased onto (message 18/17 → 13/12, position 99 → 81, end
@@ -902,7 +903,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 549 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 545 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -927,17 +928,30 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `258 + 214 + 15 + 47 + 13 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `257 + 212 + 15 + 46 + 13 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 549 entries**, where it
+**The partition is now the mechanical rule applied to all 545 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
 mechanical buckets, because the CI report names an entry's first differing line
 and not the cluster a human filed it under. The addends are, in order:
-20 breaks-later 258, 21 breaks-earlier 214, 22 intra-line-ws 15,
-23 indent-only 47, 24 other 13, 25 extra-line 1, 26 missing-line 1;
+20 breaks-later 257, 21 breaks-earlier 212, 22 intra-line-ws 15,
+23 indent-only 46, 24 other 13, 25 extra-line 1, 26 missing-line 1;
 27 quote-style is now empty.
+
+`sparrow-app/…/text-upload/TextUpload.svelte` and
+`sparrow-app/…/request-navigator/RequestNavigator.svelte` left
+**21 — breaks-earlier** in #4187. Both are block headers whose expression exceeds
+`LineWidth::MAX = 320` (338 and 344 columns), which is a width OXC cannot be asked
+for, so it broke a logical chain the oracle keeps on one line; `removeLines`
+rejoins it. Their cluster was measured on the `origin/main` arm — on the fix arm
+they classify as `IDENTICAL-NOW` and carry no cluster at all.
+
+`headscale-ui/…/DeviceTags/NewDeviceTag.svelte` left **20 — breaks-later** and
+`sveltepress/…/icons/logos/Bun.svelte` left **23 — indent-only** in #4151; both
+were the leading-comment hug above, which is why the same fix moves a
+close-bracket decision and an indent width.
 
 `svelte-inspect-value/packages/svelte/src/lib/CustomLine.svelte` left
 **24 — other** in #4062: its only differing line was
@@ -946,7 +960,7 @@ which no rule above matches (not a prefix, not whitespace- or quote-equal). It i
 the one entry that fix moves, out of 34,686 real components whose output was
 diffed across the change.
 
-### Wave-2 enrolment (#3130) — Clusters 20-27
+### Wave-2 enrolment (#3176) — Clusters 20-27
 
 The corpus went from 37 to 104 corpus sources, and the formatter-parity set
 with it. The current run has **33,483 included components, 32,667 matched, 787
@@ -1036,6 +1050,24 @@ Nothing here is an oracle bug: the
 `oracle-invalid` classification already carries those and is a pass, not a ratchet
 entry.
 
+**And 398 of those 472 are inside the TEMPLATE, not inside embedded JS or CSS
+(2026-09-01).** The cluster table names the *shape* of the first differing line and
+never says which printer produced it, which reads as a line-breaking backlog in the
+embedded-JS formatter. Locating each entry’s first differing line back in its **source**
+— by a token needle, reporting `unlocated` rather than guessing — partitions the 549 as
+`template 438 | unlocated 48 | script 41 | style 22`, and crossed with the shape rule:
+`breaks-later|template 215`, `breaks-earlier|template 183`, `indent-only|template 31`,
+`breaks-later|script 19`, `indent-only|script 14`, `intra-line-ws|style 9`, the rest in
+single digits. So **72.5% of this ratchet is one question about Svelte markup**, and the
+embedded-JS and embedded-CSS engines together carry 63 entries.
+
+The positive control is that the same local harness reproduces the CI gate’s own
+partition on **five of its seven buckets exactly** (`breaks-later 258`,
+`breaks-earlier 214`, `intra-line-ws 15`, `extra-line 1`, `missing-line 1`), differing by
+two entries that move between `indent-only` and `other`. A region split measured by a
+harness that did not reproduce the shape split would be describing a different
+population.
+
 ### Three axes the cluster table does not carry (2026-08-31)
 
 The table above keys on the **first differing line**, which answers *what the
@@ -1084,51 +1116,100 @@ a Svelte document at all.
 
 | n | class |
 |---|---|
-| 1 | **rsvelte-fmt output is rejected by the official compiler** |
-| 0 | oracle output rejected |
+| 0 | **rsvelte-fmt output is rejected by the official compiler** |
+| 2 | oracle output rejected, rsvelte's accepted |
 
-That one is `sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte`,
-and it is not a formatting preference — **rsvelte-fmt duplicates an HTML comment
-and truncates the copies**, so the document is destroyed. Reduction (the trigger
-is a leading `<!-- … -->` child of an element whose open tag breaks, followed by a
-child that itself breaks; the comment's length is irrelevant):
+Measured over the whole 33,644-entry formatter-parity population by compiling both
+sides' formatted text: 1,014 of those sources are not compilable at all (both
+sides are rejected identically — `lang="ts"` and friends), and the 2 the oracle
+alone loses are the nested-destructure mangling already carried by
+`fmt-oracle-excluded.json`.
+
+This row read **1** until #4151. That one was
+`sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte`,
+and it was not a formatting preference — rsvelte-fmt **overwrote an HTML
+comment's `-->`**, so the document was destroyed:
 
 ```svelte
-<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><!-- x --><path fill="currentColor" d="M10 16h4v0h-4z"><animate fill="freeze" attributeName="d" begin="0.6s" dur="0.2s" values="a;b" /></path></svg>
+<svg Q="1" R="2"><!-- ZZZZZZZZ --><path d="a"><animate aaaaaaaaaaaaaaaa="1" bbbbbbbbbbbbbbbbbb="2" cccccccccccccccccc="3" /></path></svg>
 ```
 
-rsvelte-fmt emits the comment three times, and the second and third copies lose
-their `-->`:
-
 ```
-><!-- x --><path fill="currentColor" d="M10 16h4v0h-4z"
-><!-- x   ><animate
-…
-    /></path
-><!-- x ></svg>
+<svg Q="1" R="2"><!-- ZZZZZZZZ --><path d="a"
+<svg Q="1" R="2"><!-- ZZZZZZZZ   ><animate
 ```
 
-`compile()` on that text throws `expected_token` (*Expected token `-->`*); the
-oracle's output for the same input compiles. Removing the comment, flattening the
-nesting, or replacing `<svg>` with `<div>` each make the output valid, so the
-three ingredients are jointly required. The same check over
-`fmt-oracle-excluded.json` (27 entries, 2 of whose sources are already invalid and
-1 of which rsvelte-fmt refuses outright) finds **0** further cases, so the whole
-formatter-parity population contains exactly this one.
+`try_hug_mixed` declined any element with a `Comment` child on the premise that a
+comment is a line boundary. The oracle glues `><!-- … -->` to a wrapped open tag
+exactly as it glues text, so the premise is wrong — and declining left the child
+that breaks to a later pass, whose `ws_indent` was the line prefix sliced up to
+its last space. That slice **is** the comment when the comment precedes the
+element, so it was re-emitted as indentation over the `-->`. The indent is now
+the line's own leading whitespace, which is the same string on the shape the
+slice was written for (a parent's hugged `>` alone on the line) and the right one
+on every other. The defect had a second face the corruption hid: on an inline
+host the same slice produced *valid* output indented at the comment's end column
+(10 where 2 is correct), so the repro
+(`crates/rsvelte_formatter/tests/leading_comment_hug.rs`) carries both, plus the
+`>`-only prefix as the arm that reports an over-narrowing. 2 entries left this
+ratchet with 0 new failures; `SystemDefault.svelte` itself stays listed, on the
+`<g>` nesting level rather than on the comment.
 
 **Attribution status of this ratchet.** *Nothing here is an oracle bug* — that
-classification lives in `fmt-oracle-excluded.json` — so no entry can be attributed
-to an `upstream_issues/` report. The only `deliberate-divergences` target that
-reaches this file is the CSS-engine boundary (#3628), which today is pinned for
-*value spelling* by `crates/rsvelte_formatter/tests/css_native.rs` and covers
-Clusters 8 and 11 plus the two `pattern/issues/3404-*` files inside Cluster 22 —
-**5 entries**. The remaining 783 are neither upstream nor deliberate: they have to
-be burned down to zero. The 43 CSS-only render-changing entries above are very
-likely the same engine boundary in its *line-breaking* facet (e.g.
+classification lives in `fmt-oracle-excluded.json` — so **no entry is attributed to
+an `upstream_issues/` report**, and **none is attributed to a
+`deliberate-divergences` section either**. All 545 have to be burned down to zero.
+
+The previous version of this paragraph said `5 + 783`, against a ratchet holding
+547. The partition line above and this paragraph state quantities of the same
+population, and `known-failures-md-check.mjs` was comparing only the first of them
+to the JSON — **one half was gated and the other rotted alone**, which is a
+different failure from "the count and the split go stale together". The fix is
+therefore not a corrected number but the sidecar below, so that the number is
+derived rather than typed.
+
+The `deliberate-divergences` claim did not survive re-reading either. The
+CSS-engine boundary (#3628) is a recorded divergence, but the section
+[*The formatter's CSS engine is oxc, not prettier's PostCSS*](GATES.md#deliberate-divergences)
+names `fmt-oracle-excluded.json` as its ratchet, and its pin
+(`crates/rsvelte_formatter/tests/css_native.rs`, 8 tests) covers **value
+spelling** — a custom property, a nested `calc()` group. None of its tests reaches
+selector source spelling, a CSS escape's terminator, a multi-line function value's
+reindent or an unhandled combinator, which is what the five entries below actually
+carry. A recorded divergence whose pin covers a different facet does not pin these,
+so they are a **candidate** and are counted as unattributed until a test exists —
+the same standing `lsp-known-failures.md` gives its own unpinned candidate.
+
+The 43 CSS-only render-changing entries above are very likely the same engine
+boundary in its *line-breaking* facet (e.g.
 `huly/packages/ui/src/components/SearchInput.svelte`, where PostCSS breaks
 `background-color: var(--theme-button-default); // …` across three lines and OXC
-does not), but that facet has **no pin**, so they are recorded here as a candidate
-rather than counted as attributed.
+does not), but that facet has no pin either, so it is recorded here as a
+hypothesis rather than as a mechanism.
+
+### Entries by mechanism (2026-09-02)
+
+**This table is generated from a one-to-one id → mechanism assignment**
+(`compatibility/fmt-mechanisms.json`), **and the `n` column is derived from it** —
+`known-failures-md-check.mjs` fails if a row disagrees with the sidecar, if an
+entry carries no mechanism, or if a mechanism carries no entry. Both are
+`pinned: none`, which is the whole finding: this ratchet's end state is
+elimination for every entry it holds.
+
+The five candidates are `layerchart/docs/src/routes/+page.svelte` (Cluster 8),
+the two Cluster 11 fixtures (`css-nth-of-minified`, `css-escape-sequences`) and
+`pattern/issues/3404-{repeated-combinators,unhandled-combinator-scope}.svelte`.
+The remaining 540 are one bucket rather than seven because the mechanical
+`20`-`26` split above is recomputed from `compatibility/fmt-report.json`, which is
+a build artifact of a full oracle run and is not in the tree — assigning those
+buckets per entry from the doc would be transcription, not measurement.
+
+| n | mechanism | pinned |
+|---|---|---|
+| 5 | the embedded-CSS engine split — rsvelte-fmt prints through `oxc_formatter_css` and the oracle's Svelte path through PostCSS; a candidate for `deliberate-divergences`, but the pin there covers value spelling and none of these entries | none — candidate, not pinned for this facet |
+| 540 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+
+Partition of `fmt-known-failures.json` by mechanism: `5 + 540`
 
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
@@ -2847,17 +2928,109 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 42 entries)
+### Client (`known-failures.client.json`, 11 entries)
 
-Partition of `known-failures.client.json` by verdict: `41 + 1`
+Partition of `known-failures.client.json` by verdict: `11`
 
-- **41 — the generated JS differs** (`js` / `code-differs`).
-- **1 — the generated CSS differs.**
+- **11 — the generated JS differs** (`js` / `code-differs`).
+
+No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
+below.
 
 The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
 no entry here is "both compilers reject with a different code", "one compiler
 rejects and the other compiles", or "rsvelte's output is not JavaScript".
+
+`appwrite-console/…/sortButton.svelte` left this target when `:global(.foo)` stopped
+answering "is this a global block". Upstream sets `metadata.is_global_block` only for a
+**bare** `:global` (`css-analyze.js:24-30`), and `is_empty` reads it to short-circuit
+(`3-transform/css/index.js:432`); rsvelte's `is_rule_empty` treated an argument-bearing
+`:global(...)` as one too, so a parent whose only surviving child was pruned kept its
+declarations instead of being commented out. The two-sided ratchet named this entry in the
+PR's own `Compiler parity` job (`1 baseline entries already PASS … client 1`).
+
+**The fix also repairs `server` CSS, and no gate can see that.** `targets.mjs` sets
+`css: false` for `server` and `server-dev`, so CSS is compared on `client` and `client-dev`
+only. A two-arm sweep over this branch moved **2** units — this file on `client` and on
+`server`, both `css DIFF → EQ` — while the ratchet can hold only the first. The asymmetry is
+worth stating rather than rounding away: "the sweep moved 2 and the ratchet retires 1" is not
+a discrepancy, it is the population of the gate.
+
+`pattern/issues/3072-extends-shapes-legal.svelte.js` left this target and `client-dev` when
+the class-body scan stopped taking the first `{` after the header. A heritage clause can open
+a brace of its own, and `find_class_header` counted exactly one thing that does — a nested
+`class` expression — so `class A extends function () {} { e = $state(5) }` read the
+function’s body as the class body and never privatised the field. A heritage is a
+`LeftHandSideExpression`, which closes the set: a class expression, a function expression in
+its four spellings, and an object literal in primary position. Measured one cell per member,
+**eight of eighteen diverged** and the shape this entry carries was one of them. The scan is
+shared by the client and the server (`client/class_transforms.rs:996`,
+`server/transform_script.rs:4864`), so the change was swept on all four targets rather than
+on the two this entry sits in.
+
+Two entries left this target and `client-dev` because a read transform was handed the wrong
+identifier. `$.invalidate_inner_signals(() => (…))` names the bindings an each-item mutation
+must invalidate, and each name goes through that binding's read transform. A legacy **reactive
+import**'s read expects the identifier already swapped for its `$$_import_` alias —
+`client/visitors/program.rs` registers that swap as `replacement_id`, and both
+`shared/utils.rs:907` and `shared/utils.rs:1572` consult it — while `each_block.rs` passed the
+raw name, so `photon/…/settings/{app,moderation}` emitted `settings()` where official emits
+`$$_import_settings()`. That output is **exactly what a prop read looks like**, so a check
+asking only "is it not the bare name" passes on the bug; the repro therefore varies the
+binding KIND behind one fixed each block (`plain-import` → `settings`, `local-state` →
+`$.get(settings)`, `exported-prop` → `settings()`, nested each → `$.get(filter),
+$$_import_settings()`). A 139,252-unit four-target sweep moved exactly these 4 units.
+
+One entry left this target and `client-dev` because a destructured `export let` was lowered by
+text rather than through its keys. Upstream's `_extract_paths` builds a rest element as
+`$.exclude_from_object(expression, [keys])` and every property as
+`b.member(expression, prop.key, prop.computed || key.type !== 'Identifier')`; the port
+re-destructured for the rest and spelled every key as a dot access. `huly/…/
+TrainingRequestDueDateEditor.svelte` carries the first. The second is louder and had no
+carrier: **seven of the eight key cells emitted text no JS parser accepts** (`tmp.'a-b'`,
+`tmp.0`, `tmp.[k]`), and only a plain identifier key was right — which is why the repro
+(`crates/rsvelte_core/tests/destructured_export_let_keys.rs`) is one cell per key kind crossed
+with whether the pattern has a rest, rather than the reported shape alone. A 135,560-unit sweep
+moved exactly the 2 units this entry occupies.
+
+One entry left this target and `client-dev` because upstream's `should_proxy` resolves an
+Identifier **through its binding** and rsvelte's class-field lowering did not:
+`joy-of-code/…/preferences.svelte.ts` initialised a field from a name whose declaration
+is a non-proxied `$state` and rsvelte re-proxied it. There are **four** ports of that
+predicate here and no gate compares any two, so a 24-cell grid — one cell per call site of
+the scope-less port, crossed with four right-hand-side shapes — was written before the fix
+and reported `EQ 19 | DIFF 5`. The scope set is now computed once and threaded into the
+class-field pass and into `private_class_assign_ast`, whose walk starts inside the class
+body and cannot see an outer declaration. A 104,439-unit sweep moved 2 units, one of them
+`MISMATCH -> match`; the module half of that sweep is only live because the harness strips
+TypeScript first — `compile_module` parses plain JS, so all 923 `.svelte.(js|ts)` units had
+been erroring identically in both arms and the first run's `MOVED 0` was arithmetically
+forced.
+
+Two entries left this target and `client-dev` because a compound assignment's binary
+right-hand side lost its parentheses. Expanding `s += <rhs>` to
+`$.set(s, $.get(s) + <rhs>)` needs `<rhs>` parenthesized when it is itself a binary
+expression, and the difference is a **value** rather than a spelling: `1 + (2 + '3')` is
+`'123'` and `1 + 2 + '3'` is `'33'`. The predicate deciding it was a character scan whose
+"starts and ends with a quote, so it is a string literal" early return also matches
+`'a' + x + 'b'` — the closing quote now has to be the one that opens the text. The two ids
+are `svelte-maplibre-gl/…/Geolocate.svelte` and `svelte-spa-router/test/app/src/App.svelte`;
+the repro is `crates/rsvelte_core/tests/compound_assignment_rhs_parens.rs`.
+
+Two entries left this target and `client-dev` on two `$.mutate` decisions that answer
+differently depending on the HOST the write is written in. `musicat/…/Scrollbar.svelte`
+was over-wrapped: upstream walks an assignment target’s `.object` chain only while it is
+a `MemberExpression` and then requires an `Identifier`, so
+`stage.container().style.cursor = 'grab'` has no root binding and is not a mutation, while
+rsvelte’s `get_base_object` crossed the `Call` via its callee. Only the
+template-expression port did — an arrow declared in `<script>` reaches a different
+implementation and was already right, which is why the axis that separates the two is the
+host and not the binding. `ha-fusion/…/TransformAttributes.svelte` was under-wrapped: a
+`$:` body is lowered by branching on the shape of its left-hand side, and the pass that
+wraps a state member write was wired into two of eight branches — the note recording that
+fix called them “both sibling branches”, and five more were missing it. Both are
+byte-identical to official on `js.code` and `css.code`, on `prod` and on `dev`.
 
 Two syntaxfm-website entries left this target and `client-dev` when an attribute-free
 custom element stopped making its ancestors dynamic: upstream gates that
@@ -2887,7 +3060,153 @@ A prop with a default was unaffected, because a default makes it a source prop, 
 why the shape looked narrower than it was. Hashing all 104,439 (entry, target) outputs
 before and after attributes exactly these four to the change.
 
-Every one of the remaining 43 arrived with the wave-2 enrolment (#3130) and is described
+Four entries (`carbon-components-svelte/…/NotificationQueue.svelte`,
+`gitlight/…/NotificationLabels.svelte`, `huly/…/Timeline.svelte`,
+`huly/…/InboxCard.svelte`) plus `svelte-tweakpane-ui/…/ClsPad.svelte` left this target and
+`client-dev` when a `style:` directive's chunk metadata started reaching phase 3. Upstream's
+`StyleDirective` visitor calls `context.next()` and `ExpressionTag` swaps `state.expression`
+for the **tag's own** metadata before walking, merging each chunk up afterwards; rsvelte wrote
+into the directive's metadata, so the chunk stayed empty — and `build_attribute_value` reads
+the chunk, so `has_call` was always false and `build_expression` returned early, dropping the
+legacy `($.deep_read_state(dep), $.untrack(() => value))` wrapper. Only a **call** diverged,
+because `has_member_expression` and `has_assignment` are re-derived in phase 3. Hashing all
+69,626 client (entry, target) outputs before and after reports 14 changed units over 7 ids,
+`match -> MISMATCH = 0`, and 10 of the 14 newly matching.
+
+The other two of those seven ids — `open-webui/…/Models.svelte` and
+`huly/…/OptimizeSkills.svelte` — retire as well, and **only CI could say so**. A local
+reconstruction of the gate reported both as still mismatching on both targets, because it
+stopped at the byte comparison of the oxfmt-normalized text; the gate runs an **AST
+comparison on every byte-different output** after that, and each of those two residues is a
+comment placement, which the AST comparator does not represent. So the reconstruction was
+strictly *stricter* than the gate it stood in for — the opposite direction from the usual
+reconstruction hazard.
+
+Which direction a reconstruction misses in follows from **what kind of stage it dropped**: a
+gate's verdict is a pipeline, and dropping a *rescue* stage (this AST comparison, oxfmt) makes
+the reconstruction stricter, while dropping a *judging* stage makes it looser. That asymmetry
+is worth stating because it makes one side of the fidelity question free. A reconstruction
+that is stricter than the gate can report **zero** with no fidelity argument at all — a zero
+under a stricter comparison is a zero under the gate's. It is only a **non-zero** from a
+stricter reconstruction that is not a finding: it is a list of candidates to ask the gate
+about, and every entry on it can be a false positive. Both halves were exercised on the same
+day: these two entries are the false positives, and a 135,592-pair `compile()` sweep on raw
+hashes over four targets reported zero, which needed no gate confirmation for exactly this
+reason.
+
+One `huly/…/CreateIssueTemplate.svelte` entry left this target and `client-dev` when a legacy
+store or `$:` read **nested inside** a prop default stopped being judged simple. Upstream runs
+`is_simple_expression` on the *transformed* initializer, where `$s` is already the call `$s()`
+and a `$:` variable is already `$.get(r)` — hence non-simple, hence thunked with
+`PROPS_IS_LAZY_INITIAL`; rsvelte tested the untransformed source, where each is a plain
+identifier. A **bare** identifier already had its own three branches, so the divergence lived
+only where the read sat inside a logical / conditional / binary operand, and a 6 binding-kind ×
+5 position grid isolates it exactly: 8 diverging cells, all of them `store` or `$:` in one of
+the four non-bare positions, with a plain `let` in the same four positions as the control that
+stays simple. For a store the value itself was wrong, not only the flags — the post-pass that
+rewrites `$s` to `$s()` inside a default fires only when the default is already `() => …`, so
+the emitted default was the getter function rather than the store's value. Hashing all 69,626
+client (entry, target) outputs before and after reports **2** changed units over 1 id,
+`match -> MISMATCH = 0`; the other two ids of that cluster do not move and stay listed.
+
+All five entries the `bind:this` collection fix touched left this target and `client-dev`
+(#4121): `ha-fusion/…/Main/Views.svelte`, the two `svelte-bits` text animations,
+`ha-fusion/…/Sidebar/Navigate.svelte` and `kite-public/…/CategoryNavigation.svelte`. The
+callback parameters are now decided from the DECLARATION's scope rather than from the loop
+variable's name. The sweep over all 104,439 (entry, target) outputs moved those five ids and
+no others, and every one was already listed — so no passing entry changed.
+
+The last two of the five were reported here as *still diverging*, and only CI could say
+otherwise. A local sweep compares output text; the gate runs an **AST comparison on every
+byte-different output** afterwards, and the residue on both is comment placement, which that
+comparator does not represent. So the local reconstruction was strictly *stricter* than the
+gate — the direction that reports a **false** remaining divergence, not a missed one. It is
+the same reconstruction defect recorded above for the `style:`-directive cluster, found the
+same day by a different person on a different file: **a reconstruction that drops a rescue
+stage is over-strict, and its non-zero is a candidate list, not a finding.**
+
+Two entries left this target and `client-dev` because a component's `let:` variable was
+treated as in scope inside that component's NAMED slots. Upstream's `Component` scope
+visitor gives every `slot=`-carrying child `context.state.scope.child()` — a child of the
+scope OUTSIDE the component — while the `let:` bindings are declared in
+`metadata.scopes.default` (`phases/scope.js`), so the name is a plain global there:
+`is_pure` reports the read as non-reactive and legacy `build_expression` collects no
+reference for it. rsvelte answered both questions by name, and scope 0 is deliberately
+polluted with every child scope's declarations, so the lookup always found the binding —
+`mathesar/…/DisconnectDatabaseModal.svelte` and `…/UpgradeDatabaseModal.svelte` came out
+with the read inside a `$.template_effect` and with a `$.deep_read_state` in front of it.
+The repro crosses the slot the read sits in with the **mode**, because the two halves sit on
+opposite sides of `build_expression`'s `runes || maybe_runes` early return: a component with
+no `<script>` is `maybe_runes`, where no `$.deep_read_state` can be emitted at all, so a grid
+without a legacy row measures only one of the two ports.
+
+A first version answered the reference half in phase 2 instead, by testing the binding's
+declaring scope against the reference's — and a 135,560-unit sweep reported a third id
+moving. `svelte-ux/…/SelectField/+page.svelte` was **not listed**, so that unit was
+`match -> MISMATCH`: upstream's `determine_slot(node) ? context.state : …` declares a
+slotted node's own `let:` in the ENCLOSING scope, so `<M slot="option" let:option
+class={cls(option)}>` still reads it from its own attributes, and the phase-2 rule dropped
+four dependency reads. The nine-cell grid was green through all of it, because every cell it
+held put the `let:` and the reference on **different** nodes — the axis was varied and the
+three-on-one-node arrangement was held fixed. The repro now carries that cell, chosen the
+way a control has to be: an implementation that makes it red exists and was run before the
+cell was written.
+
+The corrected version then moved a fourth id, and the second sweep is the only reason it was
+not shipped: `carbon-components-svelte/…/TreeView.lazyLoad.test.svelte` and Svelte's own
+`runtime-legacy/samples/const-tag-component/main.svelte` went `match -> MISMATCH`. The mask is
+keyed by NAME, and a slotted node's own `let:` of the SAME name is a different binding that
+upstream declares in the enclosing scope — so `<C let:a>` around `<span slot="t" let:a>` had
+the child's binding masked by the parent's. The reduction is two cells: with the `let:` on only
+one of the two nodes, both spellings already agreed. Clearing the mask where a `let:` is
+registered is three edits, not one, because rsvelte registers a `let:` in three places —
+`build_slot_function`, `process_element_let_directives` and `visit_svelte_fragment` — and the
+reported file reaches the second while the corpus file reaches the third. (`<svelte:element
+let:x>` is the fourth candidate and needs nothing: both compilers reject it.) The repro carries
+one cell per place, plus the cell that separates a scope stack from a flag — inside one named
+slot, an `{#each xs as a}` body reads `$.get(a)` and the very next expression reads a bare `a`.
+
+`huly/…/DrawingBoardEditor.svelte` left this target and `client-dev` because whether an
+attribute can go in the template string was asked of the NORMALIZED name. Upstream
+(`RegularElement.js:234-256`) computes `name = get_attribute_name(node, attribute)` and uses it
+only for the branch selectors (`class`, `style`, `autofocus`); both `cannot_be_set_statically`
+and `template.set_prop` take `attribute.name`. rsvelte passed the normalized name to both, so
+`<input autoFocus />` matched the four-name `NON_STATIC_PROPERTIES` list, took the JS branch,
+and emitted `$.autofocus(input, true)` where official writes `<input autofocus=""/>`.
+
+The reported spelling is one cell of ten. A grid over name spelling × namespace × value shape
+reports **22 EQ / 10 DIFF**, and the other four names — `Muted`, `MUTED`, `DefaultValue`,
+`defaultchecked` — lose the attribute **entirely**, with nothing emitted in its place: the
+guard sends them down the JS branch and no arm there handles them. `defaultchecked` is the
+sharpest, because normalization maps it INTO the list from outside it. The svg rows are all EQ
+and stay in the repro as the control that rejects the wrong spelling of the fix:
+`get_attribute_name` is the identity outside `html`, so a fix written as "lowercase the raw
+name" is green on every reported cell and red there. The second, separately-suspected
+divergence in the same lowering — that `template.js`'s `stringify` lowercases a key only in the
+html namespace — was measured over seven cells and **agrees**; it is recorded here so it is not
+re-opened as unmeasured.
+
+Two entries (`networking-toolbox/…/home/SiteMapList.svelte` and
+`trakt-web/…/select/SegmentedSelect.svelte`) left **all four** targets when ancestor scoping
+started following a `{@render}` into the snippet it renders. Where a `{#snippet}` body sits in
+the DOM is decided twice in this tree; #4155 fixed the pruning half, so the CSS rule was kept
+while the ancestor never received its scope class — the two halves of one answer disagreeing
+inside a single output (`compatibility/GATES.md#two-ports-inventory` row 27). Hashing all
+139,252 (entry, target) outputs over the four targets before and after reports **8 changed keys
+over exactly these 2 ids** and nothing else.
+
+`SegmentedSelect` retires from `client` and `client-dev` for a reason the byte comparison cannot
+state: after the fix its only residue there is a comment placement (official emits
+`const // eslint-disable-next-line …` then `segment = …`), and `verify.mjs` hands every
+byte-different output to `ast_equiv_batch` with no `--comments`, so a comment-only divergence is
+AST-equivalent and scores a pass. That was **measured, not inferred** — the same comparator on
+the same run reports `code-differs` for `haptic/…/tooltip.svelte`, so a green here is a property
+of the input rather than of a comparator that stopped working. A hand-rolled "strip the
+comments and compare" said the opposite, because official's line reduces to a bare `const` and
+the stripper invents a structural difference; that is the stricter-reconstruction hazard two
+paragraphs above, reached from the other side.
+
+Every one of the remaining 11 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -2912,9 +3231,9 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](#deliberate-divergences), each pinned by a test.
 
-### Server (`known-failures.server.json`, 5 entries)
+### Server (`known-failures.server.json`, 2 entries)
 
-Partition of `known-failures.server.json` by verdict: `3 + 2`
+Partition of `known-failures.server.json` by verdict: `2`
 
 Attribution of `known-failures.server.json`:
 
@@ -2922,13 +3241,10 @@ Attribution of `known-failures.server.json`:
 |---|---|---|
 | 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
 
-The other 3 carry **no target yet**: each is a defect on rsvelte's side, so the
-only end state open to them is elimination. They are `networking-toolbox/…/SiteMapList.svelte`
-and `trakt-web/…/SegmentedSelect.svelte` (both drop a CSS scope class from an element
-inside a snippet — #4115) and `sveltepress/…/NavItem.svelte` (#4117).
+`networking-toolbox/…/SiteMapList.svelte` and `trakt-web/…/SegmentedSelect.svelte` left this
+target, and the other three, when ancestor scoping started following a `{@render}` into the
+snippet it renders — see § *Client* for the measurement.
 
-
-- **3 — the generated JS differs.**
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
@@ -2943,8 +3259,13 @@ inside a snippet — #4115) and `sveltepress/…/NavItem.svelte` (#4117).
   **These two are listed so the gate stops the difference spreading, not so it is
   fixed** — the pin is what keeps the justification from rotting.
 
-The other 21 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it. The last pre-enrolment entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
+**No burndown entry survives on this target.** Every one that arrived with the wave-2
+enrolment has been retired, the last two by #4115's ancestor-scoping port; what is
+left is the deliberate divergence above, which is recorded rather than scheduled. The history
+below is kept because it records what the ratchet was *for*, not what it currently holds.
+
+This target was at 0 before wave-2. The last pre-enrolment entry was #2308, from the
+`runed` / `svelte-toolbelt` enrolment:
 `watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
 round-trips through the client transform, which rewrote the assignment, so the
@@ -2961,13 +3282,13 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-### Server dev (`known-failures.server-dev.json`, 5 entries)
+### Server dev (`known-failures.server-dev.json`, 2 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `3 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `2`
 
 Attribution of `known-failures.server-dev.json`:
 
@@ -2975,36 +3296,37 @@ Attribution of `known-failures.server-dev.json`:
 |---|---|---|
 | 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
 
-The other 3 carry **no target yet**: each is a defect on rsvelte's side, so the
-only end state open to them is elimination. They are `networking-toolbox/…/SiteMapList.svelte`
-and `trakt-web/…/SegmentedSelect.svelte` (both drop a CSS scope class from an element
-inside a snippet — #4115) and `sveltepress/…/NavItem.svelte` (#4117).
+The same two snippet-scoping entries left this target with the other three; see § *Client*.
 
+What remains is the same deliberate divergence as on `server` — the `$`-prefixed function
+parameter — carried on both targets because the server transform runs on both.
 
-The trailing **2** is the same deliberate divergence as on `server` — the
-`$`-prefixed function parameter — carried on both targets because the server
-transform runs on both.
-
-- **3 — the generated JS differs.**
 - **2 — the same recorded deliberate divergence as on `server`.**
 
-All 13 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it. Its counts now match `server`. The one extra entry was SoftShadows output
+**No burndown entry survives on this target either**, and its counts still match `server`:
+the last two went with #4115's ancestor-scoping port, leaving only the deliberate divergence.
+This target was at 0 before wave-2. The one extra entry it once carried was SoftShadows output
 that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 56 entries)
+### Client dev (`known-failures.client-dev.json`, 25 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `56`
+Partition of `known-failures.client-dev.json` by verdict: `25`
 
-- **56 — the generated JS differs.**
+- **25 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 56 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 25 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
+
+`musicat/…/InternetArchiveView.svelte` left this target when the dev `console.*` wrap started
+asking whether an argument's **value** is known rather than whether its name is a state binding.
+The pass reads lowered text, so `$state(0)` had reached it as an opaque `$.state(0)` call; upstream
+evaluates the rune's argument (`scope.js:465-500`). A two-arm sweep over 139,252 `(id, target)`
+pairs moved this unit and no other.
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -3193,7 +3515,7 @@ and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
 
-### Wave-2 enrolment (#3130) — where all 1,413 entries come from
+### Wave-2 enrolment (#3176) — where all 1,413 entries come from
 
 The corpus went from 37 corpus sources to 104 (103 pinned repositories plus
 the in-repo `pattern-corpus`) and from 14,780 entries to 34,601. Every entry in all four ratchets above comes from one of the 67 new
@@ -4303,6 +4625,66 @@ The third row is not a defect on either side and is the first candidate for
 `deliberate-divergences` in this ratchet — but only once it is pinned by a test, which it is not
 yet.
 
+### The mechanism of a divergence is carried beside the ratchet, not in its key
+
+`compatibility/lsp-mechanisms.json` holds two maps: `entries` takes a ratchet id to the **set** of
+mechanisms measured on it, and `mechanisms` takes a label to where it is answered — an
+`upstream_issues/` path that exists on disk, the literal `deliberate-divergences`, or `null` for a
+terminal not yet established. `scripts/compat-lsp/mechanism.mjs` is the classifier and the
+vocabulary; `scripts/ci/lsp-mechanisms-check.mjs` checks the two files against each other and
+against the ratchet, and `scripts/dev/test-lsp-mechanisms-check.mjs` is its positive control —
+including the case that a well-formed sidecar **passes**, which a suite of red-only cases never
+measures.
+
+**Why a set, and why beside rather than inside.** An `aggregate:` entry is a
+`(file, method, phase)`, and every mechanism that fires anywhere in that one response is a
+separate label on the same entry. Measured on 931 records of one corpus shard (bits-ui, shard 8
+of 16, 52 components, 151 `(file, method)` groups): **6.17 distinct labels per entry on average**,
+median 5, max 22, and **88.7% of entries carry more than one** — `textDocument/completion` alone
+averages 11.13. Putting a label in the ratchet key would therefore multiply one entry into its
+six, which is the same "one identifier, one key, a six-figure file" judgement the corpus half is
+aggregated to avoid. Picking *one* label per entry would need a precedence rule, and a rule
+choosing among six co-occurring labels encodes its author's ordering — the hazard AGENTS.md
+records for a classifier that stops at its first matching predicate.
+
+**What the set costs to read.** For each label, the entries on which it is the *only* label — the
+ones that would actually leave the ratchet if that mechanism were fixed — are almost all zero:
+
+| label | entries it appears on | entries where it is the only label |
+|---|---|---|
+| `completion-item-set-extra-html` | 42 | **0** |
+| `completion-item-pairing-key-kind+sort-text-ts` | 42 | **0** |
+| `completion-item-set-missing-ts` | 42 | **0** |
+| `completion-item-set-missing-mixed` | 42 | **0** |
+| `completion-item-set-missing-html` | 41 | **0** |
+| `completion-commit-characters-value-extra-paren` | 37 | **0** |
+| `rsvelte-empty` | 31 | **0** |
+| `ts-render` | 30 | **0** |
+| `projection-target-position-declaration` | 30 | 3 |
+| `projection-origin-range` | 27 | 5 |
+
+Nine of the shard's 62 labels are ever the sole label of an entry, together covering **17 of 151
+(11.3%)**; the eleven largest are all zero. Repairing `completion-item-set-extra-html` on every
+file it names removes **no entry**, because each of those files still diverges on five other
+mechanisms in the same response. **A per-label count sizes an investigation and never a shrink**,
+and the two differ here by a factor of zero for the largest labels.
+
+The sets are structure rather than noise, which was predicted before it was measured: an empty
+answer cannot have an item-level difference, and of the 66 groups carrying `rsvelte-empty` or
+`rsvelte-empty-import-only`, **0** also carry an item-level label.
+
+**Two absences are spelled rather than left blank.** `classifyDivergence` runs on the corpus
+branch only — its context is that branch's source text — so every `differential:` and `expected:`
+entry carries the explicit label `unclassified`. And a label whose terminal has not been
+established carries `null`, which is **not** `rsvelte`: an unestablished terminal and a defect of
+ours are different facts, and writing one as the other puts a sign on an unmeasured quantity.
+Either one blocks its entry from an attribution table, and the checker reports how many entries
+are blocked rather than folding them into a pass — a blank and a zero render the same.
+
+The scope of these figures: 151 entries from one of sixteen corpus shards, so the *counts* are not
+convertible into ratchet-wide ones and none of them has been. What is established is structural,
+and on the corpus half only.
+
 Normalization removes only these non-parity fields and path-specific values:
 
 - `initialize.result.serverInfo`
@@ -4665,7 +5047,7 @@ what the normalizer absorbs, so these verdicts are only comparable across runs o
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
 The bucket was burned down from 525 to **30**, and `unparseable` from 2 to **0**, on the
-14,229-seed corpus. The wave-2 enrolment (#3130) took the seed set to 33,406 and the ratchet to
+14,229-seed corpus. The wave-2 enrolment (#3176) took the seed set to 33,406 and the ratchet to
 **168** — `code-mismatch` 160 and `unparseable` **8**. Subsequent fixes reduced that ratchet to
 **165** — `code-mismatch` 159 and `unparseable` **6**. The enrolled entries were not regressions:
 every one is a pre-existing defect in a repository the corpus did not previously hold,
@@ -4942,7 +5324,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **304 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **301 entries**.
 
 ### The question it asks
 
@@ -5012,7 +5394,7 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 9 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
@@ -5024,18 +5406,18 @@ Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 14 | 9 | an array of children with a different length. |
-| `loc-presence` | 9 | 5 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
+| `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 304 keys are **165 distinct bases**: 139 appear on both axes and 26 on one
-(139x2 + 26 = 304, a 1.84x collapse). The defect ceiling is 165. The per-cluster collapse is not
+`legacy`, so 301 keys are **163 distinct bases**: 138 appear on both axes and 25 on one
+(138x2 + 25 = 301, a 1.85x collapse). The defect ceiling is 163. The per-cluster collapse is not
 uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on both axes),
 `css-shape` and `child-count` 1.56x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
-**No base's two axes sit in different clusters** (0 of 139), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 138), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
@@ -5225,7 +5607,7 @@ JavaScript, so this ratchet has no tolerance to spend beyond what is listed here
 Everything below the next two paragraphs was written while this ratchet was empty, and it
 said so in as many words: *"the 30 defects above are in repositories that are not corpus
 sources … an empty baseline here is therefore the expected result, not a measurement that
-was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
+was skipped."* The wave-2 enrolment (#3176) made huly, open-webui,
 carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
 ratchet went to **12 entries across two targets on the first run**. The current tree holds
 **0 entries** after retiring the repaired classes listed below. That is the
@@ -5279,7 +5661,7 @@ against a mutated `verify.mjs`; both flipped.
 **So why was the ratchet empty?** Because the 30 defects above were in repositories that were
 not corpus sources. `corpus-sources.json` listed sveltejs/svelte, svelte.dev and 33 shipped
 libraries; huly, open-webui, carbon and SMUI were none of them. An empty baseline was
-therefore the expected result, not a measurement that was skipped — and #3130 enrolled all
+therefore the expected result, not a measurement that was skipped — and #3176 enrolled all
 four, which is what the table at the top of this file is.
 
 What that meant honestly, then: **this gate was a regression gate, not a burn-down.** It
@@ -5386,7 +5768,7 @@ The first run measured 118 units: **64 match**, **30 diverge**, and **24 are com
 "both backends reject"**. Read the denominator as 94, not 118 — a both-reject pair is parity, but
 it is parity on a comparison that never reached the CSS.
 
-**After the wave-2 enrolment (#3130) the population is 3,033 units**: 1,762 match, 216 diverge on
+**After the wave-2 enrolment (#3176) the population is 3,033 units**: 1,762 match, 216 diverge on
 the CSS, 99 are inputs `grass` rejects and dart-sass accepts, and 956 are both-reject. The
 denominator is therefore 2,077, and `grass` agrees with dart-sass on **84.8%** of it. Treat that
 as the current size of the "near-substitute, not drop-in" claim — it was measured on 94 units
@@ -6109,16 +6491,27 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 35 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 2 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `33 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `2`
 
-- **33 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
   throw from `magic-string`, reduced and filed as
   `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md`.
+
+A third class left this file entirely: rsvelte emitting text no TypeScript parser
+accepts is now its own verdict with its own ratchet — see
+[`svelte2tsx-unparseable-known-failures.json`](#svelte2tsx-unparseable-known-failures).
+
+A third upstream defect has **no entry here at all**, and that absence is a measurement
+rather than a gap: official svelte2tsx throws a raw `TypeError` when a lowercase element's
+`is` attribute has a mustache as its **first** value chunk, and of the 33,904 corpus
+components the 165 carrying `is=` yield **0** such carriers (158 have a mustache-first
+value, every one of them on a component, which upstream's own gate excludes; all 158
+convert cleanly). Not appearing in a ratchet is not the same as not existing — see
+[`upstream_issues/4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md`](../upstream_issues/4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md).
 
 Attribution of `svelte2tsx-known-failures.json`:
 
@@ -6126,60 +6519,324 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 33 carry **no target, and cannot have one**: every one of them was
-measured against official on 2026-09-01 and every one is an rsvelte defect, so
-the only end state open to them is elimination. The classification below is the
-input to that work; it is not an attribution, and this gate stays red until the
-entries are gone.
+Every entry now carries a target, and every one of them is upstream. The
+`ts-mismatch` half of this ratchet is empty: the four entries it held on
+2026-09-02 were each measured against official, each was an rsvelte defect, and
+each is fixed — see the `### Previously:` sections below.
 
-### The 33 `ts-mismatch` entries, classified by mechanism (2026-09-01)
+### Entries by mechanism (2026-09-02)
 
-Both implementations run directly on the 33 listed sources with the options
+Both implementations are run on the listed sources with the options
 `svelte2tsx-compile.mjs` passes (`{filename, isTsFile, mode:'ts', namespace:'html',
-version:'5'}`). This table replaces the earlier one keyed by the first differing
-line: that key is a **symptom**, so it split one mechanism across rows and put two
-mechanisms in one row. Rows are keyed by mechanism instead, and the last column
-says how far each was actually pinned — **reduced** (a hand-written input of a few
-lines reproduces it), **source** (the construct is identified in the listed file),
+version:'5'}`), and the outputs are normalized exactly as the gate normalizes them.
+The last column says how far each was pinned — **reduced** (a hand-written input of a
+few lines reproduces it), **source** (the construct is identified in the listed file),
 or **output only** (the outputs differ and the cause is *not* isolated). Read an
-"output only" row as an open question rather than a finding: one of them,
-`appwrite`'s `settings/+page.svelte`, had a plausible cause — `$permissions` as a
-destructuring-rename KEY — and a five-line reduction of that has both tools
-agreeing, so the cause is something else.
+"output only" row as an open question rather than a finding.
+
+**This table is generated from a one-to-one id → mechanism assignment**
+(`compatibility/svelte2tsx-mechanisms.json`, which covers this ratchet and the
+unparseable one together), **and the `n` column is derived from it.** The previous table was written the other way
+round — mechanisms first, counts assigned by hand — and it summed to exactly the
+ratchet's entry count while not being a partition: `svelty-picker`'s three files
+were counted under two rows (the `@type` → `@typedef` rewrite and the `props:`
+JSDoc placement are two hunks of one file, not two files), and three mechanisms
+that did exist had no row at all. **An arithmetic check on the total cannot see a
+double count**, so the assignment has to be per entry.
 
 | n | mechanism | pinned |
 |---|---|---|
-| 5 | a `<script>` **inside an HTML comment** is parsed as a script: official emits its eight-line empty projection, rsvelte emits the whole commented-out body | source |
-| 4 | a **commented-out `dispatch("name", …)`** is collected as a component event, so `events:` carries a name the component never dispatches | source |
-| 3 | a `+error.svelte`'s `error` prop is typed `any` instead of `App.Error` — upstream's `ExportedNames.ts:330` has an `isKitErrorFile` arm, and rsvelte's kit table in `props_rune.rs` has `data` / `form` / `params` and no error arm | source |
-| 3 | an existing `@type {…}` JSDoc on a `$props()` destructure is rewritten into a `@typedef … $$ComponentProps` plus `@type {$$ComponentProps}`; official leaves the block alone and copies it verbatim into `return { props: … }` | reduced |
-| 3 | a JSDoc block copied into `return { props: {` starts on the wrong line — official breaks before the `/**`, rsvelte keeps it on the `{` line and breaks inside | reduced |
-| 3 | `function $$render() {` opens on the wrong side of a hoisted type declaration. **The direction differs**: rsvelte opens it BEFORE an `interface $$Props` / `type …Props` that official puts first (2), and AFTER an `interface Props` in the `type T = $$Generic` case, where official emits `function $$render<T>()` first (1). Two directions of one shape, so read it as two defects until one fix moves both | reduced |
-| 2 | a renamed export (`export { componentClass as class }`) is dropped from `exports:`, where official emits `class: typeof componentClass` | source |
-| 1 | a **commented-out `$store` reference** is collected as a store subscription, adding a `__sveltets_2_store_get` official does not emit | source |
-| 1 | `export let x: T` with **no statement terminator** (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding a `;` and a newline makes the two agree | reduced |
-| 1 | `bind:this` on an element is emitted as an attribute rather than as an assignment to the bound variable | output only |
-| 1 | a `use:` action is emitted inside the attribute object rather than as a preceding `$$action_0` const | output only |
-| 1 | a transition is `__sveltets_2_ensureTransition(f)(…)` rather than `__sveltets_2_ensureTransition(f(…))` | output only |
-| 1 | a `//` comment inside a template-literal hole in an attribute value is collapsed onto one line | output only |
-| 1 | a `//` comment is emitted before `type $$ComponentProps` | output only |
-| 1 | two `/*Ωignore_startΩ*/` regions are merged into one | output only |
-| 1 | official emits a `$permissions` store-get that rsvelte omits — **cause not isolated** | output only |
-| 1 | rsvelte emits an extra `dragItem` slot prop — **cause not isolated** | output only |
+| 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
 
-**Three of those rows are one class, and it is the largest thing here.** The
-commented-out `<script>`, the commented-out `dispatch(…)` and the commented-out
-`$store` are all a scan that does not exclude code inside a comment — **10 of 33
-entries, 30%**, against a largest mechanism of 5 when the table was keyed by
-symptom. It is the class the compiler side keeps rediscovering (#2986, #2987,
-#3127), reached here through a different port, and no gate compares the two ports.
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2`
 
-**Six rows are `output only`, and the count is not their size.** The symptom-keyed
-table put 13 of these entries in a "one entry each" tail, which is where a
-mechanism goes to look unimportant; all the count above says is that nobody has
-reduced them yet.
+### Previously: `extra-slot-prop` (2026-09-02, at 3 entries)
 
-### Wave-2 enrolment (#3130)
+Kept as `output only` because the divergence was one prop, `dragItem`, and the
+axis is the attribute's **value form**. `<slot … dragItem … />` writes the name
+with no value at all; `handleSlot` (`nodes/slot.ts`) opens its loop with
+`if (!attr.value?.length) continue;` and a valueless attribute's `value` is
+`true`, so official declares no such slot prop and rsvelte declared `dragItem:
+dragItem`.
+
+Named after the prop, the entry reads as a question about `dragItem`. Enumerated
+over the shapes a `<slot>` attribute can take — valueless, shorthand, `=""`,
+a text literal, a mustache, a quoted mustache, text + mustache, a spread, a
+`let:` — **the valueless rows are the only ones that move**, and there are ten
+of them once position (first / last / between two kept entries) and host (a
+named slot, an `{#each}`, a component slot) are crossed in.
+`crates/rsvelte_projection/tests/svelte2tsx_valueless_slot_attribute.rs` is the
+grid; ablating the fix fails exactly those 10 of 19.
+
+The whole-corpus sweep moved 1 unit of 33,901: `MISMATCH -> match` 1,
+`match -> MISMATCH` 0.
+
+### Previously: `template-hole-comment-dropped` (2026-09-02, at 4 entries)
+
+Kept because the description named a **comment**, and the axis is the mustache's
+interior against the expression node's span. Official copies the text between the
+braces into its template literal; rsvelte copied the expression's own span, so
+everything the braces hold that the node does not was dropped — a comment, yes,
+but also a newline and plain padding. `class="x { a } z"` lost its two spaces and
+has no comment in it anywhere.
+
+A repro written from the justification would have been all comments, and half of
+the 25 cells the fix moves carry none. **A justification is a hypothesis about
+why an entry diverges; it is not the identification of the axis**, and a repro
+built from it inherits the hypothesis.
+
+The interior reaches a template literal through **two ports** — the string
+builder and the segment builder in `template/attributes/attribute.rs` — and no
+gate compares them to each other. Measured one arm at a time on the same 46-cell
+grid: reverting only the string builder leaves 10 cells failing (`<slot>` and
+named-slot-element attributes), reverting only the segment builder leaves 15
+(element, `style`, component attributes), reverting both leaves 25. This is the
+third of the three svelte2tsx entries retired on 2026-09-02 to be a two-ports
+defect.
+
+`crates/rsvelte_projection/tests/svelte2tsx_mustache_interior.rs` is the grid.
+The whole-corpus sweep moved 4 units of 33,901 and changed one verdict:
+`MISMATCH -> match` 1, `match -> MISMATCH` 0.
+
+### Previously: `bind-this-shape` (2026-09-02, at 5 entries)
+
+Kept because the description named ONE directive, and the cause is that an
+element carrying a `slot` **attribute** is lowered by a second port of the element
+transform which never ran the binding pass at all.
+
+`<C><svelte:fragment slot="x"><button bind:this={e}/></svelte:fragment></C>`
+reaches `handle_regular_element`, which declares `const $$_button1 = …` and
+appends `e = $$_button1;`. Move the `slot` onto the element —
+`<C><button slot="x" bind:this={e}/></C>` — and it reaches
+`handle_named_slot_element`, which built its own attribute object and its own
+class/style + transition suffix. `bind:this` was one of three things that port
+lost:
+
+- `bind:this` and the one-way binding attributes stayed props instead of
+  becoming an element variable plus an assignment;
+- a two-way `bind:value` kept its prop but lost the
+  `() => v = __sveltets_2_any(null)` setter the suffix pass appends;
+- a **void or self-closing** element closed with a leading space, which only an
+  overwritten `</tag>` leaves behind — a divergence with no binding in it at all,
+  and one **oxfmt normalizes away**, so the output gate could never report it.
+
+The last one is why the sweep moved **6 units and retired 1**: five of the six
+changed their bytes without changing their verdict. A changed hash is not a fixed
+file, and the two have to be printed separately.
+
+Two hosts share that attribute builder and DO emit the binding suffix
+(`<svelte:element>`, the special elements), so they had the same prop and now
+lower it; `<svelte:fragment>` shares the builder and emits no suffix, and takes
+only `slot` and `let:`, so it keeps the old behaviour behind an explicit flag
+rather than silently dropping a binding.
+
+The positive control fails 10 of the 19 cells; the 9 that pass carry no `slot`
+attribute and went through the other port, where all of this was already right.
+
+### Previously: `ignore-region-merge` (2026-09-02, at 6 entries)
+
+Kept because its description named the symptom — *"two adjacent regions are
+emitted as ONE"* — and the symptom points at a merge that does not exist. There is
+no merging step: upstream builds a **second `ImplicitStoreValues`** for the module
+script (`index.ts:202`), seeded with the instance script's accessed stores but with
+its own `importStatements`, and each instance wraps ITS names in one region and
+appends it at the render-function start. Two regions are two instances. rsvelte
+collected both scripts' import names into one list.
+
+**Six of the 17 grid cells diverged and only two of them discriminate.** The other
+four are satisfied by an implementation that merely splits adjacent regions,
+because with distinct names the union and the two instances print the same
+characters in the same order. What separates the rules:
+
+- a name imported by **both** scripts is declared in **both** regions
+  (`[<a>][<a>]`), because the second instance is seeded with the accessed stores
+  and not with the first one's import list — a union drops the duplicate;
+- the instance region comes first **even when the module script is written
+  second**, so an implementation that emits in file order passes the other five.
+
+Reaching the mechanism is not being able to tell two rules for it apart; count the
+discriminating cells, not the diverging ones.
+
+### Previously: `unterminated-export-let` (2026-09-02, at 7 entries)
+
+Kept because its own description named the symptom as an rsvelte addition — *"gains
+`x = __sveltets_2_any(x)`"* — where it is an upstream **loss**, and the two spellings
+point at different code.
+
+`preprendStr` (`utils/magic-string.ts:7-17`) does not append. It `overwrite`s the
+single character at the insertion point with `text + that character`, and
+`propTypeAssertToUserDefined` uses it to add `;x = __sveltets_2_any(x);` at
+`declaration.end`. When the declaration is the script's last byte that character is
+the `<` of `</script>`, whose chunk the script-tag removal overwrites afterwards —
+so the widener is discarded with no error. Filed as
+[`upstream_issues/svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md`](../upstream_issues/svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md).
+
+The description also recorded that *"adding `;` and a newline makes the two agree"*,
+which is two changes for a one-byte condition: **a space, a tab, a trailing block
+comment, a `;` or a newline each restore it on their own**, because any of them moves
+the insertion point off the `<`. Markup after `</script>` does not, because the
+position that matters is the end of the script **content**.
+
+**Three insertion sites had to be told apart, and two of them are unreachable rather
+than fixed.** Measured one cell per site: the `export { x as y }` re-export path never
+fires when the export precedes the declaration (both tools emit nothing, at the end
+and with a trailing space alike), and a non-exported sibling of that declaration list
+cannot be the script's last token, because the `export { … }` statement has to follow
+it. A guard added to all three on the strength of the mechanism would have been
+untestable at two of them.
+
+That measurement did find a divergence of its own, unrelated to the script end:
+for `export { a as b };let a = 1, c: number` — the export **before** the declaration —
+official widens nothing while rsvelte widens the non-exported sibling `c`, identically
+with and without a trailing space and identically on both arms of this fix. It has no
+corpus witness: the gate is two-sided and green apart from the entries listed above, so
+a divergence that is not one of them is reproduced by no collected unit.
+
+The positive control fails **9 of the 19** cells, and the 10 that pass are the ones a
+position-blind suppression would break.
+
+### Previously: `store-get-missing` (2026-09-02, at 8 entries)
+
+Kept because the reduction that was supposed to settle it **agreed on both sides**,
+and the table above recorded that agreement as evidence the cause was elsewhere:
+*"had a plausible cause — `$permissions` as a destructuring-rename KEY — and a
+five-line reduction of that has both tools agreeing, so the cause is something
+else."* The cause was the destructuring-rename key. The reduction put it in a
+pattern of **one** element, which is the one position where upstream does not
+resolve it as a store.
+
+`processInstanceScriptContent` (`:284-296`) tracks "am I inside a declaration"
+with a single boolean, and the on-leave callback a binding element pushes clears
+it unconditionally — so leaving a pattern's **first** element clears a flag the
+enclosing pattern had set, and every element after it is walked as an expression.
+A `$`-prefixed property name then reaches the store branch of `handleIdentifier`
+(`:155`). The rule this produces is "a `$`-prefixed key is a name iff it is the
+first element of its own pattern", which is why a one-element reduction is the
+only shape that cannot see it. Filed as
+[`upstream_issues/svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md`](../upstream_issues/svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md).
+
+The nested rows are what named the mechanism rather than merely fitting it:
+`{ a, x: { $p: p } }` is quiet because entering the nested pattern **re-sets** the
+flag its sibling had cleared, and `{ x: { a, $p: p } }` is loud for the same
+reason one level down. A rule stated as "not the first key in the statement"
+fits the flat rows and gets both of those backwards.
+
+**Two method notes.** A reduction that reproduces nothing is a fact about the
+reduction, not about the defect — the entry sat at "output only" for that reason
+alone, and the sentence recording it read as a finding. And the positive control
+is what sized the fix: ablating it fails **7 of the 14** grid cells, which is the
+branch condition splitting the grid in half; a fix that reached every cell or one
+cell would have been a different rule. The sweep moved 1 unit of 33,901 —
+`MISMATCH -> match: 1`, `match -> MISMATCH: 0` — and that unit is the entry
+dropped here.
+
+### Previously: `jsdoc-typedef-injected` (2026-09-02, at 9 entries)
+
+Kept because the entry's own description named the wrong side, and because the
+correct rule, ported correctly, **broke two files that were passing**.
+
+Official does not "copy the props JSDoc verbatim": `getLastLeadingDoc`
+(`tsAst.ts:143-160`) removes every `@typedef` tag from the comment first. Porting
+that removal made `TreeViewNode.svelte` match and took `attractions`'s
+`popover.svelte` and `snackbar-container.svelte` from **match to MISMATCH** — a
+transition only a whole-corpus hash diff can report, because a ratchet lists what
+is failing and so structurally cannot contain what is passing.
+
+The cause is that `getLastLeadingDoc` reads `tag.pos` / `tag.end`, which are
+**SourceFile-absolute**, and slices them out of `node.getFullText()`, which is
+**node-relative**. The removal is therefore offset by `node.pos`, and there are
+three outcomes rather than one:
+
+| `node.pos` | shifted slice occurs in the comment? | official |
+|---|---|---|
+| 0 | — | the tag is removed, as intended |
+| > 0 | no | `replace` no-ops and the tag survives |
+| > 0 | yes | the wrong text is deleted and the comment is corrupted |
+
+rsvelte reproduces rows 1 and 2 — it strips only when the comment is the script's
+first token. Row 3 is **not** reproduced and is filed as
+[`upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`](../upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md);
+**0 of the 172 corpus components whose source mentions `@typedef` reach it**, all
+172 matching after the fix. A unit test pins the divergence with official's own
+corrupted output quoted, so the row is not rediscovered as a defect.
+
+Two method notes. The reduction grid that produced the *corrected* rule had every
+declaration at the top of its script, so `node.pos` was 0 in every cell — **the
+constant the grid held fixed was the branch condition**, and no extra axis would
+have found it. And the same commit's other half — official writes
+`\n${doc}${name}` where rsvelte wrote `${doc} ${name}` — moves **738 units and
+changes 0 verdicts**, because oxfmt normalizes the difference away: an arm built
+with only that change is byte-identical in verdict to the arm without it. "The
+gate cannot see it" and "the output does not move" are different measurements,
+and only the second was ever true here.
+
+### Previously: `render-open-position` (2026-09-02, at 12 entries)
+
+Kept because the three entries were **one symptom over three defects**, and the
+count is what hid that. The table above carried them as a single row reading "the
+direction differs" — rsvelte hoisting where official does not, and the reverse —
+which is as far as a symptom key can go. Reducing each direction separately named
+three independent causes, none of which explains the other two: a
+`type T = $$Generic` alias name was not in the set of generics in scope on
+`$$render`, so a type referencing it was hoisted to module scope where the name
+does not exist; `$$Props` / `$$Slots` / `$$Events` were excluded from the hoist
+candidates by an rsvelte-only rule, where upstream calls
+`analyzeInstanceScriptNode` on every top-level node; and the lexical dependency
+scan read the `title` of `({ title }: { title: string })` as a value reference,
+so a prop of the same name blocked the hoist. **One row, three fixes, and the row
+would have read as fixed after any one of them** — `photon`'s `Switch.svelte`
+alone retires on the first.
+
+Two divergences the reduction grid found that the corpus does not carry, recorded
+so they are not rediscovered as new: a class name used as a *type* reference
+blocks hoisting here and not upstream (`collectTypeDependencies` files a
+`TypeReferenceNode` under `type_deps`, and a named props interface's `type_deps`
+are checked only against `disallowed_types` and `interface_map` —
+`isAllowedReference` never sees them); and an `interface $$Events` in a runes
+component makes official emit `__sveltets_2_isomorphic_component` where rsvelte
+emits `__sveltets_2_fn_component`. Both were measured on both arms of this fix
+and are unchanged by it. Neither has a corpus witness: the sweep moved 3 of
+33,901 units, and those three are exactly the entries dropped here.
+
+### Previously: the comment-blind scans (2026-09-01, at 20 entries)
+
+Kept because the finding is about the KEY, not about the entries, and both the
+entries and the key are gone from the table above.
+
+**The largest mechanism this table ever carried is gone, and the ten entries it
+held are the ten this ratchet lost at 30 → 20.** The commented-out `<script>`, the
+commented-out `dispatch(…)` and the commented-out `$store` were one class — a
+scan that does not exclude code inside a comment, **10 of 30 entries, 33%**,
+against a largest mechanism of 5 when the table was keyed by symptom. #4136
+routed those scans through the parser's own comment-, string- and regex-aware
+primitives. **The mapping from entry to mechanism was measured, not inferred from
+the arithmetic:** diffing the two arms' output on each of the ten names its cause
+— five drop an injected commented-out `<script>` body (9-128 lines), four drop an
+event name that only a comment dispatches (`BulkEditorMergeView` goes from two
+events to none), and `appwrite-console`'s
+`databases/database-[database]/table-[table]/+layout.svelte` drops an extra
+`$columnsOrder` store-get.
+
+**Two of those rows could not be read off the first-differing-line key at all**,
+which is why the table above is keyed by mechanism. Under the old key they read
+`async () => {` against an `import` — an instance/module *statement order* defect
+— and "store declarations emitted in a different order". Both read as orderings
+and neither was one: the first is the commented-out `<script>`'s body injected at
+the head of `$$render()`, which pushes the imports down, and the second is the
+`$columnsOrder` declaration above. Running both implementations on the source is
+what showed it; the differing line named neither cause.
+
+It is the class the compiler side keeps rediscovering (#2986, #2987, #3127),
+reached here through a different port, and **no gate compares the two ports** —
+`compatibility/GATES.md#two-ports-inventory` row 6 carries it.
+
+**Six rows were `output only`, and the count is not their size.** They were six
+of twenty rather than six of thirty, and nothing about them had changed — a share
+moves when the denominator does. The symptom-keyed table put 13 of those entries
+in a "one entry each" tail, which is where a mechanism goes to look unimportant;
+all such a count says is that nobody has reduced them yet.
+
+### Wave-2 enrolment (#3176)
 
 The list was **0** before the enrolment and all 139 entries come from one of the
 67 new repositories. The 37 pre-existing *real-world* sources still contribute
@@ -6373,6 +7030,60 @@ alias. Both arms are pinned in
 `crates/rsvelte_projection/tests/svelte2tsx_ts_props_ignores_jsdoc.rs`; dropping
 the `!is_ts` guard turns the TS arm red and leaves the JS arm green.
 
+<a id="svelte2tsx-unparseable-known-failures"></a>
+
+## svelte2tsx-unparseable-known-failures.json — why entries are accepted
+
+rsvelte emitting TSX that no TypeScript parser accepts, while official's output for
+the same source parses. Kept apart from `svelte2tsx-known-failures.json` for the
+reason the compiler-error gates keep `start` and `end` apart: **a ratchet entry
+suppresses everything its key cannot tell apart**, and this file's ids were already
+listed there as ordinary `ts-mismatch` entries, so a newly unparseable output on any
+of them would have been scored green.
+
+The gate had only the mirror question. `oracle-invalid` asks whether OFFICIAL's
+output is unparseable while rsvelte's parses (a pass, because there is no valid
+target to match); the opposite direction had no name, so it had no ratchet. The
+`oracle-invalid` test already computed both sides' parseability and discarded one of
+the two answers, so the new verdict costs no extra work.
+
+**Current baseline: `svelte2tsx-unparseable-known-failures.json`, 0 entries.**
+
+The ratchet is empty, so any output rsvelte emits that no TS parser accepts — while
+official's parses — fails CI.
+
+Partition of `svelte2tsx-unparseable-known-failures.json` by mechanism: `0`
+
+### Previously: a `//` comment swallowed the props typedef
+
+`svelte-virtuallists/src/lib/VirtualListNew.svelte` emitted
+`// ====== PROPERTIES ================;type $$ComponentProps =  {` on one line, so the
+line comment ran to the end of the line and took the declaration with it. Upstream
+inserts that typedef at `node.parent.pos`, and TypeScript's `pos` spans the
+declaration's LEADING TRIVIA, so official's insertion lands before the comment
+(`};type $$ComponentProps =  {`). rsvelte walked back from the `const` keyword instead,
+and only one of the three branches that compute this offset walked back through
+comments — the other two stopped at whitespace.
+
+Two things about the entry as it was written. It said official emits no
+`$$ComponentProps` for this source at all, and that is wrong: both tools emit it and
+only the offset differed, so there was one defect here rather than two. And its
+"not reduced" note was right about the reduction while wrong about why — a
+hand-written probe reproduces nothing because the axis it was missing is
+`generics=`, which is what makes this offset reachable at all (without it the typedef
+is hoisted out of `$$render` and none of the three branches runs). Delta-debugging
+the real file from 690 lines to 34 is what surfaced it.
+
+The two entries this file did NOT need are the reason it exists. Both were one
+mechanism: an element carrying `slot=` inside a component went through a second
+attribute emitter, which wrote a `use:` action as an entry *inside* the props object
+(`Expected function body`) and a transition as
+`__sveltets_2_ensureTransition(f)(tag, {})`. Routing named-slot elements through
+`build_directive_prefix_suffix` fixed both, and a third and fourth consequence of the
+same duplication with them (`$$action_N` block scoping, and `tabindex="0"` emitted as
+a template literal where `svelte/elements` types it `number`).
+
+
 <a id="svelte2tsx-map-known-failures"></a>
 
 ## svelte2tsx-map-known-failures.json — why entries are accepted
@@ -6384,7 +7095,7 @@ may only shrink.
 
 **Current baseline: `svelte2tsx-map-known-failures.json`, 0 entries.**
 
-The two `map-missing` entries enrolled by wave 2 (#3130), `chatgpt-web`'s
+The two `map-missing` entries enrolled by wave 2 (#3176), `chatgpt-web`'s
 `Home.svelte` and immich's `VideoNativeViewer.svelte`, now pass after the parser
 fix and were removed together with their stale TSX baseline entries.
 `map-invalid` remains **0** — no map rsvelte emits violates an invariant.
@@ -6758,7 +7469,7 @@ that they agree on every source the corpus holds.
 
 Partition of `warning-known-failures.<target>.json` by direction: `0`
 
-**73 of the 83 pre-existing entries arrived with the wave-2 enrolment (#3130)**,
+**73 of the 83 pre-existing entries arrived with the wave-2 enrolment (#3176)**,
 which took the corpus from 37 corpus sources to 104. The remaining per-code
 incidences total 81 across 80 entries (one entry differs on two codes):
 `css_unused_selector` 48, `state_referenced_locally` 20,
@@ -7137,7 +7848,7 @@ element name as `table` where upstream preserves the namespace form `f:table` in
 the self-closing-tag warning. This is a message-only compiler parity defect, so it
 belongs in this ratchet rather than in the code or position ones.
 
-The second arrived with the wave-2 enrolment (#3130):
+The second arrived with the wave-2 enrolment (#3176):
 `open-webui/src/lib/components/common/Tags.svelte`. Upstream's
 `a11y_role_has_required_aria_props` lists **every** missing attribute for the role
 (`"aria-controls" and "aria-expanded"`); rsvelte lists only the first. The code and

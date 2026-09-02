@@ -69,7 +69,7 @@ use oxc_span::SourceType;
 use oxc_syntax::symbol::SymbolId;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ast_rewrite;
 use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
@@ -162,6 +162,19 @@ pub fn transform_state_reads_ast(
     state_vars: &[String],
     non_reactive_vars: &[String],
 ) -> Option<String> {
+    transform_state_reads_ast_with(source, state_vars, non_reactive_vars, &FxHashMap::default())
+}
+
+/// As [`transform_state_reads_ast`], but `read_map` supplies a name's own read
+/// shape. A template binding is not always read as `$.get(name)` — a snippet
+/// parameter is a getter and reads as `name()` — so the caller passes what the
+/// binding's own transform produces instead of the default.
+pub fn transform_state_reads_ast_with(
+    source: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+    read_map: &FxHashMap<String, String>,
+) -> Option<String> {
     if state_vars.is_empty() {
         return None;
     }
@@ -213,19 +226,20 @@ pub fn transform_state_reads_ast(
     };
     let span_offset: i32 = if needs_paren_wrap { 1 } else { 0 };
 
-    match run_state_reads_pass(source, &parse_source, span_offset, &effective) {
+    match run_state_reads_pass(source, &parse_source, span_offset, &effective, read_map) {
         ast_rewrite::ParseAttempt::Parsed(out) => out,
         // An expression whose leading token is an object literal — `{ a: m }.a`
         // — is a block statement under the program goal and so never parses.
         // The parser's verdict, not a byte scan, is what tells the two apart.
         ast_rewrite::ParseAttempt::NotParsed if !needs_paren_wrap && trimmed.starts_with('{') => {
-            run_state_reads_pass(source, &paren_wrapped(source), 1, &effective).into_option()
+            run_state_reads_pass(source, &paren_wrapped(source), 1, &effective, read_map)
+                .into_option()
         }
         // The mirror image: a semicolon-free statement block (`standard` style)
         // satisfies the byte scan's object-literal test, and the `(`…`)` it then
         // adds is what makes the parse fail. The same verdict decides here.
         ast_rewrite::ParseAttempt::NotParsed if needs_paren_wrap => {
-            run_state_reads_pass(source, source, 0, &effective).into_option()
+            run_state_reads_pass(source, source, 0, &effective, read_map).into_option()
         }
         ast_rewrite::ParseAttempt::NotParsed => None,
     }
@@ -239,6 +253,7 @@ fn run_state_reads_pass(
     parse_source: &str,
     span_offset: i32,
     effective: &[&str],
+    read_map: &FxHashMap<String, String>,
 ) -> ast_rewrite::ParseAttempt<String> {
     ast_rewrite::with_program_attempt(
         &STATE_READS_ALLOC,
@@ -263,6 +278,8 @@ fn run_state_reads_pass(
                 effective,
                 effective_names: &effective_names,
                 state_var_symbols,
+                read_map,
+                already_transformed_text: !read_map.is_empty(),
                 replacements: Vec::new(),
                 skip_spans: FxHashSet::default(),
             };
@@ -291,6 +308,12 @@ struct StateReadsCollector<'a, 'sem> {
     effective: &'a [&'a str],
     effective_names: &'a [String],
     state_var_symbols: FxHashSet<SymbolId>,
+    read_map: &'a FxHashMap<String, String>,
+    /// True when this pass runs over text an earlier pass already rewrote, so a
+    /// name that pass handled is already `name()` / `$$props.name` and must not
+    /// be read a second time. Only the `$.get(x)` shape leaves the identifier
+    /// bare, and `visit_call_expression` already skips that one.
+    already_transformed_text: bool,
     replacements: Vec<(u32, u32, String)>,
     /// Spans of identifier references claimed by a parent-context
     /// handler (assignment LHS, update target, first arg of $.set
@@ -306,6 +329,13 @@ impl<'a, 'sem> StateReadsCollector<'a, 'sem> {
 
     fn skip(&mut self, ident: &IdentifierReference) {
         self.skip_spans.insert(ident.span.start);
+    }
+
+    fn read_of(&self, name: &str) -> String {
+        self.read_map
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| format!("$.get({})", name))
     }
 }
 
@@ -326,8 +356,9 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
         ) {
             return;
         }
+        let read = self.read_of(name);
         self.replacements
-            .push((ident.span.start, ident.span.end, format!("$.get({})", name)));
+            .push((ident.span.start, ident.span.end, read));
     }
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
@@ -374,6 +405,14 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
                 self.skip(id);
             }
         }
+        // `p()` / `$s()` is what the earlier pass emits for a prop or a store,
+        // so its callee is a read that has already happened.
+        if self.already_transformed_text
+            && call.arguments.is_empty()
+            && let Expression::Identifier(callee) = &call.callee
+        {
+            self.skip(callee);
+        }
         walk::walk_call_expression(self, call);
     }
 
@@ -396,10 +435,11 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
             )
         {
             let name = key.name.as_str();
+            let read = self.read_of(name);
             self.replacements.push((
                 prop.span.start,
                 prop.span.end,
-                format!("{}: $.get({})", name, name),
+                format!("{}: {}", name, read),
             ));
             self.skip(value_ident);
             // Still descend into method-body etc.

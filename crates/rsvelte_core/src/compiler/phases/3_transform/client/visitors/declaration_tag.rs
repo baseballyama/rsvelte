@@ -130,29 +130,49 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     // registered read transform and are recorded in `await_binding_names` by
     // await_block.rs. The OXC semantic rewrite below preserves shadowing inside
     // callbacks declared by the initializer.
-    let mut template_get_names: Vec<String> = context
-        .state
-        .each_item_names
-        .iter()
-        .filter(|n| context.state.transform.contains_key(n.as_str()))
-        .map(|n| n.to_string())
-        .collect();
-    for name in context.state.await_binding_names.keys() {
-        if context.state.transform.contains_key(name.as_str()) && !template_get_names.contains(name)
-        {
-            template_get_names.push(name.clone());
+    // Upstream visits the declaration with the template visitor, so every
+    // template-scope binding is read through its own transform. This port runs
+    // the instance-script pipeline over the tag's source text instead, which
+    // knows nothing about them — so the reads are re-applied here. The domain
+    // is `state.transform` itself: enumerating a few kinds by hand missed
+    // snippet parameters, `let:` bindings and `{@const}` bindings, all three of
+    // which reached the tag. A name the instance pipeline already rewrote is
+    // `$.get(name)` by now, and the rewrite skips an already-wrapped read.
+    // Upstream visits the declaration with the template visitor, so every
+    // template-scope binding is read through its own transform. This port runs
+    // the instance-script pipeline over the tag's source text instead, which
+    // knows nothing about them, so the reads are re-applied here.
+    //
+    // The domain is `state.transform` itself: enumerating a few template kinds
+    // by hand missed snippet parameters, `let:` bindings and `{@const}`
+    // bindings. Double application is stopped by the rewrite's own
+    // already-read guards, not by a name test — a name test cannot tell a
+    // template binding from the instance binding it shadows.
+    let mut read_map: rustc_hash::FxHashMap<String, String> = rustc_hash::FxHashMap::default();
+    for (name, transform) in context.state.transform.iter() {
+        let Some(read) = transform.read else { continue };
+        let read_text = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+            &read(
+                &context.arena,
+                crate::compiler::phases::phase3_transform::js_ast::builders::id(name),
+            ),
+            &context.arena,
+        );
+        if read_text != *name {
+            read_map.insert(name.clone(), read_text);
         }
     }
+    let template_get_names: Vec<String> = read_map.keys().cloned().collect();
     let transformed = if template_get_names.is_empty() {
         transformed
     } else {
-        crate::compiler::phases::phase3_transform::client::expression_utils::wrap_state_vars_in_expr(
+        crate::compiler::phases::phase3_transform::client::state_reads_ast::transform_state_reads_ast_with(
             &transformed,
             &template_get_names,
             &[],
-            &[],
+            &read_map,
         )
-        .into_owned()
+        .unwrap_or(transformed)
     };
 
     let trimmed = transformed.trim();

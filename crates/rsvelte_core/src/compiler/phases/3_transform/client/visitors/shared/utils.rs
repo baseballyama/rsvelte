@@ -2017,7 +2017,13 @@ fn get_base_object(
     match expr {
         JsExpr::Spanned(inner, _, _) => get_base_object(arena.get_expr(*inner), arena),
         JsExpr::Member(member) => get_base_object(arena.get_expr(member.object), arena),
-        JsExpr::Call(call) => get_base_object(arena.get_expr(call.callee), arena),
+        // Upstream stops the walk at anything that is not a MemberExpression, so a
+        // method call in the chain has no root identifier and the write is not a
+        // mutation. Only a read-transform call (`count()`, always an Identifier
+        // callee) may be crossed; `has_call_in_base_chain` owns that case.
+        JsExpr::Call(call) if matches!(arena.get_expr(call.callee), JsExpr::Identifier(_)) => {
+            get_base_object(arena.get_expr(call.callee), arena)
+        }
         _ => expr.clone(),
     }
 }
@@ -2418,9 +2424,17 @@ fn apply_transforms_to_statement_with_shadowed(
         ),
 
         JsStatement::Try(try_stmt) => {
-            let transformed_block = JsBlockStatement::with_body(
-                try_stmt.block.body.iter().map(transform_stmt).collect(),
-            );
+            // Each of the three bodies is a block, so its own declarations shadow
+            // an outer transform exactly as `JsStatement::Block` handles.
+            let in_block = |body: &[JsStatement], base: &LocalScope| {
+                let mut scope = base.clone();
+                register_block_local_vars(body, &context.arena, &mut scope);
+                body.iter()
+                    .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &scope))
+                    .collect::<Vec<_>>()
+            };
+            let transformed_block =
+                JsBlockStatement::with_body(in_block(&try_stmt.block.body, local_scope));
             let transformed_handler = try_stmt.handler.as_ref().map(|handler| {
                 // The catch parameter shadows outer transforms
                 let mut catch_scope = local_scope.clone();
@@ -2429,24 +2443,11 @@ fn apply_transforms_to_statement_with_shadowed(
                 }
                 JsCatchClause {
                     param: handler.param.clone(),
-                    body: JsBlockStatement::with_body(
-                        handler
-                            .body
-                            .body
-                            .iter()
-                            .map(|s| {
-                                apply_transforms_to_statement_with_shadowed(
-                                    s,
-                                    context,
-                                    &catch_scope,
-                                )
-                            })
-                            .collect(),
-                    ),
+                    body: JsBlockStatement::with_body(in_block(&handler.body.body, &catch_scope)),
                 }
             });
             let transformed_finalizer = try_stmt.finalizer.as_ref().map(|finalizer| {
-                JsBlockStatement::with_body(finalizer.body.iter().map(transform_stmt).collect())
+                JsBlockStatement::with_body(in_block(&finalizer.body, local_scope))
             });
             JsStatement::Try(JsTryStatement {
                 block: transformed_block,
@@ -2648,6 +2649,18 @@ fn collect_reactive_references_from_metadata(
             Some(b) => b,
             None => continue,
         };
+
+        // A component's `let:` binding is not in scope inside that component's
+        // named slots, so upstream's scope-keyed `references` never holds it
+        // there and no dependency read is emitted for it.
+        if binding.kind == BindingKind::Let
+            && context
+                .state
+                .lets_out_of_scope
+                .contains_key(binding.name.as_str())
+        {
+            continue;
+        }
 
         // Skip normal bindings unless they are imports
         // (matches: binding.kind === 'normal' && binding.declaration_kind !== 'import' -> continue)

@@ -238,6 +238,11 @@ const RATCHETS = [
 	{ doc: 'svelte2tsx-known-failures.md', key: 'svelte2tsx-known-failures.json', jsons: ['svelte2tsx-known-failures.json'] },
 	{ doc: 'svelte2tsx-map-known-failures.md', key: 'svelte2tsx-map-known-failures.json', jsons: ['svelte2tsx-map-known-failures.json'] },
 	{
+		doc: 'svelte2tsx-unparseable-known-failures.md',
+		key: 'svelte2tsx-unparseable-known-failures.json',
+		jsons: ['svelte2tsx-unparseable-known-failures.json'],
+	},
+	{
 		doc: 'svelte2tsx-fixtures-known-failures.md',
 		key: 'svelte2tsx-fixtures-known-failures.json',
 		jsons: ['svelte2tsx-fixtures-known-failures.json'],
@@ -266,7 +271,18 @@ const PARTITIONS = [
 		key: 'svelte2tsx-known-failures.json',
 		label: 'verdict',
 	},
+	{
+		doc: 'svelte2tsx-known-failures.md',
+		key: 'svelte2tsx-known-failures.json',
+		label: 'mechanism',
+	},
+	{
+		doc: 'svelte2tsx-unparseable-known-failures.md',
+		key: 'svelte2tsx-unparseable-known-failures.json',
+		label: 'mechanism',
+	},
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
+	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'mechanism' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'repo' },
@@ -345,6 +361,19 @@ const PARTITIONS = [
 	{ doc: 'parse-ast-known-failures.md', key: 'parse-ast-known-failures.json', label: 'cluster' },
 ];
 
+// Sidecars carrying a one-to-one id -> mechanism assignment, and the doc whose
+// `Entries by mechanism` table is derived from each. Declared, not discovered,
+// for the same reason RATCHETS is: adding a sidecar nothing checks is the shape
+// this section exists to close.
+const MECHANISMS = [
+	{ sidecar: 'fmt-mechanisms.json', doc: 'fmt-known-failures.md', jsons: ['fmt-known-failures.json'] },
+	{
+		sidecar: 'svelte2tsx-mechanisms.json',
+		doc: 'svelte2tsx-known-failures.md',
+		jsons: ['svelte2tsx-known-failures.json', 'svelte2tsx-unparseable-known-failures.json'],
+	},
+];
+
 let failed = false;
 const fail = (msg) => {
 	console.error(`[known-failures-md-check] ${msg}`);
@@ -355,6 +384,33 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const num = (s) => Number(s.replace(/,/g, ''));
 const jsonEntryCount = (value) => (Array.isArray(value) ? value.length : Object.keys(value).length);
+
+/**
+ * The rows of a doc's `Entries by mechanism` table, or null if it has none.
+ * Anchored on the heading rather than on the row shape: an attribution table a
+ * few lines up has the same three columns, and a reader keyed on shape alone
+ * would compare the sidecar against whichever table came first.
+ */
+function mechanismTable(body) {
+	const lines = body.split('\n');
+	const start = lines.findIndex((l) => /^#{2,4} Entries by mechanism\b/.test(l));
+	if (start === -1) return null;
+	const rows = [];
+	let seen = false;
+	for (let i = start + 1; i < lines.length; i++) {
+		const line = lines[i].trim();
+		if (!line.startsWith('|')) {
+			if (seen) break;
+			continue;
+		}
+		seen = true;
+		const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+		if (cells.length < 3) continue;
+		if (!/^\d+$/.test(cells[0])) continue; // header and separator rows
+		rows.push({ n: Number(cells[0]), mechanism: cells[1], pinned: cells[2] });
+	}
+	return rows;
+}
 
 /**
  * Every count a doc states for `key`, or a reason none could be read. All of
@@ -466,13 +522,13 @@ const idsFor = (key) => {
 	const p = path.join(CORPUS, jsons[0] ?? '');
 	return jsons.length && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
 };
-const declaredPartitions = new Set(PARTITIONS.map((p) => `${p.doc} ${p.key} ${p.prefix ?? ''} ${p.label}`));
+const declaredPartitions = new Set(PARTITIONS.map((p) => `${p.doc}\0${p.key}\0${p.prefix ?? ''}\0${p.label}`));
 
 for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
 	const docBody = docText(doc);
 	if (docBody === null) continue; // already reported above
 	for (const found of partitionLines(docBody)) {
-		const id = `${doc} ${found.key} ${found.prefix ?? ''} ${found.label}`;
+		const id = `${doc}\0${found.key}\0${found.prefix ?? ''}\0${found.label}`;
 		if (!declaredPartitions.has(id)) {
 			fail(
 				`${doc}: partition by "${found.label}" of \`${found.key}\`${found.prefix ? ` under \`${found.prefix}\`` : ''} is not declared in PARTITIONS — add it, so deleting the line fails too`,
@@ -511,6 +567,118 @@ for (const { doc, key, prefix, label } of PARTITIONS) {
 			`${doc}: partition of ${where} sums to ${sum} (\`${expression}\`), but that population has ${population.length} entries.\n` +
 				`    Either a cluster count is stale, or an entry is cited under two clusters and another under none.`,
 		);
+	}
+}
+
+// ---- 2b. a partition's own restatements must not go stale ---------------------
+// The header count and the partition line are both checked against the JSON, and
+// the numbers restating them a few lines down are not — so a section can read
+// `45 entries` / `Partition …: \`45\`` above `- **48 — the generated JS differs.**`
+// and pass. Both restatements are derivable from the partition line, so both are
+// checked here; nothing else in the prose is, because nothing else is derivable.
+for (const doc of new Set(PARTITIONS.map((p) => p.doc))) {
+	const body = docText(doc);
+	if (body === null) continue;
+	const lines = body.split('\n');
+	for (let i = 0; i < lines.length; i++) {
+		const partition = partitionLines(lines[i].trim())[0];
+		if (!partition) continue;
+		const terms = partition.expression
+			.split('+')
+			.map((t) => t.trim())
+			.filter(Boolean);
+
+		// (a) A bullet list immediately below restates the addends, one per bullet.
+		// Triggered by shape, so a doc that puts its clusters in a table or in prose
+		// is not required to grow one — but a doc that has the list has it checked.
+		// A `NxM` addend covers M clusters at once and has no one-bullet form, so
+		// those partitions are left to the sum check above.
+		if (!terms.some((t) => t.includes('x'))) {
+			let j = i + 1;
+			while (j < lines.length && lines[j].trim() === '') j++;
+			if (j < lines.length && /^\s*-\s/.test(lines[j])) {
+				const bullets = [];
+				for (; j < lines.length; j++) {
+					const line = lines[j];
+					if (/^\s*-\s/.test(line)) {
+						const m = line.match(/\d[\d,]*/);
+						bullets.push(m ? m[0].replace(/,/g, '') : 'no-number');
+					} else if (line.trim() === '') {
+						let k = j;
+						while (k < lines.length && lines[k].trim() === '') k++;
+						if (k < lines.length && /^\s*-\s/.test(lines[k])) {
+							j = k - 1;
+							continue;
+						}
+						break;
+					} else if (/^\s+\S/.test(line)) {
+						continue; // a continuation line of the bullet above
+					} else break;
+				}
+				const want = terms.map((t) => t.replace(/,/g, '')).sort();
+				const got = [...bullets].sort();
+				if (want.join(' ') !== got.join(' ')) {
+					fail(
+						`${doc}:${i + 1}: the bullets under \`${partition.key}\`'s partition read ` +
+							`[${got.join(', ')}] but the partition is \`${partition.expression}\`.\n` +
+							`    The addends and the bullets restating them are the same claim; one of them is stale.`,
+					);
+				}
+			}
+		}
+
+		// (b) `All remaining N arrived …` states the whole population, which is the
+		// partition's sum. Only this phrasing: `remaining 20` a few sections down
+		// means the residue after an attributed cluster, which is a different number.
+		const end = lines.findIndex((l, at) => at > i && /^### /.test(l));
+		const section = lines.slice(i + 1, end === -1 ? lines.length : end).join('\n');
+		const next = lines.findIndex((l, at) => at > i && partitionLines(l.trim())[0]);
+		const stop = [end, next].filter((x) => x !== -1);
+		const scoped = lines.slice(i + 1, stop.length ? Math.min(...stop) : lines.length).join('\n');
+		for (const m of section.matchAll(/(?:All|Every one of the) remaining \*{0,2}([\d,]+)/g)) {
+			const stated = Number(m[1].replace(/,/g, ''));
+			if (stated !== partition.sum) {
+				fail(
+					`${doc}:${i + 1}: the section says "remaining ${m[1]}" but its partition sums to ${partition.sum}.`,
+				);
+			}
+		}
+
+		// (c) The same claim in two more spellings. `All N …` at the start of a
+		// sentence states the whole population; `The other N …` states the residue
+		// after the section's attribution table. Both were unchecked, and both had
+		// gone stale by an order of magnitude while (a) and (b) were green — which
+		// reads, to the next author, as "counts in this file are checked".
+		//
+		// Scoped to a non-empty partition, and to the region before the NEXT
+		// partition line rather than the next heading. Without the first, six
+		// `All N generated comparisons now match` lines in `matrix-known-failures.md`
+		// are read as entry counts against a partition of 0; without the second, one
+		// such line is reported once per partition sharing its heading — the measured
+		// shape was 3 distinct sentences reported 22 times.
+		if (partition.sum === 0) continue;
+		const attributed = [...scoped.matchAll(/^\|\s*([\d,]+)\s*\|/gm)].reduce(
+			(a, m) => a + Number(m[1].replace(/,/g, '')),
+			0,
+		);
+		for (const m of scoped.matchAll(/^All \*{0,2}([\d,]+)\*{0,2} /gm)) {
+			const stated = Number(m[1].replace(/,/g, ''));
+			if (stated !== partition.sum) {
+				fail(
+					`${doc}:${i + 1}: the section says "All ${m[1]}" but its partition sums to ${partition.sum}.`,
+				);
+			}
+		}
+		for (const m of scoped.matchAll(/^The other \*{0,2}([\d,]+)\*{0,2} /gm)) {
+			const stated = Number(m[1].replace(/,/g, ''));
+			const want = partition.sum - attributed;
+			if (stated !== want) {
+				fail(
+					`${doc}:${i + 1}: the section says "The other ${m[1]}" but its partition sums to ` +
+						`${partition.sum} with ${attributed} attributed, leaving ${want}.`,
+				);
+			}
+		}
 	}
 }
 
@@ -575,6 +743,77 @@ if (mutationMd !== null) {
 	}
 }
 
+// ---- 2d. mechanism sidecars, and the table derived from them -----------------
+// A sidecar assigns exactly one mechanism to every entry of the ratchets it
+// covers, and the doc's `Entries by mechanism` table is DERIVED from it. Nothing
+// read `svelte2tsx-mechanisms.json` before this check existed, and the cost of
+// that shape is measured: `fmt-known-failures.md` stated `5 + 783` for a
+// 547-entry ratchet while the partition line beside it was correct — one half was
+// gated and the other rotted alone, which is why the sidecar is worth nothing
+// until something compares the table to it.
+let mechanismEntries = 0;
+for (const { sidecar, doc, jsons } of MECHANISMS) {
+	const sidecarPath = path.join(CORPUS, sidecar);
+	if (!fs.existsSync(sidecarPath)) {
+		fail(`MECHANISMS declares ${sidecar}, which does not exist`);
+		continue;
+	}
+	const map = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+	const mechanisms = map.mechanisms ?? {};
+	const assigned = map.entries ?? {};
+
+	const population = [];
+	for (const j of jsons) {
+		const p = path.join(CORPUS, j);
+		if (!fs.existsSync(p)) continue;
+		const value = JSON.parse(fs.readFileSync(p, 'utf8'));
+		population.push(...(Array.isArray(value) ? value : Object.keys(value)));
+	}
+	// Both directions: an unassigned entry is an unattributed one wearing a full
+	// table, and a leftover assignment keeps a fixed entry's mechanism alive.
+	for (const id of population) {
+		if (!(id in assigned)) fail(`${sidecar} assigns no mechanism to \`${id}\``);
+	}
+	const inPopulation = new Set(population);
+	for (const id of Object.keys(assigned)) {
+		if (!inPopulation.has(id)) fail(`${sidecar} assigns a mechanism to \`${id}\`, which no ratchet it covers lists`);
+	}
+
+	mechanismEntries += Object.keys(assigned).length;
+	const counts = new Map();
+	for (const [id, slug] of Object.entries(assigned)) {
+		if (!(slug in mechanisms)) {
+			fail(`${sidecar}: \`${id}\` names mechanism "${slug}", which the file does not declare`);
+			continue;
+		}
+		counts.set(slug, (counts.get(slug) ?? 0) + 1);
+	}
+	for (const slug of Object.keys(mechanisms)) {
+		if (!counts.has(slug)) fail(`${sidecar} declares mechanism "${slug}", which no entry names`);
+	}
+
+	const body = docText(doc);
+	if (body === null) continue; // already reported above
+	const rows = mechanismTable(body);
+	if (rows === null) {
+		fail(`${doc}: no \`Entries by mechanism\` table to compare ${sidecar} against`);
+		continue;
+	}
+	if (rows.length !== counts.size) {
+		fail(`${doc}: the \`Entries by mechanism\` table has ${rows.length} row(s), but ${sidecar} uses ${counts.size} mechanism(s)`);
+	}
+	for (const [slug, n] of counts) {
+		const { description, pinned } = mechanisms[slug];
+		const row = rows.find((r) => r.mechanism === description);
+		if (!row) {
+			fail(`${doc}: the \`Entries by mechanism\` table has no row for "${slug}" — its cell must be the sidecar's \`description\` verbatim`);
+			continue;
+		}
+		if (row.n !== n) fail(`${doc}: the table says ${row.n} for "${slug}", but ${sidecar} assigns it ${n}`);
+		if (row.pinned !== pinned) fail(`${doc}: the table's \`pinned\` for "${slug}" is "${row.pinned}", but ${sidecar} says "${pinned}"`);
+	}
+}
+
 // An attribution that names a file nobody wrote reads exactly like one that does.
 // Two of these were already live, both citing a renamed upstream_issues item.
 // Resolved from the repo, not from CORPUS: the self-test points CORPUS at a
@@ -597,6 +836,6 @@ for (const doc of fs.readdirSync(CORPUS).filter((f) => f.endsWith('.md'))) {
 		process.exit(1);
 	}
 	console.log(
-		`[known-failures-md-check] ${RATCHETS.length} declared ratchets across ${new Set(RATCHETS.map((r) => r.doc)).size} docs match their JSON; ${PARTITIONS.length} cluster partitions add up.`,
+		`[known-failures-md-check] ${RATCHETS.length} declared ratchets across ${new Set(RATCHETS.map((r) => r.doc)).size} docs match their JSON; ${PARTITIONS.length} cluster partitions add up; ${MECHANISMS.length} mechanism sidecars cover ${mechanismEntries} entries.`,
 	);
 }

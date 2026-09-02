@@ -7,6 +7,7 @@ use crate::ast::template::{Attribute, SvelteDynamicElement};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
+use crate::svelte2tsx::template::attributes::attribute::{AttrHost, element_is_custom};
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, build_bind_directive_suffix, element_var_base_name,
 };
@@ -74,14 +75,25 @@ pub fn handle_svelte_dynamic_element(
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
     let attrs_str = if named_slot.is_some() {
-        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace)
+        build_named_slot_element_attrs(
+            &el.attributes,
+            source,
+            &options.typings_namespace,
+            &el.name,
+            true,
+            options.namespace.preserves_attribute_case(),
+        )
     } else {
         build_attributes_string(
             &el.attributes,
             source,
             &counter.element_opener_comments,
             saved_slot.is_some(),
-            options.namespace.preserves_attribute_case(),
+            AttrHost::Element {
+                tag: &el.name,
+                preserve_case: options.namespace.preserves_attribute_case(),
+                is_custom_element: element_is_custom(&el.name, &el.attributes),
+            },
             options.preserves_bind_prefix(),
         )
     };

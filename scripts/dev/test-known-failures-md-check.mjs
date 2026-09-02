@@ -198,6 +198,47 @@ const edit = (dir, file, from, to) => {
 	fs.writeFileSync(found.p, found.text.replace(from, to));
 };
 
+// Every literal in a case below is a count that the tree moves under it, and a
+// self-test whose input has drifted throws instead of failing the thing it
+// checks. `bump` locates the number by its surrounding words and derives the
+// wrong value from the right one, so the case keeps meaning what it meant.
+// `findDoc` matches a literal needle; these callers search by PATTERN, because
+// the number in the sentence is exactly what moves. The directory scan is not a
+// fallback but the load-bearing half: the names passed in are lowercase and the
+// files on disk are not, so `docText` finds them on a case-insensitive
+// filesystem and returns null on Linux.
+const findDocByPattern = (dir, file, re) => {
+	const direct = docText(dir, file);
+	if (direct && re.test(direct.text)) return direct;
+	for (const f of fs.readdirSync(dir)) {
+		if (!f.endsWith('.md')) continue;
+		const q = path.join(dir, f);
+		const text = fs.readFileSync(q, 'utf8');
+		if (re.test(text)) return { p: q, text };
+	}
+	return null;
+};
+
+const bump = (dir, file, re, wrong, replace) => {
+	const found = findDocByPattern(dir, file, re);
+	if (!found) throw new Error(`self-test is stale: no doc holds ${re} (looked for ${file} first)`);
+	const m = found.text.match(re);
+	const real = Number(m[1].replace(/,/g, ''));
+	fs.writeFileSync(found.p, found.text.replace(m[0], replace(m[0], m[1], wrong)));
+	return { real, wrong };
+};
+
+// Put a line-anchored sentence into a doc immediately before `at`. For a
+// spelling the tree no longer carries, the case has to supply its own carrier —
+// a rule with no live input is shown to fire or it is not shown at all.
+const inject = (dir, file, at, line) => {
+	const found = findDocByPattern(dir, file, at);
+	if (!found) throw new Error(`self-test is stale: no doc holds ${at} (looked for ${file} first)`);
+	const m = found.text.match(at);
+	fs.writeFileSync(found.p, found.text.replace(m[0], `${line}\n\n${m[0]}`));
+	return { line };
+};
+
 // The control. Without it, every mutation below "passing" would also be
 // explained by the harness failing on any input at all.
 withCorpus(
@@ -290,6 +331,49 @@ withCorpus(
 			'`warning-position-known-failures.<target>.json` 5 entries on all four',
 		),
 	(r) => check('a stale restatement fails', [r.code, /states 5 entries/.test(r.out)], [1, true]),
+);
+
+// The two spellings (c) added. Both were unchecked while (a) and (b) were green,
+// and both had gone stale by an order of magnitude — `The other 21` and `All 13`
+// against a 4-entry ratchet. The negative control is the scoping: an `All N` line
+// counting something other than ratchet entries sits under a partition of 0 in
+// `matrix-known-failures.md`, and 22 of the 24 reports the unscoped rule produced
+// were that one doc.
+// This one INJECTS its carrier instead of mutating a live sentence, because the
+// spelling has no live carrier left: #4165 retired the entries the two `The
+// other N` lines described and the prose that replaced them states no residue.
+// The two survivors in the tree are mid-line, which the rule's `^` does not
+// match, so mutating either would have measured nothing.
+let seen;
+withCorpus(
+	(d) => {
+		seen = inject(d, 'known-failures.md', /^All remaining [\d,]+ arrived/m, 'The other 999 arrived with the wave-2 enrolment.');
+	},
+	(r) =>
+		check(
+			'a stale `The other N` fails',
+			[r.code, /"The other 999".*leaving (\d+)/s.test(r.out), /"The other 999".*leaving 999/s.test(r.out)],
+			[1, true, false],
+		),
+);
+
+withCorpus(
+	(d) => {
+		seen = bump(d, 'known-failures.md', /All remaining (\d[\d,]*) arrived/, 999, () => 'All 999 arrived');
+	},
+	(r) =>
+		check(
+			'a stale `All N` fails',
+			[r.code, new RegExp(`"All 999".*partition sums to ${seen.real}`, 's').test(r.out)],
+			[1, true],
+		),
+);
+
+withCorpus(
+	(d) => {
+		bump(d, 'matrix-known-failures.md', /All ([\d,]+) generated comparisons/, 999, () => 'All 999 generated comparisons');
+	},
+	(r) => check('`All N` under an empty partition is not an entry count', [r.code], [0]),
 );
 
 if (failed) {

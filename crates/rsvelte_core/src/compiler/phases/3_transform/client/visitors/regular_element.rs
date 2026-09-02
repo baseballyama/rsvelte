@@ -58,6 +58,7 @@ struct LetDirectiveResult {
     )>,
     saved_transform_deep_read: im::HashMap<String, ()>,
     saved_shadowed_prop_names: im::HashSet<String>,
+    saved_lets_out_of_scope: im::HashMap<String, ()>,
 }
 
 fn process_element_let_directives(
@@ -72,6 +73,7 @@ fn process_element_let_directives(
     )> = Vec::new();
     let saved_transform_deep_read = context.state.transform_deep_read.clone();
     let saved_shadowed_prop_names = context.state.shadowed_prop_names.clone();
+    let saved_lets_out_of_scope = context.state.lets_out_of_scope.clone();
 
     for let_dir in let_directives {
         let prop_name = &let_dir.name;
@@ -141,6 +143,10 @@ fn process_element_let_directives(
             // each_block.rs / snippet_block.rs). e.g. `let { data } = $props()`
             // outside + `<tbody slot="…" let:data>` must read `$.get(data)`.
             context.state.shadowed_prop_names.insert(name.clone());
+            // A slotted node's OWN `let:` is declared in the ENCLOSING scope
+            // upstream (`determine_slot(node) ? context.state : …`), so it is in
+            // scope here even when the component's `let:` of the same name is not.
+            context.state.lets_out_of_scope.remove(&name);
         } else if let Some((derived_name, binding_names, const_stmt)) =
             crate::compiler::phases::phase3_transform::client::visitors::shared::component::build_destructured_let_directive(
                 let_dir, context,
@@ -171,6 +177,7 @@ fn process_element_let_directives(
                     },
                 );
                 context.state.transform_deep_read.insert(name.clone(), ());
+                context.state.lets_out_of_scope.remove(&name);
                 context.state.shadowed_prop_names.insert(name);
             }
         }
@@ -180,6 +187,7 @@ fn process_element_let_directives(
         saved_transforms,
         saved_transform_deep_read,
         saved_shadowed_prop_names,
+        saved_lets_out_of_scope,
     }
 }
 
@@ -618,8 +626,10 @@ pub fn visit_regular_element(
 
                 // Static text attributes can go in the template
                 let is_true_value = matches!(&attr.value, AttributeValue::True(true));
+                // Upstream asks this of the RAW name and normalizes only for the
+                // branch selectors below, so `autoFocus` takes the static path.
                 if !is_custom_element
-                    && !cannot_be_set_statically(&name)
+                    && !cannot_be_set_statically(&attr.name)
                     && (is_true_value || is_text_attribute(attr))
                 {
                     // `None` is upstream's boolean `true` for a valueless attribute,
@@ -654,7 +664,7 @@ pub fn visit_regular_element(
                         context
                             .state
                             .template
-                            .set_prop(name.clone(), Some(value.unwrap_or_default()));
+                            .set_prop(attr.name.to_string(), Some(value.unwrap_or_default()));
                     }
                 } else if name == "autofocus" {
                     // Special case: autofocus needs $.autofocus() call
@@ -1806,6 +1816,7 @@ pub fn visit_regular_element(
     }
     context.state.transform_deep_read = let_directive_result.saved_transform_deep_read;
     context.state.shadowed_prop_names = let_directive_result.saved_shadowed_prop_names;
+    context.state.lets_out_of_scope = let_directive_result.saved_lets_out_of_scope;
 
     context.state.template.pop_element();
     TransformResult::None

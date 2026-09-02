@@ -10,12 +10,12 @@
 //! Only block comments count (`getLastLeadingDoc` filters to
 //! `MultiLineCommentTrivia`), so a `// line` comment attaches to nothing.
 //!
-//! Every expectation was read off the pinned `submodules/language-tools`
-//! svelte2tsx. Official spells the same attachment with different INTERNAL
-//! whitespace (`{ /* c */g: g` where rsvelte emits `{/* c */ g: g`); that
-//! difference predates this test, and the corpus gate normalizes both sides
-//! with oxfmt before comparing, so it is invisible there. These assertions pin
-//! the attachment — which comment lands on which name — not the spacing.
+//! Every expectation is the pinned `submodules/language-tools` svelte2tsx's
+//! own output, generated rather than transcribed — `createReturnElements`
+//! writes `\n${doc}${name}`, so the comment is preceded by a newline and
+//! followed by nothing, which a hand-written expectation had as a space on
+//! both sides. The corpus gate normalizes with oxfmt, so it cannot see the
+//! spacing; these assertions can, and they pin the attachment as well.
 
 use rsvelte_projection::svelte2tsx::{Svelte2TsxOptions, svelte2tsx};
 
@@ -39,48 +39,44 @@ fn props_of(decl: &str) -> String {
 
 #[test]
 fn a_comment_after_the_keyword_attaches_to_the_first_declarator_only() {
-    // official: `{ /* same line */g: g , h: h}`
     assert_eq!(
         props_of("export let /* same line */ g = 8, h = 9;"),
-        "{/* same line */ g: g , h: h}"
+        "{\n/* same line */g: g , h: h}"
     );
 }
 
 #[test]
 fn a_comment_before_a_later_declarator_attaches_to_that_declarator() {
-    // official: `{a: a , /* mid */b: b}`
     assert_eq!(
         props_of("export let a = 1,\n\t/* mid */ b = 2;"),
-        "{a: a , /* mid */ b: b}"
+        "{a: a , \n/* mid */b: b}"
     );
 }
 
 #[test]
 fn a_line_comment_between_a_block_comment_and_the_declarator_is_skipped() {
-    // official: `{a: a , /* blk */b: b}` — `getLastLeadingDoc` keeps only
-    // `MultiLineCommentTrivia`, so the `// line` between them is not a barrier.
+    // `getLastLeadingDoc` keeps only `MultiLineCommentTrivia`, so the
+    // `// line` between them is not a barrier.
     assert_eq!(
         props_of("export let a = 1,\n\t/* blk */\n\t// line\n\tb = 2;"),
-        "{a: a , /* blk */ b: b}"
+        "{a: a , \n/* blk */b: b}"
     );
 }
 
 #[test]
 fn a_declarator_comment_wins_over_the_statements_and_the_rest_fall_back() {
-    // official: `{ /* inner */p: p , /* outer */q: q}` — `p` finds its own,
-    // `q` has none of its own and takes the statement's.
+    // `p` finds its own, `q` has none of its own and takes the statement's.
     assert_eq!(
         props_of("/* outer */\nexport let /* inner */ p = 1, q = 2;"),
-        "{/* inner */ p: p , /* outer */ q: q}"
+        "{\n/* inner */p: p , \n/* outer */q: q}"
     );
 }
 
 #[test]
 fn a_jsdoc_written_after_the_keyword_reaches_the_props_object() {
-    // official: `{ /** @type {boolean} */v: v}`
     assert_eq!(
         props_of("export let /** @type {boolean} */ v = true;"),
-        "{/** @type {boolean} */ v: v}"
+        "{\n/** @type {boolean} */v: v}"
     );
 }
 
@@ -88,23 +84,21 @@ fn a_jsdoc_written_after_the_keyword_reaches_the_props_object() {
 
 #[test]
 fn control_a_comment_before_the_let_keyword_attaches_to_nothing() {
-    // official: `{a: a}`. TypeScript's declarator trivia starts after `let`, so
+    // TypeScript's declarator trivia starts after `let`, so
     // this comment is out of reach; without the floor the walk would take it.
     assert_eq!(props_of("export /* x */ let a = 1;"), "{a: a}");
 }
 
 #[test]
 fn control_a_statement_comment_still_reaches_every_declarator() {
-    // official: `{ /* lead block */c: c , /* lead block */d: d}`
     assert_eq!(
         props_of("/* lead block */\nexport let c = 3,\n\td = 4;"),
-        "{/* lead block */ c: c , /* lead block */ d: d}"
+        "{\n/* lead block */c: c , \n/* lead block */d: d}"
     );
 }
 
 #[test]
 fn control_a_line_comment_attaches_to_nothing() {
-    // official: `{a: a , b: b}`
     assert_eq!(
         props_of("// lead line\nexport let a = [],\n\tb = 2;"),
         "{a: a , b: b}"

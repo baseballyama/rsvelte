@@ -1175,7 +1175,7 @@ pub(crate) enum NsScan {
 
 /// Faithful port of upstream's `check_nodes_for_namespace()`. The walk descends
 /// through block containers (`{#if}` / `{#each}` / `{#await}` / `{#key}` /
-/// fragments) and stops at the first element it reaches; components, render
+/// fragments) and stops at the first html element it reaches; components, render
 /// tags, and nested snippets are *not* descended (they reset the namespace
 /// themselves). When the scan finds no element — only whitespace, text, or
 /// dynamic anchors — the result is `Keep`/`MaybeHtml`, and the caller falls
@@ -1195,15 +1195,18 @@ pub(crate) fn check_nodes_for_namespace<'a, N: AsRef<TemplateNode<'a>>>(nodes: &
 }
 
 /// Apply the element-namespace rule from upstream's `RegularElement` /
-/// `SvelteElement` walk visitors. Returns `true` to stop the walk (upstream's
-/// `stop()`): the first element reached determines the namespace.
+/// `SvelteElement` walk visitors. Upstream calls `stop()` only for an html
+/// element; an svg/mathml one records the namespace and lets the walk carry on,
+/// so a later non-empty `Text` can still downgrade it to `maybe_html`.
 fn apply_element_namespace(svg: bool, mathml: bool, ns: &mut NsScan) -> bool {
     if !svg && !mathml {
         *ns = NsScan::Html;
-    } else if *ns == NsScan::Keep {
+        return true;
+    }
+    if *ns == NsScan::Keep {
         *ns = if svg { NsScan::Svg } else { NsScan::Mathml };
     }
-    true
+    false
 }
 
 /// Recursive walk mirroring upstream `check_nodes_for_namespace()`'s zimmerframe

@@ -79,6 +79,28 @@ use super::shared::{TemplateEntry, process_children};
 /// Names whose text values get whitespace-collapsed + trimmed (`class`/`style`).
 const WHITESPACE_INSENSITIVE_ATTRIBUTES: [&str; 2] = ["class", "style"];
 
+/// A shorthand `class:x` reaches `$.attributes` as the bare identifier: upstream's
+/// `prepare_element_spread` skips the read transform for it, so a `$derived` is passed
+/// uncalled. The non-spread `build_attr_class` has no such arm and must not gain one.
+fn class_directive_shorthand<'a>(
+    dir: &crate::ast::template::ClassDirective<'_>,
+    state: &ServerTransformState<'a>,
+) -> Option<oxc_ast::ast::ObjectPropertyKind<'a>> {
+    if !dir.expression.is_identifier(dir.name.as_str()) {
+        return None;
+    }
+    let key = state.b.key(dir.name.as_str());
+    let value = state.b.id(dir.name.as_str());
+    Some(state.b.prop(
+        oxc_ast::ast::PropertyKind::Init,
+        key,
+        value,
+        false,
+        true,
+        false,
+    ))
+}
+
 /// Visit a `<name ...>children</name>` regular element.
 pub fn visit_regular_element<'a>(node: &RegularElement<'a>, state: &mut ServerTransformState<'a>) {
     // 写经 upstream `RegularElement.js` l.18: in the HTML namespace the element
@@ -1386,6 +1408,9 @@ fn build_element_spread_attributes<'a>(
         let members = class_directives
             .iter()
             .map(|dir| {
+                if let Some(prop) = class_directive_shorthand(dir, state) {
+                    return prop;
+                }
                 let text = state.expr_source(&dir.expression).map(str::to_owned);
                 let mut val = if let Some(t) = text.as_deref()
                     && state.attr_optimiser.is_some()
@@ -1864,6 +1889,9 @@ fn prepare_element_spread_object<'a>(
         let members = class_directives
             .iter()
             .map(|dir| {
+                if let Some(prop) = class_directive_shorthand(dir, state) {
+                    return prop;
+                }
                 let val = state.visit_expr_claiming(&dir.expression);
                 state.b.init(dir.name.as_str(), val)
             })

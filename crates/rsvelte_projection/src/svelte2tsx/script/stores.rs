@@ -28,21 +28,33 @@ struct StoreCandidate {
 
 impl StoreCandidate {
     const SELF_NAMED_RUNE_FLAG: u32 = 1;
+    const PROPERTY_KEY_FLAG: u32 = 2;
 
-    fn new(name_start: usize, name_end: usize, may_be_self_named_rune: bool) -> Self {
+    fn new(
+        name_start: usize,
+        name_end: usize,
+        may_be_self_named_rune: bool,
+        is_property_key: bool,
+    ) -> Self {
         let name_len = u32::try_from(name_end - name_start).expect("store name exceeds u32");
         let name_len_and_flags = name_len
-            .checked_mul(2)
+            .checked_mul(4)
             .expect("store name exceeds packed length");
         Self {
             name_start: source_offset(name_start),
-            name_len_and_flags: name_len_and_flags + u32::from(may_be_self_named_rune),
+            name_len_and_flags: name_len_and_flags
+                + u32::from(may_be_self_named_rune)
+                + if is_property_key {
+                    Self::PROPERTY_KEY_FLAG
+                } else {
+                    0
+                },
         }
     }
 
     fn name<'s>(&self, source: &'s str) -> &'s str {
         let start = self.name_start as usize;
-        let end = start + (self.name_len_and_flags >> 1) as usize;
+        let end = start + (self.name_len_and_flags >> 2) as usize;
         &source[start..end]
     }
 
@@ -52,6 +64,10 @@ impl StoreCandidate {
 
     const fn may_be_self_named_rune(&self) -> bool {
         self.name_len_and_flags & Self::SELF_NAMED_RUNE_FLAG != 0
+    }
+
+    const fn is_property_key(&self) -> bool {
+        self.name_len_and_flags & Self::PROPERTY_KEY_FLAG != 0
     }
 }
 
@@ -70,6 +86,14 @@ pub struct StoreScanContext<'s> {
     /// reference in: a string literal, a template literal's text chunks, and
     /// the imported (property) name of an aliased import specifier.
     pub(super) opaque_dollar_spans: Vec<(u32, u32)>,
+    /// `$`-prefixed KEYS of a binding pattern that upstream nevertheless
+    /// resolves as stores, because its `isDeclaration` flag is a boolean whose
+    /// reset fires when the pattern's first element is left — so every element
+    /// after the first is walked as if it were an expression.
+    pub(super) binding_pattern_key_positions: Vec<u32>,
+    /// The template half of the same question, which no parsed program answers
+    /// here. Computed on first use: a source with no `$` never needs it.
+    template_opaque: Option<Vec<(u32, u32)>>,
     import_store_names: Vec<&'s str>,
     seen_import_store_names: HashSet<&'s str>,
 }
@@ -93,6 +117,8 @@ impl<'s> StoreScanContext<'s> {
             self_named_rune_calls: Vec::new(),
             regex_literal_spans: Vec::new(),
             opaque_dollar_spans: Vec::new(),
+            binding_pattern_key_positions: Vec::new(),
+            template_opaque: None,
             import_store_names: Vec::new(),
             seen_import_store_names: HashSet::new(),
         }
@@ -103,6 +129,7 @@ impl<'s> StoreScanContext<'s> {
         self.self_named_rune_calls.clear();
         self.regex_literal_spans.clear();
         self.opaque_dollar_spans.clear();
+        self.binding_pattern_key_positions.clear();
     }
 
     pub(super) fn has_dollar(&mut self) -> bool {
@@ -137,6 +164,10 @@ impl<'s> StoreScanContext<'s> {
         self.opaque_dollar_spans.push(span);
     }
 
+    pub(super) fn add_binding_pattern_key_position(&mut self, pos: u32) {
+        self.binding_pattern_key_positions.push(pos);
+    }
+
     pub(super) fn finish_script_facts(&mut self) {
         self.self_named_rune_calls.sort_unstable();
         self.self_named_rune_calls.dedup();
@@ -144,6 +175,8 @@ impl<'s> StoreScanContext<'s> {
         self.regex_literal_spans.dedup();
         self.opaque_dollar_spans.sort_unstable();
         self.opaque_dollar_spans.dedup();
+        self.binding_pattern_key_positions.sort_unstable();
+        self.binding_pattern_key_positions.dedup();
     }
 
     pub(super) fn collect_loose_dollar_names(
@@ -182,8 +215,14 @@ impl<'s> StoreScanContext<'s> {
 
     fn resolve_accessed_stores(&mut self) {
         self.accessed_stores.clear();
+        if self.template_opaque.is_none() {
+            self.template_opaque = Some(crate::svelte2tsx::utils::lexical::template_opaque_ranges(
+                self.source,
+            ));
+        }
         if self.cache_candidates {
             self.ensure_candidates();
+            let template_opaque: &[(u32, u32)] = self.template_opaque.as_deref().unwrap_or(&[]);
             for candidate in &self.candidates {
                 if let Some(name) = resolve_store_candidate(
                     self.source,
@@ -192,6 +231,8 @@ impl<'s> StoreScanContext<'s> {
                     &self.self_named_rune_calls,
                     &self.regex_literal_spans,
                     &self.opaque_dollar_spans,
+                    template_opaque,
+                    &self.binding_pattern_key_positions,
                 ) {
                     self.accessed_stores.insert(name);
                 }
@@ -202,10 +243,12 @@ impl<'s> StoreScanContext<'s> {
             return;
         }
         let source = self.source;
+        let template_opaque: &[(u32, u32)] = self.template_opaque.as_deref().unwrap_or(&[]);
         let shadow = &self.dollar_param_shadow;
         let rune_calls = &self.self_named_rune_calls;
         let regex_spans = &self.regex_literal_spans;
         let opaque_spans = &self.opaque_dollar_spans;
+        let pattern_keys = &self.binding_pattern_key_positions;
         let stores = &mut self.accessed_stores;
         collect_store_candidates(source, self.script_spans, |candidate| {
             if let Some(name) = resolve_store_candidate(
@@ -215,6 +258,8 @@ impl<'s> StoreScanContext<'s> {
                 rune_calls,
                 regex_spans,
                 opaque_spans,
+                template_opaque,
+                pattern_keys,
             ) {
                 stores.insert(name);
             }
@@ -700,10 +745,10 @@ fn collect_store_candidates(
         // whitespace) by `:` AND preceded (skipping whitespace) by `{` or `,`
         // (which excludes a ternary `cond ? $name : x`, where the preceding
         // token is `?`).
-        if is_object_property_key(bytes, pos, end) {
-            i = end;
-            continue;
-        }
+        // A binding-pattern key is NOT always skipped upstream — see
+        // `is_property_key` on the candidate — so it is emitted and filtered in
+        // `resolve_store_candidate`, which has the AST's answer.
+        let is_property_key = is_object_property_key(bytes, pos, end);
         if RESERVED_STORE_NAMES.contains(&full) {
             i = end;
             continue;
@@ -721,6 +766,7 @@ fn collect_store_candidates(
             next,
             end,
             matches!(full, "$state" | "$props" | "$derived"),
+            is_property_key,
         ));
         i = end;
     }
@@ -733,9 +779,17 @@ fn resolve_store_candidate<'s>(
     self_named_rune_calls: &[u32],
     regex_literal_spans: &[(u32, u32)],
     opaque_dollar_spans: &[(u32, u32)],
+    template_opaque_ranges: &[(u32, u32)],
+    binding_pattern_key_positions: &[u32],
 ) -> Option<&'s str> {
     let pos = candidate.pos();
-    if position_in_spans(regex_literal_spans, pos) || position_in_spans(opaque_dollar_spans, pos) {
+    if candidate.is_property_key() && binding_pattern_key_positions.binary_search(&pos).is_err() {
+        return None;
+    }
+    if position_in_spans(regex_literal_spans, pos)
+        || position_in_spans(opaque_dollar_spans, pos)
+        || position_in_spans(template_opaque_ranges, pos)
+    {
         return None;
     }
     if candidate.may_be_self_named_rune() && self_named_rune_calls.binary_search(&pos).is_ok() {
@@ -987,16 +1041,30 @@ pub(super) fn inject_store_subscriptions_with_program(
         }
     }
 
-    collect_module_script_import_stores(module_program, context);
-
     // Official `attachStoreValueDeclarationOfImportsToRenderFn` iterates
     // `importStatements` in IMPORT-DECLARATION order (not first-`$store`-use
-    // order), which is exactly the collection order here (instance imports in
-    // program order, then module imports). Just dedup preserving that order.
+    // order), which is exactly the collection order here. Just dedup preserving
+    // that order.
     context.dedup_imports_preserving_order();
-    if !context.import_store_names.is_empty() {
-        let store_decls = create_store_declarations(&context.import_store_names);
-        str.append_right(offset, &store_decls);
+    let instance_decls = create_store_declarations(&context.import_store_names);
+
+    // The module script gets its OWN `ImplicitStoreValues` (`index.ts:202`), so
+    // its imports are a SECOND ignore region rather than more names in the
+    // first — and a name imported by both scripts is declared in both, because
+    // that instance is seeded with the accessed stores and not with the
+    // instance's import list.
+    context.begin_import_collection();
+    collect_module_script_import_stores(module_program, context);
+    context.dedup_imports_preserving_order();
+    let module_decls = create_store_declarations(&context.import_store_names);
+
+    // The instance script's `modifyCode` runs before the module script is
+    // processed, so its region is appended first.
+    if !instance_decls.is_empty() {
+        str.append_right(offset, &instance_decls);
+    }
+    if !module_decls.is_empty() {
+        str.append_right(offset, &module_decls);
     }
 }
 

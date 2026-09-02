@@ -4,7 +4,7 @@ use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SlotEl
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
-use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
+use crate::svelte2tsx::template::attributes::attribute::{AttrHost, format_attribute_node};
 use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
 use crate::svelte2tsx::template::ctx::Counter;
@@ -292,9 +292,13 @@ pub fn build_slot_props_string(
                 if node.name == "name" || (node.name == "slot" && drop_slot_attr) {
                     continue;
                 }
-                // Slot props are neither DOM-element props nor component props;
-                // use is_element=false (no data-* wrapping; --* wrapping if present).
-                parts.push(format_attribute_node(node, source, false));
+                // A `<slot>` is built as an `Element` upstream, so the `data-`
+                // wrapper applies to it and the component-only `--` one does not.
+                parts.push(format_attribute_node(
+                    node,
+                    source,
+                    AttrHost::SpecialTag { tag: "slot" },
+                ));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));

@@ -1,0 +1,13 @@
+{
+	"$schema-note": "id -> mechanism slug for every entry of svelte2tsx-known-failures.json and svelte2tsx-unparseable-known-failures.json. The `Entries by mechanism` table in KNOWN-FAILURES.md is derived from this file: one row per `mechanisms` key, `n` = how many `entries` name it. The assignment is one-to-one, so a double count is unwritable.",
+	"mechanisms": {
+		"upstream-bom-crash": {
+			"description": "official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it",
+			"pinned": "upstream"
+		}
+	},
+	"entries": {
+		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
+		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash"
+	}
+}

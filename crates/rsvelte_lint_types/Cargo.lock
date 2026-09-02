@@ -1333,7 +1333,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte_core"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "bumpalo",
  "compact_str",
@@ -1385,7 +1385,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "bytecount",
@@ -1433,7 +1433,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "indexmap",
  "memchr",

@@ -97,6 +97,19 @@ pub fn build_element_directive_suffix_segments(
 /// is the number of actions — the createElement's second argument
 /// becomes `__sveltets_2_union($$action_0[, $$action_1, …])` when this
 /// is non-zero.
+/// The createElement second argument for `action_count` `use:` directives:
+/// `, __sveltets_2_union($$action_0[, $$action_1, …])`, empty when there are none.
+pub fn action_arguments(action_count: usize) -> String {
+    if action_count == 0 {
+        return String::new();
+    }
+    let names = (0..action_count)
+        .map(|index| format!("$$action_{index}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(", __sveltets_2_union({names})")
+}
+
 pub fn build_directive_prefix_suffix(
     attributes: &[Attribute],
     source: &str,

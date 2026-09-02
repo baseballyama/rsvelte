@@ -75,6 +75,10 @@ const BASELINE_PATH = path.resolve(
 // --baseline redirects only the TSX ratchet, so the map ratchet keeps pointing at
 // the real file — which makes it unsafe to REWRITE from such a run (see below).
 const MAP_BASELINE_PATH = path.join(CORPUS, 'svelte2tsx-map-known-failures.json');
+// Kept apart from the TSX ratchet on purpose: an entry listed there suppresses
+// everything the key cannot tell apart, and "rsvelte's output is not TypeScript"
+// is not the same finding as "rsvelte's output differs".
+const UNPARSEABLE_BASELINE_PATH = path.join(CORPUS, 'svelte2tsx-unparseable-known-failures.json');
 
 // --from-report <path> derives the baselines from a report this gate already
 // wrote, without re-collecting or re-compiling the corpus. The verdict a corpus
@@ -223,8 +227,17 @@ if (!NO_FMT) {
 	}
 }
 
-const counts = { match: 0, 'error-parity': 0, 'oracle-invalid': 0, 'ts-mismatch': 0, 'error-mismatch': 0, missing: 0 };
+const counts = {
+	match: 0,
+	'error-parity': 0,
+	'oracle-invalid': 0,
+	'ts-mismatch': 0,
+	'output-unparseable': 0,
+	'error-mismatch': 0,
+	missing: 0,
+};
 const failures = [];
+const unparseableFailures = [];
 
 // An output-parity oracle is only meaningful when the OFFICIAL tool itself
 // produced valid output. In a handful of degenerate inputs the official
@@ -296,8 +309,18 @@ for (const { id } of manifest) {
 			// If the OFFICIAL output isn't even parseable TSX (a broken oracle
 			// transformation) while rsvelte's IS valid, there is no valid target
 			// to match → oracle-invalid rather than a ts-mismatch failure.
-			if (!oxfmtParses(path.join(expDir, 'index.tsx')) && oxfmtParses(path.join(actDir, 'index.tsx'))) {
+			const expParses = oxfmtParses(path.join(expDir, 'index.tsx'));
+			const actParses = oxfmtParses(path.join(actDir, 'index.tsx'));
+			if (!expParses && actParses) {
 				verdict = 'oracle-invalid';
+			} else if (expParses && !actParses) {
+				// The mirror of `oracle-invalid`, which only ever asked whether the
+				// ORACLE was broken. rsvelte emitting text no TS parser accepts is a
+				// different defect from text that merely differs, and it needs its own
+				// ratchet: a shared key would let a NEW unparseable output hide behind
+				// an id already listed for a `ts-mismatch`.
+				verdict = 'output-unparseable';
+				details.push({ kind: 'ts', ...firstDiffLine(expTs, actTs) });
 			} else {
 				verdict = 'ts-mismatch';
 				details.push({ kind: 'ts', ...firstDiffLine(expTs, actTs) });
@@ -306,7 +329,9 @@ for (const { id } of manifest) {
 	}
 
 	counts[verdict]++;
-	if (verdict !== 'match' && verdict !== 'error-parity' && verdict !== 'oracle-invalid') {
+	if (verdict === 'output-unparseable') {
+		unparseableFailures.push({ id, verdict, details });
+	} else if (verdict !== 'match' && verdict !== 'error-parity' && verdict !== 'oracle-invalid') {
 		failures.push({ id, verdict, details });
 	}
 }
@@ -316,6 +341,7 @@ const report = {
 	total: manifest.length,
 	counts,
 	failures,
+	unparseableFailures,
 	mapCounts,
 	mapFailures,
 	mapCoverage: {
@@ -344,6 +370,7 @@ if (UPDATE_BASELINE) {
 		process.exit(2);
 	}
 	const updates = [[failures, BASELINE_PATH]];
+	if (!ALT_BASELINE) updates.push([unparseableFailures, UNPARSEABLE_BASELINE_PATH]);
 	// A --baseline run targets some alternate TSX ratchet; rewriting the one real
 	// map ratchet from it would clobber it with that run's narrower results.
 	if (ALT_BASELINE) {
@@ -411,14 +438,15 @@ function ratchet(label, entries, file) {
 
 // Both gates are reported before exiting so one run shows every regression.
 const tsxRegressed = ratchet('TSX', failures, BASELINE_PATH);
+const unparseableRegressed = ratchet('output-unparseable', unparseableFailures, UNPARSEABLE_BASELINE_PATH);
 const mapRegressed = ratchet('source-map', mapFailures, MAP_BASELINE_PATH);
 
-if (tsxRegressed || mapRegressed) {
+if (tsxRegressed || unparseableRegressed || mapRegressed) {
 	cleanupArtifacts(S2T_TREES, args, { failed: true, label: 's2t-verify' });
 	process.exit(1);
 }
 
-if (!failures.length && !mapFailures.length) {
+if (!failures.length && !unparseableFailures.length && !mapFailures.length) {
 	console.log('\n[s2t-verify] ✅ all svelte2tsx outputs identical after normalization, all source maps well-formed');
 }
 

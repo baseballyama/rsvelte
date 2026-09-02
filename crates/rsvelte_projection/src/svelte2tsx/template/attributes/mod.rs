@@ -28,7 +28,7 @@ use crate::svelte2tsx::template::utils::expr::{
 
 use action::format_use_directive;
 use attribute::{
-    append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
+    AttrHost, append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
     trailing_attr_comment_text,
 };
 use binding::{bind_is_filtered_from_props, format_bind_directive_segments};
@@ -118,37 +118,16 @@ pub(super) fn build_attributes_string(
     source: &str,
     comments: &ElementOpenerCommentIndex,
     in_slot_context: bool,
-    preserve_case: bool,
-    preserve_bind: bool,
-) -> String {
-    build_attributes_string_with_tag(
-        attributes,
-        source,
-        comments,
-        "",
-        in_slot_context,
-        preserve_case,
-        preserve_bind,
-    )
-}
-
-pub(super) fn build_attributes_string_with_tag(
-    attributes: &[Attribute],
-    source: &str,
-    comments: &ElementOpenerCommentIndex,
-    parent_tag: &str,
-    in_slot_context: bool,
-    preserve_case: bool,
+    host: AttrHost,
     preserve_bind: bool,
 ) -> String {
     let segs = build_attribute_segments(
         attributes,
         source,
         comments,
-        parent_tag,
         in_slot_context,
         None,
-        preserve_case,
+        host,
         preserve_bind,
     );
     segs_to_string(&segs, source)
@@ -167,10 +146,9 @@ pub(super) fn build_attribute_segments(
     attributes: &[Attribute],
     source: &str,
     comments: &ElementOpenerCommentIndex,
-    parent_tag: &str,
     in_slot_context: bool,
     opener_content_start: Option<u32>,
-    preserve_case: bool,
+    host: AttrHost,
     preserve_bind: bool,
 ) -> Vec<Seg> {
     let mut segs: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
@@ -209,16 +187,7 @@ pub(super) fn build_attribute_segments(
                     }
                     _ => "",
                 };
-                append_attribute_node_segments(
-                    &mut segs,
-                    node,
-                    source,
-                    comments,
-                    true,
-                    parent_tag,
-                    leading,
-                    preserve_case,
-                );
+                append_attribute_node_segments(&mut segs, node, source, comments, host, leading);
                 any_pushed = true;
                 prev_end = Some(node.end);
             }
@@ -235,7 +204,7 @@ pub(super) fn build_attribute_segments(
                 // an element-var assignment. The get/set exception only keeps
                 // one-way binding *attributes* (clientWidth, …) as props.
                 if (is_get_set && bind.name != "this")
-                    || !bind_is_filtered_from_props(&bind.name, parent_tag)
+                    || !bind_is_filtered_from_props(&bind.name, host.tag())
                 {
                     let part = format_bind_directive_segments(bind, source, preserve_bind);
                     push_with_separator(&mut segs, part);
@@ -331,9 +300,9 @@ pub(super) fn build_component_props_string(
                 if node.name == "slot" && drop_slot {
                     continue;
                 }
-                // is_element=false: --* attrs are wrapped with __sveltets_2_cssProp
+                // A component's `--*` attrs are wrapped with __sveltets_2_cssProp
                 // inside format_attribute_node (mirrors Attribute.ts `addProp`).
-                parts.push(format_attribute_node(node, source, false));
+                parts.push(format_attribute_node(node, source, AttrHost::Component));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));
@@ -441,7 +410,12 @@ pub(super) fn build_component_props_segments(
                 // inside append_attribute_node_segments (mirrors Attribute.ts).
                 // Components preserve attribute-name case, so the tag is unused.
                 append_attribute_node_segments(
-                    &mut inner, node, source, comments, false, "", "", false,
+                    &mut inner,
+                    node,
+                    source,
+                    comments,
+                    AttrHost::Component,
+                    "",
                 );
             }
             Attribute::SpreadAttribute(spread) => {

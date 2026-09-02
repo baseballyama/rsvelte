@@ -56,3 +56,27 @@ test("completion arrays match by semantic identity instead of index", () => {
     [],
   );
 });
+
+// An unqualified `extra-rsvelte` collapsed two mechanisms: one more entry in an
+// array, and a key the other side does not carry at all.
+test("an extra array entry and an absent field are different verdicts", () => {
+  const item = (extra) => ({
+    items: [{ label: "a", kind: 6, ...extra }],
+  });
+  assert.deepEqual(
+    diffJson(
+      "textDocument/completion",
+      item({ commitCharacters: [".", ","] }),
+      item({ commitCharacters: [".", ",", "("] }),
+    ).map((value) => value.replace(/\[.*\]$/, "")),
+    ["/items/@completion-f121f598ae7d/commitCharacters:extra-rsvelte-element"],
+  );
+  assert.deepEqual(
+    diffJson(
+      "textDocument/completion",
+      item({}),
+      item({ commitCharacters: [".", ",", "("] }),
+    ).map((value) => value.replace(/\[.*\]$/, "")),
+    ["/items/@completion-f121f598ae7d/commitCharacters:extra-rsvelte-field"],
+  );
+});

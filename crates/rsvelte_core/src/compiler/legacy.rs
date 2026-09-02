@@ -1597,23 +1597,9 @@ fn convert_bind_directive(bind: &BindDirective, positions: &Utf8ToUtf16) -> Valu
         bind.name_loc.as_ref(),
     );
 
-    // For shorthand bindings (bind:foo), strip the loc field from expression
-    let mut expression = expression_json(&bind.expression, positions);
-    let is_shorthand = expression
-        .get("type")
-        .and_then(|t| t.as_str())
-        .is_some_and(|t| t == "Identifier")
-        && expression
-            .get("name")
-            .and_then(|n| n.as_str())
-            .is_some_and(|n| n == bind.name.as_str());
-    if is_shorthand && let Value::Object(ref mut expr_map) = expression {
-        expr_map.remove("loc");
-    }
-
     estree_fields!(
         result,
-        "expression" => expression,
+        "expression" => expression_json(&bind.expression, positions),
         "modifiers": bind.modifiers,
     );
     Value::Object(result)

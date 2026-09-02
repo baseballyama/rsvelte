@@ -163,6 +163,107 @@ pub fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
     out
 }
 
+/// Byte ranges of `source` that carry no JavaScript the official svelte2tsx
+/// walkers ever see: an HTML comment, and — inside every `<script>` body and
+/// every template `{ … }` expression — a JS comment, a string, a regex literal
+/// and a template literal's text chunks.
+///
+/// Upstream needs no such set: `ComponentEvents` walks the TypeScript AST and
+/// `Stores` is fed by the Svelte AST walk, so a token in a comment or a string
+/// is not a node. A raw-text scan here has to be told.
+pub fn opaque_source_ranges(source: &str) -> Vec<(u32, u32)> {
+    collect_opaque_ranges(source, true)
+}
+
+/// The template-expression half of [`opaque_source_ranges`], for a scan whose
+/// script half is already answered from the parsed program.
+pub fn template_opaque_ranges(source: &str) -> Vec<(u32, u32)> {
+    collect_opaque_ranges(source, false)
+}
+
+fn collect_opaque_ranges(source: &str, include_scripts: bool) -> Vec<(u32, u32)> {
+    let mut ranges = Vec::new();
+    let mut markup_gaps: Vec<(usize, usize)> = Vec::new();
+    let mut gap_start = 0usize;
+    for region in super::htmlxparser::verbatim_regions(source) {
+        markup_gaps.push((gap_start, region.start as usize));
+        gap_start = region.end as usize;
+        if !include_scripts {
+            continue;
+        }
+        match region.kind {
+            0 => ranges.push((region.start, region.end)),
+            1 => push_js_opaque(source, region.content, &mut ranges),
+            _ => {}
+        }
+    }
+    markup_gaps.push((gap_start, source.len()));
+    for (start, end) in markup_gaps {
+        let Some(markup) = source.get(start..end) else {
+            continue;
+        };
+        for expression in template_expression_ranges(markup) {
+            push_js_opaque(
+                source,
+                (
+                    u32::try_from(start + expression.0).unwrap_or(u32::MAX),
+                    u32::try_from(start + expression.1).unwrap_or(u32::MAX),
+                ),
+                &mut ranges,
+            );
+        }
+    }
+    ranges.sort_unstable();
+    ranges
+}
+
+fn push_js_opaque(source: &str, span: (u32, u32), out: &mut Vec<(u32, u32)>) {
+    let (start, end) = (span.0 as usize, span.1 as usize);
+    let Some(slice) = source.get(start..end) else {
+        return;
+    };
+    for (run_start, run_end) in
+        rsvelte_core::compiler::phases::phase3_transform::shared::js_scan::opaque_runs(
+            slice.as_bytes(),
+        )
+    {
+        out.push((
+            u32::try_from(start + run_start).unwrap_or(u32::MAX),
+            u32::try_from(start + run_end).unwrap_or(u32::MAX),
+        ));
+    }
+}
+
+/// Byte ranges of the `{ … }` expression regions in a run of template markup.
+fn template_expression_ranges(text: &str) -> Vec<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] != b'{' {
+            i += 1;
+            continue;
+        }
+        // The parser's own matcher, which steps over comments, strings AND regex
+        // literals: a regex holding an odd number of quotes otherwise pairs them
+        // as string delimiters and the scan runs past the real `}`.
+        match crate::compiler::phases::phase1_parse::utils::bracket::find_matching_bracket(
+            text,
+            i + 1,
+            '{',
+        ) {
+            Some(close) => {
+                if i + 1 < close {
+                    out.push((i + 1, close));
+                }
+                i = close + 1;
+            }
+            None => i += 1,
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

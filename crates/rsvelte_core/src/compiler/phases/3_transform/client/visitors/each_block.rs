@@ -337,7 +337,12 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
                     // it still needs to be included in $.invalidate_inner_signals().
                     let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
-                            read_fn(&context.arena, b::id(&binding.name))
+                            // A reactive import's read expects the identifier already
+                            // swapped for its `$$_import_` alias; the raw name reads the
+                            // module binding instead of the signal.
+                            let input =
+                                transform.replacement_id.as_deref().unwrap_or(&binding.name);
+                            read_fn(&context.arena, b::id(input))
                         } else {
                             // Transform exists but no read fn - use raw identifier
                             b::id(&binding.name)
@@ -413,6 +418,12 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         store_to_invalidate: store_to_invalidate.clone(),
         item_reassigned,
         context_is_identifier,
+        scope_index: context
+            .state
+            .scope_root
+            .template_scope_map
+            .get(&node.start)
+            .copied(),
     });
 
     // Visit the each block body to get the body block

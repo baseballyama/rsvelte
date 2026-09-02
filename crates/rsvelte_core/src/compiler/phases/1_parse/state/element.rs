@@ -1712,15 +1712,15 @@ impl<'a> Parser<'a> {
 
         // Parse the value (expression)
         let (expression, end_pos) = self.read_directive_expression(name_end)?;
-        // `bind:value` with no value binds to the identifier the name spells,
-        // which upstream synthesizes from `start + colon_index + 1`.
+        // `bind:value` with no value binds to the identifier the name spells.
+        // Upstream builds that node by hand (`state/element.js`) with no `loc`,
+        // so a synthesized one must not carry one either.
         let expression = match expression {
             Some(expression) => expression,
-            None => super::super::expression::create_identifier_with_character(
+            None => super::super::expression::create_empty_identifier(
                 prop_name,
                 name_start + 5,
                 name_end,
-                self.expression_line_offsets(),
             ),
         };
 
@@ -1773,11 +1773,10 @@ impl<'a> Parser<'a> {
         let (expression, end) = self.read_directive_expression(name_end)?;
         let expression = match expression {
             Some(expression) => expression,
-            None => super::super::expression::create_identifier_with_character(
+            None => super::super::expression::create_empty_identifier(
                 class_name,
                 name_start + 6,
                 name_end,
-                self.expression_line_offsets(),
             ),
         };
         Ok(Some(crate::ast::Attribute::ClassDirective(

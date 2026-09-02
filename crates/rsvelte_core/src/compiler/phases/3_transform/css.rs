@@ -743,8 +743,9 @@ fn collect_keyframe_names_from_node(
             }
         }
         Some("Rule") => {
-            // Check if this rule is a :global {} block
-            let is_global = is_global_block(node);
+            // `metadata.is_global_block` is set by a bare `:global` in the FIRST position of
+            // any compound, not only by a lone one — `.x :global { … }` is a global block too.
+            let is_global = selector_contains_global_block(node);
             let child_in_global = in_global_block || is_global;
 
             if let Some(block) = node.get("block")
@@ -1388,8 +1389,13 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
         None => return true,
     };
 
-    // Check if this rule contains :global (without arguments), which creates a global block context
-    let this_is_global_block = is_in_global_block || selector_contains_global_block(rule);
+    // A rule that IS a global block is empty only when it has no children at all
+    // (`is_empty`, `3-transform/css/index.js:432`); the flag its children see is the
+    // ancestor-derived one, which upstream threads unchanged.
+    if selector_contains_global_block(rule) {
+        return children.is_empty();
+    }
+    let this_is_global_block = is_in_global_block;
 
     for child in children {
         let child_type = child.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -3577,52 +3583,48 @@ fn structural_ancestry_is_lexical(ctx: &CssContext) -> bool {
 /// outside the element's `{#snippet}` body, in which case the union of the
 /// parents of every `{@render}` site of that snippet (upstream
 /// `get_ancestor_elements` breaking the path walk at a `SnippetBlock`).
-/// `None` when a snippet's render sites are unknown, in which case callers must
-/// stay conservative rather than treat the ancestor set as empty.
+/// A snippet nothing renders has an empty set; a renderer that resolved to nothing
+/// is a site of every snippet. Neither is modelled as "unknown".
 fn effective_parents(ctx: &CssContext, el_idx: usize) -> Option<Vec<usize>> {
     let el = &ctx.dom_structure.elements[el_idx];
     let mut out = Vec::new();
-    let mut seen: FxHashSet<&str> = FxHashSet::default();
-    expand_effective_parents(
-        ctx,
-        el.parent_idx,
-        el.snippet_name.as_deref(),
-        &mut seen,
-        &mut out,
-    )?;
+    let mut seen: FxHashSet<u32> = FxHashSet::default();
+    expand_effective_parents(ctx, el.parent_idx, el.snippet_start, &mut seen, &mut out)?;
     out.sort_unstable();
     out.dedup();
     Some(out)
 }
 
-fn expand_effective_parents<'a>(
-    ctx: &'a CssContext,
+fn expand_effective_parents(
+    ctx: &CssContext,
     parent_idx: Option<usize>,
-    snippet: Option<&'a str>,
-    seen: &mut FxHashSet<&'a str>,
+    snippet: Option<u32>,
+    seen: &mut FxHashSet<u32>,
     out: &mut Vec<usize>,
 ) -> Option<()> {
     if let Some(p) = parent_idx
-        && ctx.dom_structure.elements[p].snippet_name.as_deref() == snippet
+        && ctx.dom_structure.elements[p].snippet_start == snippet
     {
         out.push(p);
         return Some(());
     }
     // The lexical walk left the snippet body (or hit the root): continue from
     // wherever the snippet is rendered.
-    let Some(name) = snippet else { return Some(()) };
-    if !seen.insert(name) {
+    let Some(key) = snippet else { return Some(()) };
+    if !seen.insert(key) {
         return Some(());
     }
-    let sites = ctx.dom_structure.snippet_render_sites.get(name)?;
-    for site in sites {
-        expand_effective_parents(
-            ctx,
-            site.parent_idx,
-            site.snippet_name.as_deref(),
-            seen,
-            out,
-        )?;
+    // Upstream reads `SnippetBlock.metadata.sites`, so a snippet nothing renders
+    // contributes no ancestors — an empty set is knowledge. A renderer that
+    // resolved to nothing is a site of every snippet, which is also knowledge and
+    // the other end of the same axis; neither is "unknown".
+    if let Some(sites) = ctx.dom_structure.snippet_render_sites.get(&key) {
+        for site in sites {
+            expand_effective_parents(ctx, site.parent_idx, site.snippet_start, seen, out)?;
+        }
+    }
+    for site in &ctx.dom_structure.unresolved_render_sites {
+        expand_effective_parents(ctx, site.parent_idx, site.snippet_start, seen, out)?;
     }
     Some(())
 }
@@ -6329,7 +6331,10 @@ fn transform_rule_preserving<'a>(
     // In dev mode, keep empty rules (convenient to add styles via devtools).
     // NOTE: The empty check runs BEFORE the unused check, mirroring the official
     // Rule visitor in 3-transform/css/index.js (empty wins over unused).
-    if !ctx.dev && is_rule_empty(node, ctx, is_in_global_block) {
+    // Upstream's `is_in_global_block(path)` tests `metadata.is_global_block`, which is
+    // only set by a bare `:global` (`args === null`) — `:global(.foo) { … }` is an
+    // ordinary rule there, so an unused child of it must not count toward its parent.
+    if !ctx.dev && is_rule_empty(node, ctx, is_in_bare_global_block) {
         if ctx.minify {
             // In minify mode, just skip the rule entirely
             *last_end = node_end;
@@ -6849,9 +6854,9 @@ fn transform_global_block<'a>(
                     }
                 }
 
-                // Upstream visits the block, so a minified `:global {}` body is
-                // minified like any other; only the scoping is skipped.
-                if _ctx.minify {
+                // Upstream visits the block like any other, so its children go through
+                // the same Rule/Atrule visitors; only the scoping is skipped.
+                {
                     let mut local_last_end = child_start;
                     match child.get("type").and_then(|t| t.as_str()) {
                         Some("Rule") => transform_rule_preserving(
@@ -6898,37 +6903,6 @@ fn transform_global_block<'a>(
                         }
                         _ => {}
                     }
-                    last_end = child_end;
-                    continue;
-                }
-
-                // Copy the child from source (don't scope - it's inside :global).
-                // A `-global-` keyframes name is still stripped: upstream's
-                // Atrule visitor runs at every depth, so nesting inside
-                // `:global {}` does not exempt it.
-                let child_start_idx = child_start.saturating_sub(css_start);
-                let child_end_idx = child_end.saturating_sub(css_start);
-                if child_end_idx <= css_source.len() && child_start_idx < child_end_idx {
-                    let mut cuts = Vec::new();
-                    collect_global_keyframe_prefixes(child, css_source, css_start, &mut cuts);
-                    let mut ranges: Vec<(usize, usize)> =
-                        cuts.into_iter().map(|c| (c, c + 8)).collect();
-                    // Upstream visits every ComplexSelector here too, so a nested
-                    // `:global(...)` still loses the pseudo-class even though no
-                    // scoping modifier is added.
-                    collect_global_pseudo_cuts(child, css_source, css_start, &mut ranges);
-                    ranges.retain(|&(a, b)| a >= child_start_idx && b <= child_end_idx && a < b);
-                    ranges.sort_unstable();
-                    mark_tree(output, child);
-                    let mut from = child_start_idx;
-                    for (a, b) in ranges {
-                        if a < from {
-                            continue;
-                        }
-                        output.copy(from + css_start, &css_source[from..a]);
-                        from = b;
-                    }
-                    output.copy(from + css_start, &css_source[from..child_end_idx]);
                 }
 
                 last_end = child_end;
@@ -6958,8 +6932,6 @@ fn transform_global_block<'a>(
     }
 }
 
-/// Offsets (relative to `css_source`) of every `-global-` prefix on a keyframes
-/// name in `node`'s subtree, so a verbatim copy can still drop them.
 /// Byte ranges (relative to `css_source`) that upstream's
 /// `remove_global_pseudo_class` deletes: `:global(` plus its `)`, or the bare
 /// `:global` keyword plus the descendant space that would be left dangling.
@@ -7015,44 +6987,6 @@ fn collect_global_pseudo_cuts(
         } else {
             out.push((from, from + ":global(".len()));
             out.push((to - 1, to));
-        }
-    }
-}
-
-fn collect_global_keyframe_prefixes(
-    node: &Value,
-    css_source: &str,
-    css_start: usize,
-    out: &mut Vec<usize>,
-) {
-    if node.get("type").and_then(|t| t.as_str()) == Some("Atrule") {
-        let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
-        let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
-        if matches!(
-            name,
-            "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
-        ) && prelude.starts_with("-global-")
-        {
-            let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let bytes = css_source.as_bytes();
-            let mut p_start = start + name.len() + 1;
-            while p_start.saturating_sub(css_start) < css_source.len()
-                && bytes.get(p_start - css_start) == Some(&b' ')
-            {
-                p_start += 1;
-            }
-            out.push(p_start.saturating_sub(css_start));
-            return;
-        }
-    }
-    for key in ["block", "prelude"] {
-        if let Some(child) = node.get(key).filter(|c| !c.is_null()) {
-            collect_global_keyframe_prefixes(child, css_source, css_start, out);
-        }
-    }
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
-        for child in children {
-            collect_global_keyframe_prefixes(child, css_source, css_start, out);
         }
     }
 }
@@ -7700,9 +7634,11 @@ fn transform_complex_selector(
     is_in_bare_global_block: bool,
     ctx: Option<&CssContext>,
 ) -> String {
-    // If inside a bare :global {} block, output selectors without any scoping
+    // Inside a bare `:global {}` block only the scoping modifier is skipped —
+    // upstream's ComplexSelector visitor still runs `remove_global_pseudo_class`
+    // on every `:global` it walks past (`3-transform/css/index.js:283-318`).
     if is_in_bare_global_block {
-        return get_complex_selector_text(node, css_source, css_start);
+        return global_stripped_complex_selector_text(node, css_source, css_start);
     }
 
     let mut result = String::new();
@@ -9151,6 +9087,37 @@ fn strip_bare_global_from_text(
     }
 
     raw
+}
+
+/// A complex selector's source text with the `:global(...)` wrappers that
+/// `remove_global_pseudo_class` deletes already removed.
+fn global_stripped_complex_selector_text(
+    node: &Value,
+    css_source: &str,
+    css_start: usize,
+) -> String {
+    let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let from = start.saturating_sub(css_start);
+    let to = end.saturating_sub(css_start);
+    if to > css_source.len() || from >= to {
+        return get_complex_selector_text(node, css_source, css_start);
+    }
+    let mut ranges = Vec::new();
+    collect_global_pseudo_cuts(node, css_source, css_start, &mut ranges);
+    ranges.retain(|&(a, b)| a >= from && b <= to && a < b);
+    ranges.sort_unstable();
+    let mut out = String::new();
+    let mut cursor = from;
+    for (a, b) in ranges {
+        if a < cursor {
+            continue;
+        }
+        out.push_str(&css_source[cursor..a]);
+        cursor = b;
+    }
+    out.push_str(&css_source[cursor..to]);
+    out
 }
 
 fn get_complex_selector_text(node: &Value, css_source: &str, css_start: usize) -> String {

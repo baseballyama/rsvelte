@@ -133,11 +133,24 @@ pub fn blank_style_content(source: &str) -> Cow<'_, str> {
     })
 }
 
-/// Full source ranges of real top-level style elements. The ordered scan is
-/// important: tag-looking text inside comments and script bodies is opaque.
-fn verbatim_style_ranges(source: &str) -> Vec<(u32, u32)> {
+/// A top-level region upstream's `findNextVerbatimElement` regex alternation
+/// recognises: `kind` `0` an HTML comment, `1` a `<script>` element, `2` a
+/// `<style>` element. `content` is the delimited inside — a comment's text, an
+/// element's body.
+#[derive(Clone, Copy)]
+pub(crate) struct VerbatimRegion {
+    pub kind: u8,
+    pub start: u32,
+    pub end: u32,
+    pub content: (u32, u32),
+}
+
+/// The ordered scan is what makes the alternation's "earliest match wins" hold:
+/// tag-looking text inside a comment or a script body is opaque, and so is a
+/// comment inside a script body.
+pub(crate) fn verbatim_regions(source: &str) -> Vec<VerbatimRegion> {
     let sb = source.as_bytes();
-    let mut ranges = Vec::new();
+    let mut regions = Vec::new();
     let mut search = 0usize;
     loop {
         let comment = find_ci(sb, search, b"<!--");
@@ -155,7 +168,16 @@ fn verbatim_style_ranges(source: &str) -> Vec<(u32, u32)> {
         };
 
         if kind == 0 {
-            search = find_ci(sb, tag_start + 4, b"-->").map_or(sb.len(), |end| end + 3);
+            let Some(end) = find_ci(sb, tag_start + 4, b"-->") else {
+                break;
+            };
+            regions.push(VerbatimRegion {
+                kind: 0,
+                start: source_offset(tag_start),
+                end: source_offset(end + 3),
+                content: (source_offset(tag_start + 4), source_offset(end)),
+            });
+            search = end + 3;
             continue;
         }
         let Some(gt) = find_ci(sb, tag_start, b">") else {
@@ -167,15 +189,34 @@ fn verbatim_style_ranges(source: &str) -> Vec<(u32, u32)> {
             continue;
         }
         let close_name: &[u8] = if kind == 1 { b"</script" } else { b"</style" };
-        let Some((_, element_end)) = close_tag_end(sb, content_start, close_name) else {
+        let Some((content_end, element_end)) = close_tag_end(sb, content_start, close_name) else {
             break;
         };
-        if kind == 2 {
-            ranges.push((source_offset(tag_start), source_offset(element_end)));
-        }
+        regions.push(VerbatimRegion {
+            kind,
+            start: source_offset(tag_start),
+            end: source_offset(element_end),
+            content: (source_offset(content_start), source_offset(content_end)),
+        });
         search = element_end;
     }
-    ranges
+    regions
+}
+
+/// Full source ranges of real top-level style elements.
+fn verbatim_style_ranges(source: &str) -> Vec<(u32, u32)> {
+    verbatim_regions(source)
+        .into_iter()
+        .filter_map(|region| (region.kind == 2).then_some((region.start, region.end)))
+        .collect()
+}
+
+/// Full source ranges of real top-level HTML comments.
+fn html_comment_ranges(source: &str) -> Vec<(u32, u32)> {
+    verbatim_regions(source)
+        .into_iter()
+        .filter_map(|region| (region.kind == 0).then_some((region.start, region.end)))
+        .collect()
 }
 
 /// Remove embedded `<script>` tags that are NOT the top-level instance / module
@@ -507,6 +548,10 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
         known_ranges.push((module.start, module.end));
     }
     known_ranges.extend(verbatim_style_ranges(source));
+    // Upstream's `findNextVerbatimElement` regex opens with a `(<!--[^]*?-->)`
+    // arm and skips any match that starts with it, so a commented-out `<script>`
+    // never becomes an element.
+    known_ranges.extend(html_comment_ranges(source));
     collect_script_element_starts(&ast.fragment, &mut known_starts);
 
     // 2. Collect HtmlTag ranges — a <script> inside {@html …} is not orphan.
@@ -731,7 +776,9 @@ const instance_marker = `<script data-marker>`;
         assert!(!can_skip(raw_html));
         assert!(!can_skip(comment));
         assert!(orphans(raw_html).is_empty());
-        assert_eq!(orphans(comment)[0].2, "comment");
+        // Upstream's `findNextVerbatimElement` regex opens with a `(<!--[^]*?-->)`
+        // arm and skips any match that starts with it, so this is not a script.
+        assert!(orphans(comment).is_empty());
     }
 
     #[test]

@@ -32,7 +32,7 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
         Some(FragmentOwnerType::EachBlock) => true,
         Some(FragmentOwnerType::AwaitBlock) => true,
         Some(FragmentOwnerType::KeyBlock) => true,
-        Some(FragmentOwnerType::SnippetBlock(_, _)) => true,
+        Some(FragmentOwnerType::SnippetBlock(_, _, _)) => true,
         Some(FragmentOwnerType::SvelteFragment) => true,
         Some(FragmentOwnerType::SvelteBoundary) => true,
         Some(FragmentOwnerType::Component) => true,

@@ -106,8 +106,7 @@ pub(super) fn handle_reactive_statement(
                     let rhs_end = assign.right.span().end;
                     let rhs_text = &raw_content[rhs_start as usize..rhs_end as usize];
 
-                    // Check if RHS starts with `{` (object literal needs wrapping in parens)
-                    let wrapped_rhs = invalidate_rhs(rhs_text);
+                    let wrapped_rhs = invalidate_rhs(rhs_text, &assign.right);
 
                     // Overwrite the RHS
                     let rhs_abs_start = rhs_start + offset;
@@ -211,8 +210,11 @@ fn is_store_assignment(target: &oxc::AssignmentTarget) -> bool {
     matches!(target, oxc::AssignmentTarget::AssignmentTargetIdentifier(id) if id.name.starts_with('$'))
 }
 
-fn invalidate_rhs(rhs: &str) -> String {
-    if rhs.starts_with('{') {
+/// Upstream parenthesises the arrow body for an object literal, for an
+/// expression whose text starts with one, and — a third arm rsvelte's text scan
+/// cannot see — for an `as` expression (`ImplicitTopLevelNames.ts:45-52`).
+fn invalidate_rhs(rhs: &str, expr: &oxc::Expression<'_>) -> String {
+    if rhs.starts_with('{') || matches!(expr, oxc::Expression::TSAsExpression(_)) {
         format!("__sveltets_2_invalidate(() => ({rhs}))")
     } else {
         format!("__sveltets_2_invalidate(() => {rhs})")
