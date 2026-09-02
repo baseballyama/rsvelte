@@ -4519,6 +4519,26 @@ structural field for which `rsvelte-language-server` differs from the pinned off
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
+### Why this ratchet carries no attribution block
+
+The DoD gate allows three end states per entry: gone, a filed `upstream_issues/` report, or
+`deliberate-divergences` pinned by a test. **None of the 23,746 entries here has a target of the
+second or third kind**, and that is a property of the population rather than an unwritten column.
+
+* Every entry is a field or aggregate on which `rsvelte-language-server` answers differently from
+  the pinned official `svelte-language-server`. The oracle is the official server; a divergence is
+  rsvelte's side by construction.
+* This section references `upstream_issues/` **zero** times, and no entry names one.
+* The standing decision on this ratchet is that it is not finished until it reaches **0**. That is
+  a statement that the terminal state is elimination, so there is nothing to attribute.
+
+Writing a block here would mean inventing 23,746 targets. The ratchet belongs on the pending list
+until it is burned down.
+
+**No cluster breakdown is offered, deliberately.** For a ratchet whose entries are all headed for
+deletion, a cluster table buys no attribution and would cost a classification pass over 23,746
+keys; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
+
 Partition of `lsp-known-failures.json` by key kind: `21630 + 1776 + 340` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
@@ -5428,6 +5448,51 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
+#### Why this ratchet carries no attribution block
+
+The DoD gate (`scripts/ci/attribution-check.mjs`) allows three end states per entry: the entry is
+gone, it names a filed `upstream_issues/` report, or it names `deliberate-divergences` with a test
+pinning the behaviour. **This population has no targets of the second or third kind — not a
+missing column, an absent domain.** Measured rather than argued:
+
+* Running the gate's own `diffKeys` with the official compiler on **both** sides over the same
+  population yields **0 keys from 28,178 self-compared pairs** (recorded above). The comparator
+  invents none of these, so each one is a real difference between rsvelte's `parse()` and
+  official's.
+* Exactly **one** key of the 301 is answered by an upstream report, and its output is attached
+  below rather than inferred.
+* **Zero** are `deliberate-divergences`: nothing in this ratchet is a behaviour rsvelte intends to
+  keep, and no test pins one.
+
+So 300 of 301 are rsvelte's own unfixed defects, whose only permitted end state is elimination.
+Writing a block here would mean inventing a target for each, which is the failure the gate exists
+to prevent — a target that is not true is worse than an absent one, because it reads as an answer.
+This ratchet therefore belongs on the pending list until it is burned down, and the default mode's
+exit 1 is the correct verdict meanwhile.
+
+**The one upstream-answered key**, measured against `submodules/svelte` (the source path, `VERSION`
+5.56.10) rather than reasoned from the issue text:
+
+```
+gate source                  text                        official parse(modern, loose)
+unclosed-element             "<div><b>x"                  OK    type=Root
+unclosed-attribute-quote     "<div class=\"a>text</div>"   THROW Error: An impossible situation occurred
+stray-closing-tag            "</div>"                     THROW TypeError: … (reading 'name')
+```
+
+`loose:unclosed-attribute-quote::(accepted)#official-rejects` is therefore
+[`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md):
+official does not *reject* that document, it **crashes** on it, and `loose` is the mode that exists
+to return an AST for a document still being typed.
+
+**The neighbouring key is not, and the reason is a name collision worth recording.** The issue's
+second crashing input is `</div>`, and this gate has a source called `unclosed-element` — but that
+source is `<div><b>x`, which official parses fine (above); `</div>` is the gate's
+`stray-closing-tag`, a deliberate control both sides must still reject, and it is not in the
+ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary rsvelte span
+defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
+defect upstream.
+
 Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
@@ -5456,6 +5521,10 @@ without a key from it turning up under someone else's row. Measured directly fro
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
 #### What the `unclustered` bases actually are (measured 2026-08-31)
+
+The counts in this subsection are as measured on that date, when the cluster held **27** bases;
+the table above is counted live from the JSON and now reads **22**, the five having been fixed
+since. The dated figures are left as measured rather than rescaled.
 
 Classified by reproducing each key from a minimal source with the gate's own `diffKeys` algebra,
 so every line below is the ratchet's own key string, and the cause is read off the two ASTs rather
