@@ -6307,7 +6307,10 @@ fn transform_rule_preserving<'a>(
     // In dev mode, keep empty rules (convenient to add styles via devtools).
     // NOTE: The empty check runs BEFORE the unused check, mirroring the official
     // Rule visitor in 3-transform/css/index.js (empty wins over unused).
-    if !ctx.dev && is_rule_empty(node, ctx, is_in_global_block) {
+    // Upstream's `is_in_global_block(path)` tests `metadata.is_global_block`, which is
+    // only set by a bare `:global` (`args === null`) — `:global(.foo) { … }` is an
+    // ordinary rule there, so an unused child of it must not count toward its parent.
+    if !ctx.dev && is_rule_empty(node, ctx, is_in_bare_global_block) {
         if ctx.minify {
             // In minify mode, just skip the rule entirely
             *last_end = node_end;

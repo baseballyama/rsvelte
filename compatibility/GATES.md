@@ -1156,6 +1156,30 @@ removed from the corpus for unrelated reasons.
 **Closing it:** not closable by corpus growth. `crates/rsvelte_core/tests/private_member_read_object_position.rs`
 holds the witnesses instead.
 
+### Blind spot 1i — CSS is compared on two of the four targets — **[D]**
+
+`targets.mjs` sets `css: true` for `client` (`:46`) and `client-dev` (`:93`) and `css: false`
+for `server` (`:61`) and `server-dev` (`:76`), so a `css.code` divergence can enrol at most two
+ratchet entries however many targets reproduce it — and a divergence the `dev` flag suppresses
+enrols exactly one.
+
+**Discriminating case.** Before the `:global(.foo)` empty-check fix,
+`appwrite-console/src/lib/components/sortButton.svelte` measured `css=DIFF js=EQ` on **both**
+`client` and `server` (official 5.56.10 vs rsvelte, same source, `dev: false`), and
+`known-failures.server.json` listed nothing. Read from the ratchet alone the defect looks
+client-only; it reproduces on `server` too, and the same one-line fix repairs both.
+
+Two things follow. The §1 summary table read "Normalized JavaScript and CSS for client, server,
+and client-dev", wrong in both halves — CSS is not compared on `server`, and there are four output
+targets, not three; it is corrected in the same change as this row. And an entry count is the
+damage *within what the gate looks at*, never the extent of the defect: this one drops one entry
+and repairs two targets, and no reading of the ratchet can say so — it took splitting `css` from
+`js` and running both arms on both targets.
+
+**Closing it:** flipping `css` to true on the two server targets. How many entries that enrols is
+**unmeasured** — it needs a collected corpus and a full sweep, and no partial run can shrink the
+resulting baseline.
+
 ---
 
 ## 2-3. Compiler warning parity — codes and positions
@@ -8314,7 +8338,7 @@ Tracked `*known-failures*.json` files are CI ratchets. Their paired Markdown fil
 
 | Area             | Baselines                                    | What is compared                                                        |
 | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------- |
-| Compiler output  | `known-failures.*`                           | Normalized JavaScript and CSS for client, server, and client-dev        |
+| Compiler output  | `known-failures.*`                           | Normalized JavaScript on all four targets; CSS on the two client ones   |
 | Diagnostics      | `warning-*`, `error-*`, `validator-*`        | Codes, messages, positions, end positions, and frames as separate gates |
 | Output validity  | `parse-*`, `sourcemap-*`                     | Emitted JavaScript parseability and source-map invariants               |
 | Ecosystem        | `fmt-*`, `lint-*`, `svelte2tsx-*`, `check-*` | Formatter, linter, TSX projection, and project diagnostics              |
