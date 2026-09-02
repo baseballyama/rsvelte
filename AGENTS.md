@@ -286,7 +286,26 @@ of compile — under the ~5% code-layout floor. What the measurement did find is
 across an 18× file-size range**, which is the mechanism behind "uniformly heavy, slope
 not intercept". The identified target is the **representation** — one `Box` per
 expression node, and a fresh `String` malloc + `IndexMap` slot + SipHash per JSON object
-key, from a set of only 88 distinct static keys. Do not open a brief to fix a *site*
+key, from a small set of distinct static keys. The **mechanism** is confirmed twice over:
+`preserve_order` is enabled, so `MapImpl` is `IndexMap` and not `BTreeMap` — and the
+stronger evidence is that a recorded profile carries the monomorphised
+`get_index_of<String, serde_json::value::Value, str>` and `RandomState` hash frames, which
+a `BTreeMap` build cannot produce. `Value::Object(Map<String, Value>)` pins the key type,
+so 143 sites spell the malloc literally as `.insert("key".to_string(), …)` and there is no
+interning escape short of leaving `serde_json::Value`.
+
+**The "88" in that sentence was wrong and is worth keeping as a lesson about counting.** It
+enumerated `#[derive(Serialize)]` structs only, and missed the hand-written serializer in
+`ast/typed_expr.rs`, which writes keys through 123 `ser_node!` / `ser_opt_node!` /
+`ser_children!` uses — the path that carries `arguments`, `properties`, `superClass`,
+`quasis`, `specifiers`. Two independent recounts give **147** and **231** distinct static
+keys; they disagree because they union different pattern sets, and neither is adopted here
+as the number. **Do not spend effort reconciling them: the distinct-key count was never the
+load-bearing quantity.** It bounds only how large an interning table would have to be, and
+88, 147 and 231 are alike trivial for that. What actually sizes the lever is **key
+insertions per compile**, which is unmeasured. A count that decides nothing was carried in
+this file for months, precise to two digits and wrong by a factor of two; the reason nobody
+caught it is that nothing depended on it. Do not open a brief to fix a *site*
 here; a representation brief starts from that section rather than re-deriving it.
 `crates/rsvelte_devtools/src/bin/alloc_sites.rs` is the instrument, and the section
 states its four limits and one retraction — a share of a bucket cannot be converted into
