@@ -556,54 +556,96 @@ test; only the unrestricted run may be committed.
 Baseline it replaces (single / multi speedup): client 1.21x / 5.14x, server
 1.24x / 5.06x, client-dev 1.20x / 5.40x, server-dev 1.27x / 5.00x.
 
-## The report measured the three arms in three different windows (2026-09-02 14:29)
+## The report measured the three arms in three different windows (2026-09-02)
 
 `scripts/reports/run-performance.mjs` took every sample of `official`, then every
 sample of `rsvelte-single`, then every sample of `rsvelte-multi`. On this corpus
 those windows differ by more than an order of magnitude in **length**: official
 is ~40 s a sample and rsvelte-multi ~2 s, so official's five samples spanned
 ~4 minutes and multi's spanned ~10 seconds. A load burst that covers the short
-window and averages out over the long one moves the ratio, and it moves it one
-way.
+window and averages out over the long one moves the ratio. `interleave` now takes
+one sample of each arm per round, alternating the order.
 
-The fingerprint was already in the published report and nobody read it: `official`
-cv 0.51%, `rsvelte-single` cv 0.63%, **`rsvelte-multi` cv 8.07%** — the only
-unstable arm is the one with the shortest window and the most threads to lose.
+**The change is worth single digits, not the 45% first claimed.** Re-measured on
+the same tree, corpus and binaries, on the three surfaces where the `official`
+and `rsvelte-single` arms reproduce the sequential run (0.2-3%, which is what
+makes a moved `multi` attributable at all):
 
-Re-measured on the same tree (`87648c0ed`), same corpus (33,897 components), same
-binaries, with one sample of each arm per round and the order alternating:
+| surface | sequential | interleaved |
+|---|---|---|
+| server | 18.83x | 19.59x |
+| client-dev | 13.25x | 13.89x |
+| server-dev | 17.57x | 19.98x |
 
-| surface | published (sequential) | paired | official arm | single arm |
-|---|---|---|---|---|
-| client | 14.35x | **20.71x** | 39.6 s → 40.0 s | 11.53 s → 11.65 s |
-| server | 18.83x | **22.66x** | 36.2 s → 36.5 s | 9.51 s → 9.65 s |
+The client surface of that run is disqualified: all three of its arms decline
+together across rounds (first-two/last-two 1.099, 1.103, 1.448 against 0.95-1.05
+everywhere else) and its official cv is 9.08% against 0.22-1.20%. The cause was
+in part **the author of the run**, who spent 14:44-14:50 inside his own locked
+window running `cargo metadata`, a `ps` polling loop and process probes — while
+building the detector meant to certify the window as clean.
 
-**The official and single arms reproduce to within 1%, which is what makes this
-an attribution rather than another number.** Two instruments agreeing on two of
-three arms and disagreeing by 35–45% on the third localises the difference to
-that arm's window, not to the corpus, the tree, or the oracle. Client multi read
-2771 ms sequentially and 1917 ms paired; server 1923 ms and 1603 ms.
+Four things this cost, all worth more than the numbers:
 
-Three things this cost, worth keeping:
+**A ratio needs its arms paired in time, and "back to back" is not paired.** The
+arms have different *durations*, so consecutive blocks sample different amounts
+of whatever else the box is doing. Alternating the order within a round matters
+as much as interleaving.
 
-**A ratio needs its arms paired in time, and "back to back" is not paired** — the
-old code ran the arms consecutively, which reads as fair and is not, because the
-arms have different *durations* and therefore sample different amounts of
-whatever else the box is doing. Alternating the order within a round matters as
-much as interleaving: a fixed order still charges the same arm for whatever the
-previous one left warm.
+**Pairing reduces bias in a ratio; it does not reduce an arm's variance — and a
+cv table is therefore not evidence for it.** The sequential run's cv profile
+(official 0.51%, single 0.63%, multi 8.07%, the same shape on all four surfaces)
+was cited here as the fingerprint of block sampling. It is equally predicted by
+a multi sample being ~2 s where an official sample is ~40 s, which no scheduling
+change can alter. Measured: pairing moved client multi cv from 8.07% to
+**20.53%**. The fingerprint argument is withdrawn.
 
-**Each rsvelte sample is its own process, so its warmup has to be per sample.**
-The first paired attempt passed `--warmup 0` and read client 13.22x, 16.89x,
-20.82x, 22.28x, 20.71x — a monotone ramp that looks exactly like a compiler
-getting faster and is a cold page cache over the 69.8 MB of sources every process
-re-reads. The server run immediately after showed no ramp at all (24.21x on its
-first round), which is what identified it: a ramp that does not reproduce when
-the cache is already warm is not the arm's steady state.
+**A probe harness is not the instrument.** The 20.71x / 22.66x figures first
+published here came from a standalone script differing from the report on four
+axes at once — warmup, process boundary, pairing and box load — and were quoted
+for an afternoon as though they were the result. The controlled instrument says
++4% to +14%. Build the comparison inside the thing you intend to ship.
 
-**A quiet box is the optimistic end of the range, not the truth.** The same
-harness read 11.23x–25.01x while three agents shared this machine. The 10-thread
-arm loses more to contention than the 1-thread JS arm does, so the ratio is a
-function of what else is running — report it with the load, and never quote a
-single number from a window whose occupancy was not checked. The runs above were
-taken with `pgrep -c -f 'cargo|rustc'` asserted at 0 before and after.
+**The instrument still carries two unmeasured assumptions.** Its Rust arm warms
+per sample (a fresh process cannot inherit warmth) while its JS arm warms once
+before all rounds, which the sequential harness did not do; the direction is
+conservative and the magnitude unknown. Restoring symmetry is possible from the
+JS side — move `jsArm.warm()` to just before each sample — and costs ~200 s per
+surface. That is a price, not a constraint; it was described as a constraint
+here, which is how a trade stops being looked for.
+
+## Where the client's remaining time is, after three candidates were ruled out (2026-09-02)
+
+Three buckets were measured to closure on the merged tree, all through `compile()`
+(not `transform_component` — see below), 3000-file slice, symbols aggregated from
+samply with two-sided controls:
+
+| candidate | share of `compile()` | verdict |
+|---|---|---|
+| CSS render (`record_css_render`'s subtree) | 3.61% client / 3.86% server | not a lever |
+| `serde_json` JSON-object key lookup | 2.23%–7.63% client, 1.14%–9.73% server | not a lever |
+| byte scanning (`str::pattern`, `memmem`, `js_scan`) | **11.53% client / 14.73% server** | the lever |
+
+**CSS looked like 16% and was not.** `compile_profile.rs` reported `CSS render` at
+16.1%, and it reproduces exactly (15.97%) — as *CSS-bearing files only* over a
+*transform-only denominator*. `compile_profile` calls `analyze_component` /
+`transform_component` directly, so phase 1 and the finalize step are missing from
+its denominator; and `record_css_render` only fires when `analysis.css.has_css`,
+which is 16.9% of the slice and 17.9% of the corpus. The two effects multiply to
+4.4x. Over `compile()` and the whole population it is 3.61%. **Two denominators
+in series is enough to turn 3.6% into 16%, and neither one is wrong on its own.**
+
+**The JSON-key figure had to be split by hasher, not by name.** A first pass put
+it at 9.21% / 9.36% by matching hashing symbols; that swept in rsvelte's own
+`FxHashMap` traffic. `serde_json`'s `IndexMap` uses std's `RandomState`
+(SipHash) and rsvelte's own maps use `FxHash`, which is the clean discriminator:
+the unambiguous key-lookup share is 2.23% / 1.14%, and 7.63% / 9.73% is the upper
+bound with *all* SipHash and *all* `memcmp` charged to it. Inside the CSS walk it
+really is 58.7% — 546 `.get()` sites over 17 distinct keys — but CSS is 17 of the
+96 distinct keys in `phases/`, and a subtree's density is not the tree's.
+
+What is left, for whoever picks this up: `alloc + memcpy` 15.99% / 15.87%
+(diffuse, and the same conclusion #2622's section already reached — the target is
+the representation, not a site), `oxc` parse/lex 14.61% / 10.24%, and the byte
+scanning above. Sourcemap work is 0.93% on the client and 7.14% on the server.
+UNMATCHED was 57.10% / 52.72%, so no bucket here is inflated by absorbing
+everything it did not name.

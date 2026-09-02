@@ -152,10 +152,19 @@ one is the same shape: a scanner assuming input it did not get.
 | the setter call is rendered on one line | the printer breaking it across lines |
 | a backtick opens a template literal | a ```` ```svelte ```` fence inside a JSDoc comment |
 
-Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
-profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
-`SemanticBuilder` construction measured ~2% with a 3.3% ceiling (#2602). **The justification
-is that these defect classes are unreachable in an AST pipeline, not that it is faster.**
+**The justification is that these defect classes are unreachable in an AST pipeline** — and
+that stands on its own, so it is what to lead with. The performance case is no longer the
+argument against it that this paragraph used to make. Re-parsing is 3-4% of compile time,
+the profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass
+`SemanticBuilder` construction measured ~2% with a 3.3% ceiling (#2602) — all still true, and
+all counting only the *parse calls*. The **byte scanning** was never in that denominator, and
+it is 11.53% of `compile()` on the client and 14.73% on the server, of which 9.78% / 12.20%
+sits under `3_transform` and exists precisely because there is no AST to ask where a
+statement ends (`str::pattern`, `memmem`, `js_scan::skip_opaque`; measured 2026-09-02, 3000-file
+slice, symbols classified by module path with two-sided controls). Read that as **an upper
+bound on what becomes unreachable, not as a saving**: an AST pipeline pays its own walk, and
+`str::traits::get` at 36 ms on the server is bounds-checked slicing that partly survives. How
+much of it is actually recovered is unmeasured.
 
 Two cautions before treating any of this as closed. The parse gate (#2591) catches only the
 loud half, and **how loud a given defect is depends on the input, not on the defect**: #2603's
@@ -896,6 +905,17 @@ so `pkill -f '<path>'` leaves the parent alive and only the `rustc` children —
 `--out-dir` — are matched. Record cargo's pid at launch and `kill` that, or resolve cwd per pid
 with `lsof -a -d cwd -p <pid>`.
 
+**And "is anyone else building" is a question about ownership, so counting cannot answer it.**
+A benchmark that shells out to `cargo` itself makes its own builds indistinguishable from a
+peer's by count: with the harness idle between calls, one foreign build reads as exactly the
+count a self-owned one does, and the rule "1 is mine" absorbs it — failing silently, in the
+same low-looks-normal direction as the fabricated zero above. The cmdline carries no
+attribution but the process tree does: walk each `cargo`/`rustc` pid's `ppid` chain and ask
+whether it reaches the harness's root pid, recorded at launch. That form also calibrates in
+**both** directions off one process — start `exec -a "/probe/bin/rustc" sleep 6`, classify it
+against the harness root (must read foreign) and against your own shell (must read mine) — which
+a counting rule cannot do, since it has no way to construct the "mine" case on demand.
+
 **acorn checks JavaScript's early errors while parsing; OXC settles them after it, and rsvelte
 ran only the parser.** An early error is syntactically shaped but illegal, and none of the class
 is decidable from the token stream — each needs the enclosing scope or class — so OXC leaves them
@@ -965,6 +985,17 @@ control on a string you know is there.
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
 | later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
 
+**The controls above apply to evidence you CITE, not only to evidence you gather.**
+Told that a log line was the harness's own self-report and so no better than an
+arm's label, the reply named three independent facts — and one of them,
+"rsvelte depends on `oxc_traverse` 0.146, the panic came from 0.140", was never
+checked: `oxc_traverse` appears **0 times** in `Cargo.lock` and in every
+`Cargo.toml` (positive control: `oxc_parser`, 13 hits, 0.146.0). The claim was
+stronger than stated once checked — the crate is absent from the graph entirely —
+and still wrong as written, which is the shape to watch: a *citation* feels like
+it has already been verified because it is offered as the verification. It
+reached nobody's docs only because it was shared before being written down.
+
 And the inverse: `grep` returns matches when the thing is not there. Censusing
 which tools read a field, `.code` matched `.codegen` in a file that reads no
 output, and `js.map` matched a *comment* explaining a sourcemap default — two
@@ -997,10 +1028,58 @@ Rules, in the order they are cheap:
    remove it, and confirm the tree is byte-identical again (`git diff` empty).
    Only then does the quiet run mean anything. This is the same argument as the
    negative-grep control above, one level up: an empty result is evidence only
-   once you have shown the instrument can produce a non-empty one.
+   once you have shown the instrument can produce a non-empty one. For a
+   *process* detector the control is cheap and needs nobody else's cooperation:
+   `exec -a "/probe/bin/rustc" sleep 6` gives you a process whose argv you chose,
+   and the detector has to find it. That is how `pgrep -c -f 'cargo|rustc'
+   2>/dev/null || echo 0` — used to certify a benchmark window as idle, by
+   someone who had cited the row above three times that day — was caught
+   fabricating: macOS `pgrep` has no `-c`.
 3. **State the denominator.** "No warnings" is a claim about a population; say
    which one (`-p <crate> --lib --tests`), because the reader cannot tell from
    the output whether your file was in it.
+
+**A control has a direction, and one direction is not two.** Rule 2 asks for a
+positive control; the corresponding negative one — an input the instrument must
+score as *nothing* — is a different test, and each is passed by a broken
+instrument the other catches. Two clean examples on 2026-09-02, opposite ways
+round. A detector for a source-map defect counted segments anchored inside a
+string literal and returned 44 on the positive case: plausible, and wrong, since
+the mapper is *supposed* to map inside a string — the negative control, a file
+with nothing wrong in it, returned 24 and killed the predicate. A profile classifier that had to say which frames
+sit under `3_transform` scored `js_scan::skip_opaque` at 77% / 7.4%, when the
+function lives in `3_transform/shared/js_scan.rs` and nothing but ~100% can be
+true; its negative control (`phase1_parse` = 0%) read correctly **before and
+after** the fix, so the negative side alone certified a classifier that
+understated the bucket by 2.3x — and it understated it in the direction of an
+attractive conclusion ("the AST migration buys little"). A one-sided control set
+is passed by whichever failure leans its way.
+
+**Where a control can be built by changing the INSTRUMENT rather than the input,
+it constrains more.** Every control above varies what the instrument is fed, which
+shows only that two inputs differ. Classifying one live process against two
+candidate root pids — it must read foreign against the harness's root and mine
+against your own shell — pins that the classifier is reading *the root*, because
+anything else it might key on is held fixed and the answer still has to flip.
+Prefer that form when the instrument takes a parameter you can move.
+
+**And an interpretation's plausibility is not evidence for the number under it.**
+Both of those wrong numbers came with a sound-sounding story attached, and in
+both cases the story is what made the next step feel unnecessary. The rule that
+survives: when a measurement arrives already fitting your thesis, that is the
+moment the control is worth its cost, not the moment to spend it elsewhere.
+
+**A number can be right and the inference it supports still false — and checking
+the number will never find it.** This file said "re-parsing is 3-4% of compile
+time" and concluded *do not size the AST-pipeline work against the performance
+case*. The 3-4% is correct; it counts `Parser::new` / `SemanticBuilder::build`.
+What it does not count is the **byte scanning** — `str::pattern`, `memmem`,
+`js_scan::skip_opaque` — which is 11.53% (client) / 14.73% (server) of
+`compile()`, of which 9.78% / 12.20% sits under `3_transform` and is there
+*because there is no AST to ask*. So the sentence set "what the migration
+returns" equal to "what re-parsing costs", and the scanning was never in the
+denominator. Every check anyone could run on the 3-4% would have confirmed it.
+Ask separately what a figure is, and what it is being used to decide.
 
 ### Nothing about a measurement arm is evidence of what it measured
 
