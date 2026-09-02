@@ -5751,9 +5751,15 @@ fn try_dev_assign_wrap_typed(
         return None;
     }
 
-    if extract_root_identifier_from_jsnode(left_node, pa)
-        .is_some_and(|root| is_each_item_mutation_root(&root, context))
-    {
+    // Upstream walks the target to its root and stops twice —
+    // `if (object.type !== 'Identifier') return null` then
+    // `const binding = scope.get(object.name); if (!binding) return null`
+    // (`AssignmentExpression.js:104-118`) — so neither `this.q`, `g().q` nor a
+    // chain rooted at a global is instrumented. The settled-script port answers
+    // this from the generated fragment's own resolution; here the analysis
+    // scope chain is still live, so ask it directly.
+    let root = extract_root_identifier_from_jsnode(left_node, pa)?;
+    if is_each_item_mutation_root(&root, context) || context.state.get_binding(&root).is_none() {
         return None;
     }
 
