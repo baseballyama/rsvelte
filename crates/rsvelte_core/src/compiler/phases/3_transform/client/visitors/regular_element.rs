@@ -626,8 +626,10 @@ pub fn visit_regular_element(
 
                 // Static text attributes can go in the template
                 let is_true_value = matches!(&attr.value, AttributeValue::True(true));
+                // Upstream asks this of the RAW name and normalizes only for the
+                // branch selectors below, so `autoFocus` takes the static path.
                 if !is_custom_element
-                    && !cannot_be_set_statically(&name)
+                    && !cannot_be_set_statically(&attr.name)
                     && (is_true_value || is_text_attribute(attr))
                 {
                     // `None` is upstream's boolean `true` for a valueless attribute,
@@ -662,7 +664,7 @@ pub fn visit_regular_element(
                         context
                             .state
                             .template
-                            .set_prop(name.clone(), Some(value.unwrap_or_default()));
+                            .set_prop(attr.name.to_string(), Some(value.unwrap_or_default()));
                     }
                 } else if name == "autofocus" {
                     // Special case: autofocus needs $.autofocus() call
