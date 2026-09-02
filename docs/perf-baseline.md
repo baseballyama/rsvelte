@@ -68,6 +68,43 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## The printer is not the client lever, and neither is the source map (2026-09-03 00:10)
+
+`esrap_share` already collects `take_esrap_breakdown()` — a per-branch print
+timer covering **both** targets — and no other tool in the tree reads it;
+`compile_profile` does not print it. It needed no rebuild and no new code. Over
+6500 files, 5 runs, cv under 1%:
+
+| site | share of compile |
+|---|---:|
+| client `print_split` | 1.51% |
+| client `print_with_map` | 3.58% |
+| **client total** | **5.09%** |
+| server `print` | 3.34% |
+| normalize | 0.08% |
+| all esrap printing | 8.51% |
+
+The client transform's excess over the server's is 95.89 ms, **31.6% of a client
+compile**. The client/server printing difference is **1.75 percentage points**,
+which is **5.5% of that gap**. So the printer explains almost none of deficit #1,
+and the source-map branch — the hypothesis this document was carrying, on the
+grounds that the client map is esrap-built while the server's is a text scan —
+is 3.58% of compile and cannot carry a 1.88x transform ratio either. The tool
+sizes its own ceiling: *"a printer 5x faster would cut compile() by 6.81%"*, i.e.
+1.073x.
+
+**Two candidate explanations for deficit #1 are now eliminated by measurement**
+— the four pre-fragment call sites (5% of the residual) and the printer
+including the map (5.5% of the gap). Both were plausible and both were wrong,
+and each cost one run of an instrument that already existed.
+
+**Both eliminations came from instruments already in the tree.** The residual
+slots needed one field wired into an accumulator; this one needed nothing at
+all. That is the fourth time this session that the question was already answered
+by something checked in — read the instrument before designing the experiment,
+and read *all* of it, because `esrap_share` is not discoverable from the
+profiler that a person would naturally open.
+
 ## Deficit #1 is in phase 3, and it carries 86% of the gap (2026-09-03 00:07)
 
 With `--target` actually honoured, the same 3889-file slice on both targets:
