@@ -57,9 +57,7 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identif
 use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
-use super::expression_utils::{
-    expression_needs_proxy_with_scope, needs_compound_assignment_parens,
-};
+use super::expression_utils::needs_compound_assignment_parens;
 use super::scope_analysis::{find_state_var_symbols, is_state_var_reference_or_unresolved};
 
 thread_local! {
@@ -256,7 +254,12 @@ impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
                 let needs_proxy = self.is_runes
                     && !is_raw_state
                     && site_decision.unwrap_or_else(|| {
-                        expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
+                        super::ast_state_transform::should_proxy_ast_with_scope(
+                            &expr.right,
+                            rhs_text.trim(),
+                            self.non_proxy_vars,
+                            false,
+                        )
                     });
                 let rewrite = if needs_proxy {
                     format!("$.set({}, {}, true)", name, rhs_text)
@@ -575,7 +578,12 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateAssignsFinder<'a, 'sem> {
                 let needs_proxy = self.is_runes
                     && !is_raw_state
                     && site_decision.unwrap_or_else(|| {
-                        expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
+                        super::ast_state_transform::should_proxy_ast_with_scope(
+                            &expr.right,
+                            rhs_text.trim(),
+                            self.non_proxy_vars,
+                            false,
+                        )
                     });
                 let text = if needs_proxy {
                     format!("$.set({}, {}, true)", name, rhs_text)

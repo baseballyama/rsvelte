@@ -38,7 +38,7 @@ use oxc_span::GetSpan;
 use oxc_syntax::symbol::SymbolId;
 
 use super::ast_rewrite::Edit;
-use super::expression_utils::{collapse_to_single_line, expression_needs_proxy_with_scope};
+use super::expression_utils::collapse_to_single_line;
 
 /// Collect the bare `$state(value)` rewrite edits for an already-parsed program.
 /// Shared with the batched module-rune driver so the call rewrite can ride along
@@ -50,6 +50,7 @@ pub(super) fn collect_state_call_edits(
     non_reactive_vars: &[String],
     ambiguous_vars: &[String],
     non_proxy_vars: &[String],
+    dev: bool,
 ) -> Vec<Edit> {
     let semantic_ret = super::super::profile::semantic_build(
         super::super::profile::SEM_STATE_CALL,
@@ -62,6 +63,7 @@ pub(super) fn collect_state_call_edits(
         non_reactive_vars,
         ambiguous_vars,
         non_proxy_vars,
+        dev,
         current_var: None,
         replacements: Vec::new(),
     };
@@ -79,6 +81,7 @@ struct StateCallCollector<'a, 'src, 'sem> {
     non_reactive_vars: &'a [String],
     ambiguous_vars: &'a [String],
     non_proxy_vars: &'a [String],
+    dev: bool,
     current_var: Option<(String, Option<SymbolId>)>,
     replacements: Vec<Edit>,
 }
@@ -150,8 +153,22 @@ impl<'ast> Visit<'ast> for StateCallCollector<'_, '_, '_> {
             .current_var
             .as_ref()
             .is_some_and(|(name, symbol_id)| self.is_non_reactive(name, *symbol_id));
+        // Upstream `should_proxy` is a deny-list defaulting to `true`; the text
+        // sniff this replaced only proxied shapes it recognised, so every
+        // unlisted one lost its `$.proxy`.
         let needs_proxy = !trimmed_is_empty
-            && expression_needs_proxy_with_scope(content.trim(), self.non_proxy_vars);
+            && call
+                .arguments
+                .first()
+                .and_then(|a| a.as_expression())
+                .is_some_and(|arg| {
+                    super::ast_state_transform::should_proxy_ast_with_scope(
+                        arg,
+                        content.trim(),
+                        self.non_proxy_vars,
+                        self.dev,
+                    )
+                });
 
         let rewrite = match (is_non_reactive, needs_proxy, trimmed_is_empty) {
             (true, true, _) => format!("$.proxy({})", collapsed),
@@ -203,7 +220,14 @@ mod tests {
             ParseOptions::default(),
             false,
             |program| {
-                collect_state_call_edits(program, source, non_reactive_vars, &[], non_proxy_vars)
+                collect_state_call_edits(
+                    program,
+                    source,
+                    non_reactive_vars,
+                    &[],
+                    non_proxy_vars,
+                    false,
+                )
             },
         )
     }
@@ -248,7 +272,14 @@ mod tests {
             ParseOptions::default(),
             false,
             |program| {
-                collect_state_call_edits(program, source, &nrv(&["count"]), &nrv(&["count"]), &[])
+                collect_state_call_edits(
+                    program,
+                    source,
+                    &nrv(&["count"]),
+                    &nrv(&["count"]),
+                    &[],
+                    false,
+                )
             },
         )
         .unwrap();

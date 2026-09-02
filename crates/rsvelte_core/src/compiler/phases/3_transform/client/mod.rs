@@ -5866,6 +5866,7 @@ fn transform_module_script_runes_with_target(
             &ambiguous_state_names,
             &module_non_proxy_vars,
             is_ts,
+            dev,
         ) {
             result = rewritten;
         }

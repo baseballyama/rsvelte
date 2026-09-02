@@ -122,7 +122,11 @@ fn derived_insert_label(dev: bool, pattern_text: &str) -> Option<&'static str> {
 /// `dev` reflects whether the caller decides on the *visited* expression, as
 /// `create_state_declarator` does — by then the dev equality rewrite has turned
 /// an `a === b` initializer into a `$.strict_equals(...)` call.
-fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String], dev: bool) -> bool {
+pub(super) fn should_proxy_ast(
+    expr: &Expression<'_>,
+    non_proxy_vars: &[String],
+    dev: bool,
+) -> bool {
     match expr {
         Expression::BooleanLiteral(_)
         | Expression::NullLiteral(_)
@@ -176,6 +180,30 @@ fn should_proxy_ast(expr: &Expression<'_>, non_proxy_vars: &[String], dev: bool)
         // Everything else (CallExpression, MemberExpression, etc.) might need proxy
         _ => true,
     }
+}
+
+/// `should_proxy_ast` plus the one thing the text sniff it replaces knew and an
+/// AST walk cannot: a read an earlier pass already rewrote to `$.get(<name>)`
+/// still has to resolve against `non_proxy_vars` under its original name.
+pub(super) fn should_proxy_ast_with_scope(
+    expr: &Expression<'_>,
+    text: &str,
+    non_proxy_vars: &[String],
+    dev: bool,
+) -> bool {
+    if let Some(inner) = text
+        .trim()
+        .strip_prefix("$.get(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let inner = inner.trim();
+        if super::expression_utils::is_simple_identifier(inner)
+            && non_proxy_vars.iter().any(|v| v == inner)
+        {
+            return false;
+        }
+    }
+    should_proxy_ast(expr, non_proxy_vars, dev)
 }
 
 /// A declarator initializer with its redundant parentheses peeled off, paired
