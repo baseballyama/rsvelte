@@ -1,0 +1,7 @@
+[
+	"fmt-known-failures.json",
+	"known-failures.client-dev.json",
+	"known-failures.client.json",
+	"lsp-known-failures.json",
+	"parse-ast-known-failures.json"
+]

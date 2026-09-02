@@ -1209,6 +1209,13 @@ jobs:
         if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/deliberate-divergences-check.mjs
 
+      # The controls for the attribution gate wired below. A gate whose only
+      # observed outcome is the one it was written to produce has not been shown
+      # to discriminate.
+      - name: Check the attribution gate's own controls
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
+        run: node scripts/ci/test-attribution-check.mjs
+
       # The CSS-prune sweep's comparison key. Same reason it lives here: the
       # comparator is a pure module, so it needs neither the NAPI binding nor
       # submodules that the sweep itself does.
@@ -1404,3 +1411,13 @@ jobs:
       # submodules nor a build, so it lives here instead.
       - name: Verify known-failures.md matches the JSON ratchets
         run: node scripts/compat-corpus/known-failures-md-check.mjs
+
+      # `known-failures-md-check` does not read the attribution tables at all, so
+      # a table whose `n` stopped summing to its ratchet shipped green through
+      # three of its invocations. `--gate-known` asks about the attribution that
+      # EXISTS and exempts `attribution-pending.json` from the one question it
+      # cannot answer yet — which ratchets still have no block. The default mode
+      # is the DoD and stays red until that list is empty; it is not run here.
+      - name: Verify the attribution tables that exist
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/attribution-check.mjs --gate-known

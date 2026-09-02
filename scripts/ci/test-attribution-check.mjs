@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CHECK = path.join(HERE, 'attribution-check.mjs');
 
-function run(files, upstream = ['upstream_issues/x.md']) {
+function run(files, upstream = ['upstream_issues/x.md'], args = []) {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'attr-'));
 	const dir = path.join(root, 'compatibility');
 	fs.mkdirSync(dir);
@@ -19,7 +19,7 @@ function run(files, upstream = ['upstream_issues/x.md']) {
 	for (const u of upstream) fs.writeFileSync(path.join(root, u), '# report\n');
 	for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), body);
 	try {
-		const out = execFileSync(process.execPath, [CHECK], {
+		const out = execFileSync(process.execPath, [CHECK, ...args], {
 			env: { ...process.env, ATTRIBUTION_DIR: dir, ATTRIBUTION_ROOT: root },
 			encoding: 'utf8',
 			stdio: ['ignore', 'pipe', 'pipe'],
@@ -94,8 +94,61 @@ const check = (name, cond, detail) => {
 	check('a block for a non-ratchet fails', r.code === 1 && /is not a ratchet/.test(r.out), r.out);
 }
 
+// `--gate-known` drops exactly one question. Each case below differs from its neighbour by
+// one thing — the flag, or the pending list — so "it passed" cannot be satisfied by the
+// flag disabling more than it claims.
+const PENDING_TREE = (() => {
+	const f = { ...PASSING, 'c-known-failures.json': JSON.stringify(['x', 'y']) };
+	return f;
+})();
+{
+	const r = run(PENDING_TREE);
+	check('default mode fails on a ratchet with no block', r.code === 1 && /c-known-failures\.json has 2 listed/.test(r.out), r.out);
+}
+{
+	const r = run(PENDING_TREE, undefined, ['--gate-known']);
+	check('--gate-known without a pending list still fails', r.code === 1 && /c-known-failures\.json has 2 listed/.test(r.out), r.out);
+}
+{
+	const f = { ...PENDING_TREE, 'attribution-pending.json': JSON.stringify(['c-known-failures.json']) };
+	const r = run(f, undefined, ['--gate-known']);
+	check('--gate-known exempts a pending ratchet from the missing-block question', r.code === 0, r.out);
+	check('--gate-known says which ratchets it did not gate', /c-known-failures\.json/.test(r.out), r.out);
+}
+{
+	const f = { ...PENDING_TREE, 'attribution-pending.json': JSON.stringify(['c-known-failures.json']) };
+	const r = run(f);
+	check('the pending list does not exempt anything in default mode', r.code === 1 && /c-known-failures\.json has 2 listed/.test(r.out), r.out);
+}
+{
+	// The shape that shipped: a table whose `n` no longer sums to its JSON. `--gate-known`
+	// must still catch it, or wiring the flag into CI buys nothing.
+	const f = {
+		...PASSING,
+		'attribution-pending.json': JSON.stringify(['a-known-failures.json']),
+		'a-known-failures.json': JSON.stringify(['one', 'two']),
+	};
+	const r = run(f, undefined, ['--gate-known']);
+	check('--gate-known still catches a table that oversums its ratchet', r.code === 1 && /sums to 3, the ratchet holds only 2/.test(r.out), r.out);
+}
+{
+	const f = { ...PASSING, 'attribution-pending.json': JSON.stringify(['a-known-failures.json']) };
+	const r = run(f, undefined, ['--gate-known']);
+	check('a ratchet that has earned its block must leave the pending list', r.code === 1 && /still listed in attribution-pending\.json/.test(r.out), r.out);
+}
+{
+	const f = { ...PASSING, 'attribution-pending.json': JSON.stringify(['b-known-failures.json']) };
+	const r = run(f, undefined, ['--gate-known']);
+	check('an emptied ratchet must leave the pending list', r.code === 1 && /which is empty — remove it/.test(r.out), r.out);
+}
+{
+	const f = { ...PASSING, 'attribution-pending.json': JSON.stringify(['nope-known-failures.json']) };
+	const r = run(f, undefined, ['--gate-known']);
+	check('a pending entry that is not a ratchet fails', r.code === 1 && /is not a ratchet/.test(r.out), r.out);
+}
+
 if (failures) {
 	console.error(`\n[test-attribution-check] ${failures} control(s) did not behave as specified.`);
 	process.exit(1);
 }
-console.log('[test-attribution-check] 8 controls pass (1 positive, 6 negative, 1 empty-ratchet).');
+console.log('[test-attribution-check] 16 controls pass (2 positive, 13 negative, 1 empty-ratchet).');
