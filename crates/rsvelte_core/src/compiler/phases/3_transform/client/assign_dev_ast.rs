@@ -343,12 +343,22 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
         let hoisted = needs_async
             .then(|| hoistable_await_argument(&assign.right))
             .flatten();
+        // A concise arrow body may not begin with `{`, and esrap parenthesises
+        // whatever it prints on that test rather than on the node's kind — so
+        // `{} && 1` is wrapped whole while `cond ? {} : []` is not.
+        let concise = |body: &str| {
+            if body.starts_with('{') {
+                format!("({body})")
+            } else {
+                body.to_string()
+            }
+        };
         let value = match (needs_lazy_getter, needs_async) {
             (false, _) => right.to_string(),
-            (true, false) => format!("() => {right}"),
+            (true, false) => format!("() => {}", concise(right)),
             (true, true) => match hoisted {
-                Some(argument) => format!("() => {}", slice(argument.span())),
-                None => format!("async () => {right}"),
+                Some(argument) => format!("() => {}", concise(slice(argument.span()))),
+                None => format!("async () => {}", concise(right)),
             },
         };
         let callee = if needs_async {
