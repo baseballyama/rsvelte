@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ARTIFACT_SCHEMA,
   CONFIGURATION_ID,
   CORPUS_SHARDS,
   FIXTURE_SUITES,
@@ -24,7 +25,7 @@ function artifacts() {
   );
   const universe = ids.flat();
   const common = {
-    schemaVersion: 1,
+    schemaVersion: ARTIFACT_SCHEMA,
     projectRevision: "project",
     configurationId: CONFIGURATION_ID,
     sourceRevisions: {
@@ -43,6 +44,11 @@ function artifacts() {
       population: {},
       counts: { compared: 1 },
       current: ["differential:fixtures/a|initialize|/capabilities:value"],
+      mechanisms: {
+        "differential:fixtures/a|initialize|/capabilities:value": [
+          "unclassified",
+        ],
+      },
     },
     ...ids.map((measuredIds, index) => ({
       ...common,
@@ -59,6 +65,9 @@ function artifacts() {
       ),
       counts: { compared: 12 },
       current: [`aggregate:corpus/repo/${index}|hover|digest=${index}`],
+      mechanisms: {
+        [`aggregate:corpus/repo/${index}|hover|digest=${index}`]: ["ts-render"],
+      },
     })),
   ];
 }
@@ -109,9 +118,12 @@ test("unknown artifacts and control keys in corpus artifacts are rejected", () =
     new RegExp(`exactly ${CORPUS_SHARDS + 1}`),
   );
   const contaminated = artifacts();
-  contaminated[1].current.push(
-    "differential:fixtures/ts-backend-positive|textDocument/hover|/contents:value",
-  );
+  const foreign =
+    "differential:fixtures/ts-backend-positive|textDocument/hover|/contents:value";
+  contaminated[1].current.push(foreign);
+  // Classified too, so the artifact is well-formed and the scope check is the
+  // only thing left that can reject it.
+  contaminated[1].mechanisms[foreign] = ["unclassified"];
   assert.throws(
     () => mergeCurrentArtifacts(contaminated, floor),
     /out-of-scope ratchet key/,
@@ -147,5 +159,37 @@ test("a deleted baseline file remains owned by one stable shard", () => {
       (_, index) => corpusShardIndex(id, CORPUS_SHARDS) === index,
     ).filter(Boolean).length,
     1,
+  );
+});
+
+test("an artifact whose mechanism map does not cover its keys is rejected", () => {
+  const short = artifacts();
+  short[0].mechanisms = {};
+  assert.throws(
+    () => mergeCurrentArtifacts(short, floor),
+    /carries no mechanism for/,
+  );
+  const extra = artifacts();
+  extra[0].mechanisms["differential:fixtures/b|initialize|/x:value"] = ["ts-render"];
+  assert.throws(
+    () => mergeCurrentArtifacts(extra, floor),
+    /carries a mechanism for unlisted/,
+  );
+  const absent = artifacts();
+  delete absent[0].mechanisms;
+  assert.throws(() => mergeCurrentArtifacts(absent, floor), /lacks mechanisms/);
+});
+
+test("the merged mechanism map is the union over the artifact set", () => {
+  const values = artifacts();
+  const merged = mergeCurrentArtifacts(values, floor);
+  assert.equal(
+    Object.keys(merged.mechanisms).length,
+    merged.current.length,
+    "every merged key carries a mechanism set",
+  );
+  assert.deepEqual(
+    merged.mechanisms["differential:fixtures/a|initialize|/capabilities:value"],
+    ["unclassified"],
   );
 });

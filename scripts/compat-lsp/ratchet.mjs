@@ -4,20 +4,25 @@ import { OPEN_PHASE } from "./edits.mjs";
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
 
-export function compactCorpusObservation(method, position, differences) {
+export function compactCorpusObservation(
+  method,
+  position,
+  differences,
+  mechanisms = [],
+) {
   return {
     method,
     position,
     diffDigest: digest([...differences].sort()),
     fieldCount: differences.length,
+    mechanisms: [...mechanisms].sort(),
   };
 }
 
-export function aggregateCorpusDifferences(
-  fileId,
-  observations,
-  phase = OPEN_PHASE,
-) {
+// One grouping serves both public projections: an id and its mechanism set are
+// two readings of the same aggregate, and deriving them separately would be two
+// ports of one rule.
+function aggregateCorpus(fileId, observations, phase) {
   const byMethod = new Map();
   for (const observation of observations) {
     byMethod.set(observation.method, [
@@ -29,21 +34,9 @@ export function aggregateCorpusDifferences(
   for (const [method, values] of [...byMethod].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    const normalized = values
-      .map((value) =>
-        value.diffDigest
-          ? {
-              position: value.position,
-              diffDigest: value.diffDigest,
-              fieldCount: value.fieldCount,
-            }
-          : compactCorpusObservation(
-              value.method,
-              value.position,
-              value.differences,
-            ),
-      )
-      .sort((left, right) => left.position.localeCompare(right.position));
+    const mechanisms = new Set();
+    for (const value of values)
+      for (const mechanism of value.mechanisms ?? []) mechanisms.add(mechanism);
     // The request count does not reproduce either, and it never discriminated:
     // `fileId|method|phase` is already unique, so dropping it leaves all 23,890
     // committed keys. Two CI runs whose merge refs share a `main` parent and
@@ -52,9 +45,31 @@ export function aggregateCorpusDifferences(
     // of the key the same pair of runs is 0 and 0. It was sensitivity without
     // direction: a shrink and a growth are both one NEW and one STALE.
     const stage = phase === OPEN_PHASE ? "" : `|phase=${phase}`;
-    entries.push(`aggregate:${fileId}|${method}${stage}`);
+    entries.push({
+      id: `aggregate:${fileId}|${method}${stage}`,
+      mechanisms: [...mechanisms].sort(),
+    });
   }
   return entries;
+}
+
+export function aggregateCorpusDifferences(
+  fileId,
+  observations,
+  phase = OPEN_PHASE,
+) {
+  return aggregateCorpus(fileId, observations, phase).map((entry) => entry.id);
+}
+
+// The mechanism set is a property of the aggregate, not of the key: it is
+// carried beside the ratchet rather than inside it, because a label in the key
+// would multiply one entry into its ~6 mechanisms.
+export function aggregateCorpusMechanisms(
+  fileId,
+  observations,
+  phase = OPEN_PHASE,
+) {
+  return aggregateCorpus(fileId, observations, phase);
 }
 
 export function baselineRewriteReasons(

@@ -25,7 +25,12 @@ import { createCurrentArtifact, recordsFixtureControls } from "./artifacts.mjs";
 import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
 import { diffJson } from "./diff.mjs";
 import {
-  aggregateCorpusDifferences,
+  MECHANISMS,
+  UNCLASSIFIED,
+  classifyDivergence,
+} from "./mechanism.mjs";
+import {
+  aggregateCorpusMechanisms,
   assertNonemptySuites,
   baselineRewriteReasons,
   compactCorpusObservation,
@@ -54,6 +59,38 @@ if (UPDATE)
     "direct --update-baseline is disabled; merge the complete fixture and eight corpus artifacts with merge-current.mjs --update-baseline",
   );
 const SHOW = Number(argValue("--show") ?? 30);
+// One label per divergence, so the histogram sums to the divergent-field count
+// and a classifier that stops discriminating shows up as `unclassified` growth.
+const mechanismCounts = new Map();
+let corpusDivergentFields = 0;
+function countMechanism(method, mechanism) {
+  const key = `${method}|${mechanism}`;
+  mechanismCounts.set(key, (mechanismCounts.get(key) ?? 0) + 1);
+}
+function reportMechanisms() {
+  const total = [...mechanismCounts.values()].reduce((a, b) => a + b, 0);
+  if (total === 0) return;
+  // The labels must PARTITION the divergences: a classifier that drops or
+  // double-counts one reads as a mechanism that shrank.
+  if (total !== corpusDivergentFields) {
+    throw new Error(
+      `mechanism labels do not partition the corpus divergences: ${total} labelled, ${corpusDivergentFields} measured`,
+    );
+  }
+  const unclassified = [...mechanismCounts]
+    .filter(([key]) => key.endsWith("|unclassified"))
+    .reduce((a, [, value]) => a + value, 0);
+  console.log(
+    `[lsp-verify] corpus divergence mechanisms: ${total} labelled, ${unclassified} unclassified (${((100 * unclassified) / total).toFixed(1)}%), vocabulary ${MECHANISMS.length}`,
+  );
+  for (const [key, value] of [...mechanismCounts].sort(
+    (left, right) => right[1] - left[1],
+  )) {
+    console.log(
+      `[lsp-verify]   ${String(value).padStart(7)}  ${((100 * value) / total).toFixed(1).padStart(5)}%  ${key}`,
+    );
+  }
+}
 const CONCURRENCY = Number(
   argValue("--concurrency") ?? process.env.LSP_CONCURRENCY ?? 32,
 );
@@ -340,6 +377,15 @@ const ORACLE_REPRODUCTION_FLOOR = 0.7;
 const oracleCalibration = new Map();
 
 const current = [];
+// Beside the ratchet, never inside its key. An entry carries a SET of
+// mechanisms, so a label in the key would multiply the entry, and picking one
+// label per entry would need a precedence rule the data cannot supply.
+const mechanismsById = new Map();
+const recordMechanisms = (id, mechanisms) => {
+  const seen = mechanismsById.get(id) ?? new Set();
+  for (const mechanism of mechanisms) seen.add(mechanism);
+  mechanismsById.set(id, seen);
+};
 const newDiagnosticDetails = new Map();
 const counts = {
   total: population.skipped.length,
@@ -362,6 +408,15 @@ let completedRequests = 0;
 let progressStarted = 0;
 let lastProgressAt = 0;
 
+// One read per file: the completion classifier needs the region a request sits
+// in, and re-reading per request would be 72k reads.
+const sourceTexts = new WeakMap();
+function sourceOf(entry) {
+  if (!sourceTexts.has(entry))
+    sourceTexts.set(entry, entry.text ?? entry.loadText());
+  return sourceTexts.get(entry);
+}
+
 function record(
   kind,
   entry,
@@ -380,20 +435,41 @@ function record(
     counts.divergent++;
     counts.divergentFields += differences.length;
     if (entry.suite === "corpus") {
+      const mechanisms = new Set();
+      corpusDivergentFields += differences.length;
+      for (const difference of differences) {
+        const mechanism = classifyDivergence(
+          request.method,
+          left,
+          right,
+          difference,
+          { text: sourceOf(entry), position: request.params?.position },
+        );
+        countMechanism(request.method, mechanism);
+        mechanisms.add(mechanism);
+      }
       corpusObservations.push(
-        compactCorpusObservation(request.method, request.suffix, differences),
+        compactCorpusObservation(request.method, request.suffix, differences, [
+          ...mechanisms,
+        ].sort()),
       );
     } else {
       const requestKey = keyFor(kind, entry, request, phase);
       for (const difference of differences) {
-        const key = `${requestKey}|${difference}`;
+        // The classifier reads the `-element` / `-field` suffix and it must not
+        // reach the key: a respelling makes every committed entry stale at once,
+        // so it lands with its re-baseline rather than on its own.
+        const key = `${requestKey}|${difference.replace(/-rsvelte-(?:element|field)/, "-rsvelte")}`;
         current.push(key);
-        // A diagnostic array is collapsed to count + identity hash in the
-        // ratchet key. Keep the normalized values only for a newly observed
-        // fixture key, so CI says which diagnostic appeared instead of merely
-        // saying that the count changed. Corpus responses are intentionally
-        // excluded: they can contain project text and are aggregated before
-        // ratcheting anyway.
+        // `classifyDivergence` runs on the corpus branch only, and its context
+        // is that branch's source text. An empty set here would read as "no
+        // mechanism", which under the attribution rule reads as "nothing
+        // rsvelte-side", so the absence is spelled rather than left blank.
+        recordMechanisms(key, [UNCLASSIFIED]);
+        // Keep the normalized diagnostic values for a newly observed fixture
+        // key, so CI says which diagnostic appeared. Corpus responses are
+        // intentionally excluded: they can contain project text and are
+        // aggregated before ratcheting anyway.
         if (
           request.method === "textDocument/diagnostic" &&
           !knownBaselineSet.has(key)
@@ -889,9 +965,14 @@ async function main() {
         phase,
       );
       if (entry.suite === "corpus")
-        current.push(
-          ...aggregateCorpusDifferences(entry.id, corpusObservations, phase),
-        );
+        for (const aggregate of aggregateCorpusMechanisms(
+          entry.id,
+          corpusObservations,
+          phase,
+        )) {
+          current.push(aggregate.id);
+          recordMechanisms(aggregate.id, aggregate.mechanisms);
+        }
     }
     const close = {
       jsonrpc: "2.0",
@@ -949,6 +1030,8 @@ async function main() {
     `[lsp-verify] ${cases.length} cases; ${counts.compared}/${counts.total} compared, ${counts.divergent} divergent requests / ${counts.divergentFields} divergent fields, ${counts.skipped} skipped`,
   );
 
+  reportMechanisms();
+
   // Before the artifact, not after: a run measured against a degraded oracle
   // must leave nothing that `merge-current.mjs` could accept.
   assertOracleCalibration(calibration);
@@ -964,6 +1047,9 @@ async function main() {
       population: measuredPopulation,
       current,
       counts,
+      mechanisms: Object.fromEntries(
+        [...mechanismsById].map(([id, labels]) => [id, [...labels]]),
+      ),
       diagnosticDetails: Object.fromEntries(newDiagnosticDetails),
     });
     fs.mkdirSync(path.dirname(path.resolve(WRITE_CURRENT)), {

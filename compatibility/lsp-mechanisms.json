@@ -1,0 +1,432 @@
+{
+	"$schema-note": "Two maps beside `lsp-known-failures.json`, never inside its key. `entries` maps a ratchet id to the SET of mechanisms measured on it: an entry carries several (mean 6.17 on a corpus shard), so a label is not a partition of the entries, and one label per entry would need a precedence rule the data cannot supply. `mechanisms` maps a label to where it is answered — an `upstream_issues/` path that exists on disk, the literal `deliberate-divergences`, or `null` for a terminal that has not been established yet. `null` is not `rsvelte`: an unestablished terminal and a defect of ours are different facts, and writing one as the other puts a sign on an unmeasured quantity. An id whose set contains `unclassified`, or any label whose terminal is `null`, cannot appear in an attribution table. A label's prose lives in `scripts/compat-lsp/mechanism.mjs` beside the rule that assigns it; restating it here would be a second port that can disagree with the classifier.",
+	"mechanisms": {
+		"ts-lib-copy": {
+			"terminal": null
+		},
+		"ts-render-union-order": {
+			"terminal": null
+		},
+		"ts-render-quote-style": {
+			"terminal": null
+		},
+		"ts-render-local-modifier": {
+			"terminal": null
+		},
+		"ts-render-jsdoc-tag": {
+			"terminal": null
+		},
+		"ts-render-import-line": {
+			"terminal": null
+		},
+		"ts-render-overload-count": {
+			"terminal": null
+		},
+		"ts-render-declaration-order": {
+			"terminal": null
+		},
+		"rsvelte-empty-import-only": {
+			"terminal": null
+		},
+		"official-empty-target-is-the-request": {
+			"terminal": null
+		},
+		"ts-render-multiple": {
+			"terminal": null
+		},
+		"ts-type-any": {
+			"terminal": null
+		},
+		"ts-render": {
+			"terminal": null
+		},
+		"ts-symbol-kind": {
+			"terminal": null
+		},
+		"ts-symbol-name": {
+			"terminal": null
+		},
+		"official-defect-svelte-ts-shadow": {
+			"terminal": null
+		},
+		"css-data": {
+			"terminal": null
+		},
+		"html-data": {
+			"terminal": null
+		},
+		"provider-routing": {
+			"terminal": null
+		},
+		"rsvelte-empty": {
+			"terminal": null
+		},
+		"official-empty": {
+			"terminal": null
+		},
+		"projection-origin-range": {
+			"terminal": null
+		},
+		"projection-target-position-declaration": {
+			"terminal": null
+		},
+		"projection-target-position-workspace": {
+			"terminal": null
+		},
+		"projection-response-range": {
+			"terminal": null
+		},
+		"target-component-vs-import": {
+			"terminal": null
+		},
+		"target-declaration-vs-source": {
+			"terminal": null
+		},
+		"target-file-mismatch": {
+			"terminal": null
+		},
+		"completion-item-set-missing-ts": {
+			"terminal": null
+		},
+		"completion-item-set-missing-html": {
+			"terminal": null
+		},
+		"completion-item-set-missing-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-set-missing-css": {
+			"terminal": null
+		},
+		"completion-item-set-missing-svg": {
+			"terminal": null
+		},
+		"completion-item-set-missing-emmet": {
+			"terminal": null
+		},
+		"completion-item-set-missing-other": {
+			"terminal": null
+		},
+		"completion-item-set-missing-mixed": {
+			"terminal": null
+		},
+		"completion-item-set-extra-ts": {
+			"terminal": null
+		},
+		"completion-item-set-extra-html": {
+			"terminal": null
+		},
+		"completion-item-set-extra-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-set-extra-css": {
+			"terminal": null
+		},
+		"completion-item-set-extra-svg": {
+			"terminal": null
+		},
+		"completion-item-set-extra-emmet": {
+			"terminal": null
+		},
+		"completion-item-set-extra-other": {
+			"terminal": null
+		},
+		"completion-item-set-extra-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-filter-text-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+filter-text-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-sort-text+filter-text-mixed": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-ts": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-html": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-css": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-svg": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-emmet": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-other": {
+			"terminal": null
+		},
+		"completion-item-pairing-key-kind+sort-text+filter-text-mixed": {
+			"terminal": null
+		},
+		"completion-item-duplicate-label": {
+			"terminal": null
+		},
+		"completion-commit-characters-value-extra-paren": {
+			"terminal": null
+		},
+		"completion-commit-characters-value-other": {
+			"terminal": null
+		},
+		"completion-commit-characters-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-commit-characters-presence-official-only": {
+			"terminal": null
+		},
+		"completion-command-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-command-presence-official-only": {
+			"terminal": null
+		},
+		"completion-command-value": {
+			"terminal": null
+		},
+		"completion-text-edit-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-text-edit-presence-official-only": {
+			"terminal": null
+		},
+		"completion-text-edit-range-start": {
+			"terminal": null
+		},
+		"completion-text-edit-range-end": {
+			"terminal": null
+		},
+		"completion-text-edit-range-other": {
+			"terminal": null
+		},
+		"completion-text-edit-other": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-ts": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-html": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-html-close-tag": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-css": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-svg": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-emmet": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-other": {
+			"terminal": null
+		},
+		"completion-text-edit-new-text-mixed": {
+			"terminal": null
+		},
+		"completion-additional-text-edits-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-additional-text-edits-presence-official-only": {
+			"terminal": null
+		},
+		"completion-additional-text-edits-other": {
+			"terminal": null
+		},
+		"completion-item-data-source-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-item-data-source-official-only": {
+			"terminal": null
+		},
+		"completion-item-data-uri": {
+			"terminal": null
+		},
+		"completion-item-data-position": {
+			"terminal": null
+		},
+		"completion-item-data-name": {
+			"terminal": null
+		},
+		"completion-item-data-other": {
+			"terminal": null
+		},
+		"completion-is-incomplete": {
+			"terminal": null
+		},
+		"completion-item-detail-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-item-detail-presence-official-only": {
+			"terminal": null
+		},
+		"completion-item-detail-value": {
+			"terminal": null
+		},
+		"completion-item-documentation-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-item-documentation-presence-official-only": {
+			"terminal": null
+		},
+		"completion-item-documentation-value": {
+			"terminal": null
+		},
+		"completion-item-label-details-presence-rsvelte-only": {
+			"terminal": null
+		},
+		"completion-item-label-details-presence-official-only": {
+			"terminal": null
+		},
+		"completion-item-label-details-value": {
+			"terminal": null
+		},
+		"unclassified": {
+			"terminal": null
+		}
+	},
+	"entries": {}
+}

@@ -5,7 +5,9 @@ import { execFileSync } from "node:child_process";
 import { corpusShardIndex } from "./ratchet.mjs";
 import { CORPUS_REPOS } from "./suites.mjs";
 
-export const ARTIFACT_SCHEMA = 1;
+// 2 adds `mechanisms`: an artifact that predates it cannot populate the sidecar,
+// and a merge that silently accepted one would write a short map rather than fail.
+export const ARTIFACT_SCHEMA = 2;
 export const CORPUS_SHARDS = 16;
 export const FIXTURE_SUITES = [
   "fixtures",
@@ -38,6 +40,7 @@ export function createCurrentArtifact({
   population,
   current,
   counts,
+  mechanisms = {},
   diagnosticDetails = {},
 }) {
   const sourceRevisions = {
@@ -58,6 +61,13 @@ export function createCurrentArtifact({
     population,
     counts,
     current: [...current].sort(),
+    // Always written, even when empty: an absent map and an unclassified run
+    // are different facts, and only one of them is a wiring failure.
+    mechanisms: Object.fromEntries(
+      Object.entries(mechanisms)
+        .map(([id, labels]) => [id, [...new Set(labels)].sort()])
+        .sort(([left], [right]) => left.localeCompare(right)),
+    ),
     ...(Object.keys(diagnosticDetails).length ? { diagnosticDetails } : {}),
   };
 }
@@ -77,6 +87,16 @@ function requireArtifact(value, label) {
   for (const field of ["suites", "repos", "measuredIds", "current"])
     if (!Array.isArray(value[field]))
       throw new Error(`${label} lacks ${field}`);
+  if (!value.mechanisms || typeof value.mechanisms !== "object")
+    throw new Error(`${label} lacks mechanisms`);
+  // Coverage is asserted per artifact rather than on the union: a shard that
+  // classified nothing is otherwise invisible once sixteen maps are merged.
+  for (const id of value.current)
+    if (!Array.isArray(value.mechanisms[id]) || !value.mechanisms[id].length)
+      throw new Error(`${label} carries no mechanism for ${id}`);
+  for (const id of Object.keys(value.mechanisms))
+    if (!value.current.includes(id))
+      throw new Error(`${label} carries a mechanism for unlisted ${id}`);
 }
 
 export function mergeCurrentArtifacts(artifacts, populationFloor) {
@@ -189,7 +209,18 @@ export function mergeCurrentArtifacts(artifacts, populationFloor) {
   const current = artifacts.flatMap((artifact) => artifact.current).sort();
   if (new Set(current).size !== current.length)
     throw new Error("current artifacts contain duplicate ratchet keys");
-  return { current, population, projectRevision: reference.projectRevision };
+  const mechanisms = {};
+  for (const artifact of artifacts)
+    for (const [id, labels] of Object.entries(artifact.mechanisms))
+      mechanisms[id] = [
+        ...new Set([...(mechanisms[id] ?? []), ...labels]),
+      ].sort();
+  return {
+    current,
+    mechanisms,
+    population,
+    projectRevision: reference.projectRevision,
+  };
 }
 
 export function readArtifacts(directory) {

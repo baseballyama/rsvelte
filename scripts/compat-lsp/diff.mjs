@@ -5,7 +5,9 @@ const digest = (value) =>
 const pointerPart = (value) =>
   String(value).replaceAll("~", "~0").replaceAll("/", "~1");
 
-function identity(method, pointer, value) {
+// Exported so a classifier can resolve a `@`-segment back to the item it names
+// without a second copy of this digest.
+export function identity(method, pointer, value) {
   if (value === null || typeof value !== "object") {
     const readable = pointerPart(String(value))
       .replace(/[^\w.~+-]/g, "_")
@@ -66,14 +68,18 @@ function walk(method, left, right, pointer, differences) {
       for (let index = common; index < rightValues.length; index++)
         extraRsvelte.push(key);
     }
+    // `-element` and `-field` name the two mechanisms an unqualified
+    // `extra-rsvelte` collapsed: an array that carries one more entry, and an
+    // object the other side has no such key on. The ratchet key keeps the
+    // suffix and drops the bracket, so the kind survives and the amount does not.
     if (missingRsvelte.length) {
       differences.push(
-        `${pointer}:missing-rsvelte[count=${missingRsvelte.length},hash=${digest(missingRsvelte.sort())}]`,
+        `${pointer}:missing-rsvelte-element[count=${missingRsvelte.length},hash=${digest(missingRsvelte.sort())}]`,
       );
     }
     if (extraRsvelte.length) {
       differences.push(
-        `${pointer}:extra-rsvelte[count=${extraRsvelte.length},hash=${digest(extraRsvelte.sort())}]`,
+        `${pointer}:extra-rsvelte-element[count=${extraRsvelte.length},hash=${digest(extraRsvelte.sort())}]`,
       );
     }
     return;
@@ -89,9 +95,9 @@ function walk(method, left, right, pointer, differences) {
     for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
       const child = `${pointer}/${pointerPart(key)}`;
       if (!(key in left))
-        differences.push(`${child}:extra-rsvelte[hash=${digest(right[key])}]`);
+        differences.push(`${child}:extra-rsvelte-field[hash=${digest(right[key])}]`);
       else if (!(key in right))
-        differences.push(`${child}:missing-rsvelte[hash=${digest(left[key])}]`);
+        differences.push(`${child}:missing-rsvelte-field[hash=${digest(left[key])}]`);
       else walk(method, left[key], right[key], child, differences);
     }
     return;

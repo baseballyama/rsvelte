@@ -4535,6 +4535,66 @@ The third row is not a defect on either side and is the first candidate for
 `deliberate-divergences` in this ratchet — but only once it is pinned by a test, which it is not
 yet.
 
+### The mechanism of a divergence is carried beside the ratchet, not in its key
+
+`compatibility/lsp-mechanisms.json` holds two maps: `entries` takes a ratchet id to the **set** of
+mechanisms measured on it, and `mechanisms` takes a label to where it is answered — an
+`upstream_issues/` path that exists on disk, the literal `deliberate-divergences`, or `null` for a
+terminal not yet established. `scripts/compat-lsp/mechanism.mjs` is the classifier and the
+vocabulary; `scripts/ci/lsp-mechanisms-check.mjs` checks the two files against each other and
+against the ratchet, and `scripts/dev/test-lsp-mechanisms-check.mjs` is its positive control —
+including the case that a well-formed sidecar **passes**, which a suite of red-only cases never
+measures.
+
+**Why a set, and why beside rather than inside.** An `aggregate:` entry is a
+`(file, method, phase)`, and every mechanism that fires anywhere in that one response is a
+separate label on the same entry. Measured on 931 records of one corpus shard (bits-ui, shard 8
+of 16, 52 components, 151 `(file, method)` groups): **6.17 distinct labels per entry on average**,
+median 5, max 22, and **88.7% of entries carry more than one** — `textDocument/completion` alone
+averages 11.13. Putting a label in the ratchet key would therefore multiply one entry into its
+six, which is the same "one identifier, one key, a six-figure file" judgement the corpus half is
+aggregated to avoid. Picking *one* label per entry would need a precedence rule, and a rule
+choosing among six co-occurring labels encodes its author's ordering — the hazard AGENTS.md
+records for a classifier that stops at its first matching predicate.
+
+**What the set costs to read.** For each label, the entries on which it is the *only* label — the
+ones that would actually leave the ratchet if that mechanism were fixed — are almost all zero:
+
+| label | entries it appears on | entries where it is the only label |
+|---|---|---|
+| `completion-item-set-extra-html` | 42 | **0** |
+| `completion-item-pairing-key-kind+sort-text-ts` | 42 | **0** |
+| `completion-item-set-missing-ts` | 42 | **0** |
+| `completion-item-set-missing-mixed` | 42 | **0** |
+| `completion-item-set-missing-html` | 41 | **0** |
+| `completion-commit-characters-value-extra-paren` | 37 | **0** |
+| `rsvelte-empty` | 31 | **0** |
+| `ts-render` | 30 | **0** |
+| `projection-target-position-declaration` | 30 | 3 |
+| `projection-origin-range` | 27 | 5 |
+
+Nine of the shard's 62 labels are ever the sole label of an entry, together covering **17 of 151
+(11.3%)**; the eleven largest are all zero. Repairing `completion-item-set-extra-html` on every
+file it names removes **no entry**, because each of those files still diverges on five other
+mechanisms in the same response. **A per-label count sizes an investigation and never a shrink**,
+and the two differ here by a factor of zero for the largest labels.
+
+The sets are structure rather than noise, which was predicted before it was measured: an empty
+answer cannot have an item-level difference, and of the 66 groups carrying `rsvelte-empty` or
+`rsvelte-empty-import-only`, **0** also carry an item-level label.
+
+**Two absences are spelled rather than left blank.** `classifyDivergence` runs on the corpus
+branch only — its context is that branch's source text — so every `differential:` and `expected:`
+entry carries the explicit label `unclassified`. And a label whose terminal has not been
+established carries `null`, which is **not** `rsvelte`: an unestablished terminal and a defect of
+ours are different facts, and writing one as the other puts a sign on an unmeasured quantity.
+Either one blocks its entry from an attribution table, and the checker reports how many entries
+are blocked rather than folding them into a pass — a blank and a zero render the same.
+
+The scope of these figures: 151 entries from one of sixteen corpus shards, so the *counts* are not
+convertible into ratchet-wide ones and none of them has been. What is established is structural,
+and on the corpus half only.
+
 Normalization removes only these non-parity fields and path-specific values:
 
 - `initialize.result.serverInfo`

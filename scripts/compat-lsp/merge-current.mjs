@@ -27,6 +27,7 @@ const merged = mergeCurrentArtifacts(
   floor,
 );
 const baseline = path.join(ROOT, "compatibility/lsp-known-failures.json");
+const sidecar = path.join(ROOT, "compatibility/lsp-mechanisms.json");
 if (UPDATE) {
   const temporary = `${baseline}.${process.pid}.tmp`;
   fs.writeFileSync(
@@ -36,6 +37,27 @@ if (UPDATE) {
   fs.renameSync(temporary, baseline);
   console.log(
     `[lsp-merge] wrote ${merged.current.length} entries to ${path.relative(ROOT, baseline)}`,
+  );
+  // The two files are written by one command on purpose: a sidecar refreshed
+  // separately from the ratchet is a map of a population that no longer exists,
+  // and nothing downstream could tell the two apart.
+  const document = JSON.parse(fs.readFileSync(sidecar, "utf8"));
+  const labels = new Set(Object.values(merged.mechanisms).flat());
+  for (const label of [...labels].sort())
+    document.mechanisms[label] ??= { terminal: null };
+  document.entries = Object.fromEntries(
+    Object.entries(merged.mechanisms).sort(([left], [right]) =>
+      left.localeCompare(right),
+    ),
+  );
+  const sidecarTemporary = `${sidecar}.${process.pid}.tmp`;
+  fs.writeFileSync(
+    sidecarTemporary,
+    JSON.stringify(document, null, "\t") + "\n",
+  );
+  fs.renameSync(sidecarTemporary, sidecar);
+  console.log(
+    `[lsp-merge] wrote ${Object.keys(document.entries).length} mechanism sets over ${labels.size} labels to ${path.relative(ROOT, sidecar)}`,
   );
 } else {
   const known = JSON.parse(fs.readFileSync(baseline, "utf8"));
