@@ -40,6 +40,12 @@ pub(super) fn transform_instance_dev_assign_tail(
     if !super::assign_dev_ast::source_has_assignment(source) {
         return None;
     }
+    let component_bindings: rustc_hash::FxHashSet<&str> = analysis
+        .root
+        .bindings
+        .iter()
+        .map(|b| b.name.as_str())
+        .collect();
     ast_rewrite::rewrite_batched(
         &INSTANCE_DEV_TAIL_ALLOC,
         source,
@@ -51,6 +57,7 @@ pub(super) fn transform_instance_dev_assign_tail(
                 src,
                 &analysis.source,
                 &analysis.filename,
+                &component_bindings,
             )
         },
     )
