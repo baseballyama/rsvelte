@@ -1517,6 +1517,24 @@ file puts many declarations in one file. When a family's cells are one construct
 file, its green says nothing about the same constructs sharing a file — and the
 interference is invisible in the output of the fragment that causes it.
 
+### A pre-registered falsification is only as good as its "then" clause
+
+Handing a peer a check to run after a merge, the wording was: "the default mode reports
+5 problems; re-count after this PR lands, and **if the count does not change, my exemption
+list is wrong**." The count did not change -- correctly, because the PR adds a flag and a
+pending list and touches none of the default mode's inputs -- and the exemption list is
+right, because the flagged mode exits 0. **No outcome of that measurement could have said
+anything about the exemption list**, since the count and the list are read by two different
+modes. The pre-registration made a non-discriminating test look like a committed one, which
+is worse than no test: a bare guess invites a check, and a guess with a falsification
+condition attached looks as though it has already survived one.
+
+The check is mechanical and costs one sentence: **name the artifact each half of the "if"
+reads.** If the observation and the conclusion do not share one, the conclusion does not
+follow from the observation whichever way it comes out. And it is the same shape as a
+port-vs-port test whose oracle is the other port -- the form is right and the two halves
+are not independent.
+
 ### A flag the tree does not implement is ignored, so the mode you ran is not the mode you typed
 
 `attribution-check.mjs` has two modes: the default one is the DoD and stays red until every
