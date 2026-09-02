@@ -16,6 +16,10 @@ struct TagPair {
     close: ByteRange<usize>,
 }
 
+/// The word pattern the official server sends; the ranges' own contents must match it.
+const WORD_PATTERN: &str =
+    r#"(-?\d*\.\d\w*)|([^\`\~\!\@\#\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\"\,\<\>\/\s]+)"#;
+
 /// Linked ranges for the opening and closing name under `offset`.
 #[must_use]
 pub fn linked_ranges(text: &str, offset: usize) -> Option<LinkedEditingRanges> {
@@ -26,9 +30,8 @@ pub fn linked_ranges(text: &str, offset: usize) -> Option<LinkedEditingRanges> {
             range(&index, text, pair.open),
             range(&index, text, pair.close),
         ],
-        // Dots intentionally do not belong here: VS Code uses this pattern to
-        // select the editable word, while `<Foo.Bar>` needs the whole member tag.
-        word_pattern: Some("[-_:A-Za-z0-9$]+".to_string()),
+        // Byte-identical to what the official server sends: VS Code's default word pattern.
+        word_pattern: Some(WORD_PATTERN.to_string()),
     })
 }
 
@@ -152,12 +155,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pairs_component_member_tags_without_including_the_dot_in_word_pattern() {
-        let text = "<Foo.Bar><span /></Foo.Bar>";
-        let ranges = linked_ranges(text, 3).unwrap();
+    fn word_pattern_is_byte_identical_to_the_official_server() {
+        let ranges = linked_ranges("<Foo.Bar><span /></Foo.Bar>", 3).unwrap();
         assert_eq!(ranges.ranges.len(), 2);
-        assert_eq!(ranges.word_pattern.as_deref(), Some("[-_:A-Za-z0-9$]+"));
         assert_eq!(ranges.ranges[0].end.character, 8);
+        assert_eq!(ranges.word_pattern.as_deref(), Some(WORD_PATTERN));
+    }
+
+    // The contract: a returned pattern must accept the contents of the returned
+    // ranges. This outlives whatever string the official server settles on.
+    #[test]
+    fn word_pattern_accepts_the_full_contents_of_the_ranges_it_is_sent_with() {
+        for (text, offset, name) in [
+            ("<div></div>", 2, "div"),
+            ("<Foo></Foo>", 2, "Foo"),
+            ("<Foo.Bar><span /></Foo.Bar>", 3, "Foo.Bar"),
+        ] {
+            let ranges = linked_ranges(text, offset).unwrap();
+            let pattern = ranges.word_pattern.as_deref().unwrap();
+            let regex = fancy_regex::Regex::new(pattern).unwrap();
+            let matched = regex.find(name).unwrap().expect("pattern matched nothing");
+            assert_eq!(
+                (matched.start(), matched.end()),
+                (0, name.len()),
+                "{pattern} does not fully accept {name}"
+            );
+        }
     }
 
     #[test]
