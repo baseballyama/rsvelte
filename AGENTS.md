@@ -1674,6 +1674,35 @@ that sieve as "zero discriminating power" is worth more than a sieve that remove
 for a reason nobody can state.
 
 
+### An entry condition that is a conjunction is wrong in both directions at once
+
+A job that runs only when two independent conditions hold can be misread by two people in
+opposite directions, and neither error is visible from the side its author read. Measured
+on `lsp-corpus`, the 950-job-minute gate:
+
+```yaml
+if: >-
+  (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+   || needs.changes.outputs.lsp-ratchet == 'true')
+  && needs.changes.outputs.lsp-corpus != 'false'
+```
+
+One reader looked at `corpus-compat-job-filter.mjs`, saw that `packageOf` returns `null` for
+any path outside `crates/` and that `null` enables **every** job, and concluded a docs-only
+PR is expensive — holding a documentation branch out of the queue for it. The other looked
+at the event-name guard, saw that a pull request is neither a schedule nor a dispatch, and
+concluded a docs-only PR is cheap. **Both premises are true and both conclusions are
+wrong**: the filter really does emit `lsp-corpus=true` for a docs change, *and* the job
+still does not run, because `lsp-ratchet` is false and a pull request fails the event
+guard — while the other eight Corpus Compat jobs the filter enabled do run. The real answer
+is neither "everything" nor "nothing" and cannot be reached from either condition alone.
+
+Run the filter with the actual file list (`node scripts/ci/corpus-compat-job-filter.mjs
+--changed-files <list>`) **and** read the workflow's `if`. The two artifacts answer
+different halves of one question, and the half you did not read is the one that makes your
+answer confident.
+
+
 ### Widening a set to close an enumeration hazard moves you along a new axis
 
 A hand-written list of "the kinds this applies to" is only right if the domain is closed, so
