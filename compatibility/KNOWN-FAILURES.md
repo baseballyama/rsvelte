@@ -2878,12 +2878,14 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 14 entries)
+### Client (`known-failures.client.json`, 12 entries)
 
-Partition of `known-failures.client.json` by verdict: `13 + 1`
+Partition of `known-failures.client.json` by verdict: `12`
 
-- **13 — the generated JS differs** (`js` / `code-differs`).
-- **1 — the generated CSS differs.**
+- **12 — the generated JS differs** (`js` / `code-differs`).
+
+No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
+below.
 
 The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
@@ -3119,7 +3121,27 @@ divergence in the same lowering — that `template.js`'s `stringify` lowercases 
 html namespace — was measured over seven cells and **agrees**; it is recorded here so it is not
 re-opened as unmeasured.
 
-Every one of the remaining 14 arrived with the wave-2 enrolment (#3130) and is described
+Two entries (`networking-toolbox/…/home/SiteMapList.svelte` and
+`trakt-web/…/select/SegmentedSelect.svelte`) left **all four** targets when ancestor scoping
+started following a `{@render}` into the snippet it renders. Where a `{#snippet}` body sits in
+the DOM is decided twice in this tree; #4155 fixed the pruning half, so the CSS rule was kept
+while the ancestor never received its scope class — the two halves of one answer disagreeing
+inside a single output (`compatibility/GATES.md#two-ports-inventory` row 27). Hashing all
+139,252 (entry, target) outputs over the four targets before and after reports **8 changed keys
+over exactly these 2 ids** and nothing else.
+
+`SegmentedSelect` retires from `client` and `client-dev` for a reason the byte comparison cannot
+state: after the fix its only residue there is a comment placement (official emits
+`const // eslint-disable-next-line …` then `segment = …`), and `verify.mjs` hands every
+byte-different output to `ast_equiv_batch` with no `--comments`, so a comment-only divergence is
+AST-equivalent and scores a pass. That was **measured, not inferred** — the same comparator on
+the same run reports `code-differs` for `haptic/…/tooltip.svelte`, so a green here is a property
+of the input rather than of a comparator that stopped working. A hand-rolled "strip the
+comments and compare" said the opposite, because official's line reduces to a bare `const` and
+the stripper invents a structural difference; that is the stricter-reconstruction hazard two
+paragraphs above, reached from the other side.
+
+Every one of the remaining 12 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3144,9 +3166,9 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](#deliberate-divergences), each pinned by a test.
 
-### Server (`known-failures.server.json`, 4 entries)
+### Server (`known-failures.server.json`, 2 entries)
 
-Partition of `known-failures.server.json` by verdict: `2 + 2`
+Partition of `known-failures.server.json` by verdict: `2`
 
 Attribution of `known-failures.server.json`:
 
@@ -3154,13 +3176,10 @@ Attribution of `known-failures.server.json`:
 |---|---|---|
 | 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
 
-The other 2 carry **no target yet**: each is a defect on rsvelte's side, so the
-only end state open to them is elimination. They are `networking-toolbox/…/SiteMapList.svelte`
-and `trakt-web/…/SegmentedSelect.svelte`, which both drop a CSS scope class from an
-element inside a snippet (#4115).
+`networking-toolbox/…/SiteMapList.svelte` and `trakt-web/…/SegmentedSelect.svelte` left this
+target, and the other three, when ancestor scoping started following a `{@render}` into the
+snippet it renders — see § *Client* for the measurement.
 
-
-- **2 — the generated JS differs.**
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
@@ -3193,13 +3212,13 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-### Server dev (`known-failures.server-dev.json`, 4 entries)
+### Server dev (`known-failures.server-dev.json`, 2 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `2 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `2`
 
 Attribution of `known-failures.server-dev.json`:
 
@@ -3207,17 +3226,11 @@ Attribution of `known-failures.server-dev.json`:
 |---|---|---|
 | 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
 
-The other 2 carry **no target yet**: each is a defect on rsvelte's side, so the
-only end state open to them is elimination. They are `networking-toolbox/…/SiteMapList.svelte`
-and `trakt-web/…/SegmentedSelect.svelte`, which both drop a CSS scope class from an
-element inside a snippet (#4115).
+The same two snippet-scoping entries left this target with the other three; see § *Client*.
 
+What remains is the same deliberate divergence as on `server` — the `$`-prefixed function
+parameter — carried on both targets because the server transform runs on both.
 
-The trailing **2** is the same deliberate divergence as on `server` — the
-`$`-prefixed function parameter — carried on both targets because the server
-transform runs on both.
-
-- **2 — the generated JS differs.**
 - **2 — the same recorded deliberate divergence as on `server`.**
 
 All 13 arrived with the wave-2 enrolment (#3130); this target was at 0 before
@@ -3226,15 +3239,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 28 entries)
+### Client dev (`known-failures.client-dev.json`, 26 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `28`
+Partition of `known-failures.client-dev.json` by verdict: `26`
 
-- **28 — the generated JS differs.**
+- **26 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 28 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 26 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

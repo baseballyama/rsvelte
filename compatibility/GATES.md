@@ -6832,7 +6832,7 @@ probe is the 11-input structural round trip described above, which is not in the
 the open half of this row.**
 
 
-#### 27. Where in the DOM is a `{#snippet}` body rendered? — [D], both ports still live
+#### 27. Where in the DOM is a `{#snippet}` body rendered? — [D], two ports, answers now agree
 
 **Upstream** answers once. `SnippetBlock.metadata.sites` is filled in a single pass over
 `analysis.snippet_renderers` (`2-analyze/index.js:847`): a renderer whose callee resolves to a
@@ -6848,8 +6848,8 @@ and a renderer that resolves outside the component (a prop, an import) is a site
 | built by | `2_analyze/visitors/{render_tag,snippet_block,shared/component}.rs` | `css_scoping.rs:1432` `collect_render_site_ancestors`, its own template walk |
 | read by | `3_transform/css.rs` `effective_parents` — pruning and scoping | `css_scoping.rs` `subtree_has_matching_subject` — ancestor scoping |
 | a `{#snippet}` passed as an *attribute* (`<Comp foo={row} />`) | yes, since #4115's port-A fix | yes (`attribute_snippet_names:1415`) |
-| an **unresolved** renderer is a site of every snippet | yes | **no** |
-| resolves the callee through the scope chain | yes (`render_tag.rs:58`) | **no** — `get_render_tag_callee_name` returns the identifier's text |
+| an **unresolved** renderer is a site of every snippet | yes | yes, since #4115's port-B fix |
+| resolves the callee through the scope chain | yes (`render_tag.rs:58`) | yes — port B now reads port A's `renderer_targets`, keyed by node |
 
 **Discriminating input, and both answers are observable in ONE compile:**
 
@@ -6879,14 +6879,41 @@ the two on `<Comp foo={row} />`, and port A treated any non-literal attribute as
 component unresolved. A second port is not reliably the degraded one, so "fix the port the bug
 was reported against" is not a rule — read both before deciding which one moves.
 
-**Why closing port B is not a transcription.** Upstream walks the tree while reading another part
-of it; `propagate_ancestor_scoping` holds `&mut Fragment`, so Rust cannot take the immutable
+**Why closing port B was not a transcription.** Upstream walks the tree while reading another
+part of it; `propagate_ancestor_scoping` holds `&mut Fragment`, so Rust cannot take the immutable
 borrow of a *different* snippet body from inside that walk. The port needs the decision lifted
-into a prior immutable pass. **Same algorithm, different number of passes** — a reason to deviate
-that this file's other rows do not have.
+into a prior immutable pass — the same shape as the graph pass forty lines above, which is the
+row to compare it against rather than treating the extra pass as unique to this one. Port B's
+mark collection is now a read-only walk into an `FxHashSet<(u32,u32)>` applied afterwards, and the
+direct-match write is `|=` rather than `=`: a snippet body is walked once per render site and
+`scoped` is the union over sites, so a second site that matches nothing was erasing the first
+site's answer. Auditing every `metadata.` write in the file found `scoped` to be the only field
+that walk sets, plus two monotone `= true` in `apply_scoping_marks`.
+
+**The grid that drove the fix could not see the defect the fix introduced.** Its 70 cells were
+built from the shapes port B got wrong, so every one of them was a cell that could only improve;
+the residue read 68 match / 2 error-parity / 0 non-match while a corpus A/B moved a third file the
+*wrong* way. `compatibility/pattern-corpus/issues/4115-snippet-cycle-ancestors.svelte` is that
+shape, and it is the one file of the three #4115 repros that **matched on `main`**. A grid
+assembled from failing cells has no cell left that can regress.
+
+**The cause is one level below the port, and it took two attempts, because the recursion guard's
+discipline is the semantics AND the complexity bound at once.** Upstream's `get_ancestor_elements`
+adds a `SnippetBlock` to `seen` and never deletes it, so a snippet is expanded at most once per
+resolution: that is what makes the answer a function of where the walk started rather than of the
+snippet — hence unmemoisable — and it is also what keeps the walk linear. The first fix kept the
+readable spelling, a `seen` unwound on the way out, and merely stopped caching the truncated
+result. It is correct on every cell of the grid, on all three repros and on 121 release test
+targets, and it **does not finish** on
+`svelte.dev/apps/svelte.dev/src/routes/tutorial/[...slug]/+page.svelte`, which `main` compiles in
+19 ms: a backtracking guard enumerates every acyclic path. **No output gate here can observe
+that.** It is not a wrong answer, it is an answer that never arrives — the corpus sweep reports it
+as a run that stops printing, and the only reason it was attributed at all is that the same sweep
+had a completed predecessor to compare its rate against.
 
 **Not [M].** Nothing compares the two ports to each other; the grid compares each to official, so
-both ports failing the same way would score green. `is_resolved_snippet` was briefly a third
+both ports failing the same way would score green. That is still true with the answers agreeing —
+what closed here is a divergence, not the duplication. `is_resolved_snippet` was briefly a third
 implementation of the neighbouring "does this callee resolve" question (`render_tag.rs` private,
 `shared/snippets.rs` public); the two were read side by side, found to agree on all four
 conditions in the same order, and merged into one — an inventory entry that was retired rather

@@ -5,12 +5,10 @@
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
-	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
 	"photon/src/lib/ui/navbar/Profile.svelte",
 	"primo/src/lib/builder/ui/Button.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
-	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte"
 ]

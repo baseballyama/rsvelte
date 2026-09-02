@@ -11,7 +11,6 @@
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
 	"musicat/src/lib/views/InternetArchiveView.svelte",
-	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
 	"photon/src/lib/app/auth/profile.svelte.ts",
 	"photon/src/lib/ui/navbar/Profile.svelte",
 	"photon/src/lib/ui/navbar/commands/actions.svelte.ts",
@@ -25,6 +24,5 @@
 	"svelvet/src/lib/components/Edge/Edge.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"threlte/packages/extras/src/lib/hooks/useGamepad/useGamepad.svelte.ts",
-	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte"
 ]

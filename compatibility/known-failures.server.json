@@ -1,6 +1,4 @@
 [
-	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
 	"pattern/issues/dollar-function-parameter.svelte",
-	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts",
-	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte"
+	"threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts"
 ]

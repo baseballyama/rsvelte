@@ -1522,10 +1522,9 @@ fn collect_render_site_ancestors(fragment: &Fragment, dom: &DomStructure) -> Sni
     for (start, rec) in &scan.records {
         map.renderer_snippets.insert(*start, rec.targets.clone());
     }
-    let mut memo: FxHashMap<u32, Vec<Vec<ElementInfo>>> = FxHashMap::default();
     for key in &scan.all_snippets {
         let mut seen = FxHashSet::default();
-        let chains = resolve_snippet_chains(*key, &scan, &mut memo, &mut seen);
+        let chains = resolve_snippet_chains(*key, &scan, &mut seen);
         map.per_snippet.insert(*key, chains);
     }
     map
@@ -1534,16 +1533,17 @@ fn collect_render_site_ancestors(fragment: &Fragment, dom: &DomStructure) -> Sni
 /// The ancestor chains of one snippet's body: for every renderer that targets
 /// it, that renderer's own position — which, when the renderer is itself written
 /// inside a snippet, is the enclosing snippet's chains extended by the lexical
-/// tail. Recursion is bounded by `seen`, because a snippet may render itself.
+/// tail.
+///
+/// `seen` grows and is never unwound, as upstream's `get_ancestor_elements` does
+/// (`css-prune.js:845` adds to its `Set` and never deletes): a snippet is expanded
+/// at most once per resolution, which both bounds the walk and makes the answer a
+/// function of where it started rather than of `key` — so it cannot be memoised.
 fn resolve_snippet_chains(
     key: u32,
     scan: &RenderSiteScan,
-    memo: &mut FxHashMap<u32, Vec<Vec<ElementInfo>>>,
     seen: &mut FxHashSet<u32>,
 ) -> Vec<Vec<ElementInfo>> {
-    if let Some(cached) = memo.get(&key) {
-        return cached.clone();
-    }
     if !seen.insert(key) {
         return Vec::new();
     }
@@ -1555,7 +1555,7 @@ fn resolve_snippet_chains(
         match rec.enclosing_snippet {
             None => out.push(rec.lexical.clone()),
             Some(host) => {
-                for base in resolve_snippet_chains(host, scan, memo, seen) {
+                for base in resolve_snippet_chains(host, scan, seen) {
                     let mut chain = base;
                     chain.extend(rec.lexical.iter().cloned());
                     out.push(chain);
@@ -1563,8 +1563,6 @@ fn resolve_snippet_chains(
             }
         }
     }
-    seen.remove(&key);
-    memo.insert(key, out.clone());
     out
 }
 
@@ -1743,6 +1741,7 @@ fn process_node_scoping(
     match node {
         TemplateNode::RegularElement(el) => {
             let element_info = ElementInfo::from_element(el);
+            // `|=`: a snippet body is walked once per render site, and `scoped` is the union.
             el.metadata.scoped |= css_selectors.iter().any(|selector| {
                 complex_selector_matches_element(selector, &element_info, ancestors)
             });
