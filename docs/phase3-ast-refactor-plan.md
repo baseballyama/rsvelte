@@ -267,8 +267,13 @@ floor for a separate-binary A/B. **Do not open a brief to fix a site here.**
 One `Box` per expression node (`Expression::from_node` is
 `Box::new(TypedExpr::new(node))`), and — because `serde_json` is built with
 `preserve_order` — every `Value` object key is a fresh `String` malloc plus an
-`IndexMap` slot plus a SipHash, drawn from a set of only **88 distinct static keys**
-(no dynamic keys on this path). Two independent instruments — an allocator-event
+`IndexMap` slot plus a SipHash, drawn from a set of **147-166 distinct static keys**
+(no dynamic keys on this path) — two independent source inventories, unioning different
+pattern sets and agreeing in direction. An earlier revision said **88** here; no instrument
+in the tree reproduces that number (`alloc_sites.rs` counts no keys at all) and its
+population was never recorded, so it is replaced rather than reconciled. The claim it
+supports — a small, static, closed key set, so the per-key malloc is avoidable in principle
+— holds identically at either figure. Two independent instruments — an allocator-event
 sampler and an object/entry counter, sharing no assumption — agree on the magnitude
 across three corpora:
 
@@ -504,7 +509,7 @@ not quote 6.59x as current.
 > contradiction: that one asks which **site** owns the alloc+hash+memcpy bucket of total
 > compile and correctly answers *none*; this one asks where the JSON **objects** come from.
 > The answers interlock — that section prices one object key (`String` malloc + `IndexMap`
-> slot + SipHash, from 88 distinct static keys), and this section names what emits the keys.
+> slot + SipHash, from 147-166 distinct static keys), and this section names what emits them.
 
 **The part of `JsNode` → `serde_json::Value` worth attacking was
 `instance_labeled_statements_json` in `2_analyze/mod.rs` — not the lazy JSON cache

@@ -322,6 +322,17 @@ written eight lines below the paragraph retracting exactly that claim, in the sa
 by the author who had just added the rule about a retraction and its number surviving in
 different paragraphs. Writing a rule down does not arm it.
 
+**A correct caution can fire on an unverified premise, and being correct is what keeps the
+premise from being inspected.** The caution here — do not compare numbers drawn from
+different populations — was exactly right, and it arrived attached to a reading of a cited
+passage that the passage does not support (a subordinate clause was read as qualifying the
+figure when it qualifies the table beneath it; the file, the line numbers and the quoted
+text were all accurate). Because the warning landed on a real problem, nobody asked what it
+was standing on. This is the same shape as taking a correct action for a wrong reason, one
+level up: the thing that goes unchecked is the *warning's* evidence rather than the
+decision's, and a warning is harder to challenge because agreeing with it feels like
+diligence.
+
 **The reconciliation was nearly skipped on exactly that reasoning, and skipping it would
 have cost the finding.** The first recount was 231, and the argument for not chasing the
 gap was that the value decides nothing — which is true of the *value* and false of the
