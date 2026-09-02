@@ -68,6 +68,54 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## The published client run was still improving when it ended (2026-09-02 20:00)
+
+The interleaved instrument stores `rawMs`, and because the arms are paired the
+per-round ratio `official[i] / multi[i]` is a legitimate quantity. On the
+published report:
+
+| surface | per-round ratio, rounds 1-5 | median | published | rounds increasing |
+|---|---|---:|---:|---:|
+| client | 9.56, 10.34, 10.69, 11.51, **15.34** | 10.69 | 9.63 | **10/10** |
+| server | 20.09, 20.80, 18.46, 18.80, 19.50 | 19.50 | 19.59 | 4/10 |
+| client-dev | 14.55, 13.86, 12.47, 12.88, 14.31 | 13.86 | 13.89 | 4/10 |
+| server-dev | 20.83, 19.57, 19.75, 17.83, 21.00 | 19.75 | 19.98 | 5/10 |
+
+Three surfaces wander around their median at chance (4-5 of 10 concordant
+pairs); client rises monotonically and ends 1.60x above where it started. So
+**the published 9.63x is a median over a distribution that had not settled**,
+and the last round of the same run reads 15.34x. The three trendless surfaces
+are the control that makes that readable at all.
+
+**A mechanism was proposed for it and the artifact refuted it within ten
+minutes.** `jsArm` compiles `file.source` — the corpus preloaded into the Node
+heap — while `rustArm` passes a *file list* the Rust binary reads from disk, so
+only the rsvelte arms pay page-cache cost, and client is the first surface
+measured. That predicts the first surface's rsvelte arms trend faster in
+**every** report. The report is versioned, so the prediction is testable
+without measuring anything: across the six previous revisions the first
+surface's `rsvelte-single` scores 7/10, 4/10, 12/55, 1/10 and 5/10 — no
+structure at all. The asymmetry is real and worth keeping in the provenance
+block, but it does not produce this.
+
+**And the significance does not survive its own multiple comparisons.** A
+perfectly monotone 5-sample arm has probability 2/120 under exchangeability;
+across all six reports there are 72 arm-runs and **3** are perfectly monotone
+(client/single 10/10 here, client-dev/single 0/10 and server-dev/official
+10/10 elsewhere) against 1.2 expected. Picking the extreme of the 12 arm-runs
+in the current report and quoting its p-value is the error the count exposes.
+What stands is the weaker, sufficient claim: the client run's per-round ratio
+trends where the other three do not, and a number drawn from it is not a
+steady-state number. What caused it is unresolved — the transient contention
+already recorded for that window is *consistent* with it but was established
+from process evidence, and this trend is not independent confirmation of it.
+
+**Reading order matters here.** The mechanism was attractive because it
+explained a number this session wanted explained, and it was refuted by a test
+that cost one `git show` loop. When an artifact is versioned, an out-of-sample
+test of a proposed mechanism is nearly free — and it is worth the most exactly
+when the mechanism fits.
+
 ## 20x is met on the slice (2026-09-02 10:11)
 
 Merged tree `b86c8e26e` (three perf branches + a peer's Tier 1 + this session's
