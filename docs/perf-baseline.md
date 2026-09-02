@@ -1,3 +1,58 @@
+# Where the 20x goal stands (2026-09-03 00:35)
+
+**Read this first; everything below is the working record, newest sections near
+the top.**
+
+| surface | measured | status |
+|---|---:|---|
+| server | 19.59x | 2.1% short — inside the deciding arm's own ~5% within-run drift |
+| server-dev | 19.98x | 0.1% short — same |
+| client-dev | 13.89x | clearly unmet |
+| client | 9.63x published | **not a steady-state number**; its per-round ratio rose 9.56 -> 15.34 monotonically while three other surfaces wandered at chance |
+
+Three independent routes put a *clean* client run at 15.6-17.7x (trend
+extrapolation), 17.2x (single-thread speedup x the server's parallel
+efficiency) and 15.34x (the cleanest single round of the contaminated run).
+**None of them is a measurement**, and the box has not been quiet enough to take
+one: `llama-server` holds 22.6 GB with free memory at 5-11% and swap near full
+throughout.
+
+**What remains is one factor: 1.161x on client single-threaded compile time.**
+That is the whole distance to 20x, and it is arrived at as follows — a speedup
+is `single-thread speedup x parallel efficiency`; a `--threads` sweep shows
+client and server scale identically in prod mode (5.67x vs 5.68x at their optima,
+4.94x vs 4.91x at ten threads), so the scaling half is not a deficit; at the
+server's implied 5.30x efficiency, 20x needs a single-thread speedup of 3.772
+against the client's 3.248.
+
+**Where that 1.161x could come from**, sized by a 17,280-sample profile of a
+single-threaded client compile:
+
+| mechanism | self-time | if fully removed |
+|---|---:|---:|
+| byte scanning (`str::pattern`, `memmem`, `js_scan`) | 12.5% | 1.143x |
+| hashing (SipHash + IndexMap, i.e. `serde_json::Value`) | 6.6% | 1.071x |
+| both | 19.1% | 1.236x |
+
+Both are mechanisms the architecture notes already name (the AST pipeline; leaving
+`serde_json::Value`), so the profile confirms the existing plan rather than
+redirecting it — and the standing caution holds: 12.5% is an upper bound on what
+becomes *unreachable*, not a saving, because an AST pipeline pays its own walk.
+
+**Eliminated by measurement, so nobody re-tries them:** the printer and its
+source-map branch (client 5.09% vs server 3.34%, only 5.5% of the client/server
+transform gap; a 5x-faster printer is 1.073x), and the four pre-fragment call
+sites once thought to fill the residual (3.41 ms of 67.54, 5%).
+
+**Still unexplained:** the "Pre-frag setup" residual, 15.4% of a client compile,
+95% of it unnamed. Its label is wrong — only ~10 statements of object
+construction run before `visit_program` — so it lives in the gaps between the
+later timers, which are enumerated with their bounding lines further down.
+
+**Shipped this session:** one measured compiler improvement — guarding
+`skip_opaque` on its opener byte, client +0.65% / server +1.91%, output
+byte-identical, gates green.
+
 # Canonical baseline — quiet machine, 2026-09-02 04:17-04:21 JST
 
 M2 Pro (10 cores), load avg 2.4-3.8, no other builds running.
