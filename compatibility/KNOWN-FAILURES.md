@@ -6256,6 +6256,14 @@ A third class left this file entirely: rsvelte emitting text no TypeScript parse
 accepts is now its own verdict with its own ratchet — see
 [`svelte2tsx-unparseable-known-failures.json`](#svelte2tsx-unparseable-known-failures).
 
+A third upstream defect has **no entry here at all**, and that absence is a measurement
+rather than a gap: official svelte2tsx throws a raw `TypeError` when a lowercase element's
+`is` attribute has a mustache as its **first** value chunk, and of the 33,904 corpus
+components the 165 carrying `is=` yield **0** such carriers (158 have a mustache-first
+value, every one of them on a component, which upstream's own gate excludes; all 158
+convert cleanly). Not appearing in a ratchet is not the same as not existing — see
+[`upstream_issues/4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md`](../upstream_issues/4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md).
+
 Attribution of `svelte2tsx-known-failures.json`:
 
 | n | target | cluster |
