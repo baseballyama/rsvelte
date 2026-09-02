@@ -198,6 +198,33 @@ const edit = (dir, file, from, to) => {
 	fs.writeFileSync(found.p, found.text.replace(from, to));
 };
 
+// Every literal in a case below is a count that the tree moves under it, and a
+// self-test whose input has drifted throws instead of failing the thing it
+// checks. `bump` locates the number by its surrounding words and derives the
+// wrong value from the right one, so the case keeps meaning what it meant.
+const bump = (dir, file, re, wrong, replace) => {
+	// `findDoc` matches a literal needle; this one has to search by pattern,
+	// because the number in it is exactly what moves.
+	const direct = docText(dir, file);
+	let found = direct && re.test(direct.text) ? direct : null;
+	if (!found) {
+		for (const f of fs.readdirSync(dir)) {
+			if (!f.endsWith('.md')) continue;
+			const q = path.join(dir, f);
+			const text = fs.readFileSync(q, 'utf8');
+			if (re.test(text)) {
+				found = { p: q, text };
+				break;
+			}
+		}
+	}
+	if (!found) throw new Error(`self-test is stale: no doc holds ${re} (looked for ${file} first)`);
+	const m = found.text.match(re);
+	const real = Number(m[1].replace(/,/g, ''));
+	fs.writeFileSync(found.p, found.text.replace(m[0], replace(m[0], m[1], wrong)));
+	return { real, wrong };
+};
+
 // The control. Without it, every mutation below "passing" would also be
 // explained by the harness failing on any input at all.
 withCorpus(
@@ -298,18 +325,37 @@ withCorpus(
 // counting something other than ratchet entries sits under a partition of 0 in
 // `matrix-known-failures.md`, and 22 of the 24 reports the unscoped rule produced
 // were that one doc.
+let seen;
 withCorpus(
-	(d) => edit(d, 'known-failures.md', 'The other 2 arrived with the wave-2 enrolment', 'The other 21 arrived with the wave-2 enrolment'),
-	(r) => check('a stale `The other N` fails', [r.code, /"The other 21".*leaving 2/s.test(r.out)], [1, true]),
+	(d) => {
+		seen = bump(d, 'known-failures.md', /The other (\d[\d,]*) arrived with the wave-2 enrolment/, 999, (whole, n) =>
+			whole.replace(n, '999'),
+		);
+	},
+	(r) =>
+		check(
+			'a stale `The other N` fails',
+			[r.code, new RegExp(`"The other 999".*leaving ${seen.real}`, 's').test(r.out)],
+			[1, true],
+		),
 );
 
 withCorpus(
-	(d) => edit(d, 'known-failures.md', 'All remaining 40 arrived', 'All 13 arrived'),
-	(r) => check('a stale `All N` fails', [r.code, /"All 13".*partition sums to 40/s.test(r.out)], [1, true]),
+	(d) => {
+		seen = bump(d, 'known-failures.md', /All remaining (\d[\d,]*) arrived/, 999, () => 'All 999 arrived');
+	},
+	(r) =>
+		check(
+			'a stale `All N` fails',
+			[r.code, new RegExp(`"All 999".*partition sums to ${seen.real}`, 's').test(r.out)],
+			[1, true],
+		),
 );
 
 withCorpus(
-	(d) => edit(d, 'matrix-known-failures.md', 'All 1,976 generated comparisons', 'All 1,977 generated comparisons'),
+	(d) => {
+		bump(d, 'matrix-known-failures.md', /All ([\d,]+) generated comparisons/, 999, () => 'All 999 generated comparisons');
+	},
 	(r) => check('`All N` under an empty partition is not an entry count', [r.code], [0]),
 );
 
