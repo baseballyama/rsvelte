@@ -74,7 +74,13 @@ pub fn handle_svelte_dynamic_element(
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
     let attrs_str = if named_slot.is_some() {
-        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace)
+        build_named_slot_element_attrs(
+            &el.attributes,
+            source,
+            &options.typings_namespace,
+            &el.name,
+            true,
+        )
     } else {
         build_attributes_string(
             &el.attributes,

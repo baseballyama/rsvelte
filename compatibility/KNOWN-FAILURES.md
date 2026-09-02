@@ -6242,11 +6242,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 5 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 4 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `3 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `2 + 2`
 
-- **3 — the emitted TSX differs** (`ts-mismatch`).
+- **2 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6263,7 +6263,7 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 3 carry **no target, and cannot have one**: every one was measured
+The remaining 2 carry **no target, and cannot have one**: every one was measured
 against official on 2026-09-02 and every one is an rsvelte defect, so the only end
 state open to them is elimination. The classification below is the input to that
 work; it is not an attribution, and this gate stays red until the entries are gone.
@@ -6291,11 +6291,45 @@ double count**, so the assignment has to be per entry.
 | n | mechanism | pinned |
 |---|---|---|
 | 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
-| 1 | `bind:this` is emitted as a `"bind:this": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`) | source |
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
 | 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x3`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x2`
+
+### Previously: `bind-this-shape` (2026-09-02, at 5 entries)
+
+Kept because the description named ONE directive, and the cause is that an
+element carrying a `slot` **attribute** is lowered by a second port of the element
+transform which never ran the binding pass at all.
+
+`<C><svelte:fragment slot="x"><button bind:this={e}/></svelte:fragment></C>`
+reaches `handle_regular_element`, which declares `const $$_button1 = …` and
+appends `e = $$_button1;`. Move the `slot` onto the element —
+`<C><button slot="x" bind:this={e}/></C>` — and it reaches
+`handle_named_slot_element`, which built its own attribute object and its own
+class/style + transition suffix. `bind:this` was one of three things that port
+lost:
+
+- `bind:this` and the one-way binding attributes stayed props instead of
+  becoming an element variable plus an assignment;
+- a two-way `bind:value` kept its prop but lost the
+  `() => v = __sveltets_2_any(null)` setter the suffix pass appends;
+- a **void or self-closing** element closed with a leading space, which only an
+  overwritten `</tag>` leaves behind — a divergence with no binding in it at all,
+  and one **oxfmt normalizes away**, so the output gate could never report it.
+
+The last one is why the sweep moved **6 units and retired 1**: five of the six
+changed their bytes without changing their verdict. A changed hash is not a fixed
+file, and the two have to be printed separately.
+
+Two hosts share that attribute builder and DO emit the binding suffix
+(`<svelte:element>`, the special elements), so they had the same prop and now
+lower it; `<svelte:fragment>` shares the builder and emits no suffix, and takes
+only `slot` and `let:`, so it keeps the old behaviour behind an explicit flag
+rather than silently dropping a binding.
+
+The positive control fails 10 of the 19 cells; the 9 that pass carry no `slot`
+attribute and went through the other port, where all of this was already right.
 
 ### Previously: `ignore-region-merge` (2026-09-02, at 6 entries)
 

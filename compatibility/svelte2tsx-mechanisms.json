@@ -1,10 +1,6 @@
 {
 	"$schema-note": "id -> mechanism slug for every entry of svelte2tsx-known-failures.json and svelte2tsx-unparseable-known-failures.json. The `Entries by mechanism` table in KNOWN-FAILURES.md is derived from this file: one row per `mechanisms` key, `n` = how many `entries` name it. The assignment is one-to-one, so a double count is unwritable.",
 	"mechanisms": {
-		"bind-this-shape": {
-			"description": "`bind:this` is emitted as a `\"bind:this\": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`)",
-			"pinned": "source"
-		},
 		"extra-slot-prop": {
 			"description": "an extra `dragItem: dragItem` slot prop is emitted",
 			"pinned": "output only"
@@ -26,7 +22,6 @@
 		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
 		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash",
 		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",
-		"mathesar/mathesar_ui/src/component-library/button/Button.svelte": "bind-this-shape",
 		"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte": "template-hole-comment-dropped",
 		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type"
 	}
