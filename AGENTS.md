@@ -1174,6 +1174,33 @@ Rules, in the order they are cheap:
    real, which is what made the diagnosis stick for two rounds. Write to a file,
    then read the file; nothing else recovers an unflushed buffer.
 
+### A grid's cells carry a direction; the mechanism does not have to
+
+A generated family is written from shapes its author could think of, and each cell has a sign as
+well as a shape. Two mechanisms were summarised from their cells on the same day and both
+summaries were wrong about the sign:
+
+- one was written up as "rsvelte breaks the chain deeper than the oracle" from two cells that both
+  ran that way. Fingerprinted across the corpus: **46 that way and 37 the other**. A fix built
+  from the two cells would have made the 37 worse.
+- the other genuinely had both signs in its cells (`+2`, `+2`, `−2`), which is what prompted
+  putting the sign in the key — and the corpus then held **only the negative**, 2 entries, zero
+  positive. The cells' balance was not the corpus's.
+
+So the rule is not "watch for a mechanism with two directions", it is: **a direction read off a
+family's cells is a property of the cells**. Fingerprint it against the collected corpus before a
+summary sentence gives it a sign, and count the signs separately — `±2, two entries` and
+`−2 twice, +2 never` are different findings and the first one hides the second.
+
+### `n passed` is not the only fingerprint that is population-specific
+
+This file records reading a suite's *names* rather than its count, and gives a four-digit
+`running N tests` line as the fingerprint that `--lib` ran. That number is a property of
+`rsvelte_core`, which has ~1,959 lib tests; a crate with a dozen prints a one- or two-digit count
+that is indistinguishable from noise. The general form is the line `Running unittests src/lib.rs
+(…)`, whose presence answers the question and whose absence is the failure. **When you hand
+someone a fingerprint, hand them the one that does not depend on which crate they are in.**
+
 ### Port a guarded recursion with its guard, because a grid built for the recursion cannot see it
 
 Upstream's `scope.evaluate` resolves an identifier with
@@ -1439,6 +1466,16 @@ What discriminated was probing the oracle with the shapes side by side — `{ k 
 the name" becomes visible and "is it an object" stops being. **Reading your own side explains a
 divergence; only the oracle names it.** And print `match -> MISMATCH` on its own line when you
 re-measure: an over-collection and an under-collection of the same size are the same total.
+
+**A third thing has to match, and it is the one a reader checks last: the ARGUMENTS.** A CSS
+divergence was diagnosed from upstream — `is_empty` is tested before `is_used`, and an unused
+child empties its parent — as "rsvelte must have the order wrong, or not have the rule". It had
+both: the order was right and carried a comment saying so (`empty wins over unused`, citing the
+upstream visitor), and the rule was implemented. What was wrong was the flag passed in:
+upstream's `is_in_global_block` is `metadata.is_global_block`, true only for a **bare** `:global`
+block (`css-analyze.js:24-30`), and rsvelte passed one that is also true inside `:global(.foo)`.
+So conditions, order, arguments — and the comment asserting fidelity was correct, which is worse
+than a wrong one, because its correctness is what made the neighbouring line look checked.
 
 ### And whether it unwinds is the complexity bound
 
@@ -1747,6 +1784,17 @@ failure and a different spelling. Collected on one day:
 Two of these fake a **value** and two fake a **verdict**, and that is the useful split: a faked
 value is caught by printing the carrier beside the number (`mechanism | carrier | result`, with
 `UNMEASURED` where there is no carrier), a faked verdict only by asking what produced it.
+
+**And a measured zero has two kinds that print identically.** "I looked and found none" is a
+statement about the population; "my instrument cannot represent that shape" is a statement about
+the instrument. Measured on one sweep: a fingerprint for a whitespace-only difference returned 0
+against a sub-population built from *line-break* entries — not because the shape is absent there
+but because the classifier routes it to a different label before that sub-population is formed,
+so the count could not have been anything else. Reported as "the width key and this mechanism are
+different spaces", it would read as a result about the compiler. Before writing a zero down, ask
+whether the instrument could have produced a non-zero on that input at all; if the answer comes
+from reading the classifier's branches rather than from the data, the zero belongs in a sentence
+about the instrument.
 
 ### Report a measurement as `mechanism | carrier | population | result`, and the mistakes cannot hide
 
