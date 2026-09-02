@@ -15,6 +15,59 @@ options `{filename, generate, dev:false, css:'external'}` — the report's own
 
 Parallel efficiency 4.83x on 10 cores (was 4.24x before the deferred AST).
 
+## The authoritative report: 14.35x client, 18.83x server (2026-09-02 13:36)
+
+Unrestricted `pnpm report:performance`, 33,890 components / 69.8 MB, 5 runs per
+arm, on `1ef536327`:
+
+| surface | multi, before -> after | single, before -> after |
+|---|---|---|
+| client | 5.14x -> **14.35x** | 1.21x -> 3.45x |
+| server | 5.06x -> **18.83x** | 1.24x -> 3.81x |
+| client-dev | 5.40x -> **13.25x** | 1.20x -> 3.04x |
+| server-dev | 5.00x -> **17.57x** | 1.27x -> 3.70x |
+
+**This is below the 22.64x / 25.61x the 3000-file slice measured on the same
+tree, and the slice was wrong.** The gap is entirely on rsvelte's side —
+official costs 1.19 ms/file on the slice and 1.17 on the full corpus, flat,
+while rsvelte costs 0.0526 and 0.0818.
+
+### What the gap is, measured
+
+Not corpus size. Running the *slice* for 60 iterations back to back — about
+eleven seconds of sustained work — the median rises 172.6 ms to 234.3 ms while
+the **minimum does not move** (165.1 to 149.6). And 234.3 ms over 3000 files is
+0.078 ms/file, which is the full corpus's 0.0818. The slice and the corpus cost
+the same per file once both are measured under sustained load; a 0.15-second
+burst simply does not stay in that regime long enough to show it.
+
+Not thermal either. The same box, the same minutes:
+
+| arm | sustained | degradation |
+|---|---|---|
+| single-threaded, 20 iterations | ~20 s on one core | **1.020** |
+| ten threads, 60 iterations | ~11 s on ten | **1.36** |
+
+A single core flat out for twenty seconds loses 2%. The loss needs the other
+nine threads. But it is **not a stable property of the thread count** — a later
+pair measured 1.292 at four threads against 1.100 at ten, the wrong way round
+and both different from the first run. What varies run to run is the rest of
+the box, which had load 4.5-6.2, 5-13% free memory, a 22.6 GB resident
+`llama-server`, and macOS `mediaanalysisd` and Spotlight indexing throughout.
+
+The comparison is therefore **asymmetrically handicapped**: official is a
+single-threaded Node process and needs one core, so contention barely touches
+it (2%); rsvelte's parallel arm wants all ten and gets what is left. The size
+of the handicap is whatever else is running. On the same run the ten-thread arm
+had a best sample of 147.3 ms (**23.3x**) and a median of 232.8 ms (**14.8x**),
+and the published full-corpus figure is 14.35x — the median-under-contention.
+
+**Do not read 14.35x as an idle-machine number and do not read 23.3x as one
+either.** The first is measured under known contention; the second is a
+best-sample figure of the kind this document has already withdrawn once. The
+number this project should publish needs an idle box, and that is the one
+input nobody here can supply.
+
 ## 20x is met on the slice (2026-09-02 10:11)
 
 Merged tree `b86c8e26e` (three perf branches + a peer's Tier 1 + this session's
