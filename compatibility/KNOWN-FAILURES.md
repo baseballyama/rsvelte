@@ -3194,8 +3194,13 @@ snippet it renders — see § *Client* for the measurement.
   **These two are listed so the gate stops the difference spreading, not so it is
   fixed** — the pin is what keeps the justification from rotting.
 
-The other 21 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it. The last pre-enrolment entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
+**No burndown entry survives on this target.** Every one that arrived with the wave-2
+enrolment (#3130) has been retired, the last two by #4115's ancestor-scoping port; what is
+left is the deliberate divergence above, which is recorded rather than scheduled. The history
+below is kept because it records what the ratchet was *for*, not what it currently holds.
+
+This target was at 0 before wave-2. The last pre-enrolment entry was #2308, from the
+`runed` / `svelte-toolbelt` enrolment:
 `watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
 round-trips through the client transform, which rewrote the assignment, so the
@@ -3233,8 +3238,9 @@ parameter — carried on both targets because the server transform runs on both.
 
 - **2 — the same recorded deliberate divergence as on `server`.**
 
-All 13 arrived with the wave-2 enrolment (#3130); this target was at 0 before
-it. Its counts now match `server`. The one extra entry was SoftShadows output
+**No burndown entry survives on this target either**, and its counts still match `server`:
+the last two went with #4115's ancestor-scoping port, leaving only the deliberate divergence.
+This target was at 0 before wave-2. The one extra entry it once carried was SoftShadows output
 that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
