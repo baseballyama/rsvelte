@@ -441,7 +441,17 @@ the read leaves it describing a head that no longer exists: measured here as a `
 acted on, because the rebase had replaced every check. Put the head SHA in whatever the
 watcher emits. It costs nothing, it makes a new head produce a new line rather than a repeat
 that a de-duplicating reader swallows, and without it the instrument built to catch stale
-verdicts is itself a source of them. The PRs that need this check are therefore exactly the ones nobody has
+verdicts is itself a source of them.
+
+So the claim above needs one word: a push destroys the old verdicts *after* it lands, and
+between the push and the recreation of the checks there is a **window** in which the old
+rollup is still served for the new head. Inside that window every cheap identity test agrees
+— the local HEAD matches the PR head, the count is plausible, nothing is failing — and the
+one thing that would separate them, *which commit those checks ran against*, appears nowhere
+in the output. Two agents hit this within the same hour on the same repository, and both were
+stopped by a **presence** condition (are the heavy gates registered as rows at all) rather
+than by any freshness test, because a replaced head has zero rows and a settled head has all
+of them. The PRs that need this check are therefore exactly the ones nobody has
 touched, which is also the set least likely to be looked at. Two PRs in one session made the
 contrast: one was rebased and its verdicts were all newly created; the other had not moved in
 an hour and reported a full green measured 53 minutes before its sibling merged.
@@ -1156,7 +1166,16 @@ Rules, in the order they are cheap:
    put the filter *after* capturing the status (`PIPESTATUS[0]`, or write to a
    file and grep the file). `2>/dev/null` and `|| echo <literal>` are the same
    hazard wearing different clothes: the first throws away the half that carries
-   the failure, the second manufactures the answer.
+   the failure, the second manufactures the answer. And there is a third: an exit
+   code that makes **a different failure look like the failure you expected**.
+   `git merge-tree --write-tree A B` was run to ask whether two branches conflict
+   and returned `128`, which was read as "conflict". git returns **1** for a
+   conflict and **128** for fatal, and that flag needs git 2.38 while the machine
+   had 2.33 — `stderr` said `unknown rev --write-tree`, meaning the conflict test
+   had never run. An exit code does not say *which question* it answered; the
+   message does. That is what makes `2>/dev/null` worse than it looks: the half it
+   discards is not merely the failure, it is the only part that identifies which
+   failure it was.
    **Capturing the status is not enough.** Row 4 above kept the exit code and
    still lost the failure: a window that admits only passing lines answers "did
    it fail" and never "what failed", and the run that produced it did not
