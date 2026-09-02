@@ -3332,17 +3332,30 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 22 entries)
+### Client dev (`known-failures.client-dev.json`, 18 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `22`
+Partition of `known-failures.client-dev.json` by verdict: `18`
 
-- **22 — the generated JS differs.**
+- **18 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 22 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and it is the largest of the four — 11 JS entries that `client` does not
+All remaining 18 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+it, and it is the largest of the four — 7 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
+
+Four entries left this target when a module script started reaching the dev `$.assign` rule.
+Upstream has one `AssignmentExpression` visitor and no module/component split, so
+`obj.prop = value` in a `.svelte.js` / `.svelte.ts` or a `<script module>` is wrapped exactly
+as it is in an instance script; rsvelte's `transform_module_dev_tail_ast` collected the
+`$.strict_equals` / `await` / `console.*` / `$.tag` edits and not this one, so the whole module
+surface emitted the bare assignment. The axis is not "is this a module" but **whether the
+assignment sits in value position** — a 65-cell grid crossing the three entry points
+(`.svelte.js`, `.svelte.ts`, `<script module>`) with the assignment's position and the operator
+reads 7/16, 7/16, 7/16 and 15/16 per host before the fix and 16/16 on all four after it. The
+component host is in the grid as the control that is nearly green throughout, and an arm with
+the root-binding guard removed emits `$.assign(globalThis, …)` on **all four** hosts, which is
+what keeps the guard from being deleted along with the bug.
 
 `huly/…/SelectAvatarPopup.svelte` left it when a member assignment whose root resolves to
 no binding stopped being wrapped. Upstream's `build_assignment` opens with `if (!binding)
