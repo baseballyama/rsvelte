@@ -993,6 +993,24 @@ tell you either, since no fixed threshold works on a box with a resident `llama-
 (`target/CACHEDIR.TAG` does not stop Spotlight; a `.metadata_never_index` file in `target/`
 would, and is worth proposing to whoever owns the machine rather than adding unannounced.)
 
+**Three process detectors failed inside one hour, and only two of them were bugs.**
+(1) Counting `rustc`/`cargo` alone read a box as free while Spotlight sat at 96.7% indexing
+what the build had just written. (2) `grep -c -x -E 'rustc|cargo|perf_bench'` read **0**
+while a peer's `perf_bench.after` was running, because `-x` demands an exact match —
+watching `ps` is not enough on its own; **apply your own pattern to the output and confirm
+it selects something.** (3) The third is not fixable. The peer's experiment contains a
+*designed* 180-second idle between two of its points, so "no matching process is running"
+does not mean "the run has finished", and no threshold repairs that — raise it and the peer
+widens the gap. A run with an idle period is indistinguishable from a finished run by any
+process-count rule, and the detector was about to launch a six-process release build exactly
+across the three points that decide that experiment's verdict.
+
+Separate **"my instrument is miscalibrated"** from **"my observable cannot answer this
+question"**. The first two were calibration; the third means the only valid signal is the
+peer saying so. All three surfaced because the peer announced a start time — between agents
+sharing a machine, announcing start and finish is not courtesy, it is the instrument, and a
+process detector is not a substitute for it.
+
 **acorn checks JavaScript's early errors while parsing; OXC settles them after it, and rsvelte
 ran only the parser.** An early error is syntactically shaped but illegal, and none of the class
 is decidable from the token stream — each needs the enclosing scope or class — so OXC leaves them
