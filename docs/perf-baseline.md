@@ -15,6 +15,63 @@ options `{filename, generate, dev:false, css:'external'}` — the report's own
 
 Parallel efficiency 4.83x on 10 cores (was 4.24x before the deferred AST).
 
+## Where the merged tree actually stands (2026-09-02 09:00, NOISY machine)
+
+The 14.19x / 12.66x in the table above is `e9fe42c04`, **before** the three
+branches merged. Re-measured on `f06fe4f29`, same 3000-file slice, official
+re-run rather than quoted:
+
+| | official (ms) | rsvelte single | multi min/min | multi med/med | published |
+|---|---:|---:|---:|---:|---:|
+| client | 3434.8 min / 3556.3 med | **3.44x** | 17.7x | 16.3x | 5.14x |
+| server | 3157.1 min / 3197.8 med | **3.84x** | 20.3x | 16.3x | 5.06x |
+
+**The multi figure is not resolved and this machine cannot resolve it.** Load
+went 3.1 to 6.3 during a 90-second run and the six block minima span 193.7-255.3
+(32%); the two columns differ by the choice of statistic alone, and mixing them
+(official min over rsvelte min) is the error that produced a withdrawn 1.354x
+earlier the same day. Read 16.3x as the defensible number and 20x as unproven.
+A definitive figure needs the box idle — a 22.6 GB resident `llama-server` held
+free memory at 12-13% throughout.
+
+## A single-thread ablation buys about half of itself in wall clock
+
+Measured with `--no-sourcemap`, which removes a known ~12-15%, on both arms:
+
+| | CPU_min ratio | wall_min ratio |
+|---|---:|---:|
+| `--threads 1` | 1.172 | — |
+| `--threads 10` | 1.182 | **1.094** |
+
+The CPU ratio is the same at 1 and 10 threads, so the work really is removed
+proportionally — but wall clock moves only 1.094, a **transfer of 55%**. At ten
+threads the critical path is the slowest worker, and taking work off every
+thread shortens the average more than it shortens that path.
+
+This matters because every candidate improvement in this campaign is quoted as
+a **single-thread** ablation and then multiplied into the **multi** speedup the
+report publishes. That multiplication overstates by roughly a factor of two.
+The transfer was measured on one ablation, which is spread across the compile;
+a localized one may transfer differently. Do not multiply a single-thread
+ablation into a parallel ratio without measuring the transfer for it.
+
+## The batch pool's thread count is not established
+
+`RSVELTE_BATCH_THREADS` makes the arms one binary and one tree differing only
+in an environment variable, so no artifact can be mislabelled. Eight ABBA
+blocks of five iterations, client:
+
+| statistic | verdict |
+|---|---|
+| best block | **10 threads faster, 1.049x** |
+| median of block minima | 6 threads faster, 1.126x |
+
+The sign flips with the statistic, and blocks 5-8 degraded in both arms
+together, which is a time trend rather than an arm effect. The earlier
+"6 threads, 1.13-1.22x" range does not contain this result. `in_batch_pool` is
+public and `benchmark_runner` can install it, but that change is **not
+committed**: it moves a published number on unestablished evidence.
+
 ## Reproduces the published report exactly
 
 Before `c4e32d4a9` this same harness measured client 2931.7 ms, i.e.
