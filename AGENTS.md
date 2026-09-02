@@ -1184,6 +1184,29 @@ Rules, in the order they are cheap:
    real, which is what made the diagnosis stick for two rounds. Write to a file,
    then read the file; nothing else recovers an unflushed buffer.
 
+### A probe filter that discards on BOTH sides reads as agreement
+
+A six-cell reduction reported `EQ` on every cell, and the reduction was correct — the
+instrument was not. Two independent bugs, and fixing the first left the second answering
+identically: the NAPI `compile` returns an object where the probe called `JSON.parse` on
+it, and the line-picker matched `"f"` while the generated code spells
+`$.prop($$props, 'f', …)`. After the first fix the picker returned `(none)` for **both**
+sides, so the comparison was `(none) === (none)`: six cells of nothing printed as six
+cells of agreement. The cell that finally moved was byte-identical to cell 1 of the broken
+grid.
+
+This is the truncation table one level in — the discarding stage is inside the comparison
+rather than before it, and that changes its signature. A filter that drops the carrier
+**asymmetrically** produces a loud `DIFF`; one that drops it **symmetrically** produces a
+silent `EQ`. So the positive control has to run **before** the result is read, not after:
+here the control (the real corpus file the entry came from) reproduced immediately and
+named the instrument, but the six green cells had already been reported. The same session
+then armed a CI monitor whose green predicate required four heavy gates matching a regex
+containing `^Tests$` — no check is named `Tests`, they are `Test (ubuntu-latest, N)` — so
+a guard added to fix a false green was replaced by one that could never fire. **Both
+directions of a dead predicate cost the same thing, and neither announces itself.**
+
+
 ### A grid's cells carry a direction; the mechanism does not have to
 
 A generated family is written from shapes its author could think of, and each cell has a sign as
@@ -1757,6 +1780,45 @@ pairs the gate had *already named* as passing were run through it first; they ca
 which is the only reason the two bugs were found. **Reconstruct a gate against cases the gate
 has already ruled on, before running it on cases it has not.**
 
+### A stricter reconstruction is free only while it counts DIVERGENCES
+
+The asymmetry above says a stricter reconstruction reporting **zero** needs no fidelity
+argument, because zero under a stricter comparison is zero under the gate. That licence is
+tied to the sign of what is being counted, and the two-sided ratchet asks a question on the
+other side of it: *stale* asks whether a baseline entry now **matches**. A stricter
+comparator produces **fewer** matches, so "no baseline entry came out EQUAL under my
+reconstruction" does not give "no baseline entry passes under the gate" — the gate's oxfmt
+normalization and `ast_equiv_batch` convert exactly the entries the reconstruction called
+divergent.
+
+The witness arrived in the same message as the claim: an instrument reporting `stale 0`
+across four ratchets also reported 33 `huly` units DIFF where the ratchet holds 4, so it
+was over-counting the divergent side by 29 — any of which could be a baseline entry that
+passes. Confirming a **retire** from a strict EQUAL is sound and needs nothing further;
+asserting **stale 0** from an absence of EQUALs is not. One instrument, two uses, one of
+them free, and the free one is not the one that looks like a zero.
+
+
+### An arm and a ratchet from different trees re-detect what was already retired
+
+A ratchet is a measurement of a tree, which is why re-baselining before a rebase enrols
+entries that already pass. The same fact has a second, quieter failure on the **reading**
+side: run a new arm's binary against an **older tree's** ratchet file and the pair reports
+entries as stale that a merged fix already retired. Measured in one command — a local
+already-passes check run from a worktree cut before a merge, with a NAPI arm built after
+it, reported 2 where the correct answer was 1, and the extra entry was exactly the one the
+intervening PR had retired.
+
+Nothing about that output looks wrong: it is a plausible count, in the right direction, on
+the right ratchet. The rule is that the arm and the ratchet are **two halves of one
+measurement** and both are properties of a tree, so check out the arm's own tree before
+running the comparison rather than reading the ratchet from wherever the shell happens to
+be. And the control that catches it is the one worth copying: add a **known-retired** entry
+back to the list and confirm the instrument names that entry and no other — an oracle whose
+answer is already established independently, which is what separates "my instrument is
+silent" from "my instrument is dead".
+
+
 ### `pipestatus` protects the verdict; nothing protects the denominator
 
 The truncation table above is about reading a *verdict* through a stage that can drop it. There
@@ -1974,6 +2036,25 @@ the answer becomes `MOVED 2`, both of them the file the issue names. It is worth
 residue too: 110 of the 923 still fail to compile in both arms for reasons both compilers agree
 on, so the module sweep's live population is 813 — a number that belongs in the report, because
 "923 files swept" and "813 files could have moved" are different claims.
+
+### An absent submodule appears only as a smaller denominator
+
+`corpus-sources.json` lists 104 sources and a linked git worktree checks out **none** of
+them. Measured the same day on two trees of one repository: the main checkout
+`populated=104 EMPTY=0`, a campaign worktree `populated=1 EMPTY=103` — the one being
+`compatibility/pattern-corpus`, which is checked in rather than a submodule. A sweep over
+an empty submodule raises nothing: the files are not `ABSENT`, they are simply not
+enumerated, so the run prints a smaller number and looks entirely normal. Three `MOVED`
+results were reported that way and retracted.
+
+The sharpening is that **the population field was written and still failed**. The figure
+`7,142 files` was *true*; what it did not say is that 7,142 is 8 of 104 sources — a true
+observation costing more than a false one would have, because a false one dies under a
+check. So the printed field cannot be the size of what you counted; it has to be **the
+names of what you could not count**: one `EMPTY <path>` line per zero-file source, derived
+from the manifest by set difference. Ninety-six such lines are unmissable. The number
+7,142 is not.
+
 
 ### Working with Subagents
 
