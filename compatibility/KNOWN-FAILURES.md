@@ -3332,16 +3332,16 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 24 entries)
+### Client dev (`known-failures.client-dev.json`, 22 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `24`
+Partition of `known-failures.client-dev.json` by verdict: `22`
 
-- **24 — the generated JS differs.**
+- **22 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 24 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and it is the largest of the four — 15 JS entries that `client` does not
+All remaining 22 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+it, and it is the largest of the four — 11 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
 `huly/…/SelectAvatarPopup.svelte` left it when a member assignment whose root resolves to
@@ -3361,6 +3361,26 @@ asking whether an argument's **value** is known rather than whether its name is 
 The pass reads lowered text, so `$state(0)` had reached it as an opaque `$.state(0)` call; upstream
 evaluates the rune's argument (`scope.js:465-500`). A two-arm sweep over 139,252 `(id, target)`
 pairs moved this unit and no other.
+
+#4192 retired two `huly` entries (`process-resources/.../ProcessAttributeEditor.svelte`,
+`tracker-resources/.../move/SelectReplacement.svelte`). Upstream latches
+`analysis.needs_mutation_validation` before it builds the mutation's property path
+(`shared/utils.js:406`), so a computed key it cannot spell still emits
+`$$ownership_validator`; rsvelte derived the flag from a text scan for the wrap, which by
+construction only finds a mutation that was wrapped. Measured on two arms sharing the merge
+base `c1af73536` (base sha256 `3c7a3ccb…`, fixed `ec564195…`): both entries read `PASSES`
+on the fixed arm and the base arm reports `PASSES on base: 0`, so the retirement is
+attributed rather than inherited.
+
+The same PR then narrowed the latch again — upstream reaches the validator through
+`scope.get(name)`, so a name that spells a prop but resolves to a parameter, a `for`
+binding or a `catch` binding declares nothing — and **that half was not re-measured
+locally**: the `PASSES` above was read on the pre-narrowing arm. The two-sided ratchet is
+the complete check for these two entries, because a listed-but-passing entry and a new
+failure both fail, so the verdict here is CI's rather than a local reconstruction's. The
+count of entries `client` does not carry was read as 15 while the file held 13; it is
+recomputed above rather than decremented, because the partition line is gated and this
+sentence is not.
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
