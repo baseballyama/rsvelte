@@ -1081,6 +1081,23 @@ returns" equal to "what re-parsing costs", and the scanning was never in the
 denominator. Every check anyone could run on the 3-4% would have confirmed it.
 Ask separately what a figure is, and what it is being used to decide.
 
+**A shortfall smaller than the deciding arm's own drift is not a shortfall.** A
+report read client 9.63x, server 19.59x, client-dev 13.89x, server-dev 19.98x
+against a 20x goal and was reported as *no surface reaches it*. But the arm that
+decides the ratio — the only one loading all ten cores — drifts ~5% **within a
+single run** (`first2/last2` 0.946-0.958, while both single-threaded arms are
+flat at 0.989-1.045), and server's shortfall is 2.1% with server-dev's at 0.1%.
+Recomputing the ratio off the first two and the last two samples gives
+19.2-20.3x: 20x is inside, and neither verdict is supported. Two of the four
+surfaces are genuinely short and two are undecidable, and reporting all four
+under one sentence let the undecidable pair inherit the decided pair's answer.
+**A negative verdict about your own work is still a claim and needs the
+precision a positive one would get** — the direction that flatters nobody is
+exactly the one that gets waved through the check. Before reporting a miss, put
+the shortfall next to the spread of whichever arm the ratio is most sensitive
+to; a within-run trend is not visible in a cv or a median, so it has to be
+looked for on purpose.
+
 ### Nothing about a measurement arm is evidence of what it measured
 
 An A/B here is two `.node` binaries, and every cheap way of saying which is which

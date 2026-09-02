@@ -613,6 +613,58 @@ JS side — move `jsArm.warm()` to just before each sample — and costs ~200 s 
 surface. That is a price, not a constraint; it was described as a constraint
 here, which is how a trade stops being looked for.
 
+## "The goal was not met" is a claim, and it needs the same precision as "met" (2026-09-02)
+
+The regenerated report reads client 9.63x, server 19.59x, client-dev 13.89x,
+server-dev 19.98x, and it was reported as *no surface reaches 20x*. Two of those
+four do not support that sentence. **The arm that decides the ratio drifts
+within a run, and on server and server-dev the drift is larger than the
+shortfall.**
+
+`first2/last2` on the raw millisecond samples, per arm (>1 = the early samples
+are slower):
+
+| surface | official | single | multi |
+|---|---|---|---|
+| client | 1.099 | 1.103 | 1.448 |
+| server | 1.023 | 1.045 | **0.958** |
+| client-dev | 0.998 | 0.998 | **0.953** |
+| server-dev | 0.989 | 1.000 | **0.946** |
+
+On the three surfaces with no external disturbance, both single-threaded arms
+are flat (0.989-1.045) while the multi arm gets ~5% **slower** over the run.
+Only the multi arm loads all ten cores, so a thermal cause is the obvious
+candidate; it is consistent with, not proven by, the earlier ablation (a
+one-core 20 s run drifted 1.020, a ten-thread 11 s run 1.36).
+
+Carrying that drift into the ratio, `median(official)` over the first two and
+over the last two multi samples:
+
+| surface | reported | from first2 | from last2 | band | 20x inside |
+|---|---|---|---|---|---|
+| client | 9.63x | 9.13x | 13.22x | 9.13-13.22x | no |
+| server | 19.59x | 20.05x | 19.21x | 19.21-20.05x | **yes** |
+| client-dev | 13.89x | 14.20x | 13.53x | 13.53-14.20x | no |
+| server-dev | 19.98x | 20.26x | 19.16x | 19.16-20.26x | **yes** |
+
+So the defensible statement for server and server-dev is **19.2-20.3x, with the
+deciding arm drifting ~5% inside a single run** — 20x sits in that band and
+neither "met" nor "not met" is supported. client and client-dev are outside it
+and *are* short. Reporting all four under one verdict let the two undecidable
+surfaces inherit the two decided ones' answer.
+
+The general form is the reason this is worth a section: a shortfall smaller than
+the deciding arm's own within-run drift is not a measurement of a shortfall. It
+was easy to miss because the conclusion ran the self-critical way — **a negative
+verdict about your own work is still a claim, and the direction that flatters
+nobody gets waved through the check that a flattering one would not.**
+
+The drift itself is now the open question, and it is worth more than the 2%: if
+it is thermal, every multi figure this file quotes is a function of how long the
+run had been going, and the report takes its samples in a fixed order. Not
+measured: whether the drift persists with a cool-down between rounds, and
+whether it is thermal at all rather than page-cache or allocator growth.
+
 ## Where the client's remaining time is, after three candidates were ruled out (2026-09-02)
 
 Three buckets were measured to closure on the merged tree, all through `compile()`
