@@ -298,9 +298,17 @@ interning escape short of leaving `serde_json::Value`.
 enumerated `#[derive(Serialize)]` structs only, and missed the hand-written serializer in
 `ast/typed_expr.rs`, which writes keys through 123 `ser_node!` / `ser_opt_node!` /
 `ser_children!` uses — the path that carries `arguments`, `properties`, `superClass`,
-`quasis`, `specifiers`. Two independent recounts give **147** and **166** distinct static
-keys — they union different pattern sets, and the honest statement is "147-166 by two
-methods, and 88 is an undercount either way". What actually sizes the lever is **key
+`quasis`, `specifiers`. Two independent recounts of the source give **147** and
+**166** distinct static keys, unioning different pattern sets. **The 88 cannot be
+reconciled with either, because its own population is not recorded**: it appears twice in
+`phase3-ast-refactor-plan.md` as a bare assertion, `alloc_sites.rs` contains no key
+counting at all (0 hits for `distinct`/`key` against 45 for `alloc`), no other instrument
+in the tree counts distinct keys, and the "two independent instruments agree across three
+corpora" clause beside it qualifies the **allocations-per-map-entry table that follows**,
+not the 88. So "88 is a 1.9x undercount" is unsupported, and so is "88 is the runtime-
+observed subset of the 166" — that second reading was offered with a file-and-line citation
+whose quoted text does not say it. Both are comparisons between populations, one of which
+is unstated. What actually sizes the lever is **key
 insertions per compile**, which is unmeasured; the distinct count bounds only how large an
 interning table would be, and 88, 147 and 166 are alike trivial for that. A count that
 decides nothing was carried here for months, precise to two digits and wrong by most of a
