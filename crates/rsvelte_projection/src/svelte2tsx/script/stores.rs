@@ -1041,16 +1041,30 @@ pub(super) fn inject_store_subscriptions_with_program(
         }
     }
 
-    collect_module_script_import_stores(module_program, context);
-
     // Official `attachStoreValueDeclarationOfImportsToRenderFn` iterates
     // `importStatements` in IMPORT-DECLARATION order (not first-`$store`-use
-    // order), which is exactly the collection order here (instance imports in
-    // program order, then module imports). Just dedup preserving that order.
+    // order), which is exactly the collection order here. Just dedup preserving
+    // that order.
     context.dedup_imports_preserving_order();
-    if !context.import_store_names.is_empty() {
-        let store_decls = create_store_declarations(&context.import_store_names);
-        str.append_right(offset, &store_decls);
+    let instance_decls = create_store_declarations(&context.import_store_names);
+
+    // The module script gets its OWN `ImplicitStoreValues` (`index.ts:202`), so
+    // its imports are a SECOND ignore region rather than more names in the
+    // first — and a name imported by both scripts is declared in both, because
+    // that instance is seeded with the accessed stores and not with the
+    // instance's import list.
+    context.begin_import_collection();
+    collect_module_script_import_stores(module_program, context);
+    context.dedup_imports_preserving_order();
+    let module_decls = create_store_declarations(&context.import_store_names);
+
+    // The instance script's `modifyCode` runs before the module script is
+    // processed, so its region is appended first.
+    if !instance_decls.is_empty() {
+        str.append_right(offset, &instance_decls);
+    }
+    if !module_decls.is_empty() {
+        str.append_right(offset, &module_decls);
     }
 }
 

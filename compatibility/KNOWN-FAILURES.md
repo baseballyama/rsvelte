@@ -6242,11 +6242,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 6 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 5 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `4 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `3 + 2`
 
-- **4 — the emitted TSX differs** (`ts-mismatch`).
+- **3 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6263,7 +6263,7 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 4 carry **no target, and cannot have one**: every one was measured
+The remaining 3 carry **no target, and cannot have one**: every one was measured
 against official on 2026-09-02 and every one is an rsvelte defect, so the only end
 state open to them is elimination. The classification below is the input to that
 work; it is not an attribution, and this gate stays red until the entries are gone.
@@ -6293,10 +6293,33 @@ double count**, so the assignment has to be per entry.
 | 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
 | 1 | `bind:this` is emitted as a `"bind:this": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`) | source |
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
-| 1 | two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens | source |
 | 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x4`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x3`
+
+### Previously: `ignore-region-merge` (2026-09-02, at 6 entries)
+
+Kept because its description named the symptom — *"two adjacent regions are
+emitted as ONE"* — and the symptom points at a merge that does not exist. There is
+no merging step: upstream builds a **second `ImplicitStoreValues`** for the module
+script (`index.ts:202`), seeded with the instance script's accessed stores but with
+its own `importStatements`, and each instance wraps ITS names in one region and
+appends it at the render-function start. Two regions are two instances. rsvelte
+collected both scripts' import names into one list.
+
+**Six of the 17 grid cells diverged and only two of them discriminate.** The other
+four are satisfied by an implementation that merely splits adjacent regions,
+because with distinct names the union and the two instances print the same
+characters in the same order. What separates the rules:
+
+- a name imported by **both** scripts is declared in **both** regions
+  (`[<a>][<a>]`), because the second instance is seeded with the accessed stores
+  and not with the first one's import list — a union drops the duplicate;
+- the instance region comes first **even when the module script is written
+  second**, so an implementation that emits in file order passes the other five.
+
+Reaching the mechanism is not being able to tell two rules for it apart; count the
+discriminating cells, not the diverging ones.
 
 ### Previously: `unterminated-export-let` (2026-09-02, at 7 entries)
 
