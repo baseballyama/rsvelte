@@ -6216,11 +6216,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 9 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 8 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `7 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `6 + 2`
 
-- **7 — the emitted TSX differs** (`ts-mismatch`).
+- **6 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6237,7 +6237,7 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 7 carry **no target, and cannot have one**: every one was measured
+The remaining 6 carry **no target, and cannot have one**: every one was measured
 against official on 2026-09-02 and every one is an rsvelte defect, so the only end
 state open to them is elimination. The classification below is the input to that
 work; it is not an attribution, and this gate stays red until the entries are gone.
@@ -6271,12 +6271,51 @@ double count**, so the assignment has to be per entry.
 | 1 | `bind:this` is emitted as a `"bind:this": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`) | source |
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
 | 1 | two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens | source |
-| 1 | an `@typedef {import('./TreeView.svelte').TreeNode<Id>} TreeNode<Id=(string|number)>` line is injected into the props JSDoc block official copies verbatim | source |
 | 1 | the `let $permissions = __sveltets_2_store_get(permissions)` line is not emitted at all | output only |
 | 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
 | 1 | `export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree | reduced |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x7`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x6`
+
+### Previously: `jsdoc-typedef-injected` (2026-09-02, at 9 entries)
+
+Kept because the entry's own description named the wrong side, and because the
+correct rule, ported correctly, **broke two files that were passing**.
+
+Official does not "copy the props JSDoc verbatim": `getLastLeadingDoc`
+(`tsAst.ts:143-160`) removes every `@typedef` tag from the comment first. Porting
+that removal made `TreeViewNode.svelte` match and took `attractions`'s
+`popover.svelte` and `snackbar-container.svelte` from **match to MISMATCH** — a
+transition only a whole-corpus hash diff can report, because a ratchet lists what
+is failing and so structurally cannot contain what is passing.
+
+The cause is that `getLastLeadingDoc` reads `tag.pos` / `tag.end`, which are
+**SourceFile-absolute**, and slices them out of `node.getFullText()`, which is
+**node-relative**. The removal is therefore offset by `node.pos`, and there are
+three outcomes rather than one:
+
+| `node.pos` | shifted slice occurs in the comment? | official |
+|---|---|---|
+| 0 | — | the tag is removed, as intended |
+| > 0 | no | `replace` no-ops and the tag survives |
+| > 0 | yes | the wrong text is deleted and the comment is corrupted |
+
+rsvelte reproduces rows 1 and 2 — it strips only when the comment is the script's
+first token. Row 3 is **not** reproduced and is filed as
+[`upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`](../upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md);
+**0 of the 172 corpus components whose source mentions `@typedef` reach it**, all
+172 matching after the fix. A unit test pins the divergence with official's own
+corrupted output quoted, so the row is not rediscovered as a defect.
+
+Two method notes. The reduction grid that produced the *corrected* rule had every
+declaration at the top of its script, so `node.pos` was 0 in every cell — **the
+constant the grid held fixed was the branch condition**, and no extra axis would
+have found it. And the same commit's other half — official writes
+`\n${doc}${name}` where rsvelte wrote `${doc} ${name}` — moves **738 units and
+changes 0 verdicts**, because oxfmt normalizes the difference away: an arm built
+with only that change is byte-identical in verdict to the arm without it. "The
+gate cannot see it" and "the output does not move" are different measurements,
+and only the second was ever true here.
 
 ### Previously: `render-open-position` (2026-09-02, at 12 entries)
 

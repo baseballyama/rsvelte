@@ -39,7 +39,7 @@ fn jsdoc_on_renamed_export_statement_round_trips_onto_prop() {
     ));
 
     assert!(
-        out.contains("/** @type {string | false | null} */ class: _class"),
+        out.contains("/** @type {string | false | null} */class: _class"),
         "renamed-export JSDoc missing from props destructure:\n{out}"
     );
 }
@@ -58,7 +58,7 @@ fn jsdoc_on_let_declaration_still_takes_precedence() {
     ));
 
     assert!(
-        out.contains("/** @type {number} */ value: _value"),
+        out.contains("/** @type {number} */value: _value"),
         "let-declaration JSDoc missing from props destructure:\n{out}"
     );
 }

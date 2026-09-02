@@ -210,7 +210,7 @@ pub fn process_instance_script(
                                         raw_content,
                                         var_decl.span.start as usize,
                                     )
-                                    .map(str::to_string),
+                                    .map(std::borrow::Cow::into_owned),
                                 ),
                             );
                         } else {
@@ -294,7 +294,7 @@ pub fn process_instance_script(
                                                     raw_content,
                                                     var_decl.span.start as usize,
                                                 )
-                                                .map(str::to_string),
+                                                .map(std::borrow::Cow::into_owned),
                                             ),
                                         );
                                     }

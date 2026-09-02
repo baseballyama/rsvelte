@@ -13,10 +13,6 @@
 			"description": "two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens",
 			"pinned": "source"
 		},
-		"jsdoc-typedef-injected": {
-			"description": "an `@typedef {import('./TreeView.svelte').TreeNode<Id>} TreeNode<Id=(string|number)>` line is injected into the props JSDoc block official copies verbatim",
-			"pinned": "source"
-		},
 		"line-comment-swallows-type": {
 			"description": "a `//` line comment inside an `export let` type annotation swallows the rest of the emitted line, so the output is not TypeScript",
 			"pinned": "source"
@@ -41,7 +37,6 @@
 	"entries": {
 		"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte": "ignore-region-merge",
 		"appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/settings/+page.svelte": "store-get-missing",
-		"carbon-components-svelte/src/TreeView/TreeViewNode.svelte": "jsdoc-typedef-injected",
 		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
 		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash",
 		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",

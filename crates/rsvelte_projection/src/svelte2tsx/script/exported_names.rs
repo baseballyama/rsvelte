@@ -666,8 +666,10 @@ impl ExportedNames {
             if let Some(doc) = &info.doc
                 && dont_add_type_def
             {
+                // `createReturnElements`: `\n${doc}${name}` — the newline is
+                // before the comment and nothing separates it from the name.
+                entries.push('\n');
                 entries.push_str(doc);
-                entries.push(' ');
             }
             entries.push_str(en);
             entries.push_str(": ");
@@ -935,8 +937,8 @@ impl ExportedNames {
 
     fn write_type_entry(output: &mut String, name: &str, info: &ExportedNameInfo) {
         if let Some(doc) = &info.doc {
+            output.push('\n');
             output.push_str(doc);
-            output.push(' ');
         }
         output.push_str(name);
         // Official `createReturnElementsType`: `${name}${value.required ? '' : '?'}`.

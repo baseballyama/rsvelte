@@ -2,6 +2,7 @@
 
 use oxc_ast::ast as oxc;
 use oxc_span::GetSpan;
+use std::borrow::Cow;
 
 use std::collections::HashMap;
 
@@ -146,9 +147,11 @@ pub(super) fn handle_export_named_decl(
                             declarator.id.span().start as usize,
                         )
                         .or_else(|| {
-                            *cached_leading_doc.get_or_insert_with(|| {
-                                leading_jsdoc_comment(raw_content, export_span.start as usize)
-                            })
+                            cached_leading_doc
+                                .get_or_insert_with(|| {
+                                    leading_jsdoc_comment(raw_content, export_span.start as usize)
+                                })
+                                .clone()
                         });
                         if let Some(name) = binding_pattern_simple_name(&declarator.id)
                             && let Some(doc) = leading_doc
@@ -367,6 +370,7 @@ pub(super) fn handle_export_named_decl(
                     .get_or_insert_with(|| {
                         leading_jsdoc_comment(raw_content, export_span.start as usize)
                     })
+                    .as_deref()
                     .map(str::to_string);
                 exported_names.rename_export_let_in_place(&local, exported.clone(), merged_doc);
                 continue;
@@ -377,6 +381,7 @@ pub(super) fn handle_export_named_decl(
                     .get_or_insert_with(|| {
                         leading_jsdoc_comment(raw_content, export_span.start as usize)
                     })
+                    .as_deref()
                     .map(str::to_string)
                     .or_else(|| possible.and_then(|p| p.doc.clone()))
             } else {
@@ -439,7 +444,7 @@ pub(super) fn handle_export_named_decl(
 
 /// `leading_jsdoc_comment` bounded below by `floor`, the end of the previous
 /// token — where TypeScript's `node.pos` starts a node's leading trivia.
-pub(super) fn leading_doc_after(source: &str, floor: usize, before: usize) -> Option<&str> {
+pub(super) fn leading_doc_after(source: &str, floor: usize, before: usize) -> Option<Cow<'_, str>> {
     if floor >= before || before > source.len() {
         return None;
     }
@@ -449,7 +454,7 @@ pub(super) fn leading_doc_after(source: &str, floor: usize, before: usize) -> Op
 
 /// Return the leading `/** … */` `JSDoc` comment immediately before `before`
 /// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
-pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<&str> {
+pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<Cow<'_, str>> {
     let bytes = source.as_bytes();
     let before = before.min(bytes.len());
     // Mirror official `getLastLeadingDoc`: walk the leading trivia and return the
@@ -479,7 +484,16 @@ pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<&str>
             if source[open..p - 2].contains("*/") {
                 return None;
             }
-            return Some(&source[open..p]);
+            // `getLastLeadingDoc` strips `@typedef` tags with `tag.pos`, which is
+            // SourceFile-absolute, indexed into a `node.getFullText()` slice —
+            // so the removal is offset by `node.pos` and only lands where that is
+            // zero, i.e. where this comment is the script's first token.
+            let comment = &source[open..p];
+            return Some(if only_trivia_before(source, open) {
+                strip_typedef_tags(comment)
+            } else {
+                Cow::Borrowed(comment)
+            });
         }
         // Otherwise, if the trivia line ending at `p` is a single-line `// …`
         // comment, skip the whole line and keep looking for an earlier block
@@ -493,9 +507,241 @@ pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<&str>
     }
 }
 
+/// Whether everything before `end` is whitespace or a complete comment — the
+/// condition under which TypeScript's `node.pos` is 0 for the statement the
+/// comment leads.
+fn only_trivia_before(source: &str, end: usize) -> bool {
+    let bytes = source.as_bytes();
+    let mut i = 0;
+    while i < end {
+        match bytes[i] {
+            b' ' | b'\t' | b'\r' | b'\n' => i += 1,
+            b'/' if i + 1 < end && bytes[i + 1] == b'/' => {
+                while i < end && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < end && bytes[i + 1] == b'*' => match source[i + 2..end].find("*/") {
+                Some(offset) => i += 2 + offset + 2,
+                None => return false,
+            },
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// Position of every JSDoc tag opener (`@`) in `comment`: after the `/**`
+/// opener or after a line's optional `*` prefix, whitespace skipped.
+fn jsdoc_tag_starts(comment: &str) -> Vec<usize> {
+    let bytes = comment.as_bytes();
+    let mut starts = Vec::new();
+    let mut i = 3; // past `/**`
+    let mut at_line_start = true;
+    while i < bytes.len() {
+        if at_line_start {
+            let mut j = i;
+            while j < bytes.len() && matches!(bytes[j], b' ' | b'\t') {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b'*' && !comment[j..].starts_with("*/") {
+                j += 1;
+                while j < bytes.len() && matches!(bytes[j], b' ' | b'\t') {
+                    j += 1;
+                }
+            }
+            if j < bytes.len() && bytes[j] == b'@' {
+                starts.push(j);
+            }
+            i = j.max(i);
+            at_line_start = false;
+            continue;
+        }
+        if bytes[i] == b'\n' {
+            at_line_start = true;
+        }
+        i += 1;
+    }
+    starts
+}
+
+/// Skip whitespace and any `*` line prefix from `i`.
+fn skip_jsdoc_trivia(bytes: &[u8], mut i: usize) -> usize {
+    loop {
+        let before = i;
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        if i < bytes.len() && bytes[i] == b'*' && i + 1 < bytes.len() && bytes[i + 1] != b'/' {
+            i += 1;
+        }
+        if i == before {
+            return i;
+        }
+    }
+}
+
+/// `getLastLeadingDoc` removes every `@typedef` tag's own text from the comment
+/// before returning it (`tsAst.ts:153-160`), so the tag never reaches a prop's
+/// emitted JSDoc. A tag's span stops at its name unless text follows it, in
+/// which case TypeScript's JSDoc comment runs on to the next tag or to the
+/// terminator — measured against `ts.getAllJSDocTagsOfKind`, which spells the
+/// two cases differently for `@typedef {X} T` and `@typedef {X} T<Id=(n)>`.
+fn strip_typedef_tags(comment: &str) -> Cow<'_, str> {
+    if !comment.starts_with("/**") {
+        return Cow::Borrowed(comment);
+    }
+    let starts = jsdoc_tag_starts(comment);
+    if starts.is_empty() {
+        return Cow::Borrowed(comment);
+    }
+    let bytes = comment.as_bytes();
+    let terminator = comment.rfind("*/").unwrap_or(comment.len());
+    let mut cuts: Vec<(usize, usize)> = Vec::new();
+    for (index, &start) in starts.iter().enumerate() {
+        let rest = &comment[start..];
+        if !rest.starts_with("@typedef")
+            || rest[8..]
+                .chars()
+                .next()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '$')
+        {
+            continue;
+        }
+        let mut i = skip_jsdoc_trivia(bytes, start + 8);
+        if i < bytes.len() && bytes[i] == b'{' {
+            let mut depth = 0usize;
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'{' => depth += 1,
+                    b'}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            i += 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+        }
+        i = skip_jsdoc_trivia(bytes, i);
+        while i < bytes.len()
+            && (bytes[i].is_ascii_alphanumeric() || matches!(bytes[i], b'_' | b'$' | b'.'))
+        {
+            i += 1;
+        }
+        let boundary = starts.get(index + 1).copied().unwrap_or(terminator);
+        let end = if comment[i..boundary]
+            .bytes()
+            .any(|byte| !byte.is_ascii_whitespace() && byte != b'*')
+        {
+            boundary
+        } else {
+            i
+        };
+        cuts.push((start, end));
+    }
+    if cuts.is_empty() {
+        return Cow::Borrowed(comment);
+    }
+    let mut out = String::with_capacity(comment.len());
+    let mut cursor = 0;
+    for (start, end) in cuts {
+        out.push_str(&comment[cursor..start]);
+        cursor = end;
+    }
+    out.push_str(&comment[cursor..]);
+    Cow::Owned(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::test_support::run_svelte2tsx;
+
+    fn props_of(script: &str) -> String {
+        let code = run_svelte2tsx(&format!("<script>\n{script}\n</script>\n<p>x</p>\n")).code;
+        let start = code.find("return { props: ").expect("props") + "return { props: ".len();
+        let rest = &code[start..];
+        rest[..rest.find(", exports:").expect("exports")].to_string()
+    }
+
+    #[test]
+    fn typedef_is_stripped_only_where_upstreams_offset_is_zero() {
+        // `getLastLeadingDoc` slices an absolute `tag.pos` out of a
+        // `node.getFullText()` string, so the removal lands only when the
+        // statement starts at 0 — i.e. when nothing precedes this comment.
+        let doc = "/**\n * @typedef {import('./X.svelte').T} T\n * @slot {{ a: 1 }}\n */";
+        assert_eq!(
+            props_of(&format!("{doc}\nexport let a = 1;")),
+            "{\n/**\n * \n * @slot {{ a: 1 }}\n */a: a}"
+        );
+        // With a statement ahead of it the shifted slice runs past the comment,
+        // upstream's `replace` finds nothing, and the tag survives on both sides.
+        let pad = "const pad = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';";
+        assert_eq!(
+            props_of(&format!("{pad}\n{doc}\nexport let a = 1;")),
+            format!("{{\n{doc}a: a}}")
+        );
+    }
+
+    /// The one row of `getLastLeadingDoc`'s offset bug rsvelte does NOT
+    /// reproduce: a shift that lands inside the comment makes upstream delete
+    /// the wrong text. Here official emits
+    /// `/**\n * @typedef {import('./X.sv{ a: 1 }}\n */`; rsvelte keeps the
+    /// comment whole. Filed as
+    /// `upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`;
+    /// 0 of the corpus's 172 `@typedef`-carrying components reach it.
+    #[test]
+    fn a_shift_that_lands_inside_the_comment_is_a_known_divergence() {
+        let doc = "/**\n * @typedef {import('./X.svelte').T} T\n * @slot {{ a: 1 }}\n */";
+        assert_eq!(
+            props_of(&format!("let z = 1;\n{doc}\nexport let a = z;")),
+            format!("{{\n{doc}a: a}}")
+        );
+    }
+
+    // Expected values are `ts.getAllJSDocTagsOfKind`'s own answers, read off the
+    // official compiler's props block for each shape.
+    #[test]
+    fn strip_typedef_tags_matches_the_typescript_tag_spans() {
+        let cases: [(&str, &str); 7] = [
+            (
+                "/**\n   * @typedef {import('./X.svelte').T<Id>} T<Id=(string)>\n   */",
+                "/**\n   * */",
+            ),
+            (
+                "/**\n   * @generics {A} A\n   * @typedef {import('./X.svelte').T<Id>} T<Id=(string)>\n   * @slot {{ a: 1 }}\n   */",
+                "/**\n   * @generics {A} A\n   * @slot {{ a: 1 }}\n   */",
+            ),
+            (
+                "/**\n   * @generics {A} A\n   * @typedef {import('./X.svelte').T<Id>} T<Id=(string)>\n   */",
+                "/**\n   * @generics {A} A\n   * */",
+            ),
+            (
+                "/**\n   * @typedef {import('./X.svelte').A} A\n   * @typedef {import('./X.svelte').B} B\n   * @slot {{ a: 1 }}\n   */",
+                "/**\n   * \n   * \n   * @slot {{ a: 1 }}\n   */",
+            ),
+            (
+                "/**\n   * @typedef {{\n   *   a: string\n   * }} T\n   * @slot {{ a: 1 }}\n   */",
+                "/**\n   * \n   * @slot {{ a: 1 }}\n   */",
+            ),
+            ("/** @typedef {import('./X.svelte').T} T */", "/**  */"),
+            // Not a JSDoc comment, so TypeScript parses no tags in it.
+            (
+                "/*\n   * @typedef {import('./X.svelte').T} T\n   * @slot {{ a: 1 }}\n   */",
+                "/*\n   * @typedef {import('./X.svelte').T} T\n   * @slot {{ a: 1 }}\n   */",
+            ),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(
+                super::strip_typedef_tags(input),
+                expected,
+                "input: {input:?}"
+            );
+        }
+    }
 
     #[test]
     fn test_export_let_simple() {
