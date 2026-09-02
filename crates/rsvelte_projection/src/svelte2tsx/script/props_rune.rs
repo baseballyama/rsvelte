@@ -220,16 +220,7 @@ pub(super) fn apply_props_typedef(
         // `move(generic_arg.pos, generic_arg.end, node.parent.pos)` — TypeScript's
         // `pos` lands right after the previous statement's trailing trivia.
         let raw_bytes = raw_content.as_bytes();
-        let mut p = info.let_pos as usize;
-        while p > 0 {
-            let prev = raw_bytes[p - 1];
-            if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
-                p -= 1;
-            } else {
-                break;
-            }
-            // Rest element ({ ...rest }) is intentionally not added as a prop
-        }
+        let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
         exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
     } else if info.flags.contains(PropsRuneFlags::TYPE_ANNOTATION)
         && !info
@@ -258,15 +249,7 @@ pub(super) fn apply_props_typedef(
         // `;type $$ComponentProps = <type_text>;` before `function $$render`.
         // Leave type_already_inserted = false so it goes BEFORE render.
         let raw_bytes = raw_content.as_bytes();
-        let mut p = info.let_pos as usize;
-        while p > 0 {
-            let prev = raw_bytes[p - 1];
-            if prev == b' ' || prev == b'\t' || prev == b'\n' || prev == b'\r' {
-                p -= 1;
-            } else {
-                break;
-            }
-        }
+        let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
         exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
     } else if info
         .flags

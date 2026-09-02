@@ -6790,23 +6790,32 @@ target to match); the opposite direction had no name, so it had no ratchet. The
 `oracle-invalid` test already computed both sides' parseability and discarded one of
 the two answers, so the new verdict costs no extra work.
 
-**Current baseline: `svelte2tsx-unparseable-known-failures.json`, 1 entry.**
+**Current baseline: `svelte2tsx-unparseable-known-failures.json`, 0 entries.**
 
-Partition of `svelte2tsx-unparseable-known-failures.json` by mechanism: `1`
+The ratchet is empty, so any output rsvelte emits that no TS parser accepts — while
+official's parses — fails CI.
 
-The mechanism assignment is the same one-to-one map the other ratchet's table is
-derived from (`compatibility/svelte2tsx-mechanisms.json`), which covers both files.
+Partition of `svelte2tsx-unparseable-known-failures.json` by mechanism: `0`
 
-- **1 — a `//` comment swallows a hoisted type declaration.**
-  `svelte-virtuallists/src/lib/VirtualListNew.svelte` emits
-  `// ====== PROPERTIES ================;type $$ComponentProps =  {` on one line, so
-  the `//` runs to the end of the line and takes the declaration with it
-  (`Unexpected token`). Official emits no `$$ComponentProps` for this source at all,
-  so there are two defects here and only the second one is loud. **Not reduced**: a
-  three-line `<script lang="ts">` with a leading `//` and a typed `$props()`
-  destructure is byte-identical between the two tools, so the hand-written probe says
-  something about the probe rather than about the defect — the reduction has to come
-  from bisecting the real file.
+### Previously: a `//` comment swallowed the props typedef
+
+`svelte-virtuallists/src/lib/VirtualListNew.svelte` emitted
+`// ====== PROPERTIES ================;type $$ComponentProps =  {` on one line, so the
+line comment ran to the end of the line and took the declaration with it. Upstream
+inserts that typedef at `node.parent.pos`, and TypeScript's `pos` spans the
+declaration's LEADING TRIVIA, so official's insertion lands before the comment
+(`};type $$ComponentProps =  {`). rsvelte walked back from the `const` keyword instead,
+and only one of the three branches that compute this offset walked back through
+comments — the other two stopped at whitespace.
+
+Two things about the entry as it was written. It said official emits no
+`$$ComponentProps` for this source at all, and that is wrong: both tools emit it and
+only the offset differed, so there was one defect here rather than two. And its
+"not reduced" note was right about the reduction while wrong about why — a
+hand-written probe reproduces nothing because the axis it was missing is
+`generics=`, which is what makes this offset reachable at all (without it the typedef
+is hoisted out of `$$render` and none of the three branches runs). Delta-debugging
+the real file from 690 lines to 34 is what surfaced it.
 
 The two entries this file did NOT need are the reason it exists. Both were one
 mechanism: an element carrying `slot=` inside a component went through a second
