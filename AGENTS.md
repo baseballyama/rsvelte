@@ -1064,6 +1064,7 @@ followed on the next:
 | `pgrep -c … \|\| echo 0` | `0` | the `\|\|` arm fabricated a datum that reads exactly like a measurement |
 | `cargo test … \| grep -E '^test \|test result' \| head -20` | `TEST_EXIT=101` from `$pipestatus[1]`, and twenty *passing* lines | the **verdict** was read correctly and the lines explaining it were outside the window |
 | `join before.tsv after.tsv` over paths sorted by Rust's byte order | two non-ASCII paths reported as **changed** that were byte-identical | `join` requires its inputs in the locale's collating order and silently **mispairs** rows when they are not |
+| `timeout 120 node probe.mjs 2>&1 \| head -20` | nothing at all, twice | `head` closed the pipe and `timeout` killed the process, so node's block-buffered stdout was **never flushed** — the verdict was not outside the window, it was never produced |
 
 Rules, in the order they are cheap:
 
@@ -1150,6 +1151,19 @@ Rules, in the order they are cheap:
    contradicted it outright and the contradiction was not treated as evidence
    about the instrument. **When someone else's measurement disagrees with yours,
    the first hypothesis is your instrument, not their arithmetic.**
+5. **A window can kill the verdict's PRODUCTION, not only its display.** Rows 1-5
+   of the table lose a verdict that exists; row 6 loses one that never got
+   written. `console.log` to a pipe is block-buffered, `head` closes the pipe and
+   `timeout` sends SIGTERM, so whatever is still in the buffer is gone — and the
+   same command redirected to a file prints all five lines. The distinction
+   matters because **the usual fix does not apply**: widening to `head -200`
+   changes nothing, because the width was never the problem, and someone who
+   knows the table will re-run at the same width and get the same nothing. It
+   also mis-attributes in a specific direction — an empty probe reads as "the
+   thing I am probing is broken", so two plausible mechanisms (a wrong `cwd`, a
+   wrong `--stdio` spelling) were built and one of them was even independently
+   real, which is what made the diagnosis stick for two rounds. Write to a file,
+   then read the file; nothing else recovers an unflushed buffer.
 
 ### Nothing about a measurement arm is evidence of what it measured
 
@@ -1163,8 +1177,10 @@ has been wrong on this repository within one day of the others:
 | the artifact's path | with `CARGO_TARGET_DIR` set, the path no longer depends on cwd — so it stops proving which tree was compiled |
 | the branch you think you are on | an agent's shell cwd silently resets to the main checkout, and `cargo` then compiles someone else's working tree with no error |
 | "the same branch as last time" | the branch was rebased between the two builds, so the arms differ by whatever landed on `main` in between |
+| the source the build read | it was edited *while* the build ran, so the artifact answers to no tree at all — and nothing in the name, the path, or the `Compiling` line records it |
+| two labels, one artifact | a `sed` rename chain applied in an order that made both arms resolve to the same file — the arms were never distinct |
 
-Two rules cover all five. **Identify an arm by a discriminating probe on its
+Two rules cover the first six. **Identify an arm by a discriminating probe on its
 output** — one input whose answer differs between the two arms, run through the
 binary you are about to measure with. A probe only separates the hypothesis you
 handed it: an arm was probed with one fix's fingerprint, came back clean, and was
@@ -1201,6 +1217,23 @@ and the four files were `.svelte.js`, which the changed template visitor cannot
 reach at all. **Ask what mechanism could carry the change to each moved file
 before attributing any of them**; a direction that matches your hypothesis is
 the cheapest thing for an artefact to imitate.
+
+**The last row is a different failure and the probe cannot see it.** Rows 1-6 are
+an arm whose *identity* is wrong, and a discriminating probe settles every one of
+them. Row 7 is two arms that are the *same* arm — and probing both returns the
+same answer, which reads as "the two runs agree, my instrument is sound". What
+denies it is `sha256` of the two artifacts, and hashing alone is not enough
+either: two different files can legitimately hold the same behaviour, so equal
+outputs from distinct hashes is a real zero. The hash rules out sameness and the
+probe rules out mislabelling; **neither substitutes for the other, and both are
+needed on a measurement whose answer is 0**. Note the scope: this class can only
+surface on a run that reports nothing moved, so it is invisible to every
+`moved > 0` sweep, and the instance that produced it was the *third* consecutive
+`moved 0` on the same instrument — **the number you predicted is the one you will
+not re-derive**. The mechanism was a single `sed -e 's#a#b#; …; s#c#a#'` whose
+first substitution pushed the new arm aside and whose third re-created its name:
+collapsing a rename chain into one command hides the intermediate state that
+would have shown `a` being defined twice.
 
 ### Three things answer to "the official compiler", and they disagree
 
@@ -1508,6 +1541,7 @@ of that row going unwritten:
 | the ratchet — the ids that fail today | did anything that passes today break | **population** (the set is the complement of the question's) |
 | `js.code + css.code` over 135,592 pairs | a `loc` change reaching phase 3 comments **and** the source map | **carrier** (nothing in that hash carries a map) |
 | the corpus manifest, 33,898 components | 58 samples under `packages/svelte/tests/sourcemaps` | **population** (same mechanism, disjoint inputs) |
+| `corpus_hash` over 104,439 units, `MOVED 0` | does the class-field `$state` fix move anything | **population** (`corpus_hash` walks `.svelte` only, and `compile_module` parses plain JS — all 923 `.svelte.(js\|ts)` returned the *same* `js_parse_error` in both arms, which is the host the defect lives in) |
 
 None of the three is visible as "measured / not measured", and all three produce a `0` that
 reads as an answer. Writing the population out loud is what makes the first one self-evident —
@@ -1522,6 +1556,17 @@ the same line would print if the arrangement were reversed. Nothing is missing f
 so re-reading it more carefully cannot help; only a different operation can — **read the names
 of the tests that ran, not the count**, and where a suite prints its own denominators
 (`770/770 official segments`, `0/1634 out of range`) run it with `--nocapture` so those appear.
+
+**An instrument can be dead on exactly the population that carries the defect, and it reports
+that as agreement.** Row 4 above is not a missing column so much as a column filled in with a
+number the instrument could not have produced any other value for: every unit of the carrying
+host errored identically in both arms, so `MOVED 0` was arithmetically forced. The check is one
+line and it is the same one as everywhere else here — **count the live units, not the compared
+units**. Re-run through the gate's own preparation (here `compile.mjs`'s esbuild TS strip) and
+the answer becomes `MOVED 2`, both of them the file the issue names. It is worth stating the
+residue too: 110 of the 923 still fail to compile in both arms for reasons both compilers agree
+on, so the module sweep's live population is 813 — a number that belongs in the report, because
+"923 files swept" and "813 files could have moved" are different claims.
 
 ### Working with Subagents
 
