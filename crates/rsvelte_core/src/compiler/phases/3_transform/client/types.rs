@@ -1725,6 +1725,12 @@ pub struct ComponentClientTransformState<'a> {
     /// inside a sibling `{#if}`).
     pub transform_deep_read: ImHashMap<String, ()>,
 
+    /// `let:` names a component declared for its DEFAULT slot while a NAMED
+    /// slot of that same component is being visited. Upstream gives a named
+    /// slot a child of the scope OUTSIDE the component, so the name is a
+    /// global there and `is_pure` reports the expression as non-reactive.
+    pub lets_out_of_scope: ImHashMap<String, ()>,
+
     /// Await then/catch bindings whose active read transform is `$.get(name)`.
     /// Await fragments scope these alongside `transform`; text-based template
     /// declaration lowering uses the set to apply the same scoped reads.
@@ -2088,6 +2094,7 @@ impl<'a> ComponentClientTransformState<'a> {
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
             transform_deep_read: ImHashMap::new(),
+            lets_out_of_scope: ImHashMap::new(),
             await_binding_names: ImHashMap::new(),
             each_shadowing_names: ImHashMap::new(),
             events: indexmap::IndexSet::default(),
@@ -2146,6 +2153,16 @@ impl<'a> ComponentClientTransformState<'a> {
 
     /// Get a binding by name from the current scope or parent scopes.
     pub fn get_binding(&self, name: &str) -> Option<&Binding> {
+        let binding = self.lookup_binding(name)?;
+        // A component's `let:` binding is not in scope inside that component's
+        // named slots, and the lookup below is by name across every scope.
+        if self.lets_out_of_scope.contains_key(name) && binding.kind == BindingKind::Let {
+            return None;
+        }
+        Some(binding)
+    }
+
+    fn lookup_binding(&self, name: &str) -> Option<&Binding> {
         // First check current scope
         if let Some(&index) = self.scope.declarations.get(name) {
             return self.scope_root.bindings.get(index);

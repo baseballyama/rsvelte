@@ -2650,6 +2650,18 @@ fn collect_reactive_references_from_metadata(
             None => continue,
         };
 
+        // A component's `let:` binding is not in scope inside that component's
+        // named slots, so upstream's scope-keyed `references` never holds it
+        // there and no dependency read is emitted for it.
+        if binding.kind == BindingKind::Let
+            && context
+                .state
+                .lets_out_of_scope
+                .contains_key(binding.name.as_str())
+        {
+            continue;
+        }
+
         // Skip normal bindings unless they are imports
         // (matches: binding.kind === 'normal' && binding.declaration_kind !== 'import' -> continue)
         if binding.kind == BindingKind::Normal
