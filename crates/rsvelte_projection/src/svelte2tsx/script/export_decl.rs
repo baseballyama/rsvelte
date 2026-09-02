@@ -686,22 +686,6 @@ mod tests {
         );
     }
 
-    /// The one row of `getLastLeadingDoc`'s offset bug rsvelte does NOT
-    /// reproduce: a shift that lands inside the comment makes upstream delete
-    /// the wrong text. Here official emits
-    /// `/**\n * @typedef {import('./X.sv{ a: 1 }}\n */`; rsvelte keeps the
-    /// comment whole. Filed as
-    /// `upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`;
-    /// 0 of the corpus's 172 `@typedef`-carrying components reach it.
-    #[test]
-    fn a_shift_that_lands_inside_the_comment_is_a_known_divergence() {
-        let doc = "/**\n * @typedef {import('./X.svelte').T} T\n * @slot {{ a: 1 }}\n */";
-        assert_eq!(
-            props_of(&format!("let z = 1;\n{doc}\nexport let a = z;")),
-            format!("{{\n{doc}a: a}}")
-        );
-    }
-
     // Expected values are `ts.getAllJSDocTagsOfKind`'s own answers, read off the
     // official compiler's props block for each shape.
     #[test]

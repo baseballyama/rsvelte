@@ -17,10 +17,6 @@
 			"description": "a `//` line comment inside an `export let` type annotation swallows the rest of the emitted line, so the output is not TypeScript",
 			"pinned": "source"
 		},
-		"store-get-missing": {
-			"description": "the `let $permissions = __sveltets_2_store_get(permissions)` line is not emitted at all",
-			"pinned": "output only"
-		},
 		"template-hole-comment-dropped": {
 			"description": "a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped",
 			"pinned": "source"
@@ -36,7 +32,6 @@
 	},
 	"entries": {
 		"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte": "ignore-region-merge",
-		"appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/settings/+page.svelte": "store-get-missing",
 		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
 		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash",
 		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",

@@ -1,6 +1,5 @@
 [
 	"appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte",
-	"appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/settings/+page.svelte",
 	"cnblocks/src/routes/(app)/veil/+layout.svelte",
 	"cnblocks/src/routes/(app)/veil/+page.svelte",
 	"huly/plugins/view-resources/src/components/list/ListCategory.svelte",

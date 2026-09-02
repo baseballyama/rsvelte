@@ -6216,11 +6216,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 8 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 7 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `6 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `5 + 2`
 
-- **6 — the emitted TSX differs** (`ts-mismatch`).
+- **5 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6237,7 +6237,7 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 6 carry **no target, and cannot have one**: every one was measured
+The remaining 5 carry **no target, and cannot have one**: every one was measured
 against official on 2026-09-02 and every one is an rsvelte defect, so the only end
 state open to them is elimination. The classification below is the input to that
 work; it is not an attribution, and this gate stays red until the entries are gone.
@@ -6250,10 +6250,7 @@ version:'5'}`), and the outputs are normalized exactly as the gate normalizes th
 The last column says how far each was pinned — **reduced** (a hand-written input of a
 few lines reproduces it), **source** (the construct is identified in the listed file),
 or **output only** (the outputs differ and the cause is *not* isolated). Read an
-"output only" row as an open question rather than a finding. One of them,
-`appwrite`'s `settings/+page.svelte`, had a plausible cause — `$permissions` as a
-destructuring-rename KEY — and a five-line reduction of that has both tools agreeing,
-so the cause is something else.
+"output only" row as an open question rather than a finding.
 
 **This table is generated from a one-to-one id → mechanism assignment**
 (`compatibility/svelte2tsx-mechanisms.json`, which covers this ratchet and the
@@ -6271,11 +6268,45 @@ double count**, so the assignment has to be per entry.
 | 1 | `bind:this` is emitted as a `"bind:this": element` attribute; official binds the created element to a temporary (`const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`) | source |
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
 | 1 | two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens | source |
-| 1 | the `let $permissions = __sveltets_2_store_get(permissions)` line is not emitted at all | output only |
 | 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
 | 1 | `export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree | reduced |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x6`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x5`
+
+### Previously: `store-get-missing` (2026-09-02, at 8 entries)
+
+Kept because the reduction that was supposed to settle it **agreed on both sides**,
+and the table above recorded that agreement as evidence the cause was elsewhere:
+*"had a plausible cause — `$permissions` as a destructuring-rename KEY — and a
+five-line reduction of that has both tools agreeing, so the cause is something
+else."* The cause was the destructuring-rename key. The reduction put it in a
+pattern of **one** element, which is the one position where upstream does not
+resolve it as a store.
+
+`processInstanceScriptContent` (`:284-296`) tracks "am I inside a declaration"
+with a single boolean, and the on-leave callback a binding element pushes clears
+it unconditionally — so leaving a pattern's **first** element clears a flag the
+enclosing pattern had set, and every element after it is walked as an expression.
+A `$`-prefixed property name then reaches the store branch of `handleIdentifier`
+(`:155`). The rule this produces is "a `$`-prefixed key is a name iff it is the
+first element of its own pattern", which is why a one-element reduction is the
+only shape that cannot see it. Filed as
+[`upstream_issues/svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md`](../upstream_issues/svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md).
+
+The nested rows are what named the mechanism rather than merely fitting it:
+`{ a, x: { $p: p } }` is quiet because entering the nested pattern **re-sets** the
+flag its sibling had cleared, and `{ x: { a, $p: p } }` is loud for the same
+reason one level down. A rule stated as "not the first key in the statement"
+fits the flat rows and gets both of those backwards.
+
+**Two method notes.** A reduction that reproduces nothing is a fact about the
+reduction, not about the defect — the entry sat at "output only" for that reason
+alone, and the sentence recording it read as a finding. And the positive control
+is what sized the fix: ablating it fails **7 of the 14** grid cells, which is the
+branch condition splitting the grid in half; a fix that reached every cell or one
+cell would have been a different rule. The sweep moved 1 unit of 33,901 —
+`MISMATCH -> match: 1`, `match -> MISMATCH: 0` — and that unit is the entry
+dropped here.
 
 ### Previously: `jsdoc-typedef-injected` (2026-09-02, at 9 entries)
 

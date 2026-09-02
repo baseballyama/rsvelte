@@ -194,6 +194,26 @@ impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
         oxc_ast_visit::walk::walk_call_expression(self, it);
     }
 
+    fn visit_object_pattern(&mut self, it: &oxc::ObjectPattern<'a>) {
+        if self.collect_store_facts {
+            // Upstream clears `isDeclaration` when the pattern's FIRST element is
+            // left, so every `$`-prefixed key after it is walked as an expression
+            // and resolves as a store (`processInstanceScriptContent.ts:293`).
+            for property in it.properties.iter().skip(1) {
+                if property.shorthand {
+                    continue;
+                }
+                if let oxc::PropertyKey::StaticIdentifier(key) = &property.key
+                    && key.name.starts_with('$')
+                {
+                    self.store_scan
+                        .add_binding_pattern_key_position(key.span.start + self.offset);
+                }
+            }
+        }
+        oxc_ast_visit::walk::walk_object_pattern(self, it);
+    }
+
     fn visit_reg_exp_literal(&mut self, it: &oxc::RegExpLiteral<'a>) {
         if self.collect_store_facts {
             self.store_scan
