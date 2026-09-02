@@ -89,7 +89,42 @@ pub struct Phase3Breakdown {
     pub assembly_after_fragment: Duration,
     pub css_render: Duration,
     pub codegen: Duration,
+    /// Named pieces of what was previously only a residual. `compile_profile`
+    /// printed transform-total minus the six timers above as "Pre-frag setup",
+    /// which is 11.7% of a client compile and was a guessed label, not a
+    /// measurement. These are the substantial calls sitting in the gaps between
+    /// the six, timed individually rather than by bracketing the gap: a bracket
+    /// wide enough to cover a gap has swallowed a nested timer here before, and
+    /// the residual was then subtracted twice.
+    pub prefrag: [Duration; PREFRAG_SLOTS],
 }
+
+/// Summing this struct field by field at a call site is how a new field silently
+/// reports zero: the reader compiles, prints `0.00ms`, and that is indistinguishable
+/// from a timer that never fired. Adding the field here is still manual, but it sits
+/// beside the definition instead of inside a binary nobody edits when adding one.
+impl std::ops::AddAssign for Phase3Breakdown {
+    fn add_assign(&mut self, r: Self) {
+        self.visit_program += r.visit_program;
+        self.script_text_transform += r.script_text_transform;
+        self.template_fragment += r.template_fragment;
+        self.assembly_after_fragment += r.assembly_after_fragment;
+        self.css_render += r.css_render;
+        self.codegen += r.codegen;
+        for (a, b) in self.prefrag.iter_mut().zip(r.prefrag) {
+            *a += b;
+        }
+    }
+}
+
+pub const PREFRAG_SLOTS: usize = 5;
+pub const PREFRAG_LABELS: [&str; PREFRAG_SLOTS] = [
+    "strip_dead_comments_from_program",
+    "rename_dollar_props",
+    "attach_import_origins",
+    "instance_has_top_level_multi_declarator",
+    "compute_blocker_primary_names",
+];
 
 /// One level below [`Phase3Breakdown::script_text_transform`], which is the
 /// largest Phase 3 bucket. The five stages are sequential and disjoint, so the
@@ -217,6 +252,8 @@ thread_local! {
         const { Cell::new((Duration::ZERO, 0, 0)) };
 
     static VISIT_PROGRAM: Cell<Duration> = const { Cell::new(Duration::ZERO) };
+    static PREFRAG: Cell<[Duration; PREFRAG_SLOTS]> =
+        const { Cell::new([Duration::ZERO; PREFRAG_SLOTS]) };
     static SCRIPT_TEXT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static TEMPLATE_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
     static ASSEMBLY_AFTER_FRAGMENT: Cell<Duration> = const { Cell::new(Duration::ZERO) };
@@ -1102,7 +1139,29 @@ pub fn take_breakdown() -> Phase3Breakdown {
         assembly_after_fragment: ASSEMBLY_AFTER_FRAGMENT.with(|c| c.replace(Duration::ZERO)),
         css_render: CSS_RENDER.with(|c| c.replace(Duration::ZERO)),
         codegen: CODEGEN.with(|c| c.replace(Duration::ZERO)),
+        prefrag: PREFRAG.with(|c| c.replace([Duration::ZERO; PREFRAG_SLOTS])),
     }
+}
+
+/// Time `f` into one named pre-fragment slot. A closure rather than a
+/// start/stop pair so the timed region cannot drift away from the call it is
+/// meant to measure when the surrounding code is edited.
+#[inline]
+pub fn timed_prefrag<T>(idx: usize, f: impl FnOnce() -> T) -> T {
+    let t = timer_start();
+    let r = f();
+    record_prefrag(idx, timer_elapsed(t));
+    r
+}
+
+/// Accumulate into one named pre-fragment slot. `idx` indexes [`PREFRAG_LABELS`].
+#[inline]
+pub fn record_prefrag(idx: usize, d: Duration) {
+    PREFRAG.with(|c| {
+        let mut v = c.get();
+        v[idx] += d;
+        c.set(v);
+    });
 }
 
 /// Per-call-site `SemanticBuilder::build` accounting.
