@@ -17,8 +17,6 @@
 	"primo/src/lib/builder/ui/Button.svelte",
 	"svelte-bits/src/lib/components/library/TextAnimations/RotatingText/RotatingText.svelte",
 	"svelte-bits/src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte",
-	"svelte-maplibre-gl/src/content/examples/geolocate/Geolocate.svelte",
-	"svelte-spa-router/test/app/src/App.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",

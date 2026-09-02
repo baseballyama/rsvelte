@@ -2866,11 +2866,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 25 entries)
+### Client (`known-failures.client.json`, 23 entries)
 
-Partition of `known-failures.client.json` by verdict: `24 + 1`
+Partition of `known-failures.client.json` by verdict: `22 + 1`
 
-- **24 — the generated JS differs** (`js` / `code-differs`).
+- **22 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2916,6 +2916,16 @@ body and cannot see an outer declaration. A 104,439-unit sweep moved 2 units, on
 TypeScript first — `compile_module` parses plain JS, so all 923 `.svelte.(js|ts)` units had
 been erroring identically in both arms and the first run's `MOVED 0` was arithmetically
 forced.
+
+Two entries left this target and `client-dev` because a compound assignment's binary
+right-hand side lost its parentheses. Expanding `s += <rhs>` to
+`$.set(s, $.get(s) + <rhs>)` needs `<rhs>` parenthesized when it is itself a binary
+expression, and the difference is a **value** rather than a spelling: `1 + (2 + '3')` is
+`'123'` and `1 + 2 + '3'` is `'33'`. The predicate deciding it was a character scan whose
+"starts and ends with a quote, so it is a string literal" early return also matches
+`'a' + x + 'b'` — the closing quote now has to be the one that opens the text. The two ids
+are `svelte-maplibre-gl/…/Geolocate.svelte` and `svelte-spa-router/test/app/src/App.svelte`;
+the repro is `crates/rsvelte_core/tests/compound_assignment_rhs_parens.rs`.
 
 Two entries left this target and `client-dev` on two `$.mutate` decisions that answer
 differently depending on the HOST the write is written in. `musicat/…/Scrollbar.svelte`
@@ -3008,7 +3018,7 @@ the emitted default was the getter function rather than the store's value. Hashi
 client (entry, target) outputs before and after reports **2** changed units over 1 id,
 `match -> MISMATCH = 0`; the other two ids of that cluster do not move and stay listed.
 
-Every one of the remaining 25 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 23 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3115,15 +3125,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 39 entries)
+### Client dev (`known-failures.client-dev.json`, 37 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `39`
+Partition of `known-failures.client-dev.json` by verdict: `37`
 
-- **39 — the generated JS differs.**
+- **37 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 39 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 37 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
