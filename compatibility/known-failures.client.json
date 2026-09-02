@@ -5,8 +5,6 @@
 	"huly/plugins/text-editor-resources/src/components/DrawingBoardEditor.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
-	"mathesar/mathesar_ui/src/pages/database/disconnect/DisconnectDatabaseModal.svelte",
-	"mathesar/mathesar_ui/src/systems/databases/upgrade-database/UpgradeDatabaseModal.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
 	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
 	"photon/src/lib/ui/navbar/Profile.svelte",

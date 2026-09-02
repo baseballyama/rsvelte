@@ -2878,11 +2878,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 17 entries)
+### Client (`known-failures.client.json`, 15 entries)
 
-Partition of `known-failures.client.json` by verdict: `16 + 1`
+Partition of `known-failures.client.json` by verdict: `14 + 1`
 
-- **16 — the generated JS differs** (`js` / `code-differs`).
+- **14 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -3058,7 +3058,48 @@ the same reconstruction defect recorded above for the `style:`-directive cluster
 same day by a different person on a different file: **a reconstruction that drops a rescue
 stage is over-strict, and its non-zero is a candidate list, not a finding.**
 
-Every one of the remaining 17 arrived with the wave-2 enrolment (#3130) and is described
+Two entries left this target and `client-dev` because a component's `let:` variable was
+treated as in scope inside that component's NAMED slots. Upstream's `Component` scope
+visitor gives every `slot=`-carrying child `context.state.scope.child()` — a child of the
+scope OUTSIDE the component — while the `let:` bindings are declared in
+`metadata.scopes.default` (`phases/scope.js`), so the name is a plain global there:
+`is_pure` reports the read as non-reactive and legacy `build_expression` collects no
+reference for it. rsvelte answered both questions by name, and scope 0 is deliberately
+polluted with every child scope's declarations, so the lookup always found the binding —
+`mathesar/…/DisconnectDatabaseModal.svelte` and `…/UpgradeDatabaseModal.svelte` came out
+with the read inside a `$.template_effect` and with a `$.deep_read_state` in front of it.
+The repro crosses the slot the read sits in with the **mode**, because the two halves sit on
+opposite sides of `build_expression`'s `runes || maybe_runes` early return: a component with
+no `<script>` is `maybe_runes`, where no `$.deep_read_state` can be emitted at all, so a grid
+without a legacy row measures only one of the two ports.
+
+A first version answered the reference half in phase 2 instead, by testing the binding's
+declaring scope against the reference's — and a 135,560-unit sweep reported a third id
+moving. `svelte-ux/…/SelectField/+page.svelte` was **not listed**, so that unit was
+`match -> MISMATCH`: upstream's `determine_slot(node) ? context.state : …` declares a
+slotted node's own `let:` in the ENCLOSING scope, so `<M slot="option" let:option
+class={cls(option)}>` still reads it from its own attributes, and the phase-2 rule dropped
+four dependency reads. The nine-cell grid was green through all of it, because every cell it
+held put the `let:` and the reference on **different** nodes — the axis was varied and the
+three-on-one-node arrangement was held fixed. The repro now carries that cell, chosen the
+way a control has to be: an implementation that makes it red exists and was run before the
+cell was written.
+
+The corrected version then moved a fourth id, and the second sweep is the only reason it was
+not shipped: `carbon-components-svelte/…/TreeView.lazyLoad.test.svelte` and Svelte's own
+`runtime-legacy/samples/const-tag-component/main.svelte` went `match -> MISMATCH`. The mask is
+keyed by NAME, and a slotted node's own `let:` of the SAME name is a different binding that
+upstream declares in the enclosing scope — so `<C let:a>` around `<span slot="t" let:a>` had
+the child's binding masked by the parent's. The reduction is two cells: with the `let:` on only
+one of the two nodes, both spellings already agreed. Clearing the mask where a `let:` is
+registered is three edits, not one, because rsvelte registers a `let:` in three places —
+`build_slot_function`, `process_element_let_directives` and `visit_svelte_fragment` — and the
+reported file reaches the second while the corpus file reaches the third. (`<svelte:element
+let:x>` is the fourth candidate and needs nothing: both compilers reject it.) The repro carries
+one cell per place, plus the cell that separates a scope stack from a flag — inside one named
+slot, an `{#each xs as a}` body reads `$.get(a)` and the very next expression reads a bare `a`.
+
+Every one of the remaining 15 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3165,15 +3206,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 31 entries)
+### Client dev (`known-failures.client-dev.json`, 29 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `31`
+Partition of `known-failures.client-dev.json` by verdict: `29`
 
-- **31 — the generated JS differs.**
+- **29 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 31 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 29 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

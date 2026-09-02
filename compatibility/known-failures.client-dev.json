@@ -10,8 +10,6 @@
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
 	"immich/web/src/lib/components/timeline/Timeline.svelte",
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
-	"mathesar/mathesar_ui/src/pages/database/disconnect/DisconnectDatabaseModal.svelte",
-	"mathesar/mathesar_ui/src/systems/databases/upgrade-database/UpgradeDatabaseModal.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
 	"musicat/src/lib/views/InternetArchiveView.svelte",
 	"networking-toolbox/src/lib/components/home/SiteMapList.svelte",
