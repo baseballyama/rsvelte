@@ -68,6 +68,55 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## Deficit #2 does not exist in prod mode, and the target is one factor (2026-09-03 00:13)
+
+A `--threads` sweep on both targets, 3000 files, wall clock normalised to the
+1-thread arm:
+
+| threads | client wall | x vs 1 | server wall | x vs 1 |
+|---:|---:|---:|---:|---:|
+| 1 | 1029.7 | 1.00 | 814.7 | 1.00 |
+| 2 | 616.5 | 1.67 | 493.4 | 1.65 |
+| 4 | 309.6 | 3.33 | 218.4 | 3.73 |
+| 6 | 184.1 | 5.59 | 143.4 | **5.68** |
+| 8 | 181.7 | **5.67** | 151.7 | 5.37 |
+| 10 | 208.6 | 4.94 | 165.8 | 4.91 |
+
+**Client and server scale identically** — 5.67x against 5.68x at their optima,
+4.94x against 4.91x at ten threads — and their CPU-time growth from 1 to 10
+threads is comparable (1.46x vs 1.53x), so contention is not differential
+either. **The "deficit #2" sized above at 4.57x vs 5.41x is not reproduced.**
+That figure came from the *dev* pair, borrowed because the prod client run is
+contaminated, and the borrowing is what failed: dev and prod are different
+workloads, and the caveat attached to it turned out to be the whole story.
+
+**This collapses the target to a single factor.** Taking the server's implied
+parallel efficiency (19.59 / 3.695 = 5.30) and applying it to the client, whose
+scaling the sweep says matches:
+
+- client's clean multi speedup should be 3.248 x 5.30 = **17.2x** — which is an
+  independent third route to the 15.6-17.7x already estimated for the
+  contaminated run, from a different instrument
+- 20x at that efficiency needs a single-thread speedup of 3.772 against today's
+  3.248, i.e. **1.161x on client single-threaded compile time**
+- closing deficit #1 completely (client single-x to the server's 3.695) yields
+  19.59x — *just under* 20x, so deficit #1 is very nearly, but not exactly, the
+  whole target
+
+**Do not read the 6-8 thread optimum as a change to make.** Ten threads is 1.15x
+worse than the optimum on both targets here, but sizing the batch pool to the
+performance cores was already tried and measured **7% slower** on the full
+report, and reverted (`10d72ac22`). This box was at load ~4.5 with
+`mediaanalysisd` at 75%, and fewer threads winning under contention is expected
+and is not a compiler improvement. Two measurements disagreeing across a load
+difference is a statement about the box, not about the pool.
+
+One incidental result worth keeping: the `--sort` (longest-first) arm is
+dramatically *worse* — client parallelism 2.71 against 7.19, wall 538.6 against
+208.6. Rayon's `par_iter` splits by contiguous index range, so sorting by size
+puts every large file in one chunk; longest-processing-time-first is the right
+idea for a work queue and the wrong one for a range split.
+
 ## The client target decomposes into two multiplicative factors (2026-09-03 00:12)
 
 A speedup is `single-thread speedup x parallel efficiency`, and both factors are
