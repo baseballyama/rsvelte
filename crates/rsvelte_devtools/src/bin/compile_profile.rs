@@ -31,6 +31,17 @@ use rsvelte_core::compiler::phases::phase2_analyze::analyze_component;
 use rsvelte_core::compiler::phases::phase3_transform::{profile, transform_component};
 use rsvelte_core::{CompileOptions, GenerateMode};
 
+/// The value after `--target`, if any.
+fn target_arg() -> Option<String> {
+    let mut args = std::env::args();
+    while let Some(a) = args.next() {
+        if a == "--target" {
+            return args.next();
+        }
+    }
+    None
+}
+
 fn main() {
     let files = collect_files();
     let total_bytes: usize = files.iter().map(|(_, c)| c.len()).sum();
@@ -43,12 +54,23 @@ fn main() {
         ..Default::default()
     };
 
+    // `--target` used to be accepted and ignored while `GenerateMode::Client` was
+    // hardcoded here and below, so `--target server` profiled the client and the
+    // two reads differed only by run-to-run noise. An unknown value is rejected
+    // rather than defaulted, because a silently-defaulted arm is exactly what made
+    // that unreadable.
+    let generate = match target_arg().as_deref() {
+        None | Some("client") => GenerateMode::Client,
+        Some("server") => GenerateMode::Server,
+        Some(other) => panic!("unknown --target {other}; expected client or server"),
+    };
+
     // Warmup
     for (_, content) in files.iter().take(100) {
         let _ = rsvelte_core::compile(
             content,
             CompileOptions {
-                generate: GenerateMode::Client,
+                generate,
                 ..Default::default()
             },
         );
@@ -63,7 +85,7 @@ fn main() {
     let parse_time = start.elapsed();
 
     let compile_opts = CompileOptions {
-        generate: GenerateMode::Client,
+        generate,
         dev: std::env::args().any(|a| a == "--dev"),
         ..Default::default()
     };

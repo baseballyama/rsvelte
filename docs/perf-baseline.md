@@ -68,6 +68,43 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## Deficit #1 is in phase 3, and it carries 86% of the gap (2026-09-03 00:07)
+
+With `--target` actually honoured, the same 3889-file slice on both targets:
+
+| phase | client | server | ratio | share of the gap |
+|---|---:|---:|---:|---:|
+| 1 parse | 10.04 | 8.40 | 1.20x | 1.5% |
+| 2 analyze | 88.41 | 74.82 | 1.18x | 12.2% |
+| **3 transform** | **204.81** | **108.92** | **1.88x** | **86.3%** |
+| total | 303.25 | 192.13 | 1.58x | |
+
+**The arm really switched, and the proof is a set of zeros.** Server reads
+`0.00ms` for `Script-text xform`, `Assembly (post-frag)` and `JS codegen`,
+because those timers live in `client/mod.rs` and the server path never reaches
+them — the same `0.00ms` that was a defect one section above is here the
+discriminating probe. A zero is a bug or a signal depending on what else must be
+true when it appears; that is why the probe has to be on the output.
+
+**The arms ran sequentially on a box at load average 39, and the reading
+survives it on an internal control.** Load decay is multiplicative: it scales
+every phase by one factor. Parse (1.20x), analyze (1.18x) and CSS render
+(11.15 vs 10.01 = 1.11x — shared code, the positive control) all sit at a
+uniform ~1.19x, while transform sits at 1.88x. A uniform factor cannot produce
+a differential, so the transform-specific excess of 1.58x above it is not the
+box. The absolute 1.58x total is still soft; the *localisation* is not.
+
+**What this cannot yet say is which client bucket the excess is.** The server's
+phase 3 is 108.92 ms of which 98.91 is untimed residual and 10.01 is CSS — its
+path has no per-bucket timers at all, so there is nothing to diff the client's
+buckets against. Instrumenting the server transform is the prerequisite for
+attributing the 1.88x, and it is a different job from bracketing the client's
+own residual.
+
+Note the published report has this ratio at 1.28x single-threaded on 33,890
+files against 1.58x here on 3,889 with a thin-LTO build. Two populations and
+two builds; the direction agrees and the magnitudes are not comparable.
+
 ## Where a client compile's time sits, and what the residual is not (2026-09-03 00:00)
 
 3889-file slice, `enable_sourcemap: true` (the shipping default), thin-LTO build

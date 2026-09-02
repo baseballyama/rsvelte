@@ -120,7 +120,7 @@ impl std::ops::AddAssign for Phase3Breakdown {
 pub const PREFRAG_SLOTS: usize = 5;
 pub const PREFRAG_LABELS: [&str; PREFRAG_SLOTS] = [
     "strip_dead_comments_from_program",
-    "rename_dollar_props",
+    "CONTROL (must equal codegen)",
     "attach_import_origins",
     "instance_has_top_level_multi_declarator",
     "compute_blocker_primary_names",
@@ -500,6 +500,12 @@ pub fn record_css_render(d: Duration) {
 #[inline]
 pub fn record_codegen(d: Duration) {
     CODEGEN.with(|c| c.set(c.get() + d));
+    // TEMPORARY POSITIVE CONTROL: slot 1 is otherwise unwritten, so this makes it
+    // carry a quantity that is independently measured on a different storage path.
+    // The prefrag array must report exactly CODEGEN; a zero means the accumulation
+    // is still dropping the field, which is indistinguishable from "cheap" without
+    // this. Remove once the reading is confirmed.
+    record_prefrag(1, d);
 }
 
 /// Records into [`ScriptTextBreakdown::process_accumulated`] on drop, so the
