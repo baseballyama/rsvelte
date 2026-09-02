@@ -161,6 +161,17 @@ struct BindingInfoCollector {
     reassigned: HashSet<String>,
 }
 
+impl BindingInfoCollector {
+    /// The class body is a fragment, so a binding declared outside it is
+    /// invisible to the walk above — upstream resolves it through the enclosing
+    /// scope. A local declaration of the same name is nearer and wins.
+    fn seed_outer_non_proxy(&mut self, names: &[String]) {
+        for name in names {
+            self.var_proxy.entry(name.clone()).or_insert(false);
+        }
+    }
+}
+
 impl<'ast> Visit<'ast> for BindingInfoCollector {
     fn visit_variable_declarator(&mut self, decl: &VariableDeclarator<'ast>) {
         walk::walk_variable_declarator(self, decl);
@@ -284,6 +295,7 @@ pub fn transform_private_class_assign_ast(
     state_qualified: &[String],
     other_qualified: &[String],
     v_read_qualified: &[String],
+    outer_non_proxy: &[String],
 ) -> Option<String> {
     let spliced = || {
         transform_private_class_assign_spliced(
@@ -291,6 +303,7 @@ pub fn transform_private_class_assign_ast(
             state_qualified,
             other_qualified,
             v_read_qualified,
+            outer_non_proxy,
         )
     };
     ast_rewrite::dual_run::resolve("private_class_assign_ast:inplace", source, spliced, || {
@@ -299,6 +312,7 @@ pub fn transform_private_class_assign_ast(
             state_qualified,
             other_qualified,
             v_read_qualified,
+            outer_non_proxy,
         )
     })
 }
@@ -308,13 +322,20 @@ fn transform_private_class_assign_spliced(
     state_qualified: &[String],
     other_qualified: &[String],
     v_read_qualified: &[String],
+    outer_non_proxy: &[String],
 ) -> Option<String> {
     if !target_present(source, state_qualified, other_qualified) {
         return None;
     }
 
     ast_rewrite::fixed_point(source, |src| {
-        single_pass(src, state_qualified, other_qualified, v_read_qualified)
+        single_pass(
+            src,
+            state_qualified,
+            other_qualified,
+            v_read_qualified,
+            outer_non_proxy,
+        )
     })
 }
 
@@ -323,6 +344,7 @@ fn single_pass(
     state_qualified: &[String],
     other_qualified: &[String],
     v_read_qualified: &[String],
+    outer_non_proxy: &[String],
 ) -> Option<String> {
     MODULE_PRIVATE_CLASS_ASSIGN_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
@@ -394,6 +416,7 @@ fn single_pass(
 
         let mut binding_info = BindingInfoCollector::default();
         binding_info.visit_program(program_ref);
+        binding_info.seed_outer_non_proxy(outer_non_proxy);
 
         let mut collector = PrivateClassAssignCollector {
             source: parse_str,
@@ -622,7 +645,7 @@ mod tests {
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_ast(source, state_qualified, other_qualified, &[])
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, &[], &[])
     }
 
     /// A constructor body whose names are all `$state` / `$state.raw`, so every
@@ -637,13 +660,13 @@ mod tests {
             .chain(other_qualified.iter())
             .cloned()
             .collect();
-        transform_private_class_assign_ast(source, state_qualified, other_qualified, &v_read)
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, &v_read, &[])
     }
 
     /// A constructor body holding a `$derived` field: upstream still reads it
     /// through `$.get`, so it is absent from `v_read_qualified`.
     fn ctor_body_derived(source: &str, derived_qualified: &[String]) -> Option<String> {
-        transform_private_class_assign_ast(source, &[], derived_qualified, &[])
+        transform_private_class_assign_ast(source, &[], derived_qualified, &[], &[])
     }
 
     #[test]
@@ -971,6 +994,7 @@ pub(crate) fn transform_private_class_assign_in_place(
     state_qualified: &[String],
     other_qualified: &[String],
     v_read_qualified: &[String],
+    outer_non_proxy: &[String],
 ) -> ast_rewrite::Rewrite {
     if !target_present(source, state_qualified, other_qualified) {
         return ast_rewrite::Rewrite::Unchanged;
@@ -986,6 +1010,7 @@ pub(crate) fn transform_private_class_assign_in_place(
         |allocator, program, parse_str| {
             let mut binding_info = BindingInfoCollector::default();
             binding_info.visit_program(program);
+            binding_info.seed_outer_non_proxy(outer_non_proxy);
 
             let mut rewriter = PrivateClassAssignRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
@@ -1163,7 +1188,7 @@ mod in_place_tests {
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_ast(source, state_qualified, other_qualified, &[])
+        transform_private_class_assign_ast(source, state_qualified, other_qualified, &[], &[])
     }
 
     fn method_body_in_place(
@@ -1171,7 +1196,7 @@ mod in_place_tests {
         state_qualified: &[String],
         other_qualified: &[String],
     ) -> Option<String> {
-        transform_private_class_assign_in_place(source, state_qualified, other_qualified, &[])
+        transform_private_class_assign_in_place(source, state_qualified, other_qualified, &[], &[])
             .into_option()
     }
 
@@ -1185,8 +1210,14 @@ mod in_place_tests {
             .chain(other_qualified.iter())
             .cloned()
             .collect();
-        transform_private_class_assign_in_place(source, state_qualified, other_qualified, &v_read)
-            .into_option()
+        transform_private_class_assign_in_place(
+            source,
+            state_qualified,
+            other_qualified,
+            &v_read,
+            &[],
+        )
+        .into_option()
     }
 
     #[test]
@@ -1321,8 +1352,9 @@ mod shared_decision_tests {
     #[test]
     fn spliced_path_lowers_every_decision() {
         for (source, state, other, expected) in DECISIONS {
-            let out = transform_private_class_assign_spliced(source, &ssv(state), &ssv(other), &[])
-                .unwrap_or_else(|| panic!("spliced path did not rewrite `{source}`"));
+            let out =
+                transform_private_class_assign_spliced(source, &ssv(state), &ssv(other), &[], &[])
+                    .unwrap_or_else(|| panic!("spliced path did not rewrite `{source}`"));
             assert_eq!(&out, expected, "spliced path, source `{source}`");
         }
     }
@@ -1332,7 +1364,7 @@ mod shared_decision_tests {
     fn in_place_path_lowers_every_decision() {
         for (source, state, other, expected) in DECISIONS {
             let out =
-                transform_private_class_assign_in_place(source, &ssv(state), &ssv(other), &[])
+                transform_private_class_assign_in_place(source, &ssv(state), &ssv(other), &[], &[])
                     .into_option()
                     .unwrap_or_else(|| panic!("in-place path did not rewrite `{source}`"));
             assert_eq!(&out, expected, "in-place path, source `{source}`");

@@ -300,7 +300,10 @@ pub fn transform_client_module(
     let source = paren_stripped.as_deref().unwrap_or(source);
 
     // Transform the module source (rune replacements, class fields, etc.)
-    let class_transformed = transform_module_class_fields_client(source);
+    let class_transformed = transform_module_class_fields_client(
+        source,
+        &compute_non_proxy_scope(analysis).non_proxy_vars,
+    );
 
     // Transform destructured assignments whose LHS contains state variables into
     // IIFE / sequence form (mirrors upstream `visit_assignment_expression` in
@@ -468,7 +471,10 @@ pub(crate) fn transform_module_source_for_module(
     server: bool,
     preserve_inspect: bool,
 ) -> String {
-    let class_transformed = transform_module_class_fields_client(source);
+    let class_transformed = transform_module_class_fields_client(
+        source,
+        &compute_non_proxy_scope(analysis).non_proxy_vars,
+    );
     transform_module_script_runes_with_target(
         &class_transformed,
         source,
@@ -2322,7 +2328,10 @@ pub(crate) fn transform_client(
     // Transform class fields first (before rune transforms strip the rune names)
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
-        let class_transformed = transform_module_class_fields_client(&non_imports);
+        let class_transformed = transform_module_class_fields_client(
+            &non_imports,
+            &compute_non_proxy_scope(analysis).non_proxy_vars,
+        );
         let has_effect_rune =
             class_transformed.contains("$effect") || class_transformed.contains("$inspect");
         let transformed = transform_module_script_runes(
@@ -6866,6 +6875,233 @@ fn split_trailing_comment_run(result: &mut String) -> Option<String> {
     Some(result.split_off(cut))
 }
 
+/// The non-proxy binding set upstream's `should_proxy` resolves an Identifier
+/// through. Extracted so the class-field lowering, which runs before the
+/// statement walk, reads the same list the walk does.
+struct NonProxyScope {
+    instance_scope_for_proxy: usize,
+    reactive_mut_binding_names: rustc_hash::FxHashSet<String>,
+    non_proxy_vars: Vec<String>,
+}
+
+fn compute_non_proxy_scope(analysis: &ComponentAnalysis) -> NonProxyScope {
+    // Pre-compute non-proxyable variables once (invariant across all statements).
+    // This mirrors the official Svelte compiler's should_proxy() which resolves
+    // identifiers to their binding's initial values.
+    let instance_scope_for_proxy = analysis.root.instance_scope_index;
+    // First, collect names of bindings (state/derived/stores) that can be
+    // reassigned via $.set(). If a non-proxy inner-scope binding shadows one of
+    // these, treating it as non-proxy could wrongly strip the proxy flag from
+    // an assignment to the reactive one (since the text-based transform can't
+    // distinguish scopes). Note: Props with the same name as inner locals are
+    // not a concern because Svelte disallows that naming collision.
+    let reactive_mut_binding_names: rustc_hash::FxHashSet<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            matches!(
+                b.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::StoreSub
+            )
+        })
+        .map(|b| b.name.clone())
+        .collect();
+
+    // For inner-scope bindings, we additionally require that no OTHER binding
+    // with the same name exists. This prevents conflicts with function parameters
+    // or other scoped bindings that the text-based transform cannot distinguish.
+    let name_occurrences: rustc_hash::FxHashMap<String, usize> = {
+        let mut map: rustc_hash::FxHashMap<String, usize> = rustc_hash::FxHashMap::default();
+        for b in &analysis.root.bindings {
+            *map.entry(b.name.clone()).or_insert(0) += 1;
+        }
+        map
+    };
+
+    // Names where EVERY binding of that name (across all inner scopes) has a
+    // known non-proxyable initial type. This enables safe non-proxy treatment
+    // even when the same local name is declared in multiple sibling scopes.
+    // (`is_non_proxy_node_type` is now a module-level free fn so the module
+    // transform path can share it.)
+    let names_all_non_proxy: rustc_hash::FxHashSet<String> = {
+        use rustc_hash::FxHashMap;
+        let mut per_name: FxHashMap<String, (bool, usize)> = FxHashMap::default();
+        for b in &analysis.root.bindings {
+            // Only consider inner (non-top-level) non-reactive function-local bindings.
+            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
+            if is_top_level || b.reassigned {
+                per_name.insert(b.name.clone(), (false, 0));
+                continue;
+            }
+            if matches!(
+                b.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::Prop
+                    | BindingKind::BindableProp
+                    | BindingKind::StoreSub
+                    | BindingKind::Template
+            ) {
+                per_name.insert(b.name.clone(), (false, 0));
+                continue;
+            }
+            if reactive_mut_binding_names.contains(&b.name) {
+                per_name.insert(b.name.clone(), (false, 0));
+                continue;
+            }
+            let ok = b
+                .initial_node_type
+                .as_deref()
+                .map(is_non_proxy_node_type)
+                .unwrap_or(false);
+            let entry = per_name.entry(b.name.clone()).or_insert((true, 0));
+            if !ok {
+                entry.0 = false;
+            }
+            entry.1 += 1;
+        }
+        per_name
+            .into_iter()
+            .filter_map(|(n, (ok, cnt))| if ok && cnt > 0 { Some(n) } else { None })
+            .collect()
+    };
+
+    let non_proxy_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            if b.reassigned {
+                return false;
+            }
+            // Never mark a variable as non-proxy if another binding with the same
+            // name is reactive (state/derived/store) — the text-based transform
+            // can't distinguish between them.
+            if reactive_mut_binding_names.contains(&b.name) {
+                return false;
+            }
+            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
+            // Regular non-reactive bindings with initial literal/primitive value.
+            //
+            // Mirror upstream `should_proxy(Identifier)`: it resolves the
+            // binding's `initial` and recurses — `should_proxy(binding.initial)`.
+            // That returns `false` (→ NON-proxy) ONLY when the initial is one of
+            // the false-list types (literal / template literal / arrow / function
+            // expression / unary / binary, or the `undefined` identifier). For any
+            // other initial — CallExpression (e.g. a `$props()` call), object /
+            // array literal, member access, `new`, etc. — `should_proxy` falls
+            // through to `return true`, so the binding stays proxy-eligible.
+            // (Marking a CallExpression-initialised binding as non-proxy wrongly
+            // dropped the proxy on `let x = $state(propWithDefault)`.)
+            // Gate on `initial_node_type` (the init NODE's presence) rather than
+            // `b.initial` (a literal-string field that stays None for
+            // BinaryExpression / ArrowFunctionExpression / UnaryExpression
+            // initials). Upstream `should_proxy` resolves the binding's initial
+            // *node* and recurses, returning false (→ non-proxy) for the
+            // non-proxy node types regardless of whether the initial is a
+            // literal. `let root = depth === 0` (BinaryExpression) and
+            // `let f = () => {}` (ArrowFunctionExpression) must therefore be
+            // treated as non-proxy even though their literal-string `initial`
+            // is None.
+            if is_top_level
+                && !matches!(
+                    b.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                        | BindingKind::StoreSub
+                )
+                && b.import_source.is_none()
+                && (b
+                    .initial_node_type
+                    .as_deref()
+                    .map(is_non_proxy_node_type)
+                    .unwrap_or(false)
+                    || (b.initial_node_type.as_deref() == Some("Identifier")
+                        && b.initial_identifier_name.as_deref() == Some("undefined")))
+            {
+                return true;
+            }
+            // Inner-scope non-reactive function-local bindings: include when the
+            // name is unique across all bindings (so the text-based transform can
+            // safely treat references to this name as non-proxy). Example:
+            //   function onTouchStart() {
+            //     const isHoverScrollbar = foo() !== undefined;
+            //     stateVar = isHoverScrollbar; // -> $.set(stateVar, isHoverScrollbar)
+            //   }
+            if !is_top_level
+                && !matches!(
+                    b.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                        | BindingKind::StoreSub
+                        | BindingKind::Template // @const, each items, etc. handled below
+                )
+                && (name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
+                    || names_all_non_proxy.contains(&b.name))
+                && let Some(ref node_type) = b.initial_node_type
+            {
+                match node_type.as_str() {
+                    "Literal"
+                    | "TemplateLiteral"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+                    | "UnaryExpression"
+                    | "BinaryExpression" => return true,
+                    _ => {}
+                }
+            }
+
+            // NOTE: props are intentionally NOT classified non-proxy here. Upstream
+            // `should_proxy` resolves an Identifier to `binding.initial`, and for a
+            // destructured prop (`let { x = 0 } = $props()`) that initial is the
+            // `$props()` CallExpression — never the default value. A CallExpression
+            // recurses to `return true`, so a prop reference is always proxy-eligible
+            // regardless of its default's type. (Classifying props by their default
+            // type wrongly dropped the proxy on `let count = $state(propWithDefault)`.)
+
+            // Template bindings (@const declarations, let directive bindings) whose
+            // initial value is a known non-proxyable primitive expression. Matches the
+            // official compiler's should_proxy() tracing through template bindings.
+            // Only include when the name is unique (or all same-named bindings are
+            // also known non-proxyable) — otherwise the text-based transform can't
+            // distinguish a template @const from a same-named function parameter.
+            if matches!(b.kind, BindingKind::Template)
+                && let Some(ref node_type) = b.initial_node_type
+                && (name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
+                    || names_all_non_proxy.contains(&b.name))
+            {
+                match node_type.as_str() {
+                    "Literal"
+                    | "TemplateLiteral"
+                    | "ArrowFunctionExpression"
+                    | "FunctionExpression"
+                    | "UnaryExpression"
+                    | "BinaryExpression" => return true,
+                    _ => {}
+                }
+            }
+            false
+        })
+        .map(|b| b.name.clone())
+        .collect();
+    NonProxyScope {
+        instance_scope_for_proxy,
+        reactive_mut_binding_names,
+        non_proxy_vars,
+    }
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -7001,13 +7237,17 @@ fn transform_instance_script_for_visitors(
         String::new()
     };
 
+    // Upstream's `should_proxy` resolves an Identifier through its binding, so the
+    // class-field lowering needs this set even though it runs before the walk.
+    let non_proxy_scope = compute_non_proxy_scope(analysis);
+
     // Transform class fields only if the script contains class definitions with runes
     let script: std::borrow::Cow<str> = if contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
         super::profile::record_pn(super::profile::PN_INV_CLASS);
-        let out = transform_class_fields_client(&script);
+        let out = transform_class_fields_client(&script, &non_proxy_scope.non_proxy_vars);
         #[cfg(feature = "measure-pa-split")]
         if out != *script {
             super::profile::record_pn(super::profile::PN_CHG_CLASS);
@@ -7613,217 +7853,11 @@ fn transform_instance_script_for_visitors(
     };
 
     let mut result = String::new();
-
-    // Pre-compute non-proxyable variables once (invariant across all statements).
-    // This mirrors the official Svelte compiler's should_proxy() which resolves
-    // identifiers to their binding's initial values.
-    let instance_scope_for_proxy = analysis.root.instance_scope_index;
-    // First, collect names of bindings (state/derived/stores) that can be
-    // reassigned via $.set(). If a non-proxy inner-scope binding shadows one of
-    // these, treating it as non-proxy could wrongly strip the proxy flag from
-    // an assignment to the reactive one (since the text-based transform can't
-    // distinguish scopes). Note: Props with the same name as inner locals are
-    // not a concern because Svelte disallows that naming collision.
-    let reactive_mut_binding_names: rustc_hash::FxHashSet<String> = analysis
-        .root
-        .bindings
-        .iter()
-        .filter(|b| {
-            matches!(
-                b.kind,
-                BindingKind::State
-                    | BindingKind::RawState
-                    | BindingKind::Derived
-                    | BindingKind::StoreSub
-            )
-        })
-        .map(|b| b.name.clone())
-        .collect();
-
-    // For inner-scope bindings, we additionally require that no OTHER binding
-    // with the same name exists. This prevents conflicts with function parameters
-    // or other scoped bindings that the text-based transform cannot distinguish.
-    let name_occurrences: rustc_hash::FxHashMap<String, usize> = {
-        let mut map: rustc_hash::FxHashMap<String, usize> = rustc_hash::FxHashMap::default();
-        for b in &analysis.root.bindings {
-            *map.entry(b.name.clone()).or_insert(0) += 1;
-        }
-        map
-    };
-
-    // Names where EVERY binding of that name (across all inner scopes) has a
-    // known non-proxyable initial type. This enables safe non-proxy treatment
-    // even when the same local name is declared in multiple sibling scopes.
-    // (`is_non_proxy_node_type` is now a module-level free fn so the module
-    // transform path can share it.)
-    let names_all_non_proxy: rustc_hash::FxHashSet<String> = {
-        use rustc_hash::FxHashMap;
-        let mut per_name: FxHashMap<String, (bool, usize)> = FxHashMap::default();
-        for b in &analysis.root.bindings {
-            // Only consider inner (non-top-level) non-reactive function-local bindings.
-            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
-            if is_top_level || b.reassigned {
-                per_name.insert(b.name.clone(), (false, 0));
-                continue;
-            }
-            if matches!(
-                b.kind,
-                BindingKind::State
-                    | BindingKind::RawState
-                    | BindingKind::Derived
-                    | BindingKind::Prop
-                    | BindingKind::BindableProp
-                    | BindingKind::StoreSub
-                    | BindingKind::Template
-            ) {
-                per_name.insert(b.name.clone(), (false, 0));
-                continue;
-            }
-            if reactive_mut_binding_names.contains(&b.name) {
-                per_name.insert(b.name.clone(), (false, 0));
-                continue;
-            }
-            let ok = b
-                .initial_node_type
-                .as_deref()
-                .map(is_non_proxy_node_type)
-                .unwrap_or(false);
-            let entry = per_name.entry(b.name.clone()).or_insert((true, 0));
-            if !ok {
-                entry.0 = false;
-            }
-            entry.1 += 1;
-        }
-        per_name
-            .into_iter()
-            .filter_map(|(n, (ok, cnt))| if ok && cnt > 0 { Some(n) } else { None })
-            .collect()
-    };
-
-    let non_proxy_vars: Vec<String> = analysis
-        .root
-        .bindings
-        .iter()
-        .filter(|b| {
-            if b.reassigned {
-                return false;
-            }
-            // Never mark a variable as non-proxy if another binding with the same
-            // name is reactive (state/derived/store) — the text-based transform
-            // can't distinguish between them.
-            if reactive_mut_binding_names.contains(&b.name) {
-                return false;
-            }
-            let is_top_level = b.scope_index == 0 || b.scope_index == instance_scope_for_proxy;
-            // Regular non-reactive bindings with initial literal/primitive value.
-            //
-            // Mirror upstream `should_proxy(Identifier)`: it resolves the
-            // binding's `initial` and recurses — `should_proxy(binding.initial)`.
-            // That returns `false` (→ NON-proxy) ONLY when the initial is one of
-            // the false-list types (literal / template literal / arrow / function
-            // expression / unary / binary, or the `undefined` identifier). For any
-            // other initial — CallExpression (e.g. a `$props()` call), object /
-            // array literal, member access, `new`, etc. — `should_proxy` falls
-            // through to `return true`, so the binding stays proxy-eligible.
-            // (Marking a CallExpression-initialised binding as non-proxy wrongly
-            // dropped the proxy on `let x = $state(propWithDefault)`.)
-            // Gate on `initial_node_type` (the init NODE's presence) rather than
-            // `b.initial` (a literal-string field that stays None for
-            // BinaryExpression / ArrowFunctionExpression / UnaryExpression
-            // initials). Upstream `should_proxy` resolves the binding's initial
-            // *node* and recurses, returning false (→ non-proxy) for the
-            // non-proxy node types regardless of whether the initial is a
-            // literal. `let root = depth === 0` (BinaryExpression) and
-            // `let f = () => {}` (ArrowFunctionExpression) must therefore be
-            // treated as non-proxy even though their literal-string `initial`
-            // is None.
-            if is_top_level
-                && !matches!(
-                    b.kind,
-                    BindingKind::State
-                        | BindingKind::RawState
-                        | BindingKind::Derived
-                        | BindingKind::Prop
-                        | BindingKind::BindableProp
-                        | BindingKind::StoreSub
-                )
-                && b.import_source.is_none()
-                && (b
-                    .initial_node_type
-                    .as_deref()
-                    .map(is_non_proxy_node_type)
-                    .unwrap_or(false)
-                    || (b.initial_node_type.as_deref() == Some("Identifier")
-                        && b.initial_identifier_name.as_deref() == Some("undefined")))
-            {
-                return true;
-            }
-            // Inner-scope non-reactive function-local bindings: include when the
-            // name is unique across all bindings (so the text-based transform can
-            // safely treat references to this name as non-proxy). Example:
-            //   function onTouchStart() {
-            //     const isHoverScrollbar = foo() !== undefined;
-            //     stateVar = isHoverScrollbar; // -> $.set(stateVar, isHoverScrollbar)
-            //   }
-            if !is_top_level
-                && !matches!(
-                    b.kind,
-                    BindingKind::State
-                        | BindingKind::RawState
-                        | BindingKind::Derived
-                        | BindingKind::Prop
-                        | BindingKind::BindableProp
-                        | BindingKind::StoreSub
-                        | BindingKind::Template // @const, each items, etc. handled below
-                )
-                && (name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
-                    || names_all_non_proxy.contains(&b.name))
-                && let Some(ref node_type) = b.initial_node_type
-            {
-                match node_type.as_str() {
-                    "Literal"
-                    | "TemplateLiteral"
-                    | "ArrowFunctionExpression"
-                    | "FunctionExpression"
-                    | "UnaryExpression"
-                    | "BinaryExpression" => return true,
-                    _ => {}
-                }
-            }
-
-            // NOTE: props are intentionally NOT classified non-proxy here. Upstream
-            // `should_proxy` resolves an Identifier to `binding.initial`, and for a
-            // destructured prop (`let { x = 0 } = $props()`) that initial is the
-            // `$props()` CallExpression — never the default value. A CallExpression
-            // recurses to `return true`, so a prop reference is always proxy-eligible
-            // regardless of its default's type. (Classifying props by their default
-            // type wrongly dropped the proxy on `let count = $state(propWithDefault)`.)
-
-            // Template bindings (@const declarations, let directive bindings) whose
-            // initial value is a known non-proxyable primitive expression. Matches the
-            // official compiler's should_proxy() tracing through template bindings.
-            // Only include when the name is unique (or all same-named bindings are
-            // also known non-proxyable) — otherwise the text-based transform can't
-            // distinguish a template @const from a same-named function parameter.
-            if matches!(b.kind, BindingKind::Template)
-                && let Some(ref node_type) = b.initial_node_type
-                && (name_occurrences.get(&b.name).copied().unwrap_or(0) == 1
-                    || names_all_non_proxy.contains(&b.name))
-            {
-                match node_type.as_str() {
-                    "Literal"
-                    | "TemplateLiteral"
-                    | "ArrowFunctionExpression"
-                    | "FunctionExpression"
-                    | "UnaryExpression"
-                    | "BinaryExpression" => return true,
-                    _ => {}
-                }
-            }
-            false
-        })
-        .map(|b| b.name.clone())
-        .collect();
+    let NonProxyScope {
+        instance_scope_for_proxy,
+        reactive_mut_binding_names,
+        non_proxy_vars,
+    } = non_proxy_scope;
 
     // Reassignment-only non-proxy list = `non_proxy_vars` PLUS props whose default
     // value is a non-proxy primitive. Upstream's `AssignmentExpression` proxy

@@ -4,7 +4,7 @@ use memchr::memmem;
 use std::fmt::Write as _;
 
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
-use super::expression_needs_proxy;
+use super::expression_needs_proxy_with_scope;
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::phases::phase3_transform::shared::class_body::{
@@ -515,6 +515,7 @@ pub(super) fn emit_class_field(
     field: &ClassStateField,
     all_fields: &[ClassStateField],
     indent: &str,
+    non_proxy_vars: &[String],
 ) -> String {
     let mut output = String::new();
     let body_indent = format!("{}\t", indent);
@@ -563,7 +564,8 @@ pub(super) fn emit_class_field(
         }
     } else if field.rune_type == "$state" {
         let value_trimmed = field.value.trim();
-        let needs_proxy = !value_trimmed.is_empty() && expression_needs_proxy(value_trimmed);
+        let needs_proxy = !value_trimmed.is_empty()
+            && expression_needs_proxy_with_scope(value_trimmed, non_proxy_vars);
         let wrapped_value = if needs_proxy {
             format!("$.proxy({})", field.value)
         } else {
@@ -660,7 +662,7 @@ pub(super) fn emit_class_field(
         // fields (`() => { … this.#x = v … }`), which must lower to
         // `$.set(this.#x, v)`, not the invalid `$.get(this.#x) = v`. It also wraps
         // the remaining reads in `$.get(...)` with correct LHS/update guards.
-        let derived_expr = transform_class_methods(&field.value, all_fields);
+        let derived_expr = transform_class_methods(&field.value, all_fields, non_proxy_vars);
         let _ = writeln!(
             output,
             "{}{} = {}{}$.derived({});",
@@ -947,12 +949,15 @@ pub(super) fn transform_constructor_private_reads(
 }
 
 /// Transform class fields with $state and $derived runes for client-side.
-pub(crate) fn transform_class_fields_client(script: &str) -> String {
-    transform_class_fields_client_with_options(script, true)
+pub(crate) fn transform_class_fields_client(script: &str, non_proxy_vars: &[String]) -> String {
+    transform_class_fields_client_with_options(script, true, non_proxy_vars)
 }
 
-pub(crate) fn transform_module_class_fields_client(script: &str) -> String {
-    transform_class_fields_client_with_options(script, false)
+pub(crate) fn transform_module_class_fields_client(
+    script: &str,
+    non_proxy_vars: &[String],
+) -> String {
+    transform_class_fields_client_with_options(script, false, non_proxy_vars)
 }
 
 /// Lower a class expression nested inside a rune argument or an `extends`
@@ -962,24 +967,37 @@ fn transform_nested_class_expression(
     value: &str,
     indent: &str,
     retain_all_public_jsdoc: bool,
+    non_proxy_vars: &[String],
 ) -> String {
     if memmem::find(value.as_bytes(), b"class").is_none() {
         return value.to_string();
     }
-    transform_class_fields_client_with_options_at(value, retain_all_public_jsdoc, Some(indent))
+    transform_class_fields_client_with_options_at(
+        value,
+        retain_all_public_jsdoc,
+        Some(indent),
+        non_proxy_vars,
+    )
 }
 
 fn transform_class_fields_client_with_options(
     script: &str,
     retain_all_public_jsdoc: bool,
+    non_proxy_vars: &[String],
 ) -> String {
-    transform_class_fields_client_with_options_at(script, retain_all_public_jsdoc, None)
+    transform_class_fields_client_with_options_at(
+        script,
+        retain_all_public_jsdoc,
+        None,
+        non_proxy_vars,
+    )
 }
 
 fn transform_class_fields_client_with_options_at(
     script: &str,
     retain_all_public_jsdoc: bool,
     indent_override: Option<&str>,
+    non_proxy_vars: &[String],
 ) -> String {
     // Check if script contains a class with $state or $derived fields
     if memmem::find(script.as_bytes(), b"class").is_none()
@@ -1028,6 +1046,7 @@ fn transform_class_fields_client_with_options_at(
                     &script[hs..header.body_brace],
                     &class_indent,
                     retain_all_public_jsdoc,
+                    non_proxy_vars,
                 )
             );
             &heritage_header
@@ -1403,7 +1422,11 @@ fn transform_class_fields_client_with_options_at(
             &script[..class_pos],
             class_header,
             &script[class_body_start..class_body_end + 1],
-            transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc)
+            transform_class_fields_client_with_options(
+                after_class_body,
+                retain_all_public_jsdoc,
+                non_proxy_vars,
+            )
         );
     }
 
@@ -1415,6 +1438,7 @@ fn transform_class_fields_client_with_options_at(
             &field.value,
             &member_indent,
             retain_all_public_jsdoc,
+            non_proxy_vars,
         );
     }
 
@@ -1470,7 +1494,7 @@ fn transform_class_fields_client_with_options_at(
     let mut prev_shape: Option<MemberShape> = None;
     for field in &fields {
         if field.constructor_declared && !field.is_private {
-            let text = emit_class_field(field, &fields, &member_indent);
+            let text = emit_class_field(field, &fields, &member_indent, non_proxy_vars);
             let (first, last) = field_block_shapes(&text);
             append_member_block(&mut new_class_body, &mut prev_shape, &text, first, last);
         }
@@ -1481,7 +1505,7 @@ fn transform_class_fields_client_with_options_at(
         match member {
             ClassMember::RuneField(field_idx) => {
                 let field = &fields[*field_idx];
-                let text = emit_class_field(field, &fields, &member_indent);
+                let text = emit_class_field(field, &fields, &member_indent, non_proxy_vars);
                 let (first, last) = field_block_shapes(&text);
                 append_member_block(&mut new_class_body, &mut prev_shape, &text, first, last);
             }
@@ -1489,7 +1513,7 @@ fn transform_class_fields_client_with_options_at(
                 if text.trim().is_empty() {
                     continue;
                 }
-                let transformed = transform_class_methods(text, &fields);
+                let transformed = transform_class_methods(text, &fields, non_proxy_vars);
                 let (rejoined, first, last) = rejoin_class_members(&transformed);
                 if let (Some(first), Some(last)) = (first, last) {
                     append_member_block(
@@ -1509,7 +1533,7 @@ fn transform_class_fields_client_with_options_at(
                 for field in &fields {
                     if field.constructor_declared && field.is_private && !field.had_class_body_decl
                     {
-                        let text = emit_class_field(field, &fields, &member_indent);
+                        let text = emit_class_field(field, &fields, &member_indent, non_proxy_vars);
                         let (first, last) = field_block_shapes(&text);
                         append_member_block(
                             &mut new_class_body,
@@ -1571,6 +1595,7 @@ fn transform_class_fields_client_with_options_at(
                                 &fields,
                                 at_ctor_depth,
                                 &member_body_indent,
+                                non_proxy_vars,
                             );
                             let _ =
                                 writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
@@ -1586,6 +1611,7 @@ fn transform_class_fields_client_with_options_at(
                                 &fields,
                                 pending_at_ctor_depth,
                                 &member_body_indent,
+                                non_proxy_vars,
                             );
                             let _ =
                                 writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
@@ -1609,6 +1635,7 @@ fn transform_class_fields_client_with_options_at(
                         &fields,
                         pending_at_ctor_depth,
                         &member_body_indent,
+                        non_proxy_vars,
                     );
                     let _ = writeln!(ctor_body, "{}{}", member_body_indent, transformed_line);
                 }
@@ -1662,6 +1689,7 @@ fn transform_class_fields_client_with_options_at(
                                 &state_qualified,
                                 &other_qualified,
                                 &v_read_qualified,
+                                non_proxy_vars,
                             )
                     {
                         ctor_body = rewritten;
@@ -1683,8 +1711,11 @@ fn transform_class_fields_client_with_options_at(
     let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
 
     // Recursively process remaining classes in the script
-    let after_class_transformed =
-        transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc);
+    let after_class_transformed = transform_class_fields_client_with_options(
+        after_class_body,
+        retain_all_public_jsdoc,
+        non_proxy_vars,
+    );
 
     // Check if this is a `new class ...` expression that needs wrapping
     // `new class Foo { ... }` -> `new (class Foo { ... })()`
@@ -2005,7 +2036,11 @@ pub(super) fn find_private_field_prefixes(content: &str, field_name: &str) -> Ve
 /// For private state fields (those initialized with $state or $derived),
 /// we need to wrap accesses with $.get() and mutations with $.set().
 /// Handles any variable prefix (this, self, instance, etc.) not just `this`.
-pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String {
+pub(super) fn transform_class_methods(
+    content: &str,
+    fields: &[ClassStateField],
+    non_proxy_vars: &[String],
+) -> String {
     if content.trim().is_empty() || fields.is_empty() {
         return content.to_string();
     }
@@ -2034,6 +2069,7 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
             &state_qualified,
             &other_qualified,
             &[],
+            non_proxy_vars,
         ) {
             result = rewritten;
         }
@@ -2064,7 +2100,8 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                     let rest = &result[value_start..];
                     let value_end = rhs_value_end(rest);
                     let value = rest[..value_end].trim();
-                    let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
+                    let needs_proxy = field.rune_type == "$state"
+                        && expression_needs_proxy_with_scope(value, non_proxy_vars);
                     let replacement = if needs_proxy {
                         format!(
                             "$.set({}, $.get({}) {} {}, true)",
@@ -2097,7 +2134,8 @@ pub(super) fn transform_class_methods(content: &str, fields: &[ClassStateField])
                 let rest = &result[value_start..];
                 let value_end = rhs_value_end(rest);
                 let value = rest[..value_end].trim();
-                let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
+                let needs_proxy = field.rune_type == "$state"
+                    && expression_needs_proxy_with_scope(value, non_proxy_vars);
                 let replacement = if needs_proxy {
                     format!("$.set({}, {}, true)", qualified, value)
                 } else {
@@ -2454,6 +2492,7 @@ pub(super) fn transform_constructor_assignment(
     fields: &[ClassStateField],
     at_ctor_depth: bool,
     continuation_indent: &str,
+    non_proxy_vars: &[String],
 ) -> String {
     let mut result = line.trim().to_string();
 
@@ -2509,8 +2548,8 @@ pub(super) fn transform_constructor_assignment(
                     let private_name = format!("this.#{}", field.private_backing_name);
                     let transformed_rhs = match *rune_type {
                         "$state" => {
-                            let needs_proxy =
-                                !value.trim().is_empty() && expression_needs_proxy(value.trim());
+                            let needs_proxy = !value.trim().is_empty()
+                                && expression_needs_proxy_with_scope(value.trim(), non_proxy_vars);
                             if needs_proxy {
                                 format!("$.state($.proxy({}))", value)
                             } else {
@@ -2593,7 +2632,8 @@ pub(super) fn transform_constructor_assignment(
                         // setter only runs when it actually assigns — and its value
                         // is the bare RHS, which `should_proxy` traces as it does
                         // for `=`.
-                        let proxy = if field.rune_type == "$state" && expression_needs_proxy(value)
+                        let proxy = if field.rune_type == "$state"
+                            && expression_needs_proxy_with_scope(value, non_proxy_vars)
                         {
                             ", true"
                         } else {
@@ -2668,7 +2708,8 @@ pub(super) fn transform_constructor_assignment(
                     // Use private_backing_name for the output
                     // Add proxy flag (true) for $state fields when value could be an object
                     // This matches the official compiler's should_proxy() logic
-                    let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
+                    let needs_proxy = field.rune_type == "$state"
+                        && expression_needs_proxy_with_scope(value, non_proxy_vars);
                     if needs_proxy {
                         return format!(
                             "$.set(this.#{}, {}, true){}",
@@ -2695,7 +2736,7 @@ mod tests {
     #[test]
     fn constructor_wraps_a_member_chain_read_of_a_derived_field() {
         let src = "class A {\n\t#getProps = () => ({});\n\t#props = $derived(this.#getProps());\n\tconstructor() {\n\t\tconst b = this.#props.motion;\n\t}\n}";
-        let out = transform_class_fields_client(src);
+        let out = transform_class_fields_client(src, &[]);
         assert!(
             out.contains("$.get(this.#props).motion"),
             "member-chain read left unwrapped:\n{out}"
@@ -2722,7 +2763,7 @@ mod tests {
     #[test]
     fn class_runes_lower_after_line_comment_separators() {
         let src = "class Box {\n\tvalue = // state\n\t\t$state(1);\n\traw = // raw\n\t\t$state.raw(2);\n\tdoubled = // derived\n\t\t$derived(this.value * 2);\n\tlazy = // derived by\n\t\t$derived.by(() => this.value + 1);\n}";
-        let out = transform_class_fields_client(src);
+        let out = transform_class_fields_client(src, &[]);
 
         for expected in [
             "// state\n\t$.state(1)",
@@ -2742,7 +2783,7 @@ mod tests {
     #[test]
     fn constructor_runes_lower_when_initializer_starts_later() {
         let src = "class Box {\n\t#hidden;\n\tconstructor() {\n\t\tthis.value =\n\t\t\t$state(1);\n\t\tthis.#hidden = // keep\n\t\t\t$state(2);\n\t}\n}";
-        let out = transform_class_fields_client(src);
+        let out = transform_class_fields_client(src, &[]);
 
         assert!(
             out.contains("get value()"),
@@ -2773,7 +2814,7 @@ export class Counter {
         // Regression for C-007: a non-rune class (`Helper`) preceding a rune
         // class (`Counter`) must not suppress lowering of the rune class.
         let script = format!("class Helper {{\n\tvalue = 1;\n}}\n\n{COUNTER}");
-        let out = transform_class_fields_client(&script);
+        let out = transform_class_fields_client(&script, &[]);
 
         // The non-rune class is preserved verbatim.
         assert!(
@@ -2803,7 +2844,7 @@ export class Counter {
 
         // The `Counter` class must be lowered exactly as if it stood alone —
         // the preceding non-rune class must not change its output.
-        let standalone = transform_class_fields_client(COUNTER);
+        let standalone = transform_class_fields_client(COUNTER, &[]);
         assert!(
             out.ends_with(standalone.trim_end()) || out.contains(standalone.trim_end()),
             "Counter lowering should match the standalone case.\nwith Helper:\n{out}\nstandalone:\n{standalone}"
@@ -2813,7 +2854,7 @@ export class Counter {
     #[test]
     fn standalone_rune_class_still_lowers() {
         // Existing behavior: a single rune class lowers as before.
-        let out = transform_class_fields_client(COUNTER);
+        let out = transform_class_fields_client(COUNTER, &[]);
         assert!(out.contains("$.state(0)"), "expected lowering:\n{out}");
         assert!(
             !out.contains("count = $state(0)"),
@@ -2823,7 +2864,7 @@ export class Counter {
 
     #[test]
     fn public_rune_field_moves_a_leading_block_comment_to_its_value() {
-        let out = transform_class_fields_client("class C {\n\t/* c */\n\tn = $state(0);\n}");
+        let out = transform_class_fields_client("class C {\n\t/* c */\n\tn = $state(0);\n}", &[]);
         assert!(
             out.contains("#n = /* c */\n\t$.state(0);"),
             "leading block comment should be attached to the generated backing field value:\n{out}"
@@ -2832,7 +2873,7 @@ export class Counter {
 
     #[test]
     fn public_rune_field_moves_leading_line_comments_to_its_value() {
-        let out = transform_class_fields_client("class C {\n\t// c\n\tn = $state(0);\n}");
+        let out = transform_class_fields_client("class C {\n\t// c\n\tn = $state(0);\n}", &[]);
         assert!(
             out.contains("#n = // c\n\t$.state(0);"),
             "leading line comments should be attached to the generated backing field value:\n{out}"
@@ -2842,7 +2883,7 @@ export class Counter {
     #[test]
     fn script_without_runes_is_unchanged() {
         let script = "class Helper {\n\tvalue = 1;\n}\n";
-        assert_eq!(transform_class_fields_client(script), script);
+        assert_eq!(transform_class_fields_client(script, &[]), script);
     }
 
     #[test]
@@ -2851,7 +2892,7 @@ export class Counter {
             "\t", "  ", "\n", "\u{a0}", "\u{feff}", "\u{b}", "\u{c}", "\u{3000}",
         ] {
             let script = format!("class{separator}K {{\n\tv = $state(1);\n}}\n");
-            let out = transform_class_fields_client(&script);
+            let out = transform_class_fields_client(&script, &[]);
             for expected in ["#v = $.state(1)", "get v()", "set v(value)"] {
                 assert!(
                     out.contains(expected),
@@ -2870,7 +2911,11 @@ export class Counter {
             "// we avoid class here\nconst make = () => {\n\tconst v = $state(1);\n\treturn v;\n};\n",
             "const label = 'class name';\nconst make = () => {\n\tconst v = $state(1);\n\treturn v;\n};\n",
         ] {
-            assert_eq!(transform_class_fields_client(script), script, "{script:?}");
+            assert_eq!(
+                transform_class_fields_client(script, &[]),
+                script,
+                "{script:?}"
+            );
         }
     }
 
@@ -2892,7 +2937,7 @@ export class Counter {
   });
   constructor() {}
 }"#;
-        let out = transform_class_fields_client(script);
+        let out = transform_class_fields_client(script, &[]);
         assert!(
             out.contains("#creating"),
             "creating should be transformed to private backing field:\n{out}"
@@ -2912,7 +2957,7 @@ export class Counter {
         // Issue #2087: everything after the first rune field on a physical line
         // used to be discarded, so `#d` and its accessors never reached the output.
         let script = "export class Foo { n = $state(1); d = $derived(this.n * 2); }";
-        let out = transform_class_fields_client(script);
+        let out = transform_class_fields_client(script, &[]);
         for expected in [
             "#n = $.state(1)",
             "get n()",
@@ -2928,7 +2973,7 @@ export class Counter {
     #[test]
     fn single_line_nested_class_lowers_every_rune_field() {
         let script = "class Outer { a = $state(1); b = $derived(this.a); }\nclass Inner { c = $state(2); d = $derived(this.c); }";
-        let out = transform_class_fields_client(script);
+        let out = transform_class_fields_client(script, &[]);
         for expected in ["#b = $.derived(", "#d = $.derived(", "get b()", "get d()"] {
             assert!(out.contains(expected), "missing {expected}:\n{out}");
         }
@@ -2940,7 +2985,7 @@ export class Counter {
         // scan reads `inner = class Inner { c = $state(2)` as a single field and
         // lowers `inner` to the INNER field's value.
         let script = "class Outer { a = $state(1); inner = class Inner { c = $state(2); e = $derived(this.c * 3); }; }";
-        let out = transform_class_fields_client(script);
+        let out = transform_class_fields_client(script, &[]);
         assert!(out.contains("#a = $.state(1)"), "missing #a:\n{out}");
         assert!(
             !out.contains("#inner = $.state("),
@@ -2953,7 +2998,7 @@ export class Counter {
     #[test]
     fn same_line_members_survive_alongside_methods() {
         let script = "class Foo { n = $state(1); get twice() { return this.n * 2 } d = $derived(this.n + 1); }";
-        let out = transform_class_fields_client(script);
+        let out = transform_class_fields_client(script, &[]);
         assert!(out.contains("#n = $.state(1)"), "missing #n:\n{out}");
         assert!(out.contains("get twice()"), "method dropped:\n{out}");
         assert!(out.contains("#d = $.derived("), "missing #d:\n{out}");
