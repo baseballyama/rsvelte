@@ -113,6 +113,13 @@ const tests = {
 		assert.equal(jobGates(decide(FAKE, [])).every(Boolean), true);
 	},
 
+	'an empty change set is the one input where lsp-ratchet defaults the other way'() {
+		// `--changed-files` takes a path; anything that does not resolve reads
+		// as an empty list, which opens every job gate above and closes this
+		// one -- on a pull request, the only event that consults it.
+		assert.equal(decide(FAKE, [])['lsp-ratchet'], false);
+	},
+
 	'an unknown crate directory that a member depends on stays enabled'() {
 		const workspace = parseWorkspace(
 			{ packages: [pkg('rsvelte_core', ['outside_crate'])] },

@@ -150,8 +150,10 @@ export function decide(workspace, changedFiles, root = ROOT) {
 	// The PR that shrinks the LSP ratchet is the one that most needs the
 	// full-population verdict, and the event-name guard on `lsp-corpus` would
 	// otherwise let it merge having never been measured. This output re-admits
-	// exactly that PR. It costs 950 job-minutes when it fires and fires on 0 of
-	// the 77 open PRs, because nothing else touches these two paths.
+	// exactly that PR, at 950 job-minutes when it fires. Note the direction:
+	// the jobs above default to `true` on an empty list and this one defaults
+	// to `false`, so a `--changed-files` argument that does not resolve closes
+	// the hatch on the only event that consults it.
 	enabled['lsp-ratchet'] = changedFiles.some(
 		(file) =>
 			file.startsWith('scripts/compat-lsp/') ||

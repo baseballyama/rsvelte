@@ -1517,6 +1517,61 @@ file puts many declarations in one file. When a family's cells are one construct
 file, its green says nothing about the same constructs sharing a file — and the
 interference is invisible in the output of the fragment that causes it.
 
+### A flag the tree does not implement is ignored, so the mode you ran is not the mode you typed
+
+`attribution-check.mjs` has two modes: the default one is the DoD and stays red until every
+ratchet entry is attributed, and `--gate-known` asks only about the attribution that exists.
+Typing `--gate-known` against a tree where that PR has not landed runs **the default mode** —
+the script reads its own argv, an unknown flag is not an error, and the red that comes back is
+correct, load-bearing, and about a different question than the one asked. `command grep -n
+'gate-known' scripts/ci/attribution-check.mjs` returning nothing is the whole check.
+
+Two things generalize. **Which tree implements a flag is part of the flag's meaning**: a flag
+added by an unmerged PR reads on `main` as absence, never as error, so "I ran it with the CI
+flag" is a claim about the tree as much as about the command. And the fix is the one already
+recorded for `perf_bench` against `compile_profile` one directory over — an instrument that
+rejects what it does not understand cannot produce this, and a permissive one produces a
+comparison between a mode and itself. The instance is kept because it happened **thirty minutes
+after telling a peer the same thing about the same script**, by the author of that correction:
+quoting a hazard is not defending against it, and knowing which hazard is not either.
+
+### When an empty input means "assume everything", check the output whose default is the opposite
+
+`corpus-compat-job-filter.mjs --changed-files` takes a **path to a list file**, not a list of
+names; `existsSync` turns anything else into `[]` with no error. `:147-149` then reads an empty
+list as "a schedule or dispatch run" and gives every `JOB_TARGETS` job `true`, which is the
+documented, deliberate over-approximation. `:155` computes `lsp-ratchet` as `[].some(…)`, which
+is **`false`**. So one malformed argument fails *open* on every sibling output and *closed* on
+exactly one — and `lsp-ratchet` is the escape hatch that re-admits the 950-job-minute
+`lsp-corpus` job on a pull request, the only event where it is consulted at all (a schedule or
+dispatch already satisfies the first disjunct). A broken argument silently disables the hatch on
+precisely the PR class it exists for, and the comment at `:147` documents only the open
+direction.
+
+Measured four ways on one tree: the ratchet JSON's real path → `lsp-ratchet=true` (positive
+control); a crate in its own Cargo workspace → every output false (negative control); a
+nonexistent path and a bare file name → `lsp-corpus=true, lsp-ratchet=false`. The rule is not
+"validate the argument" — it is that a function with a documented "empty means everything"
+default has to be read output by output, because a `.some()` over the same empty array points
+the other way and inherits none of that comment.
+
+### Two things spelled `hash=`, and the comment describing the other file had both halves backwards
+
+An LSP ratchet key can carry `missing-rsvelte-field[hash=digest(left[key])]`, where the digest is
+of the **value** and an artifact recovers it, or
+`:extra-rsvelte-element[count=N,hash=digest(extraRsvelte.sort())]`, where the digest is of
+identity keys that are themselves `item-<digest(value)>` — doubled, and not preimage-able.
+`diff.mjs`'s comment says the key "keeps the suffix and drops the bracket"; `verify.mjs:462`
+strips `-element`/`-field` and keeps the bracket, so **both halves are inverted**. A comment
+about what a *downstream* stage does with your value is checked by neither file, which is the
+same rot class as a count written into prose.
+
+The measurement is what makes it actionable rather than a warning: of 23,746 keys, **0** carry a
+suffix that would separate the two and **1,880 carry `count=`**, so `count=` is the only
+surviving discriminator and 92% of keys are preimage-able. Written as a bare "the hash has no
+preimage", the note stops the next reader from trying the thing that works nine times in ten —
+**a caution sized to the exception is a false statement about the rule.**
+
 ### A probe filter that discards on BOTH sides reads as agreement
 
 A six-cell reduction reported `EQ` on every cell, and the reduction was correct — the
