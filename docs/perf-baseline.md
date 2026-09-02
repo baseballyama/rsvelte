@@ -68,6 +68,54 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## A sampled client profile, and what the 1.161x could come from (2026-09-03 00:35)
+
+`/usr/bin/sample` on a single-threaded `perf_bench --target client` run,
+17,280 top-of-stack samples over 544 symbols. Self time, so a caller's cost
+appears under the leaf it calls:
+
+| mechanism | self-time |
+|---|---:|
+| oxc parser / lexer | 13.6% |
+| memmove + memcmp | 9.8% |
+| string search (`str::pattern`, `memmem`) | 9.0% |
+| hashing (SipHash + IndexMap) | 6.6% |
+| esrap printer | 5.5% |
+| mimalloc | 3.8% |
+| `js_scan` byte scanning | 3.5% |
+| `store_subscriptions` (phase 2) | 2.9% |
+| `program_to_oxc` | 2.4% |
+| `copied_spans_for_normalized_code` | 2.3% |
+| everything else | 41.3% |
+
+**Three cross-checks, and the third is the instructive one.** Byte scanning
+(9.0 + 3.5 = 12.5%) against the 11.53% this file already records for the client
+from a separate profile — two independent derivations agreeing to about one
+point, which is the pattern this repo says actually catches errors. The esrap
+printer at 5.5% self against `esrap_share`'s 5.09% inclusive. And
+`program_to_oxc` at **2.4% self against the 5.3% its new timer reports** — not a
+contradiction but a units difference: the timer is inclusive, the profile is
+self, so the conversion's allocation and copying land under `mi_malloc` and
+`_platform_memmove`. Quote 5.3% for *what removing it saves* and 2.4% for *its
+own code*, and never the two in one column.
+
+Sizing against the client's 1.161x target:
+
+| mechanism | share | if fully removed |
+|---|---:|---:|
+| byte scanning | 12.5% | 1.143x |
+| hashing | 6.6% | 1.071x |
+| both | 19.1% | 1.236x |
+
+Both together would clear 1.161x. **They are also the two the architecture notes
+already name** — the AST pipeline for the first, leaving `serde_json::Value` for
+the second — so this profile is a confirmation of the existing plan, not a new
+direction, and the standing caution applies unchanged: 12.5% is an upper bound
+on what becomes *unreachable*, not a saving, because an AST pipeline pays its
+own walk. `copied_spans_for_normalized_code` (2.3%, client-only, third-largest
+rsvelte symbol) is the one item here that is neither of those and has not been
+looked at.
+
 ## program_to_oxc is 5.3% of a client compile and the server pays none of it (2026-09-03 00:28)
 
 `program_to_oxc` had no timer at all. Measured, 3000-file slice:
