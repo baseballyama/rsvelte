@@ -2887,8 +2887,11 @@ pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
         first_on_line = false;
     }
 
-    // SAFETY: the only bytes written are `;`, `,` and entries of `B64`, all ASCII.
-    unsafe { String::from_utf8_unchecked(result) }
+    // Checked, not `from_utf8_unchecked`: the invariant holds today (only `;`,
+    // `,` and `B64` entries are written) but `vlq_encode` is a separate function,
+    // so whoever edits it does not see the assumption -- and this buffer change
+    // measured below the noise floor, which does not pay for an `unsafe`.
+    String::from_utf8(result).expect("VLQ output is ASCII")
 }
 
 /// Encode a single integer as a VLQ value appended to the output buffer.
