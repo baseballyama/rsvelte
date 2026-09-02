@@ -634,12 +634,16 @@ pub(crate) fn transform_client(
                     && retained.diagnostics().is_empty()
                     && retained.program().source_text == instance_script.raw
             }) {
-            Some(retained) => dead_comments::strip_dead_comments_from_program(
-                &instance_script.raw,
-                retained.program(),
-                dead_comment_rules,
-            ),
-            None => dead_comments::strip_dead_comments(&instance_script.raw, dead_comment_rules),
+            Some(retained) => super::profile::timed_prefrag(0, || {
+                dead_comments::strip_dead_comments_from_program(
+                    &instance_script.raw,
+                    retained.program(),
+                    dead_comment_rules,
+                )
+            }),
+            None => super::profile::timed_prefrag(0, || {
+                dead_comments::strip_dead_comments(&instance_script.raw, dead_comment_rules)
+            }),
         };
         // Every lowering below decides what a rune call is from this text, so the
         // grouping parens around one have to be gone before the first of them runs.
@@ -724,15 +728,18 @@ pub(crate) fn transform_client(
         } else {
             composed_body_projection.as_ref()
         };
-        instance_script_imports = attach_import_origins(
-            imports,
-            retained_scripts.and_then(|scripts| scripts.instance.as_ref()),
-            instance_script.start,
-            analysis.is_typescript,
-            options.enable_sourcemap,
-        );
-        let split_top_level_declarations =
-            instance_has_top_level_multi_declarator(ast, instance_raw);
+        instance_script_imports = super::profile::timed_prefrag(2, || {
+            attach_import_origins(
+                imports,
+                retained_scripts.and_then(|scripts| scripts.instance.as_ref()),
+                instance_script.start,
+                analysis.is_typescript,
+                options.enable_sourcemap,
+            )
+        });
+        let split_top_level_declarations = super::profile::timed_prefrag(3, || {
+            instance_has_top_level_multi_declarator(ast, instance_raw)
+        });
         let _script_start = super::profile::timer_start();
         let _parent_scope = super::profile::ParentScope::new();
         let mut transformed = transform_instance_script_for_visitors(
@@ -821,8 +828,9 @@ pub(crate) fn transform_client(
             // Track per-slot primary binding NAMES so the Fragment visitor can
             // mirror upstream's dedup-by-Expression behavior for
             // template_effect blockers arrays.
-            let primary_names =
-                super::shared::async_body::compute_blocker_primary_names(transformed);
+            let primary_names = super::profile::timed_prefrag(4, || {
+                super::shared::async_body::compute_blocker_primary_names(transformed)
+            });
             if !primary_names.is_empty() {
                 *context.state.blocker_map_primary_names.borrow_mut() = primary_names;
             }
@@ -831,8 +839,9 @@ pub(crate) fn transform_client(
             if !pre_blocker_map.is_empty() {
                 *context.state.blocker_map.borrow_mut() = pre_blocker_map;
             }
-            let primary_names =
-                super::shared::async_body::compute_blocker_primary_names(transformed);
+            let primary_names = super::profile::timed_prefrag(4, || {
+                super::shared::async_body::compute_blocker_primary_names(transformed)
+            });
             if !primary_names.is_empty() {
                 *context.state.blocker_map_primary_names.borrow_mut() = primary_names;
             }
