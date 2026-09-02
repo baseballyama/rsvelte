@@ -310,9 +310,17 @@ observed subset of the 166" — that second reading was offered with a file-and-
 whose quoted text does not say it. Both are comparisons between populations, one of which
 is unstated. What actually sizes the lever is **key
 insertions per compile**, which is unmeasured; the distinct count bounds only how large an
-interning table would be, and 88, 147 and 166 are alike trivial for that. A count that
-decides nothing was carried here for months, precise to two digits and wrong by most of a
-factor of two, because nothing depended on it.
+interning table would be, and 88, 147 and 166 are alike trivial for that. **A number that decides nothing is not
+merely left wrong — it is left unfalsifiable.** Nothing depends on it, so its derivation
+never gets recorded; with no derivation there is nothing to check it against later. Two
+people read this one independently, one taking it for a static inventory and the other for a
+runtime observation, and **the tree contains nothing that settles which**. Correcting the
+figure would have closed the entry and lost that; the derivation's absence is the finding.
+
+The sentence you are reading replaced one that said "wrong by most of a factor of two",
+written eight lines below the paragraph retracting exactly that claim, in the same edit —
+by the author who had just added the rule about a retraction and its number surviving in
+different paragraphs. Writing a rule down does not arm it.
 
 **The reconciliation was nearly skipped on exactly that reasoning, and skipping it would
 have cost the finding.** The first recount was 231, and the argument for not chasing the
