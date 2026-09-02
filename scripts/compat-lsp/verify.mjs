@@ -21,7 +21,11 @@ import {
   loadCases,
   removeNewServerCaches,
 } from "./suites.mjs";
-import { createCurrentArtifact, recordsFixtureControls } from "./artifacts.mjs";
+import {
+  CORPUS_SHARDS,
+  createCurrentArtifact,
+  recordsFixtureControls,
+} from "./artifacts.mjs";
 import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
 import { diffJson } from "./diff.mjs";
 import {
@@ -56,7 +60,7 @@ const UPDATE_POPULATION = args.includes("--update-population");
 const WRITE_CURRENT = argValue("--write-current");
 if (UPDATE)
   throw new Error(
-    "direct --update-baseline is disabled; merge the complete fixture and eight corpus artifacts with merge-current.mjs --update-baseline",
+    `direct --update-baseline is disabled; merge the complete fixture artifact and ${CORPUS_SHARDS} corpus artifacts with merge-current.mjs --update-baseline`,
   );
 const SHOW = Number(argValue("--show") ?? 30);
 // One label per divergence, so the histogram sums to the divergent-field count

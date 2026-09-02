@@ -332,8 +332,9 @@ repositories and shard, so a `NEW` or `stale` reported within that scope is real
 population artefact. What a partial run cannot do is **re-baseline**: `verify.mjs` refuses
 `--update-baseline` outright (`:57-60`), and the baseline is merged from the complete
 `CORPUS_SHARDS + 1` = 17 artifacts by `merge-current.mjs`, which rejects any other count
-(`artifacts.mjs:104`). That refusal's own message says "eight corpus artifacts" while the code
-requires sixteen — following it gathers half the set and is refused one layer down.
+(`artifacts.mjs:104`). That refusal's message named "eight corpus artifacts" against a code path
+requiring sixteen, so following it gathered half the set and was refused one layer down; it now
+derives the count from `CORPUS_SHARDS` rather than restating it.
 
 ### Blind spot 27a — server notifications are discarded [S]
 
