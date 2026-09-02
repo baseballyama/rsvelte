@@ -913,16 +913,38 @@ measure the harness, not the compiler, and their recorded payload confirms it: t
 `hash=f411dae2ecdd` is `digest(["item-" + digest(edit)])` over official's single edit, and
 recomputing that chain from the *measured rsvelte* edit reproduces `f411dae2ecdd` exactly — so
 the two edits are byte-identical and supplying `options` retires all twenty rather than
-converting them. The same omission reaches `documentHighlight`, whose `position` is likewise
-never sent although the ratchet key displays one (`|0:13|`): `request()`'s third argument is a
-label, not a parameter.
+converting them.
+
+**The key describes a measurement that was not performed.** A ratchet key carries a `|line:col|`
+segment — `documentHighlight`'s read `|0:13|`, `|0:24|`, `|0:9|`, `|0:2|`, `|1:4|` — and that
+segment is `request()`'s third argument, a **label**, not the `position` that went on the wire.
+`suites.mjs` adds a real `position` for `completion` / `hover` / `linkedEditingRange` only, so
+every `documentHighlight` unit states a position it never asked about. This is worse than the
+formatting case: an empty response merely fails to distinguish four causes, whereas a key naming
+a column actively misleads whoever reads it. `prepareRename` (4 cases) and `colorPresentation`
+(3) are the same defect one step further — each declares a `params` object in the fixture
+manifest that `suites.mjs` reads at three sites, all inside the `codeAction` branch, so those
+declarations are never sent either. **Both hold zero ratchet entries, and that zero is not
+coverage**: two servers that both return nothing agree, so an empty bucket here is a statement
+about the population, not an observation about the mechanism.
+
+**And the ten formatting fixtures cannot express the axis they were written for.** Their
+document is `entry.source` verbatim, which for all ten is the eleven bytes `unformatted` — one
+word. Upstream's ten tests differ only in `expected.engine` (`prettier-config`,
+`prettier-plugin`, `prettier-fallback`, `prettier-options`, `user-prettier-v2`,
+`user-prettier-module`, `builtin-prettier`), i.e. which Prettier resolution path is taken; but
+every engine formats a single word to itself plus a newline, and the digest above shows official
+and rsvelte producing byte-identical edits. So repairing `options` makes these ten *agree*, and
+they will still measure nothing about Prettier-versus-native. Reaching a decision point is not
+being able to tell two rules for it apart.
 
 **Evidence [D]:** the two responses and the stderr line are one measured probe against
 `target/debug/rsvelte-language-server`; the digest reconstruction is arithmetic over the
-committed ratchet. Note the population this does **not** settle — `prepareRename` (4 cases) and
-`colorPresentation` (3) also declare a manifest `params` that `suites.mjs` never reads, and both
-hold **zero** ratchet entries; that zero is consistent with both servers returning nothing, so it
-is not evidence they are unaffected.
+committed ratchet; the label-versus-parameter claim is read off `suites.mjs:150-192`. A rate
+table over "does the harness supply this method's required params" was computed and is **not**
+reported, because it does not discriminate — `formatting` and `documentHighlight` are 100% while
+`colorPresentation` and `prepareRename` are 0% in the same group, and those two zeroes may be
+empty denominators rather than agreement.
 
 ---
 
