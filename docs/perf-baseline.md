@@ -68,6 +68,46 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## Where a client compile's time sits, and what the residual is not (2026-09-03 00:00)
+
+3889-file slice, `enable_sourcemap: true` (the shipping default), thin-LTO build
+so absolute ms are not comparable to a `release` run — the shares are.
+Phase 1 parse 2.9%, phase 2 analyze 28.0%, phase 3 transform 69.1%. Inside
+phase 3:
+
+| bucket | ms | % of compile | % of phase 3 |
+|---|---:|---:|---:|
+| Pre-frag setup (**residual**) | 45.15 | 15.7% | 22.7% |
+| Script-text xform | 44.89 | 15.6% | 22.6% |
+| Template fragment | 41.35 | 14.4% | 20.8% |
+| JS codegen | 35.56 | 12.4% | 17.9% |
+| Assembly (post-frag) | 17.35 | 6.0% | 8.7% |
+| CSS render | 10.89 | 3.8% | 5.5% |
+| visit_program | 3.44 | 1.2% | 1.7% |
+
+The first two differ by 0.6% and this tool's own run-to-run spread is 5.6% on
+the total (measured, above), so **they are tied, not ranked** — do not quote the
+residual as "the largest bucket".
+
+**The four calls the residual was guessed to contain are not in it.** With the
+plumbing validated by a positive control that reproduced `codegen` exactly to
+two decimals, `strip_dead_comments_from_program` reads 0.45 ms,
+`attach_import_origins` 1.57, `instance_has_top_level_multi_declarator` 1.39 and
+`compute_blocker_primary_names` 0.00 — **3.41 ms of a 67.54 ms residual on that
+run, 5%**. Four candidates eliminated; 95% of the residual is still unnamed, and
+naming it needs region brackets rather than more guesses at call sites.
+
+Two things the run also showed about the instrument. The printed
+`still unnamed` line was itself wrong, because it subtracted the control — a
+quantity outside the residual — as though it were attributed to it. And the
+built-in double-count guard did not fire, because 57.10 < 67.54: it happened to
+fit. **A guard that trips only on overflow is silent on a quantity that is
+merely in the wrong bucket.**
+
+Sizing: the residual is 15.7% of compile, so removing all of it is 1.19x, and
+client needs 1.30x to reach 20x from 15.34x. Necessary, not sufficient — the
+same shape as the single-thread/scaling decomposition above.
+
 ## compile_profile accepted `--target server` and profiled the client (2026-09-02 23:50)
 
 A client-vs-server bucket comparison came back with every share within 0.2
