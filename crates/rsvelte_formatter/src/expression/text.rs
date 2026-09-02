@@ -78,8 +78,34 @@ pub(super) fn first_line_ends_with_logical_op(first_line: &str) -> bool {
     t.ends_with("&&") || t.ends_with("||") || t.ends_with("??")
 }
 
-/// Collapse a chain OXC broke only at top-level logical operators
-/// (`&&` / `||` / `??`) back to one line.
+/// Whether `line` ends with a top-level binary operator, i.e. OXC wrapped the
+/// chain there rather than at a delimiter.
+///
+/// A delimiter break (`(`, `,`) is deliberately excluded: those layouts carry
+/// prettier's expanded-argument spacing and are rejoined by
+/// [`collapse_block_header_expanded_call`] / [`collapse_multiline_to_single_line`],
+/// which know where the spaces go.
+fn ends_with_binary_op(line: &str) -> bool {
+    const SYMBOLIC: [&str; 19] = [
+        "&&", "||", "??", "===", "!==", "==", "!=", "<=", ">=", "**", "+", "-", "*", "/", "%", "<",
+        ">", "&", "|",
+    ];
+    const WORDS: [&str; 2] = ["instanceof", "in"];
+    let t = line.trim_end();
+    if SYMBOLIC.iter().any(|op| t.ends_with(op)) {
+        return true;
+    }
+    WORDS.iter().any(|w| {
+        t.strip_suffix(w).is_some_and(|head| {
+            head.chars()
+                .next_back()
+                .is_some_and(|c| !c.is_alphanumeric() && c != '_' && c != '$')
+        })
+    })
+}
+
+/// Collapse a chain OXC broke only at top-level binary operators back to one
+/// line.
 ///
 /// `format_inline_expression` prints at `LineWidth::MAX` (320), so an
 /// expression wider than that breaks no matter what the caller asks for.
@@ -93,7 +119,7 @@ pub(super) fn collapse_logical_chain(formatted: &str) -> Option<String> {
     }
     if !lines[..lines.len() - 1]
         .iter()
-        .all(|l| first_line_ends_with_logical_op(l))
+        .all(|l| ends_with_binary_op(l))
     {
         return None;
     }
