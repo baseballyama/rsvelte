@@ -575,9 +575,12 @@ for (const target of targets) {
 // blocked there for 30 minutes with the surfaces already measured, then lost
 // them because the artifact is only written at the very end. Write the measured
 // surfaces first so a kill in the tail cannot discard a completed measurement.
-if (requestedTargets) {
+{
+  // A full run must not write a partial file to the published path, so its
+  // crash-safety copy goes to a sidecar; a subset run has nothing else to write.
+  const surfacesPath = requestedTargets ? outputPath : `${outputPath}.surfaces.json`;
   writeFileSync(
-    outputPath,
+    surfacesPath,
     `${JSON.stringify(
       {
         schemaVersion: 10,
@@ -587,7 +590,9 @@ if (requestedTargets) {
           surfacesMeasured: targets.map((t) => t.id),
           surfacesOmitted: allTargets.filter((t) => !targets.includes(t)).map((t) => t.id),
           incomplete: "surfaces only; tool tasks, printer and competitor arms not run",
-          note: "Subset run (RSVELTE_REPORT_TARGETS). Not the published report; do not quote as one.",
+          note: requestedTargets
+            ? "Subset run (RSVELTE_REPORT_TARGETS). Not the published report; do not quote as one."
+            : "Crash-safety copy of a full run's surfaces, written before the corpus-wide tail. The published report is the sibling file.",
         },
         surfaces,
       },
@@ -595,7 +600,7 @@ if (requestedTargets) {
       2,
     )}\n`,
   );
-  console.error(`[report] wrote surfaces-only artifact to ${outputPath}`);
+  console.error(`[report] wrote surfaces-only artifact to ${surfacesPath}`);
 }
 
 console.error("[report] benchmarking parser and toolchain tasks");
