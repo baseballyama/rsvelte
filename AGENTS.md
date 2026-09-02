@@ -372,7 +372,12 @@ entries** each, which is a FALSE-SHRINK failure. Their 86 queued jobs were there
 red before any of them ran; rebasing did not cost the queue, it *freed* it (`running 16 → 8`,
 `queued 153 → 104`). The trap is that **the branch's own tree is self-consistent**, so nothing
 measurable locally explains the red — "the ratchet is right on my branch, so the rebase can wait"
-is a true statement and an irrelevant one.
+is a true statement and an irrelevant one. **And the same fact is a tool, not only a
+hazard**: a PR run's artifact records its own `projectRevision` as the merge ref, so it says which
+upstream commits were *in* the tree it measured. Reading that first shrinks or dissolves the
+question "does `main` moving invalidate this measurement" — in one instance four commits' worth of
+reachability was traced by hand and the artifact then showed three of them had been in the
+measured tree all along.
 
 **And a cancelled run also shows up RED, where it is indistinguishable from a real regression.**
 `Tests` is a rollup job that reads its shards' `result`s and exits 1 unless every one is
