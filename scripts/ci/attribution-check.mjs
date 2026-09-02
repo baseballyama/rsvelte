@@ -108,16 +108,28 @@ for (const f of ratchets) {
 		}
 		continue;
 	}
-	// Two-sided, like every ratchet here: a file that has earned its block must leave the
-	// pending list in the same change, or the list stops describing the backlog.
-	if (pending.includes(f)) fail(`${f} carries an attribution block but is still listed in attribution-pending.json — remove it`);
 	const sum = b.rows.reduce((a, r) => a + r.n, 0);
+	// Two-sided, like every ratchet here: a file whose table is COMPLETE must leave the
+	// pending list in the same change, or the list stops describing the backlog. A partial
+	// table on a pending file is the expected middle state — the first cluster of a
+	// 23,746-entry ratchet is filed long before the last — so it is not an error, and
+	// requiring completeness before any row could be written would make a partial table
+	// worse than none.
+	if (pending.includes(f) && sum >= n) {
+		fail(`${f}'s attribution is complete but it is still listed in attribution-pending.json — remove it`);
+	}
 	if (sum < n) {
 		// A partial table is the honest shape while some clusters are still being
 		// filed, so say which entries are uncovered rather than reporting a
 		// bookkeeping mismatch — the two read very differently to whoever is next.
-		fail(`${b.file}:${b.line}  ${f}: ${sum} of ${n} entries attributed, ${n - sum} carry no target`);
+		// `--gate-known` exempts a pending ratchet from this for the same reason it
+		// exempts a missing block: the backlog is the thing it is not asking about.
+		if (!(GATE_KNOWN && pending.includes(f))) {
+			fail(`${b.file}:${b.line}  ${f}: ${sum} of ${n} entries attributed, ${n - sum} carry no target`);
+		}
 	} else if (sum > n) {
+		// Never exempt: a table claiming more entries than the ratchet holds is wrong
+		// whatever the backlog looks like, and it is the shape that shipped through #4191.
 		fail(`${b.file}:${b.line}  attribution of ${f} sums to ${sum}, the ratchet holds only ${n}`);
 	}
 	for (const r of b.rows) {

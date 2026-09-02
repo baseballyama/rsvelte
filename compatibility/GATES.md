@@ -5428,10 +5428,18 @@ to the JSON's length; each row must cite either a path under `upstream_issues/` 
 or the literal `deliberate-divergences` (which gate 42 separately holds to naming a test). An empty
 ratchet must carry no block, and a block naming a file that is not a ratchet fails. Two modes:
 the default is the DoD and stays red while `compatibility/attribution-pending.json` is non-empty;
-`--gate-known` — the one CI runs — drops **exactly one question**, "does every ratchet have a block
-yet", for the ratchets that file names. Hard gate, no ratchet of its own. `pnpm run
-check:attribution` / `check:attribution-known`, and 16 controls under `pnpm run
+`--gate-known` — the one CI runs — drops **exactly one question**, "is this ratchet's attribution
+finished yet", for the ratchets that file names: it exempts a missing block and a table that covers
+only some of the entries, and nothing else. A table claiming MORE entries than the ratchet holds is
+never exempt — that is the shape that shipped through #4191 — and a pending ratchet whose table
+becomes complete must leave the list in the same change. Hard gate, no ratchet of its own. `pnpm run
+check:attribution` / `check:attribution-known`, and 19 controls under `pnpm run
 test:attribution-check`.
+
+The partial exemption is not slack, it is the middle state made legal. The first cluster of a
+23,746-entry ratchet is filed long before the last, and requiring a complete table before any row
+could be written would make a partial table *worse* than no table — which is exactly backwards for
+a document whose purpose is to record where each entry is answered.
 
 **Why it exists, and why the pending list is not a fourth end state.** Three end states are
 allowed for a listed entry — it is gone, it is attributed to a filed upstream report, or it is

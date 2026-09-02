@@ -134,7 +134,21 @@ const PENDING_TREE = (() => {
 {
 	const f = { ...PASSING, 'attribution-pending.json': JSON.stringify(['a-known-failures.json']) };
 	const r = run(f, undefined, ['--gate-known']);
-	check('a ratchet that has earned its block must leave the pending list', r.code === 1 && /still listed in attribution-pending\.json/.test(r.out), r.out);
+	check('a COMPLETE table must leave the pending list', r.code === 1 && /still listed in attribution-pending\.json/.test(r.out), r.out);
+}
+{
+	// The middle state: the first cluster of a large ratchet is filed while the rest is not.
+	// Requiring completeness before any row could be written would make a partial table
+	// worse than none, which is the opposite of what the pending list is for.
+	const f = {
+		...PASSING,
+		'a-known-failures.json': JSON.stringify(['one', 'two', 'three', 'four', 'five']),
+		'attribution-pending.json': JSON.stringify(['a-known-failures.json']),
+	};
+	const r = run(f, undefined, ['--gate-known']);
+	check('--gate-known accepts a PARTIAL table on a pending ratchet', r.code === 0, r.out);
+	const d = run(f);
+	check('the default mode still names the uncovered entries', d.code === 1 && /3 of 5 entries attributed, 2 carry no target/.test(d.out), d.out);
 }
 {
 	const f = { ...PASSING, 'attribution-pending.json': JSON.stringify(['b-known-failures.json']) };
@@ -151,4 +165,4 @@ if (failures) {
 	console.error(`\n[test-attribution-check] ${failures} control(s) did not behave as specified.`);
 	process.exit(1);
 }
-console.log('[test-attribution-check] 16 controls pass (2 positive, 13 negative, 1 empty-ratchet).');
+console.log('[test-attribution-check] 19 controls pass (3 positive, 15 negative, 1 empty-ratchet).');
