@@ -91,8 +91,11 @@ fn a_plain_assignment_has_no_getter_and_no_parentheses() {
 
 /// The async getter is built by a second arm of the same `match`, and that arm
 /// prints the *hoisted* await argument rather than the right-hand side — so a fix
-/// applied only to the synchronous arm leaves this one emitting `() => {}`. The
-/// `await p` row is the neighbour that must not move.
+/// applied only to the synchronous arm leaves this one emitting `() => {}`, and this
+/// arm has to be able to fail on its own. `await {}` is what makes it able to:
+/// written first as `await p`, this cell passed on the unfixed tree, because the
+/// probe was on the half of the shape the defect does not touch. The `await p` row
+/// stays as the neighbour that must not move.
 #[test]
 fn the_async_getter_arm_is_covered_too() {
     assert_eq!(
