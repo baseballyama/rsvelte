@@ -68,6 +68,33 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## compile_profile accepted `--target server` and profiled the client (2026-09-02 23:50)
+
+A client-vs-server bucket comparison came back with every share within 0.2
+percentage points and totals 287.46 vs 272.30 ms — a 1.056x gap where the
+published report has client 1.28x slower single-threaded. **Two independent
+derivations of one quantity disagreeing is evidence about method**, and the
+method was the fault: `compile_profile` never parsed `--target`. It hardcoded
+`GenerateMode::Client` at both construction sites and reads its other flags
+through six scattered `std::env::args()` predicates rather than a parser, so an
+unrecognised flag is not an error — it is nothing. Both arms were the client.
+
+The 1.056x is therefore a **run-to-run noise estimate for this tool** (5.6% on
+the total, under 0.2pp on every share), which is worth keeping, and nothing at
+all about client versus server.
+
+**`perf_bench`, in the same directory, ends its argument loop with
+`other => panic!("unknown arg {other}")`.** One instrument rejects what it does
+not understand and its sibling ignores it, and the permissive one is the one
+that produced a false comparison. The rule this repo already states — identify
+an arm by a discriminating probe on its **output**, never by the label or the
+flag you passed it — is usually written about mislabelled binaries; this is the
+same failure one level down, where the flag was real, the binary was right, and
+the *tool* discarded the distinction. A flag is a label.
+
+`--target` is now parsed, and an unknown value panics instead of defaulting,
+because a silently-defaulted arm is exactly what made the reading unreadable.
+
 ## What 20x on the client actually requires (2026-09-02 23:30)
 
 Derived from the published report alone -- no measurement -- because the report

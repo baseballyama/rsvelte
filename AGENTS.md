@@ -1281,6 +1281,7 @@ has been wrong on this repository within one day of the others:
 | the artifact's path | with `CARGO_TARGET_DIR` set, the path no longer depends on cwd — so it stops proving which tree was compiled |
 | the branch you think you are on | an agent's shell cwd silently resets to the main checkout, and `cargo` then compiles someone else's working tree with no error |
 | "the same branch as last time" | the branch was rebased between the two builds, so the arms differ by whatever landed on `main` in between |
+| the flag you passed to select the arm | the tool never parsed it — `compile_profile` hardcoded `GenerateMode::Client` and read its other flags through scattered `env::args()` predicates, so `--target server` profiled the client |
 
 Two rules cover all five. **Identify an arm by a discriminating probe on its
 output** — one input whose answer differs between the two arms, run through the
@@ -1294,6 +1295,17 @@ signal `cd`, `CARGO_TARGET_DIR`, the file name and the artifact path cannot
 between them fake. Build as `cd <worktree> && CARGO_TARGET_DIR=<worktree>/target
 cargo …`: the `cd` protects your sources, the env var protects everyone else's
 `target/`, and neither protects the other.
+
+**The flag row is the cheapest to defend against and was the last to be found.**
+`perf_bench`, in the same directory, ends its argument loop with
+`other => panic!("unknown arg {other}")`; `compile_profile` had no loop at all.
+One instrument rejects what it does not understand and its sibling ignores it,
+and the permissive one produced a false client-vs-server comparison whose shares
+agreed to 0.2pp — read as "the two targets do the same work" when it was one
+target measured twice. **A flag is a label**, so it earns no more trust than a
+file name does; the discriminating probe has to be on the output. When adding a
+tool, make an unknown argument an error, because the failure it prevents is not
+a crash, it is a comparison between an arm and itself.
 
 The last row is the expensive one, because its symptom is a plausible result.
 A `before -> after` sweep reported 4 output changes "toward official", two of
