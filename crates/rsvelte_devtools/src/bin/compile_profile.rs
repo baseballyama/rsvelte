@@ -690,7 +690,14 @@ fn main() {
     // covers, its time would be counted twice and `other` would not fall by the
     // amount attributed. `attributed` must be <= `other`, and `other - attributed`
     // is what is still unnamed.
-    let attributed: std::time::Duration = transform_breakdown.prefrag.iter().sum();
+    // Only slots declared inside the residual may be subtracted from it; see
+    // `PREFRAG_IN_RESIDUAL`.
+    let attributed: std::time::Duration = transform_breakdown
+        .prefrag
+        .iter()
+        .zip(profile::PREFRAG_IN_RESIDUAL)
+        .filter_map(|(d, inside)| inside.then_some(*d))
+        .sum();
     for (label, d) in profile::PREFRAG_LABELS
         .iter()
         .zip(transform_breakdown.prefrag.iter())

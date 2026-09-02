@@ -2744,12 +2744,14 @@ pub(crate) fn transform_client(
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
-            super::js_ast::to_oxc::program_to_oxc_with_islands(
-                &program,
-                &context.arena,
-                &alloc,
-                &ast_islands,
-            )
+            super::profile::timed_prefrag(1, || {
+                super::js_ast::to_oxc::program_to_oxc_with_islands(
+                    &program,
+                    &context.arena,
+                    &alloc,
+                    &ast_islands,
+                )
+            })
             .map(|converted| {
                 let print_opts =
                     rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);

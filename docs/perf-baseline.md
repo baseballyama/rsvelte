@@ -68,6 +68,36 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## program_to_oxc is 5.3% of a client compile and the server pays none of it (2026-09-03 00:28)
+
+`program_to_oxc` had no timer at all. Measured, 3000-file slice:
+
+| | client | server |
+|---|---:|---:|
+| `program_to_oxc` | **23.00 ms (5.3% of compile)** | **0.00 ms** |
+| `JS codegen` bucket | 58.98 ms (13.6%) | 0.00 ms |
+| total | 435.00 ms | 284.84 ms |
+
+The server's `0.00` is a second discriminating probe, not a missing number: the
+server builds its oxc program directly and never calls this. The conversion is
+**39% of the client's codegen bucket**, and removing it entirely would be
+**1.056x** — about 36% of the 1.161x the client needs. Necessary-looking and not
+sufficient, and it is an architectural change (build oxc directly, as the server
+already does), not a local optimisation.
+
+**The residual is not where it went.** `to_oxc` sits inside the `codegen` timer,
+so it is outside the residual; the true unnamed residual is 70.41 − 3.41 =
+**67.00 ms, 15.4% of compile**, still the largest unexplained item.
+
+**The tool misreported this for the second time, the same way.** `still unnamed`
+is computed as `residual − sum(prefrag)`, and it subtracted `to_oxc` — a
+quantity in a different bucket — printing 43.91 ms where the answer is 67.00.
+The first instance was the positive control; this one was predicted in advance
+and happened anyway, because prediction is not a defence. Slots now declare
+their bucket next to their label (`PREFRAG_IN_RESIDUAL`) and the tool subtracts
+only the ones inside, which is the same fix shape as the `AddAssign`: put the
+requirement where the person adding a slot is already looking.
+
 ## Deficit #2 does not exist in prod mode, and the target is one factor (2026-09-03 00:13)
 
 A `--threads` sweep on both targets, 3000 files, wall clock normalised to the
