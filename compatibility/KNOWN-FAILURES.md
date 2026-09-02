@@ -2878,11 +2878,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 15 entries)
+### Client (`known-failures.client.json`, 14 entries)
 
-Partition of `known-failures.client.json` by verdict: `14 + 1`
+Partition of `known-failures.client.json` by verdict: `13 + 1`
 
-- **14 — the generated JS differs** (`js` / `code-differs`).
+- **13 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -3099,7 +3099,27 @@ let:x>` is the fourth candidate and needs nothing: both compilers reject it.) Th
 one cell per place, plus the cell that separates a scope stack from a flag — inside one named
 slot, an `{#each xs as a}` body reads `$.get(a)` and the very next expression reads a bare `a`.
 
-Every one of the remaining 15 arrived with the wave-2 enrolment (#3130) and is described
+`huly/…/DrawingBoardEditor.svelte` left this target and `client-dev` because whether an
+attribute can go in the template string was asked of the NORMALIZED name. Upstream
+(`RegularElement.js:234-256`) computes `name = get_attribute_name(node, attribute)` and uses it
+only for the branch selectors (`class`, `style`, `autofocus`); both `cannot_be_set_statically`
+and `template.set_prop` take `attribute.name`. rsvelte passed the normalized name to both, so
+`<input autoFocus />` matched the four-name `NON_STATIC_PROPERTIES` list, took the JS branch,
+and emitted `$.autofocus(input, true)` where official writes `<input autofocus=""/>`.
+
+The reported spelling is one cell of ten. A grid over name spelling × namespace × value shape
+reports **22 EQ / 10 DIFF**, and the other four names — `Muted`, `MUTED`, `DefaultValue`,
+`defaultchecked` — lose the attribute **entirely**, with nothing emitted in its place: the
+guard sends them down the JS branch and no arm there handles them. `defaultchecked` is the
+sharpest, because normalization maps it INTO the list from outside it. The svg rows are all EQ
+and stay in the repro as the control that rejects the wrong spelling of the fix:
+`get_attribute_name` is the identity outside `html`, so a fix written as "lowercase the raw
+name" is green on every reported cell and red there. The second, separately-suspected
+divergence in the same lowering — that `template.js`'s `stringify` lowercases a key only in the
+html namespace — was measured over seven cells and **agrees**; it is recorded here so it is not
+re-opened as unmeasured.
+
+Every one of the remaining 14 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3206,15 +3226,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 29 entries)
+### Client dev (`known-failures.client-dev.json`, 28 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `29`
+Partition of `known-failures.client-dev.json` by verdict: `28`
 
-- **29 — the generated JS differs.**
+- **28 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 29 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 28 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

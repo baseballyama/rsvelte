@@ -4,7 +4,6 @@
 	"headscale-ui/src/lib/settings/ServerSettings.svelte",
 	"huly/plugins/contact-resources/src/components/SelectAvatarPopup.svelte",
 	"huly/plugins/process-resources/src/components/settings/ProcessAttributeEditor.svelte",
-	"huly/plugins/text-editor-resources/src/components/DrawingBoardEditor.svelte",
 	"huly/plugins/tracker-resources/src/components/issues/move/SelectReplacement.svelte",
 	"huly/plugins/workbench-resources/src/components/HelpAndSupport.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
