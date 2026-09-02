@@ -21,10 +21,6 @@
 			"description": "a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped",
 			"pinned": "source"
 		},
-		"unterminated-export-let": {
-			"description": "`export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree",
-			"pinned": "reduced"
-		},
 		"upstream-bom-crash": {
 			"description": "official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it",
 			"pinned": "upstream"
@@ -37,7 +33,6 @@
 		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",
 		"mathesar/mathesar_ui/src/component-library/button/Button.svelte": "bind-this-shape",
 		"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte": "template-hole-comment-dropped",
-		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type",
-		"sveltekit/packages/package/test/watch/expected/Test.svelte": "unterminated-export-let"
+		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type"
 	}
 }

@@ -255,14 +255,22 @@ pub(super) fn handle_export_named_decl(
 
                         if let Some(name) = binding_pattern_simple_name(&declarator.id) {
                             let use_jsdoc = emit_jsdoc && !is_ts;
-                            let (id_start, id_end) = match &declarator.id {
+                            let (id_start_rel, id_end_rel) = match &declarator.id {
                                 oxc::BindingPattern::BindingIdentifier(id) => {
-                                    (id.span.start + offset, id.span.end + offset)
+                                    (id.span.start, id.span.end)
                                 }
-                                _ => (declarator.span.end + offset, declarator.span.end + offset),
+                                _ => (declarator.span.end, declarator.span.end),
                             };
-                            let widen_pos = declarator.span.end + offset;
+                            let (id_start, id_end) = (id_start_rel + offset, id_end_rel + offset);
+                            let widen_rel = declarator.span.end;
+                            let widen_pos = widen_rel + offset;
+                            // Upstream inserts with `preprendStr`, which OVERWRITES the
+                            // character at the position — and the `</script>` removal
+                            // overwrites that same chunk afterwards, so an insertion
+                            // landing on the script's last byte is silently discarded.
+                            let swallowed = |rel: u32| rel as usize == raw_content.len();
                             if do_widen
+                                && !swallowed(id_end_rel)
                                 && let Some(kit) = kit_type
                                 && !use_jsdoc
                             {
@@ -274,7 +282,7 @@ pub(super) fn handle_export_named_decl(
                                     ),
                                 );
                             } else {
-                                if do_widen {
+                                if do_widen && !swallowed(widen_rel) {
                                     str.append_left_fmt(
                                         widen_pos,
                                         format_args!(
@@ -288,7 +296,7 @@ pub(super) fn handle_export_named_decl(
                                             id_start,
                                             format_args!("/** @type {{{kit}}} */ "),
                                         );
-                                    } else {
+                                    } else if !swallowed(id_end_rel) {
                                         str.append_left_fmt(
                                             id_end,
                                             format_args!(

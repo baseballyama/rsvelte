@@ -4,6 +4,5 @@
 	"cnblocks/src/routes/(app)/veil/+page.svelte",
 	"huly/plugins/view-resources/src/components/list/ListCategory.svelte",
 	"mathesar/mathesar_ui/src/component-library/button/Button.svelte",
-	"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte",
-	"sveltekit/packages/package/test/watch/expected/Test.svelte"
+	"sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte"
 ]

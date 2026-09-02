@@ -6216,11 +6216,11 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 7 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 6 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `5 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `4 + 2`
 
-- **5 — the emitted TSX differs** (`ts-mismatch`).
+- **4 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6237,7 +6237,7 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 5 carry **no target, and cannot have one**: every one was measured
+The remaining 4 carry **no target, and cannot have one**: every one was measured
 against official on 2026-09-02 and every one is an rsvelte defect, so the only end
 state open to them is elimination. The classification below is the input to that
 work; it is not an attribution, and this gate stays red until the entries are gone.
@@ -6269,9 +6269,46 @@ double count**, so the assignment has to be per entry.
 | 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
 | 1 | two adjacent store-get `/*Ωignore_startΩ*/…/*Ωignore_endΩ*/` regions are emitted as ONE region spanning both, where official closes and reopens | source |
 | 1 | a `//` comment inside a `${…}` hole of a template-literal attribute value is dropped | source |
-| 1 | `export let x: T` with no statement terminator (the file ends at `</script>`) gains `x = __sveltets_2_any(x)`; adding `;` and a newline makes the two agree | reduced |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x5`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1x4`
+
+### Previously: `unterminated-export-let` (2026-09-02, at 7 entries)
+
+Kept because its own description named the symptom as an rsvelte addition — *"gains
+`x = __sveltets_2_any(x)`"* — where it is an upstream **loss**, and the two spellings
+point at different code.
+
+`preprendStr` (`utils/magic-string.ts:7-17`) does not append. It `overwrite`s the
+single character at the insertion point with `text + that character`, and
+`propTypeAssertToUserDefined` uses it to add `;x = __sveltets_2_any(x);` at
+`declaration.end`. When the declaration is the script's last byte that character is
+the `<` of `</script>`, whose chunk the script-tag removal overwrites afterwards —
+so the widener is discarded with no error. Filed as
+[`upstream_issues/svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md`](../upstream_issues/svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md).
+
+The description also recorded that *"adding `;` and a newline makes the two agree"*,
+which is two changes for a one-byte condition: **a space, a tab, a trailing block
+comment, a `;` or a newline each restore it on their own**, because any of them moves
+the insertion point off the `<`. Markup after `</script>` does not, because the
+position that matters is the end of the script **content**.
+
+**Three insertion sites had to be told apart, and two of them are unreachable rather
+than fixed.** Measured one cell per site: the `export { x as y }` re-export path never
+fires when the export precedes the declaration (both tools emit nothing, at the end
+and with a trailing space alike), and a non-exported sibling of that declaration list
+cannot be the script's last token, because the `export { … }` statement has to follow
+it. A guard added to all three on the strength of the mechanism would have been
+untestable at two of them.
+
+That measurement did find a divergence of its own, unrelated to the script end:
+for `export { a as b };let a = 1, c: number` — the export **before** the declaration —
+official widens nothing while rsvelte widens the non-exported sibling `c`, identically
+with and without a trailing space and identically on both arms of this fix. It has no
+corpus witness: the gate is two-sided and green apart from the entries listed above, so
+a divergence that is not one of them is reproduced by no collected unit.
+
+The positive control fails **9 of the 19** cells, and the 10 that pass are the ones a
+position-blind suppression would break.
 
 ### Previously: `store-get-missing` (2026-09-02, at 8 entries)
 
