@@ -665,6 +665,27 @@ run had been going, and the report takes its samples in a fixed order. Not
 measured: whether the drift persists with a cool-down between rounds, and
 whether it is thermal at all rather than page-cache or allocator growth.
 
+## Sizing the remaining gap: two arithmetic errors to avoid (2026-09-02)
+
+**Do not write `1/(1-0.403) = 1.68x` for "if the whole alloc+hash+memcpy bucket
+vanished".** That is the conversion this repo already retracts — a share of a
+bucket cannot become a share of total time using a factor derived from the same
+profile share being apportioned. The 40.3% is a share of *non-kernel CPU*, not of
+`compile()`. Two things make the mistake conservative here, so a fold decision
+survives it: the denominator is larger than `compile()`, and no representation
+change takes allocation to zero. Write it as **< 1.68x**, an upper bound. With an
+equals sign the same number is available to someone arguing the other way.
+
+**And candidates compose, so "no single candidate reaches the target" is not a
+reason to close a direction.** Non-overlapping client shares, as measured:
+byte scanning unreachable under an AST pipeline 9.8%, JSON key lookup ≤5%, CSS
+render 3.6% — roughly 18%, i.e. about 1.22x, and the overlap between them is
+**not measured**, so even that is optimistic. The composition is what a fold
+decision has to clear: at a required 1.39x these together plus a representation
+change is a live possibility, and at a required 2.08x it is not. Which of those
+two numbers is current is the open question, and it is why the clean client
+re-measurement gates this work rather than the sizing does.
+
 ## Where the client's remaining time is, after three candidates were ruled out (2026-09-02)
 
 Three buckets were measured to closure on the merged tree, all through `compile()`
