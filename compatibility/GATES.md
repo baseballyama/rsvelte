@@ -326,9 +326,14 @@ The real-project population requests hover, definition and completion at every l
 identifier position in the four pinned repositories. Every unit runs its request set twice — once
 on the opened document and once after a deterministic round-trip edit (27b) — and the live official
 server is additionally held to those same upstream snapshots as a run-level precondition (27h). A
-run of one suite alone (`lsp:verify:fixtures`) reports both `NEW` and `stale` against the committed
-ratchet, because that ratchet is the union of all 17 artifacts: the difference is the population,
-not a regression, and such a run **cannot be used to move the ratchet in either direction**.
+run of one suite alone (`lsp:verify:fixtures`) does **not** compare against the whole ratchet:
+`selectKnownForScope` (`ratchet.mjs:114-131`) filters the committed entries to the measured suites,
+repositories and shard, so a `NEW` or `stale` reported within that scope is real rather than a
+population artefact. What a partial run cannot do is **re-baseline**: `verify.mjs` refuses
+`--update-baseline` outright (`:57-60`), and the baseline is merged from the complete
+`CORPUS_SHARDS + 1` = 17 artifacts by `merge-current.mjs`, which rejects any other count
+(`artifacts.mjs:104`). That refusal's own message says "eight corpus artifacts" while the code
+requires sixteen — following it gathers half the set and is refused one layer down.
 
 ### Blind spot 27a — server notifications are discarded [S]
 
@@ -1015,6 +1020,10 @@ staleify every committed entry at once. That is a defensible trade, and it leave
 reader with no explicit statement of which quantity they hold. What survives is `count=`,
 written only on the element branch — so **a key carrying `count=` has an unrecoverable hash and a
 key without one is preimageable**, and that is the entire rule.
+
+Read the ratio before concluding the hash is useless: **1,880 of 23,746 committed keys carry
+`count=`, so 92.1% preimage.** The default should stay "try it"; what the rule buys is knowing
+which 7.9% will not answer, rather than a reason to stop asking.
 
 `diff.mjs:71-74` states the opposite: "The ratchet key keeps the suffix and drops the bracket,
 so the kind survives and the amount does not." Both halves are inverted against `verify.mjs:462`
