@@ -1194,6 +1194,31 @@ So when a cited row would license a new axis, a new skip, or a new expectation,
 spend the one probe that asks whether its population contains yours. The cost of
 not doing it is not a wrong answer — it is a column of cells that cannot move.
 
+**And when the cited row supplies a DIRECTION rather than an axis, check that the
+direction's derivation covers your case**, because a direction that does not
+apply is not a weaker claim, it is a wrong one. The row above about
+reconstructing a gate derives its direction from the KIND of stage that went
+missing — dropping a *rescue* stage makes a reconstruction stricter, dropping a
+*judging* stage makes it looser. It was then cited to argue that a formatter
+reconstruction whose comparison is byte-identical to the gate's must be stricter,
+so a match under it is a match under the gate. The reconstruction had replaced a
+**production** stage (`--stdin` where the gate calls the directory once), and no
+strict/loose order is defined over that at all: the argument silently assumed the
+two productions emit the same bytes. The teammate holding it did not argue the
+direction — they removed the assumption, by making their oracle leg call what the
+gate calls. **Removing a premise beats reasoning about which way it errs.**
+
+**The same day produced the mirror-image error, and naming both is what makes the
+pair useful: each read a property of the POPULATION as a property of the
+MECHANISM.** A `$.assign` fix moved 0 of 135,560 corpus pairs and was written up
+as having closed its class — it had not; the grid held the *host* fixed at
+`<script>`, and the real carrier was a legacy `on:` directive, a second port the
+grid could not reach. In the other direction, a formatter fix moved 10 of 24
+generated cells and the movement was about to be quoted as its corpus reach — the
+ratchet moved 2, because the generated family manufactures the >320-column header
+that almost no real file has. A sweep's zero and a family's ten are both counts of
+inputs, and neither is a count of mechanisms.
+
 ### Nothing about a measurement arm is evidence of what it measured
 
 An A/B here is two `.node` binaries, and every cheap way of saying which is which
@@ -1690,6 +1715,7 @@ failure and a different spelling. Collected on one day:
 | a mechanism nobody measured | a row that is simply not printed, beside rows that read `0` |
 | a gate stage the reconstruction lacks | the verdict that stage would have overturned (`MISMATCH`) |
 | a workflow run that never started | no check line at all, which reads as "not required here" |
+| a job still waiting on `needs:` | **nothing** — it is not a check-run yet, so it is absent from `pending` as well as from `total_count`, and a poller reading `pending == 0` calls the run finished |
 | a cancelled shard under a rollup | `FAILURE`, indistinguishable from a real regression |
 
 Two of these fake a **value** and two fake a **verdict**, and that is the useful split: a faked
