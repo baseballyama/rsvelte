@@ -333,6 +333,22 @@ level up: the thing that goes unchecked is the *warning's* evidence rather than 
 decision's, and a warning is harder to challenge because agreeing with it feels like
 diligence.
 
+**A second instance the same day, from the other side: the conclusion was right and only
+its EXAMPLE was wrong.** Establishing that a 3000-file `22.64x` and a whole-corpus figure
+differ by population rather than by compiler is a `git merge-base --is-ancestor` away, and
+that check was run and returned what the argument needed. The paragraph written off it then
+named a perf commit as evidence of a compiler difference between the two trees — and that
+commit is an *ancestor* of the older tree, i.e. already inside the thing it was cited as
+differing from. The real difference is one file under `crates/`, a refactor. Two things
+generalize. **An example outlives the argument it illustrates**, because a later reader
+takes the concrete commit hash and not the reasoning around it; and a correct conclusion is
+the condition under which nobody re-derives the example, which is the paragraph above
+turned around — there the warning was right and its citation unchecked, here the inference
+was right and its instance unchecked. **The stronger claim was also the true one**: not
+"the trees differ only in ways that do not matter" but "exactly one file differs and it is
+a refactor". Checking the example did not weaken the paragraph, it sharpened it — which is
+the argument for checking it even when the conclusion is not in doubt.
+
 **The reconciliation was nearly skipped on exactly that reasoning, and skipping it would
 have cost the finding.** The first recount was 231, and the argument for not chasing the
 gap was that the value decides nothing — which is true of the *value* and false of the
