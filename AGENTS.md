@@ -965,6 +965,12 @@ control on a string you know is there.
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
 | later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
 
+And the inverse: `grep` returns matches when the thing is not there. Censusing
+which tools read a field, `.code` matched `.codegen` in a file that reads no
+output, and `js.map` matched a *comment* explaining a sourcemap default — two
+apparent counterexamples, both artifacts of the pattern. A positive grep is
+evidence of a byte sequence, not of a fact; open the hits before counting them.
+
 ### A truncating or discarding stage turns a failure into a green
 
 `grep` is one instance; the class is **any stage between a command and your
@@ -1080,7 +1086,10 @@ a second party's arithmetic, not by re-reading the code.
 Gate blind spots are a question about what a comparison commits to. This is a
 different shape: of the 10 binaries under `crates/rsvelte_devtools/src/bin/`
 that read `js.code`, **0 read `js.map`** before 2026-09-02 (three were fixed
-that day). Not a tendency — no exceptions. `ab_dump.rs`, the tool for reducing
+that day). Not a tendency — no exceptions. The denominator is 10 and not 41 or
+27 on purpose: 27 of the 41 call `compile`, and 17 of those consume no output
+at all (they count allocations, time phases, or read the AST), so a tool that
+never looks at `js.code` is not blind to `js.map`. `ab_dump.rs`, the tool for reducing
 a corpus divergence to one diagnosable file, is among the blind ones, so a
 divergence that moves only the map disappears the moment someone reduces it.
 Whether this is "the map is not output" as a premise, or only that these tools
