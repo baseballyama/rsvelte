@@ -1365,6 +1365,25 @@ compilers raise an uncoded `Not implemented: LetDirective`). The guard has there
 degraded a real divergence in this corpus — and the message comparison covers that pair anyway,
 since it treats two `null` codes as agreeing. **[D]**
 
+### Blind spot 4f — the one-sided code-less error, which 4b measured at 0 and a constructed input produces — **[D]**
+
+4b measures a `null` code on **1** both-reject pair and on **0** pairs one-sidedly, and reads as
+closed on that basis. The one-sided direction is the one the corpus cannot reach rather than the
+one that does not exist: `<script lang="ts">export = a;</script>` on `generate: 'server'` makes
+rsvelte throw with `code: null` and a message naming a pass and a diagnostic count
+(`server instance script classification parse rejected the erased source (1 diagnostics): …`)
+while official does **not** reject at all — it emits output, which happens not to parse (#4196).
+That is `error-presence` on the output ratchet, and every other error field is chained behind
+`code`: `message`, `start`, `end` are compared only where both sides reject, and `frame` only
+where both endpoints already agree. So a code-less error is the single shape this family of
+gates cannot classify, and its one-sided form is invisible here for want of a carrier, not for
+want of the shape — the three TypeScript statement forms that produce it occur in 0 of the
+corpus sources checked out (a denominator of 20 of 104).
+
+The general form is worth separating from the instance: **a gate that keys on a field cannot see
+an error that has no such field**, and "reachability measured at 0" over a collected corpus is a
+statement about the population. The detector is a constructed input, as for 39i.
+
 ### Blind spot 4c — entries only one side rejects have nothing to compare
 
 The message/position comparisons skip any pair where one side compiles, or where the two codes
@@ -4628,6 +4647,37 @@ ratchet, subject to 39a and 39b; treating them as owner movements would make a s
 node-presence defect look like comment traversal. The join also uses one `Map` entry per comment
 range, so two independently represented comments with exactly the same range would collapse into
 one observation.
+
+### 39i — a node kind rsvelte's serializer drops has no corpus carrier, so this gate never sees it — **[D]**
+
+The unit is a corpus entry, so a kind rsvelte omits from `parse()` is only observable where a
+collected component contains one. Three catch-all arms in the program serialization each end
+`_ => None` and drop whatever their explicit arms do not name:
+`1_parse/read/expression.rs:9681` `convert_statement_for_program`,
+`:12085` `convert_class_element_for_program`, `:5654` `convert_class_element_for_expr`. The
+residues, computed as the scrutinee enum's variants (with `INHERIT` resolved) minus the handled
+ones, are `TSImportEqualsDeclaration`, `TSExportAssignment`, `TSNamespaceExportDeclaration` and
+`TSIndexSignature` once the kinds both compilers reject earlier (`with`, `accessor`) are removed.
+Measured: official's AST carries all four and rsvelte's carries none, with `IfStatement` and a
+class `static {}` present in both as controls (#4195).
+
+None has a carrier in the corpus sources checked out here — class-body index signatures are 0 of
+31 index signatures found (19 `interface`, 7 `type`, 1 a class field's type annotation), and the
+three statement forms are TS module syntax a component does not use. That denominator is 20 of
+the 104 sources, so this is "no witness in the population measured", not "no carrier". The
+detector for this class is a unit test, the same argument
+`crates/rsvelte_core/tests/import_export_parser_shapes.rs` already carries for two shapes no
+corpus can hold.
+
+**What generalizes past these four.** The blind spot is not the four kinds, it is that a dropped
+kind is invisible to *every* gate at once: `compile()` may still be correct (it is, for
+`TSIndexSignature`), so the output ratchets report nothing, while `rsvelte_lint` and svelte2tsx
+consume rsvelte's AST without ever diffing it. An inventory of the 1,316 catch-all arms under
+`crates/` found something worth recording about how to screen them — a syntactic filter that
+discards an arm whose sibling heads are literals throws away **149 of the 590 it discards
+(25%)** that are node-kind dispatches spelled as strings (`match node_type(e) { Some("Identifier")
+… }`), which are exactly the JSON-walking lint rules. The screen's error is only visible in the
+pile it rejects.
 
 ---
 
