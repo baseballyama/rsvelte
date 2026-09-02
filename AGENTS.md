@@ -1622,6 +1622,21 @@ prefer a *complement* over a union when one exists — here the answer is `state
 minus the names the earlier pass already rewrote, which is closed on both sides, where a union
 of five hand-listed kinds is closed on neither.
 
+**And the real file carried an axis the synthetic grid held fixed.** The same assignment-chain
+work ended with one residue that was a different family entirely: upstream declines to wrap the
+innermost assignment of `a[i] = a[j] = a[k] = gray`, because `scope.evaluate(right)` follows
+`gray`'s binding initializer to `Math.round(...)` and calls it primitive, while rsvelte's
+`is_known_primitive` reads the expression's shape only. Every synthetic cell had used a **function
+parameter** as the right-hand side, where upstream wraps too — so a 13-cell grid never reached the
+family, and one real component did. Same shape as #2535 one level down, and a candidate sixth
+member of #3539's binding-initializer residue cluster.
+
+One further note on that component, `svelte-bits/.../MetallicPaint.svelte`: it is the carrier for
+**four** independent mechanisms found in one afternoon (the module `$.assign` value position, the
+chain ordering, the only structural carrier of the two-script site collision, and this
+binding-initializer family). Read that as a statement about the other 6,901 components rather than
+about this one — a corpus that is green is a corpus whose files mostly do not carry the axes.
+
 **The corpus could not have caught it.** A 139,252-unit sweep of the double-applying arm moved
 **2** units, and both are the file the fix repairs — the regression has zero witnesses. Only 33
 of 33,893 components carry a bare `{const}` / `{let}` at all, 17 of those also mention a prop or
@@ -1792,6 +1807,83 @@ upstream passes it, and passes it even when its initializer mentions no each var
 are a `{@const}`, the fifth an each index inside a template literal, which the hand-written
 walker had no arm for. Both are the same defect: **a name test needs an enumeration and a scope
 test does not**, so every shape the enumerator's author did not think of is a silent miss.
+
+### A success test with no denominator in it reads "nothing yet" as "went well"
+
+Three instruments, two people, one afternoon. Each test is *correct* on a non-empty input, which
+is why none of them looks wrong when you re-read it:
+
+| the test | what was empty | what it reported |
+|---|---|---|
+| `pending == 0` over `statusCheckRollup` | a PR pushed to seconds earlier had **0** checks registered | `ALL GREEN` |
+| `pgrep -f "cargo build"` in a wait loop | cargo had not launched — the command starts with `git checkout` | fell straight through and staged the **previous** build as the base arm |
+| two output hashes compared | both compilers threw, so both hashes were the same *error* hash | `match`, and `MOVED = 0` |
+
+The defect is not truncation and not a wrong comparison: the criterion never asks how many things
+it looked at. The three repairs are one repair in three spellings — require `total > 25` beside
+`pending == 0`; wait on the build's own `Finished` line rather than on a process being visible;
+print `live-units / dead-units / total` and refuse to score a dead unit as agreement. The
+superseded-run hazard above (`group_by(.name) | max_by(.startedAt)`) is the same shape once more,
+with "runs per check name" as the denominator.
+
+**A fabricated zero contains nothing that tells you to look again; an honest blank does.** One
+missing esbuild type-strip produced `ORACLE-THREW` on one instrument and `MOVED = 0` on the other
+— same defect, and only the first is recoverable. Prefer an instrument that can say `UNMEASURED`
+over one that folds an unmeasurable unit into agreement.
+
+### The cell that kills an explanation is usually the one that PASSES
+
+A grid assembled from the cells a defect breaks cannot narrow to one cause, because every
+candidate cause predicts those cells. It is the cells a candidate says should be **green** that
+discriminate. Measured against one defect — `AssignSites` reporting a constant column for a
+computed-key assignment chain — three named candidates, all consistent with the symptom:
+
+| candidate | killed by |
+|---|---|
+| ordered consumption of same-shaped sites is broken | `const r = (o.a = {}); const s = (o.a = {});` — byte-identical text twice — is **EQ** |
+| a conjunction of key-collapse and nesting | `computed depth=2` (no inner rewrite at all) is DIFF and `static depth=5` is **EQ** |
+| `location()`'s `static_path` is `None` for a computed key, so `take` misses and `unwrap_or_else` falls back | nothing in the grid — see below |
+
+**The third could not be killed by any cell**, because the fallback and the real cause — the site
+list is rebuilt each `rewrite_batched` pass, so pass 2 hands out site 0 again — *both* predict a
+constant column. Two mechanisms with one observable are not separable by adding inputs; only
+reading the inside separates them. Widening a grid and instrumenting are not substitutes with
+different costs, they have different preconditions.
+
+This is the same hole as "a grid of failing cells cannot regress", seen from its other exit: there
+you lose regression detection, here you lose hypothesis discrimination.
+
+And the procedural half, which cost a build: **to show a branch was NOT reached you must first
+arrange a line that prints when it IS.** Instrumenting `take` and its `used` transitions cannot
+distinguish "fell into the fallback" from "the predicate was false" — in both cases nothing
+happens inside `take`. Silence is also what instrumentation that never compiled looks like.
+
+### A true observation counted as an independent fault
+
+Two people made the same leap on the same defect inside an hour, and both started from something
+that was **correct**:
+
+| observation (true) | inference (false) |
+|---|---|
+| the reported column never advances | therefore this path never reads the site list |
+| the site list is rebuilt every rewrite pass | therefore consumption state must be carried across passes |
+
+Neither implication holds. A path can read the list correctly and still return a constant if it
+restarts; a rebuilt list is harmless as long as each pass rescans the source in the order the walk
+consumes it. The cause was one thing — the walk is post-order (`walk::walk_assignment_expression`
+runs first), so in a chain the visit order is the reverse of the source order the site list is in
+— and reserving the site on the way *down* fixed every depth from 2 to 5. The second "fault"
+evaporated, and the fix for it would have been a change with no cell able to ablate it.
+
+This sits one step short of "a plausible mechanism is not the cause" and is worse in one way: a
+false observation dies under a check, a true one does not. Ask what an observation **entails**,
+separately from whether it is true — and write the entailment down as a prediction, because that
+is what makes the extra fix falsifiable instead of prudent.
+
+Upstream has no counterpart to that state at all — it reads `locate_node(left)` off the node — so
+"does the port have every condition upstream has" cannot find this class. rsvelte introduced an
+ordering dependency upstream does not have and got its direction wrong; `build_bind_this`'s `seen`
+is the mirror image, where upstream has the ordering and the port dropped it.
 
 ### Nothing is always spelled as something, and the two ends of a measurement spell it differently
 
