@@ -13,7 +13,7 @@ use crate::ast::template::{
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, slice_src};
 
-use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
+use crate::svelte2tsx::template::attributes::attribute::{AttrHost, format_attribute_node};
 use crate::svelte2tsx::template::attributes::binding::format_component_bind_directive;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_component_directive_suffix;
@@ -929,7 +929,7 @@ pub fn handle_svelte_self(
                     }
                     // `<svelte:self>` is component-like (`__sveltets_2_createComponentAny`),
                     // so apply --* CSS-prop wrapping, not data-* element wrapping.
-                    prop_parts.push(format_attribute_node(node, source, false));
+                    prop_parts.push(format_attribute_node(node, source, AttrHost::Component));
                 }
                 Attribute::SpreadAttribute(spread) => {
                     prop_parts.push(format_spread_attribute(spread, source));

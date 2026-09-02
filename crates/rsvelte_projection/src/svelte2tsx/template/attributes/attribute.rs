@@ -24,23 +24,43 @@ fn valueless_value(source_name: &str) -> &'static str {
     }
 }
 
+/// Which of `Attribute.ts`'s two host tests an attribute is being formatted under.
+///
+/// Upstream asks them separately: `element instanceof Element` picks the
+/// `data-` / `--` wrapper, while the case and number rewrites additionally need
+/// `parent.type === 'Element'`. A `<slot>` is built as an `Element` whose parent
+/// node is a `Slot`, so it is the one host where the two answers differ.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AttrHost<'a> {
+    Element { tag: &'a str, preserve_case: bool },
+    Slot,
+    Component,
+}
+
 /// Format a regular attribute: `name="value"` → `"name":value,`.
 ///
 /// Shorthand attributes like `{propB}` (where name equals expression text)
 /// produce `propB,` instead of `"propB":propB,`.
 ///
 /// Wrapping rules (mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`):
-/// - `is_element` && name starts with `data-` (but NOT `data-sveltekit-`):
+/// - element or slot && name starts with `data-` (but NOT `data-sveltekit-`):
 ///   `...__sveltets_2_empty({ "data-foo": value })` — boolean/no-value → `__sveltets_2_any()`.
-/// - `!is_element` && name starts with `--`:
-///   `...__sveltets_2_cssProp({ "--x": value })` — boolean/no-value → `""`.
-pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -> String {
-    let name = &node.name;
+/// - component && name starts with `--`:
+///   `...__sveltets_2_cssProp({ "--x": value })`.
+pub fn format_attribute_node(node: &AttributeNode, source: &str, host: AttrHost) -> String {
+    let is_element = matches!(host, AttrHost::Element { .. });
+    let name = &match host {
+        AttrHost::Element { tag, preserve_case } => {
+            transform_attribute_case(&node.name, tag, true, preserve_case)
+        }
+        _ => Cow::Borrowed(node.name.as_str()),
+    };
 
     // Determine wrapping: data-* on elements, --* on components.
-    let is_data_attr =
-        is_element && name.starts_with("data-") && !name.starts_with("data-sveltekit-");
-    let is_css_prop = !is_element && name.starts_with("--");
+    let is_data_attr = !matches!(host, AttrHost::Component)
+        && name.starts_with("data-")
+        && !name.starts_with("data-sveltekit-");
+    let is_css_prop = matches!(host, AttrHost::Component) && name.starts_with("--");
 
     /// Wrap the inner `"name":value` (without trailing comma) in the
     /// appropriate helper and re-attach the comma.
@@ -62,11 +82,16 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
             // `__sveltets_2_any()` fallback in upstream `Attribute.ts` only applies
             // when the attribute has no value at all, which never happens for a
             // boolean attribute.)
-            // For --* on components: boolean means no value → ""
+            // A `--x` with no value is `true` too: the `""` fallback in
+            // `addProp` only fires when `addAttribute` is called with no value
+            // argument, which the `attr.value === true` branch never does.
             if is_data_attr {
                 format!("...__sveltets_2_empty({{\"{name}\":true}}),")
             } else if is_css_prop {
-                format!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),")
+                format!(
+                    "...__sveltets_2_cssProp({{\"{name}\":{}}}),",
+                    valueless_value(&node.name)
+                )
             } else {
                 format!("\"{name}\":{},", valueless_value(&node.name))
             }
@@ -487,7 +512,7 @@ fn push_attribute_name(out: &mut Vec<Seg>, node: &AttributeNode, source: &str, n
 ///
 /// Applies the same wrapping rules as `format_attribute_node`:
 /// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
-/// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
+/// - component && `--*` → `__sveltets_2_cssProp({…})`
 ///
 /// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
 pub fn append_attribute_node_segments(
@@ -529,7 +554,7 @@ pub fn append_attribute_node_segments(
             } else if is_css_prop {
                 segs_push_lit(out, "...__sveltets_2_cssProp({");
                 push_attribute_name(out, node, source, name);
-                segs_push_lit(out, ":\"\"}),");
+                segs_push_fmt(out, format_args!(":{}}}),", valueless_value(&node.name)));
             } else {
                 push_attribute_name(out, node, source, name);
                 segs_push_fmt(out, format_args!(":{},", valueless_value(&node.name)));

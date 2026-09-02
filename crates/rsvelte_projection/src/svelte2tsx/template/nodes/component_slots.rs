@@ -12,7 +12,7 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("template source offsets are represented as u32")
 }
 
-use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
+use crate::svelte2tsx::template::attributes::attribute::{AttrHost, format_attribute_node};
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, bind_is_filtered_from_props, format_bind_directive,
     sanitize_tag_for_var,
@@ -488,6 +488,7 @@ pub fn handle_named_slot_element(
         &options.typings_namespace,
         &el.name,
         true,
+        options.namespace.preserves_attribute_case(),
     );
 
     let opening_tag_end =
@@ -642,6 +643,7 @@ pub fn handle_named_slot_svelte_fragment(
         // `<svelte:fragment>` emits no binding suffix — and takes only `slot`
         // and `let:`, so there is nothing to lower.
         false,
+        options.namespace.preserves_attribute_case(),
     );
     let inner = if attrs_str.is_empty() {
         let stripped_count = el
@@ -876,6 +878,7 @@ pub fn build_named_slot_element_attrs(
     ns: &str,
     tag: &str,
     lower_bindings: bool,
+    preserve_case: bool,
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
 
@@ -887,7 +890,11 @@ pub fn build_named_slot_element_attrs(
                 }
                 // Named-slot elements become `svelteHTML.createElement(…)` calls,
                 // so they are real DOM elements — apply data-* wrapping.
-                parts.push(format_attribute_node(node, source, true));
+                parts.push(format_attribute_node(
+                    node,
+                    source,
+                    AttrHost::Element { tag, preserve_case },
+                ));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));

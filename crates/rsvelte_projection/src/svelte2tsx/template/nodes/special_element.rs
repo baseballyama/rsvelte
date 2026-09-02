@@ -194,6 +194,7 @@ pub fn handle_svelte_special_element(
             &options.typings_namespace,
             &el.name,
             true,
+            options.namespace.preserves_attribute_case(),
         )
     } else {
         build_attributes_string(

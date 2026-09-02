@@ -28,7 +28,7 @@ use crate::svelte2tsx::template::utils::expr::{
 
 use action::format_use_directive;
 use attribute::{
-    append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
+    AttrHost, append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
     trailing_attr_comment_text,
 };
 use binding::{bind_is_filtered_from_props, format_bind_directive_segments};
@@ -331,9 +331,9 @@ pub(super) fn build_component_props_string(
                 if node.name == "slot" && drop_slot {
                     continue;
                 }
-                // is_element=false: --* attrs are wrapped with __sveltets_2_cssProp
+                // A component's `--*` attrs are wrapped with __sveltets_2_cssProp
                 // inside format_attribute_node (mirrors Attribute.ts `addProp`).
-                parts.push(format_attribute_node(node, source, false));
+                parts.push(format_attribute_node(node, source, AttrHost::Component));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));
