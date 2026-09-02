@@ -108,6 +108,29 @@ Sizing: the residual is 15.7% of compile, so removing all of it is 1.19x, and
 client needs 1.30x to reach 20x from 15.34x. Necessary, not sufficient — the
 same shape as the single-thread/scaling decomposition above.
 
+**And "Pre-frag setup" is not merely a guessed label, it is a demonstrably wrong
+one.** `transform_client` begins at `client/mod.rs:506` and `visit_program` is
+called at 554; the ~10 statements between them build `initial_node`,
+`transform_options`, a `ComponentClientTransformState` and a `ComponentContext`.
+That region cannot hold 15.7% of a compile, so the residual is not in front of
+the fragment at all — it is in the gaps *between* the later timers. Those gaps,
+with the lines that bound them, are:
+
+| gap | between | bounded by |
+|---|---|---|
+| A | 556 – 637 | after `visit_program`, before the dead-comment strip |
+| B | 644 – 731 | before `attach_import_origins` |
+| C | 760 – 831 | after `record_script_text`, before `compute_blocker_primary_names` |
+| D | 842 – 853 | before the fragment timer |
+| E | 855 – 863 | between fragment and assembly |
+| F | after 2855 | after the last `record_codegen` |
+
+Anything phase 3 does outside `transform_client` (CSS render is separately
+timed; the rest is not) also lands here. The next instrumentation should bracket
+these six regions rather than name more call sites — the call-site guess has now
+been tried and returned 5%.
+
+
 ## compile_profile accepted `--target server` and profiled the client (2026-09-02 23:50)
 
 A client-vs-server bucket comparison came back with every share within 0.2
