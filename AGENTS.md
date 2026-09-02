@@ -1111,9 +1111,13 @@ Rules, in the order they are cheap:
    near here" rather than as "so my instrument is broken". `find` here is `bfs`,
    which rejects `'3 minutes ago'` outright (it wants ISO 8601); the `2>/dev/null`
    turned the parse error into a `0` **in both the measurement and its control**,
-   because they differed only in the argument that was invalid in both. Vary the
-   control along an axis the suspected failure does not pass through, or run it
-   without the stage you are trusting. This is the instrument-level twin of a
+   because they differed only in the argument that was invalid in both. The rule that covers
+   it: **a control must bypass at least one stage the measurement passes
+   through.** Changing only an argument to the same command cannot detect that
+   command's own failure — check the claim with `stat` instead of `find`, or with
+   `wc -l` instead of the grep whose pattern you doubt. Varying the input while
+   holding the pipeline fixed is the weaker form, and it is the one that feels
+   like diligence. This is the instrument-level twin of a
    port-vs-port test whose oracle is the other port: both are passed by a fault
    the two halves share.
 
