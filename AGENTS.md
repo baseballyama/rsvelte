@@ -379,6 +379,13 @@ question "does `main` moving invalidate this measurement" — in one instance fo
 reachability was traced by hand and the artifact then showed three of them had been in the
 measured tree all along.
 
+**A superseded run shows up RED too, and `gh pr checks` counts it.** A PR whose title was edited
+re-runs the title-dependent job; the old run's `FAILURE` conclusion stays attached to the PR, so
+`gh pr checks --json bucket` reports `fail=1` for a check whose two later runs are both `SUCCESS`.
+Measured on one PR: `Changeset` at 09:24 FAILURE, 09:29 SUCCESS, 09:30 SUCCESS. Group
+`statusCheckRollup` by `name` and take the maximum `startedAt` before calling a branch red — the
+bucket count answers "has this check ever failed here", which is a different question.
+
 **And a cancelled run also shows up RED, where it is indistinguishable from a real regression.**
 `Tests` is a rollup job that reads its shards' `result`s and exits 1 unless every one is
 `success` — so a cancellation makes the rollup `FAILURE` while every shard under it is
@@ -1074,6 +1081,7 @@ followed on the next:
 | `join before.tsv after.tsv` over paths sorted by Rust's byte order | two non-ASCII paths reported as **changed** that were byte-identical | `join` requires its inputs in the locale's collating order and silently **mispairs** rows when they are not |
 | `timeout 120 node probe.mjs 2>&1 \| head -20` | nothing at all, twice | `head` closed the pipe and `timeout` killed the process, so node's block-buffered stdout was **never flushed** — the verdict was not outside the window, it was never produced |
 | `cmd \| cat -A` on macOS | the **oracle leg produced no output at all**, so its side of an A/B read as empty | macOS has no `cat -A`; the filter dies, the pipe's exit is the filter's, and a stage that dies on ONE leg does not manufacture a zero — it manufactures a **difference** |
+| a CI job's log read for the scariest-looking line | a `[fmt] rsvelte-fmt reported errors:` line that **`main` prints on every run**, quoted as the cause of an `exit 1` whose real line was 30 lines later | nothing was truncated: the window held the real failure *and* a permanent one, and "looks like a failure" is not a property the reader can check without the other arm |
 
 Rules, in the order they are cheap:
 
@@ -1573,6 +1581,22 @@ The two are opposite defects with the same single-verdict signature. **What made
 split diagnostic was that its axis was the compiler's own stages** — prune, diagnostics,
 element scoping — not an arbitrary partition of the output text: each field named a pass,
 so a divergence in one field named the pass to read.
+
+### Re-key a grid before adding rows to it
+
+A grid's cell is a comparison, and the comparison has a key. Two defects were found on one
+afternoon by changing nothing but the key. A module `$.assign` grid keyed on the **count** of
+`$.assign(` calls read 1 vs 1 and scored EQ; re-keyed on the call's **full text** the same cells
+reported that rsvelte emits `() => {}` — an empty block body, so the getter stores `undefined` —
+where upstream emits `() => ({})`, and that a `<script module>` position argument was being consumed
+by the instance pass, so two sites collapsed to one. Both had shipped, both parse, and both are
+invisible to a count.
+
+This is the ratchet lesson (**an entry suppresses everything its key cannot tell apart**) arriving
+one level down, inside a grid, where it is easier to miss because a grid feels like it is comparing
+outputs. It is comparing a *projection* of outputs. Before widening a family, ask what its cells
+throw away — and prefer the widest key the assertion can carry, because rows are expensive and a
+key change is free.
 
 ### Widening a set to close an enumeration hazard moves you along a new axis
 
