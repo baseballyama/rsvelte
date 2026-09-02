@@ -2148,6 +2148,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
         JsNode::TSEnumDeclaration { start, end, .. }
         | JsNode::TSTypeAliasDeclaration { start, end, .. }
         | JsNode::TSInterfaceDeclaration { start, end, .. }
+        | JsNode::TSImportEqualsDeclaration { start, end, .. }
+        | JsNode::TSExportAssignment { start, end, .. }
+        | JsNode::TSNamespaceExportDeclaration { start, end, .. }
+        | JsNode::TSIndexSignature { start, end, .. }
         | JsNode::TSDeclareMethod { start, end, .. } => {
             write_json_node(w, *start, *end, node)?;
         }

@@ -788,6 +788,31 @@ pub enum JsNode {
         end: u32,
         value: Box<Value>,
     },
+    /// TypeScript-only STATEMENT forms. Upstream's parser emits each one and its
+    /// eraser leaves it alone, so the public parse() output has to carry it whole
+    /// for the same reason the declarations above do.
+    TSImportEqualsDeclaration {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
+    TSExportAssignment {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
+    TSNamespaceExportDeclaration {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
+    /// A class-body index signature. Opaque for the same reason: nothing walks
+    /// into it and its shape is acorn-typescript's.
+    TSIndexSignature {
+        start: u32,
+        end: u32,
+        value: Box<Value>,
+    },
     /// An abstract method's bodyless `value`, retained whole for the same
     /// reason: nothing walks into it and its shape is acorn-typescript's, not
     /// a `FunctionExpression`'s.
@@ -2407,6 +2432,10 @@ impl Serialize for JsNode {
             Self::TSEnumDeclaration { value, .. }
             | Self::TSTypeAliasDeclaration { value, .. }
             | Self::TSInterfaceDeclaration { value, .. }
+            | Self::TSImportEqualsDeclaration { value, .. }
+            | Self::TSExportAssignment { value, .. }
+            | Self::TSNamespaceExportDeclaration { value, .. }
+            | Self::TSIndexSignature { value, .. }
             | Self::TSDeclareMethod { value, .. } => {
                 opaque_ts_with_comments(value).serialize(serializer)
             }
@@ -2701,6 +2730,10 @@ impl JsNode {
                             | "TSInterfaceDeclaration"
                             | "TSDeclareMethod"
                             | "TSEnumDeclaration"
+                            | "TSImportEqualsDeclaration"
+                            | "TSExportAssignment"
+                            | "TSNamespaceExportDeclaration"
+                            | "TSIndexSignature"
                     )
                 ) {
                     let start = owned_obj
@@ -2718,6 +2751,16 @@ impl JsNode {
                         }
                         Some("TSDeclareMethod") => Self::TSDeclareMethod { start, end, value },
                         Some("TSEnumDeclaration") => Self::TSEnumDeclaration { start, end, value },
+                        Some("TSImportEqualsDeclaration") => {
+                            Self::TSImportEqualsDeclaration { start, end, value }
+                        }
+                        Some("TSExportAssignment") => {
+                            Self::TSExportAssignment { start, end, value }
+                        }
+                        Some("TSNamespaceExportDeclaration") => {
+                            Self::TSNamespaceExportDeclaration { start, end, value }
+                        }
+                        Some("TSIndexSignature") => Self::TSIndexSignature { start, end, value },
                         _ => Self::TSInterfaceDeclaration { start, end, value },
                     };
                 }
@@ -3506,6 +3549,10 @@ impl JsNode {
             Self::TSTypeAliasDeclaration { .. } => Some("TSTypeAliasDeclaration"),
             Self::TSDeclareMethod { .. } => Some("TSDeclareMethod"),
             Self::TSInterfaceDeclaration { .. } => Some("TSInterfaceDeclaration"),
+            Self::TSImportEqualsDeclaration { .. } => Some("TSImportEqualsDeclaration"),
+            Self::TSExportAssignment { .. } => Some("TSExportAssignment"),
+            Self::TSNamespaceExportDeclaration { .. } => Some("TSNamespaceExportDeclaration"),
+            Self::TSIndexSignature { .. } => Some("TSIndexSignature"),
             Self::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
             Self::TSAsExpression { .. } => Some("TSAsExpression"),
             Self::TSSatisfiesExpression { .. } => Some("TSSatisfiesExpression"),
@@ -4232,6 +4279,10 @@ impl JsNode {
             | Self::TSTypeAliasDeclaration { start, .. }
             | Self::TSDeclareMethod { start, .. }
             | Self::TSInterfaceDeclaration { start, .. }
+            | Self::TSImportEqualsDeclaration { start, .. }
+            | Self::TSExportAssignment { start, .. }
+            | Self::TSNamespaceExportDeclaration { start, .. }
+            | Self::TSIndexSignature { start, .. }
             | Self::TSModuleDeclaration { start, .. }
             | Self::TSAsExpression { start, .. }
             | Self::TSSatisfiesExpression { start, .. }
@@ -4323,6 +4374,10 @@ impl JsNode {
             | Self::TSTypeAliasDeclaration { end, .. }
             | Self::TSDeclareMethod { end, .. }
             | Self::TSInterfaceDeclaration { end, .. }
+            | Self::TSImportEqualsDeclaration { end, .. }
+            | Self::TSExportAssignment { end, .. }
+            | Self::TSNamespaceExportDeclaration { end, .. }
+            | Self::TSIndexSignature { end, .. }
             | Self::TSModuleDeclaration { end, .. }
             | Self::TSAsExpression { end, .. }
             | Self::TSSatisfiesExpression { end, .. }
@@ -4417,6 +4472,10 @@ impl JsNode {
             Self::TSTypeAliasDeclaration { .. } => "TSTypeAliasDeclaration",
             Self::TSDeclareMethod { .. } => "TSDeclareMethod",
             Self::TSInterfaceDeclaration { .. } => "TSInterfaceDeclaration",
+            Self::TSImportEqualsDeclaration { .. } => "TSImportEqualsDeclaration",
+            Self::TSExportAssignment { .. } => "TSExportAssignment",
+            Self::TSNamespaceExportDeclaration { .. } => "TSNamespaceExportDeclaration",
+            Self::TSIndexSignature { .. } => "TSIndexSignature",
             Self::TSModuleDeclaration { .. } => "TSModuleDeclaration",
             Self::TSAsExpression { .. } => "TSAsExpression",
             Self::TSSatisfiesExpression { .. } => "TSSatisfiesExpression",

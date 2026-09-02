@@ -5651,6 +5651,12 @@ fn convert_class_element_for_expr(
 
             Some(Value::Object(obj))
         }
+        oxc_ast::ast::ClassElement::TSIndexSignature(index) => Some(convert_ts_index_signature(
+            arena,
+            index,
+            offset,
+            line_offsets,
+        )),
         _ => None,
     }
 }
@@ -9677,8 +9683,162 @@ fn convert_statement_for_program(
             ))
         }
 
+        oxc_ast::ast::Statement::TSImportEqualsDeclaration(decl) => {
+            let start = offset + decl.span.start as usize;
+            let end = offset + decl.span.end as usize;
+            Some(JsNode::TSImportEqualsDeclaration {
+                start: start as u32,
+                end: end as u32,
+                value: Box::new(convert_ts_import_equals(decl, offset, line_offsets)),
+            })
+        }
+        oxc_ast::ast::Statement::TSExportAssignment(decl) => {
+            let start = offset + decl.span.start as usize;
+            let end = offset + decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TSExportAssignment".to_string()));
+            push_span_fields(&mut obj, start, end, line_offsets);
+            obj.set_field(
+                "expression",
+                expr_to_node(convert_expression_for_program(
+                    arena,
+                    &decl.expression,
+                    offset,
+                    line_offsets,
+                ))
+                .to_value(),
+            );
+            Some(JsNode::TSExportAssignment {
+                start: start as u32,
+                end: end as u32,
+                value: Box::new(Value::Object(obj)),
+            })
+        }
+        oxc_ast::ast::Statement::TSNamespaceExportDeclaration(decl) => {
+            let start = offset + decl.span.start as usize;
+            let end = offset + decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field(
+                "type",
+                Value::String("TSNamespaceExportDeclaration".to_string()),
+            );
+            push_span_fields(&mut obj, start, end, line_offsets);
+            obj.set_field(
+                "id",
+                ts_identifier_value(
+                    &decl.id.name,
+                    offset + decl.id.span.start as usize,
+                    offset + decl.id.span.end as usize,
+                    line_offsets,
+                ),
+            );
+            Some(JsNode::TSNamespaceExportDeclaration {
+                start: start as u32,
+                end: end as u32,
+                value: Box::new(Value::Object(obj)),
+            })
+        }
+
         // Add more statement types as needed
         _ => None,
+    }
+}
+
+/// Build the ESTree TSImportEqualsDeclaration acorn-typescript emits. Upstream
+/// always writes isExport for the bare statement form; the exported spelling is
+/// a declaration inside an export, which never reaches here.
+fn convert_ts_import_equals(
+    decl: &oxc_ast::ast::TSImportEqualsDeclaration,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + decl.span.start as usize;
+    let end = offset + decl.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field(
+        "type",
+        Value::String("TSImportEqualsDeclaration".to_string()),
+    );
+    push_span_fields(&mut obj, start, end, line_offsets);
+    let kind = match decl.import_kind {
+        oxc_ast::ast::ImportOrExportKind::Type => "type",
+        oxc_ast::ast::ImportOrExportKind::Value => "value",
+    };
+    obj.set_field("importKind", Value::String(kind.to_string()));
+    obj.set_field("isExport", Value::Bool(false));
+    obj.set_field(
+        "id",
+        ts_identifier_value(
+            &decl.id.name,
+            offset + decl.id.span.start as usize,
+            offset + decl.id.span.end as usize,
+            line_offsets,
+        ),
+    );
+    obj.set_field(
+        "moduleReference",
+        convert_ts_module_reference(&decl.module_reference, offset, line_offsets),
+    );
+    Value::Object(obj)
+}
+
+/// A module reference is either require('m') or a (possibly qualified) name, and
+/// the name spelling is the same node the type positions already build.
+fn convert_ts_module_reference(
+    reference: &oxc_ast::ast::TSModuleReference,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    match reference {
+        oxc_ast::ast::TSModuleReference::ExternalModuleReference(external) => {
+            let start = offset + external.span.start as usize;
+            let end = offset + external.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field(
+                "type",
+                Value::String("TSExternalModuleReference".to_string()),
+            );
+            push_span_fields(&mut obj, start, end, line_offsets);
+            let lit = &external.expression;
+            let lit_start = offset + lit.span.start as usize;
+            let lit_end = offset + lit.span.end as usize;
+            let mut lit_obj = Map::new();
+            lit_obj.set_field("type", Value::String("Literal".to_string()));
+            push_span_fields(&mut lit_obj, lit_start, lit_end, line_offsets);
+            lit_obj.set_field("value", Value::String(lit.value.to_string()));
+            if let Some(raw) = &lit.raw {
+                lit_obj.set_field("raw", Value::String(raw.to_string()));
+            }
+            obj.set_field("expression", Value::Object(lit_obj));
+            Value::Object(obj)
+        }
+        oxc_ast::ast::TSModuleReference::IdentifierReference(id) => ts_identifier_value(
+            &id.name,
+            offset + id.span.start as usize,
+            offset + id.span.end as usize,
+            line_offsets,
+        ),
+        oxc_ast::ast::TSModuleReference::QualifiedName(qualified) => {
+            let start = offset + qualified.span.start as usize;
+            let end = offset + qualified.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TSQualifiedName".to_string()));
+            push_span_fields(&mut obj, start, end, line_offsets);
+            obj.set_field(
+                "left",
+                convert_ts_type_name_adjusted(&qualified.left, offset, line_offsets),
+            );
+            obj.set_field(
+                "right",
+                ts_identifier_value(
+                    &qualified.right.name,
+                    offset + qualified.right.span.start as usize,
+                    offset + qualified.right.span.end as usize,
+                    line_offsets,
+                ),
+            );
+            Value::Object(obj)
+        }
     }
 }
 
@@ -9967,27 +10127,7 @@ fn convert_ts_module_declaration_as_node(
         let block_body: Vec<JsNode> = block
             .body
             .iter()
-            .filter_map(|stmt| {
-                if let Some(node) = convert_statement_for_program(arena, stmt, offset, line_offsets)
-                {
-                    return Some(node);
-                }
-                // The typed program has no variant for this one (issue #3681), so
-                // `convert_statement_for_program` drops it — but upstream's visitor
-                // leaves it in place, which makes the namespace non-type. Only this
-                // stands in: most of what it drops (a type alias, say) IS type-only
-                // and must keep stripping to empty.
-                if !matches!(stmt, oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)) {
-                    return None;
-                }
-                let start = offset + stmt.span().start as usize;
-                let end = offset + stmt.span().end as usize;
-                Some(JsNode::DebuggerStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc: create_typed_loc(start, end, line_offsets),
-                })
-            })
+            .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
             .collect();
         arena.alloc_js_node(JsNode::BlockStatement {
             start: start as u32,
@@ -11909,8 +12049,20 @@ fn convert_class_element_for_program_as_node(
         oxc_ast::ast::ClassElement::AccessorProperty(_) => TypedClassElem::Bail,
         // No typed variant carries a static block; the Value blob emits it.
         oxc_ast::ast::ClassElement::StaticBlock(_) => TypedClassElem::Bail,
-        // TS-only members are dropped by the Value path (`_ => None`).
-        _ => TypedClassElem::Skip,
+        oxc_ast::ast::ClassElement::TSIndexSignature(index) => {
+            let start = offset + index.span.start as usize;
+            let end = offset + index.span.end as usize;
+            TypedClassElem::Node(JsNode::TSIndexSignature {
+                start: start as u32,
+                end: end as u32,
+                value: Box::new(convert_ts_index_signature(
+                    arena,
+                    index,
+                    offset,
+                    line_offsets,
+                )),
+            })
+        }
     }
 }
 
@@ -12082,7 +12234,14 @@ fn convert_class_element_for_program(
 
             Some(Value::Object(obj))
         }
-        _ => None,
+        // Exhaustive on purpose: this arm set now covers every `ClassElement`, so
+        // a new oxc variant is a build error rather than a silently dropped node.
+        oxc_ast::ast::ClassElement::TSIndexSignature(index) => Some(convert_ts_index_signature(
+            arena,
+            index,
+            offset,
+            line_offsets,
+        )),
     }
 }
 
