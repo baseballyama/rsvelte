@@ -522,13 +522,13 @@ const idsFor = (key) => {
 	const p = path.join(CORPUS, jsons[0] ?? '');
 	return jsons.length && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
 };
-const declaredPartitions = new Set(PARTITIONS.map((p) => `${p.doc} ${p.key} ${p.prefix ?? ''} ${p.label}`));
+const declaredPartitions = new Set(PARTITIONS.map((p) => `${p.doc}\0${p.key}\0${p.prefix ?? ''}\0${p.label}`));
 
 for (const doc of new Set(RATCHETS.map((r) => r.doc))) {
 	const docBody = docText(doc);
 	if (docBody === null) continue; // already reported above
 	for (const found of partitionLines(docBody)) {
-		const id = `${doc} ${found.key} ${found.prefix ?? ''} ${found.label}`;
+		const id = `${doc}\0${found.key}\0${found.prefix ?? ''}\0${found.label}`;
 		if (!declaredPartitions.has(id)) {
 			fail(
 				`${doc}: partition by "${found.label}" of \`${found.key}\`${found.prefix ? ` under \`${found.prefix}\`` : ''} is not declared in PARTITIONS — add it, so deleting the line fails too`,
@@ -632,11 +632,50 @@ for (const doc of new Set(PARTITIONS.map((p) => p.doc))) {
 		// means the residue after an attributed cluster, which is a different number.
 		const end = lines.findIndex((l, at) => at > i && /^### /.test(l));
 		const section = lines.slice(i + 1, end === -1 ? lines.length : end).join('\n');
+		const next = lines.findIndex((l, at) => at > i && partitionLines(l.trim())[0]);
+		const stop = [end, next].filter((x) => x !== -1);
+		const scoped = lines.slice(i + 1, stop.length ? Math.min(...stop) : lines.length).join('\n');
 		for (const m of section.matchAll(/(?:All|Every one of the) remaining \*{0,2}([\d,]+)/g)) {
 			const stated = Number(m[1].replace(/,/g, ''));
 			if (stated !== partition.sum) {
 				fail(
 					`${doc}:${i + 1}: the section says "remaining ${m[1]}" but its partition sums to ${partition.sum}.`,
+				);
+			}
+		}
+
+		// (c) The same claim in two more spellings. `All N …` at the start of a
+		// sentence states the whole population; `The other N …` states the residue
+		// after the section's attribution table. Both were unchecked, and both had
+		// gone stale by an order of magnitude while (a) and (b) were green — which
+		// reads, to the next author, as "counts in this file are checked".
+		//
+		// Scoped to a non-empty partition, and to the region before the NEXT
+		// partition line rather than the next heading. Without the first, six
+		// `All N generated comparisons now match` lines in `matrix-known-failures.md`
+		// are read as entry counts against a partition of 0; without the second, one
+		// such line is reported once per partition sharing its heading — the measured
+		// shape was 3 distinct sentences reported 22 times.
+		if (partition.sum === 0) continue;
+		const attributed = [...scoped.matchAll(/^\|\s*([\d,]+)\s*\|/gm)].reduce(
+			(a, m) => a + Number(m[1].replace(/,/g, '')),
+			0,
+		);
+		for (const m of scoped.matchAll(/^All \*{0,2}([\d,]+)\*{0,2} /gm)) {
+			const stated = Number(m[1].replace(/,/g, ''));
+			if (stated !== partition.sum) {
+				fail(
+					`${doc}:${i + 1}: the section says "All ${m[1]}" but its partition sums to ${partition.sum}.`,
+				);
+			}
+		}
+		for (const m of scoped.matchAll(/^The other \*{0,2}([\d,]+)\*{0,2} /gm)) {
+			const stated = Number(m[1].replace(/,/g, ''));
+			const want = partition.sum - attributed;
+			if (stated !== want) {
+				fail(
+					`${doc}:${i + 1}: the section says "The other ${m[1]}" but its partition sums to ` +
+						`${partition.sum} with ${attributed} attributed, leaving ${want}.`,
 				);
 			}
 		}

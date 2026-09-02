@@ -292,6 +292,27 @@ withCorpus(
 	(r) => check('a stale restatement fails', [r.code, /states 5 entries/.test(r.out)], [1, true]),
 );
 
+// The two spellings (c) added. Both were unchecked while (a) and (b) were green,
+// and both had gone stale by an order of magnitude — `The other 21` and `All 13`
+// against a 4-entry ratchet. The negative control is the scoping: an `All N` line
+// counting something other than ratchet entries sits under a partition of 0 in
+// `matrix-known-failures.md`, and 22 of the 24 reports the unscoped rule produced
+// were that one doc.
+withCorpus(
+	(d) => edit(d, 'known-failures.md', 'The other 2 arrived with the wave-2 enrolment', 'The other 21 arrived with the wave-2 enrolment'),
+	(r) => check('a stale `The other N` fails', [r.code, /"The other 21".*leaving 2/s.test(r.out)], [1, true]),
+);
+
+withCorpus(
+	(d) => edit(d, 'known-failures.md', 'All remaining 40 arrived', 'All 13 arrived'),
+	(r) => check('a stale `All N` fails', [r.code, /"All 13".*partition sums to 40/s.test(r.out)], [1, true]),
+);
+
+withCorpus(
+	(d) => edit(d, 'matrix-known-failures.md', 'All 1,976 generated comparisons', 'All 1,977 generated comparisons'),
+	(r) => check('`All N` under an empty partition is not an entry count', [r.code], [0]),
+);
+
 if (failed) {
 	console.error(`\n${failed} failure(s)`);
 	process.exit(1);

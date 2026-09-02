@@ -701,7 +701,7 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-position-known-failures.<target>.json` hold 0 entries, all four of
 `error-end-known-failures.<target>.json` hold 0 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
-(#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
+(#3176) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
 that more than doubled. The counts above are the re-measurement against the tree
 this branch was rebased onto (message 18/17 → 13/12, position 99 → 81, end
@@ -952,7 +952,7 @@ which no rule above matches (not a prefix, not whitespace- or quote-equal). It i
 the one entry that fix moves, out of 34,686 real components whose output was
 diffed across the change.
 
-### Wave-2 enrolment (#3130) — Clusters 20-27
+### Wave-2 enrolment (#3176) — Clusters 20-27
 
 The corpus went from 37 to 104 corpus sources, and the formatter-parity set
 with it. The current run has **33,483 included components, 32,667 matched, 787
@@ -3183,7 +3183,7 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 12 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 12 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3295,7 +3295,7 @@ Partition of `known-failures.client-dev.json` by verdict: `26`
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 26 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 26 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
@@ -3486,7 +3486,7 @@ and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
 
-### Wave-2 enrolment (#3130) — where all 1,413 entries come from
+### Wave-2 enrolment (#3176) — where all 1,413 entries come from
 
 The corpus went from 37 corpus sources to 104 (103 pinned repositories plus
 the in-repo `pattern-corpus`) and from 14,780 entries to 34,601. Every entry in all four ratchets above comes from one of the 67 new
@@ -4958,7 +4958,7 @@ what the normalizer absorbs, so these verdicts are only comparable across runs o
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
 The bucket was burned down from 525 to **30**, and `unparseable` from 2 to **0**, on the
-14,229-seed corpus. The wave-2 enrolment (#3130) took the seed set to 33,406 and the ratchet to
+14,229-seed corpus. The wave-2 enrolment (#3176) took the seed set to 33,406 and the ratchet to
 **168** — `code-mismatch` 160 and `unparseable` **8**. Subsequent fixes reduced that ratchet to
 **165** — `code-mismatch` 159 and `unparseable` **6**. The enrolled entries were not regressions:
 every one is a pre-existing defect in a repository the corpus did not previously hold,
@@ -5518,7 +5518,7 @@ JavaScript, so this ratchet has no tolerance to spend beyond what is listed here
 Everything below the next two paragraphs was written while this ratchet was empty, and it
 said so in as many words: *"the 30 defects above are in repositories that are not corpus
 sources … an empty baseline here is therefore the expected result, not a measurement that
-was skipped."* The wave-2 enrolment (#3130) made huly, open-webui,
+was skipped."* The wave-2 enrolment (#3176) made huly, open-webui,
 carbon-components-svelte and SMUI corpus sources, along with 63 more repositories, and the
 ratchet went to **12 entries across two targets on the first run**. The current tree holds
 **0 entries** after retiring the repaired classes listed below. That is the
@@ -5572,7 +5572,7 @@ against a mutated `verify.mjs`; both flipped.
 **So why was the ratchet empty?** Because the 30 defects above were in repositories that were
 not corpus sources. `corpus-sources.json` listed sveltejs/svelte, svelte.dev and 33 shipped
 libraries; huly, open-webui, carbon and SMUI were none of them. An empty baseline was
-therefore the expected result, not a measurement that was skipped — and #3130 enrolled all
+therefore the expected result, not a measurement that was skipped — and #3176 enrolled all
 four, which is what the table at the top of this file is.
 
 What that meant honestly, then: **this gate was a regression gate, not a burn-down.** It
@@ -5679,7 +5679,7 @@ The first run measured 118 units: **64 match**, **30 diverge**, and **24 are com
 "both backends reject"**. Read the denominator as 94, not 118 — a both-reject pair is parity, but
 it is parity on a comparison that never reached the CSS.
 
-**After the wave-2 enrolment (#3130) the population is 3,033 units**: 1,762 match, 216 diverge on
+**After the wave-2 enrolment (#3176) the population is 3,033 units**: 1,762 match, 216 diverge on
 the CSS, 99 are inputs `grass` rejects and dart-sass accepts, and 956 are both-reject. The
 denominator is therefore 2,077, and `grass` agrees with dart-sass on **84.8%** of it. Treat that
 as the current size of the "near-substitute, not drop-in" claim — it was measured on 94 units
@@ -6747,7 +6747,7 @@ moves when the denominator does. The symptom-keyed table put 13 of those entries
 in a "one entry each" tail, which is where a mechanism goes to look unimportant;
 all such a count says is that nobody has reduced them yet.
 
-### Wave-2 enrolment (#3130)
+### Wave-2 enrolment (#3176)
 
 The list was **0** before the enrolment and all 139 entries come from one of the
 67 new repositories. The 37 pre-existing *real-world* sources still contribute
@@ -7006,7 +7006,7 @@ may only shrink.
 
 **Current baseline: `svelte2tsx-map-known-failures.json`, 0 entries.**
 
-The two `map-missing` entries enrolled by wave 2 (#3130), `chatgpt-web`'s
+The two `map-missing` entries enrolled by wave 2 (#3176), `chatgpt-web`'s
 `Home.svelte` and immich's `VideoNativeViewer.svelte`, now pass after the parser
 fix and were removed together with their stale TSX baseline entries.
 `map-invalid` remains **0** — no map rsvelte emits violates an invariant.
@@ -7380,7 +7380,7 @@ that they agree on every source the corpus holds.
 
 Partition of `warning-known-failures.<target>.json` by direction: `0`
 
-**73 of the 83 pre-existing entries arrived with the wave-2 enrolment (#3130)**,
+**73 of the 83 pre-existing entries arrived with the wave-2 enrolment (#3176)**,
 which took the corpus from 37 corpus sources to 104. The remaining per-code
 incidences total 81 across 80 entries (one entry differs on two codes):
 `css_unused_selector` 48, `state_referenced_locally` 20,
@@ -7759,7 +7759,7 @@ element name as `table` where upstream preserves the namespace form `f:table` in
 the self-closing-tag warning. This is a message-only compiler parity defect, so it
 belongs in this ratchet rather than in the code or position ones.
 
-The second arrived with the wave-2 enrolment (#3130):
+The second arrived with the wave-2 enrolment (#3176):
 `open-webui/src/lib/components/common/Tags.svelte`. Upstream's
 `a11y_role_has_required_aria_props` lists **every** missing attribute for the role
 (`"aria-controls" and "aria-expanded"`); rsvelte lists only the first. The code and

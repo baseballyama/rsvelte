@@ -363,6 +363,17 @@ same string for every push to `main`, so at a high merge rate each merge cancell
 predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
 indistinguishable in the branch header.**
 
+**And the same is true one step earlier: a ratchet's correctness is relative to the tree it is
+measured on, and a PR's tree is the MERGE REF.** `pull_request` CI checks out
+`refs/pull/N/merge` — the branch merged with `main` — so when `main` moves, a branch that has not
+changed by a byte can go red. Measured the day #4161 landed: it took `known-failures.client.json`
+from 34 to 28, and three open PRs still carrying the 34-entry file had **6 listed-but-passing
+entries** each, which is a FALSE-SHRINK failure. Their 86 queued jobs were therefore guaranteed
+red before any of them ran; rebasing did not cost the queue, it *freed* it (`running 16 → 8`,
+`queued 153 → 104`). The trap is that **the branch's own tree is self-consistent**, so nothing
+measurable locally explains the red — "the ratchet is right on my branch, so the rebase can wait"
+is a true statement and an irrelevant one.
+
 **And a cancelled run also shows up RED, where it is indistinguishable from a real regression.**
 `Tests` is a rollup job that reads its shards' `result`s and exits 1 unless every one is
 `success` — so a cancellation makes the rollup `FAILURE` while every shard under it is
@@ -696,6 +707,18 @@ Normalization is deliberately identical to `verify.mjs`, so a divergence this ga
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
 `--families` subset (both would FALSE-SHRINK the ratchet).
 
+**A ratchet entry's justification is a hypothesis about the AXIS, and a repro built from it
+inherits that hypothesis.** A svelte2tsx entry was recorded as "a `//` comment is dropped from a
+mustache in a mixed attribute value". The rule is not about comments: upstream copies the
+mustache interior **verbatim**, and rsvelte sliced by the expression node's span, so everything
+between `{` and the start of the expression was lost. Four cells —
+`class="x {// c⏎a} z"`, `{/*c*/a}`, `{ a }`, `{a /* t */}` — and **two of them contain no
+comment at all**, so a fix built from the entry's own wording (extend the range to cover a
+leading comment) passes half the grid and reads as done. The lesson is one level earlier than
+"reason is not attribution": the prose does not merely fail to say *where* a divergence is
+answered, it can name the wrong *axis* to reproduce it on, and the grid that would catch that is
+the one whose cells are not all instances of the stated cause.
+
 ### Transform idempotency (`scripts/compat-corpus/idempotency-verify.mjs`)
 
 **The one gate here that compares rsvelte to nothing.** With
@@ -999,7 +1022,7 @@ VS Code Dev Containers ("Reopen in Container") also works.
 
 ### grep can return nothing and mean nothing
 
-Four ways `grep` has silently reported "no matches" for strings that were
+Five ways `grep` has silently reported "no matches" for strings that were
 present. All of them produce a confident empty result, so a negative grep is
 never on its own evidence that something is absent — confirm with a positive
 control on a string you know is there.
@@ -1010,6 +1033,15 @@ control on a string you know is there.
 | `Binary file … matches`, no lines printed | one NUL byte anywhere in the file (not non-ASCII — UTF-8 is fine) | `command grep -a`, or `git grep` |
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
 | later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
+| every count comes back `0` | zsh expanded an **unquoted** `--include=*.svelte` as a glob, found no match in cwd, and never ran the command | quote every glob-shaped argument: `--include='*.svelte'` |
+
+The fifth row is the one that is not a `grep` bug at all: the other four reach
+`grep` and then lie, while this one means `grep` never ran. Two people hit it in
+one session, an hour apart, and both times the fabricated answer — `0` for every
+repository — **agreed with the hypothesis being tested** ("this population carries
+no carrier"). Quoted and re-run, the first column read `1867`. Neither `echo $?`
+nor `$pipestatus` helps, because zsh's non-zero status is not a failure of the
+command you wrote; the only control that fires is a count you know is non-zero.
 
 ### A truncating or discarding stage turns a failure into a green
 
@@ -1087,6 +1119,17 @@ Rules, in the order they are cheap:
 3. **State the denominator.** "No warnings" is a claim about a population; say
    which one (`-p <crate> --lib --tests`), because the reader cannot tell from
    the output whether your file was in it.
+4. **Check the instrument before the result, not after.** A predicate written to
+   answer "is the CI scheduler stalled" — `status === 'queued' && started_at` —
+   matched **210 of 213** jobs, which agreed with the hypothesis and was
+   internally tidy (the other 3 were exactly the `in_progress` count). It is
+   non-discriminating: the Jobs API stamps a queued job's `started_at` with its
+   `created_at`. What exposed it was the *shape* — six different jobs carrying
+   the identical timestamp to the second — not the count, which is the same
+   signal that named the `awk` key collapse above. The corrected predicate
+   (`started_at > created_at`) reported **0**, so the platform-side signature was
+   absent and the question stayed open. Run the check on a population where the
+   predicate MUST fire before you read a run where it must not.
 
 ### Nothing about a measurement arm is evidence of what it measured
 
