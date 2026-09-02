@@ -7,7 +7,6 @@
 	"huly/plugins/text-editor-resources/src/components/DrawingBoardEditor.svelte",
 	"huly/plugins/training-resources/src/components/TrainingRequestDueDateEditor.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
-	"joy-of-code/src/lib/ui/header/preferences/preferences.svelte.ts",
 	"kite-public/src/lib/components/CategoryNavigation.svelte",
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
 	"mathesar/mathesar_ui/src/pages/database/disconnect/DisconnectDatabaseModal.svelte",

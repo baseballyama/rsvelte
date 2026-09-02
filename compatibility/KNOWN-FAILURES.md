@@ -2866,11 +2866,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 26 entries)
+### Client (`known-failures.client.json`, 25 entries)
 
-Partition of `known-failures.client.json` by verdict: `25 + 1`
+Partition of `known-failures.client.json` by verdict: `24 + 1`
 
-- **25 — the generated JS differs** (`js` / `code-differs`).
+- **24 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2902,6 +2902,20 @@ asking only "is it not the bare name" passes on the bug; the repro therefore var
 binding KIND behind one fixed each block (`plain-import` → `settings`, `local-state` →
 `$.get(settings)`, `exported-prop` → `settings()`, nested each → `$.get(filter),
 $$_import_settings()`). A 139,252-unit four-target sweep moved exactly these 4 units.
+
+One entry left this target and `client-dev` because upstream's `should_proxy` resolves an
+Identifier **through its binding** and rsvelte's class-field lowering did not:
+`joy-of-code/…/preferences.svelte.ts` initialised a field from a name whose declaration
+is a non-proxied `$state` and rsvelte re-proxied it. There are **four** ports of that
+predicate here and no gate compares any two, so a 24-cell grid — one cell per call site of
+the scope-less port, crossed with four right-hand-side shapes — was written before the fix
+and reported `EQ 19 | DIFF 5`. The scope set is now computed once and threaded into the
+class-field pass and into `private_class_assign_ast`, whose walk starts inside the class
+body and cannot see an outer declaration. A 104,439-unit sweep moved 2 units, one of them
+`MISMATCH -> match`; the module half of that sweep is only live because the harness strips
+TypeScript first — `compile_module` parses plain JS, so all 923 `.svelte.(js|ts)` units had
+been erroring identically in both arms and the first run's `MOVED 0` was arithmetically
+forced.
 
 Two entries left this target and `client-dev` on two `$.mutate` decisions that answer
 differently depending on the HOST the write is written in. `musicat/…/Scrollbar.svelte`
@@ -2994,7 +3008,7 @@ the emitted default was the getter function rather than the store's value. Hashi
 client (entry, target) outputs before and after reports **2** changed units over 1 id,
 `match -> MISMATCH = 0`; the other two ids of that cluster do not move and stay listed.
 
-Every one of the remaining 26 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 25 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3101,15 +3115,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 40 entries)
+### Client dev (`known-failures.client-dev.json`, 39 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `40`
+Partition of `known-failures.client-dev.json` by verdict: `39`
 
-- **40 — the generated JS differs.**
+- **39 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 40 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 39 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
