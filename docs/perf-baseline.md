@@ -718,6 +718,51 @@ The practical rule: **record the box's non-ours CPU alongside each sample.** It 
 one `ps` per sample, it is the difference between a drift with a cause and a drift
 with a story, and it was available all day.
 
+## Two claims about parallel scaling, made and withdrawn within half an hour (2026-09-02)
+
+Both came from decomposing the report into `single-thread gain x parallel
+scaling`, both looked large, and both were killed by the next measurement. The
+decomposition itself stands and is worth keeping:
+
+| surface | single-thread | parallel | total |
+|---|---|---|---|
+| client | 3.25x | 2.97x | 9.63x |
+| server | 3.69x | 5.30x | 19.59x |
+| client-dev | 3.04x | 4.57x | 13.89x |
+| server-dev | 3.69x | 5.41x | 19.98x |
+
+**The single-thread gain is nearly uniform (3.04-3.69x) and the parallel factor
+is not.** That much is real, and it says the remaining distance to 20x is a
+parallel-efficiency question rather than a single-thread one.
+
+**Withdrawn claim 1: "client scales worse than server."** A direct `perf_bench
+--threads` sweep on the same box measured client and server efficiency as
+near-identical at every thread count (1/2/4/6/8/10 -> client 1.00, .785, .887,
+.880, .741, .546; server 1.00, .805, .910, .917, .771, .480) — with client
+*ahead* at ten threads, 5.46x against 4.80x. The report's client row is the
+surface whose window was self-contaminated, so its 2.97x is an artifact and the
+"client scales worse" reading was built on it. The 4.57x on the clean client-dev
+row is still below the server pair and is the only part that survives; one row is
+not a trend.
+
+**Withdrawn claim 2: "8 threads beats 10."** A first sweep with two reps per
+point, read as best-of-two, showed 8 threads ahead for both targets (client 81.2
+vs 88.1 ms, server 64.6 vs 83.1) and it looked mechanistically clean — 6P+4E, an
+E-core worker at 0.22-0.24x, plus ~1.5 cores of third-party load leaving ~8.4
+available. Six rounds with 6/8/10 paired *inside* each round and the order
+rotated: client median 8-vs-10 = 1.021x with per-round ratios 0.712-1.190,
+server = 0.962x (i.e. ten ahead) with ratios 0.815-1.509, and ten threads takes
+the most per-round wins on both. **No effect.** The best-of-two reading of two
+samples is what produced it; the ten-thread points in the second run reached 78.5
+and 67.0 ms, better than anything the first run saw.
+
+The shipping default is rayon's own pool, and its doc comment records 6-vs-10
+being measured. Eight was never in that comparison and now has been: it is not
+better. What generalizes is narrower than either claim — **a decomposition can
+be sound while the row you build on is contaminated, and `min` over two samples
+is not a measurement.** Both were caught the same way, by taking the obvious
+follow-up measurement before reporting the lead as a result.
+
 ## Sizing the remaining gap: two arithmetic errors to avoid (2026-09-02)
 
 **Do not write `1/(1-0.403) = 1.68x` for "if the whole alloc+hash+memcpy bucket
