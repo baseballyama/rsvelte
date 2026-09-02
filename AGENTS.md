@@ -1341,7 +1341,13 @@ so the row reads as a measurement of the thing it is named after; it was 11.7%
 of client compile and the name was a guess. Two mechanical traps came with it.
 `Phase3Breakdown` is summed **field by field** at the call site, so a new field
 on the struct compiles and reports `0.00ms` — indistinguishable from a timer
-that never fires. And a timer bracketing "everything after the match" contained
+that never fires. **That recurred on 2026-09-02, to the person who wrote this
+sentence**, on the first new field added after it: five named slots printed
+`0.00ms` and were read as "these calls are free". A documented trap whose only
+defence is the documentation is not defended — the struct now carries an
+`AddAssign`, so the requirement sits beside the definition rather than in a
+binary nobody opens when adding a field. It still has to be edited; what changed
+is where the editor is looking when they must. And a timer bracketing "everything after the match" contained
 another timer's region, so one bucket double-counted and the residual was
 subtracted twice; **a wrong instrument rejects the correct hypothesis** — with
 the over-wide timer, map work summed to 11.6% against a 12.2% ablation, which
