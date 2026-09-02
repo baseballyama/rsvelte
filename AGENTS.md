@@ -1101,6 +1101,20 @@ against your own shell — pins that the classifier is reading *the root*, becau
 anything else it might key on is held fixed and the answer still has to flip.
 Prefer that form when the instrument takes a parameter you can move.
 
+**Remember a rule by the failure it prevents, not by when to apply it.** The rule
+above — identify an arm by a discriminating probe on its output, never by its
+file name — was quoted at an experiment that measures the *box*: one binary,
+24 samples, code held constant and only the clock moving. It does not apply
+there, and the reason is mechanical rather than a judgement call. What the probe
+prevents is **mixing up two arms**; with one arm there is nothing to mix up, and
+the invariant that experiment actually needs ("did all 24 samples hit the same
+bytes?") is answered by hashing the file before and after, which a probe cannot
+answer at all since it observes one invocation. Naming the failure mode settles
+applicability for free, where "check whether the rule's dependency holds" only
+poses the question. Applying a rule where nothing it guards is at stake is the
+mirror image of quoting one and then walking into it — in both, the rule is
+being recalled as a slogan rather than as a mechanism.
+
 **And an interpretation's plausibility is not evidence for the number under it.**
 Both of those wrong numbers came with a sound-sounding story attached, and in
 both cases the story is what made the next step feel unnecessary. The rule that
