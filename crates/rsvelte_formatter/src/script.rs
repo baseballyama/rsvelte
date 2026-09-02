@@ -36,7 +36,7 @@ pub fn format_js_source(
             parser_ret.diagnostics
         )));
     }
-    let formatted = print_program_guarded(
+    let formatted = print_program_guarded_compat(
         &allocator,
         &parser_ret.program,
         options.js.clone(),
@@ -54,16 +54,52 @@ pub fn format_js_source(
 /// rewrite what the code means, so this verifies the brand checks survived
 /// instead of predicting which ones oxc gets wrong. A program with no brand
 /// check takes the empty-record fast path and never re-parses.
-fn print_program_guarded<'a>(
+fn print_program_guarded_compat<'a>(
     allocator: &'a Allocator,
     program: &oxc_ast::ast::Program<'a>,
     js: JsFormatOptions,
     source_type: SourceType,
 ) -> Result<Option<String>, FormatError> {
-    let formatted = format_program(allocator, program, js)
-        .print()
-        .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
-        .into_code();
+    print_program_guarded(allocator, program, js, source_type, false)
+}
+
+fn print_program_guarded<'a>(
+    allocator: &'a Allocator,
+    program: &oxc_ast::ast::Program<'a>,
+    js: JsFormatOptions,
+    source_type: SourceType,
+    wrap_indent: bool,
+) -> Result<Option<String>, FormatError> {
+    use oxc_formatter_core::{
+        Document, FormatContext, FormatElement, FormatOptions, LineMode, Tag,
+    };
+    let f = format_program(allocator, program, js);
+    let formatted = if wrap_indent {
+        let print_options = f.context().options().as_print_options();
+        let hint = f.context().source_code().len();
+        // `Document::print` finalizes, and finalization must run once on the FINAL
+        // document — so read the elements out rather than `into_final_document`.
+        let doc = f.document();
+        let (old, tw) = (doc.elements(), doc.sorted_tailwind_classes().to_vec());
+        let mut end = old.len();
+        while end > 0 && matches!(old[end - 1], FormatElement::Line(_)) {
+            end -= 1;
+        }
+        let mut v = oxc_allocator::Vec::with_capacity_in(end + 4, &allocator);
+        v.push(FormatElement::Tag(Tag::StartIndent));
+        v.push(FormatElement::Line(LineMode::Hard));
+        v.extend(old[..end].iter().cloned());
+        v.push(FormatElement::Tag(Tag::EndIndent));
+        v.push(FormatElement::Line(LineMode::Hard));
+        Document::new(v, tw)
+            .print(hint, print_options)
+            .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+            .into_code()
+    } else {
+        f.print()
+            .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
+            .into_code()
+    };
     let before = crate::private_in_guard::brand_check_shapes(program);
     if before.is_empty() {
         return Ok(Some(formatted));
@@ -161,16 +197,14 @@ pub fn format_script(
     // would otherwise overflow once re-indented below. With
     // `svelteIndentScriptAndStyle: false`, the body stays flush and retains the
     // full configured width.
-    let mut js = options.js.clone();
-    if options.indent_script_and_style {
-        let nested_width = js
-            .line_width
-            .value()
-            .saturating_sub(u16::from(js.indent_width.value()));
-        js.line_width =
-            oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
-    }
-    let Some(formatted) = print_program_guarded(allocator, &parser_ret.program, js, source_type)?
+    let js = options.js.clone();
+    let Some(formatted) = print_program_guarded(
+        allocator,
+        &parser_ret.program,
+        js,
+        source_type,
+        options.indent_script_and_style,
+    )?
     else {
         return Ok(None);
     };
@@ -185,13 +219,12 @@ pub fn format_script(
     // `svelteIndentScriptAndStyle` (default true) controls whether the body is
     // indented one level under `<script>`. When disabled, the body sits flush at
     // column 0 (an empty indent unit re-indents every line to column 0).
-    let unit = if options.indent_script_and_style {
-        indent_unit(&options.js)
+    let wrapped = if options.indent_script_and_style {
+        format!("\n{}\n", formatted.trim_end())
     } else {
-        String::new()
+        let body_indented = crate::reindent::reindent(formatted.trim_end(), "", false);
+        format!("\n{body_indented}\n")
     };
-    let body_indented = crate::reindent::reindent(formatted.trim_end(), &unit, false);
-    let wrapped = format!("\n{body_indented}\n");
 
     Ok(Some((
         crate::source_offset(body_start),
@@ -258,7 +291,8 @@ pub fn format_nested_script(
             .min(js.line_width.value().saturating_sub(1));
     let nested_width = js.line_width.value().saturating_sub(narrow);
     js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
-    let Some(formatted) = print_program_guarded(allocator, &parser_ret.program, js, source_type)?
+    let Some(formatted) =
+        print_program_guarded(allocator, &parser_ret.program, js, source_type, false)?
     else {
         return Ok(None);
     };
