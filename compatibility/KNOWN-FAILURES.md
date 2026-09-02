@@ -2716,7 +2716,7 @@ Attribution of `fmt-oracle-excluded.json`:
 | n | target | cluster |
 |---|---|---|
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | the `$props()` comment slot the #3515 repros depend on |
-| 4 | [`deliberate-divergences`](#deliberate-divergences) | `engine-divergence` — oxc's line-breaking, not prettier's |
+| 3 | [`deliberate-divergences`](#deliberate-divergences) | `engine-divergence` — oxc's line-breaking, not prettier's |
 | 5 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
 | 5 | [`deliberate-divergences`](#deliberate-divergences) | both texts compile to byte-identical client and server `js` **and** `css` |
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | rsvelte reproduces `oxfmt <file>.css` byte-for-byte; the oracle's Svelte path disagrees with oxfmt itself |
