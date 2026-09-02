@@ -7,7 +7,9 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
+use oxc_semantic::SemanticBuilder;
 use oxc_span::{GetSpan, SourceType, Span};
+use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
 use super::props_transforms::{PropMutationScan, PropMutationSites};
@@ -52,6 +54,7 @@ pub(super) fn wrap_prop_mutation_validation_ast(
                 source,
                 prop_vars,
                 sites,
+                shadowed: shadowed_prop_reads(program, prop_vars),
                 edits: Vec::new(),
                 skip: Vec::new(),
                 skip_calls: Vec::new(),
@@ -68,6 +71,57 @@ pub(super) fn wrap_prop_mutation_validation_ast(
     )
 }
 
+/// Offsets of the identifiers that spell a prop name and resolve to a binding
+/// other than the prop.
+///
+/// Upstream reaches the mutation validator through `scope.get(name)`
+/// (`shared/utils.js:396`), so a shadowed name answers with the shadowing
+/// binding and nothing is declared. This pass had only the name, which is the
+/// same question one axis short: `list.forEach((p) => { p.x = 1 })` writes
+/// through a `p` that is a parameter. The generated instance body parses as a
+/// top-level statement list, so the props are the root scope's bindings and a
+/// shadow is any other scope — the test `state_pipeline_ast` already makes.
+///
+/// Deriving the answer from the binder rather than from a list of shadowing
+/// syntaxes is the point: `for (const p of …)`, `catch (p)` and a block-scoped
+/// `let p` are not parameters, and enumerating them is a work log rather than a
+/// partition.
+fn shadowed_prop_reads(
+    program: &Program<'_>,
+    prop_vars: &[(String, Option<String>)],
+) -> FxHashSet<u32> {
+    let semantic = SemanticBuilder::new().build(program).semantic;
+    let mut collector = ShadowReads {
+        scoping: semantic.scoping(),
+        prop_vars,
+        starts: FxHashSet::default(),
+    };
+    collector.visit_program(program);
+    collector.starts
+}
+
+struct ShadowReads<'a> {
+    scoping: &'a oxc_semantic::Scoping,
+    prop_vars: &'a [(String, Option<String>)],
+    starts: FxHashSet<u32>,
+}
+
+impl<'ast> Visit<'ast> for ShadowReads<'_> {
+    fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'ast>) {
+        if self
+            .prop_vars
+            .iter()
+            .any(|(name, _)| name == identifier.name.as_str())
+            && let Some(reference_id) = identifier.reference_id.get()
+            && let Some(symbol_id) = self.scoping.get_reference(reference_id).symbol_id()
+            && self.scoping.symbol_scope_id(symbol_id) != self.scoping.root_scope_id()
+        {
+            self.starts.insert(identifier.span.start);
+        }
+        walk::walk_identifier_reference(self, identifier);
+    }
+}
+
 /// Whether `expression` is exactly the compiler-generated identifier `name`.
 fn is_generated_root(expression: &Expression<'_>, name: &str) -> bool {
     matches!(expression, Expression::Identifier(root) if root.name == name)
@@ -78,6 +132,9 @@ struct Collector<'a> {
     source: &'a str,
     prop_vars: &'a [(String, Option<String>)],
     sites: Vec<(String, Option<String>, PropMutationSites)>,
+    /// Generated-code offsets of identifiers that SPELL a prop and do not
+    /// resolve to it.
+    shadowed: FxHashSet<u32>,
     edits: Vec<Edit>,
     skip: Vec<Span>,
     skip_calls: Vec<Span>,
@@ -116,8 +173,12 @@ impl<'a> Collector<'a> {
     /// `needs_mutation_validation` before it builds the path
     /// (`shared/utils.js:406`), so a path this pass cannot spell still declares
     /// the validator.
-    fn note_prop_member_mutation(&self, name: &str, target_is_member: bool) {
-        if target_is_member && self.prop(name).is_some() && self.source_has_member_write(name) {
+    fn note_prop_member_mutation(&self, name: &str, root_start: u32, target_is_member: bool) {
+        if target_is_member
+            && !self.shadowed.contains(&root_start)
+            && self.prop(name).is_some()
+            && self.source_has_member_write(name)
+        {
             self.saw_prop_member_mutation.set(true);
         }
     }
@@ -126,7 +187,7 @@ impl<'a> Collector<'a> {
     /// the path between can be spelled. Upstream asks this question first
     /// (`AssignmentExpression.js:104-112` walks to the root, then looks the
     /// binding up), and only then builds the path.
-    fn target_root_name(&self, target: &AssignmentTarget<'_>) -> Option<String> {
+    fn target_root_name(&self, target: &AssignmentTarget<'_>) -> Option<(String, u32)> {
         let mut current = match target {
             AssignmentTarget::StaticMemberExpression(member) => &member.object,
             AssignmentTarget::ComputedMemberExpression(member) => &member.object,
@@ -137,12 +198,14 @@ impl<'a> Collector<'a> {
                 Expression::StaticMemberExpression(member) => current = &member.object,
                 Expression::ComputedMemberExpression(member) => current = &member.object,
                 Expression::ParenthesizedExpression(paren) => current = &paren.expression,
-                Expression::Identifier(identifier) => return Some(identifier.name.to_string()),
+                Expression::Identifier(identifier) => {
+                    return Some((identifier.name.to_string(), identifier.span.start));
+                }
                 Expression::CallExpression(call) if call.arguments.is_empty() => {
                     let Expression::Identifier(identifier) = &call.callee else {
                         return None;
                     };
-                    return Some(identifier.name.to_string());
+                    return Some((identifier.name.to_string(), identifier.span.start));
                 }
                 _ => return None,
             }
@@ -349,7 +412,8 @@ impl<'a> Collector<'a> {
             &assignment.left,
             AssignmentTarget::StaticMemberExpression(_)
                 | AssignmentTarget::ComputedMemberExpression(_)
-        ) && self.source_has_member_write(callee.name.as_str())
+        ) && !self.shadowed.contains(&callee.span.start)
+            && self.source_has_member_write(callee.name.as_str())
         {
             self.saw_prop_member_mutation.set(true);
         }
@@ -402,6 +466,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
                     self.skip.push(assignment.span);
                     self.note_prop_member_mutation(
                         callee.name.as_str(),
+                        callee.span.start,
                         matches!(
                             &assignment.left,
                             AssignmentTarget::StaticMemberExpression(_)
@@ -415,6 +480,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
                     self.skip.push(update.span);
                     self.note_prop_member_mutation(
                         callee.name.as_str(),
+                        callee.span.start,
                         matches!(
                             &update.argument,
                             SimpleAssignmentTarget::StaticMemberExpression(_)
@@ -455,7 +521,8 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
         if self.skip.contains(&assignment.span) {
             return;
         }
-        if let Some(root) = self.target_root_name(&assignment.left)
+        if let Some((root, root_start)) = self.target_root_name(&assignment.left)
+            && !self.shadowed.contains(&root_start)
             && self.prop(&root).is_some()
             && self.source_has_member_write(&root)
         {

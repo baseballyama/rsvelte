@@ -115,3 +115,88 @@ fn every_cell_agrees_with_the_oracle() {
     }
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
 }
+
+/// The mirror direction of the grid above. Every cell writes through a member
+/// of a NAME that is a prop, in a scope where that name is bound to something
+/// else — so upstream's `scope.get(name)` answers with the shadowing binding and
+/// declares nothing. The two `CONTROL` rows are the cells that must keep
+/// `decl=1` / `decl=0` without any shadowing at all: a grid whose every cell
+/// moves one way cannot report an over-correction.
+///
+/// `(mode, form, declarations, wraps)` — every expectation is the official
+/// compiler's own count for the same source.
+const SHADOW_CELLS: &[(&str, &str, usize, usize)] = &[
+    ("legacy", "for-of", 0, 0),
+    ("legacy", "arrow-param", 0, 0),
+    ("legacy", "arrow-destr", 0, 0),
+    ("legacy", "fn-param", 0, 0),
+    ("legacy", "fn-expr-param", 0, 0),
+    ("legacy", "block-let", 0, 0),
+    ("legacy", "catch-param", 0, 0),
+    ("legacy", "CONTROL-write", 1, 1),
+    ("legacy", "CONTROL-none", 0, 0),
+    ("runes", "for-of", 0, 0),
+    ("runes", "arrow-param", 0, 0),
+    ("runes", "arrow-destr", 0, 0),
+    ("runes", "fn-param", 0, 0),
+    ("runes", "fn-expr-param", 0, 0),
+    ("runes", "block-let", 0, 0),
+    ("runes", "catch-param", 0, 0),
+    ("runes", "CONTROL-write", 1, 1),
+    ("runes", "CONTROL-none", 0, 0),
+];
+
+fn shadow_body(form: &str) -> &str {
+    match form {
+        "for-of" => "for (const p of list) { p.x = 1; }",
+        "arrow-param" => "list.forEach((p) => { p.x = 1; });",
+        "arrow-destr" => "const g = ({ p }) => { p.x = 1; }; g(list[0]);",
+        "fn-param" => "function h(p) { p.x = 1; } h(list[0]);",
+        "fn-expr-param" => "list.map(function (p) { p.x = 1; });",
+        "block-let" => "{ let p = list[0]; p.x = 1; }",
+        "catch-param" => "try { null; } catch (p) { p.x = 1; }",
+        "CONTROL-write" => "p.x = 1;",
+        _ => "const q = p;",
+    }
+}
+
+fn shadow_counts(mode: &str, form: &str) -> (usize, usize) {
+    let body = shadow_body(form);
+    let src = if mode == "legacy" {
+        format!("<script>\n\texport let p;\n\tlet list = [];\n\t{body}\n</script>\n{{p}}{{list}}")
+    } else {
+        format!(
+            "<script>\n\tlet {{ p }} = $props();\n\tlet list = $state([]);\n\t{body}\n</script>\n{{p}}{{list}}"
+        )
+    };
+    let code = compile(
+        &src,
+        CompileOptions {
+            filename: Some("P.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: true,
+            ..Default::default()
+        },
+    )
+    .expect("compile")
+    .js
+    .code;
+    (
+        code.matches("create_ownership_validator").count(),
+        code.matches("$$ownership_validator.mutation(").count(),
+    )
+}
+
+#[test]
+fn a_shadowed_prop_name_declares_no_validator() {
+    let mut failures = Vec::new();
+    for (mode, form, decl, wrap) in SHADOW_CELLS {
+        let (got_decl, got_wrap) = shadow_counts(mode, form);
+        if got_decl != *decl || got_wrap != *wrap {
+            failures.push(format!(
+                "{mode}/{form}: official decl={decl} wrap={wrap}, rsvelte decl={got_decl} wrap={got_wrap}"
+            ));
+        }
+    }
+    assert!(failures.is_empty(), "\n{}", failures.join("\n"));
+}

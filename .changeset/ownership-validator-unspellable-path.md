@@ -19,3 +19,13 @@ reads, which gates the latch — so a fix for the index alone is dead on a paren
 Ablating each half separately measures it: the latch alone falls on 15 of the grid's 24
 cells, the root arm alone on all 8 parenthesised ones including the three whose wrap the
 latch never touches.
+
+The latch itself then had to learn the other half of upstream's condition. Upstream reaches
+the validator through `scope.get(name)` (`shared/utils.js:396`), so a name that is a prop
+but resolves to something else declares nothing; this pass asked only whether the name
+matched a prop, so `list.forEach((p) => { p.x = 1 })` latched on the parameter. The
+generated instance body parses as a top-level statement list, which makes the props the
+root scope's bindings and a shadow any other scope — the test `state_pipeline_ast` already
+makes. Deriving the answer from the binder rather than from a list of shadowing syntaxes is
+what closes it: `for (const p of …)`, `catch (p)` and a block-scoped `let p` are not
+parameters, and `is_shadowed_by_function_param` declines all three.
