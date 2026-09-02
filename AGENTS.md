@@ -2665,6 +2665,142 @@ from the manifest by set difference. Ninety-six such lines are unmissable. The n
 7,142 is not.
 
 
+### A SHA you did not resolve is an identifier you invented
+
+`AGENTS.md` records that an arm's *label* lies — the file name, `buildInfo()`, the
+artifact path, the branch. It does not record the cheaper failure one step earlier: the
+identifier itself being typed rather than resolved. Watching PR #4191, the only thing in
+hand was the 9-character `f8858d05d`; the loop was written with a full 40-character SHA
+that had never been printed by anything:
+
+```
+written:  f8858d05dbeb64df9d15c9a5aebf1b5c34d92da5
+actual:   f8858d05d0abcde3b42b718ae2375e69f2deb888
+```
+
+Nine characters agree, so re-reading the command shows nothing. This is the mirror of the
+abbreviated-SHA row already here (`?head_sha=23e06723a` returns `total_count=0` while the
+full SHA returns 10): that one is too short, this one is too long, and both name a commit
+the API does not have.
+
+What made it survivable was the shape of the predicate, not luck. `check-runs` on a
+non-existent commit returns an empty list, so `[…|select(.status!="completed")]|length`
+never reached `0` and the loop **hung** rather than reporting. Written the other way round
+— `completed == total_count`, or `pending == 0` — the same fabricated SHA reads `0 == 0`
+and prints a settled, zero-failure verdict for a commit that does not exist. So the rule
+is two-part: **resolve the identifier into a variable at launch (`H=$(gh pr view … --jq
+.headRefOid)`) and never retype it**, and **write the settle predicate so that an empty
+population fails to satisfy it** — the same "a verdict over a set must state the set's
+size" rule, applied to the identifier rather than to the rows.
+
+### A range endpoint spelled as a symbolic ref is not an endpoint
+
+`origin/main` is a name, and in this repository the thing it names moves without you: every
+worktree shares one `.git`, so another session's `fetch` — or an integrator's merge — advances
+it while your shell is idle. Two `git diff` invocations over what reads as the same range
+therefore answered differently within minutes:
+
+```
+git diff --stat      9693010f2..origin/main -- compatibility/ crates/rsvelte_formatter/   → empty
+git diff --name-only 9693010f2..origin/main -- compatibility/ crates/rsvelte_formatter/   → 5 files
+```
+
+Both were correct when they ran; `origin/main` had gone from `9c771271f` to `3a31d933b` in
+between, and the five files were the reader's own, newly merged. **The symptom is two
+measurements disagreeing, which invites declaring one of them wrong** — and that is what
+happened: the first reading was retracted, and the retraction was the error.
+
+This is the "an arm's label is not its identity" family with the moving part one level out. There
+the *artifact* a name resolves to changes; here the *endpoint of a range* does, so the two runs
+are not comparable even though the command text is identical. The fix is the same shape as the
+one for a fabricated SHA above: resolve once, then use the value — `MAIN=$(git rev-parse
+origin/main)` and `$MAIN` thereafter. A range whose ends are both immutable object names can be
+re-run tomorrow and mean the same thing; one written against a ref cannot be re-run at all.
+
+### An issue and a gate sharing a vocabulary is how a local defect gets attributed upstream
+
+`upstream_issues/3385-svelte-loose-parse-crashes.md` reports two inputs on which official's
+`parse(loose: true)` throws. The `parse-ast` gate has a source named `unclosed-element`, and the
+issue's second input is `</div>` — an unclosed element by any ordinary reading — so the ratchet key
+`loose:unclosed-element::RegularElement#span` reads as an instance of that upstream bug. Probed
+against the oracle instead of read:
+
+```
+gate source                text                        official parse(modern, loose)
+unclosed-element           "<div><b>x"                 OK, type=Root
+unclosed-attribute-quote   "<div class=\"a>text</div>"  THROW  An impossible situation occurred
+stray-closing-tag          "</div>"                    THROW  Cannot read properties of undefined
+```
+
+The gate's `unclosed-element` is a *different input* that official parses cleanly; the issue's
+`</div>` lives under the gate's `stray-closing-tag`, a both-reject control that is not in the
+ratchet at all. One of the two candidate keys was upstream's and the other was rsvelte's own.
+
+The direction of this error is the bad one. Attributing a local defect to upstream removes it from
+the burndown **and** stops anyone looking at it, and the citation never 404s because the report is
+real — it is the "a live but wrong citation" shape with the wrongness in the *match*, not the path.
+What separates the two cases is not more reading: both keys name a shape the report describes.
+Only the oracle, given the gate's own input text, tells them apart. So when an `upstream_issues/`
+report is proposed as a ratchet entry's target, **run the entry's own input through the oracle and
+paste the output** — which is what §6 already requires and what a name-level match invites you to
+skip.
+
+### A collapse ratio says how big the population is, not which way its entries point
+
+`parse-ast`'s 301 ratchet keys reduce to 163 defect bases (1.85x), and the reduction is
+readable straight off the keys. That number was then used to size the work, which is one
+question it can answer and one it cannot. Measured on the LSP gate's `differential:initialize`
+cluster: **10 entries, 10 distinct field paths, ratio exactly 1.00** — the cleanest resolution
+in the whole 23,746-entry ratchet, and therefore the first row anyone would pick up. Read
+against both servers, the ten split:
+
+| terminal state | n |
+|---|---|
+| rsvelte defect, closes by fixing | **0** |
+| upstream's own artifact (matching it would reproduce a bug) | 1 (official lists `@` twice) |
+| deliberate: rsvelte advertises something it implements | 5 |
+| **not deliberate: the capability is unimplemented** | 2 |
+| needs a product decision | 2 mechanisms |
+
+So a 1.00 ratio bought a correct count of *distinct* divergences and said nothing about how
+many are ours to close — **none of the ten**. The first reading of this table said one, a
+`space` trigger character that upstream omits with a comment explaining why. That comment is
+upstream's justification for upstream's product decision, not an assessment of rsvelte's; and
+`completions.rs:811` pins rsvelte returning `class` for `"<div "`, so removing `" "` from the
+trigger list would make a behaviour the tree already tests unreachable from a real client.
+Reading the oracle's comment and classifying before probing one's own implementation is the
+mirror of "a refusal justified by a comment is a place to probe the oracle" — here the comment
+was believed about the *wrong* side.
+
+The hole was not one person's. The gate's own limits table had a column for
+`entries per defect` and none for `how many of those are ours`, and the row was picked for
+work *because* its resolution was best — so the selection criterion and the analysis shared
+the missing column, and two people reached the same wrong expectation independently. When a
+table of limits is used to choose what to work on, read it for the column that is not there.
+
+**And the evidence for such a split does not have to be an execution.** The claim "the two
+servers actually answer differently, and here is which value sits on which side" looks like it
+needs both servers built and run — which was refused here on 24 GiB of disk with a 20 GiB
+floor. The ratchet stores no values, only `count=` and a 12-hex `digest()`; but re-implementing
+that digest and feeding it the value sets read out of each side's *source* reproduced six
+committed hashes exactly (`" "`, `"@"`, two code-action kinds, ten commands, and official's
+13-type / 6-modifier semantic-token legends). Six independent 48-bit agreements identify which
+value sits on which side, which a run does not: a run says the two differ. A gate that stores a
+digest is not storing less evidence than one that stores values — it is storing evidence that
+can only be produced by someone who already knows the answer. The reason `parse-ast` felt different is a control it
+happens to have: running the same comparator with the **official** compiler on both sides
+returns 0 keys, which is what licenses "every listed key is attributable to rsvelte's side."
+The LSP gate has no such self-compare, so its keys carry resolution and no direction.
+
+The second half is the one that costs a wrong terminal state. Two of the ten are capabilities
+rsvelte does not implement (`codeAction/resolve`, ten of official's eleven commands). Filing
+those as deliberate divergences and pinning them would assert *we choose not to close this*
+where the truth is *we have not built this* — the identical shape gate 42's own section
+records for `completions.emmet`, where pinning would freeze a product that declares a feature
+on while nothing implements it. **Before a cluster goes to `deliberate-divergences`, ask of
+each entry whether the behaviour exists**; the ones that do not stay listed and are described
+as unimplemented, which is the DoD working rather than failing.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
