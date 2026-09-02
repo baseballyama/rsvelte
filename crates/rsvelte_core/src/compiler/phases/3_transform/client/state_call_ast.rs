@@ -5,10 +5,11 @@
 //!
 //! * Whether the enclosing binding is reassigned somewhere (`non_reactive_vars`,
 //!   resolved per binding for the names listed in `ambiguous_vars`).
-//! * Whether the argument value needs `$.proxy(...)` wrapping
-//!   (object / array / await — delegated to the existing
-//!   `expression_utils::expression_needs_proxy` helper, which
-//!   operates on the source text of the argument expression).
+//! * Whether the argument value needs `$.proxy(...)` wrapping — delegated to
+//!   `ast_state_transform::should_proxy_ast_with_scope`, the same deny-list the
+//!   component host uses. It reads the argument NODE; the text sniff it replaced
+//!   read the argument's source and defaulted to not proxying, so every shape it
+//!   had no predicate for lost its `$.proxy` (#4212).
 //! * Whether the argument list is empty.
 //!
 //! Combined truth table (mirrors the text predecessor):

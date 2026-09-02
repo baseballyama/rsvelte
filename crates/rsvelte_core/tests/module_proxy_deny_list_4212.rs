@@ -169,6 +169,43 @@ fn every_proxied_shape_is_still_proxied() {
     }
 }
 
+/// The three assignment sites pass `dev: false`. That is right for the opposite
+/// reason to the declaration site: a declarator's initializer reaches upstream
+/// already rewritten (so dev `x === 1` IS proxied there), while an assignment's
+/// RHS does not (so the same source is NOT proxied here). The text sniff read
+/// the post-edit text and got the assignment case wrong; the node reading gets
+/// it right. These cells pin both directions of that asymmetry.
+#[test]
+fn an_assignment_whose_node_and_text_disagree_still_matches_upstream() {
+    // Upstream sees a `BinaryExpression` here — an assignment's RHS is NOT the
+    // rewritten node, unlike a declarator's — so it does not proxy, which is
+    // what `dev: false` at these sites reproduces.
+    has(&assign("x === 1", true), "$.set(s, $.strict_equals(x, 1));");
+    has(&assign("x === 1", false), "$.set(s, x === 1);");
+    has(
+        &assign("x !== 1", true),
+        "$.set(s, $.strict_equals(x, 1, false));",
+    );
+    has(
+        &assign("(0, x === 1)", true),
+        "$.set(s, (0, $.strict_equals(x, 1)), true);",
+    );
+    has(
+        &assign("(0, x === 1)", false),
+        "$.set(s, (0, x === 1), true);",
+    );
+}
+
+/// An inner assignment is rewritten to a `$.set(...)` call in the text while the
+/// node stays an `AssignmentExpression`; upstream proxies either way, and this
+/// pins that the two readings do not part company.
+#[test]
+fn an_inner_assignment_is_proxied_from_the_node() {
+    let src = "let s = $state(0);\nlet inner = $state(0);\nexport function i() { s = (inner = 1); }\nexport function g() { return [s, inner]; }\n";
+    has(&module(src, true), "$.set(s, $.set(inner, 1), true);");
+    has(&module(src, false), "$.set(s, $.set(inner, 1), true);");
+}
+
 /// A module-level `const` whose initializer is a literal or `undefined` is still
 /// over-proxied at an assignment site: upstream resolves the identifier through
 /// `binding.initial`, and that recursion lives in `ident_rhs_needs_proxy`, not in
