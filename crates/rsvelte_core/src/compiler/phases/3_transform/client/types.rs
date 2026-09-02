@@ -1278,6 +1278,7 @@ impl<'a> ComponentContext<'a> {
         // so we can restore them after visiting children.
         let mut saved_transforms: Vec<(String, Option<IdentifierTransform>)> = Vec::new();
         let saved_deep_read_for_svelte_fragment = self.state.transform_deep_read.clone();
+        let saved_lets_out_of_scope = self.state.lets_out_of_scope.clone();
 
         for attribute in &frag.attributes {
             if let Attribute::LetDirective(let_dir) = attribute {
@@ -1340,6 +1341,10 @@ impl<'a> ComponentContext<'a> {
                     );
                     // Let directive bindings are template-kind.
                     self.state.transform_deep_read.insert(name.clone(), ());
+                    // A slotted node's OWN `let:` is declared in the ENCLOSING
+                    // scope upstream, so it is in scope here even when the
+                    // component's `let:` of the same name is not.
+                    self.state.lets_out_of_scope.remove(&name);
                 } else if let Some((derived_name, binding_names, const_stmt)) =
                     crate::compiler::phases::phase3_transform::client::visitors::shared::component::build_destructured_let_directive(
                         let_dir, self,
@@ -1375,6 +1380,7 @@ impl<'a> ComponentContext<'a> {
                                 store_source: None,
                             },
                         );
+                        self.state.lets_out_of_scope.remove(&name);
                         self.state.transform_deep_read.insert(name, ());
                     }
 
@@ -1408,6 +1414,7 @@ impl<'a> ComponentContext<'a> {
             }
         }
         self.state.transform_deep_read = saved_deep_read_for_svelte_fragment;
+        self.state.lets_out_of_scope = saved_lets_out_of_scope;
 
         TransformResult::None
     }

@@ -162,3 +162,36 @@ fn a_named_slot_read_collects_no_legacy_reference() {
         ),
     ]);
 }
+
+/// The slotted node's OWN `let:` of the SAME NAME is a different binding, and
+/// upstream declares it in the ENCLOSING scope — so it IS in scope there while
+/// the component's is not. The mask is keyed by name and cannot tell the two
+/// apart on its own; each of the three places that register a `let:` has to
+/// clear it. The rows are one per place: an element, a `svelte:fragment`, and
+/// the destructured spelling.
+#[test]
+fn a_slotted_nodes_own_let_of_the_same_name_is_in_scope() {
+    check(&[
+        (
+            "same name on the component and on an element slot child",
+            format!(
+                "{LEGACY}<C {{controller}} let:options={{a}}>\n  <span slot=\"title\" let:options={{a}}>{{a.n}}</span>\n</C>\n"
+            ),
+            "$.template_effect(() => $.set_text(text, ($.deep_read_state($.get(a)), $.untrack(() => $.get(a).n))));",
+        ),
+        (
+            "same name on the component and on a `svelte:fragment` slot child",
+            format!(
+                "{LEGACY}<C {{controller}} let:options={{a}}>\n  <svelte:fragment slot=\"title\" let:options={{a}}>{{a.n}}</svelte:fragment>\n</C>\n"
+            ),
+            "$.template_effect(() => $.set_text(text, ($.deep_read_state($.get(a)), $.untrack(() => $.get(a).n))));",
+        ),
+        (
+            "same name, destructured on both",
+            format!(
+                "{LEGACY}<C {{controller}} let:options={{{{ n }}}}>\n  <span slot=\"title\" let:options={{{{ n }}}}>{{n}}</span>\n</C>\n"
+            ),
+            "$.template_effect(() => $.set_text(text, $.get(options_1).n));",
+        ),
+    ]);
+}
