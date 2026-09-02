@@ -16,14 +16,20 @@ thread_local! {
     static PROP_MUTATION_VALIDATION_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
 }
 
+/// `saw_prop_member_mutation` reports whether a prop member write was *seen*,
+/// which is not the same question as whether one was wrapped: upstream latches
+/// the flag before it builds the path, so a computed key this pass cannot spell
+/// still declares `$$ownership_validator`.
 pub(super) fn wrap_prop_mutation_validation_ast(
     generated: &str,
     prop_vars: &[(String, Option<String>)],
     source: &str,
+    saw_prop_member_mutation: &mut bool,
 ) -> Option<String> {
     if prop_vars.is_empty() {
         return Some(generated.to_string());
     }
+    let saw = saw_prop_member_mutation;
     ast_rewrite::with_program(
         &PROP_MUTATION_VALIDATION_ALLOC,
         generated,
@@ -50,8 +56,12 @@ pub(super) fn wrap_prop_mutation_validation_ast(
                 skip: Vec::new(),
                 skip_calls: Vec::new(),
                 ownership: Vec::new(),
+                saw_prop_member_mutation: std::cell::Cell::new(false),
             };
             collector.visit_program(program);
+            if collector.saw_prop_member_mutation.get() {
+                *saw = true;
+            }
             ast_rewrite::splice(generated, collector.edits, false)
                 .or_else(|| Some(generated.to_string()))
         },
@@ -72,6 +82,11 @@ struct Collector<'a> {
     skip: Vec<Span>,
     skip_calls: Vec<Span>,
     ownership: Vec<Span>,
+    /// Upstream latches `needs_mutation_validation` before it builds the path
+    /// (`shared/utils.js:406`), so a path this pass cannot spell still declares
+    /// the validator. Interior mutability because the decision is made from
+    /// `&self`.
+    saw_prop_member_mutation: std::cell::Cell<bool>,
 }
 
 impl<'a> Collector<'a> {
@@ -95,6 +110,43 @@ impl<'a> Collector<'a> {
         let (root, mut path) = self.expression_root_and_path(expression)?;
         path.push(tail);
         Some((root, path))
+    }
+
+    /// Latch that a prop member write was seen. Upstream sets
+    /// `needs_mutation_validation` before it builds the path
+    /// (`shared/utils.js:406`), so a path this pass cannot spell still declares
+    /// the validator.
+    fn note_prop_member_mutation(&self, name: &str, target_is_member: bool) {
+        if target_is_member && self.prop(name).is_some() && self.source_has_member_write(name) {
+            self.saw_prop_member_mutation.set(true);
+        }
+    }
+
+    /// The root a member-expression target is written through, ignoring whether
+    /// the path between can be spelled. Upstream asks this question first
+    /// (`AssignmentExpression.js:104-112` walks to the root, then looks the
+    /// binding up), and only then builds the path.
+    fn target_root_name(&self, target: &AssignmentTarget<'_>) -> Option<String> {
+        let mut current = match target {
+            AssignmentTarget::StaticMemberExpression(member) => &member.object,
+            AssignmentTarget::ComputedMemberExpression(member) => &member.object,
+            _ => return None,
+        };
+        loop {
+            match current {
+                Expression::StaticMemberExpression(member) => current = &member.object,
+                Expression::ComputedMemberExpression(member) => current = &member.object,
+                Expression::ParenthesizedExpression(paren) => current = &paren.expression,
+                Expression::Identifier(identifier) => return Some(identifier.name.to_string()),
+                Expression::CallExpression(call) if call.arguments.is_empty() => {
+                    let Expression::Identifier(identifier) = &call.callee else {
+                        return None;
+                    };
+                    return Some(identifier.name.to_string());
+                }
+                _ => return None,
+            }
+        }
     }
 
     /// The path element a computed access contributes, or `None` where upstream
@@ -169,6 +221,7 @@ impl<'a> Collector<'a> {
                     path.reverse();
                     return Some((identifier.name.to_string(), path));
                 }
+                Expression::ParenthesizedExpression(paren) => current = &paren.expression,
                 _ => return None,
             }
         }
@@ -183,6 +236,15 @@ impl<'a> Collector<'a> {
             .iter()
             .find(|(candidate, _, _)| candidate == name)
             .is_none_or(|(_, _, sites)| !sites.is_empty())
+    }
+
+    /// The same question one step wider: upstream's latch fires for a member
+    /// write whose computed key it declines to spell, which is not a site.
+    fn source_has_member_write(&self, name: &str) -> bool {
+        self.sites
+            .iter()
+            .find(|(candidate, _, _)| candidate == name)
+            .is_none_or(|(_, _, sites)| sites.has_member_write())
     }
 
     fn location(&mut self, name: &str, path: &[String], value: &str) -> (usize, usize) {
@@ -283,6 +345,14 @@ impl<'a> Collector<'a> {
         let Argument::AssignmentExpression(assignment) = &call.arguments[0] else {
             return None;
         };
+        if matches!(
+            &assignment.left,
+            AssignmentTarget::StaticMemberExpression(_)
+                | AssignmentTarget::ComputedMemberExpression(_)
+        ) && self.source_has_member_write(callee.name.as_str())
+        {
+            self.saw_prop_member_mutation.set(true);
+        }
         let (name, path) = self.root_and_path(&assignment.left)?;
         Some((
             call.span,
@@ -330,11 +400,27 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             match &call.arguments[0] {
                 Argument::AssignmentExpression(assignment) => {
                     self.skip.push(assignment.span);
+                    self.note_prop_member_mutation(
+                        callee.name.as_str(),
+                        matches!(
+                            &assignment.left,
+                            AssignmentTarget::StaticMemberExpression(_)
+                                | AssignmentTarget::ComputedMemberExpression(_)
+                        ),
+                    );
                     self.root_and_path(&assignment.left)
                         .map(|(name, path)| (name, path, Some(assignment.right.span())))
                 }
                 Argument::UpdateExpression(update) => {
                     self.skip.push(update.span);
+                    self.note_prop_member_mutation(
+                        callee.name.as_str(),
+                        matches!(
+                            &update.argument,
+                            SimpleAssignmentTarget::StaticMemberExpression(_)
+                                | SimpleAssignmentTarget::ComputedMemberExpression(_)
+                        ),
+                    );
                     self.simple_target_root_and_path(&update.argument)
                         .map(|(name, path)| (name, path, None))
                 }
@@ -369,6 +455,12 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
         if self.skip.contains(&assignment.span) {
             return;
         }
+        if let Some(root) = self.target_root_name(&assignment.left)
+            && self.prop(&root).is_some()
+            && self.source_has_member_write(&root)
+        {
+            self.saw_prop_member_mutation.set(true);
+        }
         if let Some((name, path)) = self.root_and_path(&assignment.left) {
             self.wrap(assignment.span, name, path, Some(assignment.right.span()));
         }
@@ -398,6 +490,7 @@ mod tests {
                 "item(item().name = /[,)]/.test(`x${key}`), true);",
                 &props,
                 source,
+                &mut false,
             ),
             Some("$$ownership_validator.mutation('item', ['item', 'name'], item(item().name = /[,)]/.test(`x${key}`), true), 3, 0);".to_string()),
         );
@@ -416,7 +509,7 @@ mod tests {
         ] {
             let generated = "items(items()[0] = $$array[0], true);";
             assert_eq!(
-                wrap_prop_mutation_validation_ast(generated, &props, source).as_deref(),
+                wrap_prop_mutation_validation_ast(generated, &props, source, &mut false).as_deref(),
                 Some(generated),
                 "{source}"
             );
@@ -429,9 +522,13 @@ mod tests {
     fn a_plain_member_write_in_the_source_still_wraps() {
         let source = "<script>\nexport let items;\nitems[0] = 1;\n</script>";
         let props = vec![("items".to_string(), None)];
-        let output =
-            wrap_prop_mutation_validation_ast("items(items()[0] = 1, true);", &props, source)
-                .unwrap();
+        let output = wrap_prop_mutation_validation_ast(
+            "items(items()[0] = 1, true);",
+            &props,
+            source,
+            &mut false,
+        )
+        .unwrap();
         assert!(
             output.starts_with("$$ownership_validator.mutation(null, ['items', 0]"),
             "{output}"
@@ -444,7 +541,8 @@ mod tests {
             "<script>\nlet { item } = $props();\nlet key = 'k';\nitem[key] = value;\n</script>";
         let props = vec![("item".to_string(), Some("item".to_string()))];
         let output =
-            wrap_prop_mutation_validation_ast("item()[key] = value;", &props, source).unwrap();
+            wrap_prop_mutation_validation_ast("item()[key] = value;", &props, source, &mut false)
+                .unwrap();
         assert!(output.starts_with(
             "$$ownership_validator.mutation('item', ['item', key], item()[key] = value"
         ));
@@ -467,7 +565,7 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                wrap_prop_mutation_validation_ast(generated, &props, source).as_deref(),
+                wrap_prop_mutation_validation_ast(generated, &props, source, &mut false).as_deref(),
                 Some(generated),
             );
         }
@@ -482,6 +580,7 @@ mod tests {
             "collection(collection().items = collection().items.filter((it) => it.id !== id), true);\ncollection(collection().items = collection().items.filter((it) => it.kind === 'note'), true);",
             &[("collection".to_string(), None)],
             source,
+            &mut false,
         )
         .unwrap();
 
@@ -498,6 +597,7 @@ mod tests {
             "item.value = value;",
             &[("item".to_string(), Some("item".to_string()))],
             "<script>let { item = $bindable() } = $props(); item.value = value;</script>",
+            &mut false,
         )
         .unwrap();
         assert_eq!(output, "item.value = value;");
@@ -510,6 +610,7 @@ mod tests {
             "props(props().createDrawing = async () => { props(props().drawings = [1], true); }, true);",
             &[("props".to_string(), None)],
             source,
+            &mut false,
         )
         .unwrap();
 
@@ -526,6 +627,7 @@ mod tests {
             "filter(filter().value = filter().value.filter((p) => targets.has(p)), true);\nfilter(filter().value = filter().value.filter((p) => value ? p !== value.id : p != null), true);",
             &[("filter".to_string(), None)],
             source,
+            &mut false,
         )
         .unwrap();
 
@@ -540,6 +642,7 @@ mod tests {
             "step(step().params = params, true);",
             &[("step".to_string(), None)],
             source,
+            &mut false,
         )
         .unwrap();
 
@@ -553,6 +656,7 @@ mod tests {
             "result(result()[key] = true, true);\nstep(step().params._id = 'next', true);",
             &[("result".to_string(), None), ("step".to_string(), None)],
             source,
+            &mut false,
         )
         .unwrap();
 

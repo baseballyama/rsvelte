@@ -521,6 +521,10 @@ pub(crate) fn transform_client(
 ) -> Result<CodegenResult, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 
+    // Set where the instance pass SAW a prop member write, which is a different
+    // question from whether it could wrap one.
+    let mut saw_prop_member_mutation = false;
+
     // Create initial node (anchor) for the transformation
     let initial_node = b::id("$$anchor");
 
@@ -756,6 +760,7 @@ pub(crate) fn transform_client(
             split_top_level_declarations,
             retained_instance,
             body_projection,
+            &mut saw_prop_member_mutation,
         );
         if let Some(comment) = repeated_projection_comment
             && let Some(start) = transformed.find(&comment)
@@ -1394,11 +1399,16 @@ pub(crate) fn transform_client(
 
         // If the text-based transform added ownership validation, set the flag
         // so that the $$ownership_validator declaration is emitted.
-        if memmem::find(
-            transformed_script.as_bytes(),
-            b"$$ownership_validator.mutation",
-        )
-        .is_some()
+        // Upstream latches the flag before it builds the mutation's path
+        // (`shared/utils.js:406`), so a path the pass could not spell — a computed
+        // key that is not an identifier or a literal — still declares the
+        // validator. The text scan alone only finds a mutation that was wrapped.
+        if saw_prop_member_mutation
+            || memmem::find(
+                transformed_script.as_bytes(),
+                b"$$ownership_validator.mutation",
+            )
+            .is_some()
         {
             context.state.needs_mutation_validation.set(true);
         }
@@ -6134,6 +6144,7 @@ pub(crate) fn transform_instance_script_for_visitors_pub(
         might_have_comma_separated_declaration(script),
         None,
         None,
+        &mut false,
     );
     super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
     super::profile::record_parent_site(true);
@@ -7134,6 +7145,9 @@ fn transform_instance_script_for_visitors(
     split_top_level_declarations: bool,
     retained_program: Option<&crate::ast::oxc_program::RetainedProgram<'_>>,
     source_projection: Option<&ScriptProjection>,
+    // Set when a prop member write was SEEN. The caller's text scan only finds
+    // one this pass could wrap, and upstream declares the validator for either.
+    saw_prop_member_mutation: &mut bool,
 ) -> String {
     super::profile::record_st_entry();
     let _entry_guard = super::profile::EntryGuard::new();
@@ -9292,6 +9306,7 @@ fn transform_instance_script_for_visitors(
             &result,
             &prop_mutation_vars,
             &analysis.source,
+            saw_prop_member_mutation,
         )
         .unwrap_or_else(|| {
             wrap_prop_mutation_validation(&result, &prop_mutation_vars, &analysis.source)

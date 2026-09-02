@@ -4146,6 +4146,12 @@ struct PropMutationSite {
 /// The source mutations of one prop, in source order.
 pub(super) struct PropMutationSites {
     sites: Vec<PropMutationSite>,
+    /// A member write through this prop that the chain scan could not NAME —
+    /// a computed key that is neither an identifier nor a literal. It is not a
+    /// site (there is nothing to line the position up with) but it is still a
+    /// member write, which is a different question and the one upstream's
+    /// `needs_mutation_validation` latch asks.
+    unnameable_member_write: bool,
 }
 
 /// The two source-wide scans every prop's site collection needs. Neither
@@ -4173,6 +4179,7 @@ impl PropMutationScan {
 impl PropMutationSites {
     pub(super) fn collect(source: &str, var_name: &str, scan: &PropMutationScan) -> Self {
         let mut sites = Vec::new();
+        let mut unnameable_member_write = false;
         let reactive = &scan.reactive;
         let template_start = scan.template_start;
         let bytes = source.as_bytes();
@@ -4192,7 +4199,7 @@ impl PropMutationSites {
             {
                 continue;
             }
-            if let Some((after, chain)) = scan_prop_mutation_target(source, start, end)
+            if let Some((after, chain, nameable)) = scan_prop_mutation_target(source, start, end)
                 && let Some(value_start) = mutation_value_start(source, after).or_else(|| {
                     // A PREFIX update (`--p.deep.c`) has its operator before
                     // the identifier; the site's position stays the identifier.
@@ -4200,6 +4207,12 @@ impl PropMutationSites {
                     (head.ends_with("++") || head.ends_with("--")).then_some(after)
                 })
             {
+                if !nameable {
+                    // Not a site — there is nothing to line a position up with —
+                    // but the latch below needs to know it happened.
+                    unnameable_member_write = true;
+                    continue;
+                }
                 let (line, column) =
                     crate::compiler::phases::phase3_transform::utils::locate_in_source(
                         source, start,
@@ -4228,7 +4241,20 @@ impl PropMutationSites {
         // sites by emission region is what keeps them lined up with the output
         // when the value cannot tell two mutations of the same member apart.
         sites.sort_by_key(|site| site.region);
-        Self { sites }
+        Self {
+            sites,
+            unnameable_member_write,
+        }
+    }
+
+    /// Whether the source writes through a member of this prop, whether or not
+    /// the chain scan could name the member. Upstream latches
+    /// `needs_mutation_validation` before it builds the path
+    /// (`shared/utils.js:406`), so an unspellable computed key still declares
+    /// the validator — `is_empty` answers the narrower question of whether there
+    /// is a position to line the wrap up with.
+    pub(super) fn has_member_write(&self) -> bool {
+        !self.sites.is_empty() || self.unnameable_member_write
     }
 
     /// Whether the source writes through a member of this prop at all.
@@ -4404,24 +4430,27 @@ fn skip_non_null_assertions(bytes: &[u8], mut pos: usize) -> usize {
 /// Scan a prop mutation target, including a TypeScript assertion that wraps
 /// either the root or an intermediate member chain:
 /// `(result as any)[key] = value` and `(step.params as any)._id = value`.
+/// `(end, names, nameable)` for the member chain written through the root at
+/// `root_start..root_end`, or `None` when there is no member access at all.
 fn scan_prop_mutation_target(
     source: &str,
     root_start: usize,
     root_end: usize,
-) -> Option<(usize, Option<Vec<String>>)> {
+) -> Option<(usize, Option<Vec<String>>, bool)> {
     let bytes = source.as_bytes();
     let chain_start = skip_non_null_assertions(bytes, root_end);
-    let (mut after, mut chain, mut saw_member) = if starts_member_access(bytes, chain_start) {
-        let (after, chain) = scan_member_chain_names(source, chain_start)?;
-        (after, chain, true)
-    } else {
-        (chain_start, Some(Vec::new()), false)
-    };
+    let (mut after, mut chain, mut saw_member, mut nameable) =
+        if starts_member_access(bytes, chain_start) {
+            let (after, chain, nameable) = scan_member_chain_names(source, chain_start)?;
+            (after, chain, true, nameable)
+        } else {
+            (chain_start, Some(Vec::new()), false, true)
+        };
 
     if let Some(assertion_end) = parenthesized_ts_assertion_end(source, root_start, after) {
         after = skip_whitespace_chars(source, assertion_end);
         if starts_member_access(bytes, after) {
-            let (tail_end, tail_chain) = scan_member_chain_names(source, after)?;
+            let (tail_end, tail_chain, tail_nameable) = scan_member_chain_names(source, after)?;
             chain = match (chain, tail_chain) {
                 (Some(mut head), Some(tail)) => {
                     head.extend(tail);
@@ -4431,16 +4460,19 @@ fn scan_prop_mutation_target(
             };
             after = tail_end;
             saw_member = true;
+            nameable = nameable && tail_nameable;
         }
     }
 
-    saw_member.then_some((after, chain))
+    saw_member.then_some((after, chain, nameable))
 }
 
 /// Return the byte after the closing parenthesis when `root_start..expression_end`
-/// is parenthesized around a TypeScript `as` or `satisfies` assertion. Upstream
-/// never sees the wrapper — acorn-typescript erases the assertion, so the
-/// reported position is the chain root, not the `(`.
+/// is parenthesized — either around a TypeScript `as` / `satisfies` assertion or
+/// around nothing at all. Upstream never sees the wrapper: acorn-typescript
+/// erases the assertion and acorn erases the parentheses, so `(object as any).q`
+/// and `(object).q` are both a member write through `object`, reported at the
+/// chain root rather than at the `(`.
 fn parenthesized_ts_assertion_end(
     source: &str,
     root_start: usize,
@@ -4459,6 +4491,9 @@ fn parenthesized_ts_assertion_end(
         return None;
     }
     let assertion = source[expression_end..close].trim_start();
+    if assertion.is_empty() {
+        return Some(close + 1);
+    }
     let has_keyword = ["as", "satisfies"].into_iter().any(|keyword| {
         assertion.strip_prefix(keyword).is_some_and(|tail| {
             tail.chars()
@@ -4822,7 +4857,12 @@ mod code_spans_tests {
 
 /// Advance past `.name` / `[expr]` accessors, returning the offset just after
 /// the chain plus the names it reads — `None` once a computed access appears.
-fn scan_member_chain_names(source: &str, mut pos: usize) -> Option<(usize, Option<Vec<String>>)> {
+/// `(end, names, nameable)`. `nameable` is false when a computed key is one
+/// upstream declines to wrap, which leaves a member write that is not a site.
+fn scan_member_chain_names(
+    source: &str,
+    mut pos: usize,
+) -> Option<(usize, Option<Vec<String>>, bool)> {
     let bytes = source.as_bytes();
     let mut names = Some(Vec::new());
     loop {
@@ -4840,7 +4880,7 @@ fn scan_member_chain_names(source: &str, mut pos: usize) -> Option<(usize, Optio
             };
         }
         if pos >= bytes.len() {
-            return Some((pos, names));
+            return Some((pos, names, true));
         }
         match bytes[pos] {
             b'.' => {
@@ -4881,11 +4921,17 @@ fn scan_member_chain_names(source: &str, mut pos: usize) -> Option<(usize, Optio
                     }
                     pos += 1;
                 }
-                if depth != 0 || !is_nameable_computed_key(source[key_start..pos - 1].trim()) {
+                if depth != 0 {
                     return None;
                 }
+                if !is_nameable_computed_key(source[key_start..pos - 1].trim()) {
+                    // Upstream's `validate_mutation` returns the expression
+                    // unwrapped here, so this is not a site — but it IS a member
+                    // write, and the caller needs to tell the two apart.
+                    return Some((pos, names, false));
+                }
             }
-            _ => return Some((pos, names)),
+            _ => return Some((pos, names, true)),
         }
     }
 }
@@ -5669,7 +5715,7 @@ mod non_ascii_boundary_tests {
             ("item.\u{540D} = 5;", "\u{540D}"),
             ("item.\u{E0} = 5;", "\u{E0}"),
         ] {
-            let (after, names) = scan_member_chain_names(source, 4).unwrap();
+            let (after, names, _) = scan_member_chain_names(source, 4).unwrap();
             assert_eq!(names.as_deref(), Some([name.to_string()].as_slice()));
             assert!(source.is_char_boundary(after), "source {source:?}");
             assert!(is_mutation_operator(source, after), "source {source:?}");
@@ -5688,7 +5734,7 @@ mod non_ascii_boundary_tests {
             "item.name\u{A0}= 5;",
             "item.name\t= 5;",
         ] {
-            let (after, names) = scan_member_chain_names(source, 4).unwrap();
+            let (after, names, _) = scan_member_chain_names(source, 4).unwrap();
             assert_eq!(
                 names.as_deref(),
                 Some(["name".to_string()].as_slice()),
