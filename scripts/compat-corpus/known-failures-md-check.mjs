@@ -282,6 +282,7 @@ const PARTITIONS = [
 		label: 'mechanism',
 	},
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
+	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'mechanism' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'repo' },
@@ -360,6 +361,19 @@ const PARTITIONS = [
 	{ doc: 'parse-ast-known-failures.md', key: 'parse-ast-known-failures.json', label: 'cluster' },
 ];
 
+// Sidecars carrying a one-to-one id -> mechanism assignment, and the doc whose
+// `Entries by mechanism` table is derived from each. Declared, not discovered,
+// for the same reason RATCHETS is: adding a sidecar nothing checks is the shape
+// this section exists to close.
+const MECHANISMS = [
+	{ sidecar: 'fmt-mechanisms.json', doc: 'fmt-known-failures.md', jsons: ['fmt-known-failures.json'] },
+	{
+		sidecar: 'svelte2tsx-mechanisms.json',
+		doc: 'svelte2tsx-known-failures.md',
+		jsons: ['svelte2tsx-known-failures.json', 'svelte2tsx-unparseable-known-failures.json'],
+	},
+];
+
 let failed = false;
 const fail = (msg) => {
 	console.error(`[known-failures-md-check] ${msg}`);
@@ -370,6 +384,33 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const num = (s) => Number(s.replace(/,/g, ''));
 const jsonEntryCount = (value) => (Array.isArray(value) ? value.length : Object.keys(value).length);
+
+/**
+ * The rows of a doc's `Entries by mechanism` table, or null if it has none.
+ * Anchored on the heading rather than on the row shape: an attribution table a
+ * few lines up has the same three columns, and a reader keyed on shape alone
+ * would compare the sidecar against whichever table came first.
+ */
+function mechanismTable(body) {
+	const lines = body.split('\n');
+	const start = lines.findIndex((l) => /^#{2,4} Entries by mechanism\b/.test(l));
+	if (start === -1) return null;
+	const rows = [];
+	let seen = false;
+	for (let i = start + 1; i < lines.length; i++) {
+		const line = lines[i].trim();
+		if (!line.startsWith('|')) {
+			if (seen) break;
+			continue;
+		}
+		seen = true;
+		const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+		if (cells.length < 3) continue;
+		if (!/^\d+$/.test(cells[0])) continue; // header and separator rows
+		rows.push({ n: Number(cells[0]), mechanism: cells[1], pinned: cells[2] });
+	}
+	return rows;
+}
 
 /**
  * Every count a doc states for `key`, or a reason none could be read. All of
@@ -663,6 +704,77 @@ if (mutationMd !== null) {
 	}
 }
 
+// ---- 2d. mechanism sidecars, and the table derived from them -----------------
+// A sidecar assigns exactly one mechanism to every entry of the ratchets it
+// covers, and the doc's `Entries by mechanism` table is DERIVED from it. Nothing
+// read `svelte2tsx-mechanisms.json` before this check existed, and the cost of
+// that shape is measured: `fmt-known-failures.md` stated `5 + 783` for a
+// 547-entry ratchet while the partition line beside it was correct — one half was
+// gated and the other rotted alone, which is why the sidecar is worth nothing
+// until something compares the table to it.
+let mechanismEntries = 0;
+for (const { sidecar, doc, jsons } of MECHANISMS) {
+	const sidecarPath = path.join(CORPUS, sidecar);
+	if (!fs.existsSync(sidecarPath)) {
+		fail(`MECHANISMS declares ${sidecar}, which does not exist`);
+		continue;
+	}
+	const map = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+	const mechanisms = map.mechanisms ?? {};
+	const assigned = map.entries ?? {};
+
+	const population = [];
+	for (const j of jsons) {
+		const p = path.join(CORPUS, j);
+		if (!fs.existsSync(p)) continue;
+		const value = JSON.parse(fs.readFileSync(p, 'utf8'));
+		population.push(...(Array.isArray(value) ? value : Object.keys(value)));
+	}
+	// Both directions: an unassigned entry is an unattributed one wearing a full
+	// table, and a leftover assignment keeps a fixed entry's mechanism alive.
+	for (const id of population) {
+		if (!(id in assigned)) fail(`${sidecar} assigns no mechanism to \`${id}\``);
+	}
+	const inPopulation = new Set(population);
+	for (const id of Object.keys(assigned)) {
+		if (!inPopulation.has(id)) fail(`${sidecar} assigns a mechanism to \`${id}\`, which no ratchet it covers lists`);
+	}
+
+	mechanismEntries += Object.keys(assigned).length;
+	const counts = new Map();
+	for (const [id, slug] of Object.entries(assigned)) {
+		if (!(slug in mechanisms)) {
+			fail(`${sidecar}: \`${id}\` names mechanism "${slug}", which the file does not declare`);
+			continue;
+		}
+		counts.set(slug, (counts.get(slug) ?? 0) + 1);
+	}
+	for (const slug of Object.keys(mechanisms)) {
+		if (!counts.has(slug)) fail(`${sidecar} declares mechanism "${slug}", which no entry names`);
+	}
+
+	const body = docText(doc);
+	if (body === null) continue; // already reported above
+	const rows = mechanismTable(body);
+	if (rows === null) {
+		fail(`${doc}: no \`Entries by mechanism\` table to compare ${sidecar} against`);
+		continue;
+	}
+	if (rows.length !== counts.size) {
+		fail(`${doc}: the \`Entries by mechanism\` table has ${rows.length} row(s), but ${sidecar} uses ${counts.size} mechanism(s)`);
+	}
+	for (const [slug, n] of counts) {
+		const { description, pinned } = mechanisms[slug];
+		const row = rows.find((r) => r.mechanism === description);
+		if (!row) {
+			fail(`${doc}: the \`Entries by mechanism\` table has no row for "${slug}" — its cell must be the sidecar's \`description\` verbatim`);
+			continue;
+		}
+		if (row.n !== n) fail(`${doc}: the table says ${row.n} for "${slug}", but ${sidecar} assigns it ${n}`);
+		if (row.pinned !== pinned) fail(`${doc}: the table's \`pinned\` for "${slug}" is "${row.pinned}", but ${sidecar} says "${pinned}"`);
+	}
+}
+
 // An attribution that names a file nobody wrote reads exactly like one that does.
 // Two of these were already live, both citing a renamed upstream_issues item.
 // Resolved from the repo, not from CORPUS: the self-test points CORPUS at a
@@ -685,6 +797,6 @@ for (const doc of fs.readdirSync(CORPUS).filter((f) => f.endsWith('.md'))) {
 		process.exit(1);
 	}
 	console.log(
-		`[known-failures-md-check] ${RATCHETS.length} declared ratchets across ${new Set(RATCHETS.map((r) => r.doc)).size} docs match their JSON; ${PARTITIONS.length} cluster partitions add up.`,
+		`[known-failures-md-check] ${RATCHETS.length} declared ratchets across ${new Set(RATCHETS.map((r) => r.doc)).size} docs match their JSON; ${PARTITIONS.length} cluster partitions add up; ${MECHANISMS.length} mechanism sidecars cover ${mechanismEntries} entries.`,
 	);
 }

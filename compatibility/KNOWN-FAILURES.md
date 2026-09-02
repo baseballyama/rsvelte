@@ -1148,18 +1148,60 @@ ratchet with 0 new failures; `SystemDefault.svelte` itself stays listed, on the
 `<g>` nesting level rather than on the comment.
 
 **Attribution status of this ratchet.** *Nothing here is an oracle bug* — that
-classification lives in `fmt-oracle-excluded.json` — so no entry can be attributed
-to an `upstream_issues/` report. The only `deliberate-divergences` target that
-reaches this file is the CSS-engine boundary (#3628), which today is pinned for
-*value spelling* by `crates/rsvelte_formatter/tests/css_native.rs` and covers
-Clusters 8 and 11 plus the two `pattern/issues/3404-*` files inside Cluster 22 —
-**5 entries**. The remaining 783 are neither upstream nor deliberate: they have to
-be burned down to zero. The 43 CSS-only render-changing entries above are very
-likely the same engine boundary in its *line-breaking* facet (e.g.
+classification lives in `fmt-oracle-excluded.json` — so **no entry is attributed to
+an `upstream_issues/` report**, and **none is attributed to a
+`deliberate-divergences` section either**. All 547 have to be burned down to zero.
+
+The previous version of this paragraph said `5 + 783`, against a ratchet holding
+547. The partition line above and this paragraph state quantities of the same
+population, and `known-failures-md-check.mjs` was comparing only the first of them
+to the JSON — **one half was gated and the other rotted alone**, which is a
+different failure from "the count and the split go stale together". The fix is
+therefore not a corrected number but the sidecar below, so that the number is
+derived rather than typed.
+
+The `deliberate-divergences` claim did not survive re-reading either. The
+CSS-engine boundary (#3628) is a recorded divergence, but the section
+[*The formatter's CSS engine is oxc, not prettier's PostCSS*](GATES.md#deliberate-divergences)
+names `fmt-oracle-excluded.json` as its ratchet, and its pin
+(`crates/rsvelte_formatter/tests/css_native.rs`, 8 tests) covers **value
+spelling** — a custom property, a nested `calc()` group. None of its tests reaches
+selector source spelling, a CSS escape's terminator, a multi-line function value's
+reindent or an unhandled combinator, which is what the five entries below actually
+carry. A recorded divergence whose pin covers a different facet does not pin these,
+so they are a **candidate** and are counted as unattributed until a test exists —
+the same standing `lsp-known-failures.md` gives its own unpinned candidate.
+
+The 43 CSS-only render-changing entries above are very likely the same engine
+boundary in its *line-breaking* facet (e.g.
 `huly/packages/ui/src/components/SearchInput.svelte`, where PostCSS breaks
 `background-color: var(--theme-button-default); // …` across three lines and OXC
-does not), but that facet has **no pin**, so they are recorded here as a candidate
-rather than counted as attributed.
+does not), but that facet has no pin either, so it is recorded here as a
+hypothesis rather than as a mechanism.
+
+### Entries by mechanism (2026-09-02)
+
+**This table is generated from a one-to-one id → mechanism assignment**
+(`compatibility/fmt-mechanisms.json`), **and the `n` column is derived from it** —
+`known-failures-md-check.mjs` fails if a row disagrees with the sidecar, if an
+entry carries no mechanism, or if a mechanism carries no entry. Both are
+`pinned: none`, which is the whole finding: this ratchet's end state is
+elimination for every entry it holds.
+
+The five candidates are `layerchart/docs/src/routes/+page.svelte` (Cluster 8),
+the two Cluster 11 fixtures (`css-nth-of-minified`, `css-escape-sequences`) and
+`pattern/issues/3404-{repeated-combinators,unhandled-combinator-scope}.svelte`.
+The remaining 542 are one bucket rather than seven because the mechanical
+`20`-`26` split above is recomputed from `compatibility/fmt-report.json`, which is
+a build artifact of a full oracle run and is not in the tree — assigning those
+buckets per entry from the doc would be transcription, not measurement.
+
+| n | mechanism | pinned |
+|---|---|---|
+| 5 | the embedded-CSS engine split — rsvelte-fmt prints through `oxc_formatter_css` and the oracle's Svelte path through PostCSS; a candidate for `deliberate-divergences`, but the pin there covers value spelling and none of these entries | none — candidate, not pinned for this facet |
+| 542 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+
+Partition of `fmt-known-failures.json` by mechanism: `5 + 542`
 
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
