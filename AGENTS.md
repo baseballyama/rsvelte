@@ -2102,6 +2102,7 @@ failure and a different spelling. Collected on one day:
 | a workflow run that never started | no check line at all, which reads as "not required here" |
 | a job still waiting on `needs:` | **nothing** — it is not a check-run yet, so it is absent from `pending` as well as from `total_count`, and a poller reading `pending == 0` calls the run finished |
 | a cancelled shard under a rollup | `FAILURE`, indistinguishable from a real regression |
+| a query whose key silently matches nothing | `total_count=0`, a well-formed answer to a question the API never asked — an **abbreviated** commit SHA passed to `?head_sha=` matches no run, and the full SHA returns 10 |
 
 Two of these fake a **value** and two fake a **verdict**, and that is the useful split: a faked
 value is caught by printing the carrier beside the number (`mechanism | carrier | result`, with
