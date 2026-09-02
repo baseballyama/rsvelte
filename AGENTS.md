@@ -499,9 +499,9 @@ is why that suite reads 100% while the class exists. **A gate's first baseline m
 the surface was ungated, not how much someone let rot.**
 
 **Those three numbers are the FIRST baseline (2721 entries) and none of them is a current work
-item.** The ratchet stands at 304 over ten clusters — `span` 78, `node-type` 62,
+item.** The ratchet stands at 301 over ten clusters — `span` 78, `node-type` 62,
 `comment-attachment` 50, `estree-fields` 38, `unclustered` 36, `child-count` 14, `css-shape` 14,
-`loc-presence` 9, `ast-mode` 2, `accepts-what-official-rejects` 1 — and there is no
+`loc-presence` 6, `ast-mode` 2, `accepts-what-official-rejects` 1 — and there is no
 `character` cluster at all. Grepping the keys for `character` returns 0 and **means nothing**,
 because `verify.mjs` folds `start`/`end`/`loc` into one key per node type, so a
 `loc.start.character` divergence sits inside `span`. Measured directly on one input, both
@@ -509,12 +509,19 @@ compilers emit zero `character`-bearing `loc`s and `phases/1-parse` does not imp
 `locate-character` at all (only `preprocess/index.js`, `state.js` and
 `utils/compile_diagnostic.js` do) — which suggests the paragraph above describes the
 *diagnostic* path rather than `parse()` output, but one input is not a population. Count the
-JSON, not this paragraph — and this paragraph has already been wrong once: it read 459 over a
-cluster split that summed to 459 while the file held 321, so **the count and the split go stale
-together and neither checks the other**. And read `304` as `165 bases × axis`: 139 of those bases
-carry a key on both axes and 26 on one, so the defect ceiling is 165, not 304. The collapse is not
-uniform across clusters (2.00x for `estree-fields` and `comment-attachment`, 1.56x for
-`css-shape`), so a per-cluster estimate cannot be had by scaling the total.
+JSON, not this paragraph — this paragraph has already been wrong twice, and the second time
+named the mechanism. It once read 459 over a cluster split that summed to 459 while the file
+held 321. Then it read 304 / `loc-presence` 9 while the file held 301 / 6 — and the history says
+those were **correct one commit earlier**: `051e359dc` moved the JSON and the doc's partition
+line together and left this file untouched, because `known-failures-md-check.mjs` gates the
+partition line and gates no prose. That is the same mechanism `fmt`'s attribution paragraph
+carried for 241 entries. So it is not that a count and a split go stale together — **one half is
+gated and the other rots alone**, and the gated half is where to read the number. And read `301`
+as `163 bases × axis`: 138 of those bases carry a key on both axes and 25 on one
+(`138×2 + 25 = 301`), so the defect ceiling is 163, not 301. The collapse is not uniform across
+clusters — measured, 1.00x to 2.00x against a whole-file 1.847x, so scaling the total gives
+`css-shape` 7.6 where it actually has 9 — which is why a per-cluster estimate cannot be had by
+scaling the total.
 
 **And the clusters partition KEY SHAPES, not causes, so a mechanism can span three rows while
 each row reads as its own backlog.** `lang="ts"` does not merely enable extra syntax — it selects
@@ -1218,6 +1225,16 @@ reach at all. **Ask what mechanism could carry the change to each moved file
 before attributing any of them**; a direction that matches your hypothesis is
 the cheapest thing for an artefact to imitate.
 
+It recurred, and the second instance is cheaper to detect than the first because the
+discrepancy is a git fact rather than a mechanism argument. A baseline arm was built at
+`4cdc135cb` while the head branch's own merge base had moved to `95ba24874` one merge earlier,
+so the two arms differed by the change under test **and** by the PR that had landed in between.
+The sweep reported **4** moved units, all `MISMATCH -> match` — the flattering direction, at a
+plausible size. Rebuilding the baseline at the branch's actual merge base gave **2**, and the
+other two were the intervening PR's. `git merge-base <branch> origin/main` against the commit
+the baseline binary was built from is one command and settles it; run it before the sweep, not
+after a result you like.
+
 **The last row is a different failure and the probe cannot see it.** Rows 1-6 are
 an arm whose *identity* is wrong, and a discriminating probe settles every one of
 them. Row 7 is two arms that are the *same* arm — and probing both returns the
@@ -1505,6 +1522,38 @@ and which a direction-free key had reported as uniform.
 edge, so a change under `crates/rsvelte_projection/src/svelte2tsx/` reaches it and a
 changeset naming only `@rsvelte/svelte2tsx` fails `check-core-consumer-changesets.mjs`.
 Name every consumer the checker lists, not the one whose directory you edited.
+
+### A fix that reaches the reported file has reached one of the places that register the rule
+
+Upstream declares a `let:` binding once, in `phases/scope.js`. rsvelte registers one in
+**three** places — `build_slot_function` (the component's own), `process_element_let_directives`
+(a slotted element's own) and `visit_svelte_fragment` (a `svelte:fragment`'s own) — so a rule
+about `let:` scope is three edits, and the count is not visible from any one of them. The
+reported file reached the second and a corpus file reached the third, which is why the first
+corrected version still moved 4 units the wrong way: `<C let:a>` around `<span slot="t" let:a>`
+had the child's binding masked by the parent's, because the mask is keyed by NAME and upstream's
+`determine_slot(node) ? context.state : …` declares a slotted node's own `let:` in the ENCLOSING
+scope. The fourth candidate, `<svelte:element let:x>`, needs nothing — both compilers reject it,
+which is what closes the enumeration rather than a search that stopped finding things.
+
+Two cheap controls came out of it. **A cell that separates a scope STACK from a flag**: inside
+one named slot, an `{#each xs as a}` body reads `$.get(a)` and the very next expression reads a
+bare `a` — a mask that is set once and never restored gets exactly one of the two. And **the
+control cell whose value on `main` is already correct is not an identity probe**: `main` has no
+mask at all, so the same-name arrangement passes there by construction; it discriminates the
+broken fix from the corrected one and says nothing about which arm you are holding.
+
+### Two fixes in one file make the arm probe a liar even when the probe is right
+
+An arm is identified by a discriminating probe on its output, and the probe answers only the
+hypothesis it was handed. Two independent fixes landed in `regular_element.rs` on the same
+afternoon — a `let:`-scope mask and the raw-vs-normalized attribute name — and a `git checkout`
+with an uncommitted working tree carried the second onto the first's branch. The probe asked
+"is the `let:` fix in?" (yes) and "is the destructured-rest fix in?" (no, correct), and reported
+a clean arm identity for a binary containing **both** changes; a 30%-complete 135,560-unit sweep
+had to be discarded. The rule the truncation table already states for verdicts applies to arms:
+probe for what the arm should contain **and** for what it should lack, and add a cell per
+in-flight change in the files you touched, not per change you believe you are measuring.
 
 ### A reconstruction of a gate misses in a direction, and the direction is the stage it dropped
 
