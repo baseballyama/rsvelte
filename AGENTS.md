@@ -1072,6 +1072,7 @@ followed on the next:
 | `cargo test … \| grep -E '^test \|test result' \| head -20` | `TEST_EXIT=101` from `$pipestatus[1]`, and twenty *passing* lines | the **verdict** was read correctly and the lines explaining it were outside the window |
 | `join before.tsv after.tsv` over paths sorted by Rust's byte order | two non-ASCII paths reported as **changed** that were byte-identical | `join` requires its inputs in the locale's collating order and silently **mispairs** rows when they are not |
 | `timeout 120 node probe.mjs 2>&1 \| head -20` | nothing at all, twice | `head` closed the pipe and `timeout` killed the process, so node's block-buffered stdout was **never flushed** — the verdict was not outside the window, it was never produced |
+| `cmd \| cat -A` on macOS | the **oracle leg produced no output at all**, so its side of an A/B read as empty | macOS has no `cat -A`; the filter dies, the pipe's exit is the filter's, and a stage that dies on ONE leg does not manufacture a zero — it manufactures a **difference** |
 
 Rules, in the order they are cheap:
 
@@ -1172,6 +1173,27 @@ Rules, in the order they are cheap:
    real, which is what made the diagnosis stick for two rounds. Write to a file,
    then read the file; nothing else recovers an unflushed buffer.
 
+### A row in this file carries a scope, and citing it is not checking it
+
+Every paragraph here was written about a particular population, and the sentence
+that survives into someone's memory is the claim without its domain. Measured
+twice in one day, in opposite directions:
+
+- "`lang="ts"` selects a different parser" is true of `<script lang="ts">` and of
+  `parse()`, and it was cited to justify adding a `.svelte.ts` axis to a
+  `compileModule` grid. `compileModule` **rejects TS syntax on both sides** —
+  `0 as number` and `import type` are `js_parse_error` for official and for
+  rsvelte alike — so `.svelte.js` and `.svelte.ts` are one input class there and
+  the axis measures nothing. The toolchain strips types before the compiler sees
+  the file.
+- The same row read the other way is still useful: it says a `.svelte.ts` column
+  that agrees with its `.svelte.js` column agrees **structurally**, not by luck,
+  which is a different record to keep than "both were 0".
+
+So when a cited row would license a new axis, a new skip, or a new expectation,
+spend the one probe that asks whether its population contains yours. The cost of
+not doing it is not a wrong answer — it is a column of cells that cannot move.
+
 ### Nothing about a measurement arm is evidence of what it measured
 
 An A/B here is two `.node` binaries, and every cheap way of saying which is which
@@ -1219,6 +1241,20 @@ cheapest possible measurement and was of the wrong tree. A census is a measureme
 exactly the way a baseline is, so name the tree in the output (`git rev-parse HEAD` beside the
 counts) rather than in your intention; a number with no revision beside it cannot be checked by
 anyone, including the person who produced it.
+
+**And a two-arm sweep has two ways to report zero, so the key check and the arm
+check are both necessary and neither is sufficient.** A 135,560-pair sweep
+reported `MOVED=0` twice for opposite reasons. The first time the reader had the
+field order wrong — `sweeparm.mjs` writes `target \t hash \t id`, the reader took
+the id as the hash — so it compared each unit's *id* against itself and zero was
+arithmetically forced; the collapse signature caught it (`135560 rows, 128656
+distinct keys`), which is the control this file already prescribes. The second
+time the key was right, rows equalled keys, and zero still had two explanations:
+the change moves nothing, or the two arms are the same binary. Only a
+discriminating probe separates those, and it has to be run **before** the zero is
+believed rather than after — an arm probe that follows a result gets read as
+confirming it. Print `rows / distinct keys` and the probe's own table beside every
+`MOVED=n`; a bare zero answers neither question.
 
 A second, independent signal is the **diff between the two arms' trees** (`git diff <base> HEAD
 -- crates/`): a one-line answer to "do these arms differ by the change I think they do". Neither
