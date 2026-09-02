@@ -784,9 +784,15 @@ const result = {
       "bundler ever reads it. The speedup column therefore includes work only official " +
       "performs. This is the comparison a bundler experiences (@sveltejs/vite-plugin-svelte " +
       "is charged for the AST whether it wants it or not), so it is reported as-is rather " +
-      "than corrected; it is NOT a like-for-like compiler-throughput ratio. The size of the " +
-      "difference is unmeasured. The deferral also cuts the other way: an rsvelte consumer " +
-      "that does read .ast pays a fresh parse, where official's is already built.",
+      "than corrected; it is NOT a like-for-like compiler-throughput ratio. The deferral " +
+      "also cuts the other way: rsvelte's CompiledAst::get() does not serialize a retained " +
+      "tree, it rebuilds PreparedComponent from the source, so a consumer that reads .ast " +
+      "pays a fresh parse on top of the compile, where official's is already built. " +
+      "BOTH magnitudes are unmeasured - official's to_public_ast + convert, and rsvelte's " +
+      "re-parse. No shipping consumer currently reads .ast (a repo search finds it only in " +
+      "scripts/dev/test-napi-compile-options.mjs and in the playground, which calls " +
+      "parse_svelte rather than compile; control: .js.code has 109 read sites), so today the " +
+      "second direction is latent rather than paid.",
     reproduceCommand: "pnpm benchmark:reproduce",
     competitorPackages: [
       "@mrwaip/svelte-rs@0.0.0-canary.13.1",
