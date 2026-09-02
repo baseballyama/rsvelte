@@ -993,6 +993,80 @@ observed. And a count of zero untracked directories proves nothing on its own: i
 checkout shows *before* a run reaches its first fixture, which is how this was first reported as
 reproducing on one machine and not another.
 
+### Blind spot 27r — `hash=` names two different quantities, and the field saying which is stripped [D]
+
+Every key `diff.mjs` produces carries `hash=<12 hex>`, and whether that digest can be turned back
+into a value depends on which of two branches wrote it.
+
+| branch | what is hashed | preimageable |
+|---|---|---|
+| field (`diff.mjs:98-100`) | `digest(left[key])` — the value itself | yes |
+| element (`diff.mjs:76-83`) | `digest(keys.sort())`, whose members are `item-${digest(value)}` (`:32`) | no — a digest of digests |
+
+Measured both ways on one method. `…/resolveProvider:missing-rsvelte[hash=b5bea41b6c62]` came back in one
+step as `digest(true)`, which is what establishes that official declares `resolveProvider: true`
+and rsvelte omits it. The nine `textDocument/codeAction|:extra-rsvelte[count=1,hash=…]` entries
+return nothing at any depth, so the nine actions behind them can only be had by running both
+servers on the nine fixtures.
+
+The suffix naming the branch does not reach the ratchet: `verify.mjs:462` strips
+`-element` / `-field` deliberately, so that respelling the classifier's labels does not
+staleify every committed entry at once. That is a defensible trade, and it leaves a ratchet
+reader with no explicit statement of which quantity they hold. What survives is `count=`,
+written only on the element branch — so **a key carrying `count=` has an unrecoverable hash and a
+key without one is preimageable**, and that is the entire rule.
+
+`diff.mjs:71-74` states the opposite: "The ratchet key keeps the suffix and drops the bracket,
+so the kind survives and the amount does not." Both halves are inverted against `verify.mjs:462`
+and against every committed key (`:extra-rsvelte[count=1,hash=…]` — no suffix, bracket present).
+**A comment describing what a downstream stage does with a value is checked by nothing that reads
+either file**, and this one is why a table of nine code-action titles was priced as arithmetic
+rather than as a measurement.
+
+**Evidence [D]:** the successful preimage of `b5bea41b6c62` and the structural impossibility for the
+element branch are both read off `diff.mjs`; the stripped suffix from `verify.mjs:462`; the inversion
+from comparing that line and the committed keys against `diff.mjs:71-74`. **Unmeasured:** whether any
+other gate's keys carry the same two-meaning `hash=` — only this gate's were read.
+
+### Blind spot 27s — a manifest records a prediction pointing the opposite way from the measurement beside it [D]
+
+Two `textDocument/codeAction` fixtures in `upstream-fixture-manifest.json` (`code-action-anchor-add`,
+`code-action-anchor-rel`) carry a `native_expected` listing **fewer** titles than `expected`, and a
+`difference_reason` reading "rsvelte does not derive the noreferrer edit from the upstream
+whole-element diagnostic range." That predicts rsvelte omits one of official's actions, which
+would surface as `missing-rsvelte`.
+
+The ratchet records the opposite. Both fixtures hold exactly two entries, both
+`:extra-rsvelte[count=1]`, and no `missing-rsvelte` at all — rsvelte reproduces every one of
+official's actions and adds one. The same holds for all nine codeAction fixtures across both
+phases: 18 entries, every one `extra`, `count=1`.
+
+**`native_expected`, `difference_reason` and `upstream_suite` are read by nothing under
+`scripts/`** (0 hits; positive control: `upstream-fixture-manifest` itself hits `suites.mjs`). So the
+prose is a hypothesis no gate evaluates.
+
+It was **not** true and then overtaken. `git log -S` gives two commits touching those fields, and
+the ratchet at each — including the commit that **introduced** them — already read `extra`, never
+`missing`. The extra action's content did move over that span
+(`hash=6d3d83633239 → e27600e1864d`); its **direction** never did. Read the scope exactly: within
+the window version control can observe, the prediction was never true. It may have been written
+against an uncommitted local measurement, which the history cannot settle.
+
+This is one step past "reason is not attribution". There the prose fails to say *where* a
+divergence is answered; here the prose asserts a *direction*, the direction is false, and the
+field is unread, so nothing can register the contradiction — including the person who later
+fixed the content while leaving the sentence.
+
+The repair is to read the field, not to delete it: a unit whose `native_expected` declares fewer
+titles than `expected` must carry a `missing-rsvelte` entry, which is mechanically checkable.
+Deleting the prose removes the contradiction and also removes whatever would stop the next
+person writing the same prediction.
+
+**Evidence [D]:** the entry counts and directions are read from the committed ratchet at three
+revisions via `git grep <rev>`; the unread-field claim is a grep with a stated positive control.
+**Unmeasured:** what the extra action actually is in each of the nine fixtures — see 27r for why
+that needs a run rather than a preimage — and whether any other manifest field is likewise unread.
+
 ---
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
