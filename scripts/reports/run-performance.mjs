@@ -101,71 +101,114 @@ function stats(samples, fileCount) {
   };
 }
 
-async function benchmarkJs(compile, eligible, target) {
-  for (let i = 0; i < warmups; i += 1) {
-    for (const file of eligible) compile(file.source, optionsFor(target, file.id));
-  }
-  const samples = [];
-  for (let i = 0; i < runs; i += 1) {
-    const start = performance.now();
-    for (const file of eligible) compile(file.source, optionsFor(target, file.id));
-    samples.push(performance.now() - start);
-  }
-  return stats(samples, eligible.length);
-}
-
-async function benchmarkJsAttempts(compile, corpus, target) {
-  const run = () => {
-    for (const file of corpus) {
-      try {
-        compile(file.source, optionsFor(target, file.id));
-      } catch {
-        // Rejections are part of this complete-corpus elapsed-time metric.
+// An arm is `{ warm, once }`: `once` returns one elapsed sample. Splitting a
+// benchmark into samples is what lets `interleave` decide the ORDER the arms
+// run in, which is the whole point -- see its comment.
+function jsArm(compile, corpus, target, { tolerateRejections = false } = {}) {
+  const run = tolerateRejections
+    ? () => {
+        for (const file of corpus) {
+          try {
+            compile(file.source, optionsFor(target, file.id));
+          } catch {
+            // Rejections are part of this complete-corpus elapsed-time metric.
+          }
+        }
       }
-    }
+    : () => {
+        for (const file of corpus) compile(file.source, optionsFor(target, file.id));
+      };
+  return {
+    count: corpus.length,
+    warm: () => run(),
+    once: () => {
+      const start = performance.now();
+      run();
+      return performance.now() - start;
+    },
   };
-  for (let i = 0; i < warmups; i += 1) run();
-  const samples = [];
-  for (let i = 0; i < runs; i += 1) {
-    const start = performance.now();
-    run();
-    samples.push(performance.now() - start);
-  }
-  return stats(samples, corpus.length);
 }
 
-function benchmarkRust(eligible, target, mode) {
-  const fileList = join(root, `.report-files-${target.id}.txt`);
-  writeFileSync(fileList, `${eligible.map(({ path }) => path).join("\n")}\n`);
-  const args = [
-    "run",
-    "--release",
-    "-p",
-    "rsvelte_devtools",
-    "--bin",
-    "benchmark_runner",
-    "--",
-    "--mode",
-    mode,
-    "--task",
-    `compile-${target.generate}`,
-    "--files",
-    fileList,
-    "--iterations",
-    String(runs),
-    "--warmup",
-    String(warmups),
-  ];
-  if (target.dev) args.push("--dev");
-  const result = spawnSync("cargo", args, {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 1 << 24,
-  });
-  if (result.status !== 0)
-    throw new Error(result.stderr || `Rust benchmark exited ${result.status}`);
-  return stats(JSON.parse(result.stdout).times, eligible.length);
+// Run one sample of every arm per round, alternating the order each round, and
+// take each arm's `runs` samples from `runs` different rounds.
+//
+// Measured sequentially -- every sample of one arm, then every sample of the
+// next -- the arms occupy different wall-clock windows, and on this corpus they
+// occupy windows of wildly different LENGTH: official takes ~40s a sample and
+// rsvelte-multi ~2.7s, so official's five samples span ~4 minutes while
+// multi's span ~17 seconds. A load burst that covers the short window and
+// averages out over the long one moves the RATIO, which is the reported
+// number, and it moves it one way. That is not hypothetical here: on the
+// 2026-09-02 report, `official` and `rsvelte-single` came in at cv 0.5% and
+// 0.6% while `rsvelte-multi` -- the arm with the shortest window and the most
+// threads to lose -- came in at cv 8.1%.
+//
+// Alternating the order matters as much as interleaving: a fixed order inside
+// a round still charges the same arm for whatever the previous arm left warm.
+function interleave(arms) {
+  for (const arm of Object.values(arms)) {
+    for (let i = 0; i < warmups; i += 1) arm.warm();
+  }
+  const names = Object.keys(arms);
+  const samples = Object.fromEntries(names.map((name) => [name, []]));
+  for (let round = 0; round < runs; round += 1) {
+    const order = round % 2 === 0 ? names : [...names].reverse();
+    for (const name of order) samples[name].push(arms[name].once());
+  }
+  return Object.fromEntries(
+    names.map((name) => [name, stats(samples[name], arms[name].count)]),
+  );
 }
+
+// One sample per spawn, so a rsvelte arm can be interleaved with the JS arms.
+// The file list is keyed by mode too: `interleave` holds several rsvelte arms
+// open at once, and a shared name would let one arm's list be deleted while
+// another still needs it.
+function rustArm(eligible, target, mode, tag) {
+  const fileList = join(root, `.report-files-${target.id}-${tag}.txt`);
+  // Every sample is its own process, so the in-process warmup has to be per
+  // sample: a cold rayon pool and cold allocator arenas cost this arm ~60% on
+  // its first pass and nothing thereafter, which would otherwise land entirely
+  // on round 1 and drag the median.
+  const once = () => {
+    writeFileSync(fileList, `${eligible.map(({ path }) => path).join("\n")}\n`);
+    const args = [
+      "run",
+      "--release",
+      "-p",
+      "rsvelte_devtools",
+      "--bin",
+      "benchmark_runner",
+      "--",
+      "--mode",
+      mode,
+      "--task",
+      `compile-${target.generate}`,
+      "--files",
+      fileList,
+      "--iterations",
+      "1",
+      "--warmup",
+      String(Math.max(warmups, 1)),
+    ];
+    if (target.dev) args.push("--dev");
+    const result = spawnSync("cargo", args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 24 });
+    if (result.status !== 0)
+      throw new Error(result.stderr || `Rust benchmark exited ${result.status}`);
+    return JSON.parse(result.stdout).times[0];
+  };
+  // `once` already warms inside its own process, so there is nothing left for a
+  // round of `interleave`'s warmup to do here.
+  return { count: eligible.length, warm: () => {}, once, cleanup: () => rmSync(fileList, { force: true }) };
+}
+
+// Single-arm shorthand for the comparison classes whose two sides are both
+// single-threaded JS: they occupy windows of the same length and lose the same
+// amount to a load burst, so interleaving them buys nothing measured.
+const benchmarkJs = (compile, eligible, target) =>
+  interleave({ only: jsArm(compile, eligible, target) }).only;
+const benchmarkJsAttempts = (compile, corpus, target) =>
+  interleave({ only: jsArm(compile, corpus, target, { tolerateRejections: true }) }).only;
 
 const outputCode = (output) =>
   typeof output === "string" ? output : typeof output?.code === "string" ? output.code : null;
@@ -306,12 +349,21 @@ for (const target of targets) {
   console.error(
     `[report] benchmarking ${target.id}: ${currentEligible.length} current, ${mrwaipEligible.length} mrwaip-reference`,
   );
-  const officialCurrent = await benchmarkJs(currentCompile, currentEligible, target);
-  const rustSingle = benchmarkRust(currentEligible, target, "single");
-  const rustMulti = benchmarkRust(currentEligible, target, "multi");
-  const officialCurrentAttempts = await benchmarkJsAttempts(currentCompile, files, target);
-  const rustMultiAttempts = benchmarkRust(files, target, "multi");
-  rmSync(join(root, `.report-files-${target.id}.txt`), { force: true });
+  // The headline ratios: official against rsvelte. These are the arms whose
+  // window lengths differ by more than an order of magnitude, so they are the
+  // ones `interleave` exists for.
+  const rustArms = {
+    rustSingle: rustArm(currentEligible, target, "single", "single"),
+    rustMulti: rustArm(currentEligible, target, "multi", "multi"),
+    rustMultiAttempts: rustArm(files, target, "multi", "attempts"),
+  };
+  const { officialCurrent, rustSingle, rustMulti, officialCurrentAttempts, rustMultiAttempts } =
+    interleave({
+      officialCurrent: jsArm(currentCompile, currentEligible, target),
+      officialCurrentAttempts: jsArm(currentCompile, files, target, { tolerateRejections: true }),
+      ...rustArms,
+    });
+  for (const arm of Object.values(rustArms)) arm.cleanup();
   const officialMrwaip = await benchmarkJs(referenceCompile, mrwaipEligible, target);
   const officialMrwaipAttempts = await benchmarkJsAttempts(referenceCompile, files, target);
   const mrwaipCoverage = await compileCoverage(

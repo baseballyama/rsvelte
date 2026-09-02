@@ -555,3 +555,55 @@ test; only the unrestricted run may be committed.
 
 Baseline it replaces (single / multi speedup): client 1.21x / 5.14x, server
 1.24x / 5.06x, client-dev 1.20x / 5.40x, server-dev 1.27x / 5.00x.
+
+## The report measured the three arms in three different windows (2026-09-02 14:29)
+
+`scripts/reports/run-performance.mjs` took every sample of `official`, then every
+sample of `rsvelte-single`, then every sample of `rsvelte-multi`. On this corpus
+those windows differ by more than an order of magnitude in **length**: official
+is ~40 s a sample and rsvelte-multi ~2 s, so official's five samples spanned
+~4 minutes and multi's spanned ~10 seconds. A load burst that covers the short
+window and averages out over the long one moves the ratio, and it moves it one
+way.
+
+The fingerprint was already in the published report and nobody read it: `official`
+cv 0.51%, `rsvelte-single` cv 0.63%, **`rsvelte-multi` cv 8.07%** — the only
+unstable arm is the one with the shortest window and the most threads to lose.
+
+Re-measured on the same tree (`87648c0ed`), same corpus (33,897 components), same
+binaries, with one sample of each arm per round and the order alternating:
+
+| surface | published (sequential) | paired | official arm | single arm |
+|---|---|---|---|---|
+| client | 14.35x | **20.71x** | 39.6 s → 40.0 s | 11.53 s → 11.65 s |
+| server | 18.83x | **22.66x** | 36.2 s → 36.5 s | 9.51 s → 9.65 s |
+
+**The official and single arms reproduce to within 1%, which is what makes this
+an attribution rather than another number.** Two instruments agreeing on two of
+three arms and disagreeing by 35–45% on the third localises the difference to
+that arm's window, not to the corpus, the tree, or the oracle. Client multi read
+2771 ms sequentially and 1917 ms paired; server 1923 ms and 1603 ms.
+
+Three things this cost, worth keeping:
+
+**A ratio needs its arms paired in time, and "back to back" is not paired** — the
+old code ran the arms consecutively, which reads as fair and is not, because the
+arms have different *durations* and therefore sample different amounts of
+whatever else the box is doing. Alternating the order within a round matters as
+much as interleaving: a fixed order still charges the same arm for whatever the
+previous one left warm.
+
+**Each rsvelte sample is its own process, so its warmup has to be per sample.**
+The first paired attempt passed `--warmup 0` and read client 13.22x, 16.89x,
+20.82x, 22.28x, 20.71x — a monotone ramp that looks exactly like a compiler
+getting faster and is a cold page cache over the 69.8 MB of sources every process
+re-reads. The server run immediately after showed no ramp at all (24.21x on its
+first round), which is what identified it: a ramp that does not reproduce when
+the cache is already warm is not the arm's steady state.
+
+**A quiet box is the optimistic end of the range, not the truth.** The same
+harness read 11.23x–25.01x while three agents shared this machine. The 10-thread
+arm loses more to contention than the 1-thread JS arm does, so the ratio is a
+function of what else is running — report it with the load, and never quote a
+single number from a window whose occupancy was not checked. The runs above were
+taken with `pgrep -c -f 'cargo|rustc'` asserted at 0 before and after.
