@@ -4604,6 +4604,20 @@ drives the other client shape and gets a correctly filtered legend back. The ter
 gate carrying both client shapes, not a change to the filter; that is tracked as a gate-coverage
 item rather than attributed here.
 
+Attribution of `lsp-known-failures.json`:
+
+| n | target | cluster |
+|---|---|---|
+| 5 | `deliberate-divergences` | `initialize` capabilities rsvelte declares differently on purpose, each pinned by a test: the `" "` completion trigger, the two `source.fixAll` code-action kinds, `workspace.workspaceFolders`, `positionEncoding`, `diagnosticProvider.identifier` |
+| 1 | `upstream_issues/svelte-language-server-duplicate-completion-trigger-character.md` | upstream lists `"@"` twice in `completionProvider.triggerCharacters`, so the arrays differ as multisets |
+
+This table is **partial**: it covers 6 of 23,746. The remaining entries are unattributed, not
+attributed to nothing — the `aggregate:` half carries no field in its key, so what an entry is
+cannot be read from the ratchet at all, and every row above had to be recovered by reproducing a
+digest. A partial table is the honest intermediate state for a ratchet this size; the alternative
+is that nothing may be recorded until everything can be, which would keep the first cluster
+unattributed because the last one is.
+
 Those digests are how the first four states were separated at all. The ratchet stores a digest and
 never the values, so a recorded divergence cannot be read back — but reproducing the digest from
 each side's declared values identifies the preimage, which running the two servers does not, since a
