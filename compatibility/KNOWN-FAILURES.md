@@ -3310,17 +3310,29 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 25 entries)
+### Client dev (`known-failures.client-dev.json`, 24 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `25`
+Partition of `known-failures.client-dev.json` by verdict: `24`
 
-- **25 — the generated JS differs.**
+- **24 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 25 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 24 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
+
+`huly/…/SelectAvatarPopup.svelte` left it when a member assignment whose root resolves to
+no binding stopped being wrapped. Upstream's `build_assignment` opens with `if (!binding)
+return null` (`AssignmentExpression.js:117`), so `document.body.style.overflow = 'hidden'`
+gets no `$.assign` at all; rsvelte wrapped it, and did so from two ports of that function
+which had to be corrected separately. Both compilers' output for this file is now
+byte-identical on `client-dev` before any normalization — and the two-sided ratchet named
+it independently, on Linux, in the PR's own `Compiler parity` job (`1 baseline entries
+already PASS … client-dev 1`). The local measurement carried its own control (two entries
+still listed on this ratchet, run through the identical script, both `DIFF`), but the CI
+naming is the stronger citation because it is the gate's own verdict rather than a
+reconstruction of it.
 
 `musicat/…/InternetArchiveView.svelte` left this target when the dev `console.*` wrap started
 asking whether an argument's **value** is known rather than whether its name is a state binding.

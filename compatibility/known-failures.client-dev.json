@@ -2,7 +2,6 @@
 	"chatgpt-web/src/lib/ChatCompletionResponse.svelte",
 	"ha-fusion/src/lib/Modal/VisibilityConfig/Index.svelte",
 	"headscale-ui/src/lib/settings/ServerSettings.svelte",
-	"huly/plugins/contact-resources/src/components/SelectAvatarPopup.svelte",
 	"huly/plugins/process-resources/src/components/settings/ProcessAttributeEditor.svelte",
 	"huly/plugins/tracker-resources/src/components/issues/move/SelectReplacement.svelte",
 	"huly/plugins/workbench-resources/src/components/HelpAndSupport.svelte",
