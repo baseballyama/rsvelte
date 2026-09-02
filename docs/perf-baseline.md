@@ -687,11 +687,29 @@ all ten and absorbs the whole swing; the single arms want one, and 8-9 are free
 throughout. The report's own dispersion matches without any further mechanism:
 **multi cv 20.5%, single 0.63%, official 0.51%.**
 
-Two consequences. **A thermal explanation is not required** — it is not excluded
-either, but a directly observable cause covers the observation, and `pmset -g therm`
-is unreadable without sudo while a competing process's CPU is one `ps` away.
-Anything claiming thermal has to show the drift survives regressing on the measured
-contention first. And **the deciding arm's precision is set by a third-party process,
+**Two corrections to the paragraph above, both from a second measurement.** First,
+`ps %cpu` is a decayed average, not an instantaneous rate: read as CPU-seconds
+consumed over the same 3 s windows, `mediaanalysisd`'s cv is **2.3%**, not the 8.5%
+in the table, and two `%cpu` reads of 100.5 and 76.1 covered windows whose true
+values were 89.7 and 87.4. Every cv here is inflated roughly 3.7x, and the
+inflation runs toward making the contention hypothesis look stronger. Use
+`(ps -o time=) delta / elapsed`, not `%cpu`, whenever contention is a *covariate* —
+measuring a covariate with error attenuates its regression coefficient, which
+manufactures exactly the "residual the contention cannot explain" that a thermal
+claim would feed on. The core-equivalent conclusion survives: by CPU-second deltas
+third-party load is 1.04-1.59 cores (median 1.49), so a 10-thread arm sees ~8.4
+cores. **~15% of the box belongs to someone else** either way.
+
+Second, **this explains the variance and NOT the drift.** A steady 1.5-core
+competitor produces round-to-round dispersion; it produces no monotone component,
+and the monotone front/back asymmetry is what was reported. Two minutes of
+sampling says nothing about a trend across a 20-minute run. So the honest split is:
+contention is **demonstrated** as a steady ~15% handicap and as a strong candidate
+for the between-round variance, while **the within-run monotone drift has no
+measured cause at all** — neither contention nor thermal. Saying "a thermal
+explanation is not required" overstated it; what is true is that contention is
+measurable and thermal is not (`pmset -g therm` needs sudo), so the measurable one
+gets tested first. And **the deciding arm's precision is set by a third-party process,
 not by rsvelte**: no amount of care in the harness recovers a number whose arm is
 losing 10-19% of the machine unpredictably. That is the real reason server's 19.59x
 and server-dev's 19.98x cannot be resolved against 20x.
