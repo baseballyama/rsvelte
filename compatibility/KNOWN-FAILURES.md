@@ -3195,7 +3195,7 @@ snippet it renders — see § *Client* for the measurement.
   fixed** — the pin is what keeps the justification from rotting.
 
 **No burndown entry survives on this target.** Every one that arrived with the wave-2
-enrolment (#3130) has been retired, the last two by #4115's ancestor-scoping port; what is
+enrolment has been retired, the last two by #4115's ancestor-scoping port; what is
 left is the deliberate divergence above, which is recorded rather than scheduled. The history
 below is kept because it records what the ratchet was *for*, not what it currently holds.
 
