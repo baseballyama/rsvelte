@@ -2878,11 +2878,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 23 entries)
+### Client (`known-failures.client.json`, 22 entries)
 
-Partition of `known-failures.client.json` by verdict: `22 + 1`
+Partition of `known-failures.client.json` by verdict: `21 + 1`
 
-- **22 — the generated JS differs** (`js` / `code-differs`).
+- **21 — the generated JS differs** (`js` / `code-differs`).
 - **1 — the generated CSS differs.**
 
 The error classes this section used to carry are gone: the run behind this
@@ -2914,6 +2914,18 @@ asking only "is it not the bare name" passes on the bug; the repro therefore var
 binding KIND behind one fixed each block (`plain-import` → `settings`, `local-state` →
 `$.get(settings)`, `exported-prop` → `settings()`, nested each → `$.get(filter),
 $$_import_settings()`). A 139,252-unit four-target sweep moved exactly these 4 units.
+
+One entry left this target and `client-dev` because a destructured `export let` was lowered by
+text rather than through its keys. Upstream's `_extract_paths` builds a rest element as
+`$.exclude_from_object(expression, [keys])` and every property as
+`b.member(expression, prop.key, prop.computed || key.type !== 'Identifier')`; the port
+re-destructured for the rest and spelled every key as a dot access. `huly/…/
+TrainingRequestDueDateEditor.svelte` carries the first. The second is louder and had no
+carrier: **seven of the eight key cells emitted text no JS parser accepts** (`tmp.'a-b'`,
+`tmp.0`, `tmp.[k]`), and only a plain identifier key was right — which is why the repro
+(`crates/rsvelte_core/tests/destructured_export_let_keys.rs`) is one cell per key kind crossed
+with whether the pattern has a rest, rather than the reported shape alone. A 135,560-unit sweep
+moved exactly the 2 units this entry occupies.
 
 One entry left this target and `client-dev` because upstream's `should_proxy` resolves an
 Identifier **through its binding** and rsvelte's class-field lowering did not:
@@ -3030,7 +3042,7 @@ the emitted default was the getter function rather than the store's value. Hashi
 client (entry, target) outputs before and after reports **2** changed units over 1 id,
 `match -> MISMATCH = 0`; the other two ids of that cluster do not move and stay listed.
 
-Every one of the remaining 23 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the remaining 22 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3137,15 +3149,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 37 entries)
+### Client dev (`known-failures.client-dev.json`, 36 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `37`
+Partition of `known-failures.client-dev.json` by verdict: `36`
 
-- **37 — the generated JS differs.**
+- **36 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 37 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All remaining 36 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

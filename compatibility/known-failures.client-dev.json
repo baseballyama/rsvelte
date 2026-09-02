@@ -8,7 +8,6 @@
 	"huly/plugins/process-resources/src/components/settings/ProcessAttributeEditor.svelte",
 	"huly/plugins/text-editor-resources/src/components/DrawingBoardEditor.svelte",
 	"huly/plugins/tracker-resources/src/components/issues/move/SelectReplacement.svelte",
-	"huly/plugins/training-resources/src/components/TrainingRequestDueDateEditor.svelte",
 	"huly/plugins/workbench-resources/src/components/HelpAndSupport.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
 	"immich/web/src/lib/components/timeline/Timeline.svelte",

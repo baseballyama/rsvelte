@@ -5,7 +5,6 @@
 	"ha-fusion/src/lib/Sidebar/Navigate.svelte",
 	"headscale-ui/src/lib/settings/ServerSettings.svelte",
 	"huly/plugins/text-editor-resources/src/components/DrawingBoardEditor.svelte",
-	"huly/plugins/training-resources/src/components/TrainingRequestDueDateEditor.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
 	"kite-public/src/lib/components/CategoryNavigation.svelte",
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
