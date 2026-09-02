@@ -409,14 +409,25 @@ nothing prompts anyone to look. Measured on one PR the moment its sibling merged
 reported every check green — a verdict about a tree an hour out of date, with
 `gh pr view` returning `mergeable=UNKNOWN/UNKNOWN` because GitHub had not finished
 recomputing. The two PRs edited disjoint ratchet JSONs and the **same**
-`compatibility/KNOWN-FAILURES.md`, so the failure mode was not a conflict — a conflict would
-have been the safe outcome. Auto-merging would have produced prose claiming
-`known-failures.client.json, 12 entries` against a JSON holding 11, and
-`known-failures-md-check.mjs` then fails **on `main`**, not on any PR.
+`compatibility/KNOWN-FAILURES.md`, whose prose asserted `known-failures.client.json, 12
+entries` on the stale branch against a JSON holding 11 on `main`.
 
-The check is one comparison and it costs nothing: **the verdict's `startedAt` against the last
-merge into `main`**. Run it immediately after every merge, on every PR still open, because that
-is the moment every remaining green becomes a claim about a tree that no longer exists.
+**The predicted harm did not occur, and that half was inferred rather than measured — it is
+recorded because the inference was wrong.** Rebasing applied five commits with no conflict and
+the result was already self-consistent at 11, because the three lines were changed by *one*
+side only: git's three-way merge keeps the side that moved, and the stale `12` never survives
+unless **both** branches edit those lines, in which case it conflicts and stops safely. So a
+shared file plus disjoint JSONs is not by itself a hazard, and asserting a specific merged
+text without performing the merge is the ordinary mistake of pricing a mechanism you have not
+run.
+
+What survives is the asymmetry, which is about *noticing* rather than about breaking: a branch
+that goes red when `main` moves announces itself, and one that stays green does not, so
+whether the stale verdict happens to still hold is exactly what you cannot know without
+looking. The check is one comparison and costs nothing — **the verdict's `startedAt` against
+the last merge into `main`** — and it is worth running after every merge on every PR still
+open. "It turned out fine" is the answer it gives half the time; it is not a reason to skip it,
+because the run that is not fine looks identical beforehand.
 
 **A superseded run shows up RED too, and `gh pr checks` counts it.** A PR whose title was edited
 re-runs the title-dependent job; the old run's `FAILURE` conclusion stays attached to the PR, so
