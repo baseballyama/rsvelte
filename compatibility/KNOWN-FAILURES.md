@@ -903,7 +903,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 549 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 547 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -928,17 +928,22 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `258 + 214 + 15 + 47 + 13 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `257 + 214 + 15 + 46 + 13 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 549 entries**, where it
+**The partition is now the mechanical rule applied to all 547 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
 mechanical buckets, because the CI report names an entry's first differing line
 and not the cluster a human filed it under. The addends are, in order:
-20 breaks-later 258, 21 breaks-earlier 214, 22 intra-line-ws 15,
-23 indent-only 47, 24 other 13, 25 extra-line 1, 26 missing-line 1;
+20 breaks-later 257, 21 breaks-earlier 214, 22 intra-line-ws 15,
+23 indent-only 46, 24 other 13, 25 extra-line 1, 26 missing-line 1;
 27 quote-style is now empty.
+
+`headscale-ui/…/DeviceTags/NewDeviceTag.svelte` left **20 — breaks-later** and
+`sveltepress/…/icons/logos/Bun.svelte` left **23 — indent-only** in #4151; both
+were the leading-comment hug above, which is why the same fix moves a
+close-bracket decision and an indent width.
 
 `svelte-inspect-value/packages/svelte/src/lib/CustomLine.svelte` left
 **24 — other** in #4062: its only differing line was
@@ -1103,37 +1108,44 @@ a Svelte document at all.
 
 | n | class |
 |---|---|
-| 1 | **rsvelte-fmt output is rejected by the official compiler** |
-| 0 | oracle output rejected |
+| 0 | **rsvelte-fmt output is rejected by the official compiler** |
+| 2 | oracle output rejected, rsvelte's accepted |
 
-That one is `sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte`,
-and it is not a formatting preference — **rsvelte-fmt duplicates an HTML comment
-and truncates the copies**, so the document is destroyed. Reduction (the trigger
-is a leading `<!-- … -->` child of an element whose open tag breaks, followed by a
-child that itself breaks; the comment's length is irrelevant):
+Measured over the whole 33,644-entry formatter-parity population by compiling both
+sides' formatted text: 1,014 of those sources are not compilable at all (both
+sides are rejected identically — `lang="ts"` and friends), and the 2 the oracle
+alone loses are the nested-destructure mangling already carried by
+`fmt-oracle-excluded.json`.
+
+This row read **1** until #4151. That one was
+`sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte`,
+and it was not a formatting preference — rsvelte-fmt **overwrote an HTML
+comment's `-->`**, so the document was destroyed:
 
 ```svelte
-<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><!-- x --><path fill="currentColor" d="M10 16h4v0h-4z"><animate fill="freeze" attributeName="d" begin="0.6s" dur="0.2s" values="a;b" /></path></svg>
+<svg Q="1" R="2"><!-- ZZZZZZZZ --><path d="a"><animate aaaaaaaaaaaaaaaa="1" bbbbbbbbbbbbbbbbbb="2" cccccccccccccccccc="3" /></path></svg>
 ```
 
-rsvelte-fmt emits the comment three times, and the second and third copies lose
-their `-->`:
-
 ```
-><!-- x --><path fill="currentColor" d="M10 16h4v0h-4z"
-><!-- x   ><animate
-…
-    /></path
-><!-- x ></svg>
+<svg Q="1" R="2"><!-- ZZZZZZZZ --><path d="a"
+<svg Q="1" R="2"><!-- ZZZZZZZZ   ><animate
 ```
 
-`compile()` on that text throws `expected_token` (*Expected token `-->`*); the
-oracle's output for the same input compiles. Removing the comment, flattening the
-nesting, or replacing `<svg>` with `<div>` each make the output valid, so the
-three ingredients are jointly required. The same check over
-`fmt-oracle-excluded.json` (27 entries, 2 of whose sources are already invalid and
-1 of which rsvelte-fmt refuses outright) finds **0** further cases, so the whole
-formatter-parity population contains exactly this one.
+`try_hug_mixed` declined any element with a `Comment` child on the premise that a
+comment is a line boundary. The oracle glues `><!-- … -->` to a wrapped open tag
+exactly as it glues text, so the premise is wrong — and declining left the child
+that breaks to a later pass, whose `ws_indent` was the line prefix sliced up to
+its last space. That slice **is** the comment when the comment precedes the
+element, so it was re-emitted as indentation over the `-->`. The indent is now
+the line's own leading whitespace, which is the same string on the shape the
+slice was written for (a parent's hugged `>` alone on the line) and the right one
+on every other. The defect had a second face the corruption hid: on an inline
+host the same slice produced *valid* output indented at the comment's end column
+(10 where 2 is correct), so the repro
+(`crates/rsvelte_formatter/tests/leading_comment_hug.rs`) carries both, plus the
+`>`-only prefix as the arm that reports an over-narrowing. 2 entries left this
+ratchet with 0 new failures; `SystemDefault.svelte` itself stays listed, on the
+`<g>` nesting level rather than on the comment.
 
 **Attribution status of this ratchet.** *Nothing here is an oracle bug* — that
 classification lives in `fmt-oracle-excluded.json` — so no entry can be attributed
