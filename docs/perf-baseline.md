@@ -665,6 +665,41 @@ run had been going, and the report takes its samples in a fixed order. Not
 measured: whether the drift persists with a cool-down between rounds, and
 whether it is thermal at all rather than page-cache or allocator growth.
 
+## The multi arm's drift has a directly-observed cause, and it is not the compiler (2026-09-02)
+
+The ~5% within-run degradation of the multi arm — flat on both single-threaded
+arms — was being treated as a thermal candidate. It does not need one. Sampled
+every 2 s for two minutes on the box every measurement today was taken on:
+
+| process | median %CPU | min | max | cv |
+|---|---|---|---|---|
+| `mediaanalysisd` | 87.4 | 68.5 | 101.1 | 8.5% |
+| `mds_stores` | 19.1 | 5.9 | 85.7 | 58.3% |
+| next-highest non-ours | 10.5 | 5.4 | 80.4 | 88.1% |
+
+In core-equivalents on a 10-core M2 Pro that is **1.01 to 1.92 cores, median
+1.23, cv 16.5%** — a 9-percentage-point swing in available capacity. `mediaanalysisd`
+alone has held ~1 core since **09:08**, i.e. through the published report, through
+the regenerated one, and through every probe quoted here.
+
+The arms are affected exactly as their core demand predicts. The multi arm wants
+all ten and absorbs the whole swing; the single arms want one, and 8-9 are free
+throughout. The report's own dispersion matches without any further mechanism:
+**multi cv 20.5%, single 0.63%, official 0.51%.**
+
+Two consequences. **A thermal explanation is not required** — it is not excluded
+either, but a directly observable cause covers the observation, and `pmset -g therm`
+is unreadable without sudo while a competing process's CPU is one `ps` away.
+Anything claiming thermal has to show the drift survives regressing on the measured
+contention first. And **the deciding arm's precision is set by a third-party process,
+not by rsvelte**: no amount of care in the harness recovers a number whose arm is
+losing 10-19% of the machine unpredictably. That is the real reason server's 19.59x
+and server-dev's 19.98x cannot be resolved against 20x.
+
+The practical rule: **record the box's non-ours CPU alongside each sample.** It costs
+one `ps` per sample, it is the difference between a drift with a cause and a drift
+with a story, and it was available all day.
+
 ## Sizing the remaining gap: two arithmetic errors to avoid (2026-09-02)
 
 **Do not write `1/(1-0.403) = 1.68x` for "if the whole alloc+hash+memcpy bucket
