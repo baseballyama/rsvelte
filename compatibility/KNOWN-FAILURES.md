@@ -6242,11 +6242,10 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 3 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 2 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `1 + 2`
+Partition of `svelte2tsx-known-failures.json` by verdict: `2`
 
-- **1 — the emitted TSX differs** (`ts-mismatch`).
 - **2 — one side rejects and the other compiles** (`error-mismatch`). Both are
   `cnblocks`'s `(app)/veil/` components, and the rejecting side is **official**:
   a UTF-8 BOM together with a `<script>` block and markup makes `svelte2tsx`
@@ -6263,10 +6262,10 @@ Attribution of `svelte2tsx-known-failures.json`:
 |---|---|---|
 | 2 | `upstream_issues/svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | official throws on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it |
 
-The remaining 1 carries **no target, and cannot have one**: it was measured
-against official on 2026-09-02 and is an rsvelte defect, so the only end state open
-to it is elimination. The classification below is the input to that work; it is not
-an attribution, and this gate stays red until the entry is gone.
+Every entry now carries a target, and every one of them is upstream. The
+`ts-mismatch` half of this ratchet is empty: the four entries it held on
+2026-09-02 were each measured against official, each was an rsvelte defect, and
+each is fixed — see the `### Previously:` sections below.
 
 ### Entries by mechanism (2026-09-02)
 
@@ -6291,9 +6290,29 @@ double count**, so the assignment has to be per entry.
 | n | mechanism | pinned |
 |---|---|---|
 | 2 | official svelte2tsx throws from magic-string on a BOM-prefixed component that has both a `<script>` and markup; rsvelte converts it | upstream |
-| 1 | an extra `dragItem: dragItem` slot prop is emitted | output only |
 
-Partition of `svelte2tsx-known-failures.json` by mechanism: `2 + 1`
+Partition of `svelte2tsx-known-failures.json` by mechanism: `2`
+
+### Previously: `extra-slot-prop` (2026-09-02, at 3 entries)
+
+Kept as `output only` because the divergence was one prop, `dragItem`, and the
+axis is the attribute's **value form**. `<slot … dragItem … />` writes the name
+with no value at all; `handleSlot` (`nodes/slot.ts`) opens its loop with
+`if (!attr.value?.length) continue;` and a valueless attribute's `value` is
+`true`, so official declares no such slot prop and rsvelte declared `dragItem:
+dragItem`.
+
+Named after the prop, the entry reads as a question about `dragItem`. Enumerated
+over the shapes a `<slot>` attribute can take — valueless, shorthand, `=""`,
+a text literal, a mustache, a quoted mustache, text + mustache, a spread, a
+`let:` — **the valueless rows are the only ones that move**, and there are ten
+of them once position (first / last / between two kept entries) and host (a
+named slot, an `{#each}`, a component slot) are crossed in.
+`crates/rsvelte_projection/tests/svelte2tsx_valueless_slot_attribute.rs` is the
+grid; ablating the fix fails exactly those 10 of 19.
+
+The whole-corpus sweep moved 1 unit of 33,901: `MISMATCH -> match` 1,
+`match -> MISMATCH` 0.
 
 ### Previously: `template-hole-comment-dropped` (2026-09-02, at 4 entries)
 

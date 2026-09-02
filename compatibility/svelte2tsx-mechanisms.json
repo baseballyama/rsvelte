@@ -1,10 +1,6 @@
 {
 	"$schema-note": "id -> mechanism slug for every entry of svelte2tsx-known-failures.json and svelte2tsx-unparseable-known-failures.json. The `Entries by mechanism` table in KNOWN-FAILURES.md is derived from this file: one row per `mechanisms` key, `n` = how many `entries` name it. The assignment is one-to-one, so a double count is unwritable.",
 	"mechanisms": {
-		"extra-slot-prop": {
-			"description": "an extra `dragItem: dragItem` slot prop is emitted",
-			"pinned": "output only"
-		},
 		"line-comment-swallows-type": {
 			"description": "a `//` line comment inside an `export let` type annotation swallows the rest of the emitted line, so the output is not TypeScript",
 			"pinned": "source"
@@ -17,7 +13,6 @@
 	"entries": {
 		"cnblocks/src/routes/(app)/veil/+layout.svelte": "upstream-bom-crash",
 		"cnblocks/src/routes/(app)/veil/+page.svelte": "upstream-bom-crash",
-		"huly/plugins/view-resources/src/components/list/ListCategory.svelte": "extra-slot-prop",
 		"svelte-virtuallists/src/lib/VirtualListNew.svelte": "line-comment-swallows-type"
 	}
 }
