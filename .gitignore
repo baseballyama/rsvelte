@@ -197,3 +197,7 @@ compatibility/.lint-adversarial-rules.json
 
 # Local, per-developer Claude Code settings
 .claude/settings.local.json
+
+# Crash-safety sidecar and file lists written by scripts/reports/run-performance.mjs
+apps/playground/static/*-report.json.surfaces.json
+.report-files-*.txt
