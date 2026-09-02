@@ -133,14 +133,18 @@ pub(super) fn args_text_need_wrap(
 /// program.
 #[derive(Default)]
 pub(super) struct LocalConsts {
-    /// Names declared exactly once in the whole program by a `const` declarator
-    /// with an initializer, mapped to that initializer's verdict. A name
-    /// declared more than once is absent: the text alone cannot say which
-    /// declaration a reference reaches.
-    verdicts: FxHashMap<String, bool>,
-    /// Identifier-reference starts that resolve below the generated program's
-    /// root scope. These must not fall through to a same-named instance binding:
-    /// a parameter or local declaration shadows it exactly as it does upstream.
+    /// Declarator verdicts keyed by the SYMBOL they declare. Keying by name
+    /// drops every duplicated name, and the fallback for a missing verdict is
+    /// `UNKNOWN` — so `let c = 0` at the root and `let c = 1` in a function
+    /// silenced each other and both wrapped, where upstream resolves each
+    /// reference to its own declaration.
+    verdicts: FxHashMap<oxc_semantic::SymbolId, bool>,
+    /// Reference start -> the symbol it resolves to, for every reference that
+    /// resolves at all. A reference below the generated program's root scope
+    /// must not fall through to a same-named instance binding: a parameter or
+    /// local declaration shadows it exactly as it does upstream.
+    resolved: FxHashMap<u32, oxc_semantic::SymbolId>,
+    /// The subset of `resolved` whose symbol is declared below the root scope.
     local_references: FxHashSet<u32>,
 }
 
@@ -152,39 +156,37 @@ pub(super) fn collect_local_consts(
     let semantic = &semantic_ret.semantic;
     let mut references = LocalReferenceCollector {
         semantic,
+        resolved: FxHashMap::default(),
         starts: FxHashSet::default(),
     };
     references.visit_program(program);
-    // The index is built with the reference set but no verdicts: whether a name is
+    let mut writes = LoweredWriteCollector {
+        semantic,
+        written: FxHashSet::default(),
+    };
+    writes.visit_program(program);
+    // The index is built with the reference sets but no verdicts: whether a name is
     // locally BOUND is what disqualifies a global keypath (`const Math = …` shadows
     // `Math.random()`), and unlike a verdict that answer does not depend on visit
     // order. A chained `const a = b` still stays unresolved.
     let index_locals = LocalConsts {
         verdicts: FxHashMap::default(),
-        local_references: references.starts.clone(),
+        resolved: references.resolved,
+        local_references: references.starts,
     };
     let mut collector = ConstCollector {
         analysis,
         semantic,
-        index_locals: &index_locals,
-        counts: FxHashMap::default(),
-        verdicts: FxHashMap::default(),
+        lowered_writes: &writes.written,
+        running: index_locals,
     };
     collector.visit_program(program);
-    let ConstCollector {
-        counts,
-        mut verdicts,
-        ..
-    } = collector;
-    verdicts.retain(|name, _| counts.get(name) == Some(&1));
-    LocalConsts {
-        verdicts,
-        local_references: references.starts,
-    }
+    collector.running
 }
 
 struct LocalReferenceCollector<'sem> {
     semantic: &'sem Semantic<'sem>,
+    resolved: FxHashMap<u32, oxc_semantic::SymbolId>,
     starts: FxHashSet<u32>,
 }
 
@@ -197,8 +199,54 @@ impl<'a> Visit<'a> for LocalReferenceCollector<'_> {
         let Some(symbol_id) = scoping.get_reference(reference_id).symbol_id() else {
             return;
         };
+        self.resolved.insert(it.span.start, symbol_id);
         if scoping.symbol_scope_id(symbol_id) != scoping.root_scope_id() {
             self.starts.insert(it.span.start);
+        }
+    }
+}
+
+/// Symbols a lowered write names. `c = 1` reaches this pass as `$.set(c, 1)`,
+/// so oxc scores the only occurrence of `c` a READ and `is_never_written` says
+/// yes — where upstream, which sees the source, has `binding.updated` set and
+/// evaluates the declaration to `UNKNOWN`. The helper names are the oracle's
+/// own: `$.set` for every assignment operator, `$.update` for a postfix and
+/// `$.update_pre` for a prefix update.
+struct LoweredWriteCollector<'sem> {
+    semantic: &'sem Semantic<'sem>,
+    written: FxHashSet<oxc_semantic::SymbolId>,
+}
+
+impl<'a> Visit<'a> for LoweredWriteCollector<'_> {
+    fn visit_call_expression(&mut self, it: &oxc_ast::ast::CallExpression<'a>) {
+        walk::walk_call_expression(self, it);
+        let oxc_ast::ast::Expression::StaticMemberExpression(member) = &it.callee else {
+            return;
+        };
+        let oxc_ast::ast::Expression::Identifier(obj) = &member.object else {
+            return;
+        };
+        if obj.name != "$"
+            || !matches!(
+                member.property.name.as_str(),
+                "set" | "update" | "update_pre"
+            )
+        {
+            return;
+        }
+        let Some(oxc_ast::ast::Expression::Identifier(target)) =
+            it.arguments.first().and_then(|a| a.as_expression())
+        else {
+            return;
+        };
+        if let Some(reference_id) = target.reference_id.get()
+            && let Some(symbol_id) = self
+                .semantic
+                .scoping()
+                .get_reference(reference_id)
+                .symbol_id()
+        {
+            self.written.insert(symbol_id);
         }
     }
 }
@@ -206,16 +254,17 @@ impl<'a> Visit<'a> for LocalReferenceCollector<'_> {
 struct ConstCollector<'an, 'sem> {
     analysis: Option<&'an ComponentAnalysis>,
     semantic: &'sem Semantic<'sem>,
-    index_locals: &'sem LocalConsts,
-    counts: FxHashMap<String, u32>,
-    verdicts: FxHashMap<String, bool>,
+    lowered_writes: &'sem FxHashSet<oxc_semantic::SymbolId>,
+    /// The verdicts collected so far, consulted while collecting the next one.
+    /// A declarator's initializer can name an earlier declaration
+    /// (`let d = $.derived(() => c)`), and upstream resolves that chain because
+    /// it evaluates the ORIGINAL binding's initial; carrying the map forward
+    /// reproduces it for every reference a `let`/`const` can legally make,
+    /// which is one declared above it.
+    running: LocalConsts,
 }
 
 impl<'a> Visit<'a> for ConstCollector<'_, '_> {
-    fn visit_binding_identifier(&mut self, it: &BindingIdentifier<'a>) {
-        *self.counts.entry(it.name.to_string()).or_insert(0) += 1;
-    }
-
     fn visit_variable_declarator(&mut self, it: &VariableDeclarator<'a>) {
         walk::walk_variable_declarator(self, it);
         let BindingPattern::BindingIdentifier(id) = &it.id else {
@@ -224,15 +273,16 @@ impl<'a> Visit<'a> for ConstCollector<'_, '_> {
         let Some(init) = &it.init else {
             return;
         };
+        let Some(symbol_id) = id.symbol_id.get() else {
+            return;
+        };
         // Upstream evaluates a binding's initializer when `!binding.updated` —
         // the test is whether the name is ever written, not whether it is `const`.
         if !self.is_never_written(id) {
             return;
         }
-        self.verdicts.insert(
-            id.name.to_string(),
-            shape_can_be_unknown(init, self.analysis, Some(self.index_locals)),
-        );
+        let verdict = shape_can_be_unknown(init, self.analysis, Some(&self.running));
+        self.running.verdicts.insert(symbol_id, verdict);
     }
 }
 
@@ -241,6 +291,9 @@ impl ConstCollector<'_, '_> {
         let Some(symbol_id) = id.symbol_id.get() else {
             return false;
         };
+        if self.lowered_writes.contains(&symbol_id) {
+            return false;
+        }
         !self
             .semantic
             .scoping()
@@ -263,17 +316,16 @@ fn identifier_can_be_unknown(
     if name == "undefined" {
         return false;
     }
-    if locals.is_some_and(|l| l.local_references.contains(&reference_start)) {
-        // A unique const retains the value verdict collected below. Every
-        // other local binding (parameters, lets, duplicate const names) is
-        // UNKNOWN to upstream's evaluator.
-        return locals
-            .and_then(|l| l.verdicts.get(name))
-            .copied()
-            .unwrap_or(true);
+    // The declaration this reference actually resolves to, which is the
+    // question upstream's `scope.get(name)` asks. A parameter and every other
+    // binding with no evaluated initializer has no verdict and stays UNKNOWN.
+    if let Some(l) = locals
+        && let Some(symbol_id) = l.resolved.get(&reference_start)
+    {
+        return l.verdicts.get(symbol_id).copied().unwrap_or(true);
     }
-    if let Some(&verdict) = locals.and_then(|l| l.verdicts.get(name)) {
-        return verdict;
+    if locals.is_some_and(|l| l.local_references.contains(&reference_start)) {
+        return true;
     }
     let Some(analysis) = analysis else {
         return true;
@@ -336,16 +388,24 @@ pub(super) fn shape_can_be_unknown(
         // rsvelte lowers `a === b` / `a == b` to these helpers *after* upstream
         // has already evaluated the original `BinaryExpression` to `{true,
         // false}`, and reads of a `$state` declaration to `$.get(name)`.
-        E::CallExpression(call) => match state_read_operand(call) {
-            Some(id) => identifier_can_be_unknown(&id.name, id.span.start, analysis, locals),
-            // A call upstream's `globals` table types contributes NUMBER or
-            // STRING to the value set even when it folds nothing (`Math.random()`),
-            // so it is never UNKNOWN.
-            None => {
-                !is_never_unknown_call(&call.callee)
-                    && !global_keypath(&call.callee, analysis, locals)
-                        .is_some_and(|k| server_evaluate::is_global_keypath(&k))
-            }
+        E::CallExpression(call) => match rune_operand(call) {
+            // Upstream's `CallExpression` rune arm evaluates the ARGUMENT of
+            // `$state` / `$state.raw` / `$derived`, so a declaration this pass
+            // still sees in its rune or lowered spelling must be unwrapped
+            // rather than read as an opaque call.
+            Some(RuneOperand::Expr(inner)) => recur(inner),
+            Some(RuneOperand::Undefined) => false,
+            None => match state_read_operand(call) {
+                Some(id) => identifier_can_be_unknown(&id.name, id.span.start, analysis, locals),
+                // A call upstream's `globals` table types contributes NUMBER or
+                // STRING to the value set even when it folds nothing (`Math.random()`),
+                // so it is never UNKNOWN.
+                None => {
+                    !is_never_unknown_call(&call.callee)
+                        && !global_keypath(&call.callee, analysis, locals)
+                            .is_some_and(|k| server_evaluate::is_global_keypath(&k))
+                }
+            },
         },
         // `Math.PI` and its siblings are `global_constants` upstream: a known value.
         E::StaticMemberExpression(_) => global_keypath(expr, analysis, locals)
@@ -401,6 +461,64 @@ fn binding_exists(
             b.name == name && (b.scope_index == 0 || b.scope_index == a.root.instance_scope_index)
         })
     })
+}
+
+/// What a rune call contributes to the value set: its argument, or `undefined`
+/// for the argument-less `$state()`.
+enum RuneOperand<'a> {
+    Expr(&'a oxc_ast::ast::Expression<'a>),
+    Undefined,
+}
+
+/// `$state(x)` / `$state.raw(x)` / `$derived(x)`, and the shapes rsvelte lowers
+/// them to before this text pass runs (`$.state(x)`, `$.derived(() => x)`,
+/// `$.tag(inner, 'name')`). Upstream evaluates all of them by evaluating the
+/// argument; this pass sees whichever spelling its caller's pipeline stage has
+/// reached, so both are inverted here.
+fn rune_operand<'a>(call: &'a oxc_ast::ast::CallExpression<'a>) -> Option<RuneOperand<'a>> {
+    use oxc_ast::ast::Expression as E;
+
+    let arg = |i: usize| call.arguments.get(i).and_then(|a| a.as_expression());
+    let first_or_undefined = || match arg(0) {
+        Some(e) => Some(RuneOperand::Expr(e)),
+        None => Some(RuneOperand::Undefined),
+    };
+
+    match &call.callee {
+        // `$state(x)`, `$derived(x)`
+        E::Identifier(id) if matches!(id.name.as_str(), "$state" | "$derived") => {
+            first_or_undefined()
+        }
+        E::StaticMemberExpression(member) => {
+            let E::Identifier(obj) = &member.object else {
+                return None;
+            };
+            match (obj.name.as_str(), member.property.name.as_str()) {
+                // `$state.raw(x)`
+                ("$state", "raw") => first_or_undefined(),
+                // `$derived.by(() => x)` — upstream only unwraps an expression
+                // body; a block body stays UNKNOWN, which is the default here.
+                ("$derived", "by") => match arg(0) {
+                    Some(E::ArrowFunctionExpression(a)) => {
+                        a.get_expression().map(RuneOperand::Expr)
+                    }
+                    _ => None,
+                },
+                // The lowered spellings.
+                ("$", "state") => first_or_undefined(),
+                ("$", "derived" | "derived_safe_equal") => match arg(0) {
+                    Some(E::ArrowFunctionExpression(a)) => {
+                        a.get_expression().map(RuneOperand::Expr)
+                    }
+                    _ => None,
+                },
+                // `$.tag(inner, 'name')` only names the value it wraps.
+                ("$", "tag") => arg(0).map(RuneOperand::Expr),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
 }
 
 /// The declaration name behind a lowered reactive read (`$.get(count)` /
