@@ -202,7 +202,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 
 | # | Gate | Unit compared | Sharpest blind spot | Ev. |
 |---|------|---------------|---------------------|-----|
-| 1 | Compiler output parity (`verify.mjs`) | per-entry × per-target JS text + CSS text | comments, on every entry and every target | [D] |
+| 1 | Compiler output parity (`verify.mjs`) | per-entry × per-target JS text, plus CSS text on the two **client** targets only (1i) | comments, on every entry and every target | [D] |
 | 2 | Compiler warning codes | multiset of `code` per entry × target | warning **message text** (#2403); a rule family measured at **one** of its ~40 codes (2d) | [D] |
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
@@ -1032,6 +1032,22 @@ because 1a means no gate reaches this code path with `Meaningful`.
 `compile.mjs:106-110` builds the recorded result from exactly three fields. **Discarded:**
 `result.js.map`, `result.css.map`, `result.metadata` (including the `runes` flag),
 `result.ast`. **[S]** A `metadata.runes` regression produces zero corpus signal.
+
+### Blind spot 1i — `css.code` is compared on two of the four targets — **[D]**
+
+`scripts/compat-corpus/targets.mjs` declares `css: true` for `client` and `client-dev` and
+`css: false` for `server` and `server-dev`, so a CSS divergence that reaches only a server target
+is compared by nothing. The gate's own summary row says the unit is "JS text + CSS text"; on half
+the targets it is JS text alone.
+
+**Discriminating case.** The two-arm sweep for #4190 moved two units —
+`appwrite-console/.../sortButton.svelte` on `client` and on `server` — and only the `client` one is
+a comparison this gate can make. The `server` one is CSS (`css=DIFF` before, `css=EQ` after,
+`js=EQ` throughout), so it moved from wrong to right entirely outside the ratchet's view.
+
+This is not a claim about how large the hole is. Nobody has measured what fraction of corpus units
+have CSS output that a server target would carry differently from a client one, and the sweep that
+produced the case above ran over 5,636 files rather than the full manifest.
 
 ### Blind spot 1f — the report's line number is a position in NORMALIZED text, not in either output or the source
 
