@@ -4518,8 +4518,9 @@ it loads, and every assertion then measures a binary that predates the change un
 manifest. Axes: `modern` (`parse(src, { modern: true })`), `legacy` (`parse(src)` — the default
 shape), and `loose` (seven inline sources). Both sides are compared after
 `JSON.parse(JSON.stringify(...))`. Shrink-only ratchet
-`compatibility/parse-ast-known-failures.json`, 480 keys, justified per cluster in the paired
-`.md`. Runs as a step in the `corpus` job (~50s over 28,208 compared pairs).
+`compatibility/parse-ast-known-failures.json` — count the JSON, which is primary; this sentence
+has carried 480 while the file held 301 — justified per cluster in the paired `.md`. Runs as a
+step in the `corpus` job (~50s over 28,208 compared pairs).
 
 **Why it exists.** `parse()` is a documented export of `svelte/compiler`, distinct from
 `compile()`, and nothing here compared its return value to official's. It is the
@@ -4528,8 +4529,10 @@ for want of inputs: the pipeline had 14,331 components and never called the func
 
 **[D] The comparator manufactures nothing.** Running the gate's own `diffKeys` with the
 **official** compiler on both sides of the same population produces **0 keys from 28,178
-self-compared pairs**, so all 652 listed keys are attributable to rsvelte's side rather than to
-the harness. Two failure directions were also driven: deleting `modern::Root#span` from the
+self-compared pairs**, so every listed key is attributable to rsvelte's side rather than to
+the harness (the run that produced this was the 652-key first baseline; the conclusion is about
+the comparator, not about that number). Two failure directions were also driven: deleting
+`modern::Root#span` from the
 ratchet exits 1 with `NEW divergence (12,324 entries)`, and adding a key that no longer diverges
 exits 1 with `listed key no longer diverges`; restoring the file returns exit 0 and a
 byte-identical tree.
