@@ -78,6 +78,28 @@ pub(super) fn first_line_ends_with_logical_op(first_line: &str) -> bool {
     t.ends_with("&&") || t.ends_with("||") || t.ends_with("??")
 }
 
+/// Collapse a chain OXC broke only at top-level logical operators
+/// (`&&` / `||` / `??`) back to one line.
+///
+/// `format_inline_expression` prints at `LineWidth::MAX` (320), so an
+/// expression wider than that breaks no matter what the caller asks for.
+/// prettier-plugin-svelte's `removeLines` rejoins such a break, which is why a
+/// block header stays on one line at any width. Returns `None` when any break
+/// sits somewhere else, so a real statement body is left alone.
+pub(super) fn collapse_logical_chain(formatted: &str) -> Option<String> {
+    let lines: Vec<&str> = formatted.lines().collect();
+    if lines.len() < 2 {
+        return None;
+    }
+    if !lines[..lines.len() - 1]
+        .iter()
+        .all(|l| first_line_ends_with_logical_op(l))
+    {
+        return None;
+    }
+    Some(lines.iter().map(|l| l.trim()).collect::<Vec<_>>().join(" "))
+}
+
 /// Returns `true` when the expression source starts with `[` or `{`
 /// (an array literal or object literal).  prettier-plugin-svelte never breaks
 /// these in block-header positions even when they are far wider than the print

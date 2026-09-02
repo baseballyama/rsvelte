@@ -11,7 +11,7 @@ use super::declaration::{
 };
 use super::format_core::format_expr_core;
 use super::text::{
-    collapse_block_header_expanded_call, collapse_expanded_arg_form,
+    collapse_block_header_expanded_call, collapse_expanded_arg_form, collapse_logical_chain,
     collapse_multiline_to_single_line, compute_header_suffix_len, first_line_ends_with_logical_op,
     is_method_chain_break, starts_with_array_or_object_literal,
 };
@@ -549,6 +549,10 @@ pub(super) fn push_bare_expression(
         if starts_with_array_or_object_literal(slice) {
             // Array/object literal: prettier keeps it flat with no added spaces.
             collapse_multiline_to_single_line(&formatted)
+        } else if let Some(collapsed) = collapse_logical_chain(&formatted) {
+            // A logical chain OXC broke only because it exceeds `LineWidth::MAX`;
+            // `removeLines` rejoins it, so the header stays on one line.
+            collapsed
         } else if let Some(collapsed) = collapse_block_header_expanded_call(&formatted) {
             // A call OXC expanded because its last arg is huggable. prettier's
             // `removeLines` collapses the `allArgsBrokenOut` layout to one line but
