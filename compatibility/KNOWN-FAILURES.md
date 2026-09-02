@@ -903,7 +903,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 547 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 545 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -928,17 +928,25 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `257 + 214 + 15 + 46 + 13 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `257 + 212 + 15 + 46 + 13 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 547 entries**, where it
+**The partition is now the mechanical rule applied to all 545 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
 mechanical buckets, because the CI report names an entry's first differing line
 and not the cluster a human filed it under. The addends are, in order:
-20 breaks-later 257, 21 breaks-earlier 214, 22 intra-line-ws 15,
+20 breaks-later 257, 21 breaks-earlier 212, 22 intra-line-ws 15,
 23 indent-only 46, 24 other 13, 25 extra-line 1, 26 missing-line 1;
 27 quote-style is now empty.
+
+`sparrow-app/…/text-upload/TextUpload.svelte` and
+`sparrow-app/…/request-navigator/RequestNavigator.svelte` left
+**21 — breaks-earlier** in #4187. Both are block headers whose expression exceeds
+`LineWidth::MAX = 320` (338 and 344 columns), which is a width OXC cannot be asked
+for, so it broke a logical chain the oracle keeps on one line; `removeLines`
+rejoins it. Their cluster was measured on the `origin/main` arm — on the fix arm
+they classify as `IDENTICAL-NOW` and carry no cluster at all.
 
 `headscale-ui/…/DeviceTags/NewDeviceTag.svelte` left **20 — breaks-later** and
 `sveltepress/…/icons/logos/Bun.svelte` left **23 — indent-only** in #4151; both
@@ -1150,7 +1158,7 @@ ratchet with 0 new failures; `SystemDefault.svelte` itself stays listed, on the
 **Attribution status of this ratchet.** *Nothing here is an oracle bug* — that
 classification lives in `fmt-oracle-excluded.json` — so **no entry is attributed to
 an `upstream_issues/` report**, and **none is attributed to a
-`deliberate-divergences` section either**. All 547 have to be burned down to zero.
+`deliberate-divergences` section either**. All 545 have to be burned down to zero.
 
 The previous version of this paragraph said `5 + 783`, against a ratchet holding
 547. The partition line above and this paragraph state quantities of the same
@@ -1191,7 +1199,7 @@ elimination for every entry it holds.
 The five candidates are `layerchart/docs/src/routes/+page.svelte` (Cluster 8),
 the two Cluster 11 fixtures (`css-nth-of-minified`, `css-escape-sequences`) and
 `pattern/issues/3404-{repeated-combinators,unhandled-combinator-scope}.svelte`.
-The remaining 542 are one bucket rather than seven because the mechanical
+The remaining 540 are one bucket rather than seven because the mechanical
 `20`-`26` split above is recomputed from `compatibility/fmt-report.json`, which is
 a build artifact of a full oracle run and is not in the tree — assigning those
 buckets per entry from the doc would be transcription, not measurement.
@@ -1199,9 +1207,9 @@ buckets per entry from the doc would be transcription, not measurement.
 | n | mechanism | pinned |
 |---|---|---|
 | 5 | the embedded-CSS engine split — rsvelte-fmt prints through `oxc_formatter_css` and the oracle's Svelte path through PostCSS; a candidate for `deliberate-divergences`, but the pin there covers value spelling and none of these entries | none — candidate, not pinned for this facet |
-| 542 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+| 540 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
-Partition of `fmt-known-failures.json` by mechanism: `5 + 542`
+Partition of `fmt-known-failures.json` by mechanism: `5 + 540`
 
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
