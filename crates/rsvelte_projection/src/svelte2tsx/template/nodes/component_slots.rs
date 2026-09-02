@@ -618,11 +618,8 @@ pub fn handle_named_slot_svelte_fragment(
     let slot_name = slot_attr_static_name(&el.attributes).unwrap_or_default();
     let let_destructure = build_let_destructure_string(&el.attributes, source);
 
-    // Leading ` ` matches the JS reference, which produces
-    // `\t {const ... ;{ svelteHTML.createElement(...)` after the tab indent
-    // is preserved.
     let block_open = format!(
-        " {{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     let opening_tag_end =
@@ -645,32 +642,29 @@ pub fn handle_named_slot_svelte_fragment(
         false,
         options.namespace.preserves_attribute_case(),
     );
-    let inner = if attrs_str.is_empty() {
-        let stripped_count = el
-            .attributes
-            .iter()
-            .filter(|a| {
-                matches!(
-                    a,
-                    Attribute::Attribute(node)
-                        if node.name == "slot"
-                ) || matches!(a, Attribute::LetDirective(_))
-            })
-            .count();
-        // A self-closing tag's ` /` is one more source column the emission
-        // preserves, and it lands inside the braces rather than after them.
-        let width = if has_closing_tag {
-            stripped_count.max(1)
-        } else {
-            stripped_count + 1
-        };
-        " ".repeat(width)
-    } else {
-        attrs_str
-    };
+    // The opener is position-preserving, exactly as on a named-slot element:
+    // the columns the stripped `slot=` / `let:` take up reappear as spaces.
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        Some((el.start + 1, el.start + 1 + source_offset(el.name.len()))),
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot: true,
+            tag_name: &el.name,
+            is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
+        },
+    );
     let opener = format!(
-        "{block_open}{{ {}.createElement(\"svelte:fragment\", {{{inner}}});",
-        options.typings_namespace
+        "{}{block_open}{{ {}.createElement(\"svelte:fragment\", {{{}{attrs_str}}});",
+        " ".repeat(spacing.before_block),
+        options.typings_namespace,
+        " ".repeat(spacing.in_attr_object),
     );
 
     if !has_closing_tag {
@@ -890,11 +884,14 @@ pub fn build_named_slot_element_attrs(
                 }
                 // Named-slot elements become `svelteHTML.createElement(…)` calls,
                 // so they are real DOM elements — apply data-* wrapping.
-                parts.push(format_attribute_node(
-                    node,
-                    source,
-                    AttrHost::Element { tag, preserve_case },
-                ));
+                // `<svelte:fragment>` is an `Element` whose node type is not
+                // `Element`, so neither name rewrite reaches it.
+                let host = if tag == "svelte:fragment" {
+                    AttrHost::SpecialTag { tag }
+                } else {
+                    AttrHost::Element { tag, preserve_case }
+                };
+                parts.push(format_attribute_node(node, source, host));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));
