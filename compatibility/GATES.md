@@ -5430,7 +5430,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [21](#21-does-this-write-target-resolve-to-the-components-binding-or-to-a-shadow--d) | Does this write target resolve to the component's binding, or to a shadow? | 44 rewrite passes, 8 scope-aware | **[D]** | 4 ports closed at degree 1 |
 | [28](#28-how-is-an-elements-attribute-list-rendered--d) | How is an element's attribute list rendered? | 2 emitters (+2 copies of `action_arguments`) | **[D]** | 1 defect open |
 | [29](#29-is-a-name-inside-a-named-slots-body-reactive--d) | Is a name inside a named slot's body reactive? | 2 (phase 2 scope fork, phase 3 name lookup) | **[D]** | open |
-| [30](#30-is-this-rule-a-global-block--d) | Is this rule a global block? | 4 predicates, 13 decision sites | **[D]** | 4 defects closed, 1 open |
+| [30](#30-is-this-rule-a-global-block--d) | Is this rule a global block? | 4 predicates, 13 decision sites | **[D]** | 5 defects closed, 1 open |
 
 **Rows 22–27 have bodies below and no line in this table** — measured 2026-09-02 by
 enumerating the `#### <n>.` headings against the table's own `[n]` links. The index is the
@@ -7103,10 +7103,34 @@ is consulted, and then matched against the rsvelte call sites. The thirteen-site
 that work; the fourth defect was **predicted from the table and witnessed afterwards**, not found
 from a failing input.
 
-**Still open:** the non-minify body copy of a `:global { … }` block is a verbatim splice with
-deletion ranges, so it can express `remove_global_pseudo_class` (a deletion) and cannot express
-`/* (empty) … */` (an insertion). A nested empty rule inside a lone `:global { … }` is therefore
-still not commented out.
+**The fifth site was the same shape one level up, and it is closed.** The non-minify body copy
+of a `:global { … }` block was a verbatim splice with deletion ranges, so it could express
+`remove_global_pseudo_class` (a deletion) and not `/* (empty) … */` (an insertion): a nested
+empty rule survived. The body now goes through the `Rule` / `Atrule` visitors the minify branch
+already used — the "called from m of n paths" row above, repaired.
+
+**Still open, and it is the same class with a different insertion.** Upstream prepends `&` to a
+bare `:global` that has a parent rule and no combinator (`3-transform/css/index.js:292-296`,
+whose own comment reads `div { :global.x { ... } } becomes div { &.x { ... } }`). rsvelte gets
+that right for an ordinary parent and loses it when the parent is itself a `:global { }` block,
+because the path there deletes the `:global` and inserts nothing. **The axis is the parent, not
+the selector**: `div { :global.a }`, `.p { :global.a }` and `.p { :global .a }` are all
+byte-equal, `:global { :global.a }` is not, and `:global.a` with no parent is rejected by both
+compilers. Population: **6** of 32,651 corpus `.svelte` spell `:global` followed by a compound
+character, **0** of them diverge on any of the four targets, with a constructed cell firing on
+4/4 through the same instrument — latent, no witness, and the token scan is a superset of the
+reachable set.
+
+**How it was found is the part worth keeping.** A probe over `.a:global`, `:global.a`,
+`.a :global`, `.a:global(.b)` and two more, each at top level and inside a `:global { }` block,
+was first run with `accept/reject` as its key and reported 12/12 agreement. Two of those cells
+are *accepted* and one of them is byte-different, so the verdict key collapsed a real divergence
+into agreement — **a probe has a comparison key and drops fields exactly like a gate does**.
+The same probe with the output in the key reports 11/12. Re-run on an arm built from the commit
+before this row's first fix, all cells were byte-identical, so the divergence is pre-existing:
+an argument that "these rejections are raised in analysis and so cannot move with a phase-3 arm"
+is sound for the rejected cells and says nothing about the accepted ones, whose output phase 3
+builds.
 
 ## AST equivalence — what the gates compare
 

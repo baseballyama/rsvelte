@@ -6827,9 +6827,9 @@ fn transform_global_block<'a>(
                     }
                 }
 
-                // Upstream visits the block, so a minified `:global {}` body is
-                // minified like any other; only the scoping is skipped.
-                if _ctx.minify {
+                // Upstream visits the block like any other, so its children go through
+                // the same Rule/Atrule visitors; only the scoping is skipped.
+                {
                     let mut local_last_end = child_start;
                     match child.get("type").and_then(|t| t.as_str()) {
                         Some("Rule") => transform_rule_preserving(
@@ -6876,37 +6876,6 @@ fn transform_global_block<'a>(
                         }
                         _ => {}
                     }
-                    last_end = child_end;
-                    continue;
-                }
-
-                // Copy the child from source (don't scope - it's inside :global).
-                // A `-global-` keyframes name is still stripped: upstream's
-                // Atrule visitor runs at every depth, so nesting inside
-                // `:global {}` does not exempt it.
-                let child_start_idx = child_start.saturating_sub(css_start);
-                let child_end_idx = child_end.saturating_sub(css_start);
-                if child_end_idx <= css_source.len() && child_start_idx < child_end_idx {
-                    let mut cuts = Vec::new();
-                    collect_global_keyframe_prefixes(child, css_source, css_start, &mut cuts);
-                    let mut ranges: Vec<(usize, usize)> =
-                        cuts.into_iter().map(|c| (c, c + 8)).collect();
-                    // Upstream visits every ComplexSelector here too, so a nested
-                    // `:global(...)` still loses the pseudo-class even though no
-                    // scoping modifier is added.
-                    collect_global_pseudo_cuts(child, css_source, css_start, &mut ranges);
-                    ranges.retain(|&(a, b)| a >= child_start_idx && b <= child_end_idx && a < b);
-                    ranges.sort_unstable();
-                    mark_tree(output, child);
-                    let mut from = child_start_idx;
-                    for (a, b) in ranges {
-                        if a < from {
-                            continue;
-                        }
-                        output.copy(from + css_start, &css_source[from..a]);
-                        from = b;
-                    }
-                    output.copy(from + css_start, &css_source[from..child_end_idx]);
                 }
 
                 last_end = child_end;
@@ -6936,8 +6905,6 @@ fn transform_global_block<'a>(
     }
 }
 
-/// Offsets (relative to `css_source`) of every `-global-` prefix on a keyframes
-/// name in `node`'s subtree, so a verbatim copy can still drop them.
 /// Byte ranges (relative to `css_source`) that upstream's
 /// `remove_global_pseudo_class` deletes: `:global(` plus its `)`, or the bare
 /// `:global` keyword plus the descendant space that would be left dangling.
@@ -6993,44 +6960,6 @@ fn collect_global_pseudo_cuts(
         } else {
             out.push((from, from + ":global(".len()));
             out.push((to - 1, to));
-        }
-    }
-}
-
-fn collect_global_keyframe_prefixes(
-    node: &Value,
-    css_source: &str,
-    css_start: usize,
-    out: &mut Vec<usize>,
-) {
-    if node.get("type").and_then(|t| t.as_str()) == Some("Atrule") {
-        let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
-        let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
-        if matches!(
-            name,
-            "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
-        ) && prelude.starts_with("-global-")
-        {
-            let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let bytes = css_source.as_bytes();
-            let mut p_start = start + name.len() + 1;
-            while p_start.saturating_sub(css_start) < css_source.len()
-                && bytes.get(p_start - css_start) == Some(&b' ')
-            {
-                p_start += 1;
-            }
-            out.push(p_start.saturating_sub(css_start));
-            return;
-        }
-    }
-    for key in ["block", "prelude"] {
-        if let Some(child) = node.get(key).filter(|c| !c.is_null()) {
-            collect_global_keyframe_prefixes(child, css_source, css_start, out);
-        }
-    }
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
-        for child in children {
-            collect_global_keyframe_prefixes(child, css_source, css_start, out);
         }
     }
 }
