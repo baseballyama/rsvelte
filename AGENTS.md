@@ -166,7 +166,8 @@ see gate-coverage 19a, where both are recorded as discriminating cases. And the 
 produced every one of these defects — huly, open-webui, carbon-components-svelte, SMUI — **were
 not corpus sources at the time**, so the gate baselined at 0 while the instances lived outside the
 population it inspected; that is why each fix lands a `compatibility/pattern-corpus` repro. All
-four are corpus sources now (#3130 took the corpus to 103 repositories), which closes the
+four are corpus sources now (**#3176** took the corpus to 103 repositories; this file and
+`KNOWN-FAILURES.md` cited #3130 — an unrelated CSS issue — 16 times), which closes the
 population hole for these particular four and for nothing else — the lesson is that the gate's
 population is a choice, not a given.
 
@@ -377,10 +378,12 @@ Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from
 source repository — sveltejs/svelte, sveltejs/svelte.dev and **101** real-world projects (huly,
 immich, open-webui, carbon-components-svelte, SMUI, threlte, bits-ui, … ), all pinned as
 submodules and listed in `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
-rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
-`scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
+rsvelte for CSR, SSR, dev-mode SSR **and** dev-mode CSR (the **four** targets declared in
+`scripts/compat-corpus/targets.mjs` — this paragraph said three until 2026-09-02, and a sweep
+written from it reported "collateral 0" over three quarters of its population). Outputs must be
+byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
-plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
+plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,server-dev,client-dev}.json`
 may only shrink, and each remaining failure is justified in `compatibility/KNOWN-FAILURES.md#known-failures`. Every
 ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
 that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
@@ -1044,7 +1047,37 @@ Rules, in the order they are cheap:
    without any truncation at all: a stage that **pairs** two measurements can pair
    the wrong rows, so use an associative array keyed by id (`awk`) and never
    `join`, whose ordering precondition your data will violate the first time an
-   id contains a non-ASCII byte.
+   id contains a non-ASCII byte. **And the rule is not "use `awk`" — it is: do
+   not build a stage that renders a composite key to text and re-parses it.**
+   `-F'\t'` only makes that stage safe for today's separator; a pipeline that
+   keeps the key as an object (`out[`${id}|${target}`]`, JSON, `Object.keys()`)
+   has no such stage at all. Measured: with the default field separator a corpus
+   id containing a space (`Checkbox Group.svelte`) splits across `$1`/`$2`, so a
+   file's four target rows collapse onto one key and the comparison reads the
+   *target name* where it meant to read the hash — **100 moved units reported
+   for a change that moves 2**. Over-reporting is the direction this instance
+   took; the array keeps the **last** row's value per key, so a real movement in
+   any of the preceding targets is *hidden* whenever that last value matches.
+   One bug, both directions, same input.
+   What exposed it was the **shape** of the printed paths, not the count: a
+   count is a threshold and says only "more than expected", while `Checkbox
+   Group.svelte` printed three times is a signature that cannot occur. Had the
+   corpus held four space-bearing ids instead of 47, the same bug would have
+   reported `MOVED=6` and been written up as "4 collateral units".
+   The cheap control is to print the key count beside the row count — a collapse
+   makes them differ, and `139252 rows, 139252 distinct keys` retires the
+   question for that run. Two cautions from getting this wrong while writing it
+   up: **the size of a collapse cannot be derived from the number of bad inputs**
+   — 47 space-bearing ids over four targets lose 161 keys, not 141, because 20
+   of them are **id-to-id** collisions (`…/examples/01 - foo.svelte` and
+   `…/01 - bar.svelte` both reduce to `$1=…/01`, `$2=-`), which is a count only
+   the ids themselves carry, never their number. **Those 20 are the worse half**:
+   a same-id collapse compares the wrong target of the right file and printed the
+   repeated-path signature that exposed this, while an id-to-id collapse compares
+   a *different file's* output and prints nothing anomalous at all. And the
+   number in this paragraph was published as measured before it had been run; it
+   was wrong, and the conclusion survived only because it did not depend on it —
+   which is knowable *after* the fact and is therefore not a licence to estimate.
 2. **When "pass" is spelled as silence, the run needs a positive control.**
    Introduce the defect the check exists to catch, confirm the check goes red,
    remove it, and confirm the tree is byte-identical again (`git diff` empty).
