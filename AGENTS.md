@@ -1211,6 +1211,15 @@ this session" is an assumption, and the two disagree silently. The prefix does n
 reset — it only makes each call independent of the previous call's cwd. What it cannot fake is
 the build's own `Compiling <crate> (<path>)` line, so read that before trusting any arm.
 
+**And the same hazard has a read-only form that no `Compiling` line can catch.** A ratchet census
+run in the primary checkout reported `known-failures.client.json` at **17**; `origin/main` reads
+**14**, because that checkout was parked on a documentation branch cut before three merges. There
+was no build, no arm and no binary — just `readFileSync` over `compatibility/`, which is the
+cheapest possible measurement and was of the wrong tree. A census is a measurement of a tree in
+exactly the way a baseline is, so name the tree in the output (`git rev-parse HEAD` beside the
+counts) rather than in your intention; a number with no revision beside it cannot be checked by
+anyone, including the person who produced it.
+
 A second, independent signal is the **diff between the two arms' trees** (`git diff <base> HEAD
 -- crates/`): a one-line answer to "do these arms differ by the change I think they do". Neither
 signal is sufficient alone — the `Compiling` line says which tree was read but not what is in it,
@@ -1676,6 +1685,30 @@ the same line would print if the arrangement were reversed. Nothing is missing f
 so re-reading it more carefully cannot help; only a different operation can — **read the names
 of the tests that ran, not the count**, and where a suite prints its own denominators
 (`770/770 official segments`, `0/1634 out of range`) run it with `--nocapture` so those appear.
+
+**A verdict over a set must state the set's size, because an empty set satisfies every rule
+written as "nothing failed".** A check-run monitor asked "is any run incomplete, is any run a
+failure" and printed `COMPLETE seen=0 total_count=0 fail=0` for two different PRs — a green
+sentence about a commit that has no checks at all. One of the two is not a transient: a
+Changesets release PR is opened with `GITHUB_TOKEN`, which does not trigger `pull_request`
+workflows, so **that PR structurally has zero check-runs and no gate has ever seen it**. The fix
+is not an `if seen == 0` arm; it is that the reader must print the denominator and refuse to
+conclude at zero, and must additionally assert `seen == total_count` — the check-runs API pages
+at 30, so `total_count` and the length of what you received are two different numbers and only
+the second is yours. Both halves have now produced a false green on this repository within one
+day of each other.
+
+**A gate can be written, unit-tested, self-tested and wired to nothing.**
+`scripts/ci/attribution-check.mjs` owns the question "is every ratchet entry attributed", ships 8
+passing controls under `pnpm run test:attribution-check`, and
+`grep -rn 'attribution-check\|check:attribution' .github/workflows/` returns **0**. On the day
+this was found, *both* people who had published a census of that question had built it by hand
+from the `Attribution of` prose in `KNOWN-FAILURES.md` rather than by running the checker — one of
+them in the same report that named that prose as ungated and rotting. The two hand-built censuses
+agreed to within a difference that fully explains (16 = client 22→14 plus client-dev 36→28), and
+**that agreement is not evidence the method is sound**: two readings of one document are one
+measurement. Ask which artifact in the tree *owns* a question before answering it; "it is not in
+CI" is a reason to run it locally, never a reason it is not the authority.
 
 **An instrument can be dead on exactly the population that carries the defect, and it reports
 that as agreement.** Row 4 above is not a missing column so much as a column filled in with a
