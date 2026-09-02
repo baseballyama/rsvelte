@@ -68,6 +68,40 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## The client target decomposes into two multiplicative factors (2026-09-03 00:12)
+
+A speedup is `single-thread speedup x parallel efficiency`, and both factors are
+in the published report:
+
+| surface | single x | parallel eff. | product | measured |
+|---|---:|---:|---:|---:|
+| server | 3.695 | 5.30 | 19.6 | 19.59x |
+| server-dev | 3.692 | 5.41 | 20.0 | 19.98x |
+| client | 3.248 | (contaminated) | — | 9.63x |
+| client-dev | 3.043 | 4.57 | 13.9 | 13.89x |
+
+Give the client both server factors and it lands at 3.695 x 5.41 = **19.99x**,
+and client-dev at 19.98x. **That is not a coincidence and should not be quoted
+as a discovery** — it is arithmetic: matching the server on both factors puts
+the client where the server already is, and the server is at ~20x. What the
+decomposition buys is the *sizing of each half* and the proof that neither
+suffices:
+
+- deficit #1 (single-thread): **1.138x** — client-specific transform work that
+  official does not charge the same premium for
+- deficit #2 (scaling): 4.57x -> 5.41x, i.e. **1.18x**
+
+1.138 x 1.18 = 1.34, and client-dev needs 20/13.89 = 1.44x, so even both
+together are slightly short for client-dev on these numbers — the remaining
+0.07x sits inside the drift already documented, and should be treated as "at the
+edge", not "met".
+
+**The honest caution about this table**: `parallel eff.` for client is taken
+from the *dev* run because the prod client run is contaminated, and dev and prod
+are different workloads. The two server surfaces agree closely (5.30 / 5.41),
+which is why borrowing across the pair is defensible, but it is a borrowed
+number and not a measured client-prod one.
+
 ## The printer is not the client lever, and neither is the source map (2026-09-03 00:10)
 
 `esrap_share` already collects `take_esrap_breakdown()` — a per-branch print
@@ -250,8 +284,12 @@ dev pair for the parallel comparison. Two deficits separate client from server,
 and they are independent:
 
 1. **Single-threaded, client is 1.28x slower than server on the same corpus**
-   (12114 vs 9492 ms). This is structural, not noise: `single x` is 3.69 on
-   *both* server surfaces and 3.04-3.25 on *both* client surfaces.
+   (12114 vs 9492 ms) — but **1.28x overstates the deficit**, because official
+   is also slower on the client (39342 vs 35071 = 1.122x). Normalising that out
+   leaves **1.138x**, confirmed two ways: the ratio of ratios
+   (1.276 / 1.122) and the ratio of single-thread speedups (3.695 / 3.248) agree
+   to three digits. It is structural, not noise: `single x` is 3.69 on *both*
+   server surfaces and 3.04-3.25 on *both* client surfaces.
 2. **Client parallelizes worse** -- 4.57x against server's 5.41x on the clean
    dev pair.
 
