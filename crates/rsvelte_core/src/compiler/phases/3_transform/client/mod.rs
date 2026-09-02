@@ -8143,18 +8143,36 @@ fn transform_instance_script_for_visitors(
                     .unwrap_or(transformed)
                 }
             };
+            // A prop write inside the default value reaches none of the three
+            // passes above: the prop and store passes are read-only and the
+            // state pipeline covers state alone.
+            let transformed = if analysis.runes {
+                transformed
+            } else {
+                apply_prop_writes_in_prop_default_values(
+                    &transformed,
+                    prop_assignment_transform_vars,
+                    &non_bindable_prop_vars,
+                    &prop_invalidate_bodies,
+                )
+            };
             // Apply store subscription transformations to the default value expression
             // (e.g. `export let value = $page.params` becomes `$.prop(..., () => $page().params)`).
-            // Only transform when the default value is wrapped in an arrow function — when
-            // the default is a bare store identifier (e.g. `$foo`), it's passed as a getter
-            // reference and must stay untransformed.
+            // A bare store identifier default (`$foo`) is passed as a getter
+            // reference and stays untransformed.
             let transformed = {
                 let _pa_sub = super::profile::pa_guard(
                     super::profile::PA_EL_STORE_READS,
                     transformed.len() as u64,
                 );
                 if !store_sub_vars.is_empty() && !analysis.runes {
-                    apply_store_reads_in_prop_default_values(&transformed, store_sub_vars)
+                    apply_store_transforms_in_prop_default_values(
+                        &transformed,
+                        store_sub_vars,
+                        prop_assignment_transform_vars,
+                        state_vars,
+                        non_reactive_state_vars,
+                    )
                 } else {
                     transformed
                 }

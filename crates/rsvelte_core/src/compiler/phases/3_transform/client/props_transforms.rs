@@ -955,135 +955,90 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
     result
 }
 
-/// Apply store subscription read transforms (`$foo` -> `$foo()`) inside the
-/// default value of `$.prop()` calls, but only when the default is wrapped in
-/// an arrow function (`() => ...`). When the default is a bare store identifier
-/// like `$foo`, it's passed as a getter reference and must stay untransformed.
-pub(super) fn apply_store_reads_in_prop_default_values(
+/// Apply the store subscription transforms inside the default value of
+/// `$.prop()` calls, in the order the ordinary instance body applies them:
+/// `transform_store_sub_calls`, then the **assignments**, then the reads.
+///
+/// The middle step was missing, so a store write in a default value was emitted
+/// verbatim and `$store() = 1` reached the output — text no JS parser accepts.
+/// The default value is located by span rather than by counting commas, which
+/// also retires the fourth copy of that character loop.
+pub(super) fn apply_store_transforms_in_prop_default_values(
     line: &str,
     store_sub_vars: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
 ) -> String {
-    use super::store_transforms::{transform_store_reads_client, transform_store_sub_calls};
+    use super::store_transforms::{
+        transform_store_assignments_client, transform_store_reads_client, transform_store_sub_calls,
+    };
 
-    let mut result = String::new();
-    let mut search_from = 0;
-
-    while let Some(prop_pos) = memmem::find(&line.as_bytes()[search_from..], b"$.prop(") {
-        let abs_pos = search_from + prop_pos;
-        result.push_str(&line[search_from..abs_pos]);
-
-        let after_prop = &line[abs_pos + 7..];
-        let chars: Vec<char> = after_prop.chars().collect();
-        let mut i = 0usize;
-        let mut depth: i32 = 1;
-        let mut arg_count = 0usize;
-        let mut fourth_arg_start: Option<CharOffset> = None;
-        let mut fourth_arg_end: Option<CharOffset> = None;
-        let mut in_string: Option<char> = None;
-        let char_to_byte = CharToByte::new(after_prop);
-
-        while i < chars.len() {
-            let c = chars[i];
-            if let Some(quote) = in_string {
-                if c == '\\' && i + 1 < chars.len() {
-                    i += 2;
-                    continue;
-                }
-                if c == quote {
-                    in_string = None;
-                }
-                i += 1;
-                continue;
-            }
-            match c {
-                '"' | '\'' | '`' => in_string = Some(c),
-                '(' | '[' | '{' => depth += 1,
-                ')' | ']' | '}' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        if fourth_arg_start.is_some() {
-                            fourth_arg_end = Some(CharOffset::new(i));
-                        }
-                        break;
-                    }
-                }
-                ',' if depth == 1 => {
-                    arg_count += 1;
-                    if arg_count == 3 {
-                        let mut j = i + 1;
-                        while j < chars.len() && chars[j].is_whitespace() {
-                            j += 1;
-                        }
-                        fourth_arg_start = Some(CharOffset::new(j));
-                    }
-                }
-                _ => {}
-            }
-            i += 1;
-        }
-
-        if let (Some(start_char), Some(end_char)) = (fourth_arg_start, fourth_arg_end) {
-            let start_byte = char_to_byte.byte(start_char);
-            let end_byte = char_to_byte.byte(end_char);
-            let before_default = start_byte.before(after_prop);
-            let default_val = start_byte.to(end_byte, after_prop);
-
-            // Only transform if default is wrapped in an arrow function.
-            let trimmed_default = default_val.trim_start();
-            let is_wrapped =
-                trimmed_default.starts_with("() =>") || trimmed_default.starts_with("()=>");
-
-            let transformed_default = if is_wrapped {
-                let t = transform_store_sub_calls(default_val, store_sub_vars);
-                transform_store_reads_client(&t, store_sub_vars)
-            } else {
-                default_val.to_string()
-            };
-
-            result.push_str("$.prop(");
-            result.push_str(before_default);
-            result.push_str(&transformed_default);
-            let close_byte = char_to_byte.byte(end_char.next());
-            result.push_str(end_byte.to(close_byte, after_prop));
-            search_from = abs_pos + 7 + close_byte.get();
-        } else {
-            result.push_str("$.prop(");
-            let mut d: i32 = 1;
-            let mut s: Option<char> = None;
-            let mut ec = None;
-            for (ci, ch) in chars.iter().enumerate() {
-                if let Some(q) = s {
-                    if *ch == q {
-                        s = None;
-                    }
-                    continue;
-                }
-                match ch {
-                    '"' | '\'' | '`' => s = Some(*ch),
-                    '(' | '[' | '{' => d += 1,
-                    ')' | ']' | '}' => {
-                        d -= 1;
-                        if d == 0 {
-                            ec = Some(CharOffset::new(ci));
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            if let Some(end_char) = ec {
-                let end_byte = char_to_byte.byte(end_char.next());
-                result.push_str(end_byte.before(after_prop));
-                search_from = abs_pos + 7 + end_byte.get();
-            } else {
-                result.push_str(after_prop);
-                search_from = line.len();
-            }
-        }
+    if store_sub_vars.is_empty() {
+        return line.to_string();
     }
+    super::prop_source_reads_ast::map_prop_default_values(line, |default| {
+        let after_subs = transform_store_sub_calls(default, store_sub_vars);
+        let after_assigns = transform_store_assignments_client(
+            &after_subs,
+            store_sub_vars,
+            prop_vars,
+            state_vars,
+            non_reactive_state_vars,
+        );
+        Some(as_expression(
+            default,
+            transform_store_reads_client(&after_assigns, store_sub_vars),
+        ))
+    })
+    .unwrap_or_else(|| line.to_string())
+}
 
-    result.push_str(&line[search_from..]);
-    result
+/// A default value is an argument, so it is an expression and can never end in
+/// a `;`. The update rewriter parses its input as a PROGRAM and re-prints it,
+/// which appends the statement terminator an expression must not carry.
+fn as_expression(before: &str, after: String) -> String {
+    if before.trim_end().ends_with(';') {
+        return after;
+    }
+    match after.trim_end().strip_suffix(';') {
+        Some(trimmed) => trimmed.to_string(),
+        None => after,
+    }
+}
+
+/// Apply the prop **write** transforms inside the default value of `$.prop()`
+/// calls.
+///
+/// Upstream has no default-value special case at all: a default is visited by
+/// the same `AssignmentExpression` / `UpdateExpression` visitors as any other
+/// expression. rsvelte reaches it through `transform_prop_assignments`, which
+/// skips any line containing `$.prop(`, so the default needs its own entry —
+/// which is why the read side already has two.
+pub(super) fn apply_prop_writes_in_prop_default_values(
+    line: &str,
+    prop_vars: &[String],
+    non_bindable_prop_vars: &[String],
+    prop_invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
+) -> String {
+    use super::reactive_transforms::transform_prop_update_expressions;
+    use super::state_transforms::transform_prop_assignments;
+
+    if prop_vars.is_empty() {
+        return line.to_string();
+    }
+    super::prop_source_reads_ast::map_prop_default_values(line, |default| {
+        let after_updates = transform_prop_update_expressions(default, prop_vars);
+        let after_assigns = transform_prop_assignments(
+            &after_updates,
+            prop_vars,
+            non_bindable_prop_vars,
+            prop_invalidate_bodies,
+        )
+        .into_owned();
+        Some(as_expression(default, after_assigns))
+    })
+    .unwrap_or_else(|| line.to_string())
 }
 
 pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
@@ -5445,9 +5400,12 @@ mod split_declarators_tests {
             "☃ $.prop($$props, '名', 24, () => logs().push(1));",
         );
         assert_eq!(
-            super::apply_store_reads_in_prop_default_values(
+            super::apply_store_transforms_in_prop_default_values(
                 "$.prop($$props, '名', 24, () => $items);",
                 &["$items".to_string()],
+                &[],
+                &[],
+                &[],
             ),
             "$.prop($$props, '名', 24, () => $items());",
         );

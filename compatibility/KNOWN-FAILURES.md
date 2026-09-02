@@ -2950,14 +2950,47 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 11 entries)
+### Client (`known-failures.client.json`, 9 entries)
 
-Partition of `known-failures.client.json` by verdict: `11`
+Partition of `known-failures.client.json` by verdict: `9`
 
-- **11 — the generated JS differs** (`js` / `code-differs`).
+- **9 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
+
+`svelteui/…/Modal/ModalForm.svelte` and `mathesar/…/sort-entry/SortEntry.svelte` left this target
+and `client-dev` when a **write** inside a prop's default value started reaching the passes an
+instance body already gets. Upstream has one `AssignmentExpression` visitor and one
+`UpdateExpression` visitor for every expression it walks, so a default value is not a special
+host at all; rsvelte reaches a default through passes that skip any line containing `$.prop(`,
+and only the read halves had a default-scoped counterpart. A prop write and a store write had
+none, so `export let f = () => ($store = 1)` emitted `() => ($store() = 1)` — text no JS parser
+accepts — while `() => (subject = 1)` silently dropped the invalidation.
+
+The grid is binding kind × operation, with the operation always inside another `export let`'s
+default: **10 EQ / 8 DIFF before, 18/18 after**, and three of the eight produced unparseable
+output. What makes it worth recording is the **order**, not the missing pass. The instance body
+runs `transform_store_sub_calls` → `transform_store_assignments_client` →
+`transform_store_reads_client`, and the write matcher keys on the **bare** `$store`; reversing
+just the last two — one edit, everything else held — takes the same grid to 14/18 and breaks
+exactly the four store-write cells, three of them back to unparseable. So a pass placed in the
+right pipeline in the wrong position fails on the same cells as a pass that is absent, and the
+two are not separable by the count: measured, `base` and `reversed` print the identical
+`() => ($store()++)` for the update cell. Only reading which function ran tells them apart.
+
+`SortEntry` is also the entry that shows a local byte comparison naming the wrong verdict, in
+the direction this file records twice already. Its residue after the fix is one dropped comment
+(`// Ideally should never happen`), so a raw-text reconstruction reports it as still diverging;
+the gate hands every byte-different output to `ast_equiv_batch`, which does not represent comment
+placement, and scores it a pass. The line that moved went **to** official's spelling —
+`$_('descending')` → `$_()('descending')`, which is what upstream emits — and that direction was
+measured against the oracle rather than inferred from the entry leaving.
+
+`primo/…/ui/Button.svelte` was expected to move with this fix and **does not**: its output is
+byte-identical across the two arms on both targets. It sits on the same prop-default path and is
+a different defect (a JSDoc annotation attached to the default is dropped), which is a
+measurement about that entry rather than a limit of this fix.
 
 The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
@@ -3228,7 +3261,7 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 11 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 9 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3332,15 +3365,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 18 entries)
+### Client dev (`known-failures.client-dev.json`, 16 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `18`
+Partition of `known-failures.client-dev.json` by verdict: `16`
 
-- **18 — the generated JS differs.**
+- **16 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 18 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 16 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 7 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
