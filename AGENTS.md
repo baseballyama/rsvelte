@@ -313,6 +313,27 @@ wall-clock is unusable on a loaded box, are in
 The 6.59x client-dev figure against `@mrwaip/svelte-rs` predates #2511/#2512 and is **not**
 current.
 
+### A justification's own numbers are the cheapest way to check the justification
+
+`reason is not attribution` says a prose justification explains why a divergence exists
+without saying where it is answered. There is a worse case: the prose can name the wrong
+**owner**, and then the entry stops looking like work at all. A `fmt-oracle-excluded.json`
+entry was classed `engine-divergence` with the reason "oxc vs prettier template-literal
+\`${}\` substitution indentation … rsvelte delegates to `oxc_formatter`. Upstream
+oxc-alignment item." Measured on two arms, `oxc_formatter` was **identical in both** and
+only rsvelte's embedding moved — the entry was an rsvelte defect filed as an upstream one,
+which is the one classification that makes an entry look like it cannot be worked.
+
+What is reusable is that the reason **falsified itself**. It cites the oracle indenting to
+8/10 spaces where oxc uses 4/6 — a *uniform* offset, and a uniform offset is not what a
+line-breaking disagreement produces; two engines that disagree about where to break do not
+agree about every column by a constant. So the numbers a justification quotes to sound
+specific are the ones that can be checked without reproducing anything: read them for
+internal consistency with the mechanism they name, before spending an arm on it. An
+attribution to "upstream" deserves that read first, because it is the only attribution
+whose consequence is that nobody ever measures it again.
+
+
 ### Where compile time goes ([`docs/phase3-ast-refactor-plan.md`](docs/phase3-ast-refactor-plan.md) § Findings 2026-08-08)
 
 The 40.3% of non-kernel CPU that a profile attributes to allocation + hashing + memcpy
