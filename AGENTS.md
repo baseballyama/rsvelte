@@ -1331,6 +1331,29 @@ surface it. This is `two-ports-inventory` read forwards: that file lists places 
 two implementations exist and are never compared, which is the same lever with the
 comparison missing.
 
+**Three variants of "it was there and did not connect" turned up in one day, and the
+documentation variant is the one to act on.** A rule quoted that morning and then walked
+into; a finding established that morning and re-derived from scratch that afternoon by its
+own author; and a paragraph in `docs/perf-baseline.md` that ended *"the report **should**
+say so in `provenance.benchmarkDesign`"* — where the field held a bare URL and the
+disclosure had never been written. The first two are attention; the third is mechanical and
+permanent, because **a sentence that ends in "should" is indistinguishable from a sentence
+that ends in "does" to everyone who is not currently editing that file**, and nothing greps
+for it. When a finding implies a change somewhere else, make the change in the same commit
+or open the issue; do not leave the obligation in prose. What surfaced this one was not the
+re-derivation — it was checking the re-derived claim against what the tree already said,
+and asking why a recorded fact was not in effect.
+
+**Prefer an oracle whose failure cannot be mistaken for its answer.** Every entry in the
+truncating-stage table above shares one mechanism: the failure returns a value with the same
+shape as a result — `tail` returns lines, `|| echo 0` returns a number, `2>/dev/null`
+returns an empty set, a rejected timestamp returns a count. A grep whose pattern is wrong
+still returns a count; a type check whose premise is wrong does not compile. So where a
+claim can be *stated as a type* — "no key on this path is computed" becomes a `&'static
+str` parameter — the compiler answers it with a shape that cannot be read as data: it
+builds, or it names the counterexamples with positions. Choose the instrument whose return
+shape matches the claim's shape.
+
 Two shapes of the same failure are worth naming separately, because neither
 looks like forgetting the rule. **A control you designed yourself still has to
 be run**: a key-set difference was reduced by grep, the difference looked
