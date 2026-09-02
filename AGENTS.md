@@ -1451,6 +1451,72 @@ Rules, in the order they are cheap:
    port-vs-port test whose oracle is the other port: both are passed by a fault
    the two halves share.
 
+### A timeout is not an answer, and the cheapest probe spells it as one
+
+`await_id()` returned Python's `None` on timeout and the probe printed it with
+`json.dumps`, which spells `None` as **`null`**. So "official answered `null`" and
+"official did not answer within 60 seconds" came out as the identical line, and the
+first reading was reported. This is the probe-side form of *nothing is always spelled
+as something*: the earlier table collects cases where a missing measurement prints as
+an empty cell or as somebody else's verdict, and this one prints **in the answer's own
+vocabulary**. Print a non-answer as a non-answer — `NO RESPONSE WITHIN 25s (not a null
+result)` — and never through a serializer that has a value for it.
+
+The second half is worse and is what made it stick. The positive control (`<div></div>`,
+which must return ranges) came back with the same `null`, and that was read as "my
+`workspace/configuration` reply is wrong, so the HTML plugin is disabled" — a mechanism
+that is real, findable in the source (`HTMLPlugin.ts:484-489`, `featureEnabled('html
+.linkedEditing.enable')`), and supported by no evidence at all. **A control that fails
+is the moment a plausible mechanism is cheapest to find and least worth trusting**,
+because the same symptom now has two producers and the instrument is one of them.
+
+### `-p <crate>` is not the denominator either
+
+The file already says to state the denominator of a test run and to read a suite's
+names rather than its count. Both are about which *tests* ran. There is a third
+quantity, and adding a variant to a shared type is where it bites: `JsNode` lives in
+`rsvelte_core` and is matched exhaustively in `rsvelte_bindings_support`, so
+`-p rsvelte_core --lib` plus thirteen named targets was green while the workspace did
+not build. What caught it was the pre-commit hook's `cargo clippy --all-targets`, not a
+wider test list — so the fix is not "run more tests", it is: **when the change is to a
+type another crate names, the denominator is `--workspace`.**
+
+### A cleanup keyed on "what I created" leaks a set that perpetuates itself
+
+`verify.mjs` removes the server caches its own run created
+(`removeNewServerCaches(cachesBefore, …)`), so anything already present when the run
+started is classified as pre-existing and spared — and every later run makes the same
+classification. **Whatever survives once is never reclaimed.** The size of the leak is
+therefore proportional not to how many runs there have been but to how many exited
+abnormally, and an abnormal exit is most likely while something is being changed — so
+the moment that creates a survivor is the moment its staleness matters most. The
+survivors are not inert: the shadow tsconfig's `include` is a glob
+(`["svelte/**/*", …]`), so a survivor joins the next run's type program. This is why the
+same gate produced three untracked directories on one machine and none on another; the
+difference was one killed run in the past, not a difference in the gate.
+
+### A two-option question hands over its shared premise unexamined
+
+"Widen the pattern or narrow the ranges" was offered as the two ways to resolve a
+`linkedEditingRange` divergence. Both assume the oracle returns ranges at all. Stating
+the options without stating what they share means the receiver measures the difference
+between them and never the assumption under both. **Write the premise the options share
+in the same message**, so the first thing measured is the thing that can delete the
+question.
+
+### One cell per file cannot see one fragment changing another's print path
+
+A single unparseable fragment drops the whole file from the AST printer to the text
+fallback, so a broken declaration silently rewrites the output of the correct
+declaration next to it — `() => (state = 1)` printed where official prints
+`() => state = 1`, with blank lines moved, none of which is about the construct being
+studied. Cutting the same three cells into their own file made all three arms EQ. An
+18-cell grid with one cell per file was green throughout. The direction is one-way:
+this makes a grid pass where the corpus fails, never the reverse, because every real
+file puts many declarations in one file. When a family's cells are one construct per
+file, its green says nothing about the same constructs sharing a file — and the
+interference is invisible in the output of the fragment that causes it.
+
 ### A probe filter that discards on BOTH sides reads as agreement
 
 A six-cell reduction reported `EQ` on every cell, and the reduction was correct — the
