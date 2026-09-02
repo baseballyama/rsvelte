@@ -981,6 +981,18 @@ whether it reaches the harness's root pid, recorded at launch. That form also ca
 against the harness root (must read foreign) and against your own shell (must read mine) — which
 a counting rule cannot do, since it has no way to construct the "mine" case on demand.
 
+**And `cargo == 0` is not "the box is quiet" — the build's aftermath peaks exactly when
+cargo exits.** A gate run finished, `rustc`/`cargo` and `node` all read 0, and the window
+was one sentence from being declared free; the actual top of `ps -Ao %cpu=,comm= | sort -rn`
+was `mds_stores` at **96.7%** — Spotlight indexing the thousands of files the build had just
+written into `target/release` — with `mediaanalysisd` at 72.6% beside it. The compile
+processes are the part you started, therefore the part you think to count, and the part that
+ends first. Read the actual top of the CPU list before declaring a measurement window open,
+not a filtered count of the process names you are responsible for; load average will not
+tell you either, since no fixed threshold works on a box with a resident `llama-server`.
+(`target/CACHEDIR.TAG` does not stop Spotlight; a `.metadata_never_index` file in `target/`
+would, and is worth proposing to whoever owns the machine rather than adding unannounced.)
+
 **acorn checks JavaScript's early errors while parsing; OXC settles them after it, and rsvelte
 ran only the parser.** An early error is syntactically shaped but illegal, and none of the class
 is decidable from the token stream — each needs the enclosing scope or class — so OXC leaves them
