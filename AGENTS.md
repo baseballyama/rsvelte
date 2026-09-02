@@ -1354,6 +1354,18 @@ input goes*, and the second question is usually the one being asked. This is the
 "a mechanism with a name is settled by `git log -S`" — that one is about provenance, this one
 about path.
 
+The same family answers *"is this predicate wrong, or is it never reached"* — two hypotheses that
+one sentence ("`is_rule_empty` does not seem to be reached") hides and that repair in different
+functions. A `#[track_caller]` counter settles it in one build: 0 lines on the failing input,
+**4 lines on a neighbouring input that takes the other branch**, so the zero is the wiring and
+not the instrument. It named `transform_rule` → `transform_global_block` →
+`transform_rule_preserving`, where upstream has one `Rule` visitor evaluating
+`is_empty(node, is_in_global_block(path))` at every depth. That is the two-ports shape with a
+piece missing rather than a piece disagreeing: **the second port does not carry the decision at
+all.** Reading the predicate instead would have been a careful study of the correct function.
+And "A was not called" does not entail "B was": where output exists, something wrote it, so the
+probe has to name the writer and not only clear the suspect.
+
 The same episode carries the shape of a well-run zero. The carrier count over 32,650 collected
 components was **0**, and it is only readable because the detector was positive-controlled
 first: 11 constructed cells, **two of which must answer `none`**, so the instrument is shown to
