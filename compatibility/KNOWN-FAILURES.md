@@ -903,7 +903,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 545 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 524 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -928,17 +928,40 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `257 + 212 + 15 + 46 + 13 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `246 + 212 + 15 + 36 + 13 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 545 entries**, where it
+**The partition is now the mechanical rule applied to all 524 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
 mechanical buckets, because the CI report names an entry's first differing line
 and not the cluster a human filed it under. The addends are, in order:
-20 breaks-later 257, 21 breaks-earlier 212, 22 intra-line-ws 15,
-23 indent-only 46, 24 other 13, 25 extra-line 1, 26 missing-line 1;
+20 breaks-later 246, 21 breaks-earlier 212, 22 intra-line-ws 15,
+23 indent-only 36, 24 other 13, 25 extra-line 1, 26 missing-line 1;
 27 quote-style is now empty.
+
+**21 entries left in #4191** — 11 from **20 — breaks-later** and 10 from
+**23 — indent-only** — when a `<script>` body stopped being formatted at a
+narrowed width and re-indented as text, and became a Doc under
+`indent([hardline, body])` the way the oracle builds it. The two clusters are one
+mechanism: narrowing the width and indenting the text agree with a real `indent`
+on where the budget is, and disagree on where it is *measured*, which shows up
+either as a break in the wrong place or as a line at the wrong column. Their
+clusters were measured on the `origin/main` arm — on the fix arm all 21 are
+`IDENTICAL-NOW` and carry no cluster.
+
+The same change retired an `fmt-oracle-excluded.json` entry, and the interesting
+part is that its stated **reason was wrong**, not merely lapsed.
+`flowbite-svelte/…/builder/range/+page.svelte` was filed `engine-divergence` —
+"oxc vs prettier template-literal `${}` substitution indentation inside
+`<script>` … rsvelte delegates to `oxc_formatter`. Upstream oxc-alignment item" —
+so it was booked as neither side's defect and pointed at oxc. It is rsvelte's:
+the divergence is `indent-only` at line 69 on the `origin/main` arm
+(`  labelStatus` against `    labelStatus`) and disappears against **the same
+`oxc_formatter`** once the body is handed over as a Doc under `indent`. A uniform
+offset (the reason records "8/10 by the oracle vs 4/6 by oxc") is the signature of
+a re-indent, not of a break heuristic. Excluded count 26 → 25; the
+`engine-divergence` bullet naming it is deleted.
 
 `sparrow-app/…/text-upload/TextUpload.svelte` and
 `sparrow-app/…/request-navigator/RequestNavigator.svelte` left
@@ -1158,7 +1181,7 @@ ratchet with 0 new failures; `SystemDefault.svelte` itself stays listed, on the
 **Attribution status of this ratchet.** *Nothing here is an oracle bug* — that
 classification lives in `fmt-oracle-excluded.json` — so **no entry is attributed to
 an `upstream_issues/` report**, and **none is attributed to a
-`deliberate-divergences` section either**. All 545 have to be burned down to zero.
+`deliberate-divergences` section either**. All 524 have to be burned down to zero.
 
 The previous version of this paragraph said `5 + 783`, against a ratchet holding
 547. The partition line above and this paragraph state quantities of the same
@@ -1199,7 +1222,7 @@ elimination for every entry it holds.
 The five candidates are `layerchart/docs/src/routes/+page.svelte` (Cluster 8),
 the two Cluster 11 fixtures (`css-nth-of-minified`, `css-escape-sequences`) and
 `pattern/issues/3404-{repeated-combinators,unhandled-combinator-scope}.svelte`.
-The remaining 540 are one bucket rather than seven because the mechanical
+The remaining 519 are one bucket rather than seven because the mechanical
 `20`-`26` split above is recomputed from `compatibility/fmt-report.json`, which is
 a build artifact of a full oracle run and is not in the tree — assigning those
 buckets per entry from the doc would be transcription, not measurement.
@@ -1207,9 +1230,9 @@ buckets per entry from the doc would be transcription, not measurement.
 | n | mechanism | pinned |
 |---|---|---|
 | 5 | the embedded-CSS engine split — rsvelte-fmt prints through `oxc_formatter_css` and the oracle's Svelte path through PostCSS; a candidate for `deliberate-divergences`, but the pin there covers value spelling and none of these entries | none — candidate, not pinned for this facet |
-| 540 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+| 519 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
-Partition of `fmt-known-failures.json` by mechanism: `5 + 540`
+Partition of `fmt-known-failures.json` by mechanism: `5 + 519`
 
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
@@ -2678,7 +2701,7 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 26 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 25 entries.**
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -2701,7 +2724,7 @@ Attribution of `fmt-oracle-excluded.json`:
 | 1 | [`upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md`](../upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md) | `oracle-bug` — a CSS escape's terminator space is eaten, and a live rule becomes dead |
 | 3 | [`upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md`](../upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md) | `oracle-bug` — source tabs survive on a comment-bearing selector under `useTabs: false` |
 
-**Every one of the 26 entries now carries a target.** The last one that did not —
+**Every one of the 25 entries now carries a target.** The last one that did not —
 `shadcn-svelte/.../theme-customizer-code.svelte` — was not an oracle bug at all, and it left
 this file for `fmt-known-failures.json`; the measurement is under *A second stated reason was
 falsified* below. The control that decides it is one character wide: replace the `<pre>` with a
@@ -2888,7 +2911,6 @@ aligning `oxc_formatter`'s break heuristics with prettier upstream.
 
 - Ternary-condition break granularity in a long `class=` (`flowbite TimelineColor`).
 - IIFE arrow parameter-list vs call-argument break point (`flowbite GitHubSourceList`).
-- Template-literal `${}` substitution indentation inside `<script>` (`flowbite range/+page`).
 - Member-chain-only vs `&&`/call-args break priority in an `{#if}` header
   (`flowbite forms/tags/Tags`).
 - Line-comment attachment between a destructuring assignment and its initializer:
