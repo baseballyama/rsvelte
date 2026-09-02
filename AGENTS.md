@@ -1135,6 +1135,21 @@ Rules, in the order they are cheap:
    (`started_at > created_at`) reported **0**, so the platform-side signature was
    absent and the question stayed open. Run the check on a population where the
    predicate MUST fire before you read a run where it must not.
+   **And the instrument check is only as good as the population it runs on.**
+   Half an hour later the same investigation reported `in_progress: 4` against a
+   20-job ceiling and concluded the scheduler was stalled. It was saturated at
+   exactly 20. `actions/runs?per_page=100` returns the hundred most recent runs
+   **of any status**, and filtering those client-side drops every still-running
+   run older than the window — here a 16-shard job created an hour earlier.
+   Server-side (`?status=in_progress`, `?status=queued`) with paging gives 20 and
+   208. This is the paging-window hazard, and what makes this instance worse than
+   the usual one is that **it faked a plausible number rather than a zero**: `4`
+   was explicable, agreed with the hypothesis under test, and was internally
+   consistent (the "predicate could fire" control read 4 too, because it drew
+   from the same truncated population). A peer's report of 16 running shards
+   contradicted it outright and the contradiction was not treated as evidence
+   about the instrument. **When someone else's measurement disagrees with yours,
+   the first hypothesis is your instrument, not their arithmetic.**
 
 ### Nothing about a measurement arm is evidence of what it measured
 
