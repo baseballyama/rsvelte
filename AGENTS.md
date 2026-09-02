@@ -402,6 +402,22 @@ question "does `main` moving invalidate this measurement" — in one instance fo
 reachability was traced by hand and the artifact then showed three of them had been in the
 measured tree all along.
 
+**The dangerous direction of that is not red, it is GREEN.** A branch going red when `main`
+moves announces itself. A branch that stays green holds an answer about a superseded tree and
+nothing prompts anyone to look. Measured on one PR the moment its sibling merged: its
+`Compiler parity` had started at 13:49:55Z, the sibling merged at 14:43:14Z, and the PR still
+reported every check green — a verdict about a tree an hour out of date, with
+`gh pr view` returning `mergeable=UNKNOWN/UNKNOWN` because GitHub had not finished
+recomputing. The two PRs edited disjoint ratchet JSONs and the **same**
+`compatibility/KNOWN-FAILURES.md`, so the failure mode was not a conflict — a conflict would
+have been the safe outcome. Auto-merging would have produced prose claiming
+`known-failures.client.json, 12 entries` against a JSON holding 11, and
+`known-failures-md-check.mjs` then fails **on `main`**, not on any PR.
+
+The check is one comparison and it costs nothing: **the verdict's `startedAt` against the last
+merge into `main`**. Run it immediately after every merge, on every PR still open, because that
+is the moment every remaining green becomes a claim about a tree that no longer exists.
+
 **A superseded run shows up RED too, and `gh pr checks` counts it.** A PR whose title was edited
 re-runs the title-dependent job; the old run's `FAILURE` conclusion stays attached to the PR, so
 `gh pr checks --json bucket` reports `fail=1` for a check whose two later runs are both `SUCCESS`.
