@@ -1564,6 +1564,59 @@ pub(super) fn transform_destructured_export_let(
     Some(format!("let {};", ordered.join(",\n\t")))
 }
 
+/// The member access a destructured property key reads through. Upstream builds
+/// `b.member(expression, prop.key, prop.computed || key.type !== 'Identifier')`,
+/// so only a plain identifier key is a dot access — a computed, string or
+/// numeric key is a bracket access carrying the source's own spelling.
+fn destructured_member_path(base_path: &str, key: &str) -> String {
+    let key = key.trim();
+    if let Some(inner) = key.strip_prefix('[').and_then(|k| k.strip_suffix(']')) {
+        return format!("{}[{}]", base_path, inner.trim());
+    }
+    let is_identifier = !key.is_empty()
+        && key
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+        && key
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+    if is_identifier {
+        format!("{}.{}", base_path, key)
+    } else {
+        format!("{}[{}]", base_path, key)
+    }
+}
+
+/// The key list `$.exclude_from_object(base, [...])` receives for an object
+/// pattern's rest element: every sibling property's key, spelled the way
+/// upstream's `_extract_paths` spells it — a computed or non-literal key goes
+/// through `String(...)`, everything else is a string literal.
+fn object_rest_excluded_keys(properties: &[&str]) -> Vec<String> {
+    let mut keys = Vec::new();
+    for prop in properties {
+        let prop = prop.trim();
+        if prop.is_empty() || prop.starts_with("...") {
+            continue;
+        }
+        let key = match split_property_key_value(prop) {
+            Some((key, _)) => key.trim(),
+            None => split_binding_name_default(prop).0.trim(),
+        };
+        if let Some(inner) = key.strip_prefix('[').and_then(|k| k.strip_suffix(']')) {
+            keys.push(format!("String({})", inner.trim()));
+        } else if key.len() >= 2
+            && (key.starts_with('\'') && key.ends_with('\'')
+                || key.starts_with('"') && key.ends_with('"'))
+        {
+            keys.push(format!("'{}'", &key[1..key.len() - 1]));
+        } else {
+            keys.push(format!("'{}'", key));
+        }
+    }
+    keys
+}
+
 /// Find the end position of a destructuring pattern in `{ ... } = RHS` or `[ ... ] = RHS`.
 /// Returns the position after the closing `}` or `]`.
 /// Byte offset just past the pattern's closing bracket, relative to `s` as passed.
@@ -1605,7 +1658,7 @@ pub(super) fn extract_destructured_export_paths(
         let inner = &pattern[1..pattern.len() - 1];
         let properties = split_destructuring_properties(inner);
 
-        for prop in properties {
+        for prop in &properties {
             let prop = prop.trim();
             if prop.is_empty() {
                 continue;
@@ -1615,14 +1668,14 @@ pub(super) fn extract_destructured_export_paths(
             if let Some(rest_name) = prop.strip_prefix("...") {
                 let rest_name = rest_name.trim();
                 let flags = calculate_prop_flags(rest_name, analysis, true);
-                // Rest elements need special handling
-                let body = format!(
-                    "const {{ {} }} = {}; return {};",
-                    rest_name, base_path, rest_name
-                );
+                let keys = object_rest_excluded_keys(&properties);
                 declarations.push(format!(
-                    "{} = $.prop($$props, '{}', {}, () => {{ {} }})",
-                    rest_name, rest_name, flags, body
+                    "{} = $.prop($$props, '{}', {}, () => $.exclude_from_object({}, [{}]))",
+                    rest_name,
+                    rest_name,
+                    flags,
+                    base_path,
+                    keys.join(", ")
                 ));
                 continue;
             }
@@ -1631,7 +1684,7 @@ pub(super) fn extract_destructured_export_paths(
             // Check for rename: key: value
             if let Some((key, value_pattern)) = split_property_key_value(prop) {
                 // Renamed property: key: value_pattern
-                let new_path = format!("{}.{}", base_path, key);
+                let new_path = destructured_member_path(base_path, key);
 
                 if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
                     // Nested destructuring: b: { c, d: [...] }
@@ -1791,7 +1844,7 @@ pub(super) fn flatten_destructured_let_with_reexported_props(
             }
 
             if let Some((key, value_pattern)) = split_property_key_value(prop) {
-                let new_path = format!("{}.{}", base_path, key);
+                let new_path = destructured_member_path(base_path, key);
 
                 if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
                     // Nested destructuring - recurse
@@ -1899,7 +1952,7 @@ pub(super) fn flatten_destructured_let_as_declarators(
             }
 
             if let Some((key, value_pattern)) = split_property_key_value(prop) {
-                let new_path = format!("{}.{}", base_path, key);
+                let new_path = destructured_member_path(base_path, key);
 
                 if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
                     // Nested destructuring — recurse and collect nested declarators
