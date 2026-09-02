@@ -2835,20 +2835,6 @@ pub fn offset_to_line_col_utf16(
     (line, column)
 }
 
-/// `offset_to_line_col_utf16` for a string whose ASCII-ness is already known:
-/// with no multi-byte character the UTF-16 column is a byte subtraction.
-pub fn offset_to_line_col_utf16_in(
-    source: &str,
-    line_starts: &[usize],
-    offset: usize,
-    all_ascii: bool,
-) -> (usize, usize) {
-    if all_ascii {
-        return offset_to_line_col(line_starts, offset.min(source.len()));
-    }
-    offset_to_line_col_utf16(source, line_starts, offset)
-}
-
 /// Encode a list of source mappings into a VLQ-encoded mappings string.
 pub fn encode_vlq_mappings(mappings: &[SourceMapping]) -> String {
     if mappings.is_empty() {
