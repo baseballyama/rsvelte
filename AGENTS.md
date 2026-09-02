@@ -1602,6 +1602,15 @@ exactly the way a baseline is, so name the tree in the output (`git rev-parse HE
 counts) rather than in your intention; a number with no revision beside it cannot be checked by
 anyone, including the person who produced it.
 
+**A running measurement holds the working tree until its LAST `cargo` call, and
+"no cargo is running" does not mean the build is behind you.** `run-performance.mjs`
+builds each surface lazily, so a report started at 01:04 spent fifteen minutes in the
+JS arm with no compiler in sight and then invoked `cargo` at 01:19:31 — twenty seconds
+after an unrelated source edit, which it compiled into the arm it was about to measure.
+The row above ("edited *while* the build ran") only fires once you know a build is in
+flight; here the process list said there was none, and it was telling the truth. Before
+editing, ask what the running harness has left to do, not what it is doing.
+
 **And a two-arm sweep has two ways to report zero, so the key check and the arm
 check are both necessary and neither is sufficient.** A 135,560-pair sweep
 reported `MOVED=0` twice for opposite reasons. The first time the reader had the
