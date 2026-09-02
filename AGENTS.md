@@ -1031,6 +1031,71 @@ reach at all. **Ask what mechanism could carry the change to each moved file
 before attributing any of them**; a direction that matches your hypothesis is
 the cheapest thing for an artefact to imitate.
 
+### When the result is a ratio, pair the arms in time
+
+The section above is about *which binary* an arm measured. A second class is
+about *when*. A speedup is `official / rsvelte`, and measuring the two minutes
+apart divides two numbers taken under different load — which reads as noise and
+is drift. One tree measured **16.3x-20.3x** with the arms taken separately and
+**22.64x median over 16 rounds** with official and rsvelte run back to back
+inside each round, the ratio formed inside the round and the order alternated
+so a monotonic drift within a round cannot favour either. The correction
+exceeded either arm's own variation, so re-reading the separated numbers could
+not have found it. ABBA across *arms* does not cover this: the thing measured
+separately is the comparison target.
+
+Pick one statistic and use it on both sides. `max(A)/min(B)` produced a
+withdrawn 1.354x on the same day, and a 6-versus-10 thread comparison flips
+sign between "best block" and "median of block minima".
+
+### "Measured but not established" is a work item, not a caveat
+
+Two changes shipped whose own commit messages said the decisive number had not
+been taken, neither with a follow-up queued. The batch pool sized to the
+performance cores said "whether it is also slower in wall clock is measured but
+not established" — it was **7% slower** (client 19.56x against 21.04x), and that
+was the difference between meeting a throughput goal and missing it. A UTF-16
+column resolved by subtraction on ASCII carried a 2.14% upper bound from a
+profile and measured **null** (median 1.0007, range 0.9778-1.0047) on a corpus
+that is 88.9% ASCII, i.e. its own best case. Both were reverted; **nothing
+committed on an unmeasured estimate has yet come back positive.**
+
+### Name a residual `unattributed`
+
+`compile_profile` computed one row as the phase total minus six timers and
+printed it as "Pre-frag setup". A residual always makes the table sum to 100%,
+so the row reads as a measurement of the thing it is named after; it was 11.7%
+of client compile and the name was a guess. Two mechanical traps came with it.
+`Phase3Breakdown` is summed **field by field** at the call site, so a new field
+on the struct compiles and reports `0.00ms` — indistinguishable from a timer
+that never fires. And a timer bracketing "everything after the match" contained
+another timer's region, so one bucket double-counted and the residual was
+subtracted twice; **a wrong instrument rejects the correct hypothesis** — with
+the over-wide timer, map work summed to 11.6% against a 12.2% ablation, which
+reads as two independent measurements agreeing. The contradiction was found by
+a second party's arithmetic, not by re-reading the code.
+
+### The instruments drop a field too, and they drop the same one
+
+Gate blind spots are a question about what a comparison commits to. This is a
+different shape: of the 10 binaries under `crates/rsvelte_devtools/src/bin/`
+that read `js.code`, **0 read `js.map`** before 2026-09-02 (three were fixed
+that day). Not a tendency — no exceptions. `ab_dump.rs`, the tool for reducing
+a corpus divergence to one diagnosable file, is among the blind ones, so a
+divergence that moves only the map disappears the moment someone reduces it.
+Whether this is "the map is not output" as a premise, or only that these tools
+were written for throughput and code equality, is **not separated** — the 10/10
+is what was counted.
+
+### Quoting a hazard is not defending against it
+
+Three instances in one day across three agents, each by someone who had cited
+that exact rule earlier the same day: a `| tail -30` that kept the exit status
+honest through `pipestatus` and threw away the test denominators; a `grep`
+against a task-output file rather than the log it wrapped; a `debug_assert_eq!`
+written into an instrument whose own comment said it would run under
+`--release`. The knowledge was present every time and the trigger was not.
+
 ### Three things answer to "the official compiler", and they disagree
 
 An ad-hoc probe that does `import { compile } from 'svelte/compiler'` does **not** get the
