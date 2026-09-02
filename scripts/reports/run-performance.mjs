@@ -758,9 +758,35 @@ const result = {
   schemaVersion: 10,
   kind: "rsvelte-performance-report",
   generatedAt: new Date().toISOString(),
+  // A subset run is not the published artifact. Redirecting the output protects the
+  // published file; this marks the value itself, so a reader who opens the JSON — or
+  // quotes a number out of it — can see that three surfaces are missing.
+  ...(requestedTargets
+    ? {
+        partial: {
+          surfacesMeasured: targets.map((t) => t.id),
+          surfacesOmitted: allTargets
+            .filter((t) => !targets.includes(t))
+            .map((t) => t.id),
+          note: "Subset run (RSVELTE_REPORT_TARGETS). Not the published report; do not quote as one.",
+        },
+      }
+    : {}),
   provenance: {
     benchmarkDesign:
       "https://github.com/pikax/svelte-benchmarks/tree/e19c48b81ad24b75a6d4b81377b4a7ebc39a1900",
+    // The two arms do not perform identical work, and a speedup column invites the
+    // reader to assume they do.
+    armsDiffer:
+      "official's compile() sets result.ast = to_public_ast(...) unconditionally " +
+      "(compiler/index.js:58) - for the legacy shape a full convert(source, ast) walk - " +
+      "while rsvelte defers that field to its first reader, and neither this harness nor a " +
+      "bundler ever reads it. The speedup column therefore includes work only official " +
+      "performs. This is the comparison a bundler experiences (@sveltejs/vite-plugin-svelte " +
+      "is charged for the AST whether it wants it or not), so it is reported as-is rather " +
+      "than corrected; it is NOT a like-for-like compiler-throughput ratio. The size of the " +
+      "difference is unmeasured. The deferral also cuts the other way: an rsvelte consumer " +
+      "that does read .ast pays a fresh parse, where official's is already built.",
     reproduceCommand: "pnpm benchmark:reproduce",
     competitorPackages: [
       "@mrwaip/svelte-rs@0.0.0-canary.13.1",
