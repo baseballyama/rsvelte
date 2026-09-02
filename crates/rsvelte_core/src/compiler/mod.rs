@@ -1617,12 +1617,14 @@ fn strip_ts_from_attribute_value(
 
 /// Worker count for the batch pool, or `None` to run on the caller's pool.
 ///
-/// `available_parallelism` counts a slow core as a whole one, and on a
-/// heterogeneous CPU that is the wrong number: measured on an M2 Pro
-/// (6 performance + 4 efficiency cores), an efficiency core runs a Svelte
-/// compile at 0.22-0.24x a performance core, and a pool of 10 burns 20-33% more
-/// CPU for the same work than a pool of 6. Whether it is also slower in wall
-/// clock is measured but not established: `docs/perf-baseline.md`.
+/// Only `RSVELTE_BATCH_THREADS` answers this now. Sizing the pool to the
+/// performance cores was the default until it was measured against the number
+/// that matters: on an M2 Pro (6 performance + 4 efficiency cores) it does burn
+/// 20-33% less CPU, and it is 7% SLOWER in wall clock -- client throughput
+/// 19.56x against 21.04x over sixteen paired rounds, 3 of 16 rounds above 20x
+/// against 12 of 16. An efficiency core runs a Svelte compile at 0.22-0.24x a
+/// performance core, so it is a poor worker and still a worker. Throughput is
+/// the goal; the CPU saving is not worth 7% of it. `docs/perf-baseline.md`.
 #[cfg(feature = "parallel")]
 fn batch_pool_threads() -> Option<usize> {
     if let Ok(raw) = std::env::var("RSVELTE_BATCH_THREADS")
@@ -1634,59 +1636,14 @@ fn batch_pool_threads() -> Option<usize> {
     // `RAYON_NUM_THREADS` sizes the global pool, so a caller who set it has
     // answered this. Comparing against `current_num_threads` instead would
     // spawn that pool, which is the thread count we are trying not to add to.
-    if std::env::var_os("RAYON_NUM_THREADS").is_some() {
-        return None;
-    }
-    let available = std::thread::available_parallelism().ok()?.get();
-    choose_batch_threads(performance_core_count(), available)
-}
-
-/// The bound above, without the environment: the pool is capped by the fast-core
-/// count *and* by what this process may actually run on. `available_parallelism`
-/// honours a cgroup CPU quota, a `--cpus` limit and an affinity mask; the sysctl
-/// reports hardware regardless, so under `docker compose --cpus=2` the fast-core
-/// count alone would ask for 6.
-#[cfg(feature = "parallel")]
-fn choose_batch_threads(fast: Option<usize>, available: usize) -> Option<usize> {
-    let want = fast?.min(available);
-    (want != available).then_some(want)
-}
-
-/// Physical cores in the fastest cluster, or `None` where the platform reports
-/// no clusters — there `available_parallelism` is already the right answer.
-///
-/// macOS only. A heterogeneous Linux (big.LITTLE ARM) has the same defect and
-/// is not handled. `physicalcpu` rather than `logicalcpu` because that is the
-/// count the 6-versus-10 measurement was taken against; no shipping part with
-/// these keys has SMT, so the two are equal everywhere it currently runs.
-#[cfg(all(feature = "parallel", target_os = "macos"))]
-fn performance_core_count() -> Option<usize> {
-    let mut out: u32 = 0;
-    let mut len = std::mem::size_of::<u32>();
-    // SAFETY: the name is a NUL-terminated C string, and `sysctlbyname` writes
-    // at most `len` bytes to `out`, which is a `u32` and `len` is its size.
-    let rc = unsafe {
-        libc::sysctlbyname(
-            c"hw.perflevel0.physicalcpu".as_ptr(),
-            (&raw mut out).cast(),
-            &mut len,
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    (rc == 0 && out > 0).then_some(out as usize)
-}
-
-#[cfg(all(feature = "parallel", not(target_os = "macos")))]
-fn performance_core_count() -> Option<usize> {
     None
 }
 
-/// Run a batch on a pool sized to the fast cores, where that differs from the
-/// pool the caller would otherwise get. Already being on a rayon worker means
-/// a caller installed a pool, and that answer wins over this one.
+/// Run a batch on the pool `RSVELTE_BATCH_THREADS` asks for, or on the caller's
+/// otherwise. Already being on a rayon worker means a caller installed a pool,
+/// and that answer wins over this one.
 #[cfg(feature = "parallel")]
-fn in_batch_pool<T: Send>(f: impl FnOnce() -> T + Send) -> T {
+pub fn in_batch_pool<T: Send>(f: impl FnOnce() -> T + Send) -> T {
     static POOL: std::sync::OnceLock<Option<rayon::ThreadPool>> = std::sync::OnceLock::new();
     if rayon::current_thread_index().is_some() {
         return f();
@@ -1975,25 +1932,6 @@ impl std::error::Error for CompileError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// A cgroup quota and the fast-core count are two independent caps, and
-    /// only the first is visible to `available_parallelism`; taking the sysctl
-    /// alone would ask for six workers inside `docker compose --cpus=2`.
-    #[cfg(feature = "parallel")]
-    #[test]
-    fn batch_pool_is_capped_by_both_the_fast_cores_and_the_cpu_budget() {
-        // M2 Pro, no limit: six fast cores out of ten.
-        assert_eq!(choose_batch_threads(Some(6), 10), Some(6));
-        // Same machine under a two-CPU quota: never more than the budget, and
-        // asking for exactly the budget is what the caller's pool already does.
-        assert_eq!(choose_batch_threads(Some(6), 2), None);
-        assert_eq!(choose_batch_threads(Some(6), 6), None);
-        // Homogeneous, or a platform that reports no clusters.
-        assert_eq!(choose_batch_threads(Some(8), 8), None);
-        assert_eq!(choose_batch_threads(None, 8), None);
-        // A budget between the two counts still prefers the fast cores.
-        assert_eq!(choose_batch_threads(Some(6), 8), Some(6));
-    }
 
     /// Upstream's `compiler-errors/test.ts` compares messages with the help URL
     /// removed, because the compiler itself always emits it.

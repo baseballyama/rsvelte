@@ -2571,7 +2571,6 @@ dependencies = [
  "insta",
  "itoa",
  "lazy_static",
- "libc",
  "memchr",
  "miette",
  "oxc_allocator",

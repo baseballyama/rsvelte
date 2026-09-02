@@ -25,7 +25,7 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-parallel = ["dep:rayon", "dep:libc"]
+parallel = ["dep:rayon"]
 trace-fastpath = []
 # Repository-local instrumentation: replay the pre-refactor `await` scanner so
 # the `String` allocations it performed can be counted. Off by default.
@@ -130,11 +130,6 @@ lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 oxc_ast_visit = "0.146"
 
-# `sysctlbyname("hw.perflevel0.physicalcpu")`: `available_parallelism` counts an
-# efficiency core as a whole one, and a batch pool sized by it burns 20-33% more
-# CPU for the same work.
-[target.'cfg(target_os = "macos")'.dependencies]
-libc = { version = "0.2", optional = true }
 
 [dev-dependencies]
 # Testing
