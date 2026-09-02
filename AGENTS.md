@@ -1314,6 +1314,23 @@ against a task-output file rather than the log it wrapped; a `debug_assert_eq!`
 written into an instrument whose own comment said it would run under
 `--release`. The knowledge was present every time and the trigger was not.
 
+**What fires these rules, in practice, is a second derivation — not vigilance and not
+head count.** Over one day of three sessions working the same measurements, every rule
+that actually caught something was triggered by someone else's number disagreeing, and
+none fired from inside the person holding the error. The discriminator is visible in
+which errors were caught and which sat: two counts of the *same quantity by different
+methods* (147 vs 231) exposed a method fault within minutes; one number read by two
+people under *different assumed populations* (a static inventory vs a runtime
+observation) exposed that its derivation was never recorded; while two figures nobody
+else had any reason to compute — a share quoted against the wrong denominator, and a
+key-set size — sat unchallenged until their own author happened back over them. So the
+condition is **the same quantity produced twice by independent derivations**, and extra
+people are only one way to buy that. Two runs of one harness buy nothing. Writing the
+rule down supplies the vocabulary to name the fault once it surfaces; it does not
+surface it. This is `two-ports-inventory` read forwards: that file lists places where
+two implementations exist and are never compared, which is the same lever with the
+comparison missing.
+
 Two shapes of the same failure are worth naming separately, because neither
 looks like forgetting the rule. **A control you designed yourself still has to
 be run**: a key-set difference was reduced by grep, the difference looked
