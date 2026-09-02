@@ -5348,6 +5348,27 @@ has no view of the reverse direction, a divergence that is real and **not** reco
 that population is bounded only by the ratchets whose `.md` attributes entries to this document,
 and today only 6 of 31 ratchet docs make any such attribution.
 
+**A fourth, and it is not reachable from the gate's own code.** The three above fall out of
+reading `test-deliberate-divergences.mjs`; this one only appears when a section's claim is put
+beside the product. A recorded divergence asserts *we choose not to close this difference* — it
+does not assert *we do not have this*. `settings.rs` reads `completions.emmet` and defaults it to
+`true`, and **no code outside `settings.rs` reads that field**, so filing the emmet cluster as
+deliberate and pinning it would freeze a contradiction: the product declares a feature on and
+nothing implements it. The honest terminal states are the feature itself or an explicit decision
+to make the setting truthful; until one of them, the entries stay listed and are described as
+unimplemented. A blind-spot row whose evidence is only ever *structural argument from code* may
+be reporting that its author never looked outside the gate — the reading that produced this one
+was a positive-controlled count of readers, not an argument about the checker.
+
+Measured on `origin/main` (`fd72d98f1`), 6 of the 15 non-empty ratchets carry no `Attribution
+of …` table at all: `lsp-known-failures.json` 23,746, `fmt-known-failures.json` 549,
+`parse-ast-known-failures.json` 301, `known-failures.client-dev.json` 40,
+`known-failures.client.json` 26, `svelte2tsx-unparseable-known-failures.json` 1 — **24,663
+unattributed against 423 attributed**. The ~20 ratchets absent from both columns are empty.
+Read those `n` in the ratchet's own key units and not as defects: `lsp-known-failures.json`
+alone carries two conversions, `aggregate:` at 5.96 entries per diverging file and
+`differential:`/`expected:` at 1.87 per (unit, method, phase).
+
 ## Adding a gate, or a row here
 
 When you add a gate, add its row **before** the ratchet is first baselined, and answer the

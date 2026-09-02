@@ -1342,6 +1342,33 @@ release test targets were all green. What attributed it was a completed *previou
 same corpus sweep: without a baseline rate, a sweep that stops printing is indistinguishable from
 a sweep competing with a build for CPU.
 
+### A guard and the computation behind it are two claims about one shape
+
+`try_hug_mixed` admitted a line prefix with `indent.ends_with('>')` — written for a parent's
+hugged `>` alone on the line — and then computed the hug's indentation as *the prefix sliced up
+to its last space*, which is only that same string on that same shape. A comment ends in `>`
+too, so a leading `<!-- … -->` passed the guard and was re-emitted as indentation on top of its
+own `-->`: text `compile()` rejects, 1 file in 33,644 (#4151). **Tightening the guard is the
+cheap direction and it is usually wrong.** It removed the corruption, and it also removed the
+hug — the same 5-case grid then read 3 MATCH / 2 DIFF where the oracle wants 5, and the version
+that widened the guard later cost 4 corpus entries. Fixing the *computation* (the line's own
+leading whitespace, which agrees with the slice on the shape the slice was written for) took the
+grid to 5/5 and the ratchet from 549 to 547 with 0 new failures. Ask which of the two encodes
+the shape: the guard names it, the computation assumes it, and only one of them is load-bearing.
+
+The other half is that the premise under the guard was itself wrong. "Comments are always line
+boundaries" is a sentence in the code; the oracle glues `><!-- … -->` to a wrapped open tag
+exactly as it glues text, which one probe settles. **A refusal justified by a comment is a place
+to probe the oracle, not a place to work around.**
+
+And the closing measurement needed a **set difference, not a count**. Compiling both sides'
+formatted output over the whole population returns 1,014 rejections on each side — the sources
+that do not compile at all (`lang="ts"` and friends) — so the raw count answers nothing. The
+quantity is *rejected by rsvelte and accepted by the oracle*: 1 before, 0 after. The mirror
+direction is not decoration either; it returned 2, both already carried by
+`fmt-oracle-excluded.json`, which is what says the 0 is a property of the fix and not of a
+population that lost its rejections for some other reason.
+
 ### Split the verdict before you split the cause
 
 A cell that reports one pass/fail per input tells you the input diverges; a cell that
