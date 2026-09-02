@@ -298,14 +298,33 @@ interning escape short of leaving `serde_json::Value`.
 enumerated `#[derive(Serialize)]` structs only, and missed the hand-written serializer in
 `ast/typed_expr.rs`, which writes keys through 123 `ser_node!` / `ser_opt_node!` /
 `ser_children!` uses — the path that carries `arguments`, `properties`, `superClass`,
-`quasis`, `specifiers`. Two independent recounts give **147** and **231** distinct static
-keys; they disagree because they union different pattern sets, and neither is adopted here
-as the number. **Do not spend effort reconciling them: the distinct-key count was never the
-load-bearing quantity.** It bounds only how large an interning table would have to be, and
-88, 147 and 231 are alike trivial for that. What actually sizes the lever is **key
-insertions per compile**, which is unmeasured. A count that decides nothing was carried in
-this file for months, precise to two digits and wrong by a factor of two; the reason nobody
-caught it is that nothing depended on it. Do not open a brief to fix a *site*
+`quasis`, `specifiers`. Two independent recounts give **147** and **166** distinct static
+keys — they union different pattern sets, and the honest statement is "147-166 by two
+methods, and 88 is an undercount either way". What actually sizes the lever is **key
+insertions per compile**, which is unmeasured; the distinct count bounds only how large an
+interning table would be, and 88, 147 and 166 are alike trivial for that. A count that
+decides nothing was carried here for months, precise to two digits and wrong by most of a
+factor of two, because nothing depended on it.
+
+**The reconciliation was nearly skipped on exactly that reasoning, and skipping it would
+have cost the finding.** The first recount was 231, and the argument for not chasing the
+gap was that the value decides nothing — which is true of the *value* and false of the
+*discrepancy*. Chasing it found a method error, not a number: `ser_comments!`'s second
+argument is the node's **type name**, not a key (`($map, $type, $start, $end)`), so a regex
+reading "second argument of any `ser_*!` macro" counted 79 ESTree type names as object
+keys. **`distinct == sites` is the fingerprint** — a real key set repeats (`ser_node` is 73
+sites over 26 keys, `body` appears 17 times) while `ser_comments` read 79/79, and that was
+visible in the output before anyone knew what was wrong. The generalisation: **when two
+independent measurements disagree, the disagreement is evidence about method as well as
+about value, and the value being inconsequential does not make the method inconsequential.**
+The two agreed exactly (42 keys) on the three macros that really do take keys, which is what
+localised the error to the fourth.
+
+It also shows what a one-sided control cannot do. The recount's positive control passed —
+`children`, `type`, `arguments`, `superClass` were all present — because the 79 contaminants
+were *outside* what it asked about. A control that only asks "is what belongs here present"
+is silent on "is anything here that does not belong"; `CallExpression` as a negative control
+would have failed instantly. Do not open a brief to fix a *site*
 here; a representation brief starts from that section rather than re-deriving it.
 `crates/rsvelte_devtools/src/bin/alloc_sites.rs` is the instrument, and the section
 states its four limits and one retraction — a share of a bucket cannot be converted into
