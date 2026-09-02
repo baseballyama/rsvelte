@@ -28,21 +28,33 @@ struct StoreCandidate {
 
 impl StoreCandidate {
     const SELF_NAMED_RUNE_FLAG: u32 = 1;
+    const PROPERTY_KEY_FLAG: u32 = 2;
 
-    fn new(name_start: usize, name_end: usize, may_be_self_named_rune: bool) -> Self {
+    fn new(
+        name_start: usize,
+        name_end: usize,
+        may_be_self_named_rune: bool,
+        is_property_key: bool,
+    ) -> Self {
         let name_len = u32::try_from(name_end - name_start).expect("store name exceeds u32");
         let name_len_and_flags = name_len
-            .checked_mul(2)
+            .checked_mul(4)
             .expect("store name exceeds packed length");
         Self {
             name_start: source_offset(name_start),
-            name_len_and_flags: name_len_and_flags + u32::from(may_be_self_named_rune),
+            name_len_and_flags: name_len_and_flags
+                + u32::from(may_be_self_named_rune)
+                + if is_property_key {
+                    Self::PROPERTY_KEY_FLAG
+                } else {
+                    0
+                },
         }
     }
 
     fn name<'s>(&self, source: &'s str) -> &'s str {
         let start = self.name_start as usize;
-        let end = start + (self.name_len_and_flags >> 1) as usize;
+        let end = start + (self.name_len_and_flags >> 2) as usize;
         &source[start..end]
     }
 
@@ -52,6 +64,10 @@ impl StoreCandidate {
 
     const fn may_be_self_named_rune(&self) -> bool {
         self.name_len_and_flags & Self::SELF_NAMED_RUNE_FLAG != 0
+    }
+
+    const fn is_property_key(&self) -> bool {
+        self.name_len_and_flags & Self::PROPERTY_KEY_FLAG != 0
     }
 }
 
@@ -70,6 +86,11 @@ pub struct StoreScanContext<'s> {
     /// reference in: a string literal, a template literal's text chunks, and
     /// the imported (property) name of an aliased import specifier.
     pub(super) opaque_dollar_spans: Vec<(u32, u32)>,
+    /// `$`-prefixed KEYS of a binding pattern that upstream nevertheless
+    /// resolves as stores, because its `isDeclaration` flag is a boolean whose
+    /// reset fires when the pattern's first element is left — so every element
+    /// after the first is walked as if it were an expression.
+    pub(super) binding_pattern_key_positions: Vec<u32>,
     /// The template half of the same question, which no parsed program answers
     /// here. Computed on first use: a source with no `$` never needs it.
     template_opaque: Option<Vec<(u32, u32)>>,
@@ -96,6 +117,7 @@ impl<'s> StoreScanContext<'s> {
             self_named_rune_calls: Vec::new(),
             regex_literal_spans: Vec::new(),
             opaque_dollar_spans: Vec::new(),
+            binding_pattern_key_positions: Vec::new(),
             template_opaque: None,
             import_store_names: Vec::new(),
             seen_import_store_names: HashSet::new(),
@@ -107,6 +129,7 @@ impl<'s> StoreScanContext<'s> {
         self.self_named_rune_calls.clear();
         self.regex_literal_spans.clear();
         self.opaque_dollar_spans.clear();
+        self.binding_pattern_key_positions.clear();
     }
 
     pub(super) fn has_dollar(&mut self) -> bool {
@@ -141,6 +164,10 @@ impl<'s> StoreScanContext<'s> {
         self.opaque_dollar_spans.push(span);
     }
 
+    pub(super) fn add_binding_pattern_key_position(&mut self, pos: u32) {
+        self.binding_pattern_key_positions.push(pos);
+    }
+
     pub(super) fn finish_script_facts(&mut self) {
         self.self_named_rune_calls.sort_unstable();
         self.self_named_rune_calls.dedup();
@@ -148,6 +175,8 @@ impl<'s> StoreScanContext<'s> {
         self.regex_literal_spans.dedup();
         self.opaque_dollar_spans.sort_unstable();
         self.opaque_dollar_spans.dedup();
+        self.binding_pattern_key_positions.sort_unstable();
+        self.binding_pattern_key_positions.dedup();
     }
 
     pub(super) fn collect_loose_dollar_names(
@@ -203,6 +232,7 @@ impl<'s> StoreScanContext<'s> {
                     &self.regex_literal_spans,
                     &self.opaque_dollar_spans,
                     template_opaque,
+                    &self.binding_pattern_key_positions,
                 ) {
                     self.accessed_stores.insert(name);
                 }
@@ -218,6 +248,7 @@ impl<'s> StoreScanContext<'s> {
         let rune_calls = &self.self_named_rune_calls;
         let regex_spans = &self.regex_literal_spans;
         let opaque_spans = &self.opaque_dollar_spans;
+        let pattern_keys = &self.binding_pattern_key_positions;
         let stores = &mut self.accessed_stores;
         collect_store_candidates(source, self.script_spans, |candidate| {
             if let Some(name) = resolve_store_candidate(
@@ -228,6 +259,7 @@ impl<'s> StoreScanContext<'s> {
                 regex_spans,
                 opaque_spans,
                 template_opaque,
+                pattern_keys,
             ) {
                 stores.insert(name);
             }
@@ -713,10 +745,10 @@ fn collect_store_candidates(
         // whitespace) by `:` AND preceded (skipping whitespace) by `{` or `,`
         // (which excludes a ternary `cond ? $name : x`, where the preceding
         // token is `?`).
-        if is_object_property_key(bytes, pos, end) {
-            i = end;
-            continue;
-        }
+        // A binding-pattern key is NOT always skipped upstream — see
+        // `is_property_key` on the candidate — so it is emitted and filtered in
+        // `resolve_store_candidate`, which has the AST's answer.
+        let is_property_key = is_object_property_key(bytes, pos, end);
         if RESERVED_STORE_NAMES.contains(&full) {
             i = end;
             continue;
@@ -734,6 +766,7 @@ fn collect_store_candidates(
             next,
             end,
             matches!(full, "$state" | "$props" | "$derived"),
+            is_property_key,
         ));
         i = end;
     }
@@ -747,8 +780,12 @@ fn resolve_store_candidate<'s>(
     regex_literal_spans: &[(u32, u32)],
     opaque_dollar_spans: &[(u32, u32)],
     template_opaque_ranges: &[(u32, u32)],
+    binding_pattern_key_positions: &[u32],
 ) -> Option<&'s str> {
     let pos = candidate.pos();
+    if candidate.is_property_key() && binding_pattern_key_positions.binary_search(&pos).is_err() {
+        return None;
+    }
     if position_in_spans(regex_literal_spans, pos)
         || position_in_spans(opaque_dollar_spans, pos)
         || position_in_spans(template_opaque_ranges, pos)

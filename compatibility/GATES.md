@@ -5284,7 +5284,7 @@ sample of one tree's output, not an enumeration of the shapes upstream emits.
 
 ## 42. Deliberate-divergence pinning — `scripts/dev/deliberate-divergences-check.mjs`
 
-**Unit.** One `## ` section of `compatibility/deliberate-divergences.md`, 11 of them. The check is
+**Unit.** One `## ` section of `compatibility/deliberate-divergences.md`, 20 of them. The check is
 that each names at least one repository path that (a) exists on disk and (b) is a test — under a
 `tests/` directory, in `compatibility/pattern-corpus/`, or a `scripts/**/test-*.mjs` harness.
 Run by `ci.yml`'s `Corpus verify baseline-flag contract` job and `pnpm run
@@ -8068,6 +8068,51 @@ they are rsvelte-side defects and are not covered here.
 
 Remove this entry when `tsgo --lsp` carries the TypeScript kind — the pinned test fails at that
 point, and both halves become ordinary parity work.
+
+---
+
+### A `@typedef` strip whose offset lands inside the comment (svelte2tsx)
+
+**Pinned by** `crates/rsvelte_projection/tests/svelte2tsx_typedef_tag_offset.rs`, whose other
+test asserts the two rows rsvelte *does* reproduce.
+**Reported upstream** in
+`upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`.
+
+`getLastLeadingDoc` (`utils/tsAst.ts:143-160`) removes a declarator's `@typedef` tags before the
+JSDoc is copied onto the prop. The tag span comes from `ts.getAllJSDocTagsOfKind`, whose `pos` /
+`end` are **SourceFile-absolute**, and it is sliced out of `node.getFullText()`, which is
+**node-relative** — so the removal is shifted by `node.pos`, and what that shift hits depends on
+what precedes the comment:
+
+| statement ahead of the comment | shifted slice occurs in it? | official |
+|---|---|---|
+| none (`node.pos == 0`) | — | the tag is removed, as intended |
+| long | no | `replace` no-ops and the tag survives |
+| short | yes | **the wrong text is deleted** |
+
+Measured on one comment with only the preceding statement varied:
+
+```
+row 1  {\n/**\n * \n * @slot {{ a: 1 }}\n */a: a}
+row 2  {\n/**\n * @typedef {import('./X.svelte').T} T\n * @slot {{ a: 1 }}\n */a: a}
+row 3  {\n/**\n * @typedef {i{ a: 1 }}\n */a: a}
+```
+
+rsvelte reproduces rows 1 and 2 — it strips the tags exactly when the comment is the script's
+first token, which is upstream's `node.pos == 0` condition spelled as the condition rather than as
+its symptom. Row 3 it does not: the emitted comment would be truncated in the middle of
+`import('./X.svelte')` and would lose the `@slot` tag that followed, which is a JSDoc block whose
+type expression no longer parses. A byte match cannot pay for that.
+
+This is a divergence the **corpus svelte2tsx gate can observe**, and it does not sit in
+`svelte2tsx-known-failures.json`: 172 of the 33,901 collected components mention `@typedef` and
+**0 of them reach row 3**, so there is no entry to list. That is the reason this section exists —
+the divergence is real, no ratchet holds it, and the only thing standing between it and a future
+"let us match upstream here" is the pinned test.
+
+Remove this entry when upstream subtracts `node.pos`
+(`nodeText.substring(tag.pos - node.pos, tag.end - node.pos)`); rows 2 and 3 both collapse into
+row 1 at that point and the pinned test fails.
 
 <a id="README"></a>
 
