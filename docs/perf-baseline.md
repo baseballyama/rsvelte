@@ -68,6 +68,49 @@ best-sample figure of the kind this document has already withdrawn once. The
 number this project should publish needs an idle box, and that is the one
 input nobody here can supply.
 
+## What 20x on the client actually requires (2026-09-02 23:30)
+
+Derived from the published report alone -- no measurement -- because the report
+carries `medianMs` for all three arms and the single/multi pair is a parallel
+efficiency:
+
+| surface | official | rs-single | rs-multi | parallel eff. | single x | multi x |
+|---|---:|---:|---:|---:|---:|---:|
+| client | 39342 | 12114 | 4086 | 2.97 | 3.25 | 9.63 |
+| server | 35071 | 9492 | 1790 | **5.30** | 3.69 | 19.59 |
+| client-dev | 40463 | 13308 | 2914 | **4.57** | 3.04 | 13.89 |
+| server-dev | 36723 | 9948 | 1838 | **5.41** | 3.69 | 19.98 |
+
+Read the client row's 2.97 as contaminated (see the section below) and use the
+dev pair for the parallel comparison. Two deficits separate client from server,
+and they are independent:
+
+1. **Single-threaded, client is 1.28x slower than server on the same corpus**
+   (12114 vs 9492 ms). This is structural, not noise: `single x` is 3.69 on
+   *both* server surfaces and 3.04-3.25 on *both* client surfaces.
+2. **Client parallelizes worse** -- 4.57x against server's 5.41x on the clean
+   dev pair.
+
+**Neither one alone reaches 20x, and that is arithmetic rather than opinion.**
+Client needs multi <= 1967 ms:
+
+| change | client multi | speedup |
+|---|---:|---:|
+| give client server's parallel efficiency only | 2239 ms | 17.57x |
+| give client server's single-thread time only | 3201 ms | 12.29x |
+| **both** | 1754 ms | **22.43x** |
+
+The sharpest form: at today's client single-thread time, 20x needs a parallel
+efficiency of **6.16x**, and the best any surface here achieves is 5.41x. So a
+scaling fix alone is not merely insufficient, it would have to beat the server
+arm to work. **The client target requires composing a single-thread win with a
+scaling win** -- which is the same "candidates compose" conclusion reached for
+the fold candidates, arrived at from the other direction.
+
+This also says where NOT to look: server and server-dev are at 19.59x and 19.98x
+with 5.3-5.4x scaling and 3.69x single-thread, i.e. both server surfaces are
+essentially done, and effort spent there cannot move the goal.
+
 ## The published client run was still improving when it ended (2026-09-02 20:00)
 
 The interleaved instrument stores `rawMs`, and because the arms are paired the
