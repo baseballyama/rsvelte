@@ -429,6 +429,14 @@ the last merge into `main`** — and it is worth running after every merge on ev
 open. "It turned out fine" is the answer it gives half the time; it is not a reason to skip it,
 because the run that is not fine looks identical beforehand.
 
+**And the check has a population, which is smaller than "every open PR": only a branch that
+has NOT been pushed since `main` moved can carry a stale verdict at all.** A push — a rebase,
+a force-push, any new head — recreates every check against the new head, so nothing old
+survives to be misread. The PRs that need this check are therefore exactly the ones nobody has
+touched, which is also the set least likely to be looked at. Two PRs in one session made the
+contrast: one was rebased and its verdicts were all newly created; the other had not moved in
+an hour and reported a full green measured 53 minutes before its sibling merged.
+
 **A superseded run shows up RED too, and `gh pr checks` counts it.** A PR whose title was edited
 re-runs the title-dependent job; the old run's `FAILURE` conclusion stays attached to the PR, so
 `gh pr checks --json bucket` reports `fail=1` for a check whose two later runs are both `SUCCESS`.
