@@ -32,9 +32,28 @@ fn valueless_value(source_name: &str) -> &'static str {
 /// node is a `Slot`, so it is the one host where the two answers differ.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AttrHost<'a> {
-    Element { tag: &'a str, preserve_case: bool },
-    Slot,
+    /// `element instanceof Element && parent.type === 'Element'` — a real tag
+    /// and `<svelte:element>`, the only hosts that fold the name's case and
+    /// rewrite a number-only attribute.
+    Element {
+        tag: &'a str,
+        preserve_case: bool,
+    },
+    /// An `Element` whose node type is not `Element`: `<slot>`,
+    /// `<svelte:body|window|document|head|fragment>`.
+    SpecialTag {
+        tag: &'a str,
+    },
     Component,
+}
+
+impl<'a> AttrHost<'a> {
+    pub fn tag(self) -> &'a str {
+        match self {
+            Self::Element { tag, .. } | Self::SpecialTag { tag } => tag,
+            Self::Component => "",
+        }
+    }
 }
 
 /// Format a regular attribute: `name="value"` → `"name":value,`.
@@ -53,7 +72,7 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, host: AttrHost)
         AttrHost::Element { tag, preserve_case } => {
             transform_attribute_case(&node.name, tag, true, preserve_case)
         }
-        _ => Cow::Borrowed(node.name.as_str()),
+        AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
     };
 
     // Determine wrapping: data-* on elements, --* on components.
@@ -511,7 +530,7 @@ fn push_attribute_name(out: &mut Vec<Seg>, node: &AttributeNode, source: &str, n
 /// retain per-character source-map fidelity.
 ///
 /// Applies the same wrapping rules as `format_attribute_node`:
-/// - `is_element` && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
+/// - element or slot && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
 /// - component && `--*` → `__sveltets_2_cssProp({…})`
 ///
 /// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
@@ -520,18 +539,23 @@ pub fn append_attribute_node_segments(
     node: &AttributeNode,
     source: &str,
     comments: &ElementOpenerCommentIndex,
-    is_element: bool,
-    tag: &str,
+    host: AttrHost,
     leading_comment: &str,
-    preserve_case: bool,
 ) {
     let leading = leading_attr_comment_segs(node.start, source, comments);
-    let is_data_attr =
-        is_element && node.name.starts_with("data-") && !node.name.starts_with("data-sveltekit-");
-    let is_css_prop = !is_element && node.name.starts_with("--");
+    let is_element = matches!(host, AttrHost::Element { .. });
+    let is_data_attr = !matches!(host, AttrHost::Component)
+        && node.name.starts_with("data-")
+        && !node.name.starts_with("data-sveltekit-");
+    let is_css_prop = matches!(host, AttrHost::Component) && node.name.starts_with("--");
     // Element attribute names are lowercased to match intrinsic typings
     // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
-    let name_owned = transform_attribute_case(&node.name, tag, is_element, preserve_case);
+    let name_owned = match host {
+        AttrHost::Element { tag, preserve_case } => {
+            transform_attribute_case(&node.name, tag, true, preserve_case)
+        }
+        AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
+    };
     let name = name_owned.as_ref();
 
     match &node.value {

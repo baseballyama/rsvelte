@@ -7,6 +7,7 @@ use crate::ast::template::{Attribute, SvelteDynamicElement};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
+use crate::svelte2tsx::template::attributes::attribute::AttrHost;
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, build_bind_directive_suffix, element_var_base_name,
 };
@@ -88,7 +89,10 @@ pub fn handle_svelte_dynamic_element(
             source,
             &counter.element_opener_comments,
             saved_slot.is_some(),
-            options.namespace.preserves_attribute_case(),
+            AttrHost::Element {
+                tag: "",
+                preserve_case: options.namespace.preserves_attribute_case(),
+            },
             options.preserves_bind_prefix(),
         )
     };

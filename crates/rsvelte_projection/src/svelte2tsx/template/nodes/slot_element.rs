@@ -294,7 +294,11 @@ pub fn build_slot_props_string(
                 }
                 // A `<slot>` is built as an `Element` upstream, so the `data-`
                 // wrapper applies to it and the component-only `--` one does not.
-                parts.push(format_attribute_node(node, source, AttrHost::Slot));
+                parts.push(format_attribute_node(
+                    node,
+                    source,
+                    AttrHost::SpecialTag { tag: "slot" },
+                ));
             }
             Attribute::SpreadAttribute(spread) => {
                 parts.push(format_spread_attribute(spread, source));
