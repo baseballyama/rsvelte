@@ -3197,7 +3197,7 @@ output are in huly, open-webui, carbon and SMUI — none of which is a corpus so
 is therefore empty because the inputs are absent, not because the class is fixed. Enrolling
 those repositories would change the number; nothing else in this gate's design would.*
 
-#3130 enrolled all four (and 63 more), taking the corpus from 37 corpus sources to 104 and
+#3176 enrolled all four (and 63 more), taking the corpus from 37 corpus sources to 104 and
 from 14,780 entries to 34,007. The ratchet went from 0 to **12 entries across `client` and
 `client-dev`** on the first run, `server` and `server-dev` stayed at 0, and the enrolment also
 turned up two CSS-parser infinite loops, two UTF-8 char-boundary panics and a BOM that was being

@@ -167,7 +167,9 @@ produced every one of these defects — huly, open-webui, carbon-components-svel
 not corpus sources at the time**, so the gate baselined at 0 while the instances lived outside the
 population it inspected; that is why each fix lands a `compatibility/pattern-corpus` repro. All
 four are corpus sources now (**#3176** took the corpus to 103 repositories; this file and
-`KNOWN-FAILURES.md` cited #3130 — an unrelated CSS issue — 16 times), which closes the
+`KNOWN-FAILURES.md` cited #3130 — an unrelated CSS issue — 16 times, and the sweep that
+corrected them named its own scope as "15 sections", leaving the sixteenth alive in `GATES.md`
+for a month), which closes the
 population hole for these particular four and for nothing else — the lesson is that the gate's
 population is a choice, not a given.
 
