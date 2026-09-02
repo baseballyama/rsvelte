@@ -432,7 +432,16 @@ because the run that is not fine looks identical beforehand.
 **And the check has a population, which is smaller than "every open PR": only a branch that
 has NOT been pushed since `main` moved can carry a stale verdict at all.** A push — a rebase,
 a force-push, any new head — recreates every check against the new head, so nothing old
-survives to be misread. The PRs that need this check are therefore exactly the ones nobody has
+survives to be misread.
+
+**That is true of the PR and false of anything watching it.** A monitor keyed on check state
+reports what `statusCheckRollup` held when it sampled, and a force-push between the sample and
+the read leaves it describing a head that no longer exists: measured here as a `DONE-CLEAN
+(46 checks, 0 pending, 0 failing)` for a PR whose rollup was **empty** by the time it was
+acted on, because the rebase had replaced every check. Put the head SHA in whatever the
+watcher emits. It costs nothing, it makes a new head produce a new line rather than a repeat
+that a de-duplicating reader swallows, and without it the instrument built to catch stale
+verdicts is itself a source of them. The PRs that need this check are therefore exactly the ones nobody has
 touched, which is also the set least likely to be looked at. Two PRs in one session made the
 contrast: one was rebased and its verdicts were all newly created; the other had not moved in
 an hour and reported a full green measured 53 minutes before its sibling merged.
