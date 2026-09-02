@@ -649,6 +649,13 @@ fn serves_pull_diagnostics_without_push_notifications() {
         capabilities["diagnosticProvider"]["workspaceDiagnostics"],
         json!(false)
     );
+    // Official advertises no `identifier`. rsvelte does, so a client can scope
+    // `previousResultId` per provider; the diagnostics compared below are what
+    // makes the advertisement truthful rather than a bare string.
+    assert_eq!(
+        capabilities["diagnosticProvider"]["identifier"],
+        json!("rsvelte-language-server")
+    );
     server.notify("initialized", json!({}));
     did_open(&mut server, &uri, SOURCE);
 

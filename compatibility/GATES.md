@@ -5360,7 +5360,9 @@ sample of one tree's output, not an enumeration of the shapes upstream emits.
 
 ## 42. Deliberate-divergence pinning — `scripts/dev/deliberate-divergences-check.mjs`
 
-**Unit.** One `## ` section of `compatibility/deliberate-divergences.md`, 20 of them. The check is
+**Unit.** One section of the `deliberate-divergences` anchor, 25 of them. The document was
+consolidated into `compatibility/GATES.md`, so `locate()` falls back to that anchor and the
+heading it parses is `### `; `compatibility/deliberate-divergences.md` no longer exists. The check is
 that each names at least one repository path that (a) exists on disk and (b) is a test — under a
 `tests/` directory, in `compatibility/pattern-corpus/`, or a `scripts/**/test-*.mjs` harness.
 Run by `ci.yml`'s `Corpus verify baseline-flag contract` job and `pnpm run
@@ -8325,6 +8327,91 @@ the divergence is real, no ratchet holds it, and the only thing standing between
 Remove this entry when upstream subtracts `node.pos`
 (`nodeText.substring(tag.pos - node.pos, tag.end - node.pos)`); rows 2 and 3 both collapse into
 row 1 at that point and the pinned test fails.
+
+### The completion trigger characters include a space
+
+**Pinned by** `crates/rsvelte_language_server/tests/protocol.rs` (the `triggerCharacters`
+assertion, which lists `" "`) and `scripts/compat-lsp/capability-hashes.test.mjs`.
+**Ratchet.** `lsp-known-failures.json`, the
+`/capabilities/completionProvider/triggerCharacters:extra-rsvelte` entry.
+
+Upstream excludes whitespace from `completionProvider.triggerCharacters` and says why
+(`server.ts:299-301`): *"No whitespace because it makes for weird/too many completions of other
+completion providers"*. rsvelte includes `" "`.
+
+That comment is upstream's own product judgement, not an assessment of rsvelte, and the two
+servers do not have the same thing to trade away. rsvelte answers a completion request at a
+position immediately after the space in a start tag with the element's HTML attributes —
+`completions_with_strict_mode("<div ", 5, …)` returns `class`, pinned in
+`crates/rsvelte_language_server/src/completions.rs`. A character absent from this list never
+reaches the server at all, so dropping `" "` would not merely align the advertisement, it would
+make that behaviour unreachable from a real client while the code answering it stayed.
+
+Remove this entry if rsvelte stops serving attribute completions at a bare space, or if upstream
+starts.
+
+### Two `source.fixAll` code-action kinds upstream does not have
+
+**Pinned by** `crates/rsvelte_language_server/tests/protocol.rs` (the `codeActionKinds`
+assertion) and `scripts/compat-lsp/capability-hashes.test.mjs`.
+**Ratchet.** `lsp-known-failures.json`, the
+`/capabilities/codeActionProvider/codeActionKinds:extra-rsvelte` entry.
+
+Under the differential gate's client capabilities upstream advertises six kinds; rsvelte
+advertises those six plus `source.fixAll` and `source.fixAll.rsvelte`. Both are served —
+`FIX_ALL_KIND` is `crates/rsvelte_language_server/src/code_actions.rs` and the tsgo-backed
+`source.fixAll` is handled in `textDocument/codeAction`.
+
+This is the direction a capability difference is allowed to run: the advertisement is wider than
+upstream's because the implementation is. Narrowing it to match would hide working behaviour.
+
+### `workspace.workspaceFolders` is advertised
+
+**Pinned by** `crates/rsvelte_language_server/tests/protocol.rs` (the
+`capabilities["workspace"]["workspaceFolders"]` assertion).
+**Ratchet.** `lsp-known-failures.json`, the `/capabilities/workspace:extra-rsvelte` entry.
+
+Upstream's `initialize` result carries no `workspace` key at all. rsvelte advertises
+`workspaceFolders` with `supported` and `changeNotifications`, and acts on both: the server tracks
+workspace roots and picks an overlay per document by longest matching root.
+
+The entry is `extra-rsvelte` for the whole `workspace` object, so it is one field rather than a
+set difference. As with the code-action kinds, the advertisement is truthful and matching upstream
+would mean withdrawing a capability that works.
+
+### `positionEncoding` is stated rather than defaulted
+
+**Pinned by** `crates/rsvelte_language_server/tests/protocol.rs` (the `positionEncoding`
+assertion).
+**Ratchet.** `lsp-known-failures.json`, the `/capabilities/positionEncoding:extra-rsvelte` entry.
+
+Upstream omits `positionEncoding`; rsvelte sends `"utf-16"`. The LSP default when the field is
+absent **is** `utf-16`, so the two servers agree on the encoding and differ only on whether they
+say so. The gate compares fields, and an absent field and a field holding the default are not the
+same field, so it reports one.
+
+Stating it is deliberate: the tsgo child is negotiated separately to UTF-8 and every internal
+mapping is byte-based, so the editor-facing encoding is a value this server has an opinion about
+rather than one it inherits. There is no behavioural difference to close.
+
+### `diagnosticProvider.identifier` is advertised
+
+**Pinned by** `crates/rsvelte_language_server/tests/protocol.rs` — the `identifier` assertion and,
+in the same test, the comparison of the pulled diagnostics against a direct lint of the same
+source.
+**Ratchet.** `lsp-known-failures.json`, the
+`/capabilities/diagnosticProvider/identifier:extra-rsvelte` entry.
+
+Upstream advertises `diagnosticProvider` without an `identifier`; rsvelte sets it to
+`rsvelte-language-server`. The field is optional in the protocol and lets a client scope
+`previousResultId` per provider, which matters here because the server owns `.ts`/`.js` documents
+alongside `.svelte` ones rather than running beside another provider.
+
+The pin is deliberately two assertions and not one. Advertising a string nothing backs is the
+failure mode this document already records for `completions.emmet` — a declared capability with
+no implementation — so the entry that fixes the advertisement in place is paired with the one
+that shows diagnostics are actually answered.
+
 
 <a id="README"></a>
 

@@ -4571,17 +4571,45 @@ read as a clean burndown.
 
 Ten entries sit under `differential:fixtures/capabilities|initialize|`, and they are the one cluster
 whose justification is per key rather than per class, because a declared capability is a promise a
-client acts on. Six of them are things this server does not do — no `codeAction/resolve` handler
-exists, and ten of upstream's eleven `executeCommandProvider` commands are tsgo refactors it does not
-offer plus the Svelte-4 migrator, which is out of scope — or additive declarations upstream simply
-omits: `positionEncoding`, `workspace.workspaceFolders`, `diagnosticProvider.identifier`, and the two
-`source.fixAll` code-action kinds. Two are the semantic-token legend, which stays narrowed to the
-token names the editor advertised because tsgo narrows its own legend the same way and its token data
-indexes the narrowed one; declaring upstream's legend here would misname every index past a dropped
-entry. The last two are `completionProvider.triggerCharacters`: rsvelte declares `" "` (upstream
-deliberately does not, and this server answers attribute completions there), and upstream's array
-lists `"@"` twice, which is a multiset a deduplicated list cannot match. The rest of that cluster
-was closed by #3016 rather than justified.
+client acts on. The rest of that cluster was closed by #3016 rather than justified. The ten reach
+four different terminal states, and the split that matters is between a capability this server
+*chooses* to declare differently and one it has *not built* — recording the second as deliberate
+would pin "unimplemented" in place, which is the `completions.emmet` failure gate 42 records.
+
+**Five are deliberate and pinned** in [`deliberate-divergences`](GATES.md#deliberate-divergences):
+`completionProvider.triggerCharacters` declaring `" "` (upstream deliberately does not, and this
+server answers attribute completions there), the two `source.fixAll` code-action kinds,
+`workspace.workspaceFolders`, `positionEncoding`, and `diagnosticProvider.identifier`. Each names a
+behaviour that exists and a test that exercises it.
+
+**Two are unimplemented, and stay listed as such** — not deliberate, and not pinned. No
+`codeAction/resolve` handler exists, so `codeActionProvider.resolveProvider` is absent; and ten of
+upstream's eleven `executeCommandProvider` commands are tsgo refactors this server does not offer
+plus the Svelte-4 migrator, which is out of scope. The honest terminal states are the handler and
+the commands, or an explicit decision that they are out of scope; until one of them these two are
+open work, and a test pinning today's answer would assert the absence.
+
+**One is upstream**: `upstream_issues/svelte-language-server-duplicate-completion-trigger-character.md`
+— upstream's array lists `"@"` twice, which is a multiset a deduplicated list cannot match.
+
+**Two are a property of this gate's client, not of the server.** The semantic-token legend stays
+narrowed to the token names the editor advertised, because tsgo narrows its own legend the same way
+and its token data indexes the narrowed one; declaring upstream's legend here would misname every
+index past a dropped entry. This gate's `initialize` sends no `textDocument.semanticTokens` at all,
+so the filter keeps nothing and the whole of upstream's legend reads as missing — confirmed without
+re-running either server, because the ratchet carries no `extra-rsvelte` for either pointer and the
+recorded `missing-rsvelte` digests are reproduced exactly by an *empty* rsvelte legend
+(`scripts/compat-lsp/capability-hashes.test.mjs`). `crates/rsvelte_language_server/tests/protocol.rs`
+drives the other client shape and gets a correctly filtered legend back. The terminal state is the
+gate carrying both client shapes, not a change to the filter; that is tracked as a gate-coverage
+item rather than attributed here.
+
+Those digests are how the first four states were separated at all. The ratchet stores a digest and
+never the values, so a recorded divergence cannot be read back — but reproducing the digest from
+each side's declared values identifies the preimage, which running the two servers does not, since a
+run reports only *that* two arrays differ. Six of the cluster's recorded hashes are reproduced from
+source in `scripts/compat-lsp/capability-hashes.test.mjs`, which needs no build, no servers and no
+corpus.
 
 The real-world corpus uses one compact entry per `(file, method)`, and its key records the divergent
 request count and nothing else. It carried a raw divergent-field count and a digest over every
