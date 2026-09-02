@@ -96,6 +96,34 @@ itself from `e9fe42c04`, an older tree, which is the same "measured somewhere
 else" hazard this document keeps recording. And the box was not idle: load
 3.9-4.5, free memory 12-14%, a 22.6 GB resident `llama-server` throughout.
 
+**This figure and the full-corpus one differ by two variables, and the
+compiler is not one of them.** `git merge-base --is-ancestor b86c8e26e HEAD`
+returns true, and across those 36 commits exactly **one file under `crates/`
+differs** — `3_transform/js_ast/codegen.rs`, from a refactor that replaces an
+`assert` with a `check`. So the obvious explanation for a gap between the two
+numbers, that they are different compilers, is ruled out rather than merely
+unaddressed. What differs instead is the **population** (3000-file slice vs
+33,890) and the **instrument**: six of the seven non-docs commits in the gap
+are report-side, and one of them (`973cdc558`) rewrites
+`run-performance.mjs` to pair the arms in time. The 22.64x was taken with
+neither version — it used an ad-hoc pairing protocol described only in a commit
+message, so it is a *third* instrument. Quote the two together, never as a pair
+to choose between: a slice figure and a whole-corpus figure disagreeing is what
+two populations and two instruments look like, not evidence that one is wrong.
+
+**Writing that paragraph as "the variable is population alone" would have
+contradicted this session's own largest finding.** The instrument is what moved
+the client number from 9.63x to an estimated 15.6-17.7x — more than any
+compiler change measured here — so a framing that drops it from the list of
+variables is not a simplification, it is the specific error this document spent
+the day documenting. The first draft made exactly that error, and cited a perf
+commit as evidence of a compiler difference; `10d72ac22` is an **ancestor** of
+`b86c8e26e`, i.e. already inside the tree that produced 22.64x. The reasoning
+and the conclusion were right and only the example was wrong — which is the
+dangerous shape, because an example is what a reader remembers, and **a correct
+conclusion is exactly the condition under which its example does not get
+checked.**
+
 ## Where the merged tree actually stands (2026-09-02 09:00, NOISY machine)
 
 The 14.19x / 12.66x in the table above is `e9fe42c04`, **before** the three
