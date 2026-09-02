@@ -202,22 +202,25 @@ const edit = (dir, file, from, to) => {
 // self-test whose input has drifted throws instead of failing the thing it
 // checks. `bump` locates the number by its surrounding words and derives the
 // wrong value from the right one, so the case keeps meaning what it meant.
-const bump = (dir, file, re, wrong, replace) => {
-	// `findDoc` matches a literal needle; this one has to search by pattern,
-	// because the number in it is exactly what moves.
+// `findDoc` matches a literal needle; these callers search by PATTERN, because
+// the number in the sentence is exactly what moves. The directory scan is not a
+// fallback but the load-bearing half: the names passed in are lowercase and the
+// files on disk are not, so `docText` finds them on a case-insensitive
+// filesystem and returns null on Linux.
+const findDocByPattern = (dir, file, re) => {
 	const direct = docText(dir, file);
-	let found = direct && re.test(direct.text) ? direct : null;
-	if (!found) {
-		for (const f of fs.readdirSync(dir)) {
-			if (!f.endsWith('.md')) continue;
-			const q = path.join(dir, f);
-			const text = fs.readFileSync(q, 'utf8');
-			if (re.test(text)) {
-				found = { p: q, text };
-				break;
-			}
-		}
+	if (direct && re.test(direct.text)) return direct;
+	for (const f of fs.readdirSync(dir)) {
+		if (!f.endsWith('.md')) continue;
+		const q = path.join(dir, f);
+		const text = fs.readFileSync(q, 'utf8');
+		if (re.test(text)) return { p: q, text };
 	}
+	return null;
+};
+
+const bump = (dir, file, re, wrong, replace) => {
+	const found = findDocByPattern(dir, file, re);
 	if (!found) throw new Error(`self-test is stale: no doc holds ${re} (looked for ${file} first)`);
 	const m = found.text.match(re);
 	const real = Number(m[1].replace(/,/g, ''));
@@ -229,12 +232,10 @@ const bump = (dir, file, re, wrong, replace) => {
 // spelling the tree no longer carries, the case has to supply its own carrier —
 // a rule with no live input is shown to fire or it is not shown at all.
 const inject = (dir, file, at, line) => {
-	const direct = docText(dir, file);
-	if (!direct || !at.test(direct.text)) {
-		throw new Error(`self-test is stale: ${file} has no ${at} to inject before`);
-	}
-	const m = direct.text.match(at);
-	fs.writeFileSync(direct.p, direct.text.replace(m[0], `${line}\n\n${m[0]}`));
+	const found = findDocByPattern(dir, file, at);
+	if (!found) throw new Error(`self-test is stale: no doc holds ${at} (looked for ${file} first)`);
+	const m = found.text.match(at);
+	fs.writeFileSync(found.p, found.text.replace(m[0], `${line}\n\n${m[0]}`));
 	return { line };
 };
 
