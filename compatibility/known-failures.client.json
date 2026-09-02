@@ -22,7 +22,6 @@
 	"svelte-maplibre-gl/src/content/examples/geolocate/Geolocate.svelte",
 	"svelte-spa-router/test/app/src/App.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
-	"sveltekit/packages/kit/src/runtime/components/root.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"trakt-web/projects/client/src/lib/components/select/SegmentedSelect.svelte",

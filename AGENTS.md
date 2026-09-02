@@ -1127,6 +1127,37 @@ diagnosed as a defect and nearly deleted from three ports, because the npm build
 No gate compares generated code against the npm build (`test-wasm-compile-options.mjs` imports
 it only to ask whether an option *throws*), so the hazard is probes, not gates.
 
+### Generate an expected value from the oracle; do not back it out of the oracle's output
+
+A test's expected strings are a second implementation of the rule, written by hand, and the
+cheapest way to get them wrong is to infer them from a few outputs. Two instances on one day.
+A `$state(p ?.5 : 1)` row was typed as `$.state($.proxy(p ? 0.5 : 1))` from two neighbouring
+cells; official neither normalises `.5` to `0.5` nor leaves the ternary unproxied, so the
+hand-written row was wrong in two independent ways and the test failed for neither of the
+reasons it was written to check. And the span a `@typedef` tag occupies was inferred from
+official's output, giving a rule ("delete up to the next tag") that is **right in three of six
+cells**: `@typedef {X} T` ends at the name, while `@typedef {X} T<Id=(string)>` treats the
+angle-bracket text as the tag's *comment* and swallows the following `\n   * `. Printing
+TypeScript's own `tag.pos` / `tag.end` settles it; six outputs do not.
+
+So: **compile the inputs through the oracle and print the answers**, then paste those into the
+test — `submodules/svelte/.../compiler/index.js` for compiler output, and the oracle's own
+functions where they can be called directly. Back-inference gives you exactly as much
+confidence as the number of cells that happen to agree, which is why it fails on the
+interesting ones.
+
+**And the corrected rule was still wrong, for the reason the first one was.** `getLastLeadingDoc`
+(`tsAst.ts:143-160`) reads `tag.pos` / `tag.end`, which are **SourceFile-absolute**, and hands
+them to `nodeText.substring`, which is **node-relative** — so the slice is off by `node.pos` for
+every declaration that is not the first statement. Where the shifted slice happens to occur in
+the comment it deletes the wrong text; where it does not, `replace` silently no-ops and the tag
+survives. Porting the rule *correctly* therefore diverges on 2 real files while fixing 1
+(`match -> MISMATCH: 2`, `MISMATCH -> match: 1` over 738 moved units). The grid that produced
+the corrected rule had every declaration at the top of the script, so `node.pos` was 0 in every
+cell — **the constant it held fixed was the branch condition**. That is the same shape as a
+grid whose bindings all share one name, where a name-keyed test cannot see shadowing: adding an
+axis is not what finds these, moving a held constant is.
+
 ### A changed hash is not a fixed file, and five samples can be one sample
 
 Two independent measurements of a fix's blast radius converged on the same two
@@ -1192,6 +1223,36 @@ The two are opposite defects with the same single-verdict signature. **What made
 split diagnostic was that its axis was the compiler's own stages** — prune, diagnostics,
 element scoping — not an arbitrary partition of the output text: each field named a pass,
 so a divergence in one field named the pass to read.
+
+### Widening a set to close an enumeration hazard moves you along a new axis
+
+A hand-written list of "the kinds this applies to" is only right if the domain is closed, so
+the fix is to derive it from the domain itself. That fix has its own failure, and it is not a
+smaller version of the first one. `{const …}` / `{let …}` re-applied template-scope reads from
+a list of two kinds (each items, await bindings) and missed the other three — snippet
+parameters, `let:` bindings and `{@const}` bindings — so a 10-host × 2-syntax grid read
+16 EQ / 4 DIFF. Deriving the list from `state.transform` took it to 20/20.
+
+It also **double-applied** every read the pipeline had already performed: the tag's text goes
+through the instance-script transform first, and only the `$.get(x)` shape has an
+already-wrapped guard downstream, so a prop came out `p()()` and a store `$s()()`. The
+original grid was green on all 20 cells while that happened, because it varied the binding's
+**host** and held the **read shape** fixed at `$.get`/call. A second grid over eight shapes
+— `$$props.p`, `p()`, `$s()`, `$.get(d)`, bare — reported 5 EQ / 3 DIFF on both.
+
+The rule: **the members a widening admits differ from the old members along an axis the
+original grid held constant**, so name that axis and grid it before trusting the widening. And
+prefer a *complement* over a union when one exists — here the answer is `state.transform`
+minus the names the earlier pass already rewrote, which is closed on both sides, where a union
+of five hand-listed kinds is closed on neither.
+
+**The corpus could not have caught it.** A 139,252-unit sweep of the double-applying arm moved
+**2** units, and both are the file the fix repairs — the regression has zero witnesses. Only 33
+of 33,893 components carry a bare `{const}` / `{let}` at all, 17 of those also mention a prop or
+a store, and none of the 17 reads one *inside* the tag. So the sweep, the gate and the ratchet
+would all have scored it green, and the eight-cell probe is the whole detector. When a construct
+is new enough that the corpus holds it in double digits, "the sweep moved nothing" is a
+statement about the population, not about the change.
 
 ### A missing key can spell two things, and the conservative default reads the wrong one
 

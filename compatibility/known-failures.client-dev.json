@@ -34,7 +34,6 @@
 	"svelte-spa-router/test/app/src/App.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte",
-	"sveltekit/packages/kit/src/runtime/components/root.svelte",
 	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"svelvet/src/lib/components/Edge/Edge.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
