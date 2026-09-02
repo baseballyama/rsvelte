@@ -1045,9 +1045,10 @@ control on a string you know is there.
 | `Binary file … matches`, no lines printed | one NUL byte anywhere in the file (not non-ASCII — UTF-8 is fine) | `command grep -a`, or `git grep` |
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
 | later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
+| a path opens locally and opens nothing in CI | macOS's filesystem is case-insensitive, so `known-failures.md` finds `KNOWN-FAILURES.md` here and finds nothing on Linux | scan the directory and match. And note what the shape of the bug was: the scan existed, written as a *fallback* to the direct open, so it looked optional — it is the only half that works, and every caller needs it, not just the one whose author happened to add it |
 | every count comes back `0` | zsh expanded an **unquoted** `--include=*.svelte` as a glob, found no match in cwd, and never ran the command | quote every glob-shaped argument: `--include='*.svelte'` |
 
-The fifth row is the one that is not a `grep` bug at all: the other four reach
+The unquoted-glob row is the one that is not a `grep` bug at all: the others reach
 `grep` and then lie, while this one means `grep` never ran. Two people hit it in
 one session, an hour apart, and both times the fabricated answer — `0` for every
 repository — **agreed with the hypothesis being tested** ("this population carries
@@ -1172,6 +1173,31 @@ Rules, in the order they are cheap:
    wrong `--stdio` spelling) were built and one of them was even independently
    real, which is what made the diagnosis stick for two rounds. Write to a file,
    then read the file; nothing else recovers an unflushed buffer.
+
+### Port a guarded recursion with its guard, because a grid built for the recursion cannot see it
+
+Upstream's `scope.evaluate` resolves an identifier with
+
+```js
+if (!binding.updated && binding.initial !== null && !is_prop) {
+  binding.scope.evaluate(binding.initial, this.values);
+  break;
+}
+```
+
+— one `if`, three conditions, then a recursion. A fix that ports the recursion (evaluate the
+rune's argument rather than treating the lowered call as opaque) passed a 68-cell grid over four
+hosts with **0 divergences**, and dropped `!binding.updated` on the way: in generated text a write
+has become a CALL (`$.set(c, 1)`, `$.update(c)`, `$.update_pre(c)`), so oxc scores the only
+occurrence of the name a **read** and "is it ever written" answers yes.
+
+The grid could not see it because a grid is written from the shape the recursion takes, and the
+guard is about a *different property of the same declaration*. What found it was a second cell
+list, generated separately for a Rust test, that happened to contain `let c = $state(0); c = 1;` —
+luck, not method. The method is to read the guard as part of the thing being ported: **each
+condition in the `if` above the recursion is a row**, and the row set for `!binding.updated` is
+every spelling the lowering produces, enumerated from the oracle rather than remembered (`=`,
+`+=`, `++`, `++c`, `&&=`, `??=` → three helper names).
 
 ### A row in this file carries a scope, and citing it is not checking it
 
