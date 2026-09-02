@@ -325,7 +325,10 @@ fixture population additionally compares rsvelte with the selected upstream expe
 The real-project population requests hover, definition and completion at every lexically matched
 identifier position in the four pinned repositories. Every unit runs its request set twice — once
 on the opened document and once after a deterministic round-trip edit (27b) — and the live official
-server is additionally held to those same upstream snapshots as a run-level precondition (27h).
+server is additionally held to those same upstream snapshots as a run-level precondition (27h). A
+run of one suite alone (`lsp:verify:fixtures`) reports both `NEW` and `stale` against the committed
+ratchet, because that ratchet is the union of all 17 artifacts: the difference is the population,
+not a regression, and such a run **cannot be used to move the ratchet in either direction**.
 
 ### Blind spot 27a — server notifications are discarded [S]
 
@@ -961,6 +964,12 @@ that survives once, because a run was interrupted or aborted between creating it
 `finally`, is never collected again. That is not hypothetical: one checkout carried a `tsgo/` two
 days older than the run that noticed it, while another was clean, and the difference was whether a
 run had ever been killed part-way.
+
+Keying cleanup to *what this run created* rather than to *what this directory should contain* makes
+the leaked set *self-perpetuating*, and that generalizes past this cache. Its size scales with the
+number of **aborted** runs, not with the number of runs — and an aborted run is likeliest exactly
+when someone is changing something, so the moment that produces a survivor is the moment its
+staleness matters most.
 
 A survivor is not inert. `build` (`tsgo_overlay.rs:222-258`) calls `create_dir_all` on the shadow
 directory and **never clears it**, rewriting a shadow per `.svelte` it finds — so a shadow whose
