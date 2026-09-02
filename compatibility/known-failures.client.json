@@ -1,5 +1,4 @@
 [
-	"appwrite-console/src/lib/components/sortButton.svelte",
 	"ha-fusion/src/lib/Modal/VisibilityConfig/Index.svelte",
 	"headscale-ui/src/lib/settings/ServerSettings.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",

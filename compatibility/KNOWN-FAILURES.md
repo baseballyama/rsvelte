@@ -2928,11 +2928,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 12 entries)
+### Client (`known-failures.client.json`, 11 entries)
 
-Partition of `known-failures.client.json` by verdict: `12`
+Partition of `known-failures.client.json` by verdict: `11`
 
-- **12 — the generated JS differs** (`js` / `code-differs`).
+- **11 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
@@ -2941,6 +2941,21 @@ The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
 no entry here is "both compilers reject with a different code", "one compiler
 rejects and the other compiles", or "rsvelte's output is not JavaScript".
+
+`appwrite-console/…/sortButton.svelte` left this target when `:global(.foo)` stopped
+answering "is this a global block". Upstream sets `metadata.is_global_block` only for a
+**bare** `:global` (`css-analyze.js:24-30`), and `is_empty` reads it to short-circuit
+(`3-transform/css/index.js:432`); rsvelte's `is_rule_empty` treated an argument-bearing
+`:global(...)` as one too, so a parent whose only surviving child was pruned kept its
+declarations instead of being commented out. The two-sided ratchet named this entry in the
+PR's own `Compiler parity` job (`1 baseline entries already PASS … client 1`).
+
+**The fix also repairs `server` CSS, and no gate can see that.** `targets.mjs` sets
+`css: false` for `server` and `server-dev`, so CSS is compared on `client` and `client-dev`
+only. A two-arm sweep over this branch moved **2** units — this file on `client` and on
+`server`, both `css DIFF → EQ` — while the ratchet can hold only the first. The asymmetry is
+worth stating rather than rounding away: "the sweep moved 2 and the ratchet retires 1" is not
+a discrepancy, it is the population of the gate.
 
 `pattern/issues/3072-extends-shapes-legal.svelte.js` left this target and `client-dev` when
 the class-body scan stopped taking the first `{` after the header. A heritage clause can open
@@ -3191,7 +3206,7 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 12 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 11 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
