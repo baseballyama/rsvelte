@@ -10,7 +10,6 @@
 	"immich/web/src/lib/components/timeline/Timeline.svelte",
 	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
-	"musicat/src/lib/views/InternetArchiveView.svelte",
 	"photon/src/lib/app/auth/profile.svelte.ts",
 	"photon/src/lib/ui/navbar/Profile.svelte",
 	"photon/src/lib/ui/navbar/commands/actions.svelte.ts",

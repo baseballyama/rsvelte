@@ -3287,17 +3287,23 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 26 entries)
+### Client dev (`known-failures.client-dev.json`, 25 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `26`
+Partition of `known-failures.client-dev.json` by verdict: `25`
 
-- **26 — the generated JS differs.**
+- **25 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 26 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 25 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 15 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
+
+`musicat/…/InternetArchiveView.svelte` left this target when the dev `console.*` wrap started
+asking whether an argument's **value** is known rather than whether its name is a state binding.
+The pass reads lowered text, so `$state(0)` had reached it as an opaque `$.state(0)` call; upstream
+evaluates the rune's argument (`scope.js:465-500`). A two-arm sweep over 139,252 `(id, target)`
+pairs moved this unit and no other.
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
