@@ -4,7 +4,7 @@
 use std::borrow::Cow;
 
 use super::svg::is_svg_attribute;
-use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart};
+use crate::ast::template::{Attribute, AttributeNode, AttributeValue, AttributeValuePart};
 use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
@@ -38,6 +38,9 @@ pub enum AttrHost<'a> {
     Element {
         tag: &'a str,
         preserve_case: bool,
+        /// Upstream's `Element.isCustomElement()`, which the caller answers
+        /// because its second half reads a sibling `is=` attribute.
+        is_custom_element: bool,
     },
     /// An `Element` whose node type is not `Element`: `<slot>`,
     /// `<svelte:body|window|document|head|fragment>`.
@@ -69,9 +72,11 @@ impl<'a> AttrHost<'a> {
 pub fn format_attribute_node(node: &AttributeNode, source: &str, host: AttrHost) -> String {
     let is_element = matches!(host, AttrHost::Element { .. });
     let name = &match host {
-        AttrHost::Element { tag, preserve_case } => {
-            transform_attribute_case(&node.name, tag, true, preserve_case)
-        }
+        AttrHost::Element {
+            preserve_case,
+            is_custom_element,
+            ..
+        } => transform_attribute_case(&node.name, is_custom_element, true, preserve_case),
         AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
     };
 
@@ -304,11 +309,10 @@ pub fn is_js_numeric(data: &str) -> bool {
 /// `preserve_case` (the `foreign` namespace) suppresses the fold entirely.
 pub fn transform_attribute_case<'a>(
     name: &'a str,
-    tag: &str,
+    is_custom_element: bool,
     is_element: bool,
     preserve_case: bool,
 ) -> Cow<'a, str> {
-    let is_custom_element = tag.contains('-');
     if !preserve_case
         && is_element
         && !is_svg_attribute(name)
@@ -327,6 +331,23 @@ pub fn transform_attribute_case<'a>(
     } else {
         Cow::Borrowed(name)
     }
+}
+
+/// Upstream's `Element.isCustomElement()`: a dash in the tag name, or an `is=`
+/// attribute whose FIRST value chunk is text containing a dash.
+pub fn element_is_custom(tag: &str, attributes: &[Attribute]) -> bool {
+    if tag.contains('-') {
+        return true;
+    }
+    attributes.iter().any(|attr| match attr {
+        Attribute::Attribute(node) if node.name == "is" => match &node.value {
+            AttributeValue::Sequence(parts) => {
+                matches!(parts.first(), Some(AttributeValuePart::Text(t)) if t.raw.contains('-'))
+            }
+            _ => false,
+        },
+        _ => false,
+    })
 }
 
 /// Build the leading-comment prefix segs for an attribute starting at
@@ -551,9 +572,11 @@ pub fn append_attribute_node_segments(
     // Element attribute names are lowercased to match intrinsic typings
     // (`defaultValue` → `defaultvalue`); component/slot names are preserved.
     let name_owned = match host {
-        AttrHost::Element { tag, preserve_case } => {
-            transform_attribute_case(&node.name, tag, true, preserve_case)
-        }
+        AttrHost::Element {
+            preserve_case,
+            is_custom_element,
+            ..
+        } => transform_attribute_case(&node.name, is_custom_element, true, preserve_case),
         AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
     };
     let name = name_owned.as_ref();
@@ -995,22 +1018,22 @@ mod tests {
 
     #[test]
     fn transform_attribute_case_borrows_unchanged_names() {
-        let lowercase = transform_attribute_case("class", "div", true, false);
+        let lowercase = transform_attribute_case("class", false, true, false);
         assert!(matches!(lowercase, Cow::Borrowed("class")));
         assert!(matches!(
-            transform_attribute_case("viewBox", "svg", true, false),
+            transform_attribute_case("viewBox", false, true, false),
             Cow::Borrowed("viewBox")
         ));
         assert!(matches!(
-            transform_attribute_case("defaultValue", "my-input", true, false),
+            transform_attribute_case("defaultValue", true, true, false),
             Cow::Borrowed("defaultValue")
         ));
         assert!(matches!(
-            transform_attribute_case("onClick", "button", true, false),
+            transform_attribute_case("onClick", false, true, false),
             Cow::Borrowed("onClick")
         ));
         assert!(matches!(
-            transform_attribute_case("defaultValue", "Component", false, false),
+            transform_attribute_case("defaultValue", false, false, false),
             Cow::Borrowed("defaultValue")
         ));
     }
@@ -1018,11 +1041,11 @@ mod tests {
     #[test]
     fn transform_attribute_case_allocates_only_for_changed_names() {
         assert_eq!(
-            transform_attribute_case("defaultValue", "input", true, false),
+            transform_attribute_case("defaultValue", false, true, false),
             Cow::Owned::<str>("defaultvalue".to_string())
         );
         assert_eq!(
-            transform_attribute_case("İD", "div", true, false),
+            transform_attribute_case("İD", false, true, false),
             Cow::Owned::<str>("i\u{307}d".to_string())
         );
     }

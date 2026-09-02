@@ -12,7 +12,9 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("template source offsets are represented as u32")
 }
 
-use crate::svelte2tsx::template::attributes::attribute::{AttrHost, format_attribute_node};
+use crate::svelte2tsx::template::attributes::attribute::{
+    AttrHost, element_is_custom, format_attribute_node,
+};
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, bind_is_filtered_from_props, format_bind_directive,
     sanitize_tag_for_var,
@@ -889,7 +891,11 @@ pub fn build_named_slot_element_attrs(
                 let host = if tag == "svelte:fragment" {
                     AttrHost::SpecialTag { tag }
                 } else {
-                    AttrHost::Element { tag, preserve_case }
+                    AttrHost::Element {
+                        tag,
+                        preserve_case,
+                        is_custom_element: element_is_custom(tag, attributes),
+                    }
                 };
                 parts.push(format_attribute_node(node, source, host));
             }
