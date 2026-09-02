@@ -28,6 +28,14 @@ pub(crate) fn code_bytes_from(bytes: &[u8], start: usize) -> CodeBytes<'_> {
     }
 }
 
+/// The bytes on which `skip_opaque` can return `Some`. Four immediate compares,
+/// not a lookup table: a table costs a load in a loop that runs once per script
+/// byte, and measured 1.6% slower on the client.
+#[inline(always)]
+fn opens_opaque(c: u8) -> bool {
+    matches!(c, b'`' | b'\'' | b'"' | b'/')
+}
+
 pub(crate) struct CodeBytes<'a> {
     bytes: &'a [u8],
     i: usize,
@@ -39,14 +47,19 @@ impl Iterator for CodeBytes<'_> {
 
     fn next(&mut self) -> Option<(usize, u8)> {
         while self.i < self.bytes.len() {
-            if let Some((next, is_comment)) = skip_opaque(self.bytes, self.i, self.prev) {
+            let c = self.bytes[self.i];
+            // `skip_opaque` answers `None` for every byte outside this set and is
+            // far too large to inline, so without the guard every ordinary byte
+            // of the script pays a call to be told no.
+            if opens_opaque(c)
+                && let Some((next, is_comment)) = skip_opaque(self.bytes, self.i, self.prev)
+            {
                 if !is_comment {
                     self.prev = Some(b'x');
                 }
                 self.i = next;
                 continue;
             }
-            let c = self.bytes[self.i];
             let at = self.i;
             self.i += 1;
             if !c.is_ascii_whitespace() {
@@ -788,7 +801,8 @@ fn is_js_whitespace(c: char) -> bool {
 mod tests {
     use super::{
         KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, find_code_from, find_rune_call,
-        find_rune_code, line_starts_outside_opaque, skip_opaque, slash_starts_regex_at,
+        find_rune_code, line_starts_outside_opaque, opens_opaque, skip_opaque,
+        slash_starts_regex_at,
     };
 
     #[test]
@@ -973,6 +987,52 @@ mod tests {
             line_starts_outside_opaque(src.as_bytes()),
             vec![true, true, false, true, false, true, false, false, true]
         );
+    }
+
+    /// The guard in `CodeBytes::next` skips `skip_opaque` entirely for bytes
+    /// outside the opener set, so a byte that `skip_opaque` would have acted
+    /// on and the table omits is silently no longer opaque -- and the output
+    /// still parses, which is what makes it worth pinning over all 256 values
+    /// rather than reading the two lists side by side.
+    #[test]
+    fn code_bytes_is_guarded_exactly_by_the_opener_table() {
+        // Stated as a table so the assertion does not reduce to `opens_opaque ==
+        // opens_opaque`: the predicate is checked against an independent listing
+        // of the same set, over all 256 values, in both directions.
+        static TABLE: [bool; 256] = {
+            let mut t = [false; 256];
+            t[b'`' as usize] = true;
+            t[b'\'' as usize] = true;
+            t[b'"' as usize] = true;
+            t[b'/' as usize] = true;
+            t
+        };
+        for b in 0u8..=255 {
+            assert_eq!(
+                opens_opaque(b),
+                TABLE[b as usize],
+                "predicate vs table at {b}"
+            );
+        }
+        for b in 0u8..=255 {
+            // `prev = None` is the arm that lets a `/` open a regex, so this
+            // asks for the widest set of bytes `skip_opaque` can accept.
+            let buf = [b, b'a', b'a', b'\n'];
+            if skip_opaque(&buf, 0, None).is_some() {
+                assert!(TABLE[b as usize], "byte {b:#04x} is opaque but not guarded");
+            }
+        }
+        // The table must not be wider than it needs either: every entry has to
+        // be a byte `skip_opaque` really can accept on some input.
+        for b in 0u8..=255 {
+            if TABLE[b as usize] {
+                let buf = [b, b'a', b, b'\n'];
+                assert!(
+                    skip_opaque(&buf, 0, None).is_some(),
+                    "byte {b:#04x} is guarded but never opaque"
+                );
+            }
+        }
     }
 
     #[test]
