@@ -783,13 +783,23 @@ is purely a cost question. Both directions are consistent rather than noisy:
 8/8 one way, 7/8 the other.
 
 **A guard that skips a call is not free, and where the scan is a smaller share
-the guard's own cost dominates.** The first version used a `[bool; 256]` table,
-which is a memory load in a loop that runs once per script byte; the four-way
-`matches!` costs four immediate compares instead. The table was there so a test
-could assert the guard and `skip_opaque` agree over all 256 values — that test is
+the guard's own cost dominates.** That first version used a `[bool; 256]` table,
+which is a memory load in a loop that runs once per script byte. Replacing it
+with a four-way `matches!` — four immediate compares, no load — flips the sign,
+measured the same way against the same `before` binary (three distinct sha256s,
+so neither arm can be the other):
+
+| target | before/after CPU_min | rounds won | range |
+|---|---|---|---|
+| server | **1.0191** (+1.91%) | 6/8 | 0.998-1.026 |
+| client | **1.0065** (+0.65%) | 8/8 | 1.0046-1.0075 |
+
+Output stays byte-identical on both. The client row is the interesting one: a
+0.65% median with an 8/8 sweep and a total spread of 0.3% is small but not noise,
+and it is the surface that needs the help. The table lived there so a test could
+assert the guard and `skip_opaque` agree over all 256 byte values; that test is
 worth keeping, so the table moved *into* the test as an independent statement of
-the set, and the assertion now checks the predicate against it rather than
-against itself.
+the set — checking `matches!` against the same `matches!` would assert nothing.
 
 The reusable part is the shape of the result, not the fix. **The same change was
 +2.41% and -1.62% depending only on which target ran**, and a single-target
