@@ -718,8 +718,8 @@ function lintOracleMetadata() {
 }
 
 function ensureLintBenchRunnerBuilt() {
-  if (existsSync(LINT_BENCH_BIN)) return;
-  console.error("  Building lint_benchmark_runner (one-time)...");
+  // Unconditional for the same reason as ensureRsvelteSvelteCheckBuilt.
+  console.error("  Building lint_benchmark_runner...");
   // `--profile=bench` for the same reason the fmt runner uses it: the runner
   // isolates a per-file panic with `catch_unwind`, which needs unwinding.
   const r = spawnSync("cargo", ["build", "--profile=bench", "--bin", "lint_benchmark_runner"], {
@@ -1056,8 +1056,10 @@ function makeSvelteCheckFixture(n) {
 }
 
 function ensureRsvelteSvelteCheckBuilt() {
-  if (existsSync(RSVELTE_SVELTE_CHECK_BIN)) return;
-  console.error("  Building rsvelte svelte_check (one-time)...");
+  // Deliberately unconditional. Skipping the build when the file exists makes
+  // the measured binary a property of whatever was last left in target/, not of
+  // the tree being measured; cargo is a no-op when it is already current.
+  console.error("  Building rsvelte svelte_check...");
   // Stdout from this script becomes the benchmark JSON file — anything
   // cargo prints to its own stdout would corrupt it. Redirect both
   // streams to our stderr so logs still surface in the terminal but
