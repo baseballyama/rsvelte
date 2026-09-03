@@ -2950,14 +2950,25 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 8 entries)
+### Client (`known-failures.client.json`, 7 entries)
 
-Partition of `known-failures.client.json` by verdict: `8`
+Partition of `known-failures.client.json` by verdict: `7`
 
-- **8 — the generated JS differs** (`js` / `code-differs`).
+- **7 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
+
+`ha-fusion/…/Modal/VisibilityConfig/Index.svelte` left this target and `client-dev` with the
+ninth application site of one upstream rule. Upstream reads a **reassigned** each item as
+`collection[$index]` and never as `$.get(item)` (`EachBlock.js:216-227`); rsvelte ports that as
+`build_reassigned_item_read` and calls it from eight places, and the dependency list an inner
+`bind:` hands to `$.invalidate_inner_signals` is a ninth — built by a string loop that reads
+`state.transform` directly, so the rule never reached it. Every *other* read of the item in the
+same file was already correct, which is why the divergence was one line of 336 and why a grid
+over each-block shapes with one read per cell would have been green: the axis is which read, not
+which block. Two arms over the whole corpus moved **2 of 134,180 units** (129,450 live), both
+this file, `MISMATCH -> match: 2`, `match -> MISMATCH: 0`.
 
 `svelteui/…/Modal/ModalForm.svelte` and `mathesar/…/sort-entry/SortEntry.svelte` left this target
 and `client-dev` when a **write** inside a prop's default value started reaching the passes an
@@ -3261,7 +3272,7 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 8 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 7 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3365,15 +3376,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 14 entries)
+### Client dev (`known-failures.client-dev.json`, 13 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `14`
+Partition of `known-failures.client-dev.json` by verdict: `13`
 
-- **14 — the generated JS differs.**
+- **13 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 14 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 13 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 6 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

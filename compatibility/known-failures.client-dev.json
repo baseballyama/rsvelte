@@ -1,5 +1,4 @@
 [
-	"ha-fusion/src/lib/Modal/VisibilityConfig/Index.svelte",
 	"headscale-ui/src/lib/settings/ServerSettings.svelte",
 	"huly/plugins/workbench-resources/src/components/HelpAndSupport.svelte",
 	"immich/web/src/lib/components/timeline/Timeline.svelte",

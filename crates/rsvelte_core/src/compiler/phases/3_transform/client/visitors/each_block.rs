@@ -335,7 +335,24 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
                     // prop() for props). If no transform exists but the binding is in
                     // transitive_deps (e.g., import bindings), use the raw identifier since
                     // it still needs to be included in $.invalidate_inner_signals().
-                    let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
+                    let reassigned_parent_item = context
+                        .state
+                        .each_binding_context
+                        .iter()
+                        .rev()
+                        .find(|ctx| ctx.item_name == binding.name && ctx.item_reassigned)
+                        .map(|ctx| {
+                            crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_reassigned_item_read(
+                                ctx,
+                                &context.arena,
+                            )
+                        });
+                    let expr = if let Some(read) = reassigned_parent_item {
+                        // A reassigned each item reads as `collection[$$index]`, never as
+                        // `$.get(item)` (`EachBlock.js:216-227`), and the `transform` map
+                        // does not carry that rule.
+                        read
+                    } else if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
                             // A reactive import's read expects the identifier already
                             // swapped for its `$$_import_` alias; the raw name reads the
