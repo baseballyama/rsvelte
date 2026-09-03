@@ -2922,10 +2922,13 @@ fn rehome_derived_jsdoc(code: &str) -> String {
     let mut rest = code.as_str();
     const PREFIX: &str = "$.derived(() => /**";
 
-    while let Some(start) = rest.find(PREFIX) {
+    // A 19-byte needle that almost never matches: `str::find` builds a two-way
+    // searcher per call, `memmem` prefilters on a rare byte pair.
+    while let Some(start) = memchr::memmem::find(rest.as_bytes(), PREFIX.as_bytes()) {
         result.push_str(&rest[..start]);
         let comment_start = start + "$.derived(() => ".len();
-        let Some(comment_end) = rest[comment_start + 3..].find("*/") else {
+        let Some(comment_end) = memchr::memmem::find(&rest.as_bytes()[comment_start + 3..], b"*/")
+        else {
             result.push_str(&rest[start..]);
             return result;
         };
@@ -2935,7 +2938,8 @@ fn rehome_derived_jsdoc(code: &str) -> String {
             result.push_str(&rest[start..]);
             return result;
         }
-        let line_start = rest[..start].rfind('\n').map_or(0, |index| index + 1);
+        let line_start =
+            memchr::memrchr(b'\n', &rest.as_bytes()[..start]).map_or(0, |index| index + 1);
         let line = &rest[line_start..start];
         let indent = &line[..line.len() - line.trim_start_matches([' ', '\t']).len()];
         result.push_str("$.derived((");
