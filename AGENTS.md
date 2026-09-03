@@ -1958,6 +1958,86 @@ first substitution pushed the new arm aside and whose third re-created its name:
 collapsing a rename chain into one command hides the intermediate state that
 would have shown `a` being defined twice.
 
+### A probe on one entry point certifies a path the measurement does not use
+
+Two callers benchmark the same binary and share no code: `run-benchmark.mjs`'s
+`benchmarkRust` and `run-performance.mjs`'s `rustArm`, which spawns cargo itself.
+A PGO flag wired into the first was probed two-sidedly — with the profile present
+the env carried `-Cprofile-use`, with it hidden it did not — and that probe was
+read as "the report builds with PGO". It does not: the four compile surfaces go
+through `rustArm`, and a full report measured a **non-PGO** binary on every one of
+them while the probe said otherwise.
+
+Two things found it, and neither was the probe. A **second method disagreed**: a
+tightly-paired `perf_bench` A/B on one tree read 1.100x on client where the report
+read 1.015x, and 1.139x on client-dev where the report read 0.956x. And the
+artifact that settled it was an **mtime** — `target/release/benchmark_runner` had
+been written during the report, and nothing should touch that path when the flag
+is in effect.
+
+So the rule is not "probe both directions", which was done. It is: **the probe has
+to be on the entry point the measurement uses**, and the way to find out which one
+that is, is to grep for the spawn rather than for the function you patched. The
+repaired probe does not read an env at all — it deletes
+`target/release/benchmark_runner`, runs a surface, and requires it to still be
+absent; then hides the profile and requires it to come back.
+
+### rustc's two `-Cprofile-use` failure modes are not equally loud
+
+A **missing** profile path is a hard error. A **corrupt or truncated** one — a bad
+merge, an LFS pointer, a partial checkout — is a *warning*, and the build then
+succeeds and ships a binary with no profile applied. That is a failure whose
+output is shaped exactly like success, and it is why `scripts/perf/assert-pgo-profile.sh`
+checks the indexed-profile magic before every shipped build rather than trusting
+the build's exit code. Measured: `rustc -Cprofile-use=<random bytes>` exits 0 with
+`warning: invalid instrumentation profile data (bad magic)`.
+
+### Read the deterministic fields of a profile before the timings
+
+One `compile_profile` run put 73% of client-dev's overhead in Phase 2 (`Visitors`
+51.43ms → 85.59ms). Re-measured ABBA at n=5, the Phase 2 delta is **+3.7ms of
++51.85ms** — the first reading was a single run's noise, and phase 2 has no
+`generate` dependence and one trivial `dev` one, which is what should have made it
+suspect before it was quoted.
+
+The same output carried a signal that was never in doubt: `reparse (driver)` went
+from **3629 to 8120 calls**. A call count is deterministic; a duration on one run
+is not. When a profile prints both, the counts are where a hypothesis should start,
+and the timings are what needs the repeated, interleaved measurement.
+
+### A quiet-box check that prints is not a quiet-box check
+
+A thread-scaling sweep ran to completion with `mdworker_shared` at **44.7%** — the
+script printed the CPU top after quiescing, and the number was read after the run
+rather than acted on before it. Spotlight's worker was not in the suspend list
+because the previous session had suspended `mds_stores` and not `mdworker`.
+
+The gate now **aborts** below its threshold, and it carries its own positive
+control: `yes > /dev/null` in the background must appear as the loudest process, so
+a reader that selects nothing is distinguishable from a box that is quiet.
+
+### Darwin QoS does not move this workload's parallel scaling
+
+Measured, so it is not re-opened: all five QoS classes (`interactive`, `initiated`,
+`default`, `utility`, and inheriting) give **3.5–4.4x** at 6, 8 and 10 threads on
+client and client-dev, with no class separating from the others by more than the
+run-to-run spread.
+
+The scaling shape is core placement, not contention inside the compiler. CPU time
+per unit work is flat to 4 threads (1.00 → 1.10) and then steps: **1.38 at 5
+threads, 1.93 at 8**. On this 6P+4E box, one thread on an E-core predicts
+`(4 + 3)/5 = 1.4` and all four E-cores in use predicts `(4 + 4·3)/8 = 2.0`, which
+is what the two steps read. A contention story would have bent the curve from two
+threads, and it does not: 1→2 is 1.95x with CPU flat.
+
+### zsh does not word-split an unquoted parameter, and the symptom is a short table
+
+`order="client client-dev"; for a in $order` runs **once**, with `$a` set to the
+whole string — so an A/B loop silently measures one arm twice and prints half the
+rows it should. Three rows where six were expected is the signature; the numbers
+themselves look entirely normal, because they are real measurements of the wrong
+thing. Use an array (`order=(client client-dev)`) or `${=order}`.
+
 ### When the result is a ratio, pair the arms in time
 
 The section above is about *which binary* an arm measured. A second class is
