@@ -311,10 +311,23 @@ fn strip_ts_module_declaration_typed(
     };
 
     if let Some(body_id) = body_id {
-        // Typed module body is a `BlockStatement { body: [...] }` wrapper.
+        // A dotted `namespace A.B { … }` nests another `TSModuleDeclaration`
+        // here rather than a block, so recurse to the innermost body. Upstream
+        // instead reads `node.body.body` unconditionally and throws a raw
+        // `TypeError` on that shape (`upstream_issues/3568-…`).
+        let mut body_id = body_id;
+        while let JsNode::TSModuleDeclaration { body, .. } = arena.get_js_node(body_id) {
+            match body {
+                Some(inner) => body_id = *inner,
+                None => {
+                    finish_stripped_module(node);
+                    return Ok(());
+                }
+            }
+        }
         let block = arena.get_js_node(body_id);
         let stmts_range = match block {
-            JsNode::BlockStatement { body, .. } => *body,
+            JsNode::TSModuleBlock { body, .. } => *body,
             _ => IdRange::empty(),
         };
         let was_empty_statement: Vec<bool> = arena
@@ -339,8 +352,13 @@ fn strip_ts_module_declaration_typed(
         }
     }
 
-    *node = typed_empty_statement(node);
+    finish_stripped_module(node);
     Ok(())
+}
+
+/// A namespace that survived the non-type check erases to an empty statement.
+fn finish_stripped_module(node: &mut JsNode) {
+    *node = typed_empty_statement(node);
 }
 
 /// Strip type-only imports (typed). Whole `import type {...}` → empty; otherwise

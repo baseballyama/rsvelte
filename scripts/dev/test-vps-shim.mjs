@@ -259,6 +259,40 @@ assert(
 	`${decodedAst?.type} vs ${parsedAst?.type}`,
 );
 
+// `parse()` (serde JSON) and `parseEnvelope` (binary tags + the JS decoder) are
+// two ports of one AST shape and no gate compares them, so a field added to one
+// can sit missing from the other for as long as nobody reads the binary one.
+// Both are checked against the SHAPE OFFICIAL EMITS rather than against each
+// other — a port-vs-port assertion passes when both ports are broken the same
+// way. Values printed from `submodules/svelte/.../compiler/index.js`.
+const nsSrc = '<script lang="ts">declare module "x" { type T = 1; }</script>';
+for (const [surface, ast] of [
+	['parse()', JSON.parse(r.parse(nsSrc, { modern: true }))],
+	['decodeParseEnvelope()', r.decodeParseEnvelope(r.parseEnvelope(nsSrc, { modern: true }))],
+]) {
+	const node = ast?.instance?.content?.body?.[0];
+	assert(
+		`${surface} names a TSModuleDeclaration`,
+		node?.type === 'TSModuleDeclaration',
+		node?.type,
+	);
+	assert(
+		`${surface} carries the module's string id`,
+		node?.id?.type === 'Literal' && node.id.value === 'x' && node.id.start === 33,
+		JSON.stringify(node?.id),
+	);
+	assert(
+		`${surface} carries declare and omits global`,
+		node?.declare === true && node?.global === undefined,
+		`declare=${node?.declare} global=${node?.global}`,
+	);
+	assert(
+		`${surface} gives the body a TSModuleBlock spanning the braces`,
+		node?.body?.type === 'TSModuleBlock' && node.body.start === 37 && node.body.end === 52,
+		`${node?.body?.type} ${node?.body?.start}..${node?.body?.end}`,
+	);
+}
+
 // 8. Lenient compiler options — `runes` accepts any JS value (mirroring the
 //    upstream `parametric` validator, so tooling passing `null`/`undefined`/a
 //    number never crashes the compile), and a wrong-typed option is rejected

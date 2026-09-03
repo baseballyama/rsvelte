@@ -829,11 +829,25 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
     },
+    // `namespace N { … }` / `declare module 'x' { … }`. `body` is a
+    // `TSModuleBlock`, or — for the dotted `namespace A.B { … }`, which
+    // acorn-typescript parses as `A` whose body is `B` — another
+    // `TSModuleDeclaration`.
     TSModuleDeclaration {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
+        // An `Identifier`, or a `Literal` for `module 'x'`.
+        id: Option<JsNodeId>,
+        declare: bool,
+        global: bool,
         body: Option<JsNodeId>,
+    },
+    TSModuleBlock {
+        start: u32,
+        end: u32,
+        loc: Option<Box<Loc>>,
+        body: IdRange,
     },
     // TS assertion expression wrappers. Preserved at parse time to mirror
     // svelte/compiler's public `parse()` AST (acorn-typescript keeps them);
@@ -2443,6 +2457,9 @@ impl Serialize for JsNode {
                 start,
                 end,
                 loc,
+                id,
+                declare,
+                global,
                 body,
             } => {
                 let mut map = serializer.serialize_map(Some(3))?;
@@ -2450,10 +2467,35 @@ impl Serialize for JsNode {
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
+                // acorn-typescript omits both flags when false.
+                if *global {
+                    map.serialize_entry("global", &true)?;
+                }
+                if let Some(id) = id {
+                    ser_node!(map, "id", id);
+                }
                 if let Some(b) = body {
                     ser_node!(map, "body", b);
                 }
+                if *declare {
+                    map.serialize_entry("declare", &true)?;
+                }
                 ser_comments!(map, "TSModuleDeclaration", *start, *end);
+                map.end()
+            }
+            Self::TSModuleBlock {
+                start,
+                end,
+                loc,
+                body,
+            } => {
+                let mut map = serializer.serialize_map(Some(4))?;
+                map.serialize_entry("type", "TSModuleBlock")?;
+                map.serialize_entry("start", start)?;
+                map.serialize_entry("end", end)?;
+                ser_loc!(map, loc);
+                ser_children!(map, "body", body);
+                ser_comments!(map, "TSModuleBlock", *start, *end);
                 map.end()
             }
             Self::TSAsExpression {
@@ -3402,7 +3444,22 @@ impl JsNode {
                         start,
                         end,
                         loc,
+                        id: convert_optional_child(obj, "id"),
+                        declare: obj
+                            .get("declare")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(false),
+                        global: obj
+                            .get("global")
+                            .and_then(serde_json::Value::as_bool)
+                            .unwrap_or(false),
                         body: convert_optional_child(obj, "body"),
+                    },
+                    "TSModuleBlock" => Self::TSModuleBlock {
+                        start,
+                        end,
+                        loc,
+                        body: convert_array(obj, "body"),
                     },
                     "TSAsExpression" => Self::TSAsExpression {
                         start,
@@ -3554,6 +3611,7 @@ impl JsNode {
             Self::TSNamespaceExportDeclaration { .. } => Some("TSNamespaceExportDeclaration"),
             Self::TSIndexSignature { .. } => Some("TSIndexSignature"),
             Self::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
+            Self::TSModuleBlock { .. } => Some("TSModuleBlock"),
             Self::TSAsExpression { .. } => Some("TSAsExpression"),
             Self::TSSatisfiesExpression { .. } => Some("TSSatisfiesExpression"),
             Self::TSNonNullExpression { .. } => Some("TSNonNullExpression"),
@@ -4284,6 +4342,7 @@ impl JsNode {
             | Self::TSNamespaceExportDeclaration { start, .. }
             | Self::TSIndexSignature { start, .. }
             | Self::TSModuleDeclaration { start, .. }
+            | Self::TSModuleBlock { start, .. }
             | Self::TSAsExpression { start, .. }
             | Self::TSSatisfiesExpression { start, .. }
             | Self::TSNonNullExpression { start, .. }
@@ -4379,6 +4438,7 @@ impl JsNode {
             | Self::TSNamespaceExportDeclaration { end, .. }
             | Self::TSIndexSignature { end, .. }
             | Self::TSModuleDeclaration { end, .. }
+            | Self::TSModuleBlock { end, .. }
             | Self::TSAsExpression { end, .. }
             | Self::TSSatisfiesExpression { end, .. }
             | Self::TSNonNullExpression { end, .. }
@@ -4477,6 +4537,7 @@ impl JsNode {
             Self::TSNamespaceExportDeclaration { .. } => "TSNamespaceExportDeclaration",
             Self::TSIndexSignature { .. } => "TSIndexSignature",
             Self::TSModuleDeclaration { .. } => "TSModuleDeclaration",
+            Self::TSModuleBlock { .. } => "TSModuleBlock",
             Self::TSAsExpression { .. } => "TSAsExpression",
             Self::TSSatisfiesExpression { .. } => "TSSatisfiesExpression",
             Self::TSNonNullExpression { .. } => "TSNonNullExpression",

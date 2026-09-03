@@ -4109,6 +4109,7 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
         JsNode::ClassBody { body, .. }
         | JsNode::StaticBlock { body, .. }
         | JsNode::BlockStatement { body, .. }
+        | JsNode::TSModuleBlock { body, .. }
         | JsNode::Program { body, .. } => walk_range!(*body),
 
         JsNode::ExpressionStatement { expression, .. } => walk_id!(*expression),
@@ -6446,6 +6447,15 @@ fn collect_identifier_names_in_node(
         | JsNode::TSIndexSignature { .. }
         | JsNode::TSDeclareMethod { .. } => {}
         JsNode::TSModuleDeclaration {
+            start: _,
+            end: _,
+            loc: _,
+            id: _,
+            declare: _,
+            global: _,
+            body: _,
+        }
+        | JsNode::TSModuleBlock {
             start: _,
             end: _,
             loc: _,

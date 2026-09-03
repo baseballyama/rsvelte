@@ -19,7 +19,7 @@ const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 8;
+const VERSION = 9;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -155,6 +155,7 @@ const JS_STATIC_BLOCK = 0xc4;
 const JS_DECORATOR = 0xc5;
 const JS_TS_TYPE_ANNOTATION = 0xc6;
 const JS_TS_MODULE_DECLARATION = 0xc8;
+const JS_TS_MODULE_BLOCK = 0xd4;
 const JS_COMMENT = 0xc9;
 const JS_NULL = 0xca;
 // 0xcb was the former whole-node JS_RAW_JSON escape (removed — TS type
@@ -594,6 +595,8 @@ function readNodeBody(ctx, tag, start, end) {
 			return readJsBareExpr(ctx, 'TSParameterProperty', start, end);
 		case JS_TS_MODULE_DECLARATION:
 			return readJsTSModuleDeclaration(ctx, start, end);
+		case JS_TS_MODULE_BLOCK:
+			return readJsTSModuleBlock(ctx, start, end);
 		case JS_TS_AS_EXPRESSION:
 			return readJsTSAssertion(ctx, 'TSAsExpression', start, end, true);
 		case JS_TS_SATISFIES_EXPRESSION:
@@ -1593,10 +1596,27 @@ function readJsTSTypeAnnotation(ctx, start, end) {
 
 function readJsTSModuleDeclaration(ctx, start, end) {
 	const loc = readTypedLoc(ctx);
+	const id = readOptNode(ctx);
+	const declare = readBool(ctx);
+	const global = readBool(ctx);
 	const body = readOptNode(ctx);
 	const node = { type: 'TSModuleDeclaration', start, end };
 	if (loc !== null) node.loc = loc;
+	// acorn-typescript omits both flags when false, and orders `global` before
+	// `id` and `declare` after `body`.
+	if (global) node.global = true;
+	if (id !== null) node.id = id;
 	if (body !== null) node.body = body;
+	if (declare) node.declare = true;
+	return node;
+}
+
+function readJsTSModuleBlock(ctx, start, end) {
+	const loc = readTypedLoc(ctx);
+	const body = readChildArray(ctx);
+	const node = { type: 'TSModuleBlock', start, end };
+	if (loc !== null) node.loc = loc;
+	node.body = body;
 	return node;
 }
 

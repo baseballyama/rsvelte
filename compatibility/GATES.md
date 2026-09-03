@@ -7145,9 +7145,25 @@ about the object a caller receives.**
 
 **Closed at degree 2**: `crates/rsvelte_core/tests/import_export_parser_shapes.rs` pins the JSON
 side against independently spelled expectations rather than against the envelope, so both ports
-being broken the same way still fails. The envelope side has no equivalent test; the standing
-probe is the 11-input structural round trip described above, which is not in the tree. **That is
-the open half of this row.**
+being broken the same way still fails.
+
+**The envelope half is now pinned too, and where it went is the reusable part.** The obvious place
+was a new gate; the working place was a job that already builds a binding —
+`scripts/dev/test-vps-shim.mjs`, run from `ci.yml` right after `build:vps-native`. That file
+already round-tripped the envelope, and its assertion was
+`decodedAst?.type === parsedAst?.type` — **a port-vs-port comparison over one field**, which is
+the shape this document warns about: both surfaces answer `Root` whatever else is wrong, and
+adding a node tag to one port alone leaves it green. It now drives a `declare module 'x' { … }`
+through **both** surfaces and checks four things about the `TSModuleDeclaration` on each — the
+node type, the string `Literal` id and its offset, `declare` present with `global` absent, and a
+`TSModuleBlock` body spanning the braces — against **offsets printed from official**, so the
+oracle is neither port. Ablating `node.declare` from the JS decoder fails exactly one of the eight
+cells (the envelope's) and leaves the JSON side green; a port-vs-port assertion would have passed
+with both at `undefined`.
+
+**What the pin still does not cover** is every other node type: eight cells over one construct is
+degree 3 for `TSModuleDeclaration` and degree 2 everywhere else. The three-spellings-per-node
+structure is unchanged, and a new tag still needs its `VERSION` bump by hand.
 
 
 #### 27. Where in the DOM is a `{#snippet}` body rendered? — [D], two ports, answers now agree

@@ -71,7 +71,7 @@ pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 8;
+pub const VERSION: u32 = 9;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -249,6 +249,7 @@ pub const JS_TS_TYPE_ASSERTION: u8 = 0xD0;
 pub const JS_TS_INSTANTIATION_EXPRESSION: u8 = 0xD1;
 pub const JS_IMPORT_ATTRIBUTE: u8 = 0xD2;
 pub const JS_EXPORT_ALL_DECLARATION: u8 = 0xD3;
+pub const JS_TS_MODULE_BLOCK: u8 = 0xD4;
 
 // LiteralValue inner tag (within a JS_LITERAL payload).
 const LV_NULL: u8 = 0;
@@ -2163,11 +2164,27 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             start,
             end,
             loc,
+            id,
+            declare,
+            global,
             body,
         } => {
             write_preamble(w, JS_TS_MODULE_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
+            write_opt_node_id(w, *id, arena)?;
+            write_bool(w, *declare);
+            write_bool(w, *global);
             write_opt_node_id(w, *body, arena)?;
+        }
+        JsNode::TSModuleBlock {
+            start,
+            end,
+            loc,
+            body,
+        } => {
+            write_preamble(w, JS_TS_MODULE_BLOCK, *start, *end);
+            write_typed_loc(w, loc.as_deref());
+            write_id_range(w, *body, arena)?;
         }
         JsNode::Comment {
             start,
