@@ -2295,7 +2295,11 @@ fn has_top_level_arrow(s: &str) -> bool {
 /// - Call expressions: foo()
 /// - Template literals: `hello`, `${x}` (TemplateLiteral != Literal in AST)
 pub(super) fn is_simple_expression_str(value: &str, analysis: &ComponentAnalysis) -> bool {
-    let trimmed = value.trim();
+    // A leading comment is not part of the expression, and leaving it on makes
+    // the call test below read `/** … */ ('a')` as a call whose callee is the
+    // comment. The comment alone and the parentheses alone are both handled;
+    // only the two together miss.
+    let trimmed = super::expression_utils::strip_leading_comments(value.trim()).trim();
 
     // Empty is not simple
     if trimmed.is_empty() {

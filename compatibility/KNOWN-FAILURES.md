@@ -2998,10 +2998,23 @@ placement, and scores it a pass. The line that moved went **to** official's spel
 `$_('descending')` → `$_()('descending')`, which is what upstream emits — and that direction was
 measured against the oracle rather than inferred from the entry leaving.
 
-`primo/…/ui/Button.svelte` was expected to move with this fix and **does not**: its output is
-byte-identical across the two arms on both targets. It sits on the same prop-default path and is
-a different defect (a JSDoc annotation attached to the default is dropped), which is a
-measurement about that entry rather than a limit of this fix.
+`primo/…/ui/Button.svelte` carried two defects on one line pair, and the first is closed.
+`is_simple_expression_str` read a leading JSDoc comment as the callee of the parentheses after
+it, so `type = /** @type {…} */ ('button')` took the lazy branch — `19, (/** … */) => 'button'`
+where official emits `3, 'button'`. Neither axis reproduces it alone (a comment without
+parentheses does not end in `)`, parentheses without a comment have nothing before the matching
+`(`), so `crates/rsvelte_core/tests/prop_default_leading_comment.rs` crosses them.
+
+What remains is comment PLACEMENT, and the oracle's rule is not the one a single-prop grid can
+show. Measured on one, two and three props: official emits the annotation after the value of the
+**first** `$.prop` in the declaration — `let a = $.prop($$props, 'a', 3, '' /** … */)` — however
+many props precede the one that carried it, because esrap flushes a pending comment at the first
+located node past it and the `$.prop` calls are builder-made. A one-prop cell reaches that rule
+and cannot separate it from "place it ahead of the value", since there is nothing before it to
+trail; rsvelte agrees there and drops the comment everywhere else. A two-arm sweep over 134,180
+units moved exactly this entry's two targets and left the verdict `MISMATCH -> MISMATCH`, which
+is why it is still listed: the eager/lazy line is now byte-identical and the comment line is
+untouched.
 
 The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
