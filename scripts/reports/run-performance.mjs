@@ -677,9 +677,12 @@ const fixtureExcluded = toolResults.excludedFilesCount;
 const svelteCheckVersion = packageVersion(
   "submodules/language-tools/packages/svelte-check/package.json",
 );
-const tsgoVersion = packageVersion(
-  "submodules/language-tools/packages/svelte-check/node_modules/@typescript/native-preview/package.json",
-);
+// TypeScript 7 stable, installed under the `@typescript/native` alias that
+// svelte-check itself prescribes; the manifest inside still names itself
+// `typescript`, which is what both --tsgo resolvers match on.
+const tsgoVersion = `TypeScript ${packageVersion(
+  "scripts/bench/competitor-oracle/node_modules/@typescript/native/package.json",
+)} (native)`;
 const typescriptVersion = packageVersion(
   "submodules/language-tools/packages/svelte-check/node_modules/typescript/package.json",
 );
@@ -836,7 +839,7 @@ const result = {
       `svelte-check@${svelteCheckVersion}`,
       `svelte-check-rs@${svelteCheckRsVersion}`,
       `typescript@${typescriptVersion}`,
-      `@typescript/native-preview@${tsgoVersion}`,
+      `@typescript/native (npm:typescript@${tsgoVersion.replace(/^TypeScript | \(native\)$/g, "")})`,
       `oxvelte@${OXVELTE_VERSION}+${OXVELTE_REV}`,
     ],
     competitorReferences: ["svelte@5.56.4", "svelte@5.56.8"],

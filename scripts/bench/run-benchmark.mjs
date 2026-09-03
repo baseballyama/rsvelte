@@ -964,9 +964,17 @@ const JS_SVELTE_CHECK_BIN = join(
   REPO_ROOT,
   "submodules/language-tools/packages/svelte-check/bin/svelte-check",
 );
-const SVELTE_CHECK_TSGO_BIN = join(
+// The TypeScript 7 native compiler both `--tsgo` rows type-check with.
+// `@typescript/native-preview` published its last dated dev build on
+// 2026-07-07 and was superseded by TypeScript 7 stable, which ships the same
+// Go compiler as its own `tsc`; svelte-check's own not-found message names the
+// `@typescript/native@npm:typescript@7` alias as the supported way to install
+// it, and both CLIs resolve that name from the workspace on their own. Pinned
+// exactly in scripts/bench/competitor-oracle for the usual reason: a floating
+// range would move this baseline with no change in this repo.
+const SVELTE_CHECK_TS7_DIR = join(
   REPO_ROOT,
-  "submodules/language-tools/packages/svelte-check/node_modules/.bin/tsgo",
+  "scripts/bench/competitor-oracle/node_modules/@typescript/native",
 );
 const SVELTE_CHECK_RS_BIN = join(
   REPO_ROOT,
@@ -1025,6 +1033,15 @@ function makeSvelteCheckFixture(n) {
     realpathSync(SVELTE_CHECK_RS_TSGO_BIN),
     join(dir, "node_modules", ".bin", "tsgo"),
   );
+  // Both `--tsgo` rows find their compiler here: rsvelte-check walks up from
+  // the workspace for `@typescript/native`, and svelte-check resolves the same
+  // name from the tsconfig's directory. Neither is told where it is, so the
+  // two rows cannot be pointed at different backends by accident.
+  symlinkSync(
+    realpathSync(SVELTE_CHECK_TS7_DIR),
+    join(dir, "node_modules", "@typescript", "native"),
+    "dir",
+  );
   writeFileSync(
     join(dir, "tsconfig.json"),
     JSON.stringify({ compilerOptions: { noEmit: true, skipLibCheck: true }, include: ["src"] }),
@@ -1059,10 +1076,23 @@ function ensureRsvelteSvelteCheckBuilt() {
 }
 
 function ensureSvelteCheckTsgoAvailable() {
-  if (existsSync(SVELTE_CHECK_TSGO_BIN)) return;
-  throw new Error(
-    "svelte-check tsgo backend is missing; run `pnpm --dir submodules/language-tools install --frozen-lockfile`",
-  );
+  const manifest = join(SVELTE_CHECK_TS7_DIR, "package.json");
+  if (!existsSync(manifest)) {
+    throw new Error(
+      "the TypeScript 7 native backend is missing; run `pnpm run report:competitors:install`",
+    );
+  }
+  const { name, version } = JSON.parse(readFileSync(manifest, "utf8"));
+  // Both resolvers accept only these two names at major >= 7, so a pin that
+  // silently resolved to something else would otherwise be found by neither
+  // CLI and reported as "TypeScript 7 is not installed".
+  if (!["typescript", "@typescript/native-preview"].includes(name)) {
+    throw new Error(`@typescript/native resolved to ${name}, which no --tsgo row can use`);
+  }
+  if (Number(version.split(".")[0]) < 7) {
+    throw new Error(`@typescript/native resolved to ${version}; --tsgo requires major >= 7`);
+  }
+  console.error(`  tsgo backend: ${name}@${version}`);
 }
 
 function verifySvelteCheckRsDiagnostics(fixture) {
@@ -1277,7 +1307,9 @@ async function runSvelteCheckTask() {
       "--diagnostic-sources",
       "js,svelte",
     ];
-    const tsgoEnv = { TSGO_BIN: SVELTE_CHECK_TSGO_BIN };
+    // No TSGO_BIN: the override would bypass each CLI's own resolution, and a
+    // flag naming a binary is not evidence that the binary was used.
+    const tsgoEnv = {};
     const cleanTypecheckArtifacts = () => {
       rmSync(join(fixture, ".svelte-check"), { recursive: true, force: true });
       rmSync(join(fixture, "node_modules", ".cache", "svelte-check-rs"), {
