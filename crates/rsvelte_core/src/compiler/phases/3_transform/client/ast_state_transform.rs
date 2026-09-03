@@ -41,6 +41,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
 use crate::compiler::phases::phase3_transform::shared::js_scan::find_code_from;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 thread_local! {
@@ -1161,7 +1162,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// `line_start` opens a block or the previous line is already blank.
     fn margin_before_allowed(&self, line_start: u32) -> bool {
         let head = self.source[..line_start as usize].trim_end();
-        !head.ends_with('{') && !self.source[head.len()..line_start as usize].contains("\n\n")
+        !head.ends_with('{') && !self.source[head.len()..line_start as usize].has_sub("\n\n")
     }
 
     fn margin_after_allowed(&self, new_end: u32) -> bool {
@@ -2814,7 +2815,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             return (comment_end as u32, format!("{args}, //{}\n", &line[..len]));
         }
         if let Some(block) = comment.strip_prefix("/*")
-            && let Some(close) = block.find("*/")
+            && let Some(close) = block.find_sub("*/")
         {
             let comment_end = end as usize + spaces + 1 + spaces_after_semicolon + 2 + close + 2;
             return (
@@ -5775,7 +5776,7 @@ mod tests {
     fn comment_between_state_declaration_and_read_keeps_reactivity() {
         let script = "const multiplier = () => {\n\tlet multiplier = $state(2);\n\t// } comment\n\tlet multiple = $derived(count * multiplier);\n\treturn multiple;\n};";
         let output = transform(script, &["multiplier"]);
-        assert!(output.contains("$.get(multiplier)"), "{output}");
+        assert!(output.has_sub("$.get(multiplier)"), "{output}");
     }
 
     #[test]
@@ -5783,11 +5784,11 @@ mod tests {
         let output = transform("const { a, b } = $derived((await p) + (await q));", &[]);
 
         assert!(
-            output.contains("$.save(p)") && output.contains("await q"),
+            output.has_sub("$.save(p)") && output.has_sub("await q"),
             "non-final await must preserve reactive context: {output}"
         );
         assert!(
-            !output.contains("$.save(q)"),
+            !output.has_sub("$.save(q)"),
             "the final await must not be save-wrapped: {output}"
         );
     }
@@ -5797,11 +5798,11 @@ mod tests {
         let output = transform("const a = $derived((await p) + (await q));", &[]);
 
         assert!(
-            output.contains("$.save(p)") && output.contains("await q"),
+            output.has_sub("$.save(p)") && output.has_sub("await q"),
             "non-final await must preserve reactive context: {output}"
         );
         assert!(
-            !output.contains("$.save(q)"),
+            !output.has_sub("$.save(q)"),
             "the final await must not be save-wrapped: {output}"
         );
     }
@@ -5878,7 +5879,7 @@ mod tests {
             analysis: None,
             exported_names: &[],
         };
-        let runtime_start = script.find("let count").unwrap() as u32;
+        let runtime_start = script.find_sub("let count").unwrap() as u32;
         assert!(
             collect_state_var_replacements_without_semantic_scan(script, &parsed.program, &config)
                 .iter()
@@ -5994,14 +5995,14 @@ mod tests {
             });"#,
             &["highlighted"],
         );
-        assert!(local.contains("$.set(highlighted, id)"));
-        assert!(!local.contains("$.set(highlighted, id, true)"));
+        assert!(local.has_sub("$.set(highlighted, id)"));
+        assert!(!local.has_sub("$.set(highlighted, id, true)"));
 
         let parameter = transform(
             "const handler = (id) => { highlighted = id; };",
             &["highlighted"],
         );
-        assert!(parameter.contains("$.set(highlighted, id, true)"));
+        assert!(parameter.has_sub("$.set(highlighted, id, true)"));
     }
 
     #[test]

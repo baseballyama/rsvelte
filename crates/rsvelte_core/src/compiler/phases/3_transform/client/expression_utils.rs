@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::shared::offsets::{ByteOffset, Cha
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 
 use super::scan_index::ScanIndex;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 /// Collapse a multi-line expression to a single line, matching esrap's behavior.
 /// Strip TypeScript generic type parameters from rune calls.
@@ -2146,7 +2147,7 @@ pub(super) fn strip_leading_comments(s: &str) -> &str {
     let mut rest = s.trim_start();
     loop {
         if let Some(after) = rest.strip_prefix("/*") {
-            if let Some(end) = after.find("*/") {
+            if let Some(end) = after.find_sub("*/") {
                 rest = after[end + 2..].trim_start();
                 continue;
             }

@@ -8,6 +8,7 @@
 //! Corresponds to `transform_body()` in `svelte/packages/svelte/src/compiler/phases/3-transform/shared/transform-async.js`
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::utils::{is_js_ident_continue, is_js_ident_start};
 use memchr::memmem;
 use oxc_allocator::Allocator;
@@ -441,20 +442,23 @@ fn separate_restored_async_derived_hoist(transformed: &mut String, hoisted_pos: 
 /// this text transform can hoist the declaration.
 pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
     let mut search_from = 0;
-    while let Some(relative) = source[search_from..].find("svelte-ignore ") {
+    while let Some(relative) = source[search_from..].find_sub("svelte-ignore ") {
         let ignore = search_from + relative;
         let next_search = ignore + "svelte-ignore ".len();
-        let comment_start = [source[..ignore].rfind("/*"), source[..ignore].rfind("//")]
-            .into_iter()
-            .flatten()
-            .max();
+        let comment_start = [
+            source[..ignore].rfind_sub("/*"),
+            source[..ignore].rfind_sub("//"),
+        ]
+        .into_iter()
+        .flatten()
+        .max();
         let Some(comment_start) = comment_start else {
             search_from = next_search;
             continue;
         };
         let comment_end = if source[comment_start..].starts_with("/*") {
             source[comment_start..]
-                .find("*/")
+                .find_sub("*/")
                 .map(|end| comment_start + end + 2)
         } else {
             source[comment_start..]
@@ -470,7 +474,7 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
             search_from = comment_end.max(next_search);
             continue;
         };
-        if !declaration.contains("= $derived(") && !declaration.contains("= $derived.by(") {
+        if !declaration.has_sub("= $derived(") && !declaration.has_sub("= $derived.by(") {
             search_from = comment_end.max(next_search);
             continue;
         }
@@ -532,20 +536,23 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
 /// `svelte-ignore` comments are consumed with the source declaration.
 pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
     let mut search_from = 0;
-    while let Some(relative) = source[search_from..].find("svelte-ignore ") {
+    while let Some(relative) = source[search_from..].find_sub("svelte-ignore ") {
         let ignore = search_from + relative;
         let next_search = ignore + "svelte-ignore ".len();
-        let comment_start = [source[..ignore].rfind("/*"), source[..ignore].rfind("//")]
-            .into_iter()
-            .flatten()
-            .max();
+        let comment_start = [
+            source[..ignore].rfind_sub("/*"),
+            source[..ignore].rfind_sub("//"),
+        ]
+        .into_iter()
+        .flatten()
+        .max();
         let Some(comment_start) = comment_start else {
             search_from = next_search;
             continue;
         };
         let comment_end = if source[comment_start..].starts_with("/*") {
             source[comment_start..]
-                .find("*/")
+                .find_sub("*/")
                 .map(|end| comment_start + end + 2)
         } else {
             source[comment_start..]
@@ -561,7 +568,7 @@ pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed:
             search_from = comment_end.max(next_search);
             continue;
         };
-        if !declaration.contains("= $derived(") && !declaration.contains("= $derived.by(") {
+        if !declaration.has_sub("= $derived(") && !declaration.has_sub("= $derived.by(") {
             search_from = comment_end.max(next_search);
             continue;
         }
@@ -1816,7 +1823,7 @@ fn split_leading_comments(mut statement: &str) -> (&str, &str) {
             continue;
         }
         if let Some(rest) = statement.strip_prefix("/*") {
-            let Some(end) = rest.find("*/") else {
+            let Some(end) = rest.find_sub("*/") else {
                 return (original.trim(), "");
             };
             statement = &rest[end + 2..];
@@ -3300,18 +3307,18 @@ mod tests {
     fn test_simple_await_expression() {
         let script = "await 1;";
         let result = transform_async_body(script, "$.run").unwrap();
-        assert!(result.output.contains("$.run(["));
-        assert!(result.output.contains("() => 1"));
+        assert!(result.output.has_sub("$.run(["));
+        assert!(result.output.has_sub("() => 1"));
     }
 
     #[test]
     fn test_sync_then_await() {
         let script = "let x = 1;\nawait 0;\nlet y = 2;";
         let result = transform_async_body(script, "$.run").unwrap();
-        assert!(result.output.contains("let x = 1;"));
-        assert!(result.output.contains("var y;"));
-        assert!(result.output.contains("() => 0"));
-        assert!(result.output.contains("() => y = 2"));
+        assert!(result.output.has_sub("let x = 1;"));
+        assert!(result.output.has_sub("var y;"));
+        assert!(result.output.has_sub("() => 0"));
+        assert!(result.output.has_sub("() => y = 2"));
     }
 
     #[test]
@@ -3319,9 +3326,9 @@ mod tests {
         let script = "const a = await p, b = await q;";
         let result = transform_async_body(script, "$.run").unwrap();
 
-        assert!(result.output.contains("async () => a = await p"));
-        assert!(result.output.contains("async () => b = await q"));
-        assert!(!result.output.contains("async () => {"));
+        assert!(result.output.has_sub("async () => a = await p"));
+        assert!(result.output.has_sub("async () => b = await q"));
+        assert!(!result.output.has_sub("async () => {"));
     }
 
     #[test]
@@ -3379,8 +3386,8 @@ mod tests {
     fn test_function_stays_sync() {
         let script = "await 0;\nfunction foo() { return 1; }\nlet x = 2;";
         let result = transform_async_body(script, "$.run").unwrap();
-        assert!(result.output.contains("function foo()"));
-        assert!(result.output.contains("var x;"));
+        assert!(result.output.has_sub("function foo()"));
+        assert!(result.output.has_sub("var x;"));
     }
 
     #[test]
@@ -3411,11 +3418,11 @@ mod tests {
     fn test_await_in_var_decl() {
         let script = "let data = await fetch('/api');";
         let result = transform_async_body(script, "$.run").unwrap();
-        assert!(result.output.contains("var data;"));
+        assert!(result.output.has_sub("var data;"));
         assert!(
             result
                 .output
-                .contains("async () => data = await fetch('/api')")
+                .has_sub("async () => data = await fetch('/api')")
         );
     }
 
@@ -3426,12 +3433,12 @@ mod tests {
         assert!(
             result
                 .output
-                .contains("async () => value = await $.async_derived"),
+                .has_sub("async () => value = await $.async_derived"),
             "async declaration was not classified as a declaration: {}",
             result.output
         );
         assert!(
-            !result.output.contains("void (/*"),
+            !result.output.has_sub("void (/*"),
             "a declaration must not be emitted as a void expression: {}",
             result.output
         );
@@ -3442,7 +3449,7 @@ mod tests {
         let script = "let data = await Promise.resolve(42);\n/* $$inspect_hole */";
         let result = transform_async_body(script, "$.run").unwrap();
         assert!(
-            result.output.contains("() => void 0"),
+            result.output.has_sub("() => void 0"),
             "inspect hole was dropped: {}",
             result.output
         );
@@ -3452,15 +3459,15 @@ mod tests {
     fn test_server_runner() {
         let script = "await 1;";
         let result = transform_async_body(script, "$$renderer.run").unwrap();
-        assert!(result.output.contains("$$renderer.run(["));
+        assert!(result.output.has_sub("$$renderer.run(["));
     }
 
     #[test]
     fn test_throw_statement() {
         let script = "await 1;\nthrow new Error('oops');";
         let result = transform_async_body(script, "$.run").unwrap();
-        assert!(result.output.contains("() => 1"));
-        assert!(result.output.contains("throw new Error('oops')"));
+        assert!(result.output.has_sub("() => 1"));
+        assert!(result.output.has_sub("throw new Error('oops')"));
     }
 
     #[test]
@@ -3468,18 +3475,18 @@ mod tests {
         let script = "await Promise.resolve(42);\nconst { name } = $$props;";
         let result = transform_async_body(script, "$$renderer.run").unwrap();
         assert!(
-            result.output.contains("var name;"),
+            result.output.has_sub("var name;"),
             "Should hoist destructured var. Output: {}",
             result.output
         );
         assert!(
-            result.output.contains("({ name } = $$props)"),
+            result.output.has_sub("({ name } = $$props)"),
             "Should produce destructuring thunk. Output: {}",
             result.output
         );
         // Should NOT contain `var { name };` (invalid JS)
         assert!(
-            !result.output.contains("var { name }"),
+            !result.output.has_sub("var { name }"),
             "Should not produce invalid var destructuring. Output: {}",
             result.output
         );
@@ -3502,7 +3509,7 @@ mod tests {
         assert!(
             result
                 .output
-                .contains("var $$d = await $.async_derived(() => source);"),
+                .has_sub("var $$d = await $.async_derived(() => source);"),
             "the generated temp must stay local to its async thunk: {}",
             result.output
         );
@@ -3514,12 +3521,12 @@ mod tests {
         let script = "await Promise.resolve();\n$.effect(() => console.log(value))\nlet value = $.state('value');";
         let result = transform_async_body(script, "$.run").unwrap();
         assert!(
-            result.output.contains("var value;"),
+            result.output.has_sub("var value;"),
             "Should hoist `value`. Output: {}",
             result.output
         );
         assert!(
-            result.output.contains("$.effect"),
+            result.output.has_sub("$.effect"),
             "Should contain $.effect. Output: {}",
             result.output
         );
@@ -3527,7 +3534,7 @@ mod tests {
         assert!(
             !result
                 .output
-                .contains("$.effect(() => console.log(value))\nlet"),
+                .has_sub("$.effect(() => console.log(value))\nlet"),
             "Should split $.effect and let into separate statements. Output: {}",
             result.output
         );
@@ -3539,7 +3546,7 @@ mod tests {
         let script = "await 1;\nconst some = { fn: () => {} };";
         let result = transform_async_body(script, "$.run").unwrap();
         assert!(
-            result.output.contains("some = { fn: () => {} }"),
+            result.output.has_sub("some = { fn: () => {} }"),
             "Object literal should stay together. Output: {}",
             result.output
         );
@@ -3682,9 +3689,9 @@ mod tests {
         assert!(
             result
                 .output
-                .contains("const a = $.derived(async () => await p);")
+                .has_sub("const a = $.derived(async () => await p);")
         );
-        assert!(result.output.contains("b = await load()"));
+        assert!(result.output.has_sub("b = await load()"));
         assert!(!result.blocker_map.contains_key("a"));
         assert_eq!(result.blocker_map.get("b"), Some(&0));
     }

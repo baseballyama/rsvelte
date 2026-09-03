@@ -24,6 +24,7 @@ use oxc_span::{GetSpan, Span};
 
 use super::super::shared::ast_rewrite::{self, Edit};
 use super::super::shared::js_scan;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 thread_local! {
     static DECLARATION_SPLIT_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -338,7 +339,7 @@ fn split_leading_own_line_comments(part: &str) -> (Vec<String>, &str) {
                 }
             }
         } else if rest.starts_with("/*") {
-            match rest.find("*/") {
+            match rest.find_sub("*/") {
                 Some(at) => at + 2,
                 None => break,
             }

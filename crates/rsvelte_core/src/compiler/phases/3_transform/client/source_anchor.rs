@@ -21,6 +21,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::{
     JsExpr, JsPattern, JsSourceAnchor, JsSourcePatternAnchor,
 };
 use crate::compiler::phases::phase3_transform::shared::js_scan;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use compact_str::CompactString;
 
 /// One `{ … }` region and the comments written in it.
@@ -57,7 +58,7 @@ impl CommentRegion {
             return None;
         }
         let inner = source.get(inner_start as usize..inner_end as usize)?;
-        if !inner.contains("//") && !inner.contains("/*") {
+        if !inner.has_sub("//") && !inner.has_sub("/*") {
             return None;
         }
         let allocator = oxc_allocator::Allocator::default();
@@ -128,7 +129,7 @@ impl CommentRegion {
             return None;
         }
         let inner = source.get(inner_start as usize..inner_end as usize)?;
-        if !inner.contains("//") && !inner.contains("/*") {
+        if !inner.has_sub("//") && !inner.has_sub("/*") {
             return None;
         }
         let allocator = oxc_allocator::Allocator::default();
