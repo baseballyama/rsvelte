@@ -20,6 +20,7 @@ use super::{
     is_destructured_param_binding, is_explicit_property_key, is_inside_string_literal,
     is_shadowed_by_function_param, is_shorthand_object_property,
 };
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 /// True when the identifier at `var_start` (len `var_len`) is a *binding* in an
 /// arrow-function parameter list — `name => …`, `(name) => …`, `(a, name, b) =>
@@ -1054,7 +1055,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     let mut trimmed = trimmed_full;
     let mut leading_comment = "";
     while trimmed.starts_with("/*") {
-        if let Some(end) = trimmed.find("*/") {
+        if let Some(end) = trimmed.find_sub("*/") {
             let comment_end = end + 2;
             leading_comment = &trimmed_full[..trimmed_full.len() - trimmed.len() + comment_end];
             trimmed = trimmed[comment_end..].trim_start();
@@ -1084,7 +1085,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     //   - `leading_ws`: the file-level indentation (leading whitespace of the line
     //     that contains `export`), so the transformed declaration gets proper indent
     let (comment_prefix, leading_ws_string): (String, String) = if !leading_comment.is_empty() {
-        if let Some(export_pos) = line.rfind("export ") {
+        if let Some(export_pos) = line.rfind_sub("export ") {
             // Everything before `export` (trimmed of the separating space).
             let before_export = &line[..export_pos];
             let prefix_text = before_export.trim_end();
@@ -1201,7 +1202,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             let interior_comments = raw_initializer
                 .filter(|_| initializer_comment.is_none())
                 .map(|raw| raw.trim_end().strip_suffix(';').unwrap_or(raw).trim())
-                .filter(|raw| raw.contains("//") || raw.contains("/*"))
+                .filter(|raw| raw.has_sub("//") || raw.has_sub("/*"))
                 // A `;` still in the text means the initializer did not end
                 // where that suffix was stripped (`null; // c`), and text ending
                 // inside a line comment would swallow the closing paren.
@@ -1383,7 +1384,7 @@ fn split_own_line_leading_comments(text: &str) -> (Vec<(String, bool)>, &str) {
                 None => break,
             }
         } else if trimmed.starts_with("/*") {
-            match trimmed.find("*/") {
+            match trimmed.find_sub("*/") {
                 Some(at) => at + 2,
                 None => break,
             }
@@ -1418,7 +1419,7 @@ fn leading_initializer_comments(raw_value: &str) -> Option<&str> {
 
     loop {
         if bytes.get(i..i + 2) == Some(b"/*") {
-            let close = raw_value[i + 2..].find("*/")?;
+            let close = raw_value[i + 2..].find_sub("*/")?;
             i += close + 4;
             found = true;
         } else if bytes.get(i..i + 2) == Some(b"//") {
@@ -3041,7 +3042,7 @@ pub(super) fn transform_props_destructuring(
     // distinguish a same-line comment (which may trail a default value inside
     // `$.prop(...)`) from one that has already crossed a line boundary.
     let original_trimmed = line.trim();
-    let props_call = original_trimmed.rfind("$props")?;
+    let props_call = original_trimmed.rfind_sub("$props")?;
     let assignment = code_bytes(&original_trimmed.as_bytes()[..props_call])
         .filter_map(|(offset, byte)| (byte == b'=').then_some(offset))
         .last()?;
@@ -5206,7 +5207,7 @@ fn should_proxy_prop_default(value: &str, analysis: &ComponentAnalysis) -> bool 
         return false;
     }
     // Arrow functions: starts with `(` or identifier then `=>`
-    if v.starts_with("() =>") || v.starts_with("(") && v.contains("=>") {
+    if v.starts_with("() =>") || v.starts_with("(") && v.has_sub("=>") {
         return false;
     }
     // Function expressions

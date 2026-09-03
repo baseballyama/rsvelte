@@ -18,6 +18,7 @@ use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes_from;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::offsets::{ByteLen, ByteOffset};
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 // ---------------------------------------------------------------------------
 // Identifier reference detection (lines 7653-8602 of mod.rs)
@@ -1677,7 +1678,7 @@ fn split_keyword_comment_run(line: &str) -> Option<(&str, &str, &str)> {
         if line[at..].starts_with("//") {
             at += line[at..].find('\n')? + 1;
         } else if line[at..].starts_with("/*") {
-            at += line[at..].find("*/")? + 2;
+            at += line[at..].find_sub("*/")? + 2;
         } else if bytes.get(at) == Some(&b'\n') && found {
             at += 1;
         } else {

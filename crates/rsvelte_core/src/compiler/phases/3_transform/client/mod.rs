@@ -126,6 +126,7 @@ use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKin
 use crate::compiler::phases::phase2_analyze::types::{CopiedSourceChunk, ScriptProjection};
 
 // Import new visitor system types
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
 
 // Cached regular expression for $$props replacement
@@ -349,7 +350,7 @@ pub fn transform_client_module(
     };
 
     let has_effect_rune =
-        class_transformed.contains("$effect") || class_transformed.contains("$inspect");
+        class_transformed.has_sub("$effect") || class_transformed.has_sub("$inspect");
     let transformed =
         transform_module_script_runes(&class_transformed, source, analysis, options.dev, true);
 
@@ -1371,7 +1372,7 @@ pub(crate) fn transform_client(
     // Reuse the pre_transformed_script from above (already has reactive_import_names).
     if let Some(ref content) = analysis.instance_script_content {
         let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
-        let has_effect_rune = content.raw.contains("$effect") || content.raw.contains("$inspect");
+        let has_effect_rune = content.raw.has_sub("$effect") || content.raw.has_sub("$inspect");
         let props_comments = props_declaration_comments(&content.raw);
         let props_comment_anchor = props_comments
             .last()
@@ -2364,7 +2365,7 @@ pub(crate) fn transform_client(
             &compute_non_proxy_scope(analysis).non_proxy_vars,
         );
         let has_effect_rune =
-            class_transformed.contains("$effect") || class_transformed.contains("$inspect");
+            class_transformed.has_sub("$effect") || class_transformed.has_sub("$inspect");
         let transformed = transform_module_script_runes(
             &class_transformed,
             &non_imports,
@@ -3060,7 +3061,7 @@ fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
     {
         let bytes = code.as_bytes();
         let mut i = 0usize;
-        while let Some(pos) = code[i..].find("rest_excludes") {
+        while let Some(pos) = code[i..].find_sub("rest_excludes") {
             let abs = i + pos;
             let after = abs + "rest_excludes".len();
             let mut end = after;
@@ -3248,10 +3249,10 @@ fn script_raw_statement(
 /// Comments inside the `$props()` declaration survive upstream's lowering even
 /// though the declaration itself is removed from the component body.
 fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
-    let Some(props) = raw.find("$props()") else {
+    let Some(props) = raw.find_sub("$props()") else {
         return Vec::new();
     };
-    let Some(start) = raw[..props].rfind("let") else {
+    let Some(start) = raw[..props].rfind_sub("let") else {
         return Vec::new();
     };
     let end = raw[props..]
@@ -6215,7 +6216,7 @@ fn separate_same_line_top_level_statements<'a>(
     use oxc_parser::Parser;
     use oxc_span::{GetSpan as _, SourceType};
 
-    let has_export = script.contains("export let ") || script.contains("export var ");
+    let has_export = script.has_sub("export let ") || script.has_sub("export var ");
     let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
     // A semicolon at the start of a physical line belongs to the statement
     // before it in the parser span, while everything after it belongs to the
@@ -6370,7 +6371,7 @@ fn label_colon_offset(script: &str, from: usize) -> Option<usize> {
             }
             b'/' if bytes.get(i + 1) == Some(&b'*') => {
                 i = script[i + 2..]
-                    .find("*/")
+                    .find_sub("*/")
                     .map_or(script.len(), |end| i + 2 + end + 2);
             }
             _ => {
@@ -6872,7 +6873,7 @@ fn drop_trailing_svelte_ignore(output: &mut String) {
         let comment_start = if line.trim_start().starts_with("//") {
             line_start + line.len() - line.trim_start().len()
         } else if output[..end].ends_with("*/") {
-            let Some(comment_start) = output[..end].rfind("/*") else {
+            let Some(comment_start) = output[..end].rfind_sub("/*") else {
                 return;
             };
             let comment_line_start = output[..comment_start]
@@ -6886,7 +6887,7 @@ fn drop_trailing_svelte_ignore(output: &mut String) {
             return;
         };
 
-        if !output[comment_start..end].contains("svelte-ignore") {
+        if !output[comment_start..end].has_sub("svelte-ignore") {
             return;
         }
 
@@ -8062,7 +8063,7 @@ fn transform_instance_script_for_visitors(
             // physical line, so this reads the joined statement.
             let mut s: &str = statement.trim();
             while s.starts_with("/*") {
-                if let Some(end) = s.find("*/") {
+                if let Some(end) = s.find_sub("*/") {
                     s = s[end + 2..].trim_start();
                 } else {
                     s = "";
@@ -8522,12 +8523,12 @@ fn transform_instance_script_for_visitors(
                 // Template references can create the component StoreSub binding even
                 // when the same spelling resolves to a nested local in the script.
                 let mut filtered_store_sub_vars = Vec::new();
-                let may_declare_binding = transformed.contains("=>")
-                    || transformed.contains("function")
-                    || transformed.contains("let")
-                    || transformed.contains("const")
-                    || transformed.contains("var")
-                    || transformed.contains("catch");
+                let may_declare_binding = transformed.has_sub("=>")
+                    || transformed.has_sub("function")
+                    || transformed.has_sub("let")
+                    || transformed.has_sub("const")
+                    || transformed.has_sub("var")
+                    || transformed.has_sub("catch");
                 let effective_store_sub_vars = if may_declare_binding {
                     filtered_store_sub_vars.extend(
                         store_sub_vars

@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::shared::class_body::{
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
     line_starts_outside_opaque, skip_opaque,
 };
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 /// JS-lexical-aware replacement for `find_matching_paren`: given `s` positioned
 /// just after an opening `(`, return the byte offset of the matching `)`,
@@ -1832,7 +1833,7 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
     let is_private = trimmed.starts_with('#');
 
     // Find the field name
-    let name_end = trimmed.find('=').or_else(|| trimmed.find(" ="))?;
+    let name_end = trimmed.find('=').or_else(|| trimmed.find_sub(" ="))?;
     let name = trimmed[..name_end]
         .trim()
         .trim_start_matches('#')

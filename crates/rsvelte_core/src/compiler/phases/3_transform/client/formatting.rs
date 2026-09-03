@@ -7,6 +7,7 @@ use memchr::memmem;
 use oxc_allocator::Allocator;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::utils::is_escaped;
 
 // Thread-local OXC allocator reused across normalize_js_with_oxc calls to avoid
@@ -260,7 +261,7 @@ pub(super) fn reactive_tail_comment_outlives_effects(source: &str) -> bool {
     };
     !last.has_successor
         && last.end < source.len()
-        && (source[last.end..].contains("//") || source[last.end..].contains("/*"))
+        && (source[last.end..].has_sub("//") || source[last.end..].has_sub("/*"))
         && !nested_block_ranges(source, last.label, last.end).is_empty()
 }
 
@@ -389,7 +390,7 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
     // extend the dead-cursor span when nothing in the body can revive it.
     if let Some(last) = spans.last_mut()
         && !last.has_successor
-        && (source[last.end..].contains("//") || source[last.end..].contains("/*"))
+        && (source[last.end..].has_sub("//") || source[last.end..].has_sub("/*"))
         && nested_block_ranges(source, last.label, last.end).is_empty()
     {
         last.end = source.len();
@@ -507,7 +508,7 @@ fn continuation_keyword(source: &str, from: usize) -> Option<usize> {
             }
             Some(b'/') if bytes.get(i + 1) == Some(&b'*') => {
                 i = source[i + 2..]
-                    .find("*/")
+                    .find_sub("*/")
                     .map_or(source.len(), |end| i + 2 + end + 2);
             }
             _ => break,
@@ -1338,7 +1339,10 @@ pub(crate) fn normalize_js_with_oxc_lead(js: &str, indent_level: usize, lead: &s
     // them bare and let that print supply the indent once.
     let leading_comment_last_line = code
         .starts_with("/*")
-        .then(|| code.find("*/").map(|end| code[..end].matches('\n').count()))
+        .then(|| {
+            code.find_sub("*/")
+                .map(|end| code[..end].matches('\n').count())
+        })
         .flatten();
     // Use a persistent stack so we correctly preserve state across lines,
     // including inside nested template literals (e.g. `${`...`}`). A simple
@@ -1466,7 +1470,7 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
         let c = bytes[i];
         match stack.last().copied() {
             Some(TemplateStateFrame::BlockComment) => {
-                match line[i..].find("*/") {
+                match line[i..].find_sub("*/") {
                     Some(offset) => {
                         stack.pop();
                         i += offset + 2;

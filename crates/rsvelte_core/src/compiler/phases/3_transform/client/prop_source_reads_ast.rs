@@ -71,6 +71,7 @@ use rustc_hash::FxHashSet;
 
 use super::ast_rewrite;
 use super::scope_analysis::is_locally_shadowed;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 thread_local! {
     static PROP_READ_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
@@ -223,7 +224,7 @@ pub(super) fn map_prop_default_values(
     source: &str,
     transform: impl FnMut(&str) -> Option<String>,
 ) -> Option<String> {
-    if !source.contains("$.prop(") {
+    if !source.has_sub("$.prop(") {
         return None;
     }
 
@@ -784,11 +785,11 @@ mod tests {
         // skip. Shorthand: expand. Property key `obj.count =`:
         // .count is a property key, never visited. Member mutation
         // base: skip (bindable).
-        assert!(out.contains("let r = count() + 1;"));
-        assert!(out.contains("function inner(count) { return count + 1; }"));
-        assert!(out.contains("$.update_prop(count);"));
-        assert!(out.contains("let o = { count: count() };"));
-        assert!(out.contains("obj.count = 5;"));
-        assert!(out.contains("count.x = 5;"));
+        assert!(out.has_sub("let r = count() + 1;"));
+        assert!(out.has_sub("function inner(count) { return count + 1; }"));
+        assert!(out.has_sub("$.update_prop(count);"));
+        assert!(out.has_sub("let o = { count: count() };"));
+        assert!(out.has_sub("obj.count = 5;"));
+        assert!(out.has_sub("count.x = 5;"));
     }
 }

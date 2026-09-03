@@ -17,6 +17,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::declara
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 /// Visit a const tag.
 ///
@@ -667,9 +668,9 @@ pub(crate) fn add_const_declaration(
                 &expression,
                 &context.arena,
             );
-            code.contains("$.derived(")
-                || code.contains("$.derived_safe_equal(")
-                || code.contains("$.async_derived(")
+            code.has_sub("$.derived(")
+                || code.has_sub("$.derived_safe_equal(")
+                || code.has_sub("$.async_derived(")
         };
 
         // Async case: need to handle async consts

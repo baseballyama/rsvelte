@@ -12,6 +12,7 @@ pub mod module_tail_comment;
 pub mod offsets;
 pub mod rune_parens;
 pub mod rune_shadow;
+pub mod substring;
 pub mod template;
 
 pub use template::*;

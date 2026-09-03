@@ -13,6 +13,7 @@ use crate::compiler::phases::phase1_parse::utils::{
 };
 use crate::compiler::phases::phase3_transform::shared::js_scan;
 use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::utils::is_js_ident_continue;
 
 /// Byte offset of the first character after `from` that is neither JavaScript
@@ -141,7 +142,7 @@ fn brace_opens_class_body(prefix: &str) -> bool {
     }
     // `extends <expr>` between the (optional) name and the brace.
     let mut search = p.len();
-    while let Some(idx) = p[..search].rfind("extends") {
+    while let Some(idx) = p[..search].rfind_sub("extends") {
         if ends_with_keyword(&p[..idx + 7], "extends")
             && !p[idx + 7..].starts_with(is_js_ident_continue)
         {
@@ -363,7 +364,7 @@ fn member_break_at(s: &str, pos: usize) -> Option<(usize, usize)> {
         }
         // A `/* … */` comment trailing the member that just ended stays with it.
         if let Some(inner) = trimmed.strip_prefix("/*") {
-            cut = line_end - inner.len() + inner.find("*/")? + 2;
+            cut = line_end - inner.len() + inner.find_sub("*/")? + 2;
             continue;
         }
         return Some((cut, line_end - trimmed.len()));

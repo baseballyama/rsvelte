@@ -17,6 +17,7 @@ use crate::compiler::phases::phase3_transform::client::types::{
 };
 use crate::compiler::phases::phase3_transform::js_ast::ExprId;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use compact_str::CompactString;
 use serde_json::Value;
 use std::fmt::Write as _;
@@ -3497,7 +3498,7 @@ fn convert_class_expression(
 /// deleting syntax or comments on the text-fallback path. The primary OXC
 /// path still parses `source`; this only guards the secondary printer.
 fn class_declaration_has_structured_fallback(value: &Value, source: &str) -> bool {
-    if source.contains("//") || source.contains("/*") {
+    if source.has_sub("//") || source.has_sub("/*") {
         return false;
     }
 
@@ -4984,7 +4985,7 @@ pub(crate) fn is_svelte_ignored_before_offset(start: usize, code: &str, source: 
                 continue;
             }
             // Check for // svelte-ignore
-            if let Some(comment_start) = trimmed.rfind("//") {
+            if let Some(comment_start) = trimmed.rfind_sub("//") {
                 let comment_text = &trimmed[comment_start + 2..];
                 if comment_has_svelte_ignore(comment_text, code) {
                     return true;
