@@ -4052,13 +4052,13 @@ fn own_line_comment_scan_start(source: &str, stmt_start: usize) -> usize {
     if stmt_start > source.len() || !source.is_char_boundary(stmt_start) {
         return stmt_start;
     }
-    let mut line_start = source[..stmt_start].rfind('\n').map(|p| p + 1).unwrap_or(0);
+    let mut line_start = source[..stmt_start].rfind_byte(b'\n').map(|p| p + 1).unwrap_or(0);
     loop {
         if line_start == 0 {
             return 0;
         }
         let prev_line_start = source[..line_start - 1]
-            .rfind('\n')
+            .rfind_byte(b'\n')
             .map(|p| p + 1)
             .unwrap_or(0);
         let prev_line = source[prev_line_start..line_start - 1].trim();

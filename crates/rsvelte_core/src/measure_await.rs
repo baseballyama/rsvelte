@@ -29,6 +29,7 @@
 //!   --features measure-await
 //! ```
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use std::cell::Cell;
 
 thread_local! {
@@ -151,7 +152,7 @@ fn replay(expr: &str) -> bool {
             let before: String = chars[..i].iter().collect();
             if before.trim_end().ends_with("=>") {
                 let before_trimmed = before.trim_end();
-                if let Some(paren_pos) = before_trimmed.rfind('(') {
+                if let Some(paren_pos) = before_trimmed.rfind_byte(b'(') {
                     let before_paren = &before_trimmed[..paren_pos];
                     if before_paren.trim_end().ends_with("async") {
                         async_fn_depth += 1;

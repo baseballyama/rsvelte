@@ -1025,7 +1025,7 @@ fn transform_class_fields_client_with_options_at(
     let class_indent: String = match indent_override {
         Some(indent) => indent.to_string(),
         None => {
-            let line_start = script[..class_pos].rfind('\n').map_or(0, |p| p + 1);
+            let line_start = script[..class_pos].rfind_byte(b'\n').map_or(0, |p| p + 1);
             script[line_start..class_pos]
                 .chars()
                 .take_while(|c| *c == ' ' || *c == '\t')
@@ -1079,7 +1079,7 @@ fn transform_class_fields_client_with_options_at(
         let after_ctor = &class_body[ctor_pos..];
         // Extract constructor parameters
         let mut params_end_in_after: Option<usize> = None;
-        if let Some(paren_start) = after_ctor.find('(') {
+        if let Some(paren_start) = after_ctor.find_byte(b'(') {
             let params_start = paren_start + 1;
             let params_end = find_matching_paren_lexical(&after_ctor[params_start..])
                 .map(|rel| params_start + rel)
@@ -1096,7 +1096,7 @@ fn transform_class_fields_client_with_options_at(
         // class. Surfaced by layerchart's `states/settings.svelte.js` →
         // SSR output had an orphaned `) {` and rolldown rejected the file.
         let brace_search_start = params_end_in_after.map(|e| e + 1).unwrap_or(0);
-        if let Some(brace_rel) = after_ctor[brace_search_start..].find('{') {
+        if let Some(brace_rel) = after_ctor[brace_search_start..].find_byte(b'{') {
             let brace_pos_inner = brace_search_start + brace_rel;
             let ctor_body_start = ctor_pos + brace_pos_inner + 1;
             // JS-lexical-aware matching brace (H-057).
@@ -1265,8 +1265,8 @@ fn transform_class_fields_client_with_options_at(
                     let field_trimmed = trimmed.trim_end_matches(';').trim();
                     let is_plain_field = brace_depth == 0
                         && in_code.get(si + 1).copied().unwrap_or(true)
-                        && !field_trimmed.contains('(')
-                        && !field_trimmed.contains('{')
+                        && !field_trimmed.has_byte(b'(')
+                        && !field_trimmed.has_byte(b'{')
                         && !field_trimmed.starts_with("//")
                         && !field_trimmed.starts_with("/*");
                     if is_plain_field {
@@ -1833,7 +1833,7 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
     let is_private = trimmed.starts_with('#');
 
     // Find the field name
-    let name_end = trimmed.find('=').or_else(|| trimmed.find_sub(" ="))?;
+    let name_end = trimmed.find_byte(b'=').or_else(|| trimmed.find_sub(" ="))?;
     let name = trimmed[..name_end]
         .trim()
         .trim_start_matches('#')
@@ -1918,7 +1918,7 @@ pub(super) fn parse_constructor_state_assignment(
         (is_priv, n)
     } else if trimmed.starts_with("this[") {
         // Handle `this[n] = $state(...)` (bracket notation)
-        let bracket_end = trimmed.find(']')?;
+        let bracket_end = trimmed.find_byte(b']')?;
         let key = trimmed[5..bracket_end].trim();
         // For bracket notation, the key becomes a quoted property name in getter/setter
         // e.g., this[1] -> get '1'() { ... }
@@ -2610,7 +2610,7 @@ pub(super) fn transform_constructor_assignment(
     }
 
     // Check for private field assignment: this.#name = value
-    if result.starts_with("this.#") && result.contains('=') {
+    if result.starts_with("this.#") && result.has_byte(b'=') {
         for field in fields {
             if field.is_private {
                 // Handle logical assignment operators: ||=, &&=, ??=
@@ -2699,7 +2699,7 @@ pub(super) fn transform_constructor_assignment(
                 let pattern_nospace = format!("this.#{}=", field.name);
 
                 if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
-                    let eq_pos = result.find('=').unwrap();
+                    let eq_pos = result.find_byte(b'=').unwrap();
                     // Extract only the RHS expression (stop at the top-level `;`),
                     // keeping any trailing `; // comment` so it survives after the
                     // rewritten `$.set(...)` instead of being glued inside the call

@@ -18,6 +18,7 @@
 //! user wrote, so this pass runs before any other module rewrite moves the
 //! enclosing function.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
@@ -110,11 +111,11 @@ impl<'src> TraceCollector<'src> {
         let prefix_lines = self.source_prefix.matches('\n').count();
         let local_lines = before.matches('\n').count();
         let line = prefix_lines + local_lines + 1;
-        let col = if let Some(last_newline) = before.rfind('\n') {
+        let col = if let Some(last_newline) = before.rfind_byte(b'\n') {
             before[last_newline + 1..].chars().count()
         } else {
             let prefix_column = self.source_prefix
-                [self.source_prefix.rfind('\n').map_or(0, |p| p + 1)..]
+                [self.source_prefix.rfind_byte(b'\n').map_or(0, |p| p + 1)..]
                 .chars()
                 .count();
             prefix_column + before.chars().count()

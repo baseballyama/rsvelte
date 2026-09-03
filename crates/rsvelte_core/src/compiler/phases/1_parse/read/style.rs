@@ -14,6 +14,7 @@
 //! - **Declaration/rule parsing**: Handles CSS rules, at-rules, and declarations
 //!   with position tracking for source maps.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use memchr::memmem;
 use serde_json::{Map, Value};
 
@@ -702,8 +703,8 @@ impl<'a> Parser<'a> {
             if !trimmed.is_empty() {
                 // Fast path: no block comments present, so there is nothing to
                 // strip and `trimmed` itself already reflects the real content.
-                if !trimmed.contains("/*") {
-                    if !trimmed.contains('{') && !trimmed.contains(';') && !trimmed.starts_with('@')
+                if !trimmed.has_sub("/*") {
+                    if !trimmed.has_byte(b'{') && !trimmed.has_byte(b';') && !trimmed.starts_with('@')
                     {
                         // Non-empty CSS content with no blocks and no at-rules - invalid
                         // In indented Sass, upstream reads the first line as a
@@ -756,8 +757,8 @@ impl<'a> Parser<'a> {
                     }
                     let stripped = stripped.trim_ws();
                     if !stripped.is_empty()
-                        && !stripped.contains('{')
-                        && !stripped.contains(';')
+                        && !stripped.has_byte(b'{')
+                        && !stripped.has_byte(b';')
                         && !stripped.starts_with('@')
                     {
                         // Non-empty CSS content with no blocks and no at-rules - invalid

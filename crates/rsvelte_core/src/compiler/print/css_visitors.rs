@@ -7,6 +7,7 @@
 //! Reference: `svelte/packages/svelte/src/compiler/print/index.js` (lines 172-325)
 
 use super::Context;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 use std::fmt::Write as _;
@@ -116,11 +117,11 @@ fn visit_atrule(context: &mut Context, node: &Value) {
 
 /// Recover the declarations of a `@font-face` block from its raw source text.
 fn font_face_declarations(raw: &str) -> Vec<String> {
-    let Some(brace) = raw.find('{') else {
+    let Some(brace) = raw.find_byte(b'{') else {
         return Vec::new();
     };
     let inner = &raw[brace + 1..];
-    let Some(close) = inner.rfind('}') else {
+    let Some(close) = inner.rfind_byte(b'}') else {
         return Vec::new();
     };
 

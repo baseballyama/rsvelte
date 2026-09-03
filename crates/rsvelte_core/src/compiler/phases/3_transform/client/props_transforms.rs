@@ -563,7 +563,7 @@ pub(super) fn transform_let_with_reexported_props(
                     .is_some_and(|b| b.kind == BindingKind::BindableProp)
             })
         } else {
-            let name = if let Some(eq_pos) = decl.find('=') {
+            let name = if let Some(eq_pos) = decl.find_byte(b'=') {
                 decl[..eq_pos].trim()
             } else {
                 decl
@@ -631,7 +631,7 @@ pub(super) fn transform_let_with_reexported_props(
         }
 
         // Parse: name = value or just name
-        let (name, value) = if let Some(eq_pos) = decl.find('=') {
+        let (name, value) = if let Some(eq_pos) = decl.find_byte(b'=') {
             let n = decl[..eq_pos].trim();
             let v = decl[eq_pos + 1..].trim();
             // Remove trailing line comment if present
@@ -1092,7 +1092,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             let prefix = format!("{}\n", prefix_text);
 
             // Find the start of the source line that contains `export`.
-            let line_start = before_export.rfind('\n').map(|p| p + 1).unwrap_or(0);
+            let line_start = before_export.rfind_byte(b'\n').map(|p| p + 1).unwrap_or(0);
             // The indentation = leading whitespace of that line.
             let line_content = &line[line_start..export_pos];
             let ws_len = line_content.len()
@@ -1155,7 +1155,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     let raw_declarators = split_declarators(rest_raw);
     let last_declarator_has_initializer = declarators
         .last()
-        .is_some_and(|declarator| declarator.contains('='));
+        .is_some_and(|declarator| declarator.has_byte(b'='));
 
     let mut results = Vec::new();
 
@@ -1179,7 +1179,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
         }
 
         // Parse: name = value or just name
-        if let Some(eq_pos) = decl.find('=') {
+        if let Some(eq_pos) = decl.find_byte(b'=') {
             let name = decl[..eq_pos].trim();
             let mut value = decl[eq_pos + 1..].trim();
 
@@ -1193,7 +1193,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
             let value = value.trim_end_matches(';').trim();
             let raw_initializer = raw_declarators
                 .get(declarator_index)
-                .and_then(|raw_decl| raw_decl.find('=').map(|at| &raw_decl[at + 1..]));
+                .and_then(|raw_decl| raw_decl.find_byte(b'=').map(|at| &raw_decl[at + 1..]));
             let initializer_comment = raw_initializer.and_then(leading_initializer_comments);
             // A comment INSIDE the initializer is in neither restored run: the
             // comment-free copy is what every semantic decision reads. Carry the
@@ -1354,7 +1354,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> 
     if last_declarator_has_initializer
         && let Some(comment) = trailing_line_comment
         && let Some(last) = results.last_mut()
-        && let Some(close) = last.rfind(')')
+        && let Some(close) = last.rfind_byte(b')')
     {
         // A line comment must terminate before the call's closing paren. The
         // program printer supplies the final indentation and multiline layout.
@@ -1379,7 +1379,7 @@ fn split_own_line_leading_comments(text: &str) -> (Vec<(String, bool)>, &str) {
     loop {
         let trimmed = rest.trim_start();
         let end = if trimmed.starts_with("//") {
-            match trimmed.find('\n') {
+            match trimmed.find_byte(b'\n') {
                 Some(at) => at,
                 None => break,
             }
@@ -1424,7 +1424,7 @@ fn leading_initializer_comments(raw_value: &str) -> Option<&str> {
             found = true;
         } else if bytes.get(i..i + 2) == Some(b"//") {
             i = raw_value[i + 2..]
-                .find('\n')
+                .find_byte(b'\n')
                 .map_or(bytes.len(), |newline| i + 2 + newline + 1);
             found = true;
         } else {
@@ -2009,7 +2009,7 @@ pub(super) fn split_property_key_value(prop: &str) -> Option<(&str, &str)> {
 /// `name` -> `("name", None)`
 pub(super) fn split_binding_name_default(s: &str) -> (&str, Option<&str>) {
     let s = s.trim();
-    if let Some(eq_pos) = s.find('=') {
+    if let Some(eq_pos) = s.find_byte(b'=') {
         // Make sure this isn't == or =>
         let after = s.get(eq_pos + 1..eq_pos + 2).unwrap_or("");
         if after == "=" || after == ">" {
@@ -2401,7 +2401,7 @@ pub(super) fn is_simple_expression_str(value: &str, analysis: &ComponentAnalysis
         && !trimmed.starts_with('"')
         && !trimmed.starts_with('\'')
         && !trimmed.starts_with('`')
-        && trimmed.contains('.')
+        && trimmed.has_byte(b'.')
         && trimmed.parse::<f64>().is_err()
     {
         return false;
@@ -2991,10 +2991,10 @@ fn attach_or_pend(
         let text = &props_str[start..end];
         let attachable = pending.is_empty()
             && !*trail_broken
-            && prev_value_end.is_some_and(|e| e <= start && !props_str[e..start].contains('\n'));
+            && prev_value_end.is_some_and(|e| e <= start && !props_str[e..start].has_byte(b'\n'));
         if attachable
             && let Some(last) = declarators.last_mut()
-            && let Some(pos) = last.rfind(')')
+            && let Some(pos) = last.rfind_byte(b')')
         {
             let is_line = text.starts_with("//");
             let insert = if is_line {
@@ -3018,7 +3018,7 @@ fn flush_pending_before(pending: &mut Vec<(usize, String)>, props_str: &str, to:
     let mut out = String::new();
     for (end, text) in pending.drain(..) {
         out.push_str(&text);
-        if props_str[end..to].contains('\n') {
+        if props_str[end..to].has_byte(b'\n') {
             out.push('\n');
         } else {
             out.push(' ');
@@ -3090,10 +3090,10 @@ pub(super) fn transform_props_destructuring(
     // Reference: VariableDeclaration.js lines 51-60
     // When $props() is assigned to a plain identifier (not destructured),
     // it always generates $.rest_props() with the standard exclusion list.
-    if !trimmed.contains('{') && memmem::find(trimmed.as_bytes(), b"= $props()").is_some() {
+    if !trimmed.has_byte(b'{') && memmem::find(trimmed.as_bytes(), b"= $props()").is_some() {
         // Pattern: let props = $props()
         let decl_start = decl_keyword.len() + 1;
-        let eq_pos = trimmed.find('=')?;
+        let eq_pos = trimmed.find_byte(b'=')?;
         let var_name = trimmed[decl_start..eq_pos].trim();
 
         let mut seen = vec!["'$$slots'", "'$$events'", "'$$legacy'"];
@@ -3119,7 +3119,7 @@ pub(super) fn transform_props_destructuring(
     }
 
     // Check for destructuring pattern: let { ... } = $props()
-    if !trimmed.contains('{') || memmem::find(trimmed.as_bytes(), b"= $props()").is_none() {
+    if !trimmed.has_byte(b'{') || memmem::find(trimmed.as_bytes(), b"= $props()").is_none() {
         return None;
     }
 
@@ -3213,7 +3213,7 @@ pub(super) fn transform_props_destructuring(
             });
         if attachable
             && let Some(last) = declarators.last_mut()
-            && let Some(pos) = last.rfind(')')
+            && let Some(pos) = last.rfind_byte(b')')
         {
             let is_line = text.starts_with("//");
             let insert = if is_line {
@@ -3262,7 +3262,7 @@ pub(super) fn transform_props_destructuring(
         }
 
         // Handle: name = default_value (always generate for props with defaults)
-        if let Some(eq_pos) = prop_part.find('=') {
+        if let Some(eq_pos) = prop_part.find_byte(b'=') {
             let name_part = prop_part[..eq_pos].trim();
             let raw_default_value = prop_part[eq_pos + 1..].trim();
 
@@ -3270,7 +3270,7 @@ pub(super) fn transform_props_destructuring(
             // In destructuring, `disabled: disabledProp = false` means:
             //   prop_name = "disabled" (the actual prop)
             //   local_name = "disabledProp" (the local variable)
-            let (prop_key, local_name) = if let Some(colon_pos) = name_part.find(':') {
+            let (prop_key, local_name) = if let Some(colon_pos) = name_part.find_byte(b':') {
                 let raw_key = name_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name (e.g., 'weird-name': localVar)
                 let pn = raw_key
@@ -3423,7 +3423,7 @@ pub(super) fn transform_props_destructuring(
             true
         } else {
             // No default value - handle rename pattern: `originalProp: localVar`
-            let (prop_key, local_name) = if let Some(colon_pos) = prop_part.find(':') {
+            let (prop_key, local_name) = if let Some(colon_pos) = prop_part.find_byte(b':') {
                 let raw_key = prop_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name
                 let pn = raw_key
@@ -4585,7 +4585,7 @@ fn static_member_names(path_parts: &[String]) -> Option<Vec<String>> {
         .map(|part| {
             part.strip_prefix('\'')
                 .and_then(|p| p.strip_suffix('\''))
-                .filter(|p| !p.contains('\''))
+                .filter(|p| !p.has_byte(b'\''))
                 .map(str::to_string)
         })
         .collect()

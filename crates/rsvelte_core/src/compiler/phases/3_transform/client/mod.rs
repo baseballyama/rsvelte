@@ -2967,7 +2967,7 @@ fn rehome_tag_derived_line_comments(code: &str) -> String {
             .find(|c: char| !matches!(c, ' ' | '\t'))
             .map_or(rest.len(), |index| comment_start + index);
         let indent = &rest[comment_start..indent_end];
-        let Some(comment_end_relative) = rest[indent_end..].find('\n') else {
+        let Some(comment_end_relative) = rest[indent_end..].find_byte(b'\n') else {
             result.push_str(&rest[..start + PREFIX.len()]);
             rest = &rest[start + PREFIX.len()..];
             continue;
@@ -3083,7 +3083,7 @@ fn extract_rest_excludes_hoists(code: &mut String) -> Vec<(String, String)> {
     while let Some(rel) = code[search_start..].find(needle) {
         let call_start = search_start + rel;
         let array_open = call_start + needle.len() - 1; // points at '['
-        let Some(array_close_rel) = code[array_open + 1..].find(']') else {
+        let Some(array_close_rel) = code[array_open + 1..].find_byte(b']') else {
             break;
         };
         let array_close = array_open + 1 + array_close_rel;
@@ -3257,7 +3257,7 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
         return Vec::new();
     };
     let end = raw[props..]
-        .find(';')
+        .find_byte(b';')
         .map_or(raw.len(), |end| props + end + 1);
     crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(&raw[start..end])
         .into_iter()

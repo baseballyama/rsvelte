@@ -54,6 +54,7 @@
 //! by `Spanned`/`RawMapped` — read as "no location" to the printer, mirroring
 //! esrap's `if (node.loc)` guards.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
 use crate::ast::oxc_program::RetainedProgram;
@@ -868,7 +869,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 let end = base + (source_end - region_start);
                 let kind = if line {
                     CommentKind::Line
-                } else if region[(start - base) as usize..(end - base) as usize].contains('\n') {
+                } else if region[(start - base) as usize..(end - base) as usize].has_byte(b'\n') {
                     CommentKind::MultiLineBlock
                 } else {
                     CommentKind::SingleLineBlock

@@ -5,6 +5,7 @@
 
 #![deny(missing_docs)]
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use std::{cell::OnceCell, ops::Range};
 
 use serde_json::Value;
@@ -242,7 +243,7 @@ impl ComponentFacts {
                 content: ByteRange::trusted(
                     script.content_offset,
                     source[script.content_offset as usize..script.end as usize]
-                        .rfind("</script")
+                        .rfind_sub("</script")
                         .map_or(script.end, |offset| {
                             script.content_offset + source_pos(offset)
                         }),

@@ -253,7 +253,7 @@ fn leading_own_line_comments(
         if !script[to..gap_start].trim().is_empty() {
             break;
         }
-        let line_start = script[..from].rfind('\n').map_or(0, |at| at + 1);
+        let line_start = script[..from].rfind_byte(b'\n').map_or(0, |at| at + 1);
         if !script[line_start..from].trim().is_empty() {
             break;
         }
@@ -267,7 +267,7 @@ fn leading_own_line_comments(
 /// The declaration's own indentation, or `None` when code precedes it on the
 /// line.
 fn line_indent(script: &str, start: usize) -> Option<&str> {
-    let line_start = script[..start].rfind('\n').map_or(0, |at| at + 1);
+    let line_start = script[..start].rfind_byte(b'\n').map_or(0, |at| at + 1);
     let indent = &script[line_start..start];
     indent
         .bytes()
@@ -330,7 +330,7 @@ fn split_leading_own_line_comments(part: &str) -> (Vec<String>, &str) {
     let mut rest = part.trim_start_matches([' ', '\t', '\r', '\n']);
     loop {
         let end = if rest.starts_with("//") {
-            match rest.find('\n') {
+            match rest.find_byte(b'\n') {
                 Some(at) => at,
                 // A trailing line comment has no declarator after it.
                 None => {

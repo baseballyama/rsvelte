@@ -973,7 +973,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let mut out = String::new();
         for &(start, end) in spans {
             out.push_str(&self.source[start as usize..end as usize]);
-            if self.source[end as usize..to as usize].contains('\n') {
+            if self.source[end as usize..to as usize].has_byte(b'\n') {
                 out.push('\n');
             } else if pad {
                 out.push(' ');
@@ -1095,7 +1095,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let mut rest = Vec::new();
         let mut broken = false;
         for &(start, end) in spans {
-            let same_line = !self.source[prev_end as usize..start as usize].contains('\n');
+            let same_line = !self.source[prev_end as usize..start as usize].has_byte(b'\n');
             if broken || !same_line {
                 broken = true;
                 rest.push((start, end));
@@ -1153,7 +1153,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// The leading whitespace of the line `offset` sits on.
     fn line_indent(&self, offset: u32) -> &str {
         let head = &self.source[..offset as usize];
-        let line_start = head.rfind('\n').map_or(0, |p| p + 1);
+        let line_start = head.rfind_byte(b'\n').map_or(0, |p| p + 1);
         let rest = &self.source[line_start..];
         &rest[..rest.len() - rest.trim_start_matches([' ', '\t']).len()]
     }
@@ -2810,7 +2810,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             after_semicolon.len() - after_semicolon.trim_start_matches([' ', '\t']).len();
         let comment = &after_semicolon[spaces_after_semicolon..];
         if let Some(line) = comment.strip_prefix("//") {
-            let len = line.find('\n').unwrap_or(line.len());
+            let len = line.find_byte(b'\n').unwrap_or(line.len());
             let comment_end = end as usize + spaces + 1 + spaces_after_semicolon + 2 + len;
             return (comment_end as u32, format!("{args}, //{}\n", &line[..len]));
         }
@@ -4646,8 +4646,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let assignments: Vec<String> = paths
             .iter()
             .map(|(target_text, init_text)| {
-                if !target_text.contains('.')
-                    && !target_text.contains('[')
+                if !target_text.has_byte(b'.')
+                    && !target_text.has_byte(b'[')
                     && self.is_active_prop_var(target_text)
                 {
                     changed = true;

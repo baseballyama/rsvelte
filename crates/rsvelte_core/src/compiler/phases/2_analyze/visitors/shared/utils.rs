@@ -9,6 +9,7 @@ use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase3_transform::server::evaluate::{
     EvalScope, EvalValue, Evaluation, evaluate_binding_initial,
 };
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -721,7 +722,7 @@ pub fn validate_attribute_name(
     // Check for illegal colon (excluding XML namespaces)
     // Svelte directives (on:, bind:, etc.) are not regular attributes,
     // so they won't be validated here
-    if name.contains(':')
+    if name.has_byte(b':')
         && !name.starts_with("xmlns:")
         && !name.starts_with("xlink:")
         && !name.starts_with("xml:")

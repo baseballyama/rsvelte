@@ -8,6 +8,7 @@
 use super::super::types::ComponentAnalysis;
 use super::super::{AnalysisError, errors};
 use crate::ast::css::StyleSheet;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Context passed through CSS analysis, tracking parent rule information.
@@ -673,7 +674,7 @@ fn empty_declaration_error(declaration: &serde_json::Value, source: Option<&str>
     };
     let Some(colon) = source
         .and_then(|s| s.get(start as usize..))
-        .and_then(|rest| rest.find(':'))
+        .and_then(|rest| rest.find_byte(b':'))
     else {
         return error;
     };

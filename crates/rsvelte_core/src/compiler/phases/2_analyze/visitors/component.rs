@@ -4,6 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/Component.js`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use super::super::AnalysisError;
 use super::VisitorContext;
 use super::shared::component::{validate_component, visit_component};
@@ -22,7 +23,7 @@ pub fn visit<'a, 'b: 'a>(
 ) -> Result<(), AnalysisError> {
     // Extract the base name from the component name
     // If the name contains a dot (e.g., Foo.Bar), use the part before the dot
-    let base_name = if let Some(dot_pos) = component.name.find('.') {
+    let base_name = if let Some(dot_pos) = component.name.find_byte(b'.') {
         &component.name[..dot_pos]
     } else {
         component.name.as_str()
@@ -48,7 +49,7 @@ pub fn visit<'a, 'b: 'a>(
     let is_dynamic = context.analysis.runes && binding_idx_opt.is_some() && {
         let binding_idx = binding_idx_opt.unwrap();
         let binding = &context.analysis.root.bindings[binding_idx];
-        binding.kind != super::super::BindingKind::Normal || component.name.contains('.')
+        binding.kind != super::super::BindingKind::Normal || component.name.has_byte(b'.')
     };
 
     // Set metadata.dynamic

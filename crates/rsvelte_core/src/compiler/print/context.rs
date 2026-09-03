@@ -9,6 +9,7 @@
 //!
 //! Reference: esrap npm package Context API
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use oxc_allocator::Allocator;
 use std::collections::HashSet;
@@ -131,7 +132,7 @@ impl<'a> Context<'a> {
             self.verbatim_lines.insert(line + next);
         }
         self.write(text);
-        if text.contains('\n') {
+        if text.has_byte(b'\n') {
             self.multiline = true;
             self.at_line_start = text.ends_with('\n');
         }

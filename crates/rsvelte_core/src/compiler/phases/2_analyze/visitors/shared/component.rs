@@ -4,6 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/component.js`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use rustc_hash::FxHashSet;
 
 use super::super::super::AnalysisError;
@@ -486,7 +487,7 @@ pub fn validate_component(
     let name = &component.name;
     let first_char = name.chars().next().unwrap_or('a');
 
-    if !first_char.is_uppercase() && !name.contains('.') && !name.contains(':') {
+    if !first_char.is_uppercase() && !name.has_byte(b'.') && !name.has_byte(b':') {
         return Err(AnalysisError::Validation(format!(
             "Component name '{}' should start with an uppercase letter",
             name

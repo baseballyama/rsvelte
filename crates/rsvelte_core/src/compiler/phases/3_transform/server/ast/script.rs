@@ -48,6 +48,7 @@
 //!   destructured `$state(...)` uses `tmp_1`, 写经 `scope.generate('tmp')`).
 //!   KNOWN GAP: `$$array` is not yet deconflicted.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use super::ServerTransformState;
 use super::comments;
 use crate::ast::template::Script;
@@ -617,7 +618,7 @@ fn call_args_src(call: &oxc_ast::ast::CallExpression<'_>, src: &str) -> String {
     let Some(tail) = src.get(start..end) else {
         return String::new();
     };
-    let Some(open) = tail.find('(') else {
+    let Some(open) = tail.find_byte(b'(') else {
         return String::new();
     };
     let args_start = start + open + 1;
@@ -1419,7 +1420,7 @@ struct EffectValueLower<'a> {
 }
 
 fn snapshot_ignore(source: &str, _start: u32) -> bool {
-    source.contains("svelte-ignore state_snapshot_uncloneable")
+    source.has_sub("svelte-ignore state_snapshot_uncloneable")
 }
 
 impl<'a> EffectValueLower<'a> {

@@ -28,6 +28,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
 use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BindingPattern, Comment, CommentKind, Expression as OxcExpression, Statement};
@@ -430,7 +431,7 @@ impl<'a> ServerTransformState<'a> {
             let raw = &slice[relative_start..relative_end];
             let kind = if raw.starts_with("//") {
                 CommentKind::Line
-            } else if raw.contains('\n') || raw.contains('\r') {
+            } else if raw.has_byte(b'\n') || raw.has_byte(b'\r') {
                 CommentKind::MultiLineBlock
             } else {
                 CommentKind::SingleLineBlock
@@ -2021,7 +2022,7 @@ fn rehome_derived_jsdoc(code: &str) -> String {
     while let Some(start) = rest.find(PREFIX) {
         result.push_str(&rest[..start]);
         let comment_start = start + "$.derived(() => ".len();
-        let Some(comment_end) = rest[comment_start + 3..].find("*/") else {
+        let Some(comment_end) = rest[comment_start + 3..].find_sub("*/") else {
             result.push_str(&rest[start..]);
             return result;
         };
@@ -2031,7 +2032,7 @@ fn rehome_derived_jsdoc(code: &str) -> String {
             result.push_str(&rest[start..]);
             return result;
         }
-        let line_start = rest[..start].rfind('\n').map_or(0, |index| index + 1);
+        let line_start = rest[..start].rfind_byte(b'\n').map_or(0, |index| index + 1);
         let line = &rest[line_start..start];
         let indent = &line[..line.len() - line.trim_start_matches([' ', '\t']).len()];
         result.push_str("$.derived((");
@@ -2050,9 +2051,9 @@ fn rehome_leading_derived_jsdoc(code: &str) -> String {
     let mut rest = code;
     const DERIVED: &str = "$.derived(() => ";
 
-    while let Some(comment_start) = rest.find("/**") {
+    while let Some(comment_start) = rest.find_sub("/**") {
         result.push_str(&rest[..comment_start]);
-        let Some(comment_end) = rest[comment_start + 3..].find("*/") else {
+        let Some(comment_end) = rest[comment_start + 3..].find_sub("*/") else {
             result.push_str(&rest[comment_start..]);
             return result;
         };
@@ -2063,7 +2064,7 @@ fn rehome_leading_derived_jsdoc(code: &str) -> String {
             rest = after_comment;
             continue;
         };
-        let line_end = next_line.find('\n').unwrap_or(next_line.len());
+        let line_end = next_line.find_byte(b'\n').unwrap_or(next_line.len());
         let line = &next_line[..line_end];
         let Some(derived) = line.find(DERIVED) else {
             result.push_str(&rest[comment_start..comment_end]);
@@ -2071,13 +2072,13 @@ fn rehome_leading_derived_jsdoc(code: &str) -> String {
             continue;
         };
         let before_derived = &line[..derived];
-        if !before_derived.trim_end().ends_with('=') || !before_derived.contains('#') {
+        if !before_derived.trim_end().ends_with('=') || !before_derived.has_byte(b'#') {
             result.push_str(&rest[comment_start..comment_end]);
             rest = after_comment;
             continue;
         }
         let comment_line_start = rest[..comment_start]
-            .rfind('\n')
+            .rfind_byte(b'\n')
             .map_or(0, |index| index + 1);
         result.truncate(result.len() - (comment_start - comment_line_start));
         let indent = &before_derived

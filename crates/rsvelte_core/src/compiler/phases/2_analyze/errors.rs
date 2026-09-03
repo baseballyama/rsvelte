@@ -5,13 +5,14 @@
 //!
 //! Corresponds to Svelte's `errors.js`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use super::AnalysisError;
 use super::diagnostic::diagnostics;
 
 /// Create an error with a specific code and message.
 fn error(code: &str, message: impl Into<String>) -> AnalysisError {
     let mut message = message.into();
-    if !message.contains("\nhttps://svelte.dev/e/") {
+    if !message.has_sub("\nhttps://svelte.dev/e/") {
         message.push_str("\nhttps://svelte.dev/e/");
         message.push_str(code);
     }

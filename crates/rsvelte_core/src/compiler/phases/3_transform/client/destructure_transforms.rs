@@ -6,6 +6,7 @@ use super::rune_transforms::{
     find_derived_property_colon, split_derived_array_elements, split_derived_object_properties,
 };
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, code_bytes_from};
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
@@ -419,9 +420,9 @@ pub(super) fn find_and_transform_one_destructure(
 
     let before = b(pattern_start).before(statement).trim_end();
     if before.ends_with('(') {
-        let paren_pos = b(pattern_start).before(statement).rfind('(').unwrap();
+        let paren_pos = b(pattern_start).before(statement).rfind_byte(b'(').unwrap();
         let after_rhs = b(rhs_end).after(statement);
-        if let Some(close_paren_offset) = after_rhs.find(')') {
+        if let Some(close_paren_offset) = after_rhs.find_byte(b')') {
             actual_start = ByteOffset::new(paren_pos);
             actual_end = ByteOffset::new(b(rhs_end).get() + close_paren_offset + 1);
         }

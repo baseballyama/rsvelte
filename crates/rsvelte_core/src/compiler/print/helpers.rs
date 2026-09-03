@@ -4,6 +4,7 @@
 //! such as formatting blocks and handling attributes.
 
 use super::{Context, PrintError};
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use std::cell::RefCell;
 use std::fmt::Write as _;
@@ -1794,7 +1795,7 @@ fn get_program_body_positions(program: &crate::ast::js::Expression) -> Vec<(usiz
 fn get_column_indent(source: &str, pos: usize) -> usize {
     // Find the start of the current line
     let before = &source[..pos];
-    let line_start = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line_start = before.rfind_byte(b'\n').map(|i| i + 1).unwrap_or(0);
     let prefix = &source[line_start..pos];
 
     // Count leading whitespace characters

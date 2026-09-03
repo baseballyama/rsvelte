@@ -10,6 +10,7 @@ use rustc_hash::FxHashSet;
 
 use super::scan_index::ScanIndex;
 use super::{find_matching_paren, is_shorthand_object_property};
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::offsets::{CharLen, CharOffset, CharToByte};
 
 /// How a store's own binding is read, the way `build_getter` reads any
@@ -115,7 +116,7 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
     while let Some(func_pos) = memmem::find(&statement.as_bytes()[search_from..], b"function ") {
         let abs_func_pos = search_from + func_pos;
         // Find the opening paren of the function params
-        if let Some(paren_pos) = statement[abs_func_pos..].find('(') {
+        if let Some(paren_pos) = statement[abs_func_pos..].find_byte(b'(') {
             let abs_paren_pos = abs_func_pos + paren_pos;
             // Find the closing paren
             if let Some(close_paren_pos) = find_matching_paren(&statement[abs_paren_pos + 1..]) {
@@ -169,7 +170,7 @@ pub(super) fn is_function_parameter_in_statement(statement: &str, store_sub: &st
                     // Check if we're inside a parenthesized arrow param list
                     // by looking back for `(` and checking if the `)` after is followed by `=>`
                     let prefix = &statement[..abs_found];
-                    if let Some(open_paren) = prefix.rfind('(') {
+                    if let Some(open_paren) = prefix.rfind_byte(b'(') {
                         let _params_str = &statement[open_paren + 1..abs_found];
                         // Check that params_str doesn't contain a sub-expression that would
                         // indicate this is NOT a simple param list (e.g., no `=>` before ours)

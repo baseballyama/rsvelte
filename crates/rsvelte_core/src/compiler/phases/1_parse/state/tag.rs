@@ -18,6 +18,7 @@ use crate::ast::template::{
 };
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
@@ -1180,7 +1181,7 @@ impl<'a> Parser<'a> {
                                 let raw_slice = &self.source[expr_start..expr_end];
                                 let lead_ws = raw_slice.len() - raw_slice.trim_start_ws().len();
                                 let base = expr_start + lead_ws;
-                                if let Some(rel_paren) = s[comma_pos + 1..].find('(') {
+                                if let Some(rel_paren) = s[comma_pos + 1..].find_byte(b'(') {
                                     let key_start = base + comma_pos + 1 + rel_paren + 1;
                                     let key_end =
                                         find_matching_bracket(self.source, key_start, '(')
@@ -2439,7 +2440,7 @@ impl<'a> Parser<'a> {
                     if init_expr.node_type() == Some("SequenceExpression") {
                         let paren_before = init_expr
                             .start()
-                            .map(|s| self.source[init_offset..s as usize].contains('('))
+                            .map(|s| self.source[init_offset..s as usize].has_byte(b'('))
                             .unwrap_or(false);
                         if !paren_before {
                             let err_start =

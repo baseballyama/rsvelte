@@ -13,6 +13,7 @@
 //! module scripts had no equivalent, so the rune survived into the output and
 //! threw `ReferenceError: $inspect is not defined` when the module ran.
 //!
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
@@ -316,7 +317,7 @@ impl<'src> TraceLabelCollector<'src> {
     fn locate(&self, offset: u32) -> (usize, usize) {
         let before = &self.source[..offset as usize];
         let line = before.matches('\n').count() + 1;
-        let line_start = before.rfind('\n').map(|p| p + 1).unwrap_or(0);
+        let line_start = before.rfind_byte(b'\n').map(|p| p + 1).unwrap_or(0);
         (line, before[line_start..].chars().count())
     }
 

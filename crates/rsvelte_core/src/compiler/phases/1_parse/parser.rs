@@ -17,6 +17,7 @@
 //! - **Line offset precomputation**: Line offsets are precomputed during parser
 //!   construction for efficient location calculation.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use compact_str::CompactString;
 use regex::Regex;
 use rustc_hash::FxHashMap;
@@ -1106,7 +1107,7 @@ impl<'a> Parser<'a> {
             '{',
         ) {
             let candidate = &self.source[expr_start..end];
-            let swallowed_block_close = candidate.rfind('{').is_some_and(|block_open| {
+            let swallowed_block_close = candidate.rfind_byte(b'{').is_some_and(|block_open| {
                 let block_name = candidate[block_open + 1..].trim();
                 matches!(block_name, "/if" | "/each" | "/await" | "/key" | "/snippet")
                     && memchr::memmem::find(&candidate.as_bytes()[..block_open], b"</").is_some()

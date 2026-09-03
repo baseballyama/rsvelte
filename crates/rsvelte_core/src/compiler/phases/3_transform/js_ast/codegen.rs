@@ -4,6 +4,7 @@
 
 use super::arena::JsArena;
 use super::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
@@ -323,7 +324,7 @@ impl<'a> JsCodegen<'a> {
                 // For Raw blocks, check if the last logical statement is multiline.
                 // Find the last non-empty line (excluding trailing newline).
                 let trimmed_end = rendered.trim_end_matches('\n');
-                if let Some(last_newline) = trimmed_end.rfind('\n') {
+                if let Some(last_newline) = trimmed_end.rfind_byte(b'\n') {
                     let last_line = &trimmed_end[last_newline + 1..];
                     let last_trimmed = last_line.trim();
                     // If the last line is a closing brace, the preceding statement

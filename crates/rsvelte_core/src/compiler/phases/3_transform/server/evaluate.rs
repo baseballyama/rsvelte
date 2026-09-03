@@ -24,6 +24,7 @@ use serde_json::Value;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::OnceCell;
@@ -373,7 +374,7 @@ pub(crate) fn js_number_to_string(n: f64) -> String {
     if !(1e-6..1e21).contains(&abs) {
         // JS exponential form, e.g. `1e+21`, `1e-7`
         let s = format!("{:e}", n);
-        if let Some(pos) = s.find('e') {
+        if let Some(pos) = s.find_byte(b'e') {
             let (mantissa, exp) = s.split_at(pos);
             let exp_num = &exp[1..];
             if !exp_num.starts_with('-') {

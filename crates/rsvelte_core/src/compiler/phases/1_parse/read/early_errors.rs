@@ -16,6 +16,7 @@
 //! that a reworded OXC message silently stops matching, which is what
 //! `early_errors_3243.rs` pins one repro per entry against.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use std::collections::HashMap;
 
 use oxc_ast::ast::{
@@ -448,7 +449,7 @@ fn preceding_word(source: &str, at: u32) -> Option<(u32, &str)> {
         end = trimmed.len();
         // A block comment is the only trivia that can end right before a token.
         match trimmed.strip_suffix("*/") {
-            Some(head) => end = head.rfind("/*")?,
+            Some(head) => end = head.rfind_sub("/*")?,
             None => break,
         }
     }

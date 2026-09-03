@@ -5,6 +5,7 @@
 //!
 //! This visitor handles regular HTML elements like `<div>`, `<span>`, etc.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, BindDirective, ClassDirective, Fragment,
     LetDirective, RegularElement as RegularElementNode, StyleDirective, TemplateNode,
@@ -1865,7 +1866,7 @@ fn has_dynamic_children_for_merge(
 
 /// Check if a node is a custom element.
 fn is_custom_element_node(node: &RegularElementNode) -> bool {
-    node.name.contains('-')
+    node.name.has_byte(b'-')
         || node.attributes.iter().any(|attr| {
             if let Attribute::Attribute(a) = attr {
                 a.name == "is"

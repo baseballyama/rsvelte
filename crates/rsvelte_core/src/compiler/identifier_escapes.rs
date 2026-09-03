@@ -20,6 +20,7 @@
 
 use std::ops::Range;
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 use crate::compiler::utils::{is_js_ident_continue, is_js_ident_start};
 
@@ -159,7 +160,7 @@ fn read_unicode_escape(rest: &str) -> Option<(char, usize)> {
         return None;
     }
     if bytes.get(2) == Some(&b'{') {
-        let close = rest.find('}')?;
+        let close = rest.find_byte(b'}')?;
         let code = u32::from_str_radix(rest.get(3..close)?, 16).ok()?;
         return Some((char::from_u32(code)?, close + 1));
     }

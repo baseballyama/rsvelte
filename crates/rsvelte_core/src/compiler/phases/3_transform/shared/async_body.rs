@@ -415,7 +415,7 @@ pub fn transform_async_body_dev(script: &str, runner: &str, dev: bool) -> Option
 }
 
 fn separate_restored_async_derived_hoist(transformed: &mut String, hoisted_pos: usize) {
-    if let Some(relative_end) = transformed[hoisted_pos..].find(';') {
+    if let Some(relative_end) = transformed[hoisted_pos..].find_byte(b';') {
         let statement_end = hoisted_pos + relative_end + 1;
         let following = &transformed[statement_end..];
         if following.starts_with('\n')
@@ -427,7 +427,7 @@ fn separate_restored_async_derived_hoist(transformed: &mut String, hoisted_pos: 
     }
 
     let line_start = transformed[..hoisted_pos]
-        .rfind('\n')
+        .rfind_byte(b'\n')
         .map_or(0, |newline| newline + 1);
     let previous = transformed[..line_start].trim_end();
     if !previous.is_empty()
@@ -462,7 +462,7 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
                 .map(|end| comment_start + end + 2)
         } else {
             source[comment_start..]
-                .find('\n')
+                .find_byte(b'\n')
                 .map(|end| comment_start + end)
                 .or(Some(source.len()))
         };
@@ -506,7 +506,7 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
                 // right by construction rather than by that coincidence.
                 let line_start = transformed
                     .get(..pos)
-                    .and_then(|before| before.rfind('\n'))
+                    .and_then(|before| before.rfind_byte(b'\n'))
                     .map_or(0, |newline| newline + 1);
                 let indent = transformed.get(line_start..pos).unwrap_or("");
                 if indent.bytes().all(|byte| byte == b'\t' || byte == b' ') {
@@ -556,7 +556,7 @@ pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed:
                 .map(|end| comment_start + end + 2)
         } else {
             source[comment_start..]
-                .find('\n')
+                .find_byte(b'\n')
                 .map(|end| comment_start + end)
                 .or(Some(source.len()))
         };
@@ -944,7 +944,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     // real thunk (no array holes), so we can simply count multi-line ones to
     // decide formatting.
     let thunks: Vec<String> = async_stmts.iter().map(|s| build_thunk(s, dev)).collect();
-    let has_multiline_thunk = thunks.iter().any(|t| t.contains('\n'));
+    let has_multiline_thunk = thunks.iter().any(|t| t.has_byte(b'\n'));
 
     // Hoisted var declarations. esrap separates declarations from the
     // following `$$promises = run([...])` with a blank line only when the
@@ -987,7 +987,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             output.push('\n');
             // Add blank line after multi-line thunks (those with block bodies)
             // to match the official compiler's formatting.
-            if thunk.contains('\n') && i < thunks.len() - 1 {
+            if thunk.has_byte(b'\n') && i < thunks.len() - 1 {
                 output.push('\n');
             }
         }
@@ -1424,7 +1424,7 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                 let needs_block = trimmed.starts_with("var ")
                     || trimmed.starts_with("if ")
                     || trimmed.starts_with("if(")
-                    || trimmed.contains('\n');
+                    || trimmed.has_byte(b'\n');
                 if needs_block {
                     return format!("() => {{\n\t\t{}\n\t}}", only);
                 }
@@ -1816,7 +1816,7 @@ fn split_leading_comments(mut statement: &str) -> (&str, &str) {
     loop {
         statement = statement.trim_start();
         if let Some(rest) = statement.strip_prefix("//") {
-            let Some(offset) = rest.find('\n') else {
+            let Some(offset) = rest.find_byte(b'\n') else {
                 return (original.trim(), "");
             };
             statement = &rest[offset + 1..];
@@ -2188,7 +2188,7 @@ fn is_props_id_declaration(s: &str) -> bool {
         .or_else(|| s.strip_prefix("var "))
     {
         let rest = rest.trim();
-        if let Some(eq_pos) = rest.find('=') {
+        if let Some(eq_pos) = rest.find_byte(b'=') {
             let rhs = rest[eq_pos + 1..].trim();
             let rhs = rhs.strip_suffix(';').unwrap_or(rhs).trim();
             return rhs == "$.props_id($$renderer)"
@@ -2363,7 +2363,7 @@ fn strip_trailing_semicolon(s: &str) -> &str {
 /// leading tabs across all non-empty, non-first lines and strips that many
 /// tabs from every line. The first line is assumed to already be trimmed.
 fn strip_base_indentation(s: &str) -> String {
-    if !s.contains('\n') {
+    if !s.has_byte(b'\n') {
         return s.to_string();
     }
 
@@ -2932,9 +2932,9 @@ fn collect_leaf_idents_from_item(item: &str, out: &mut Vec<String>) {
     }
 
     // Property pattern: `key: value` (value may itself be a nested pattern).
-    if let Some(colon_pos) = item.find(':') {
+    if let Some(colon_pos) = item.find_byte(b':') {
         let before_colon = &item[..colon_pos];
-        if !before_colon.contains('{') && !before_colon.contains('[') {
+        if !before_colon.has_byte(b'{') && !before_colon.has_byte(b'[') {
             collect_leaf_idents_from_item(item[colon_pos + 1..].trim(), out);
             return;
         }

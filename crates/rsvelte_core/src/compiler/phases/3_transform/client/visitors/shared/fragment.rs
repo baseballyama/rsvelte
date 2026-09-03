@@ -3,6 +3,7 @@
 //! Corresponds to fragment.js in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/fragment.js`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::ast::template::{
     Attribute, ExpressionTag, Fragment, RegularElement, TemplateNode, Text,
 };
@@ -25,7 +26,7 @@ fn cannot_be_set_statically(name: &str) -> bool {
 
 /// Check if node is a custom element.
 fn is_custom_element_node(node: &RegularElement) -> bool {
-    node.name.contains('-')
+    node.name.has_byte(b'-')
         || node.attributes.iter().any(|attr| {
             if let Attribute::Attribute(a) = attr {
                 a.name == "is"

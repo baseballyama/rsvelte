@@ -4,6 +4,7 @@
 //! for server-side code generation, including `export let` declarations, reactive
 //! `$:` statements, and related helper utilities.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
 use std::fmt::Write as _;
 
@@ -162,13 +163,13 @@ fn export_let_declaration_seems_complete(decl: &str) -> bool {
 /// Split `/* ... */ export let` onto two lines so the line-based scanner
 /// recognizes the declaration; the comment stays as a leading comment.
 fn split_same_line_leading_comments(script: &str) -> std::borrow::Cow<'_, str> {
-    if !script.contains("*/") {
+    if !script.has_sub("*/") {
         return std::borrow::Cow::Borrowed(script);
     }
     let mut out = String::with_capacity(script.len() + 8);
     let mut changed = false;
     for line in script.lines() {
-        if let Some(close) = line.find("*/") {
+        if let Some(close) = line.find_sub("*/") {
             let after = &line[close + 2..];
             let after_trimmed = after.trim_start();
             if after_trimmed.starts_with("export let ") || after_trimmed.starts_with("export var ")
@@ -274,12 +275,12 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
             };
             if let Some(tc) = trailing_comment.as_mut()
                 && tc.starts_with("/*")
-                && !tc.contains("*/")
+                && !tc.has_sub("*/")
             {
                 for next in lines.by_ref() {
                     tc.push('\n');
                     tc.push_str(next);
-                    if next.contains("*/") {
+                    if next.has_sub("*/") {
                         break;
                     }
                 }
@@ -335,7 +336,7 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
             // inside the `$.fallback(...)` call (the comment prints before
             // the closing paren), without one it trails the statement.
             if let Some(tc) = trailing_comment {
-                if had_default && transformed.ends_with(");") && !transformed.contains('\n') {
+                if had_default && transformed.ends_with(");") && !transformed.has_byte(b'\n') {
                     // Attach the comment to the default value INSIDE the
                     // `$.fallback(...)` call (esrap prints it before the
                     // closing paren). OXC's codegen would drop a bare
@@ -343,7 +344,7 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
                     // a hex-encoded sequence-expression placeholder:
                     // `VALUE /* c */` → `(VALUE, void '$$C$$<hex>')`,
                     // decoded back in `normalize_script_with_oxc`.
-                    if let Some(open) = transformed.find("$.fallback(") {
+                    if let Some(open) = transformed.find_sub("$.fallback(") {
                         let args_start = open + "$.fallback(".len();
                         // Find the last top-level comma inside the call to
                         // isolate the default-value argument.
@@ -987,7 +988,7 @@ fn split_property_key_value_ssr(prop: &str) -> Option<(&str, &str)> {
 
 fn split_binding_name_default_ssr(s: &str) -> (&str, Option<&str>) {
     let s = s.trim();
-    if let Some(eq_pos) = s.find('=') {
+    if let Some(eq_pos) = s.find_byte(b'=') {
         let after = s.get(eq_pos + 1..eq_pos + 2).unwrap_or("");
         if after == "=" || after == ">" {
             return (s, None);

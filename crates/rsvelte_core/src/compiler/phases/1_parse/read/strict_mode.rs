@@ -12,6 +12,7 @@
 //! reaches and never sees any that follow — callers take the earliest by
 //! position.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use oxc_ast::ast::{
     AccessorPropertyType, AssignmentTarget, BindingPattern, Class, ClassElement, Expression,
     FormalParameters, Function, MethodDefinitionType, ObjectPropertyKind, PropertyDefinitionType,
@@ -57,11 +58,11 @@ fn next_significant(source: &str, from: usize) -> Option<usize> {
         at += rest.len() - trimmed.len();
         rest = trimmed;
         if let Some(body) = rest.strip_prefix("//") {
-            let len = body.find('\n').map_or(body.len(), |i| i + 1);
+            let len = body.find_byte(b'\n').map_or(body.len(), |i| i + 1);
             at += 2 + len;
             rest = &body[len..];
         } else if let Some(body) = rest.strip_prefix("/*") {
-            let len = body.find("*/")? + 2;
+            let len = body.find_sub("*/")? + 2;
             at += 2 + len;
             rest = &body[len..];
         } else {

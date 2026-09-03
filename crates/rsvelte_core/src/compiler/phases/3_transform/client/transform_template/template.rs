@@ -9,6 +9,7 @@ use crate::ast::template::Text;
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use indexmap::IndexMap;
 use regex::Regex;
@@ -187,8 +188,8 @@ impl Template {
             .join("");
         // Escape backticks and `${` in the HTML content so they don't break
         // the surrounding JavaScript template literal (backtick string).
-        let escaped = if !html.contains('\\')
-            && !html.contains('`')
+        let escaped = if !html.has_byte(b'\\')
+            && !html.has_byte(b'`')
             && memchr::memmem::find(html.as_bytes(), b"${").is_none()
         {
             html.to_string()

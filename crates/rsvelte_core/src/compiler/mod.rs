@@ -46,6 +46,7 @@ pub mod preprocess;
 pub mod print;
 pub mod utils;
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -939,7 +940,7 @@ pub(crate) fn finalize_compile_result(
             let warning_filename = options.filename.as_ref().map(|f| {
                 // Only allocate if backslashes are present
                 let f_owned;
-                let f_normalized: &str = if f.contains('\\') {
+                let f_normalized: &str = if f.has_byte(b'\\') {
                     f_owned = f.replace('\\', "/");
                     &f_owned
                 } else {
@@ -947,7 +948,7 @@ pub(crate) fn finalize_compile_result(
                 };
                 if let Some(ref root) = options.root_dir {
                     let root_owned;
-                    let root_normalized: &str = if root.contains('\\') {
+                    let root_normalized: &str = if root.has_byte(b'\\') {
                         root_owned = root.replace('\\', "/");
                         &root_owned
                     } else {

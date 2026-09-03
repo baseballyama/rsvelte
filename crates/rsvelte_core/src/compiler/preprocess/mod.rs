@@ -13,6 +13,7 @@ mod parse_attached_sourcemap;
 pub mod replace_in_code;
 pub mod types;
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::utils::{get_basename, get_locator, utf16_len};
 use combine_sourcemaps::combine_sourcemaps;
 use decode_sourcemap::decode_map;
@@ -223,7 +224,7 @@ fn processed_tag_to_code(
 /// UTF-16 length of the last line of `s` — the column a source-map segment at
 /// the end of `s` sits at.
 fn last_line_utf16_len(s: &str) -> usize {
-    utf16_len(&s[s.rfind('\n').map(|i| i + 1).unwrap_or(0)..])
+    utf16_len(&s[s.rfind_byte(b'\n').map(|i| i + 1).unwrap_or(0)..])
 }
 
 /// Parse tag attributes from a string.

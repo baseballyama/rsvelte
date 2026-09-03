@@ -1,5 +1,6 @@
 //! Reactive statement handling and state mutation transformations.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use memchr::memmem;
 use std::borrow::Cow;
 
@@ -322,7 +323,7 @@ pub(super) fn transform_reactive_statement(
         // Also check if the LHS starts with a control-flow keyword like `if`, `for`,
         // `while`, etc. -- these indicate the `=` is inside a nested statement, not
         // a top-level assignment.
-        if lhs.contains('?') || lhs_starts_with_keyword(lhs) {
+        if lhs.has_byte(b'?') || lhs_starts_with_keyword(lhs) {
             // Treat as non-assignment expression.
             // Transform order mirrors the non-reactive body flow in client/mod.rs:
             //   update_expressions → prop_reads → prop_assignments → state transforms
@@ -615,7 +616,7 @@ pub(super) fn transform_reactive_statement(
                     transformed_body = format!("{} = {}", lhs, transformed_rhs);
                 }
             }
-        } // close the `else` branch of `if lhs.contains('?')`
+        } // close the `else` branch of `if lhs.has_byte(b'?')`
     } else {
         // Not a simple assignment - handle compound assignments (+=, -=, etc.),
         // update expressions (++/--), and reads.

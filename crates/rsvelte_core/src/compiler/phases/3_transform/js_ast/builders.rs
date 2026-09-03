@@ -3,6 +3,7 @@
 //! These functions provide a convenient API for constructing JavaScript AST nodes,
 //! similar to Svelte's `builders.js`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use super::arena::JsArena;
 use super::nodes::*;
 use compact_str::CompactString;
@@ -1164,7 +1165,7 @@ pub fn optional_member(
 pub fn member_path(arena: &JsArena, path: &str) -> JsExpr {
     // Fast path for common "$.xxx" pattern (avoids Vec allocation)
     if let Some(rest) = path.strip_prefix("$.")
-        && !rest.contains('.')
+        && !rest.has_byte(b'.')
     {
         return member(arena, id("$"), rest);
     }

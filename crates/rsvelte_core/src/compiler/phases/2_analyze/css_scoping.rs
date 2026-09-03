@@ -8,6 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::types::DomStructure;
 use crate::ast::template::{self, Fragment, TemplateNode};
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Represents the value of an attribute for CSS matching purposes.
@@ -1292,8 +1293,8 @@ fn element_matches_simple_selectors(
 
                 let expected_value = value.as_deref().map(unquote);
 
-                let ci = flags.as_deref().map(|f| f.contains('i')).unwrap_or(false)
-                    || (!flags.as_deref().map(|f| f.contains('s')).unwrap_or(false)
+                let ci = flags.as_deref().map(|f| f.has_byte(b'i')).unwrap_or(false)
+                    || (!flags.as_deref().map(|f| f.has_byte(b's')).unwrap_or(false)
                         && CASE_INSENSITIVE_ATTRIBUTES
                             .iter()
                             .any(|a| a.eq_ignore_ascii_case(name)));
@@ -2845,7 +2846,7 @@ fn transparent_child_fragment<'a, 'b>(node: &'a TemplateNode<'b>) -> Option<&'a 
 /// Decode CSS escape sequences in a selector name.
 /// E.g., `foo\:bar` → `foo:bar`, `\31 23` → `123`
 fn decode_css_escape(name: &str) -> String {
-    if !name.contains('\\') {
+    if !name.has_byte(b'\\') {
         return name.to_string();
     }
 

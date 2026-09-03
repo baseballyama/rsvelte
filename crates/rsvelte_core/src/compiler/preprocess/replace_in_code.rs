@@ -2,6 +2,7 @@
 //!
 //! Corresponds to `replace_in_code.js` from the official Svelte compiler.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use std::future::Future;
 use std::sync::LazyLock;
 
@@ -348,7 +349,7 @@ impl MappedCode {
 
 /// UTF-16 length of the last line in a string — the column its end sits at.
 fn last_line_length(s: &str) -> usize {
-    utf16_len(&s[s.rfind('\n').map(|i| i + 1).unwrap_or(0)..])
+    utf16_len(&s[s.rfind_byte(b'\n').map(|i| i + 1).unwrap_or(0)..])
 }
 
 /// Merge two tables (sources or names arrays) and return the merged table,

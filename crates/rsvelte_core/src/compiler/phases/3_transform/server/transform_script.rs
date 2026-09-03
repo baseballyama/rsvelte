@@ -9,6 +9,7 @@ use super::transform_legacy::transform_export_let_declarations;
 use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::class_body::{
     find_assignment_eq, find_class_header, initializer_starts_later, skip_ws_and_comments,
     split_class_members_onto_lines,
@@ -784,12 +785,12 @@ fn parse_single_object_prop(prop: &str) -> ObjectPatternProp {
     }
 
     // Check for colon (rename pattern): "key: value" or "key: value = default"
-    if let Some(colon_idx) = prop.find(':') {
+    if let Some(colon_idx) = prop.find_byte(b':') {
         let key = prop[..colon_idx].trim().to_string();
         let rest = prop[colon_idx + 1..].trim();
 
         // Check for default value in the renamed part
-        if let Some(eq_idx) = rest.find('=') {
+        if let Some(eq_idx) = rest.find_byte(b'=') {
             let value = rest[..eq_idx].trim().to_string();
             let default = rest[eq_idx + 1..].trim().to_string();
             return ObjectPatternProp::RenamedWithDefault {
@@ -806,7 +807,7 @@ fn parse_single_object_prop(prop: &str) -> ObjectPatternProp {
     }
 
     // Check for default value: "name = default"
-    if let Some(eq_idx) = prop.find('=') {
+    if let Some(eq_idx) = prop.find_byte(b'=') {
         let name = prop[..eq_idx].trim().to_string();
         let default = prop[eq_idx + 1..].trim().to_string();
         return ObjectPatternProp::WithDefault { name, default };
@@ -863,7 +864,7 @@ fn transform_array_destructure_state(script: &str) -> String {
                         ",\n{}\t{} = $$array.slice({})",
                         indent, rest_name, i
                     );
-                } else if var.contains('=') {
+                } else if var.has_byte(b'=') {
                     let parts: Vec<&str> = var.splitn(2, '=').collect();
                     let name = parts[0].trim();
                     let default = parts.get(1).map(|s| s.trim()).unwrap_or("void 0");
@@ -5130,7 +5131,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             if code_bracket_depth(&state_accum) <= 0 {
                 in_state_field = false;
                 let full_text = state_accum.clone();
-                let state_pattern = if full_text.contains("$state.raw(") {
+                let state_pattern = if full_text.has_sub("$state.raw(") {
                     "$state.raw("
                 } else {
                     "$state("
@@ -5201,7 +5202,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // otherwise append `;` to every comment line.
         if in_block_comment {
             block_comment_lines.push(line.to_string());
-            if trimmed.contains("*/") {
+            if trimmed.has_sub("*/") {
                 in_block_comment = false;
                 members.push(ClassMember::Comment(block_comment_lines.clone()));
                 block_comment_lines.clear();
@@ -5217,7 +5218,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // Single-line `/* … */` comments are handled here too (the closing `*/`
         // is on the same line so `in_block_comment` stays false after this).
         if trimmed.starts_with("/*") {
-            if trimmed.contains("*/") {
+            if trimmed.has_sub("*/") {
                 // Entire block comment fits on one line — emit verbatim.
                 members.push(ClassMember::Comment(vec![line.to_string()]));
             } else {
@@ -5244,7 +5245,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // rolldown rejected with `Unexpected token` at line 11:1. Restrict to
         // "the first `=` (if any) appears *after* `constructor(`".
         if let Some(ctor_pos) = memmem::find(trimmed.as_bytes(), b"constructor(")
-            && trimmed.find('=').is_none_or(|eq_pos| ctor_pos < eq_pos)
+            && trimmed.find_byte(b'=').is_none_or(|eq_pos| ctor_pos < eq_pos)
         {
             in_block = true;
             block_is_arrow_fn = false;
@@ -5305,7 +5306,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
             }
             found
         };
-        let is_arrow_fn_start = trimmed.contains('=')
+        let is_arrow_fn_start = trimmed.has_byte(b'=')
             && memmem::find(trimmed_bytes, b"=>").is_some()
             && has_top_level_open_brace
             && memmem::find(trimmed_bytes, b"$derived").is_none()
@@ -5345,11 +5346,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // (`#const_x = $.derived(…)`), emitting invalid JS. Mirror the
         // `constructor(` guard below: method iff `(` precedes the first `=`.
         // (issue #648)
-        let is_method_start = trimmed.contains('(')
-            && trimmed.contains('{')
+        let is_method_start = trimmed.has_byte(b'(')
+            && trimmed.has_byte(b'{')
             && trimmed
-                .find('=')
-                .is_none_or(|eq_pos| trimmed.find('(').is_some_and(|p| p < eq_pos))
+                .find_byte(b'=')
+                .is_none_or(|eq_pos| trimmed.find_byte(b'(').is_some_and(|p| p < eq_pos))
             && !trimmed.starts_with("//")
             && !trimmed.starts_with("/*");
 
@@ -6171,7 +6172,7 @@ fn transform_reexported_prop_declarations(
                 let name = rest_trimmed.trim();
 
                 // Check if this is a multi-declarator (contains commas at depth 0)
-                let has_commas = name.contains(',');
+                let has_commas = name.has_byte(b',');
                 if has_commas {
                     // Split multi-declarator into individual declarations
                     let parts: Vec<&str> = name.split(',').map(|s| s.trim()).collect();
@@ -6290,9 +6291,9 @@ fn extract_destructured_names_simple(pattern: &str) -> Vec<String> {
                 names.append(&mut nested);
             } else {
                 // Simple rename: key: name or key: name = default
-                let name = if let Some(eq_pos) = value.find('=') {
+                let name = if let Some(eq_pos) = value.find_byte(b'=') {
                     let before_eq = value[..eq_pos].trim();
-                    if !before_eq.contains('=') {
+                    if !before_eq.has_byte(b'=') {
                         before_eq
                     } else {
                         value
@@ -6306,9 +6307,9 @@ fn extract_destructured_names_simple(pattern: &str) -> Vec<String> {
             }
         } else {
             // Simple name or name = default
-            let name = if let Some(eq_pos) = part.find('=') {
+            let name = if let Some(eq_pos) = part.find_byte(b'=') {
                 let before_eq = part[..eq_pos].trim();
-                if !before_eq.contains('=') {
+                if !before_eq.has_byte(b'=') {
                     before_eq
                 } else {
                     part
@@ -6587,7 +6588,7 @@ fn push_leaf_declaration(
 
 fn split_name_default(s: &str) -> (&str, Option<&str>) {
     let s = s.trim();
-    if let Some(eq_pos) = s.find('=') {
+    if let Some(eq_pos) = s.find_byte(b'=') {
         let after = s.get(eq_pos + 1..eq_pos + 2).unwrap_or("");
         if after == "=" || after == ">" {
             return (s, None);

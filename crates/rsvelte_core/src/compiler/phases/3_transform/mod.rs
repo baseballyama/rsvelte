@@ -24,6 +24,7 @@ pub use js_ast::{JsExpr, JsProgram, JsStatement};
 
 use super::phase2_analyze::ComponentAnalysis;
 use crate::ast::template::Root;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::{CompileOptions, GenerateMode};
 use memchr::memmem;
@@ -40,11 +41,11 @@ fn template_source_lines(source: &str) -> Vec<bool> {
                 && !trimmed.starts_with("<script")
                 && !trimmed.starts_with("<style");
             if trimmed.starts_with("<script") && !trimmed.starts_with("</script") {
-                in_script = !trimmed.contains("</script");
+                in_script = !trimmed.has_sub("</script");
             } else if trimmed.starts_with("</script") {
                 in_script = false;
             } else if trimmed.starts_with("<style") && !trimmed.starts_with("</style") {
-                in_style = !trimmed.contains("</style");
+                in_style = !trimmed.has_sub("</style");
             } else if trimmed.starts_with("</style") {
                 in_style = false;
             }
@@ -300,7 +301,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         &mapping_starts,
                     )
                 }));
-                if source.contains("import ") {
+                if source.has_sub("import ") {
                     mappings.extend(generate_verbatim_import_mappings_with_starts(
                         &code,
                         source,
@@ -312,7 +313,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                     source,
                     &mapping_starts,
                 ));
-                if analysis.is_typescript || source.contains("export ") {
+                if analysis.is_typescript || source.has_sub("export ") {
                     mappings.extend(generate_server_declaration_mappings_with_starts(
                         &code,
                         source,

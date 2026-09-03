@@ -9,6 +9,7 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
     code_bytes, find_rune_code, find_rune_code_from, skip_opaque,
 };
@@ -56,7 +57,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     pre_class_script: &str,
 ) -> Cow<'a, str> {
     // Quick pre-check: if no rune-like pattern (`$` followed by letter) appears, skip
-    if !line.contains('$') {
+    if !line.has_byte(b'$') {
         return Cow::Borrowed(line);
     }
 
@@ -586,7 +587,7 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
         loop {
             let rest = &result[search_from..];
             // Look for `#identifier` that's NOT preceded by `this.`
-            let Some(hash_pos) = rest.find('#') else {
+            let Some(hash_pos) = rest.find_byte(b'#') else {
                 break;
             };
             let abs_hash_pos = search_from + hash_pos;
@@ -767,7 +768,7 @@ fn lowered_from_public(source: &str, base: &str, backing: &str) -> bool {
     while let Some(rel) = source[from..].find(&signature) {
         let after = from + rel + signature.len();
         from = after;
-        let Some(open) = source[after..].find('{') else {
+        let Some(open) = source[after..].find_byte(b'{') else {
             break;
         };
         let open = after + open;

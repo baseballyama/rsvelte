@@ -349,7 +349,7 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
 /// line break must be inserted and the offset of the next member's first byte —
 /// or `None` when nothing else shares the line.
 fn member_break_at(s: &str, pos: usize) -> Option<(usize, usize)> {
-    let line_end = s[pos..].find('\n').map_or(s.len(), |p| pos + p);
+    let line_end = s[pos..].find_byte(b'\n').map_or(s.len(), |p| pos + p);
     let mut cut = pos;
     loop {
         let rest = &s[cut..line_end];

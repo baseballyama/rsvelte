@@ -50,6 +50,7 @@
 //! - An await-bearing test is `$.save`-wrapped via [`save_wrap_expr_text`]:
 //!   `await foo > 10` → `(await $.save(foo))() > 10`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::ast::template::{Fragment, IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
@@ -204,7 +205,7 @@ fn build_test<'a>(
             .source
             .get((node.start + 5) as usize..end as usize)
             .unwrap_or_default();
-        if !header.contains("//") {
+        if !header.has_sub("//") {
             state.place_template_expression_comments(
                 (node.start + 5, end),
                 (start, end),

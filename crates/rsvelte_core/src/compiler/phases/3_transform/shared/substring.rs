@@ -6,6 +6,9 @@
 //! client compile in `StrSearcher::new` alone. The pipeline's passes are mostly
 //! early-out probes over the same script text, so the setup dominates the
 //! search. `memmem` prefilters on a rare byte pair instead.
+//!
+//! A single-`char` needle takes a different route — `CharSearcher`, 2.37% of the
+//! same profile — and for an ASCII one `memchr` replaces it.
 
 /// Byte-oriented substring search. Offsets are identical to `str`'s, because a
 /// byte-level match of valid UTF-8 cannot land inside a multi-byte sequence.
@@ -13,6 +16,9 @@ pub trait Substring {
     fn find_sub(&self, needle: &str) -> Option<usize>;
     fn rfind_sub(&self, needle: &str) -> Option<usize>;
     fn has_sub(&self, needle: &str) -> bool;
+    fn find_byte(&self, needle: u8) -> Option<usize>;
+    fn rfind_byte(&self, needle: u8) -> Option<usize>;
+    fn has_byte(&self, needle: u8) -> bool;
 }
 
 impl Substring for str {
@@ -29,6 +35,23 @@ impl Substring for str {
     #[inline]
     fn has_sub(&self, needle: &str) -> bool {
         self.find_sub(needle).is_some()
+    }
+
+    #[inline]
+    fn find_byte(&self, needle: u8) -> Option<usize> {
+        debug_assert!(needle.is_ascii(), "a non-ASCII byte occurs inside a character");
+        memchr::memchr(needle, self.as_bytes())
+    }
+
+    #[inline]
+    fn rfind_byte(&self, needle: u8) -> Option<usize> {
+        debug_assert!(needle.is_ascii(), "a non-ASCII byte occurs inside a character");
+        memchr::memrchr(needle, self.as_bytes())
+    }
+
+    #[inline]
+    fn has_byte(&self, needle: u8) -> bool {
+        self.find_byte(needle).is_some()
     }
 }
 
@@ -60,6 +83,38 @@ mod tests {
             );
             assert_eq!(
                 haystack.has_sub(needle),
+                haystack.contains(needle),
+                "{haystack:?} {needle:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn byte_search_agrees_with_str_on_an_ascii_needle() {
+        for (haystack, needle) in [
+            ("abcabc", 'b'),
+            ("abcabc", 'z'),
+            ("", 'a'),
+            ("a", 'a'),
+            ("\u{65e5}\u{672c}\u{8a9e}a\u{8a9e}", 'a'),
+            ("\u{65e5}\u{672c}\u{8a9e}", 'a'),
+            ("a\nb\nc", '\n'),
+            ("x'y'z", '\''),
+            ("p\\q\\r", '\\'),
+            ("{a}{b}", '}'),
+        ] {
+            assert_eq!(
+                haystack.find_byte(needle as u8),
+                haystack.find(needle),
+                "{haystack:?} {needle:?}"
+            );
+            assert_eq!(
+                haystack.rfind_byte(needle as u8),
+                haystack.rfind(needle),
+                "{haystack:?} {needle:?}"
+            );
+            assert_eq!(
+                haystack.has_byte(needle as u8),
                 haystack.contains(needle),
                 "{haystack:?} {needle:?}"
             );

@@ -26,6 +26,7 @@ use super::js_ast::nodes::{JsImportDeclaration, JsImportSpecifier, JsStatement};
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::{js_scan, rune_shadow};
 use memchr::memmem;
 use std::cell::RefCell;
@@ -419,7 +420,7 @@ fn comment_ranges_in(source: &str, start: usize, end: usize) -> Vec<(usize, usiz
 fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> String {
     // Only a statement on its own line can host a replayed `//` comment without
     // commenting out whatever shares the line.
-    let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
+    let line_start = source[..start].rfind_byte(b'\n').map(|n| n + 1).unwrap_or(0);
     let indent = &source[line_start..start];
     if !indent.chars().all(|c| c == ' ' || c == '\t') {
         return String::new();
@@ -473,12 +474,12 @@ fn module_inspect_args_head_with_trailing_comment(
         format!("{args}, ")
     };
     if let Some(line) = comment.strip_prefix("//") {
-        let len = line.find('\n').unwrap_or(line.len());
+        let len = line.find_byte(b'\n').unwrap_or(line.len());
         let comment_end = end + spaces + 1 + spaces_after_semicolon + 2 + len;
         return (comment_end, format!("{args_prefix}//{}\n", &line[..len]));
     }
     if let Some(block) = comment.strip_prefix("/*")
-        && let Some(close) = block.find("*/")
+        && let Some(close) = block.find_sub("*/")
     {
         let comment_end = end + spaces + 1 + spaces_after_semicolon + 2 + close + 2;
         return (
@@ -553,7 +554,7 @@ fn is_statement_position(s: &str, pos: usize) -> bool {
     match previous_significant_code_byte(s, pos) {
         None | Some(b';' | b'{' | b'}') => true,
         Some(_) => {
-            let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            let line_start = s[..pos].rfind_byte(b'\n').map(|n| n + 1).unwrap_or(0);
             s[line_start..pos].chars().all(char::is_whitespace)
         }
     }
@@ -1139,7 +1140,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             let generated_decl = !keyword_decl && kw_end > 0 && bytes[kw_end - 1] == b',' && {
                 let statement_start = declarator_list_start(bytes, kw_end - 1);
                 let prefix = &source[statement_start..kw_end - 1];
-                prefix.contains("let ") || prefix.contains("const ") || prefix.contains("var ")
+                prefix.has_sub("let ") || prefix.has_sub("const ") || prefix.has_sub("var ")
             };
             if !keyword_decl && !generated_decl {
                 continue;
@@ -1189,7 +1190,7 @@ fn collect_derived_private_fields(source: &str) -> rustc_hash::FxHashSet<String>
         let Some(rest) = trimmed.strip_prefix('#') else {
             continue;
         };
-        let Some(eq) = rest.find('=') else {
+        let Some(eq) = rest.find_byte(b'=') else {
             continue;
         };
         let name = rest[..eq].trim();
@@ -1216,7 +1217,7 @@ fn collect_derived_private_fields(source: &str) -> rustc_hash::FxHashSet<String>
 /// direct private-field access (e.g. `obj.prop`, or `this.#x.y` which accesses
 /// a property *of* the field rather than the field itself).
 fn private_field_name(member_expr: &str) -> Option<&str> {
-    let hash = member_expr.rfind(".#")?;
+    let hash = member_expr.rfind_sub(".#")?;
     let rest = &member_expr[hash + 2..];
     let end = rest
         .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))

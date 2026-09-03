@@ -16,6 +16,7 @@ use crate::ast::css::StyleSheet;
 use crate::ast::{
     Attribute, AttributeValue, AttributeValuePart, Fragment, Root, TemplateNode, Text,
 };
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit the root node and generate source code.
@@ -171,7 +172,7 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
             let source_has_newline = context
                 .source
                 .and_then(|source| source.get(text.start as usize..text.end as usize))
-                .is_some_and(|raw| raw.contains('\n'));
+                .is_some_and(|raw| raw.has_byte(b'\n'));
             if source_has_newline && !text.data.trim().is_empty() {
                 source_multiline = true;
             }
@@ -497,7 +498,7 @@ fn visit_regular_element(context: &mut Context, element: &crate::ast::RegularEle
         && context
             .source
             .and_then(|source| source.get(element.start as usize..element.end as usize))
-            .is_some_and(|raw| raw.contains('\n'));
+            .is_some_and(|raw| raw.has_byte(b'\n'));
     visit_base_element(
         context,
         element.name.as_str(),
@@ -1140,7 +1141,7 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
         // (`\31\32\33` and `\31 23` are the same identifier and print alike),
         // which only the AST visitors do — copying the source through would
         // preserve whichever spelling the author happened to use.
-        if let Some(css) = css_content.filter(|css| !css.contains('\\')) {
+        if let Some(css) = css_content.filter(|css| !css.has_byte(b'\\')) {
             if !css.is_empty() {
                 context.indent();
                 context.newline();
@@ -1217,7 +1218,7 @@ fn extract_and_reformat_css(source: &str, stylesheet: &StyleSheet) -> Option<Str
     let tag_text = &source[start..end];
 
     // Find the end of the opening <style...> tag
-    let content_start = tag_text.find('>')? + 1;
+    let content_start = tag_text.find_byte(b'>')? + 1;
     // Find the start of the closing </style> tag
     let content_end = memchr::memmem::rfind(tag_text.as_bytes(), b"</style>")?;
 
@@ -1329,11 +1330,11 @@ fn reformat_css_block(block: &str) -> String {
 
 /// Reformat a CSS rule.
 fn reformat_css_rule(block: &str) -> String {
-    if let Some(brace_pos) = block.find('{') {
+    if let Some(brace_pos) = block.find_byte(b'{') {
         let selector = block[..brace_pos].trim();
         let rest = &block[brace_pos + 1..];
 
-        if let Some(close_pos) = rest.rfind('}') {
+        if let Some(close_pos) = rest.rfind_byte(b'}') {
             let inner = rest[..close_pos].trim();
 
             // Format the selector: split multiple selectors by comma onto separate lines
@@ -1344,12 +1345,12 @@ fn reformat_css_rule(block: &str) -> String {
             }
 
             // Check if inner contains nested blocks
-            if inner.contains('{') {
+            if inner.has_byte(b'{') {
                 // Split declarations and nested blocks
                 let parts = split_css_declarations_and_blocks(inner);
                 let mut lines = vec![format!("{} {{", formatted_selector)];
                 for part in &parts {
-                    if part.contains('{') {
+                    if part.has_byte(b'{') {
                         // It's a nested block
                         let reformatted = indent_lines(&reformat_css_block(part), "\t");
                         lines.push(reformatted);
@@ -1466,11 +1467,11 @@ fn split_css_declarations_and_blocks(inner: &str) -> Vec<String> {
 
 /// Reformat a CSS at-rule.
 fn reformat_css_at_rule(block: &str) -> String {
-    if let Some(brace_pos) = block.find('{') {
+    if let Some(brace_pos) = block.find_byte(b'{') {
         let prelude = block[..brace_pos].trim();
         let rest = &block[brace_pos + 1..];
 
-        if let Some(close_pos) = rest.rfind('}') {
+        if let Some(close_pos) = rest.rfind_byte(b'}') {
             let inner = rest[..close_pos].trim();
 
             if inner.is_empty() {
@@ -1478,7 +1479,7 @@ fn reformat_css_at_rule(block: &str) -> String {
             }
 
             // Check if inner contains nested blocks (like @media, @keyframes)
-            if inner.contains('{') {
+            if inner.has_byte(b'{') {
                 let nested_blocks = split_css_inner_blocks(inner);
                 let mut lines = vec![format!("{} {{", prelude)];
                 for nested in &nested_blocks {

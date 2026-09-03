@@ -11,6 +11,7 @@
 //! client instance-script pipeline walks a post-rune-transform script whose
 //! spans no longer map to component source.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_parser::Parser;
@@ -269,7 +270,7 @@ fn line_and_column(source: &str, offset: u32) -> (usize, usize) {
     let offset = (offset as usize).min(source.len());
     let before = &source[..offset];
     let line = before.matches('\n').count() + 1;
-    let line_start = before.rfind('\n').map_or(0, |p| p + 1);
+    let line_start = before.rfind_byte(b'\n').map_or(0, |p| p + 1);
     let column = source[line_start..offset]
         .chars()
         .map(char::len_utf16)

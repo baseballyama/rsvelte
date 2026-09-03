@@ -7,6 +7,7 @@
 //! that every one of those scripts walks, so the rewrite itself is one piece of
 //! logic here too; only the batch it rides in differs per script kind.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use oxc_ast::AstKind;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
@@ -368,7 +369,7 @@ impl AwaitCommentRuns {
             // Whether the comment stood on a line of its own survives the move,
             // because the printer reproduces that break rather than the offset.
             // A line comment always breaks, or it would swallow the wrapper.
-            let broken = is_line || source[end as usize..next as usize].contains('\n');
+            let broken = is_line || source[end as usize..next as usize].has_byte(b'\n');
             text.push(if broken { '\n' } else { ' ' });
         }
         Some((run_start, "(".repeat(skipped_parens.len()), text))
@@ -388,7 +389,7 @@ fn flushed_as_a_trailing_comment(source: &str, run_start: u32) -> bool {
         return false;
     }
     let previous = before[..before.len() - 1].trim_end();
-    !previous.is_empty() && !source[previous.len()..run_start as usize].contains('\n')
+    !previous.is_empty() && !source[previous.len()..run_start as usize].has_byte(b'\n')
 }
 
 struct StartScan {

@@ -9,6 +9,7 @@
 //! module as an isolated text chunk, so reproduce that cross-chunk cursor
 //! result explicitly.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase2_analyze::types::ScriptProjection;
 use crate::compiler::phases::phase3_transform::js_ast::codegen::SourceMapping;
 
@@ -29,7 +30,7 @@ pub(crate) fn rehome(
         return code;
     };
     let open = signature + needle.len() - 1;
-    let Some(relative_close) = code[open + 1..].find(')') else {
+    let Some(relative_close) = code[open + 1..].find_byte(b')') else {
         return code;
     };
     let close = open + 1 + relative_close;
@@ -39,7 +40,7 @@ pub(crate) fn rehome(
     }
 
     let signature_line = code[..open].bytes().filter(|&byte| byte == b'\n').count() as u32;
-    let line_start = code[..open].rfind('\n').map_or(0, |at| at + 1);
+    let line_start = code[..open].rfind_byte(b'\n').map_or(0, |at| at + 1);
     let open_col = utf16_len(&code[line_start..open]);
     let close_col = utf16_len(&code[line_start..close]);
     let mut out = code;
@@ -95,7 +96,7 @@ fn standalone_tail_comment<'source>(
     if !source[end..].trim().is_empty() {
         return None;
     }
-    let line_start = source[..start].rfind('\n').map_or(0, |at| at + 1);
+    let line_start = source[..start].rfind_byte(b'\n').map_or(0, |at| at + 1);
     if !source[line_start..start].trim().is_empty() {
         return None;
     }

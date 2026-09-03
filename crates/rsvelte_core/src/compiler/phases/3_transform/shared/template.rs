@@ -3,6 +3,7 @@
 //! Common functions for building HTML templates, escaping content,
 //! and handling void elements.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use std::borrow::Cow;
 
 use memchr::{memchr2, memchr3};
@@ -78,7 +79,7 @@ pub fn is_void_element(name: &str) -> bool {
 /// Sanitize a template string by escaping special characters.
 pub fn sanitize_template_string(s: &str) -> String {
     // Fast path: if no special chars, avoid allocation
-    if !s.contains('\\') && !s.contains('`') && memchr::memmem::find(s.as_bytes(), b"${").is_none()
+    if !s.has_byte(b'\\') && !s.has_byte(b'`') && memchr::memmem::find(s.as_bytes(), b"${").is_none()
     {
         return s.to_string();
     }

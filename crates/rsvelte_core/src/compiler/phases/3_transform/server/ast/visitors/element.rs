@@ -67,6 +67,7 @@ use crate::ast::template::{
     TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::template::{
     escape_attr, is_boolean_attribute, is_void_element,
 };
@@ -682,7 +683,7 @@ fn has_class_directive_or_spread(node: &RegularElement) -> bool {
 /// helper only sees the name, so the `is=`-attribute case is checked here to set
 /// the `ELEMENT_PRESERVE_ATTRIBUTE_CASE` flag on the spread `$.attributes(...)`.
 fn is_custom_element(node: &RegularElement) -> bool {
-    node.name.as_str().contains('-')
+    node.name.as_str().has_byte(b'-')
         || node
             .attributes
             .iter()

@@ -11,6 +11,7 @@ use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::DomStructure;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::FxHashSet;
 use serde_json::Value;
@@ -4511,13 +4512,13 @@ fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
             // raw shape stuffs the whole content into `name`.
             let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             !name.is_empty()
-                && !name.contains('=')
-                && !name.contains('[')
-                && !name.contains('\\')
+                && !name.has_byte(b'=')
+                && !name.has_byte(b'[')
+                && !name.has_byte(b'\\')
                 && !sel
                     .field("value")
                     .and_then(|v| v.as_str())
-                    .is_some_and(|v| v.contains('\\'))
+                    .is_some_and(|v| v.has_byte(b'\\'))
         }
         Some("PseudoClassSelector") => {
             let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
@@ -4569,7 +4570,7 @@ fn structural_element_matches_compound(
         let raw = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
         // A template's class/id/tag carries the character an escape stands for.
         let decoded;
-        let name = if raw.contains('\\') {
+        let name = if raw.has_byte(b'\\') {
             decoded = decode_css_escape(raw);
             decoded.as_str()
         } else {
@@ -4671,8 +4672,8 @@ fn structural_element_matches_attribute(
     let operator = matcher.unwrap_or("");
     let expected_value = value.map(unquote_css_value);
     let has_explicit_case_flag: i8 = match flags {
-        Some(f) if f.contains('i') || f.contains('I') => 1,
-        Some(f) if f.contains('s') || f.contains('S') => -1,
+        Some(f) if f.has_byte(b'i') || f.has_byte(b'I') => 1,
+        Some(f) if f.has_byte(b's') || f.has_byte(b'S') => -1,
         _ => 0,
     };
 
@@ -4796,7 +4797,7 @@ fn is_universal_pseudo_selector(rel_selector: &Value) -> bool {
 /// CSS escapes: \XX (1-6 hex digits, optionally followed by whitespace)
 /// or \c (any character escaped)
 fn decode_css_escape(name: &str) -> String {
-    if !name.contains('\\') {
+    if !name.has_byte(b'\\') {
         return name.to_string();
     }
 
@@ -5845,7 +5846,7 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                 .field("flags")
                 .and_then(|f| if f.is_null() { None } else { f.as_str() });
 
-            if matcher.is_some() || attr_name.contains('=') || attr_name.contains('[') {
+            if matcher.is_some() || attr_name.has_byte(b'=') || attr_name.has_byte(b'[') {
                 // Use new format if matcher is present, or fall back to old raw parsing
                 if matcher.is_some() {
                     return is_attribute_selector_unused_parsed(
@@ -5935,8 +5936,8 @@ fn is_attribute_selector_unused_parsed(
 
     // Determine case sensitivity
     let has_explicit_case_flag: i8 = match flags {
-        Some(f) if f.contains('i') || f.contains('I') => 1,
-        Some(f) if f.contains('s') || f.contains('S') => -1,
+        Some(f) if f.has_byte(b'i') || f.has_byte(b'I') => 1,
+        Some(f) if f.has_byte(b's') || f.has_byte(b'S') => -1,
         _ => 0,
     };
 
@@ -7230,7 +7231,7 @@ fn transform_selector_list(
         let sep_start = prelude_start.saturating_sub(css_start);
         let sep_end = prelude_end.saturating_sub(css_start);
         let use_newlines = if sep_end <= css_source.len() && sep_start < sep_end {
-            css_source[sep_start..sep_end].contains('\n')
+            css_source[sep_start..sep_end].has_byte(b'\n')
         } else {
             false
         };
@@ -7320,7 +7321,7 @@ fn transform_selector_list(
                             let between_end = sel_start.saturating_sub(css_start);
                             if between_end <= css_source.len() && between_start < between_end {
                                 let between = &css_source[between_start..between_end];
-                                let after_comma = match between.find(',') {
+                                let after_comma = match between.find_byte(b',') {
                                     Some(i) => &between[i + 1..],
                                     None => between,
                                 };
@@ -8746,7 +8747,7 @@ fn arg_list_source_spans(
     if !css_source.is_char_boundary(p_start) || !css_source.is_char_boundary(p_end) {
         return None;
     }
-    let open = css_source[p_start..p_end].find('(')? + p_start;
+    let open = css_source[p_start..p_end].find_byte(b'(')? + p_start;
     let close = p_end - 1;
     if css_source.as_bytes().get(close) != Some(&b')') || open + 1 > close {
         return None;
@@ -8794,7 +8795,7 @@ fn splice_arg_list(
                     // Upstream scans back from the argument's start for the `,`
                     // and closes the comment on the side the previous run needs.
                     let comma = gap
-                        .rfind(',')
+                        .rfind_byte(b',')
                         .map_or(0, |c| c + usize::from(!has_previous_used));
                     out.push_str(&gap[..comma]);
                     out.push_str("*/");

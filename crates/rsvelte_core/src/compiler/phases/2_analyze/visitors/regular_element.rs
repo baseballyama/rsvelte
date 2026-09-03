@@ -4,6 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/RegularElement.js`.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use super::super::AnalysisError;
 use super::super::errors;
 use super::super::pattern_ids::base_identifier_name;
@@ -162,7 +163,7 @@ pub fn is_mathml(name: &str) -> bool {
 /// Check if an element is a custom element.
 /// Custom elements have a hyphen in their name or an `is` attribute.
 pub fn is_custom_element_node(element: &RegularElement) -> bool {
-    element.name.contains('-')
+    element.name.has_byte(b'-')
         || element
             .attributes
             .iter()
@@ -196,7 +197,7 @@ pub fn is_void(name: &str) -> bool {
 /// Returns an error message if invalid, or None if valid.
 pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String> {
     // Custom elements can be anything
-    if child_tag.contains('-') || parent_tag.contains('-') {
+    if child_tag.has_byte(b'-') || parent_tag.has_byte(b'-') {
         return None;
     }
 
@@ -647,7 +648,7 @@ pub fn visit<'a, 'b: 'a>(
                 if let Some(reset_by) = get_descendant_reset_by(ancestor_name)
                     && context.element_ancestors[i + 1..]
                         .iter()
-                        .any(|a| reset_by.contains(&a.as_str()) || a.contains('-'))
+                        .any(|a| reset_by.contains(&a.as_str()) || a.has_byte(b'-'))
                 {
                     continue;
                 }
@@ -865,7 +866,7 @@ pub fn visit<'a, 'b: 'a>(
     context.block_depth_at_element.push(context.block_depth);
 
     // Track custom elements as slot owners
-    let is_custom_element = element.name.contains('-');
+    let is_custom_element = element.name.has_byte(b'-');
     if is_custom_element {
         context
             .slot_owner_ancestors

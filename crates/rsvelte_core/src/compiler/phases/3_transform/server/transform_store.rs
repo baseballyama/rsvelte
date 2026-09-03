@@ -4,6 +4,7 @@
 //! for server-side code generation, including `$store` -> `$.store_get()` transforms
 //! and store assignment transforms.
 
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 use std::fmt::Write as _;
 
@@ -481,9 +482,9 @@ fn transform_one_store_destructure(script: &str, array_counter: &mut usize) -> S
                     let mut actual_end_byte = rhs_end;
                     let before = script[..pattern_start].trim_end();
                     if before.ends_with('(') {
-                        let paren_pos = script[..pattern_start].rfind('(').unwrap();
+                        let paren_pos = script[..pattern_start].rfind_byte(b'(').unwrap();
                         let after_rhs = &script[rhs_end..];
-                        if let Some(close_paren_offset) = after_rhs.find(')') {
+                        if let Some(close_paren_offset) = after_rhs.find_byte(b')') {
                             actual_start_byte = paren_pos;
                             actual_end_byte = rhs_end + close_paren_offset + 1;
                         }

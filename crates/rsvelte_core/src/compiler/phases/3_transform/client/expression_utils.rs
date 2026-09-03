@@ -43,7 +43,7 @@ pub(super) fn extract_var_name_before_rune(before_rune: &str) -> String {
     // Skip optional TypeScript type annotation (: Type)
     // Only look for `:` on the same line as the `=`, to avoid matching `:` inside
     // object literals from previously transformed code.
-    let current_line_start = before_eq.rfind('\n').map_or(0, |p| p + 1);
+    let current_line_start = before_eq.rfind_byte(b'\n').map_or(0, |p| p + 1);
     let current_line = &before_eq[current_line_start..];
     let before_type = if let Some(colon_offset) = rfind_unquoted_colon(current_line) {
         let colon_pos = current_line_start + colon_offset;
@@ -111,7 +111,7 @@ fn rfind_unquoted_colon(source: &str) -> Option<usize> {
 /// threshold: if the collapsed form exceeds 60 chars, keeps the original multi-line.
 pub(super) fn collapse_to_single_line(content: &str) -> String {
     // Only attempt to collapse if multi-line
-    if !content.contains('\n') {
+    if !content.has_byte(b'\n') {
         return content.to_string();
     }
 
@@ -1951,9 +1951,9 @@ pub(super) fn extract_enclosing_function_name(before_block: &str) -> Option<&str
     let trimmed = before_block.trim_end();
     // Look for `function NAME(...)` pattern
     // The pattern should end with `)` just before the `{`
-    if let Some(paren_close) = trimmed.rfind(')') {
+    if let Some(paren_close) = trimmed.rfind_byte(b')') {
         let before_paren = &trimmed[..paren_close];
-        if let Some(paren_open) = before_paren.rfind('(') {
+        if let Some(paren_open) = before_paren.rfind_byte(b'(') {
             let before_params = trimmed[..paren_open].trim_end();
             // Check if this is `function NAME`
             if let Some(fn_pos) = memchr::memmem::rfind(before_params.as_bytes(), b"function ") {
@@ -2028,7 +2028,7 @@ pub(super) fn find_trace_source_location(
                 let fn_start = open_paren;
                 let before_fn = &source[..fn_start];
                 let line = before_fn.matches('\n').count() + 1;
-                let last_nl = before_fn.rfind('\n').map(|p| p + 1).unwrap_or(0);
+                let last_nl = before_fn.rfind_byte(b'\n').map(|p| p + 1).unwrap_or(0);
                 let col = fn_start - last_nl;
                 return Some((line, col));
             }
@@ -2044,7 +2044,7 @@ pub(super) fn find_trace_source_location(
         {
             let before_pos = &source[..open_paren];
             let line = before_pos.matches('\n').count() + 1;
-            let last_nl = before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
+            let last_nl = before_pos.rfind_byte(b'\n').map(|p| p + 1).unwrap_or(0);
             let col = open_paren - last_nl;
             return Some((line, col));
         }
@@ -2064,7 +2064,7 @@ pub(super) fn find_trace_source_location(
                 .map_or(fn_pos, |prefix| prefix.len());
             let before_pos = &source[..fn_start];
             let line = before_pos.matches('\n').count() + 1;
-            let last_nl = before_pos.rfind('\n').map(|p| p + 1).unwrap_or(0);
+            let last_nl = before_pos.rfind_byte(b'\n').map(|p| p + 1).unwrap_or(0);
             let col = fn_start - last_nl;
             return Some((line, col));
         }
@@ -2155,7 +2155,7 @@ pub(super) fn strip_leading_comments(s: &str) -> &str {
             return "";
         }
         if let Some(after) = rest.strip_prefix("//") {
-            match after.find('\n') {
+            match after.find_byte(b'\n') {
                 Some(nl) => {
                     rest = after[nl + 1..].trim_start();
                     continue;
@@ -2507,7 +2507,7 @@ pub(super) fn is_complex_member_access(expr: &str) -> bool {
         return false;
     }
     // Must contain at least one `.` or `[` for it to be a member access
-    if !trimmed.contains('.') && !trimmed.contains('[') {
+    if !trimmed.has_byte(b'.') && !trimmed.has_byte(b'[') {
         return false;
     }
     let mut i = 0;
@@ -2567,7 +2567,7 @@ pub(super) fn is_member_expression(expr: &str) -> bool {
 
     // Check if it contains at least one dot and all parts are valid identifiers
     // Also ensure it doesn't end with () which would make it a function call
-    if !trimmed.contains('.') {
+    if !trimmed.has_byte(b'.') {
         return false;
     }
 
@@ -3014,7 +3014,7 @@ fn scan_for_direct_await(expr: &str) -> bool {
                 // Check if async was before the params
                 let before_trimmed = before.trim_end();
                 // Find the '('
-                if let Some(paren_pos) = before_trimmed.rfind('(') {
+                if let Some(paren_pos) = before_trimmed.rfind_byte(b'(') {
                     let before_paren = &before_trimmed[..paren_pos];
                     if before_paren.trim_end().ends_with("async") {
                         async_fn_depth += 1;

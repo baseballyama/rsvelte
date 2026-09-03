@@ -6,6 +6,7 @@
 
 use crate::ast::template::Script;
 use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
     code_bytes, code_bytes_from, skip_opaque,
 };
@@ -187,10 +188,10 @@ pub(crate) fn compute_eval_inputs(
                 };
                 if let Some(s) = decl_start {
                     let rest = &decl_trimmed[s..];
-                    if let Some(eq_idx) = rest.find('=') {
+                    if let Some(eq_idx) = rest.find_byte(b'=') {
                         let name = rest[..eq_idx].trim();
-                        if name.contains('{')
-                            || name.contains('[')
+                        if name.has_byte(b'{')
+                            || name.has_byte(b'[')
                             || instance_excluded.contains(name)
                             || constant_vars.contains_key(name)
                         {
@@ -1091,7 +1092,7 @@ fn is_whole_string_literal(value: &str) -> bool {
     if !matches!(quote, b'\'' | b'"' | b'`') || bytes.len() < 2 {
         return false;
     }
-    if quote == b'`' && value.contains("${") {
+    if quote == b'`' && value.has_sub("${") {
         return false;
     }
     let mut i = 1;
@@ -1357,7 +1358,7 @@ pub(crate) fn extract_constant_vars(
 
             for declarator in &declarators {
                 let decl = declarator.trim().trim_end_matches(';');
-                if let Some(eq_idx) = decl.find('=') {
+                if let Some(eq_idx) = decl.find_byte(b'=') {
                     let name = decl[..eq_idx].trim();
                     let value = decl[eq_idx + 1..].trim();
 

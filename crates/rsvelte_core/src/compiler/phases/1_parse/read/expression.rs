@@ -37,6 +37,7 @@ use crate::ast::typed_expr::{
     alloc_deser_children, alloc_deser_node, child_node_from_value,
 };
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::utils::is_escaped;
 use compact_str::CompactString;
@@ -118,7 +119,7 @@ fn expr_to_node<'a>(expr: Expression<'a>) -> JsNode {
 /// * `comment_start` - The start position of the comment in the source
 fn normalize_block_comment_indentation(value: &str, source: &str, comment_start: usize) -> String {
     // Only normalize if comment contains newlines
-    if !value.contains('\n') {
+    if !value.has_byte(b'\n') {
         return value.to_string();
     }
 
@@ -7799,7 +7800,7 @@ impl<'a> oxc_ast_visit::Visit<'a> for AwaitYieldInParams {
 /// list, or `None`. `source` gates the walk — neither keyword can occur without
 /// its own spelling.
 fn await_or_yield_in_params(program: &OxcProgram<'_>, source: &str) -> Option<(u32, &'static str)> {
-    if !source.contains("await") && !source.contains("yield") {
+    if !source.has_sub("await") && !source.has_sub("yield") {
         return None;
     }
     use oxc_ast_visit::Visit;
@@ -7946,11 +7947,11 @@ fn acorn_only_violation(
         }
     }
 
-    let check_decorator = !is_typescript && content.contains('@');
-    let check_with = content.contains("with");
-    let check_ts_modifier = !is_typescript && content.contains("class");
-    let check_super = content.contains("super");
-    let check_await = content.contains("await");
+    let check_decorator = !is_typescript && content.has_byte(b'@');
+    let check_with = content.has_sub("with");
+    let check_ts_modifier = !is_typescript && content.has_sub("class");
+    let check_super = content.has_sub("super");
+    let check_await = content.has_sub("await");
     let mut finder = Scan {
         check_decorator,
         decorator_at: None,
@@ -7966,7 +7967,7 @@ fn acorn_only_violation(
     };
     // The TypeScript-only rule below needs a token that is cheap to rule out, so
     // a plain-JS script keeps the walk it had.
-    let check_ts_acorn = is_typescript && content.contains("global");
+    let check_ts_acorn = is_typescript && content.has_sub("global");
     if check_decorator
         || check_with
         || check_ts_modifier
@@ -8039,9 +8040,9 @@ fn ts_class_modifier_stop(content: &str, from: u32) -> Option<u32> {
                 .unwrap_or(content.len() - i);
             let rest = &content[i..];
             if let Some(body) = rest.strip_prefix("//") {
-                i += 2 + body.find('\n')?;
+                i += 2 + body.find_byte(b'\n')?;
             } else if let Some(body) = rest.strip_prefix("/*") {
-                i += 2 + body.find("*/")? + 2;
+                i += 2 + body.find_sub("*/")? + 2;
             } else {
                 break;
             }
@@ -8082,7 +8083,7 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
         if rest.starts_with(b"//") {
             i += rest.iter().position(|&b| b == b'\n').unwrap_or(rest.len());
         } else if rest.starts_with(b"/*") {
-            match content[i + 2..].find("*/") {
+            match content[i + 2..].find_sub("*/") {
                 Some(end) => i += 2 + end + 2,
                 None => return (at, message.to_string()),
             }
@@ -8175,12 +8176,12 @@ fn skip_js_whitespace_and_comments(content: &str, mut at: usize) -> usize {
 
         let tail = &content[at..];
         if let Some(comment) = tail.strip_prefix("/*") {
-            let Some(end) = comment.find("*/") else {
+            let Some(end) = comment.find_sub("*/") else {
                 return content.len();
             };
             at += 2 + end + 2;
         } else if tail.starts_with("//") {
-            let Some(end) = tail.find('\n') else {
+            let Some(end) = tail.find_byte(b'\n') else {
                 return content.len();
             };
             at += end + 1;
@@ -8203,7 +8204,7 @@ pub(crate) fn repair_ts_newline_import_assert(
     content: &str,
     is_typescript: bool,
 ) -> Option<String> {
-    if !is_typescript || !content.contains("assert") {
+    if !is_typescript || !content.has_sub("assert") {
         return None;
     }
 
@@ -8598,7 +8599,7 @@ fn convert_parsed_program<'ast>(
         let has_ignore = all_comments.iter().any(|comment| {
             let end = (comment.span.end as usize).min(content.len());
             let start = comment.span.start as usize;
-            start <= end && content[start..end].contains("svelte-ignore")
+            start <= end && content[start..end].has_sub("svelte-ignore")
         });
 
         // With capture on (the public `parse()` API and the parser fixtures) the
@@ -13486,7 +13487,7 @@ pub fn validate_template_binding_pattern(
     }
 
     if !(trimmed.starts_with('{') || trimmed.starts_with('['))
-        || (!trimmed.contains("arguments") && !trimmed.contains("eval"))
+        || (!trimmed.has_sub("arguments") && !trimmed.has_sub("eval"))
     {
         return Ok(());
     }
@@ -13607,7 +13608,7 @@ pub fn parse_binding_pattern<'a>(
 
         // Fallback: return as simple identifier
         let trimmed = content.trim_ws();
-        let name = if let Some(colon_pos) = trimmed.find(':') {
+        let name = if let Some(colon_pos) = trimmed.find_byte(b':') {
             if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
                 trimmed[..colon_pos].trim_ws()
             } else {

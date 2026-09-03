@@ -327,7 +327,7 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
                 && bytes.get(i + 1) == Some(&b'/')
                 && has_non_lf_line_comment_end(bytes, next);
             let trails_code = starts_comment
-                && !source[after_last_code..i].contains('\n')
+                && !source[after_last_code..i].has_byte(b'\n')
                 && !exotic_line_comment_end;
             if !starts_comment || trails_code {
                 after_last_code = next;
@@ -504,7 +504,7 @@ fn continuation_keyword(source: &str, from: usize) -> Option<usize> {
         match bytes.get(i) {
             Some(b) if b.is_ascii_whitespace() => i += 1,
             Some(b'/') if bytes.get(i + 1) == Some(&b'/') => {
-                i = source[i..].find('\n').map_or(source.len(), |nl| i + nl + 1);
+                i = source[i..].find_byte(b'\n').map_or(source.len(), |nl| i + nl + 1);
             }
             Some(b'/') if bytes.get(i + 1) == Some(&b'*') => {
                 i = source[i + 2..]
@@ -750,7 +750,7 @@ fn successor_indent(source: &str, at: usize) -> &str {
     let offset = rest
         .find(|c: char| !c.is_whitespace())
         .map_or(rest.len(), |offset| at + offset);
-    let line_start = source[..offset].rfind('\n').map_or(0, |nl| nl + 1);
+    let line_start = source[..offset].rfind_byte(b'\n').map_or(0, |nl| nl + 1);
     let line = &source[line_start..offset];
     &line[..line.len() - line.trim_start().len()]
 }
@@ -1039,12 +1039,12 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
     let trimmed = statement.trim();
 
     // Look for pattern: (const|let|var) { ... } = $props(...)
-    let brace_start = match trimmed.find('{') {
+    let brace_start = match trimmed.find_byte(b'{') {
         Some(pos) => pos,
         None => return vec![],
     };
 
-    let brace_end = match trimmed.find('}') {
+    let brace_end = match trimmed.find_byte(b'}') {
         Some(pos) => pos,
         None => return vec![],
     };
@@ -1069,10 +1069,10 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
         }
 
         // Handle "key: alias" or "key: alias = default" pattern
-        if let Some(colon_pos) = part.find(':') {
+        if let Some(colon_pos) = part.find_byte(b':') {
             let after_colon = part[colon_pos + 1..].trim();
             // May have default: "alias = default"
-            let alias = if let Some(eq_pos) = after_colon.find('=') {
+            let alias = if let Some(eq_pos) = after_colon.find_byte(b'=') {
                 after_colon[..eq_pos].trim()
             } else {
                 after_colon
@@ -1082,7 +1082,7 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
         }
 
         // Handle "name = default" pattern
-        if let Some(eq_pos) = part.find('=') {
+        if let Some(eq_pos) = part.find_byte(b'=') {
             names.push(part[..eq_pos].trim().to_string());
             continue;
         }
