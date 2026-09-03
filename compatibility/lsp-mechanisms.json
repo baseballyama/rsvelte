@@ -216260,12 +216260,6 @@
 		"differential:fixtures/code-action-anchor-rel|textDocument/codeAction|phase=edit|:extra-rsvelte[count=1,hash=cb4c51ab40a2]": [
 			"unclassified"
 		],
-		"differential:fixtures/code-action-foreign|textDocument/codeAction|:extra-rsvelte[count=1,hash=5befc359d11b]": [
-			"unclassified"
-		],
-		"differential:fixtures/code-action-foreign|textDocument/codeAction|phase=edit|:extra-rsvelte[count=1,hash=5befc359d11b]": [
-			"unclassified"
-		],
 		"differential:fixtures/code-action-ignore-indent|textDocument/codeAction|:extra-rsvelte[count=1,hash=f2b9b4ef1625]": [
 			"unclassified"
 		],
@@ -216732,12 +216726,6 @@
 			"unclassified"
 		],
 		"differential:fixtures/html-smoke-lang|textDocument/completion|0:4|phase=edit|/items:missing-rsvelte[count=131,hash=1f0ad94d5109]": [
-			"unclassified"
-		],
-		"differential:fixtures/html-smoke-linked|textDocument/linkedEditingRange|0:3|/wordPattern:value-mismatch[official=91181212a1f8,rsvelte=6d141e544799]": [
-			"unclassified"
-		],
-		"differential:fixtures/html-smoke-linked|textDocument/linkedEditingRange|0:3|phase=edit|/wordPattern:value-mismatch[official=91181212a1f8,rsvelte=6d141e544799]": [
 			"unclassified"
 		],
 		"differential:fixtures/html-smoke-moustache-completion|textDocument/completion|0:20|/items:extra-rsvelte[count=5,hash=c4371029d568]": [
