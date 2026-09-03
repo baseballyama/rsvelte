@@ -2754,6 +2754,89 @@ the control's name as a prediction about the cell's *input text* and grep the in
 A control named `KNOWN-global:Number` whose source contains no `Number` is caught in one
 command; no amount of ablation finds it, because ablation moves the code and holds the cells.
 
+### A run's status is not the aggregate of its jobs', and the two can disagree forever
+
+The concurrency ceiling this account is scheduled against is a **job** ceiling, and
+`actions/runs?status=in_progress` counts **runs**. The paging-window paragraph far above (rule
+4 of the truncating-stage list, `in_progress: 4`) reads a server-side run count of 20 as
+confirming a 20-job ceiling; measured on 2026-09-03 the same
+query returned **3 runs holding 18 in-progress jobs**, because one scheduled `Corpus Compat`
+run carried 15 `LSP real-world parity` shards by itself. Whether that earlier 20 was a
+coincidence of the two quantities is no longer measurable — which is the point: the number was
+never typed, so nothing said which of the two it was. **Ask about capacity by summing
+`runs/<id>/jobs`, and treat a run count as a count of runs.**
+
+The same measurement turned up a run that states the disagreement as sharply as it can be
+stated. A `Coverage` run on a closed PR's branch has been `status=in_progress` since
+2026-08-10 — `updated_at` one second after `created_at` and untouched for 24 days — and it
+holds **exactly one job, `status=completed, conclusion=skipped`**. So the aggregate is not
+ambiguous and the run contradicts it: every job is finished and the run is running. (That job
+also records `completed_at` one second *before* `started_at`, which is the likeliest reason
+whatever advances a run never fired.) `gh run cancel` answers `Cannot cancel a workflow run
+that is completed` while the runs API returns `in_progress` on the very next read — two faces
+of the API disagreeing permanently, neither yielding, so `?status=in_progress` is polluted for
+good. It occupies no slot, so it costs nothing except the instrument: **the run-level query is
+the one that can be wrong, and counting jobs is the way out from under it.**
+
+The saturation it exposed is worth stating as a shape rather than a number: 28 checks sitting at
+`QUEUED` with **zero** `IN_PROGRESS` reads exactly like a stalled scheduler, and here it was a
+nightly scheduled gate holding three quarters of the slots. Neither the check names nor their
+conclusions can separate those two; only the job census can.
+
+### Two branches appending sections to one document merge cleanly and duplicate in silence
+
+`main` carried 140 `### ` sections of this file, a peer's branch 151, and mine 142 — that last
+count being before the two sections you are reading. Those two branches are disjoint in what
+they *add*: measured with the merge-base form below, 2 added on one side and 11 on the other,
+intersecting to **zero**. That is the only reason nothing is wrong today. Four of the five rows this
+session had undertaken to write were already written on the peer's branch, unmerged and
+therefore invisible to `origin/main`; writing them would have produced two sections making the
+same claim, and **git would have merged them without a conflict**, because they append at
+different offsets in a 4,600-line file.
+
+Nothing in the tree can see it. Measured: the only code that reads `AGENTS.md` at all is the
+Svelte-target version marker in `update-docs.mjs` and its test — no gate reads its structure,
+and `sort | uniq -d` over the headings is 0 in all three trees only because nobody has collided
+yet. Compare that with the positive control: `KNOWN-FAILURES.md` is named by five files under
+`scripts/`.
+
+So the check is **subtract the merge base from each side first, then intersect** — the quantity
+wanted is not "which headings are on both branches" but "which headings both branches *added*":
+
+```sh
+A=<your branch>; B=<their branch>; MB=$(git merge-base "$A" "$B")
+# the braces are REQUIRED, not style: in zsh "$MB:AGENTS.md" is the :A modifier - see below
+added () { comm -13 <(git show "${MB}:AGENTS.md" | grep '^### ' | sort) \
+                    <(git show "${1}:AGENTS.md"  | grep '^### ' | sort); }
+comm -12 <(added "$A") <(added "$B")
+```
+
+The first version written here intersected the two full sets, which answers the other question
+and prints the 140 inherited headings around the same `0`. That is worth keeping because of how
+it happened: the correct two-stage form — intersect, then subtract `main` — is what was actually
+*run*, and only its first stage got written down. **A prescription simplified on the way into the
+note is a different instrument from the one that produced the result**, and nothing about the
+result says so; the reported `0` was right and unreproducible from the text beside it. A peer ran
+the written form and got 140 lines. This is the third instance in one day of intersecting before
+subtracting (the ratchet as a regression population, the formatter's rejected bucket, this).
+
+It is also the sibling of the recorded cross-file ordering hazard, with the failure mode inverted:
+there two clean-merging PRs turn `main` **red**, and the redness is the alarm. Here they turn it
+**longer**, and a document that says the same thing twice is the exact defect this file spends
+its length warning about — two ports of one rule, with colocation hiding them.
+
+One incidental, because it printed three plausible zeros while I was measuring the above:
+`for r in …; do git show $r:AGENTS.md; done` is not that command in zsh — `:A` is the
+absolute-path modifier, so the argument becomes `<abspath>GENTS.md`, git fails to **stderr**,
+and `wc -l` on the empty stdout reports `0` for every tree. Brace the expansion
+(`"${r}:AGENTS.md"`) — quoting alone does **not** help, because the modifier binds to the bare
+parameter name inside double quotes too. The failure was visible only because nothing discarded
+stderr. The command block above was itself written with `$MB:AGENTS.md` unbraced, four
+paragraphs above the note describing that exact hazard, and returned an empty set with three
+`fatal:` lines on stderr that a `0 collisions` label was printed over. What caught it was the
+injection control returning `0` where it must return `1` — the result and the broken control
+agreed, and only the control was checkable.
+
 ### An enumerated concern gets one item crossed off and reads as answered
 
 "That `loc` change reaches phase 3's comment decision **and** the source map, so 'only `parse()`
