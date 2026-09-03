@@ -1433,3 +1433,10 @@ jobs:
       - name: Verify the entry-level progress records
         if: ${{ !cancelled() }}
         run: node scripts/ci/attribution-progress-check.mjs
+
+      # `known-failures-md-check` reads a sidecar as one slug per entry, so it
+      # does not cover `lsp-mechanisms.json`, whose value is a SET — and nothing
+      # else ran this checker either: it had a package script and no workflow.
+      - name: Verify the LSP mechanism sidecar
+        if: ${{ !cancelled() }}
+        run: node scripts/ci/lsp-mechanisms-check.mjs

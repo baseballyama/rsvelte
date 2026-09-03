@@ -4879,9 +4879,44 @@ ours are different facts, and writing one as the other puts a sign on an unmeasu
 Either one blocks its entry from an attribution table, and the checker reports how many entries
 are blocked rather than folding them into a pass — a blank and a zero render the same.
 
-The scope of these figures: 151 entries from one of sixteen corpus shards, so the *counts* are not
-convertible into ratchet-wide ones and none of them has been. What is established is structural,
-and on the corpus half only.
+The scope of that table is 151 entries from one of sixteen corpus shards. It is now also measured
+ratchet-wide, from the complete 17-artifact set of the `2026-09-02T20:48Z` `lsp-corpus` run — whose
+`projectRevision` carries the same `lsp-known-failures.json`, `mechanism.mjs` and `merge-current.mjs`
+blobs as `main`, so the id set cannot have moved and re-baselining it shrinks nothing (the control
+run reports `23746 current, 0 new, 0 stale`, and the ratchet is byte-identical after the write).
+
+All **23,746** entries carry a set, at a mean of **7.35** labels each — 1 to 28, with 3,610 entries
+(15.2%) carrying exactly one. The structural claim survives the change of population and the
+magnitudes do not:
+
+| label | appears on | sole label on |
+|---|---|---|
+| `rsvelte-empty` | 10602 | 148 |
+| `completion-item-set-extra-ts` | 7262 | **0** |
+| `completion-text-edit-range-end` | 7262 | **0** |
+| `completion-command-presence-rsvelte-only` | 7260 | **0** |
+| `completion-item-set-missing-mixed` | 7212 | **0** |
+| `completion-item-set-extra-html` | 7024 | **0** |
+| `completion-item-set-missing-ts` | 7018 | **0** |
+| `rsvelte-empty-import-only` | 6720 | 982 |
+| `official-empty` | 6682 | 4 |
+
+**10 of the 72 labels are ever the sole label of an entry** (the shard read 9 of 62), and the
+largest completion labels are still zero — repairing any one of them removes no entry from the
+ratchet.
+
+**Two counts of "labels" answer different questions, and the smaller one is the work.** The sidecar
+declares **142** labels and the artifacts use **72**; the merge only ever adds a label, so the other
+**70** are carried by zero entries and have nothing behind them to establish a terminal for. Sizing
+the terminal work at 142 counts a vocabulary, not a population. Going the other way, a greedy union
+over the used labels touches every one of the 23,746 entries with **12** labels, and two of them
+(`rsvelte-empty`, `completion-item-set-extra-ts`) already reach 75.2% — so neither 142 nor 72 is the
+number of decisions that would move the ratchet either.
+
+`unclassified` is 2,120 entries and is the sole label on 2,116 of them, which is the `differential:`
+and `expected:` half spelled out rather than left blank: the classifier runs on the corpus branch
+only. Those are the entries a terminal cannot be established for without a second classifier, not
+entries awaiting a judgement.
 
 Normalization removes only these non-parity fields and path-specific values:
 
