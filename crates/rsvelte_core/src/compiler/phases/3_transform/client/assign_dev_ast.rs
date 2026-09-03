@@ -18,7 +18,7 @@ use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::GetSpan;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ast_rewrite::Edit;
 use super::visitors::shared::utils::{is_global_constant, is_known_defined_global_call};
@@ -160,6 +160,55 @@ enum PathElement {
     Computed,
 }
 
+/// Everything the rewrite reads off an assignment's target, in one place: the
+/// site key and the spans, so the claim on the way down and the edit on the way
+/// back up cannot disagree about which site an assignment owns.
+struct AssignTarget {
+    root: String,
+    path: Vec<PathElement>,
+    operator: &'static str,
+    root_span: u32,
+    object_span: oxc_span::Span,
+    property: String,
+}
+
+fn assign_target(assign: &AssignmentExpression<'_>, source: &str) -> Option<AssignTarget> {
+    let operator = non_coercive(assign.operator)?;
+    let mut path = Vec::new();
+    let (root, root_span, object_span, property) = match &assign.left {
+        AssignmentTarget::StaticMemberExpression(member) => {
+            let (root, root_span) = member_root(&member.object, &mut path)?;
+            path.push(PathElement::Name(member.property.name.to_string()));
+            (
+                root,
+                root_span,
+                member.object.span(),
+                format!("'{}'", member.property.name),
+            )
+        }
+        AssignmentTarget::ComputedMemberExpression(member) => {
+            let (root, root_span) = member_root(&member.object, &mut path)?;
+            path.push(PathElement::Computed);
+            let expr_span = member.expression.span();
+            (
+                root,
+                root_span,
+                member.object.span(),
+                source[expr_span.start as usize..expr_span.end as usize].to_string(),
+            )
+        }
+        _ => return None,
+    };
+    Some(AssignTarget {
+        root,
+        path,
+        operator,
+        root_span,
+        object_span,
+        property,
+    })
+}
+
 /// The root identifier of a member chain, pushing each element it walks past
 /// onto `path` in source order. `None` when the root is not a plain identifier.
 fn member_root(expr: &Expression<'_>, path: &mut Vec<PathElement>) -> Option<(String, u32)> {
@@ -239,6 +288,7 @@ pub(super) fn collect_assign_edits(
         // here is not a component binding and only the fragment resolves it.
         resolved: resolved_reference_spans(program),
         component_bindings,
+        reserved: FxHashMap::default(),
         edits: Vec::new(),
     };
     collector.visit_program(program);
@@ -262,6 +312,8 @@ struct AssignCollector<'src> {
     /// Every name the component declares anywhere, which is what carries the
     /// hoisted imports this fragment no longer contains.
     component_bindings: &'src FxHashSet<&'src str>,
+    /// Assignment span start -> the site reserved for it on the way down.
+    reserved: FxHashMap<u32, (usize, usize)>,
     edits: Vec<Edit>,
 }
 
@@ -281,44 +333,34 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
     }
 
     fn visit_assignment_expression(&mut self, assign: &AssignmentExpression<'a>) {
+        // A `Computed` path element carries no value, so the two targets of
+        // `o.p[2] = o.p[3] = s` have the same site key and only the order the
+        // sites are consumed in tells them apart. The walk below is post-order,
+        // which consumes the inner assignment first and hands it the outer's
+        // column, so the site is claimed here in source order instead.
+        if let Some(target) = assign_target(assign, self.source)
+            && let Some(location) = self.sites.take(&target.root, &target.path, target.operator)
+        {
+            self.reserved.insert(assign.span.start, location);
+        }
         walk::walk_assignment_expression(self, assign);
 
-        let Some(operator) = non_coercive(assign.operator) else {
+        let Some(target) = assign_target(assign, self.source) else {
             return;
         };
-        let mut path = Vec::new();
+        let AssignTarget {
+            root,
+            operator,
+            root_span,
+            object_span,
+            property,
+            ..
+        } = target;
         let slice = |span: oxc_span::Span| &self.source[span.start as usize..span.end as usize];
-        let (root, root_span, object_span, property) = match &assign.left {
-            AssignmentTarget::StaticMemberExpression(member) => {
-                let Some((root, root_span)) = member_root(&member.object, &mut path) else {
-                    return;
-                };
-                path.push(PathElement::Name(member.property.name.to_string()));
-                (
-                    root,
-                    root_span,
-                    member.object.span(),
-                    format!("'{}'", member.property.name),
-                )
-            }
-            AssignmentTarget::ComputedMemberExpression(member) => {
-                let Some((root, root_span)) = member_root(&member.object, &mut path) else {
-                    return;
-                };
-                path.push(PathElement::Computed);
-                (
-                    root,
-                    root_span,
-                    member.object.span(),
-                    slice(member.expression.span()).to_string(),
-                )
-            }
-            _ => return,
-        };
-        // Consumed before the decision below, not after: two identical member
+        // Claimed before the decision below, not after: two identical member
         // chains in one script are told apart only by which site is still
         // unused, so a site the decision rejects still has to be spent.
-        let Some((line, column)) = self.sites.take(&root, &path, operator) else {
+        let Some((line, column)) = self.reserved.remove(&assign.span.start) else {
             return;
         };
         // Upstream's `if (!binding) return null` — a chain rooted at a global
