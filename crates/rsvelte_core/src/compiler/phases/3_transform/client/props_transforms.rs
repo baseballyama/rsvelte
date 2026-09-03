@@ -971,6 +971,7 @@ pub(super) fn apply_store_transforms_in_prop_default_values(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     use super::store_transforms::{
         transform_store_assignments_client, transform_store_reads_client, transform_store_sub_calls,
@@ -987,6 +988,7 @@ pub(super) fn apply_store_transforms_in_prop_default_values(
             prop_vars,
             state_vars,
             non_reactive_state_vars,
+            invalidate_bodies,
         );
         Some(as_expression(
             default,
@@ -5468,6 +5470,7 @@ mod split_declarators_tests {
                 &[],
                 &[],
                 &[],
+                &rustc_hash::FxHashMap::default(),
             ),
             "$.prop($$props, '名', 24, () => $items());",
         );

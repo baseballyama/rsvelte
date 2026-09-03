@@ -2,7 +2,9 @@
 //! grows the `$.invalidate_inner_signals` tail on a `++` / `--` — while the same
 //! binding's `=` and `+=` keep it. rsvelte wrapped all three, in four places:
 //! the AST and in-place ports of both `legacy_state_member_mutate_ast` and
-//! `prop_member_mutate_ast`.
+//! `prop_member_mutate_ast`; the `store_member_mutate_ast` rows are the same
+//! rule at a third port, which grew a tail for the first time in the same
+//! change and had to be gated on the way in.
 //!
 //! The key is the mutation each tail is attached to, not a count: an
 //! over-wrap and a moved wrap have the same count. Expectations are the
@@ -79,9 +81,14 @@ fn compile_cell(decl: &str, reference: &str, op: &str, host: &str) -> String {
 
 #[test]
 fn an_update_expression_carries_no_invalidate_tail() {
-    let kinds: [(&str, &str, &str); 2] = [
+    let kinds: [(&str, &str, &str); 3] = [
         ("state", "let st = { a: 1, t: 'x' };", "st"),
         ("prop", "export let p = { a: 1, t: 'x' };", "p"),
+        (
+            "store",
+            "import { writable } from 'svelte/store';\n\texport const s = writable({ a: 1, t: 'x' });",
+            "$s",
+        ),
     ];
     let ops: [(&str, &str); 3] = [
         ("assign", ".a = 2;"),
@@ -146,6 +153,42 @@ fn an_update_expression_carries_no_invalidate_tail() {
         (
             ("prop", "update", "reactive"),
             vec!["p(p().t = $$value, true)"],
+        ),
+        (
+            ("store", "assign", "fn"),
+            vec![
+                "$.store_mutate(s, $.untrack($s).a = 2, $.untrack($s))",
+                "$.store_mutate(s, $.untrack($s).t = $$value, $.untrack($s))",
+            ],
+        ),
+        (
+            ("store", "assign", "reactive"),
+            vec![
+                "$.store_mutate(s, $.untrack($s).a = 2, $.untrack($s))",
+                "$.store_mutate(s, $.untrack($s).t = $$value, $.untrack($s))",
+            ],
+        ),
+        (
+            ("store", "compound", "fn"),
+            vec![
+                "$.store_mutate(s, $.untrack($s).a += 2, $.untrack($s))",
+                "$.store_mutate(s, $.untrack($s).t = $$value, $.untrack($s))",
+            ],
+        ),
+        (
+            ("store", "compound", "reactive"),
+            vec![
+                "$.store_mutate(s, $.untrack($s).a += 2, $.untrack($s))",
+                "$.store_mutate(s, $.untrack($s).t = $$value, $.untrack($s))",
+            ],
+        ),
+        (
+            ("store", "update", "fn"),
+            vec!["$.store_mutate(s, $.untrack($s).t = $$value, $.untrack($s))"],
+        ),
+        (
+            ("store", "update", "reactive"),
+            vec!["$.store_mutate(s, $.untrack($s).t = $$value, $.untrack($s))"],
         ),
     ];
 

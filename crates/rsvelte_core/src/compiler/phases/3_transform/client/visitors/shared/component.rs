@@ -1938,12 +1938,17 @@ fn process_bind_directive<'a>(
                 b::id("$$value"),
             );
             let store_source = build_store_source(&store_name, context);
+            let mutate = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.store_mutate"),
+                vec![store_source, assignment_expr, untrack_call],
+            );
+            // The indirect bindings hang off the `$store` binding, which is what
+            // `RegularElement.js:81` resolves `object(attribute.expression)` to.
             vec![b::stmt(
                 &context.arena,
-                b::call(
-                    &context.arena,
-                    b::member_path(&context.arena, "$.store_mutate"),
-                    vec![store_source, assignment_expr, untrack_call],
+                crate::compiler::phases::phase3_transform::client::visitors::expression_converter::wrap_with_legacy_invalidate(
+                    mutate, &store_prefix, context,
                 ),
             )]
         } else {

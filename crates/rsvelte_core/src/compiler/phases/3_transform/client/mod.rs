@@ -8191,6 +8191,7 @@ fn transform_instance_script_for_visitors(
                         prop_assignment_transform_vars,
                         state_vars,
                         non_reactive_state_vars,
+                        &prop_invalidate_bodies,
                     )
                 } else {
                     transformed
@@ -8562,6 +8563,7 @@ fn transform_instance_script_for_visitors(
                         prop_assignment_transform_vars,
                         state_vars,
                         non_reactive_state_vars,
+                        &prop_invalidate_bodies,
                     ))
                 });
                 stage("store_reads", transformed, |t| {

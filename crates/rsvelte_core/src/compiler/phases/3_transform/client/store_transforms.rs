@@ -53,6 +53,7 @@ pub(super) fn transform_store_assignments_client(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     if store_sub_vars.is_empty() {
         return line.to_string();
@@ -101,6 +102,7 @@ pub(super) fn transform_store_assignments_client(
         prop_vars,
         state_vars,
         non_reactive_state_vars,
+        invalidate_bodies,
     )
 }
 
@@ -654,6 +656,7 @@ pub(super) fn transform_store_member_mutations(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> String {
     super::store_member_mutate_ast::transform_store_member_mutate_ast_with_props(
         line,
@@ -661,6 +664,7 @@ pub(super) fn transform_store_member_mutations(
         prop_vars,
         state_vars,
         non_reactive_state_vars,
+        invalidate_bodies,
     )
     .unwrap_or_else(|| line.to_string())
 }

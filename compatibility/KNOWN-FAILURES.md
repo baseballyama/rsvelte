@@ -2950,14 +2950,29 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 3 entries)
+### Client (`known-failures.client.json`, 2 entries)
 
-Partition of `known-failures.client.json` by verdict: `3`
+Partition of `known-failures.client.json` by verdict: `2`
 
-- **3 — the generated JS differs** (`js` / `code-differs`).
+- **2 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
+
+`musicat/…/settings/SettingsPopup.svelte` left this target and `client-dev` with a phase-2
+filter whose comment asserted the opposite of upstream. `2-analyze/index.js:445` declares each
+`$name` as a real `store_sub` binding, so `scope.get('$s')` returns one and
+`RegularElement.js:81` attaches a `<select bind:value={…}>`'s indirect bindings to it like any
+other binding; rsvelte discarded exactly that case in two places, so the store branch of the
+setter and every `$s.a = …` in the file lost the `$.invalidate_inner_signals` tail. Upstream's
+exclusion of `store_sub` is on the **assign** arm's proxy flag (`AssignmentExpression.js:147`)
+and the mutate arm at `:154-181` has no condition on binding kind at all — which is why the same
+grid separates the two: `$s.a = 2` and `$s.a += 2` must gain the tail and `$s.a++` must not,
+since `UpdateExpression.js` never imports `build_assignment`. The first version of the fix
+wrapped both and the six store cells went 6 DIFF → 4 EQ / 2 DIFF, which is what named the
+update arm. **17 of 18 cells EQ after** (the one that stays is a separate defect: `$: st.a++`
+loses its `$.mutate` entirely). Two arms over the corpus moved **2 of 134,180 units**,
+`MISMATCH -> match: 2`, `match -> MISMATCH: 0`.
 
 `ha-fusion/…/Modal/VisibilityConfig/Index.svelte` left this target and `client-dev` with the
 ninth application site of one upstream rule. Upstream reads a **reassigned** each item as
@@ -3332,7 +3347,7 @@ is the cell that separates the aliasing from "an element with a snippet re-expan
 Two arms over the corpus moved 6 of 134,180 units (129,450 live) — the three files on `client`
 and `client-dev` and nothing else — `MISMATCH -> match: 6`, `match -> MISMATCH: 0`.
 
-Every one of the remaining 3 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 2 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3436,11 +3451,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 8 entries)
+### Client dev (`known-failures.client-dev.json`, 7 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `8`
+Partition of `known-failures.client-dev.json` by verdict: `7`
 
-- **8 — the generated JS differs.**
+- **7 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
@@ -3477,7 +3492,7 @@ the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)`
 binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
 expression's shape alone. A moved unit is not a retired entry.
 
-All remaining 8 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 7 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 5 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 

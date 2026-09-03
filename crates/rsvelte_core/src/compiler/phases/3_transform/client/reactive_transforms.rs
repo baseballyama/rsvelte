@@ -715,6 +715,7 @@ pub(super) fn transform_reactive_statement(
             prop_assignment_transform_vars,
             state_vars,
             non_reactive_state_vars,
+            prop_invalidate_bodies,
         );
         transform_store_reads_client(&transformed_body, store_sub_vars)
     } else {

@@ -935,20 +935,13 @@ pub fn visit<'a, 'b: 'a>(
                     // is a valid indirect binding upstream and must be reachable
                     // through the ancestor chain.
                     let scope_idx = context.scope;
-                    // Upstream `scope.get('$store')` returns null (a store
-                    // auto-subscription is not a real scope binding), so a
-                    // `bind:value={$store}` root never gets indirect bindings;
-                    // rsvelte synthesizes a StoreSub binding, so skip it here.
-                    let binding_idx = context
-                        .analysis
-                        .root
-                        .get_binding(root_name, scope_idx)
-                        .filter(|&i| {
-                            !matches!(
-                                context.analysis.root.bindings[i].kind,
-                                crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
-                            )
-                        });
+                    // A `$store` IS a scope binding upstream — `scope.get('$name')`
+                    // returning a `store_sub` is what every `?.kind === 'store_sub'`
+                    // test in the compiler reads. `AssignmentExpression.js:147`
+                    // excludes `store_sub` from the ASSIGN arm's proxy flag only; the
+                    // mutate arm at :164 applies `legacy_indirect_bindings` with no
+                    // kind condition at all.
+                    let binding_idx = context.analysis.root.get_binding(root_name, scope_idx);
 
                     if let Some(binding_idx) = binding_idx {
                         // Collect scope references that have template references.
@@ -1053,19 +1046,15 @@ pub fn visit<'a, 'b: 'a>(
                                 if &name == root_name || !seen.insert(name.clone()) {
                                     continue;
                                 }
-                                // Resolve like the official `scope.get(name)`: only
-                                // add when it maps to an enclosing-scope binding that
-                                // is not a synthesized store-subscription alias.
+                                // Resolve like the official `scope.get(name)`: add when
+                                // it maps to an enclosing-scope binding. `index.js:445`
+                                // declares `$name` as a real `store_sub` binding, so
+                                // upstream's `scope.get` finds one like any other.
                                 if let Some(bi) =
                                     context.analysis.root.get_binding(&name, scope_idx)
                                 {
                                     let b = &context.analysis.root.bindings[bi];
-                                    if ancestor_scopes.contains(&b.scope_index)
-                                        && !matches!(
-                                            b.kind,
-                                            crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
-                                        )
-                                    {
+                                    if ancestor_scopes.contains(&b.scope_index) {
                                         comp_names.push(name);
                                     }
                                 }

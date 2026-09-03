@@ -60,6 +60,7 @@ pub fn transform_store_member_mutate_ast_with_props(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
     let spliced = || {
         transform_store_member_mutate_spliced(
@@ -68,6 +69,7 @@ pub fn transform_store_member_mutate_ast_with_props(
             prop_vars,
             state_vars,
             non_reactive_state_vars,
+            invalidate_bodies,
         )
     };
     ast_rewrite::dual_run::resolve("store_member_mutate_ast:inplace", source, spliced, || {
@@ -77,6 +79,7 @@ pub fn transform_store_member_mutate_ast_with_props(
             prop_vars,
             state_vars,
             non_reactive_state_vars,
+            invalidate_bodies,
         )
     })
 }
@@ -87,6 +90,7 @@ fn transform_store_member_mutate_spliced(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> Option<String> {
     if store_subs.is_empty() {
         return None;
@@ -112,6 +116,7 @@ fn transform_store_member_mutate_spliced(
                     prop_vars,
                     state_vars,
                     non_reactive_state_vars,
+                    invalidate_bodies,
                     replacements: Vec::new(),
                 };
                 collector.visit_program(program);
@@ -127,6 +132,7 @@ struct MemberMutateCollector<'a> {
     prop_vars: &'a [String],
     state_vars: &'a [String],
     non_reactive_state_vars: &'a [String],
+    invalidate_bodies: &'a rustc_hash::FxHashMap<String, String>,
     replacements: Vec<Edit>,
 }
 
@@ -167,7 +173,13 @@ impl<'a> MemberMutateCollector<'a> {
         Self::walk_object_chain_to_root(object)
     }
 
-    fn emit_rewrite(&mut self, outer_span: Span, root_name: &str, root_span: Span) {
+    fn emit_rewrite(
+        &mut self,
+        outer_span: Span,
+        root_name: &str,
+        root_span: Span,
+        is_update: bool,
+    ) {
         if !self.store_subs.iter().any(|s| s == root_name) {
             return;
         }
@@ -195,10 +207,25 @@ impl<'a> MemberMutateCollector<'a> {
         wrapped.push(')');
         wrapped.push_str(&outer_text[re..]);
 
-        let rewrite = format!(
+        let mutate = format!(
             "$.store_mutate({}, {}, $.untrack({}))",
             store_access, wrapped, store_sub
         );
+        // `AssignmentExpression.js:164` appends the tail on the MUTATE arm with no
+        // condition on the binding's kind, and a `$store` is a `store_sub` binding
+        // upstream — so a store member write invalidates the same indirect bindings
+        // a state member write does.
+        // `UpdateExpression.js` does not import `build_assignment`, so upstream
+        // never grows the tail on a `++` / `--`.
+        let rewrite = match self.invalidate_bodies.get(store_sub) {
+            Some(body) if !body.is_empty() && !is_update => {
+                format!(
+                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                    mutate, body
+                )
+            }
+            _ => mutate,
+        };
         self.replacements
             .push((outer_span.start, outer_span.end, rewrite));
     }
@@ -208,14 +235,14 @@ impl<'a, 'ast> Visit<'ast> for MemberMutateCollector<'a> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
         if let Some((root_name, root_span)) = Self::root_of_assignment_target(&expr.left) {
-            self.emit_rewrite(expr.span, root_name, root_span);
+            self.emit_rewrite(expr.span, root_name, root_span, false);
         }
     }
 
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
         walk::walk_update_expression(self, expr);
         if let Some((root_name, root_span)) = Self::root_of_simple_target(&expr.argument) {
-            self.emit_rewrite(expr.span, root_name, root_span);
+            self.emit_rewrite(expr.span, root_name, root_span, true);
         }
     }
 }
@@ -230,7 +257,14 @@ mod tests {
 
     /// Test helper: the non-prop case (no prop-backed store sources).
     fn transform_store_member_mutate_ast(source: &str, store_subs: &[String]) -> Option<String> {
-        transform_store_member_mutate_ast_with_props(source, store_subs, &[], &[], &[])
+        transform_store_member_mutate_ast_with_props(
+            source,
+            store_subs,
+            &[],
+            &[],
+            &[],
+            &rustc_hash::FxHashMap::default(),
+        )
     }
 
     #[test]
@@ -261,6 +295,7 @@ mod tests {
             &ssv(&["store"]),
             &[],
             &[],
+            &rustc_hash::FxHashMap::default(),
         )
         .unwrap();
         assert_eq!(
@@ -280,6 +315,7 @@ mod tests {
             &[],
             &ssv(&["store"]),
             &[],
+            &rustc_hash::FxHashMap::default(),
         )
         .unwrap();
         assert_eq!(
@@ -298,6 +334,7 @@ mod tests {
             &ssv(&["store"]),
             &ssv(&["store"]),
             &[],
+            &rustc_hash::FxHashMap::default(),
         )
         .unwrap();
         assert_eq!(
@@ -314,6 +351,7 @@ mod tests {
             &[],
             &ssv(&["store"]),
             &ssv(&["store"]),
+            &rustc_hash::FxHashMap::default(),
         )
         .unwrap();
         assert_eq!(
@@ -481,6 +519,7 @@ pub(crate) fn transform_store_member_mutate_in_place(
     prop_vars: &[String],
     state_vars: &[String],
     non_reactive_state_vars: &[String],
+    invalidate_bodies: &rustc_hash::FxHashMap<String, String>,
 ) -> ast_rewrite::Rewrite {
     if store_subs.is_empty() {
         return ast_rewrite::Rewrite::Unchanged;
@@ -499,10 +538,12 @@ pub(crate) fn transform_store_member_mutate_in_place(
         |allocator, program| {
             let mut rewriter = MemberMutateRewriter {
                 b: crate::compiler::phases::phase3_transform::builders::B::new(allocator),
+                allocator,
                 store_subs,
                 prop_vars,
                 state_vars,
                 non_reactive_state_vars,
+                invalidate_bodies,
                 changed: false,
             };
             oxc_ast_visit::VisitMut::visit_program(&mut rewriter, program);
@@ -513,14 +554,34 @@ pub(crate) fn transform_store_member_mutate_in_place(
 
 struct MemberMutateRewriter<'a, 'b> {
     b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+    allocator: &'a oxc_allocator::Allocator,
     store_subs: &'b [String],
     prop_vars: &'b [String],
     state_vars: &'b [String],
     non_reactive_state_vars: &'b [String],
+    invalidate_bodies: &'b rustc_hash::FxHashMap<String, String>,
     changed: bool,
 }
 
 impl<'a> MemberMutateRewriter<'a, '_> {
+    /// `$.invalidate_inner_signals(() => { <body> })`, parsed from the precomputed
+    /// text body. `None` when the body does not parse, in which case the mutation is
+    /// emitted unwrapped rather than wrongly.
+    fn invalidate_call(&self, body: &str) -> Option<Expression<'a>> {
+        let owned = self.allocator.alloc_str(body);
+        let parsed = oxc_parser::Parser::new(self.allocator, owned, SourceType::mjs()).parse();
+        if !parsed.diagnostics.is_empty() {
+            return None;
+        }
+        let stmts: Vec<Statement<'a>> = parsed.program.body.into_iter().collect();
+        let mut call = self.b.call(
+            "$.invalidate_inner_signals",
+            vec![self.b.thunk_block(stmts, false)],
+        );
+        ast_rewrite::mark_synthesized_expression(&mut call);
+        Some(call)
+    }
+
     /// The leftmost identifier of a member chain — the only part of a mutation
     /// target that is itself a store read.
     fn chain_root<'e>(expr: &'e mut Expression<'a>) -> Option<&'e mut Expression<'a>> {
@@ -570,6 +631,7 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for MemberMutateRewriter<'a, '_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 
+        let is_update = matches!(expr, Expression::UpdateExpression(_));
         let Some(root) = Self::mutation_root(expr) else {
             return;
         };
@@ -602,9 +664,22 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for MemberMutateRewriter<'a, '_> {
         let published = self
             .b
             .call("$.untrack", vec![self.b.id(store_sub.as_str())]);
-        *expr = self
+        let mutate = self
             .b
             .call("$.store_mutate", vec![store_access, mutation, published]);
+        // `AssignmentExpression.js:164` appends the tail on the MUTATE arm with no
+        // condition on the binding's kind, and a `$store` is a `store_sub` binding
+        // upstream — so a store member write invalidates the same indirect bindings
+        // a state member write does.
+        // `UpdateExpression.js` does not import `build_assignment`, so upstream
+        // never grows the tail on a `++` / `--`.
+        *expr = match self.invalidate_bodies.get(store_sub.as_str()) {
+            Some(body) if !body.is_empty() && !is_update => match self.invalidate_call(body) {
+                Some(invalidate) => self.b.sequence(vec![mutate, invalidate]),
+                None => mutate,
+            },
+            _ => mutate,
+        };
         self.changed = true;
     }
 }
