@@ -12,6 +12,14 @@
 //! `(ruleId, line, column)` is asserted: `svelte/valid-compile` is on the lint
 //! gate's `EXCLUDE` list and its message text carries a compiler-side
 //! divergence that is not this file's subject.
+//!
+//! That exclusion is also why the two compiler-code cells live here and only
+//! here, which was measured rather than assumed: of the ten lint gates, seven
+//! scope themselves with `ruleUniverse()`, whose `EXCLUDE` drops
+//! `svelte/valid-compile`; two drive upstream's `flat/recommended`, which does
+//! not carry that rule; and the last compares `meta.conditions` declarations
+//! rather than findings. So no gate can observe either cell at any corpus size,
+//! and this file is the gate that holds that shape.
 
 use std::path::PathBuf;
 
