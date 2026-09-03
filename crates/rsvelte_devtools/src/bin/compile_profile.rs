@@ -368,13 +368,28 @@ fn main() {
     let assembly_after = transform_breakdown.assembly_after_fragment;
     let css_render = transform_breakdown.css_render;
     let codegen = transform_breakdown.codegen;
-    let other = transform_time
+    // The loop's wall clock also contains this binary's own per-file bookkeeping
+    // -- `take_breakdown` resets thirty thread-locals, `script_shape` rescans the
+    // source, and two `Vec`s grow -- so subtracting the timers from it charges
+    // the instrument to the compiler. `Σ file_transform` brackets
+    // `transform_component` alone.
+    let per_file_sum: std::time::Duration = rows.iter().map(|r| r.1).sum();
+    let instrument = transform_time.saturating_sub(per_file_sum);
+    let other = per_file_sum
         .saturating_sub(visit_program)
         .saturating_sub(script_text)
         .saturating_sub(template_fragment)
         .saturating_sub(assembly_after)
         .saturating_sub(css_render)
         .saturating_sub(codegen);
+    println!(
+        "  [denominator: loop wall {:.2}ms, Sum per-file transform {:.2}ms, \
+         this binary's own bookkeeping {:.2}ms ({:.1}% of the loop)]",
+        ms(transform_time),
+        ms(per_file_sum),
+        ms(instrument),
+        100.0 * instrument.as_secs_f64() / transform_time.as_secs_f64().max(f64::MIN_POSITIVE),
+    );
     println!(
         "  visit_program:       {:7.2}ms ({:5.1}%)",
         ms(visit_program),

@@ -520,6 +520,7 @@ pub(crate) fn transform_client(
     >,
 ) -> Result<CodegenResult, TransformError> {
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
+    let _gap5 = super::profile::timer_start();
 
     // Set where the instance pass SAW a prop member write, which is a different
     // question from whether it could wrap one.
@@ -561,9 +562,11 @@ pub(crate) fn transform_client(
     // Visit the program to set up transforms for props, store subscriptions, etc.
     // This handles state, legacy props, and store subscriptions.
     use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
+    super::profile::record_prefrag(5, super::profile::timer_elapsed(_gap5));
     let _vp_start = super::profile::timer_start();
     visit_program(&mut context);
     super::profile::record_visit_program(super::profile::timer_elapsed(_vp_start));
+    let _gap6 = super::profile::timer_start();
 
     // Remove transforms for variables that have shadowed $state declarations.
     // Due to a known analysis bug where inner-scope $state() declarations overwrite
@@ -637,6 +640,7 @@ pub(crate) fn transform_client(
             &destructure_iife_targets,
             &invalidate_inner_signals_targets,
         );
+        super::profile::record_prefrag(6, super::profile::timer_elapsed(_gap6));
         let dead_comments_stripped = match retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
             .filter(|retained| {
@@ -655,6 +659,7 @@ pub(crate) fn transform_client(
                 dead_comments::strip_dead_comments(&instance_script.raw, dead_comment_rules)
             }),
         };
+        let _gap7 = super::profile::timer_start();
         // Every lowering below decides what a rune call is from this text, so the
         // grouping parens around one have to be gone before the first of them runs.
         let paren_stripped = super::shared::rune_parens::strip_rune_parens(
@@ -738,6 +743,7 @@ pub(crate) fn transform_client(
         } else {
             composed_body_projection.as_ref()
         };
+        super::profile::record_prefrag(7, super::profile::timer_elapsed(_gap7));
         instance_script_imports = super::profile::timed_prefrag(2, || {
             attach_import_origins(
                 imports,
@@ -770,6 +776,7 @@ pub(crate) fn transform_client(
         rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
         super::profile::record_parent_site(false);
+        let _gap8 = super::profile::timer_start();
         // Transfer the script's $$array counter to the context state so that the template
         // visitor continues numbering from where the script left off.
         let script_array_count = SCRIPT_ARRAY_COUNTER.with(|c| c.get());
@@ -787,10 +794,12 @@ pub(crate) fn transform_client(
             };
             context.state.memoizer.add_conflict(&name);
         }
+        super::profile::record_prefrag(8, super::profile::timer_elapsed(_gap8));
         Some(transformed)
     } else {
         None
     };
+    let _gap9 = super::profile::timer_start();
 
     // Pre-compute blocker map for async components.
     if options.experimental.r#async
@@ -859,11 +868,13 @@ pub(crate) fn transform_client(
         }
     }
 
+    super::profile::record_prefrag(9, super::profile::timer_elapsed(_gap9));
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
     let _fragment_start = super::profile::timer_start();
     let template_body = fragment(&ast.fragment, &mut context, true);
     super::profile::record_template_fragment(super::profile::timer_elapsed(_fragment_start));
+    let _gap10 = super::profile::timer_start();
 
     // Propagate any error that was recorded during template traversal (e.g. "Not implemented:
     // LetDirective" from visit_svelte_element when a SvelteElement carries a let: directive).
@@ -871,6 +882,7 @@ pub(crate) fn transform_client(
         return Err(TransformError::CodeGen(msg));
     }
 
+    super::profile::record_prefrag(10, super::profile::timer_elapsed(_gap10));
     let _assembly_start = super::profile::timer_start();
 
     // Collect results from state
@@ -2814,7 +2826,7 @@ pub(crate) fn transform_client(
         });
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
-            let code = rehome_derived_jsdoc(&code);
+            let code = super::profile::timed_prefrag(11, || rehome_derived_jsdoc(&code));
             let code = if let Some(script) = analysis.instance_script_content.as_ref() {
                 super::shared::async_body::restore_async_derived_ignore_comments(&script.raw, code)
             } else {
@@ -2840,7 +2852,7 @@ pub(crate) fn transform_client(
             } else {
                 code
             };
-            signal_discipline::check(&code, &analysis.name);
+            super::profile::timed_prefrag(11, || signal_discipline::check(&code, &analysis.name));
             return Ok(CodegenResult { code, mappings });
         } else if *CLIENT_TO_OXC_DEBUG {
             // Corpus workers share one stderr and a multi-part write interleaves,
@@ -2874,7 +2886,7 @@ pub(crate) fn transform_client(
     } else {
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
-        let code = rehome_derived_jsdoc(&code);
+        let code = super::profile::timed_prefrag(11, || rehome_derived_jsdoc(&code));
         let code = if let Some(script) = analysis.instance_script_content.as_ref() {
             super::shared::async_body::restore_async_derived_ignore_comments(&script.raw, code)
         } else {
@@ -2896,7 +2908,7 @@ pub(crate) fn transform_client(
         } else {
             code
         };
-        signal_discipline::check(&code, &analysis.name);
+        super::profile::timed_prefrag(11, || signal_discipline::check(&code, &analysis.name));
         Ok(CodegenResult {
             code,
             mappings: vec![],
