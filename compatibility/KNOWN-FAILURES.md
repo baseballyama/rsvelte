@@ -4880,12 +4880,15 @@ Either one blocks its entry from an attribution table, and the checker reports h
 are blocked rather than folding them into a pass — a blank and a zero render the same.
 
 The scope of that table is 151 entries from one of sixteen corpus shards. It is now also measured
-ratchet-wide, from the complete 17-artifact set of the `2026-09-02T20:48Z` `lsp-corpus` run — whose
-`projectRevision` carries the same `lsp-known-failures.json`, `mechanism.mjs` and `merge-current.mjs`
-blobs as `main`, so the id set cannot have moved and re-baselining it shrinks nothing (the control
-run reports `23746 current, 0 new, 0 stale`, and the ratchet is byte-identical after the write).
+ratchet-wide, from the complete 17-artifact set of the `2026-09-02T20:48Z` `lsp-corpus` run. At
+`46f07b412`, that run's `projectRevision` carried the same `lsp-known-failures.json`,
+`mechanism.mjs` and `merge-current.mjs` blobs as `main`, so the id set could not have moved and
+re-baselining shrank nothing: the control run reported `23746 current, 0 new, 0 stale` and the
+ratchet came back byte-identical. #4221 then retired four entries, and the four were dropped from
+the sidecar by set difference against the rebased ratchet — which is why the figures below are
+23,742 rather than the 23,746 that control quotes.
 
-All **23,746** entries carry a set, at a mean of **7.35** labels each — 1 to 28, with 3,610 entries
+All **23,742** entries carry a set, at a mean of **7.36** labels each — 1 to 28, with 3,606 entries
 (15.2%) carrying exactly one. The structural claim survives the change of population and the
 magnitudes do not:
 
@@ -4909,7 +4912,7 @@ ratchet.
 declares **142** labels and the artifacts use **72**; the merge only ever adds a label, so the other
 **70** are carried by zero entries and have nothing behind them to establish a terminal for. Sizing
 the terminal work at 142 counts a vocabulary, not a population. Going the other way, a greedy union
-over the used labels touches every one of the 23,746 entries with **12** labels, and two of them
+over the used labels touches every one of those entries with **12** labels, and two of them
 (`rsvelte-empty`, `completion-item-set-extra-ts`) already reach 75.2% — so neither 142 nor 72 is the
 number of decisions that would move the ratchet either.
 
