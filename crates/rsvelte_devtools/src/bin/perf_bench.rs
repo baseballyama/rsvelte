@@ -131,6 +131,10 @@ fn main() {
     // task that is still queued behind the whole slice, so the largest file
     // arriving last is a tail no amount of stealing recovers.
     let mut sort = false;
+    // Offset into the id list before striding. With the same `--limit`, two runs
+    // differing only in `--skip` select provably disjoint files, which is what a
+    // held-out evaluation of a profile-guided build needs.
+    let mut skip = 0usize;
     let mut dump_times: Option<String> = None;
     // macOS schedules a DEFAULT-QoS thread onto an efficiency core, so a rayon
     // pool sized to the core count can end up with two workers running at a
@@ -145,6 +149,7 @@ fn main() {
             "--no-sourcemap" => no_sourcemap = true,
             "--threads" => threads = args.next().unwrap().parse().unwrap(),
             "--sort" => sort = true,
+            "--skip" => skip = args.next().unwrap().parse().unwrap(),
             "--dump-times" => dump_times = Some(args.next().unwrap()),
             "--qos" => qos = Some(args.next().unwrap()),
             other => panic!("unknown arg {other}"),
@@ -164,7 +169,7 @@ fn main() {
     let stride = (ids.len() / limit).max(1);
     let mut sources = Vec::new();
     let mut bytes = 0usize;
-    for id in ids.iter().step_by(stride).take(limit) {
+    for id in ids.iter().skip(skip).step_by(stride).take(limit) {
         if let Ok(s) = fs::read_to_string(root.join("compatibility/sources").join(id)) {
             bytes += s.len();
             sources.push(s);
@@ -290,10 +295,15 @@ fn main() {
     cpu_timings.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let median = timings[timings.len() / 2];
     let cpu_median = cpu_timings[cpu_timings.len() / 2];
+    let skip_tag = if skip > 0 {
+        format!(" skip={skip}")
+    } else {
+        String::new()
+    };
     let ast_tag = if no_ast { " no-ast" } else { "" };
     let map_tag = if no_sourcemap { " no-sourcemap" } else { "" };
     println!(
-        "target={target}{ast_tag}{map_tag} files={} ok={ok} bytes={bytes} \
+        "target={target}{skip_tag}{ast_tag}{map_tag} files={} ok={ok} bytes={bytes} \
          CPU_median={cpu_median:.1}ms CPU_min={:.1}ms \
          wall_median={median:.1}ms wall_min={:.1}ms MB/s={:.2} sink={sink}",
         sources.len(),

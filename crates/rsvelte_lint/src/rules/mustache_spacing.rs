@@ -858,28 +858,37 @@ fn is_inside_pug_template(src: &str, offset: u32) -> bool {
     let offset = offset as usize;
 
     // Find all `<template` openers and check if any pug template wraps `offset`.
+    // This runs once per mustache, so the search for the next opener has to
+    // skip whole spans rather than advance a byte at a time.
     let mut i = 0;
-    while i + 9 < src_len {
-        if &bytes[i..i + 9] != b"<template" {
-            i += 1;
-            continue;
+    while let Some(found) = memchr::memmem::find(&bytes[i..], b"<template") {
+        let tag_start = i + found;
+        // A `<template` whose last byte ends the source opens nothing.
+        if tag_start + 9 >= src_len {
+            return false;
         }
         // Find the end of the opening tag (`>`).
-        let tag_start = i;
-        let mut j = i + 9;
+        let mut j = tag_start + 9;
         while j < src_len && bytes[j] != b'>' {
             j += 1;
         }
         let tag_open_end = j; // position of `>`
         // Check if the opening tag contains lang="pug" or lang='pug'.
-        let attrs = std::str::from_utf8(&bytes[i + 9..tag_open_end]).unwrap_or("");
+        let attrs = std::str::from_utf8(&bytes[tag_start + 9..tag_open_end]).unwrap_or("");
         let is_pug = attrs.contains("lang=\"pug\"") || attrs.contains("lang='pug'");
         if !is_pug {
             i = tag_open_end + 1;
+            if i >= src_len {
+                return false;
+            }
             continue;
         }
-        // Find the matching `</template>`.
+        // Find the matching `</template>`. An opening tag with no `>` puts this
+        // one past the end, which would slice out of range.
         let content_start = tag_open_end + 1;
+        if content_start > src_len {
+            return false;
+        }
         if let Some(close_pos) = src[content_start..].find("</template>") {
             let template_end = content_start + close_pos + "</template>".len();
             if offset >= tag_start && offset < template_end {
@@ -913,4 +922,37 @@ fn find_else_tag(src: &[u8], start: u32, end: u32) -> Option<(u32, u32)> {
         i += 1;
     }
     None
+}
+
+#[cfg(test)]
+mod pug_template_tests {
+    use super::is_inside_pug_template;
+
+    #[test]
+    fn a_source_with_no_template_is_never_inside_one() {
+        assert!(!is_inside_pug_template("<p>{ a }</p>", 4));
+    }
+
+    #[test]
+    fn a_mustache_inside_a_pug_template_is_inside_one() {
+        let src = "<template lang=\"pug\">\n  p { a }\n</template>";
+        let at = u32::try_from(src.find('{').unwrap()).unwrap();
+        assert!(is_inside_pug_template(src, at));
+    }
+
+    #[test]
+    fn a_non_pug_template_does_not_capture_and_the_scan_continues_past_it() {
+        // The first `<template>` is not pug; the scan has to resume after its
+        // opening tag and still find the second one.
+        let src = "<template>x</template><template lang='pug'>\n  p { a }\n</template>";
+        let at = u32::try_from(src.find('{').unwrap()).unwrap();
+        assert!(is_inside_pug_template(src, at));
+        assert!(!is_inside_pug_template(src, 10));
+    }
+
+    #[test]
+    fn an_unterminated_opening_tag_does_not_slice_out_of_range() {
+        assert!(!is_inside_pug_template("<template lang=\"pug\"", 5));
+        assert!(!is_inside_pug_template("<template", 0));
+    }
 }

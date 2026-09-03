@@ -70,8 +70,10 @@ function walk(method, left, right, pointer, differences) {
     }
     // `-element` and `-field` name the two mechanisms an unqualified
     // `extra-rsvelte` collapsed: an array that carries one more entry, and an
-    // object the other side has no such key on. The ratchet key keeps the
-    // suffix and drops the bracket, so the kind survives and the amount does not.
+    // object the other side has no such key on. `verify.mjs` strips the suffix
+    // from the ratchet key and keeps the bracket, so `count=` is the only thing
+    // left saying which branch wrote the hash — and this branch's is a digest of
+    // identity keys, which does not preimage back to a value.
     if (missingRsvelte.length) {
       differences.push(
         `${pointer}:missing-rsvelte-element[count=${missingRsvelte.length},hash=${digest(missingRsvelte.sort())}]`,

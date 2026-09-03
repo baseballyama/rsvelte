@@ -4,7 +4,6 @@
 	"huly/plugins/workbench-resources/src/components/HelpAndSupport.svelte",
 	"immich/web/src/lib/components/asset-viewer/ActivityViewer.svelte",
 	"immich/web/src/lib/components/timeline/Timeline.svelte",
-	"mathesar/mathesar_ui/src/components/sort-entry/SortEntry.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
 	"photon/src/lib/ui/navbar/Profile.svelte",
 	"primo/src/lib/builder/ui/Button.svelte",
@@ -13,7 +12,6 @@
 	"svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte",
-	"svelteui/packages/svelteui-demos/src/demos/core/Modal/ModalForm.svelte",
 	"svelvet/src/lib/components/Edge/Edge.svelte",
 	"syntaxfm-website/src/routes/(site)/guests/+page.svelte",
 	"trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarHeader.svelte"

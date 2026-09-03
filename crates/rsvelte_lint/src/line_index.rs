@@ -21,18 +21,17 @@ pub struct LineIndex<'a> {
 /// has no U+2028/U+2029 and the two tables would be identical.
 fn js_line_starts(source: &str, line_starts: &[u32]) -> Option<Vec<u32>> {
     let bytes = source.as_bytes();
-    if !bytes
-        .windows(3)
-        .any(|w| w[0] == 0xE2 && w[1] == 0x80 && matches!(w[2], 0xA8 | 0xA9))
+    // Both separators are `E2 80 A8|A9`, so no `E2 80` means neither is present
+    // and one vectorised pass answers the common case.
+    memchr::memmem::find(bytes, b"\xe2\x80")?;
+    let mut out: Option<Vec<u32>> = None;
+    for at in memchr::memmem::find_iter(bytes, b"\xe2\x80\xa8")
+        .chain(memchr::memmem::find_iter(bytes, b"\xe2\x80\xa9"))
     {
-        return None;
+        out.get_or_insert_with(|| line_starts.to_vec())
+            .push(source_offset(at + 3));
     }
-    let mut out: Vec<u32> = line_starts.to_vec();
-    for (i, w) in bytes.windows(3).enumerate() {
-        if w[0] == 0xE2 && w[1] == 0x80 && matches!(w[2], 0xA8 | 0xA9) {
-            out.push(source_offset(i + 3));
-        }
-    }
+    let mut out = out?;
     out.sort_unstable();
     Some(out)
 }
@@ -47,20 +46,15 @@ impl<'a> LineIndex<'a> {
         let bytes = source.as_bytes();
         let mut line_starts = Vec::with_capacity(bytes.len() / 32 + 1);
         line_starts.push(0);
+        // `memchr2` vectorises the search, so the loop body runs once per line
+        // rather than once per byte.
         let mut i = 0;
-        while i < bytes.len() {
-            match bytes[i] {
-                b'\n' => line_starts.push(source_offset(i) + 1),
-                // A lone `\r` also terminates a line, matching ESLint/the LSP text model.
-                b'\r' => {
-                    if bytes.get(i + 1) == Some(&b'\n') {
-                        i += 1;
-                    }
-                    line_starts.push(source_offset(i) + 1);
-                }
-                _ => {}
-            }
-            i += 1;
+        while let Some(found) = memchr::memchr2(b'\n', b'\r', &bytes[i..]) {
+            let at = i + found;
+            // A lone `\r` also terminates a line, matching ESLint/the LSP text model.
+            let width = usize::from(bytes[at] == b'\r' && bytes.get(at + 1) == Some(&b'\n')) + 1;
+            line_starts.push(source_offset(at + width));
+            i = at + width;
         }
         let js_line_starts = js_line_starts(source, &line_starts);
         Self {
@@ -146,6 +140,33 @@ mod tests {
     fn js_table_is_absent_without_separators() {
         let li = super::LineIndex::new("a\nb");
         assert_eq!(li.position(2), li.position_js(2));
+    }
+
+    #[test]
+    fn a_non_separator_e2_80_sequence_builds_no_js_table() {
+        // An em dash is `E2 80 94`: it reaches the separator search without
+        // being one, which is the only cell where the cheap prefix test and the
+        // real search can disagree.
+        let li = super::LineIndex::new("a\u{2014}b\nc");
+        assert!(li.js_line_starts.is_none());
+        assert_eq!(li.position(5), li.position_js(5));
+    }
+
+    #[test]
+    fn a_separator_beside_a_non_separator_is_still_found() {
+        // Bytes: a=0, U+2014=1..4, b=4, U+2028=5..8, c=8.
+        let src = "a\u{2014}b\u{2028}c";
+        assert_eq!(src.len(), 9);
+        let li = super::LineIndex::new(src);
+        assert_eq!(li.position(8).0, 1);
+        assert_eq!(li.position_js(8).0, 2);
+    }
+
+    #[test]
+    fn a_separator_at_end_of_source_is_a_line_start() {
+        // The pushed offset is `at + 3`, which here is the source length.
+        let li = super::LineIndex::new("a\u{2028}");
+        assert_eq!(li.position_js(4).0, 2);
     }
 
     use super::*;

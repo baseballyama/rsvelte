@@ -205,7 +205,25 @@ pub fn wrap_prop_source_reads_ast(
 /// from OXC avoids treating commas, templates, comments, or regexes as
 /// delimiters.
 pub fn wrap_prop_reads_in_defaults_ast(source: &str, prop_vars: &[String]) -> Option<String> {
-    if prop_vars.is_empty() || !source.contains("$.prop(") {
+    if prop_vars.is_empty() {
+        return None;
+    }
+    map_prop_default_values(source, |default| {
+        wrap_prop_source_reads_ast(default, prop_vars, &[], ParseGoal::Expression)
+    })
+}
+
+/// Apply `transform` to the fourth argument of every generated `$.prop(...)`
+/// call, returning `None` when the intermediate does not parse.
+///
+/// A bare identifier default is passed as a getter reference rather than
+/// evaluated, so it is never handed to `transform`; upstream wraps every other
+/// default in `() =>` itself, which is why no arrow test is needed here.
+pub(super) fn map_prop_default_values(
+    source: &str,
+    transform: impl FnMut(&str) -> Option<String>,
+) -> Option<String> {
+    if !source.contains("$.prop(") {
         return None;
     }
 
@@ -217,7 +235,7 @@ pub fn wrap_prop_reads_in_defaults_ast(source: &str, prop_vars: &[String]) -> Op
         |program| {
             let mut collector = PropDefaultCollector {
                 source,
-                prop_vars,
+                transform,
                 replacements: Vec::new(),
             };
             collector.visit_program(program);
@@ -227,35 +245,27 @@ pub fn wrap_prop_reads_in_defaults_ast(source: &str, prop_vars: &[String]) -> Op
     )
 }
 
-struct PropDefaultCollector<'a> {
+struct PropDefaultCollector<'a, F> {
     source: &'a str,
-    prop_vars: &'a [String],
+    transform: F,
     replacements: Vec<ast_rewrite::Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for PropDefaultCollector<'a> {
+impl<'a, 'ast, F: FnMut(&str) -> Option<String>> Visit<'ast> for PropDefaultCollector<'a, F> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         if let Expression::StaticMemberExpression(member) = &call.callee
             && let Expression::Identifier(object) = &member.object
             && object.name == "$"
             && member.property.name == "prop"
             && let Some(default) = call.arguments.get(3)
+            && !matches!(default, Argument::Identifier(_))
         {
             let span = default.span();
             let default_source = &self.source[span.start as usize..span.end as usize];
-            let is_bare_prop = matches!(default, Argument::Identifier(id)
-                if self.prop_vars.iter().any(|prop| prop == id.name.as_str()));
-            if !is_bare_prop {
-                let rewritten = wrap_prop_source_reads_ast(
-                    default_source,
-                    self.prop_vars,
-                    &[],
-                    ParseGoal::Expression,
-                )
-                .unwrap_or_else(|| default_source.to_string());
-                if rewritten != default_source {
-                    self.replacements.push((span.start, span.end, rewritten));
-                }
+            if let Some(rewritten) = (self.transform)(default_source)
+                && rewritten != default_source
+            {
+                self.replacements.push((span.start, span.end, rewritten));
             }
         }
         walk::walk_call_expression(self, call);

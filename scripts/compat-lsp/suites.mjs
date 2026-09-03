@@ -8,6 +8,10 @@ export const SUITES = [
   "upstream-testfiles",
   "corpus",
 ];
+// The manifest spells severity the way upstream's tests do; the protocol wants
+// LSP's numbers, and an entry that declares none must send none.
+const DIAGNOSTIC_SEVERITY = { error: 1, warning: 2, information: 3, hint: 4 };
+
 export const CORPUS_REPOS = [
   "bits-ui",
   "flowbite-svelte",
@@ -171,7 +175,8 @@ function fixtureCases(root) {
                 range: entry.params.range,
                 code: entry.params.diagnostic_code,
                 message: "",
-                source: "svelte",
+                source: entry.params.diagnostic_source ?? "svelte",
+                severity: DIAGNOSTIC_SEVERITY[entry.params.severity],
               },
             ],
           },

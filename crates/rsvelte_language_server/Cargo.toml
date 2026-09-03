@@ -30,6 +30,9 @@ regex = "1.11"
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0389c4010ef8298728f3e47fff8e2a9106d10045" }
 
 [dev-dependencies]
+# Rust's `regex` rejects JS-style escapes inside a character class, which the
+# official server's word pattern uses; only the test needs to evaluate it.
+fancy-regex = { version = "0.19", default-features = false, features = ["std", "perf", "unicode"] }
 url = "2"
 
 [lints]

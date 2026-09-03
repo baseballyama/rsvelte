@@ -325,7 +325,16 @@ fixture population additionally compares rsvelte with the selected upstream expe
 The real-project population requests hover, definition and completion at every lexically matched
 identifier position in the four pinned repositories. Every unit runs its request set twice — once
 on the opened document and once after a deterministic round-trip edit (27b) — and the live official
-server is additionally held to those same upstream snapshots as a run-level precondition (27h).
+server is additionally held to those same upstream snapshots as a run-level precondition (27h). A
+run of one suite alone (`lsp:verify:fixtures`) does **not** compare against the whole ratchet:
+`selectKnownForScope` (`ratchet.mjs:114-131`) filters the committed entries to the measured suites,
+repositories and shard, so a `NEW` or `stale` reported within that scope is real rather than a
+population artefact. What a partial run cannot do is **re-baseline**: `verify.mjs` refuses
+`--update-baseline` outright (`:57-60`), and the baseline is merged from the complete
+`CORPUS_SHARDS + 1` = 17 artifacts by `merge-current.mjs`, which rejects any other count
+(`artifacts.mjs:104`). That refusal's message named "eight corpus artifacts" against a code path
+requiring sixteen, so following it gathered half the set and was refused one layer down; it now
+derives the count from `CORPUS_SHARDS` rather than restating it.
 
 ### Blind spot 27a — server notifications are discarded [S]
 
@@ -962,6 +971,12 @@ that survives once, because a run was interrupted or aborted between creating it
 days older than the run that noticed it, while another was clean, and the difference was whether a
 run had ever been killed part-way.
 
+Keying cleanup to *what this run created* rather than to *what this directory should contain* makes
+the leaked set *self-perpetuating*, and that generalizes past this cache. Its size scales with the
+number of **aborted** runs, not with the number of runs — and an aborted run is likeliest exactly
+when someone is changing something, so the moment that produces a survivor is the moment its
+staleness matters most.
+
 A survivor is not inert. `build` (`tsgo_overlay.rs:222-258`) calls `create_dir_all` on the shadow
 directory and **never clears it**, rewriting a shadow per `.svelte` it finds — so a shadow whose
 source is gone, renamed, or no longer discovered simply stays. And the generated tsconfig includes
@@ -984,7 +999,130 @@ observed. And a count of zero untracked directories proves nothing on its own: i
 checkout shows *before* a run reaches its first fixture, which is how this was first reported as
 reproducing on one machine and not another.
 
+### Blind spot 27r — `hash=` names two different quantities, and the field saying which is stripped [D]
+
+Every key `diff.mjs` produces carries `hash=<12 hex>`, and whether that digest can be turned back
+into a value depends on which of two branches wrote it.
+
+| branch | what is hashed | preimageable |
+|---|---|---|
+| field (`diff.mjs:98-100`) | `digest(left[key])` — the value itself | yes |
+| element (`diff.mjs:76-83`) | `digest(keys.sort())`, whose members are `item-${digest(value)}` (`:32`) | no — a digest of digests |
+
+Measured both ways on one method. `…/resolveProvider:missing-rsvelte[hash=b5bea41b6c62]` came back in one
+step as `digest(true)`, which is what establishes that official declares `resolveProvider: true`
+and rsvelte omits it. The nine `textDocument/codeAction|:extra-rsvelte[count=1,hash=…]` entries
+return nothing at any depth, so the nine actions behind them can only be had by running both
+servers on the nine fixtures.
+
+The suffix naming the branch does not reach the ratchet: `verify.mjs:462` strips
+`-element` / `-field` deliberately, so that respelling the classifier's labels does not
+staleify every committed entry at once. That is a defensible trade, and it leaves a ratchet
+reader with no explicit statement of which quantity they hold. What survives is `count=`,
+written only on the element branch — so **a key carrying `count=` has an unrecoverable hash and a
+key without one is preimageable**, and that is the entire rule.
+
+Read the ratio before concluding the hash is useless: **1,880 of 23,746 committed keys carry
+`count=`, so 92.1% preimage.** The default should stay "try it"; what the rule buys is knowing
+which 7.9% will not answer, rather than a reason to stop asking.
+
+`diff.mjs:71-74` states the opposite: "The ratchet key keeps the suffix and drops the bracket,
+so the kind survives and the amount does not." Both halves are inverted against `verify.mjs:462`
+and against every committed key (`:extra-rsvelte[count=1,hash=…]` — no suffix, bracket present).
+**A comment describing what a downstream stage does with a value is checked by nothing that reads
+either file**, and this one is why a table of nine code-action titles was priced as arithmetic
+rather than as a measurement.
+
+**Evidence [D]:** the successful preimage of `b5bea41b6c62` and the structural impossibility for the
+element branch are both read off `diff.mjs`; the stripped suffix from `verify.mjs:462`; the inversion
+from comparing that line and the committed keys against `diff.mjs:71-74`. **Unmeasured:** whether any
+other gate's keys carry the same two-meaning `hash=` — only this gate's were read.
+
+### Blind spot 27s — a manifest records a prediction pointing the opposite way from the measurement beside it [D]
+
+Two `textDocument/codeAction` fixtures in `upstream-fixture-manifest.json` (`code-action-anchor-add`,
+`code-action-anchor-rel`) carry a `native_expected` listing **fewer** titles than `expected`, and a
+`difference_reason` reading "rsvelte does not derive the noreferrer edit from the upstream
+whole-element diagnostic range." That predicts rsvelte omits one of official's actions, which
+would surface as `missing-rsvelte`.
+
+The ratchet records the opposite. Both fixtures hold exactly two entries, both
+`:extra-rsvelte[count=1]`, and no `missing-rsvelte` at all — rsvelte reproduces every one of
+official's actions and adds one. The same holds for all nine codeAction fixtures across both
+phases: 18 entries, every one `extra`, `count=1`.
+
+**`native_expected`, `difference_reason` and `upstream_suite` are read by nothing under
+`scripts/`** (0 hits; positive control: `upstream-fixture-manifest` itself hits `suites.mjs`). So the
+prose is a hypothesis no gate evaluates.
+
+It was **not** true and then overtaken. `git log -S` gives two commits touching those fields, and
+the ratchet at each — including the commit that **introduced** them — already read `extra`, never
+`missing`. The extra action's content did move over that span
+(`hash=6d3d83633239 → e27600e1864d`); its **direction** never did. Read the scope exactly: within
+the window version control can observe, the prediction was never true. It may have been written
+against an uncommitted local measurement, which the history cannot settle.
+
+This is one step past "reason is not attribution". There the prose fails to say *where* a
+divergence is answered; here the prose asserts a *direction*, the direction is false, and the
+field is unread, so nothing can register the contradiction — including the person who later
+fixed the content while leaving the sentence.
+
+The repair is to read the field, not to delete it: a unit whose `native_expected` declares fewer
+titles than `expected` must carry a `missing-rsvelte` entry, which is mechanically checkable.
+Deleting the prose removes the contradiction and also removes whatever would stop the next
+person writing the same prediction.
+
+**Evidence [D]:** the entry counts and directions are read from the committed ratchet at three
+revisions via `git grep <rev>`; the unread-field claim is a grep with a stated positive control.
+**Unmeasured:** what the extra action actually is in each of the nine fixtures — see 27r for why
+that needs a run rather than a preimage. Two more were: `severity` and `diagnostic_source`, in
+the same object — see 27t.
+
 ---
+
+### Blind spot 27t — upstream's own test does not exercise the condition it names, and a faithful transcription inherits the hole [S]
+
+`code_actions.rs:279-284` gates an ignore action on four conditions, one of which is
+`diagnostic.severity != Some(DiagnosticSeverity::ERROR)`. Upstream's counterpart
+(`getQuickfixes.ts:189-197`) opens with `code && …`, and the upstream test that names this
+condition — `getCodeAction.test.ts:89`, `it('if diagnostic is error')` — sends
+`severity: DiagnosticSeverity.Error` and **no `code`**. The first conjunct is already false, so
+`[]` is returned before severity is read. The test passes whatever the severity rule is.
+
+The fixtures suite transcribes that test faithfully, so **the severity guard is exercised by
+nothing here**, and the transcription's own faithfulness is what reproduces the gap: a case that
+sends `severity: error` *with* a code would discriminate, and it does not exist upstream to
+transcribe. This is one level past a grid that holds one of the oracle's properties fixed — there
+the grid's author chose the constant; here the oracle's coverage hole is copied exactly *because*
+the copy is accurate.
+
+It cannot be repaired inside this suite. `suites.mjs:145-148` builds the fixture cases from
+`manifest.behavior_cases` alone, `upstream_fixture_manifest.rs:189` asserts that each suite's
+behavior-case names equal the **multiset** of upstream's `it()` call-site names (` [...]` suffix
+stripped), and `unit_coverage.unported_it_call_sites` is `0` — so there is no unported `it()` to
+attach a case to, a new name breaks the assert, and a second ` [variant]` of an existing name
+breaks it on the count. Reproducing that comparison independently, with the current tree as a
+positive control, gives `EQUAL true` now, `false` for a new name and `false` for an extra
+variant. The assert is working as designed: it is what makes this suite a transcription rather
+than a mixture, and mixing rsvelte-authored cases in would also stop it detecting an unported
+upstream test. The axis therefore needs a case list the multiset assert does not cover.
+
+Two sibling fields of the same manifest object were **declared and read by nothing**:
+`severity` (12 of the 14 codeAction entries declare it; the string does not occur anywhere in
+`scripts/compat-lsp/**/*.mjs`) and `diagnostic_source` (12 declare it; the harness hardcoded
+`source: "svelte"`). Both are read now. Reading `diagnostic_source` is a discriminating case —
+it retires exactly the two `code-action-foreign` entries, with `cases`, `compared`, `skipped` and
+all three oracle-calibration ratios identical across the two arms — while reading `severity`
+moves nothing, for the reason above.
+
+**Evidence [S]:** the condition order is read from `getQuickfixes.ts:189-197` and
+`code_actions.rs:279-284`; the absent `code` from `getCodeAction.test.ts:89`; the closed
+population from `upstream_fixture_manifest.rs:189` plus `unit_coverage.unported_it_call_sites`,
+with the multiset comparison reproduced independently and controlled in both directions. The
+`diagnostic_source` half is **[D]** (−2 entries, 0 new, denominators unmoved). **Unmeasured:**
+whether the severity guard's four conditions agree with upstream's three on any input at all —
+`is_compiler_code` has no upstream counterpart and is tracked separately — and whether the other
+`textDocument/*` methods' manifest params carry further unread fields.
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
 
@@ -4686,10 +4824,15 @@ classes over 4,468 files — and both are recorded in the script header.
 ### 39b — a divergence stops the walk, so what is behind it is uncompared — **[S]**
 
 `diffKeys` does not descend past a `type` mismatch (two node types have no fields in common), and
-does not descend into a key that is `#missing` or `#extra`. So the 141 `node-type` keys and the
-75 `estree-fields` keys each hide an entire subtree that has never been compared: fixing one will
+does not descend into a key that is `#missing` or `#extra`. So every `node-type` key and every
+`estree-fields` key hides an entire subtree that has never been compared: fixing one will
 *add* keys as its children become reachable. This is the same one-directional coupling the
-lint gates have between `start` and `end` — expected, not a regression.
+lint gates have between `start` and `end` — expected, not a regression. **Measured on the first
+instance**: #4220's seven TypeScript type arms retired 16 keys and enrolled 2, from one
+mechanism — and three of the sixteen were node types the fix never named, freed from under a
+`.type#value` that had been masking them. The two counts this row carried (141 and 75) were the
+first baseline's and had gone stale by a factor of ~2.5; read them live off
+`parse-ast-known-failures.json`, whose values are the cluster labels.
 
 ### 39c — both-reject is not compared at all — **[S]**
 

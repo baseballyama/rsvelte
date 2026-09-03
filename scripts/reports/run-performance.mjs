@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { arch, cpus, loadavg, platform, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
+import { pgoEnv } from "../bench/pgo-env.mjs";
 import { flattenTemplateHoles, oxfmtTree, stripBlankLines } from "../compat-corpus/normalize.mjs";
 import { OXVELTE_REV, OXVELTE_VERSION, oxvelteInstalled } from "../bench/oxvelte-oracle.mjs";
 
@@ -212,7 +213,15 @@ function rustArm(eligible, target, mode, tag) {
       String(Math.max(warmups, 1)),
     ];
     if (target.dev) args.push("--dev");
-    const result = spawnSync("cargo", args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 24 });
+    const result = spawnSync("cargo", args, {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 1 << 24,
+      // The published surface numbers are the speed of what the npm package
+      // ships, and what it ships is PGO-built. This arm has its own cargo
+      // spawn; wiring only run-benchmark.mjs measured a non-PGO binary here.
+      env: { ...process.env, ...pgoEnv() },
+    });
     if (result.status !== 0)
       throw new Error(result.stderr || `Rust benchmark exited ${result.status}`);
     return JSON.parse(result.stdout).times[0];
@@ -677,9 +686,12 @@ const fixtureExcluded = toolResults.excludedFilesCount;
 const svelteCheckVersion = packageVersion(
   "submodules/language-tools/packages/svelte-check/package.json",
 );
-const tsgoVersion = packageVersion(
-  "submodules/language-tools/packages/svelte-check/node_modules/@typescript/native-preview/package.json",
-);
+// TypeScript 7 stable, installed under the `@typescript/native` alias that
+// svelte-check itself prescribes; the manifest inside still names itself
+// `typescript`, which is what both --tsgo resolvers match on.
+const tsgoVersion = `TypeScript ${packageVersion(
+  "scripts/bench/competitor-oracle/node_modules/@typescript/native/package.json",
+)} (native)`;
 const typescriptVersion = packageVersion(
   "submodules/language-tools/packages/svelte-check/node_modules/typescript/package.json",
 );
@@ -836,7 +848,7 @@ const result = {
       `svelte-check@${svelteCheckVersion}`,
       `svelte-check-rs@${svelteCheckRsVersion}`,
       `typescript@${typescriptVersion}`,
-      `@typescript/native-preview@${tsgoVersion}`,
+      `@typescript/native (npm:typescript@${tsgoVersion.replace(/^TypeScript | \(native\)$/g, "")})`,
       `oxvelte@${OXVELTE_VERSION}+${OXVELTE_REV}`,
     ],
     competitorReferences: ["svelte@5.56.4", "svelte@5.56.8"],

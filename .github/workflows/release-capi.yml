@@ -102,11 +102,17 @@ jobs:
             exit 1
           fi
 
+      - name: Assert the PGO profile is applicable
+        shell: bash
+        run: ./scripts/perf/assert-pgo-profile.sh
+
       - name: Build cdylib + staticlib
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           RSVELTE_CAPI_CHECK_HEADER: '1'
+          # Same compiler core as the NAPI cdylib, so the same profile applies.
+          RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/pgo/rsvelte.profdata
         run: cargo build --profile dist-capi -p rsvelte_capi --target ${{ matrix.target }}
 
       # On macOS, cargo defaults the dylib's LC_ID_DYLIB to the build's

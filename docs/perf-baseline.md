@@ -1,57 +1,153 @@
-# Where the 20x goal stands (2026-09-03 00:35)
+# Where the 20x goal stands (2026-09-03 07:00)
 
 **Read this first; everything below is the working record, newest sections near
 the top.**
 
-| surface | measured | status |
-|---|---:|---|
-| server | 19.59x | 2.1% short — inside the deciding arm's own ~5% within-run drift |
-| server-dev | 19.98x | 0.1% short — same |
-| client-dev | 13.89x | clearly unmet |
-| client | 9.63x published | **not a steady-state number**; its per-round ratio rose 9.56 -> 15.34 monotonically while three other surfaces wandered at chance |
+Measured on a quiet box at `9c771271f` — every competing process suspended, every
+binary built *before* the run opened, and `benchmark_runner`'s SHA-256 identical
+before and after (#4213).
 
-Three independent routes put a *clean* client run at 15.6-17.7x (trend
-extrapolation), 17.2x (single-thread speedup x the server's parallel
-efficiency) and 15.34x (the cleanest single round of the contaminated run).
-**None of them is a measurement**, and the box has not been quiet enough to take
-one: `llama-server` holds 22.6 GB with free memory at 5-11% and swap near full
-throughout.
+| surface | single | multi | status |
+|---|---:|---:|---|
+| server | 3.70x | **20.42x** | **met** |
+| server-dev | 3.65x | 19.64x | 1.8% short — inside the deciding arm's own ~5% within-run drift, so undecidable |
+| client | 3.36x | **17.22x** | short by **1.161x** |
+| client-dev | 3.00x | 14.63x | short by 1.367x |
+
+**The previous client figure (9.63x) was the box, not the compiler, and the
+control that says so is internal to the pair.** Between the two runs the
+single-threaded arms moved -1.4% to +3.6% while the client's multi arm moved
+**+78.9%**. No compiler change produces that pair — the single arm runs the same
+code. A flat single arm beside a moved multi arm is the signature of box
+contention, and it is what names the old number, rather than any argument about
+what happened to be running at the time. The three routes that had estimated a
+clean client run at 15.6-17.7x, 17.2x and 15.34x all bracket the measured 17.22x,
+but they were estimates and this is the measurement.
 
 **What remains is one factor: 1.161x on client single-threaded compile time.**
-That is the whole distance to 20x, and it is arrived at as follows — a speedup
-is `single-thread speedup x parallel efficiency`; a `--threads` sweep shows
-client and server scale identically in prod mode (5.67x vs 5.68x at their optima,
-4.94x vs 4.91x at ten threads), so the scaling half is not a deficit; at the
-server's implied 5.30x efficiency, 20x needs a single-thread speedup of 3.772
-against the client's 3.248.
+A speedup is `single-thread speedup x parallel efficiency`; a `--threads` sweep
+shows client and server scale identically in prod mode, so the scaling half is
+not a deficit.
 
-**Where that 1.161x could come from**, sized by a 17,280-sample profile of a
-single-threaded client compile:
+**Where that 1.161x could come from**, re-sampled at `477b51f13` after the
+`skip_opaque` guard shipped (6,950 self-time samples, single-threaded client,
+`/usr/bin/sample`):
 
 | mechanism | self-time | if fully removed |
 |---|---:|---:|
-| byte scanning (`str::pattern`, `memmem`, `js_scan`) | 12.5% | 1.143x |
-| hashing (SipHash + IndexMap, i.e. `serde_json::Value`) | 6.6% | 1.071x |
-| both | 19.1% | 1.236x |
+| `_platform_memmove` | 9.25% | 1.102x |
+| byte scanning (`str::pattern`, `memmem`, `js_scan`, the client scanners) | ~12.5% | 1.143x |
+| hashing (SipHash + IndexMap + hashbrown) | ~9.0% | 1.099x |
 
-Both are mechanisms the architecture notes already name (the AST pipeline; leaving
-`serde_json::Value`), so the profile confirms the existing plan rather than
-redirecting it — and the standing caution holds: 12.5% is an upper bound on what
-becomes *unreachable*, not a saving, because an AST pipeline pays its own walk.
+**No single non-architectural lever is 13.9% wide.** The two that are wide enough
+are the ones the architecture notes already name — the AST pipeline (which is
+what makes byte scanning unreachable) and leaving `serde_json::Value` — and both
+are multi-week. The standing caution holds: a self-time share is an upper bound
+on what becomes *unreachable*, not a saving, because an AST pipeline pays its own
+walk.
+
+**`_platform_memmove` cannot be attributed from this profile and that is a fact
+about the instrument.** 7.18% of the 9.25% appears as a direct child of `start`
+in the call graph — the unwinder gives up inside a leaf assembly routine — so
+only 2.07% has a named caller (`esrap::Driver::append` 0.98%,
+`RawVecInner::finish_grow` 0.85%, `Context::write` 0.73%, then nothing above
+0.36%). That shape is consistent with the recorded finding that the allocation
+bucket has no single site, and inconsistent with nothing; it is not evidence
+either way, and a frame-pointer build would be needed to make it one.
+
+**The two largest rsvelte-owned symbols, and what is known about each:**
+
+- `client::copied_spans_for_normalized_code` — 2.73%. It walks the generated
+  script text against the source byte by byte to rebuild the map. Its
+  `source_at_output` per-byte table (`vec![None; stripped.len() + 1]`, plus an
+  inner loop over every byte of every matched run) is built only when a
+  `ScriptProjection` exists, and `ScriptProjection` is produced only by
+  `strip_typescript` — so it is a TypeScript-only cost, and the 2.73% is mostly
+  the general walk rather than the table. **Unmeasured:** the split between the
+  two.
+- `phase2_analyze::store_subscriptions::collect_dollar_identifiers_pass` — 2.50%,
+  plus `blank_comments` at 0.81%. It decodes each script to `Vec<char>` and scans
+  it **twice**. A `$`-absent guard is exact (no `$` byte means neither pass can
+  emit anything) and would skip both, but only **27.8% of corpus scripts contain
+  no `$`** (2716 components with a script, measured over the same 3000-file
+  stride) — and unweighted by size, so the guard is worth well under 0.7%. Runes
+  spell `$state` / `$derived` / `$props`, which is why the fraction is so low.
 
 **Eliminated by measurement, so nobody re-tries them:** the printer and its
 source-map branch (client 5.09% vs server 3.34%, only 5.5% of the client/server
 transform gap; a 5x-faster printer is 1.073x), and the four pre-fragment call
 sites once thought to fill the residual (3.41 ms of 67.54, 5%).
 
-**Still unexplained:** the "Pre-frag setup" residual, 15.4% of a client compile,
+**Still unexplained:** the "Pre-frag setup" residual, 15.9% of a client compile,
 95% of it unnamed. Its label is wrong — only ~10 statements of object
 construction run before `visit_program` — so it lives in the gaps between the
 later timers, which are enumerated with their bounding lines further down.
 
-**Shipped this session:** one measured compiler improvement — guarding
-`skip_opaque` on its opener byte, client +0.65% / server +1.91%, output
-byte-identical, gates green.
+# The 1.161x, priced against four levers (2026-09-03 07:00-08:00)
+
+All four measured on the quiet box at `477b51f13`, single-threaded client,
+`--limit 1700 --skip 1` (a slice **provably disjoint** from the PGO training set:
+same `--limit` means the same stride, so `--skip 1` shares no member with
+`--skip 0`), ABBA-ordered, CPU median of 9 runs, both arms' `sink` identical on
+every row so the outputs are the same.
+
+| lever | held-out | verdict |
+|---|---:|---|
+| PGO (`-Cprofile-generate` → 4 targets × 1700 files → `-Cprofile-use`) | **1.130x** | real, and the largest single lever measured |
+| `-Ctarget-cpu=apple-m1` on top of PGO | **1.000x** | null — 519.0ms vs 519.0ms |
+| removing the Phase-3 timer clock from the binary | **1.002x** | null at this precision (±0.5%) |
+| the remaining need after PGO | **1.027x** | unclosed |
+
+**PGO's in-sample number is 1.179x and its held-out number is 1.130x**, so the
+overfit is 4-5 percentage points. Measuring only in-sample would have reported a
+lever that is a third larger than it is. Server is 1.118x, so SSR does not
+regress. `llvm-profdata merge --sparse` takes the profile from 14.2 MB to 6.3 MB
+(1.5 MB gzipped); shipping it means either checking that in or training in
+release CI per platform, and neither has been decided.
+
+**The timer-clock result retires a number this file used to carry.** A sampled
+profile scores `mach_absolute_time` at 0.40% of self time, and that was read as
+0.40% recoverable. Removing every `Instant::now()` from the shipping path
+measured **1.002x** — indistinguishable from nothing. A self-time share is not a
+saving; this is the same shape as the withdrawn UTF-16 column subtraction, whose
+2.14% profile bound measured null. The instrumentation added below is therefore
+free, which is the other half of the same measurement.
+
+## The Phase-3 residual is 7.1%, not 15.5%
+
+`compile_profile` now brackets the gaps in `transform_client` and in
+`transform_component_with_scripts`. Measured on 3000 files, client:
+
+| named | ms | % of compile |
+|---|---:|---:|
+| **client source-map assembly (after `transform_client`)** | **10.01** | **3.8%** |
+| — line tables + two full scans | 5.29 | 2.0% |
+| — three-way partition loop | 2.60 | 1.0% |
+| — sort by (gen_line, gen_col) | 1.63 | 0.6% |
+| post-codegen `rehome_derived_jsdoc` + `signal_discipline` | 3.05 | 1.1% |
+| GAP dead_comments → attach_import_origins | 2.81 | 1.1% |
+| GAP entry → visit_program | 1.56 | 0.6% |
+| GAP visit_program → dead_comments | 1.35 | 0.5% |
+| GAP script_text → fragment → assembly (three) | 0.16 | 0.1% |
+| **still unnamed** | **18.87** | **7.1%** |
+
+The largest piece is the source-map reconstruction this file and `AGENTS.md`
+already name as the debt behind #2954/#3015 — it now has a position and a size.
+Its dominant third is *scanning*: `MappingLineStarts::new` walks the generated
+code and the source, `template_source_lines` walks the source again, and
+`mark_lines_containing` walks the generated code again. Two of those four passes
+are fusible into the other two without changing any output. **Unmeasured:** what
+that fusion actually buys.
+
+**One hypothesis was raised and falsified on the way.** `compile_profile`'s
+Phase-3 denominator is the loop's wall clock, which also contains the binary's
+own per-file bookkeeping — `take_breakdown` resets thirty thread-locals,
+`script_shape` rescans the source, two `Vec`s grow — so the residual could have
+been the instrument charging itself to the compiler. Measured by summing the
+per-file `transform_component` brackets against the loop wall: **2.98 ms of
+181.65 ms, 1.6%**. It is not the residual's cause. The denominator is now printed
+either way, because "the residual is 15% and unexplained" is a claim about a
+denominator nobody had stated.
 
 # Canonical baseline — quiet machine, 2026-09-02 04:17-04:21 JST
 

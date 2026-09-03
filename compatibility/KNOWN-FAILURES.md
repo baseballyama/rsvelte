@@ -2950,14 +2950,47 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 11 entries)
+### Client (`known-failures.client.json`, 9 entries)
 
-Partition of `known-failures.client.json` by verdict: `11`
+Partition of `known-failures.client.json` by verdict: `9`
 
-- **11 — the generated JS differs** (`js` / `code-differs`).
+- **9 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
+
+`svelteui/…/Modal/ModalForm.svelte` and `mathesar/…/sort-entry/SortEntry.svelte` left this target
+and `client-dev` when a **write** inside a prop's default value started reaching the passes an
+instance body already gets. Upstream has one `AssignmentExpression` visitor and one
+`UpdateExpression` visitor for every expression it walks, so a default value is not a special
+host at all; rsvelte reaches a default through passes that skip any line containing `$.prop(`,
+and only the read halves had a default-scoped counterpart. A prop write and a store write had
+none, so `export let f = () => ($store = 1)` emitted `() => ($store() = 1)` — text no JS parser
+accepts — while `() => (subject = 1)` silently dropped the invalidation.
+
+The grid is binding kind × operation, with the operation always inside another `export let`'s
+default: **10 EQ / 8 DIFF before, 18/18 after**, and three of the eight produced unparseable
+output. What makes it worth recording is the **order**, not the missing pass. The instance body
+runs `transform_store_sub_calls` → `transform_store_assignments_client` →
+`transform_store_reads_client`, and the write matcher keys on the **bare** `$store`; reversing
+just the last two — one edit, everything else held — takes the same grid to 14/18 and breaks
+exactly the four store-write cells, three of them back to unparseable. So a pass placed in the
+right pipeline in the wrong position fails on the same cells as a pass that is absent, and the
+two are not separable by the count: measured, `base` and `reversed` print the identical
+`() => ($store()++)` for the update cell. Only reading which function ran tells them apart.
+
+`SortEntry` is also the entry that shows a local byte comparison naming the wrong verdict, in
+the direction this file records twice already. Its residue after the fix is one dropped comment
+(`// Ideally should never happen`), so a raw-text reconstruction reports it as still diverging;
+the gate hands every byte-different output to `ast_equiv_batch`, which does not represent comment
+placement, and scores it a pass. The line that moved went **to** official's spelling —
+`$_('descending')` → `$_()('descending')`, which is what upstream emits — and that direction was
+measured against the oracle rather than inferred from the entry leaving.
+
+`primo/…/ui/Button.svelte` was expected to move with this fix and **does not**: its output is
+byte-identical across the two arms on both targets. It sits on the same prop-default path and is
+a different defect (a JSDoc annotation attached to the default is dropped), which is a
+measurement about that entry rather than a limit of this fix.
 
 The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
@@ -3228,7 +3261,7 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 11 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 9 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3332,15 +3365,15 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 18 entries)
+### Client dev (`known-failures.client-dev.json`, 16 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `18`
+Partition of `known-failures.client-dev.json` by verdict: `16`
 
-- **18 — the generated JS differs.**
+- **16 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 18 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 16 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 7 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
@@ -4546,7 +4579,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23746 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23742 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -4580,13 +4613,13 @@ The ratchet stays on the pending list until it is burned down.
 deletion, a cluster table buys no attribution and would cost a classification pass over every
 remaining key; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
-Partition of `lsp-known-failures.json` by key kind: `21630 + 1776 + 340` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21630 + 1772 + 340` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11878 + 11868`
+Partition of `lsp-known-failures.json` by request phase: `11876 + 11866`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -4761,6 +4794,34 @@ positions. `crates/rsvelte_projection/tests/svelte2tsx_await_binding_map.rs` pin
 The third row is not a defect on either side and is the first candidate for
 `deliberate-divergences` in this ratchet — but only once it is pinned by a test, which it is not
 yet.
+
+### Two `code-action-foreign` entries retired because the request changed, not the server
+
+`suites.mjs` built every `textDocument/codeAction` request's diagnostic with `source: "svelte"`
+hardcoded, while the manifest entry it was built from declares `diagnostic_source: "eslint"` —
+so the fixture transcribing upstream's `it('if no svelte diagnostic')` had never sent a foreign
+source, and neither server was answering the question the case is named for. Reading the field
+retires both of its entries.
+
+This is a **(c) retirement — the input changed** — and not a fix: nothing in
+`rsvelte-language-server` moved. Measured on two arms differing only in `suites.mjs` (same server
+binaries, distinct file hashes, a probe separating them in both directions), the fixtures suite
+goes from 226 divergent fields to 224 with `cases`, `compared`, `skipped` and all three
+oracle-calibration ratios identical, 2 stale entries and **0 new**.
+
+**The axis those entries were observing is not preserved, and cannot be here.** With the source
+corrected both servers decline for the stated reason, so what the pair had actually been
+measuring — whether an ignore action is offered on an **empty document**, the case's `source`
+being `""` — no longer has a carrier. A fixture that preserves it cannot be added: `fixtureCases`
+draws only from `manifest.behavior_cases`, whose names are asserted equal as a multiset to
+upstream's `it()` call sites, with no unported call site to attach one to. #4217 tracks giving
+that axis somewhere to live; it is deliberately not fixed here, because a second case list
+changes this gate's population and needs its own control.
+
+The same object's `severity` was unread too (12 of 14 codeAction entries declare it; the string
+occurred nowhere under `scripts/compat-lsp/`). It is read now and moves nothing, because the
+upstream case that names the condition sends no `code` and is answered before severity is
+reached — see `GATES.md` blind spot 27t, which is why reading it does not make the guard gated.
 
 ### The mechanism of a divergence is carried beside the ratchet, not in its key
 
@@ -5461,7 +5522,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **301 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **287 entries**.
 
 ### The question it asks
 
@@ -5576,15 +5637,15 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38 + 14 + 14 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `78 + 52 + 46 + 38 + 36 + 14 + 14 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 78 | 41 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
-| `node-type` | 62 | 32 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `node-type` | 52 | 27 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 38 | 19 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
 | `unclustered` | 36 | 22 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
-| `comment-attachment` | 50 | 25 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
+| `comment-attachment` | 46 | 23 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 14 | 9 | an array of children with a different length. |
@@ -5593,15 +5654,42 @@ Partition of `parse-ast-known-failures.json` by cluster: `78 + 62 + 50 + 36 + 38
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 301 keys are **163 distinct bases**: 138 appear on both axes and 25 on one
-(138x2 + 25 = 301, a 1.85x collapse). The defect ceiling is 163. The per-cluster collapse is not
+`legacy`, so 287 keys are **156 distinct bases**: 131 appear on both axes and 25 on one
+(131x2 + 25 = 287, a 1.84x collapse). The defect ceiling is 156. The per-cluster collapse is not
 uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on both axes),
 `css-shape` and `child-count` 1.56x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
-**No base's two axes sit in different clusters** (0 of 138), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 131), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
+
+**A fix here shrinks and grows the ratchet at once, and the two directions have to be read
+separately, and [`GATES.md` 39b](GATES.md#39b--a-divergence-stops-the-walk-so-what-is-behind-it-is-uncompared--s)
+said so before any of it happened** — "fixing one will *add* keys as its children become
+reachable. This is the same one-directional coupling the lint gates have between `start` and
+`end` — expected, not a regression." A property written into the coverage table in advance is a
+stronger warrant than the same sentence written afterwards to explain a red run.
+`diffKeys` stops descending at a `type` mismatch, so a `.type#value` key does not
+mean "this one field disagrees" — it means **the whole subtree under that node was never
+compared**. Correcting a node's type therefore retires its key and makes everything beneath it
+comparable for the first time, which can enrol keys that were always wrong and never visible.
+The seven TypeScript type nodes fixed in #4220 are the worked example: **16 keys retired and 2
+enrolled**, net -14, from **one** mechanism (a catch-all arm emitting `TSUnknownKeyword`) — so
+"14 fixed" is the wrong reading in both halves. Three of the retired node types
+(`TSLiteralType`, `TSParenthesizedType`, `TSTypeAliasDeclaration`) were not in that fix's list
+at all; they came out from under a `.type#value` that had been masking them, and four of the
+sixteen are `leadingComments` keys, which is the `comment-attachment` cluster shrinking as a
+side effect of a `node-type` fix.
+
+The two enrolled keys are `{modern,legacy}::TSTypeParameter.leadingComments[]#length`. A
+`TSMappedType` synthesizes a single `TSTypeParameter` spanning `K in C` — acorn-typescript has
+no node for the two halves separately — and that synthesized node is now reached by the walk,
+where its comment list disagrees. It is **not a regression**: the divergence predates the fix
+and was unreachable while the parent's type mismatch stopped the descent. This is the same
+"collapse over-counts, an absent carrier under-counts, and one mechanism does both" shape the
+ratchet has elsewhere; here the retired 16 are the collapse side and the enrolled 2 are the
+carrier side.
 
 #### What the `unclustered` bases actually are (measured 2026-08-31)
 

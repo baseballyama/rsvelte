@@ -117,20 +117,37 @@ impl std::ops::AddAssign for Phase3Breakdown {
     }
 }
 
-pub const PREFRAG_SLOTS: usize = 5;
+pub const PREFRAG_SLOTS: usize = 16;
 pub const PREFRAG_LABELS: [&str; PREFRAG_SLOTS] = [
     "strip_dead_comments_from_program",
     "program_to_oxc (client-only)",
     "attach_import_origins",
     "instance_has_top_level_multi_declarator",
     "compute_blocker_primary_names",
+    "GAP entry -> visit_program",
+    "GAP visit_program -> dead_comments",
+    "GAP dead_comments -> attach_import_origins",
+    "GAP script_text -> end of instance block",
+    "GAP instance block -> fragment",
+    "GAP fragment -> assembly",
+    "post-codegen rehome_derived_jsdoc + signal_discipline",
+    "client source-map assembly (after transform_client)",
+    "  map: line tables + two full scans",
+    "  map: three-way partition loop",
+    "  map: sort by (gen_line, gen_col)",
 ];
 
 /// Whether each slot's time is inside the "Pre-frag setup" residual. A slot that
 /// is not (`program_to_oxc` sits inside the `codegen` timer) must not be
 /// subtracted from it — doing so understates what is left unnamed, which has
 /// misreported the residual twice.
-pub const PREFRAG_IN_RESIDUAL: [bool; PREFRAG_SLOTS] = [true, false, true, true, true];
+pub const PREFRAG_IN_RESIDUAL: [bool; PREFRAG_SLOTS] = [
+    // Slot 4 (`compute_blocker_primary_names`) now sits inside GAP slot 8, so
+    // subtracting both would take it out of the residual twice.
+    // Slots 13-15 are inside slot 12, so they must not be subtracted again.
+    true, false, true, true, false, true, true, true, true, true, true, true, true, false, false,
+    false,
+];
 
 /// One level below [`Phase3Breakdown::script_text_transform`], which is the
 /// largest Phase 3 bucket. The five stages are sequential and disjoint, so the

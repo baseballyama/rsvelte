@@ -3807,10 +3807,259 @@ fn convert_ts_type(
             Value::Object(obj)
         }
 
+        // ---- conditional / infer --------------------------------------------
+        TSType::TSConditionalType(c) => {
+            let mut obj = base("TSConditionalType");
+            for (field, ty) in [
+                ("checkType", &c.check_type),
+                ("extendsType", &c.extends_type),
+                ("trueType", &c.true_type),
+                ("falseType", &c.false_type),
+            ] {
+                obj.set_field(field, convert_ts_type(arena, ty, offset, line_offsets));
+            }
+            Value::Object(obj)
+        }
+        TSType::TSInferType(infer) => {
+            let mut obj = base("TSInferType");
+            obj.set_field(
+                "typeParameter",
+                convert_ts_type_parameter(arena, &infer.type_parameter, offset, line_offsets),
+            );
+            Value::Object(obj)
+        }
+
+        // ---- mapped type: `{ readonly [K in C as N]?: T }` -------------------
+        // acorn-typescript synthesizes one `TSTypeParameter` spanning `K in C`,
+        // where oxc keeps the key and its constraint as two fields.
+        TSType::TSMappedType(mapped) => {
+            let mut obj = base("TSMappedType");
+            if let Some(readonly) = mapped.readonly {
+                obj.set_field("readonly", ts_mapped_modifier(readonly));
+            }
+            let mut param = Map::new();
+            param.set_field("type", Value::String("TSTypeParameter".to_string()));
+            push_span_fields(
+                &mut param,
+                offset + mapped.key.span.start as usize,
+                offset + mapped.constraint.span().end as usize,
+                line_offsets,
+            );
+            param.set_field("name", Value::String(mapped.key.name.to_string()));
+            param.set_field(
+                "constraint",
+                convert_ts_type(arena, &mapped.constraint, offset, line_offsets),
+            );
+            obj.set_field("typeParameter", Value::Object(param));
+            obj.set_field(
+                "nameType",
+                mapped
+                    .name_type
+                    .as_ref()
+                    .map(|t| convert_ts_type(arena, t, offset, line_offsets))
+                    .unwrap_or(Value::Null),
+            );
+            if let Some(optional) = mapped.optional {
+                obj.set_field("optional", ts_mapped_modifier(optional));
+            }
+            if let Some(annotation) = &mapped.type_annotation {
+                obj.set_field(
+                    "typeAnnotation",
+                    convert_ts_type(arena, annotation, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+
+        // ---- queries / import types ------------------------------------------
+        TSType::TSTypeQuery(query) => {
+            let mut obj = base("TSTypeQuery");
+            let expr_name = match &query.expr_name {
+                oxc_ast::ast::TSTypeQueryExprName::TSImportType(import) => {
+                    convert_ts_import_type(arena, import, offset, line_offsets)
+                }
+                other => other
+                    .as_ts_type_name()
+                    .map(|name| convert_ts_type_name_adjusted(name, offset, line_offsets))
+                    .unwrap_or(Value::Null),
+            };
+            obj.set_field("exprName", expr_name);
+            if let Some(args) = &query.type_arguments {
+                obj.set_field(
+                    "typeArguments",
+                    convert_ts_type_param_instantiation(arena, args, offset, line_offsets),
+                );
+            }
+            Value::Object(obj)
+        }
+        TSType::TSImportType(import) => convert_ts_import_type(arena, import, offset, line_offsets),
+
+        // ---- type predicates --------------------------------------------------
+        TSType::TSTypePredicate(predicate) => {
+            let mut obj = base("TSTypePredicate");
+            let parameter_name = match &predicate.parameter_name {
+                oxc_ast::ast::TSTypePredicateName::Identifier(id) => {
+                    convert_ts_identifier_name(id, offset, line_offsets)
+                }
+                oxc_ast::ast::TSTypePredicateName::This(this) => create_ts_keyword(
+                    "TSThisType",
+                    offset + this.span.start as usize,
+                    offset + this.span.end as usize,
+                    line_offsets,
+                ),
+            };
+            obj.set_field("parameterName", parameter_name);
+            obj.set_field("asserts", Value::Bool(predicate.asserts));
+            obj.set_field(
+                "typeAnnotation",
+                predicate
+                    .type_annotation
+                    .as_ref()
+                    .map(|ta| convert_type_annotation_adjusted(arena, ta, offset, line_offsets))
+                    .unwrap_or(Value::Null),
+            );
+            Value::Object(obj)
+        }
+
+        // ---- template literal types -------------------------------------------
+        // acorn-typescript has no `TSTemplateLiteralType`: it reuses the value-space
+        // `TSLiteralType`/`TemplateLiteral` pair whose `expressions` hold types.
+        TSType::TSTemplateLiteralType(template) => {
+            let mut obj = base("TSLiteralType");
+            let mut literal = Map::new();
+            literal.set_field("type", Value::String("TemplateLiteral".to_string()));
+            push_span_fields(&mut literal, start, end, line_offsets);
+            let expressions: Vec<Value> = template
+                .types
+                .iter()
+                .map(|t| convert_ts_type(arena, t, offset, line_offsets))
+                .collect();
+            literal.set_field("expressions", Value::Array(expressions));
+            let quasis: Vec<Value> = template
+                .quasis
+                .iter()
+                .map(|quasi| {
+                    let mut q = Map::new();
+                    q.set_field("type", Value::String("TemplateElement".to_string()));
+                    push_span_fields(
+                        &mut q,
+                        offset + quasi.span.start as usize,
+                        offset + quasi.span.end as usize,
+                        line_offsets,
+                    );
+                    let mut value = Map::new();
+                    value.set_field("raw", Value::String(quasi.value.raw.to_string()));
+                    value.set_field(
+                        "cooked",
+                        quasi
+                            .value
+                            .cooked
+                            .as_ref()
+                            .map(|s| Value::String(s.to_string()))
+                            .unwrap_or(Value::Null),
+                    );
+                    q.set_field("value", Value::Object(value));
+                    q.set_field("tail", Value::Bool(quasi.tail));
+                    Value::Object(q)
+                })
+                .collect();
+            literal.set_field("quasis", Value::Array(quasis));
+            obj.set_field("literal", Value::Object(literal));
+            Value::Object(obj)
+        }
         // ---- span-bearing fallback for still-unhandled exotic types ---------
         // Never the old span-less stub: keep offsets so downstream tooling can
         // still address the node even when its inner shape isn't modelled yet.
         _ => Value::Object(base("TSUnknownKeyword")),
+    }
+}
+
+/// `?`/`readonly` on a mapped type. `true` for a bare modifier, `"+"`/`"-"` for
+/// the explicit forms — acorn-typescript's spelling, not a boolean.
+fn ts_mapped_modifier(operator: oxc_ast::ast::TSMappedTypeModifierOperator) -> Value {
+    use oxc_ast::ast::TSMappedTypeModifierOperator as Operator;
+
+    match operator {
+        Operator::True => Value::Bool(true),
+        Operator::Plus => Value::String("+".to_string()),
+        Operator::Minus => Value::String("-".to_string()),
+    }
+}
+
+/// Convert a `TSImportType` (`import('x').A.B<T>`). Reached both as a type and
+/// as a `typeof` operand, so it is a function rather than a `match` arm.
+/// acorn-typescript names the specifier `argument`; oxc calls it `source`.
+fn convert_ts_import_type(
+    arena: &ParseArena,
+    import: &oxc_ast::ast::TSImportType,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("TSImportType".to_string()));
+    push_span_fields(
+        &mut obj,
+        offset + import.span.start as usize,
+        offset + import.span.end as usize,
+        line_offsets,
+    );
+    obj.set_field(
+        "argument",
+        ts_literal_value(
+            offset + import.source.span.start as usize,
+            offset + import.source.span.end as usize,
+            Value::String(import.source.value.to_string()),
+            import.source.raw.as_ref().map(|raw| raw.to_string()),
+            line_offsets,
+        ),
+    );
+    if let Some(qualifier) = &import.qualifier {
+        obj.set_field(
+            "qualifier",
+            convert_ts_import_type_qualifier(qualifier, offset, line_offsets),
+        );
+    }
+    if let Some(args) = &import.type_arguments {
+        obj.set_field(
+            "typeArguments",
+            convert_ts_type_param_instantiation(arena, args, offset, line_offsets),
+        );
+    }
+    Value::Object(obj)
+}
+
+/// Convert the dotted tail of a `TSImportType` into acorn-typescript's
+/// left-nested `TSQualifiedName` chain.
+fn convert_ts_import_type_qualifier(
+    qualifier: &oxc_ast::ast::TSImportTypeQualifier,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::TSImportTypeQualifier;
+
+    match qualifier {
+        TSImportTypeQualifier::Identifier(id) => {
+            convert_ts_identifier_name(id, offset, line_offsets)
+        }
+        TSImportTypeQualifier::QualifiedName(qualified) => {
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("TSQualifiedName".to_string()));
+            push_span_fields(
+                &mut obj,
+                offset + qualified.span.start as usize,
+                offset + qualified.span.end as usize,
+                line_offsets,
+            );
+            obj.set_field(
+                "left",
+                convert_ts_import_type_qualifier(&qualified.left, offset, line_offsets),
+            );
+            obj.set_field(
+                "right",
+                convert_ts_identifier_name(&qualified.right, offset, line_offsets),
+            );
+            Value::Object(obj)
+        }
     }
 }
 

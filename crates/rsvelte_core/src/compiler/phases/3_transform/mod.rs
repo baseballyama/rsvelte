@@ -223,12 +223,16 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 client_program_sink,
             )?;
 
+            let _map_start = profile::timer_start();
             if options.enable_sourcemap {
+                let _t13 = profile::timer_start();
                 let mapping_starts = MappingLineStarts::new(&result.code, source);
                 let template_source_lines = template_source_lines(source);
                 let append_generated_lines =
                     mark_lines_containing(&result.code, &mapping_starts.generated);
+                profile::record_prefrag(13, profile::timer_elapsed(_t13));
                 let source_line_starts = &mapping_starts.source;
+                let _t14 = profile::timer_start();
                 let mut runtime_mappings = Vec::new();
                 let mut template_name_mappings = Vec::new();
                 let mut remaining_result_mappings = Vec::new();
@@ -246,6 +250,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         remaining_result_mappings.push(mapping);
                     }
                 }
+                profile::record_prefrag(14, profile::timer_elapsed(_t14));
                 let mapping_capacity = runtime_mappings.len()
                     + template_name_mappings.len()
                     + remaining_result_mappings.len();
@@ -255,14 +260,18 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 mappings.extend(remaining_result_mappings);
                 // Measured: the packed-key sort the server path uses costs the
                 // client 0.35% rather than saving it. Why is not established.
+                let _t15 = profile::timer_start();
                 mappings
                     .sort_by(|a, b| a.gen_line.cmp(&b.gen_line).then(a.gen_col.cmp(&b.gen_col)));
+                profile::record_prefrag(15, profile::timer_elapsed(_t15));
                 // Do not deduplicate source-map segments. Esrap deliberately
                 // emits identical entries when a container and its first child
                 // begin at the same generated and original positions. Their
                 // occurrence count and order are observable by consumers.
+                profile::record_prefrag(12, profile::timer_elapsed(_map_start));
                 (result.code, mappings)
             } else {
+                profile::record_prefrag(12, profile::timer_elapsed(_map_start));
                 (result.code, Vec::new())
             }
         }
