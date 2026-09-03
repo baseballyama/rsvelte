@@ -9,6 +9,7 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{
     AnalysisError, BindingKind, DeclarationKind, warnings,
 };
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 
 /// Visit an expression statement (typed JsNode path).
@@ -29,7 +30,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 expr_node.end().unwrap_or_default(),
             );
             let value = node.to_value();
-            if let Some(expr_val) = value.get("expression") {
+            if let Some(expr_val) = value.field("expression") {
                 check_legacy_component_creation(expr_val, span, context);
             }
         }
@@ -44,17 +45,17 @@ fn check_legacy_component_creation(
     span: (u32, u32),
     context: &mut VisitorContext,
 ) {
-    if expression.get("type").and_then(|t| t.as_str()) != Some("NewExpression") {
+    if expression.field("type").and_then(|t| t.as_str()) != Some("NewExpression") {
         return;
     }
 
-    let Some(callee) = expression.get("callee") else {
+    let Some(callee) = expression.field("callee") else {
         return;
     };
-    if callee.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+    if callee.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
         return;
     }
-    let Some(args_array) = expression.get("arguments").and_then(|a| a.as_array()) else {
+    let Some(args_array) = expression.field("arguments").and_then(|a| a.as_array()) else {
         return;
     };
     if args_array.len() != 1 {
@@ -63,22 +64,22 @@ fn check_legacy_component_creation(
     let Some(arg) = args_array.first() else {
         return;
     };
-    if arg.get("type").and_then(|t| t.as_str()) != Some("ObjectExpression") {
+    if arg.field("type").and_then(|t| t.as_str()) != Some("ObjectExpression") {
         return;
     }
 
     let has_target_property = arg
-        .get("properties")
+        .field("properties")
         .and_then(|p| p.as_array())
         .map(|props| {
             props.iter().any(|p| {
-                p.get("type").and_then(|t| t.as_str()) == Some("Property")
-                    && p.get("key")
-                        .and_then(|k| k.get("type"))
+                p.field("type").and_then(|t| t.as_str()) == Some("Property")
+                    && p.field("key")
+                        .and_then(|k| k.field("type"))
                         .and_then(|t| t.as_str())
                         == Some("Identifier")
-                    && p.get("key")
-                        .and_then(|k| k.get("name"))
+                    && p.field("key")
+                        .and_then(|k| k.field("name"))
                         .and_then(|n| n.as_str())
                         == Some("target")
             })
@@ -88,7 +89,7 @@ fn check_legacy_component_creation(
     if !has_target_property {
         return;
     }
-    let Some(callee_name) = callee.get("name").and_then(|n| n.as_str()) else {
+    let Some(callee_name) = callee.field("name").and_then(|n| n.as_str()) else {
         return;
     };
     let Some(&binding_idx) = context.analysis.root.all_scopes
@@ -109,21 +110,22 @@ fn check_legacy_component_creation(
         && let Ok(initial_json) = serde_json::from_str::<Value>(initial_str)
     {
         let is_svelte_import = initial_json
-            .get("source")
-            .and_then(|s| s.get("value"))
+            .field("source")
+            .and_then(|s| s.field("value"))
             .and_then(|v| v.as_str())
             .is_some_and(|src| src.ends_with(".svelte"));
 
         if is_svelte_import {
             let is_default_import = initial_json
-                .get("specifiers")
+                .field("specifiers")
                 .and_then(|s| s.as_array())
                 .is_some_and(|specs| {
                     specs.iter().any(|spec| {
-                        spec.get("type").and_then(|t| t.as_str()) == Some("ImportDefaultSpecifier")
+                        spec.field("type").and_then(|t| t.as_str())
+                            == Some("ImportDefaultSpecifier")
                             && spec
-                                .get("local")
-                                .and_then(|l| l.get("name"))
+                                .field("local")
+                                .and_then(|l| l.field("name"))
                                 .and_then(|n| n.as_str())
                                 == Some(callee_name)
                     })

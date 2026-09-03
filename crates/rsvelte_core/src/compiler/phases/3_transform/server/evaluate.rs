@@ -24,6 +24,7 @@ use serde_json::Value;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::OnceCell;
 
@@ -1107,7 +1108,7 @@ fn is_rune(keypath: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 fn node_type(node: &Value) -> Option<&str> {
-    node.get("type").and_then(|t| t.as_str())
+    node.field("type").and_then(|t| t.as_str())
 }
 
 /// Build the dotted keypath of a (possibly nested static) member/identifier
@@ -1116,20 +1117,20 @@ fn get_keypath(node: &Value) -> Option<(String, String)> {
     let mut parts: Vec<&str> = Vec::new();
     let mut n = node;
     while node_type(n) == Some("MemberExpression") {
-        if n.get("computed").and_then(|c| c.as_bool()) == Some(true) {
+        if n.field("computed").and_then(|c| c.as_bool()) == Some(true) {
             return None;
         }
-        let prop = n.get("property")?;
+        let prop = n.field("property")?;
         if node_type(prop) != Some("Identifier") {
             return None;
         }
-        parts.push(prop.get("name")?.as_str()?);
-        n = n.get("object")?;
+        parts.push(prop.field("name")?.as_str()?);
+        n = n.field("object")?;
     }
     if node_type(n) != Some("Identifier") {
         return None;
     }
-    let base = n.get("name")?.as_str()?;
+    let base = n.field("name")?.as_str()?;
     parts.push(base);
     parts.reverse();
     Some((base.to_string(), parts.join(".")))
@@ -1580,19 +1581,22 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
 
     match ty {
         "Literal" => {
-            if let Some(digits) = node.get("bigint").and_then(|b| b.as_str()) {
+            if let Some(digits) = node.field("bigint").and_then(|b| b.as_str()) {
                 return match digits.parse::<i128>() {
                     Ok(v) => Evaluation::single(EvalValue::BigInt(v)),
                     Err(_) => Evaluation::unknown(),
                 };
             }
             // A regex stringifies to its source, but its value is still an object.
-            if let Some(regex) = node.get("regex") {
-                let pattern = regex.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
-                let flags = regex.get("flags").and_then(|f| f.as_str()).unwrap_or("");
+            if let Some(regex) = node.field("regex") {
+                let pattern = regex
+                    .field("pattern")
+                    .and_then(|p| p.as_str())
+                    .unwrap_or("");
+                let flags = regex.field("flags").and_then(|f| f.as_str()).unwrap_or("");
                 return Evaluation::single(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
             }
-            match node.get("value") {
+            match node.field("value") {
                 Some(Value::String(s)) => Evaluation::single(EvalValue::Str(s.clone())),
                 Some(Value::Number(n)) => {
                     Evaluation::single(EvalValue::Num(n.as_f64().unwrap_or(f64::NAN)))
@@ -1604,7 +1608,7 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
         }
 
         "Identifier" => {
-            let Some(name) = node.get("name").and_then(|n| n.as_str()) else {
+            let Some(name) = node.field("name").and_then(|n| n.as_str()) else {
                 return Evaluation::unknown();
             };
             scope.evaluate_identifier(node, name, depth)
@@ -1612,9 +1616,9 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
 
         "BinaryExpression" => {
             let (Some(left), Some(right), Some(op)) = (
-                node.get("left"),
-                node.get("right"),
-                node.get("operator").and_then(|o| o.as_str()),
+                node.field("left"),
+                node.field("right"),
+                node.field("operator").and_then(|o| o.as_str()),
             ) else {
                 return Evaluation::unknown();
             };
@@ -1666,9 +1670,9 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
 
         "ConditionalExpression" => {
             let (Some(test), Some(consequent), Some(alternate)) = (
-                node.get("test"),
-                node.get("consequent"),
-                node.get("alternate"),
+                node.field("test"),
+                node.field("consequent"),
+                node.field("alternate"),
             ) else {
                 return Evaluation::unknown();
             };
@@ -1689,9 +1693,9 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
 
         "LogicalExpression" => {
             let (Some(left), Some(right), Some(op)) = (
-                node.get("left"),
-                node.get("right"),
-                node.get("operator").and_then(|o| o.as_str()),
+                node.field("left"),
+                node.field("right"),
+                node.field("operator").and_then(|o| o.as_str()),
             ) else {
                 return Evaluation::unknown();
             };
@@ -1724,8 +1728,8 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
 
         "UnaryExpression" => {
             let (Some(arg), Some(op)) = (
-                node.get("argument"),
-                node.get("operator").and_then(|o| o.as_str()),
+                node.field("argument"),
+                node.field("operator").and_then(|o| o.as_str()),
             ) else {
                 return Evaluation::unknown();
             };
@@ -1751,12 +1755,12 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
         }
 
         "CallExpression" => {
-            let Some(callee) = node.get("callee") else {
+            let Some(callee) = node.field("callee") else {
                 return Evaluation::unknown();
             };
             let empty = Vec::new();
             let args = node
-                .get("arguments")
+                .field("arguments")
                 .and_then(|a| a.as_array())
                 .unwrap_or(&empty);
 
@@ -1784,10 +1788,10 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
                             if let Some(arg) = args.first()
                                 && node_type(arg) == Some("ArrowFunctionExpression")
                                 && arg
-                                    .get("body")
+                                    .field("body")
                                     .and_then(node_type)
                                     .is_some_and(|t| t != "BlockStatement")
-                                && let Some(body) = arg.get("body")
+                                && let Some(body) = arg.field("body")
                             {
                                 return evaluate_estree(scope, body, depth + 1);
                             }
@@ -1816,16 +1820,16 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
 
         "TemplateLiteral" => {
             let (Some(quasis), Some(exprs)) = (
-                node.get("quasis").and_then(|q| q.as_array()),
-                node.get("expressions").and_then(|e| e.as_array()),
+                node.field("quasis").and_then(|q| q.as_array()),
+                node.field("expressions").and_then(|e| e.as_array()),
             ) else {
                 return Evaluation::unknown();
             };
             let cooked = |i: usize| -> Option<String> {
                 quasis
                     .get(i)?
-                    .get("value")?
-                    .get("cooked")?
+                    .field("value")?
+                    .field("cooked")?
                     .as_str()
                     .map(String::from)
             };
@@ -1867,7 +1871,7 @@ pub(crate) fn evaluate_estree<S: EvalScope + ?Sized>(
         | "TSSatisfiesExpression"
         | "TSTypeAssertion"
         | "ParenthesizedExpression" => {
-            if let Some(inner) = node.get("expression") {
+            if let Some(inner) = node.field("expression") {
                 return evaluate_estree(scope, inner, depth + 1);
             }
             Evaluation::unknown()

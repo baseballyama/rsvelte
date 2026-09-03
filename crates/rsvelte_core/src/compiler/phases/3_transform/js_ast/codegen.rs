@@ -4,6 +4,7 @@
 
 use super::arena::JsArena;
 use super::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::fmt::Write;
@@ -3166,7 +3167,7 @@ pub fn remap_through_sourcemap(mappings: &mut [SourceMapping], preprocessor_map_
         Err(_) => return,
     };
 
-    let pp_mappings_str = match map.get("mappings").and_then(|v| v.as_str()) {
+    let pp_mappings_str = match map.field("mappings").and_then(|v| v.as_str()) {
         Some(s) => s,
         None => return,
     };
@@ -3175,7 +3176,7 @@ pub fn remap_through_sourcemap(mappings: &mut [SourceMapping], preprocessor_map_
 
     // Extract names array for handling named replacements
     let names: Vec<String> = map
-        .get("names")
+        .field("names")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()

@@ -50,6 +50,7 @@ use crate::compiler::phases::phase3_transform::client::source_anchor::CommentReg
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a snippet block and generate the corresponding JavaScript code.
 ///
@@ -246,25 +247,25 @@ fn extract_param_names(param: &Expression) -> Vec<String> {
 
 fn extract_param_names_from_json(val: &serde_json::Value, names: &mut Vec<String>) {
     if let serde_json::Value::Object(obj) = val {
-        let param_type = obj.get("type").and_then(|v| v.as_str());
+        let param_type = obj.field("type").and_then(|v| v.as_str());
         match param_type {
             Some("Identifier") => {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                     names.push(name.to_string());
                 }
             }
             Some("AssignmentPattern") => {
-                if let Some(left) = obj.get("left") {
+                if let Some(left) = obj.field("left") {
                     extract_param_names_from_json(left, names);
                 }
             }
             Some("ObjectPattern") => {
-                if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                if let Some(properties) = obj.field("properties").and_then(|v| v.as_array()) {
                     for prop in properties {
-                        if let Some(value) = prop.get("value") {
+                        if let Some(value) = prop.field("value") {
                             extract_param_names_from_json(value, names);
-                        } else if prop.get("type").and_then(|v| v.as_str()) == Some("RestElement")
-                            && let Some(arg) = prop.get("argument")
+                        } else if prop.field("type").and_then(|v| v.as_str()) == Some("RestElement")
+                            && let Some(arg) = prop.field("argument")
                         {
                             extract_param_names_from_json(arg, names);
                         }
@@ -272,7 +273,7 @@ fn extract_param_names_from_json(val: &serde_json::Value, names: &mut Vec<String
                 }
             }
             Some("ArrayPattern") => {
-                if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                if let Some(elements) = obj.field("elements").and_then(|v| v.as_array()) {
                     for elem in elements {
                         if !elem.is_null() {
                             extract_param_names_from_json(elem, names);
@@ -281,7 +282,7 @@ fn extract_param_names_from_json(val: &serde_json::Value, names: &mut Vec<String
                 }
             }
             Some("RestElement") => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     extract_param_names_from_json(arg, names);
                 }
             }
@@ -302,11 +303,11 @@ fn process_parameter(
     let val = param.as_json();
 
     if let serde_json::Value::Object(obj) = val {
-        let param_type = obj.get("type").and_then(|v| v.as_str())?;
+        let param_type = obj.field("type").and_then(|v| v.as_str())?;
 
         if param_type == "Identifier" {
             // Simple identifier parameter: param = $.noop
-            let name = obj.get("name").and_then(|v| v.as_str())?;
+            let name = obj.field("name").and_then(|v| v.as_str())?;
 
             // Create assignment pattern: param = $.noop
             let pattern = JsPattern::Assignment(JsAssignmentPattern {
@@ -456,14 +457,14 @@ fn extract_snippet_paths(
         Some(o) => o,
         None => return,
     };
-    match obj.get("type").and_then(|t| t.as_str()) {
+    match obj.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                 emit_snippet_path(name, base, has_default, paths, context);
             }
         }
         Some("ObjectPattern") => {
-            let props = match obj.get("properties").and_then(|p| p.as_array()) {
+            let props = match obj.field("properties").and_then(|p| p.as_array()) {
                 Some(p) => p,
                 None => return,
             };
@@ -472,13 +473,15 @@ fn extract_snippet_paths(
                     Some(o) => o,
                     None => continue,
                 };
-                match prop_obj.get("type").and_then(|t| t.as_str()) {
+                match prop_obj.field("type").and_then(|t| t.as_str()) {
                     Some("RestElement") => {
                         // `$.exclude_from_object(base, ['k1', 'k2', ...])`
                         let keys: Vec<JsExpr> = props
                             .iter()
                             .filter_map(|p| p.as_object())
-                            .filter(|p| p.get("type").and_then(|t| t.as_str()) == Some("Property"))
+                            .filter(|p| {
+                                p.field("type").and_then(|t| t.as_str()) == Some("Property")
+                            })
                             .filter_map(|p| object_pattern_key_literal(p, context))
                             .collect();
                         let rest_expr = b::call(
@@ -486,7 +489,7 @@ fn extract_snippet_paths(
                             b::member_path(&context.arena, "$.exclude_from_object"),
                             vec![base.clone(), b::array(keys)],
                         );
-                        if let Some(arg) = prop_obj.get("argument") {
+                        if let Some(arg) = prop_obj.field("argument") {
                             extract_snippet_paths(
                                 arg,
                                 rest_expr,
@@ -500,7 +503,7 @@ fn extract_snippet_paths(
                     Some("Property") => {
                         let access =
                             object_pattern_property_access(prop_obj, base.clone(), context);
-                        if let Some(value) = prop_obj.get("value") {
+                        if let Some(value) = prop_obj.field("value") {
                             extract_snippet_paths(
                                 value,
                                 access,
@@ -516,7 +519,7 @@ fn extract_snippet_paths(
             }
         }
         Some("ArrayPattern") => {
-            let elements = match obj.get("elements").and_then(|e| e.as_array()) {
+            let elements = match obj.field("elements").and_then(|e| e.as_array()) {
                 Some(e) => e,
                 None => return,
             };
@@ -524,7 +527,7 @@ fn extract_snippet_paths(
             let has_rest = elements
                 .last()
                 .and_then(|e| e.as_object())
-                .and_then(|o| o.get("type"))
+                .and_then(|o| o.field("type"))
                 .and_then(|t| t.as_str())
                 == Some("RestElement");
 
@@ -568,14 +571,14 @@ fn extract_snippet_paths(
                         vec![b::id(&array_name)],
                     )
                 };
-                if elem_obj.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                if elem_obj.field("type").and_then(|t| t.as_str()) == Some("RestElement") {
                     // `$.get($$array).slice(i)`
                     let slice_expr = b::call(
                         &context.arena,
                         b::member(&context.arena, array_get(), "slice"),
                         vec![b::number(i as f64)],
                     );
-                    if let Some(arg) = elem_obj.get("argument") {
+                    if let Some(arg) = elem_obj.field("argument") {
                         extract_snippet_paths(
                             arg,
                             slice_expr,
@@ -595,7 +598,7 @@ fn extract_snippet_paths(
         }
         Some("AssignmentPattern") => {
             // `$.fallback(base, default[, true])`, then recurse the left with has_default.
-            if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+            if let (Some(left), Some(right)) = (obj.field("left"), obj.field("right")) {
                 let mut fallback_args = vec![base];
                 fallback_args.extend(build_fallback_args(right, context));
                 let fallback_call = b::call(
@@ -618,17 +621,17 @@ fn object_pattern_property_access(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let computed = prop
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
-    let key = prop.get("key").and_then(|k| k.as_object());
+    let key = prop.field("key").and_then(|k| k.as_object());
     let key_type = key
-        .and_then(|k| k.get("type"))
+        .and_then(|k| k.field("type"))
         .and_then(|t| t.as_str())
         .unwrap_or("");
     if !computed
         && key_type == "Identifier"
-        && let Some(name) = key.and_then(|k| k.get("name")).and_then(|n| n.as_str())
+        && let Some(name) = key.and_then(|k| k.field("name")).and_then(|n| n.as_str())
     {
         return b::member(&context.arena, base, name);
     }
@@ -647,16 +650,16 @@ fn object_pattern_key_literal(
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     let computed = prop
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
-    let key = prop.get("key").and_then(|k| k.as_object())?;
-    let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let key = prop.field("key").and_then(|k| k.as_object())?;
+    let key_type = key.field("type").and_then(|t| t.as_str()).unwrap_or("");
     if key_type == "Identifier" && !computed {
-        let name = key.get("name").and_then(|n| n.as_str())?;
+        let name = key.field("name").and_then(|n| n.as_str())?;
         Some(b::string(name))
     } else if key_type == "Literal" {
-        let val = key.get("value")?;
+        let val = key.field("value")?;
         let s = match val {
             serde_json::Value::String(s) => s.clone(),
             other => other.to_string(),
@@ -690,14 +693,14 @@ fn process_assignment_pattern(
     index: usize,
     context: &mut ComponentContext,
 ) -> Option<ParameterInfo> {
-    let left = obj.get("left").and_then(|l| l.as_object())?;
-    let right = obj.get("right")?;
+    let left = obj.field("left").and_then(|l| l.as_object())?;
+    let right = obj.field("right")?;
 
     // Get the parameter name from the left side
-    let left_type = left.get("type").and_then(|t| t.as_str())?;
+    let left_type = left.field("type").and_then(|t| t.as_str())?;
 
     if left_type == "Identifier" {
-        let name = left.get("name").and_then(|n| n.as_str())?;
+        let name = left.field("name").and_then(|n| n.as_str())?;
         let arg_alias = format!("$$arg{}", index);
 
         // Build the fallback expression
@@ -809,13 +812,13 @@ fn build_fallback_args(
         // When the default is `func()` (CallExpression with 0 args and Identifier callee),
         // just pass `func` instead of `() => func()`. This matches Svelte's `unthunk` in builders.js.
         if let Some(obj) = default_value.as_object()
-            && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+            && obj.field("type").and_then(|t| t.as_str()) == Some("CallExpression")
             && obj
-                .get("arguments")
+                .field("arguments")
                 .and_then(|a| a.as_array())
                 .is_some_and(|a| a.is_empty())
-            && let Some(callee) = obj.get("callee").and_then(|c| c.as_object())
-            && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+            && let Some(callee) = obj.field("callee").and_then(|c| c.as_object())
+            && callee.field("type").and_then(|t| t.as_str()) == Some("Identifier")
         {
             // Optimization: pass just the callee identifier instead of thunking
             let callee_expr = convert_expression(
@@ -865,7 +868,8 @@ fn preserve_default_parentheses_tree(
         other => preserve_default_parentheses_inner(value, other, context),
     };
 
-    if root && value.get("type").and_then(serde_json::Value::as_str) == Some("SequenceExpression") {
+    if root && value.field("type").and_then(serde_json::Value::as_str) == Some("SequenceExpression")
+    {
         parenthesize_snippet_default(expr, context)
     } else {
         expr
@@ -877,7 +881,10 @@ fn preserve_default_parentheses_inner(
     expr: JsExpr,
     context: &ComponentContext,
 ) -> JsExpr {
-    match (value.get("type").and_then(serde_json::Value::as_str), expr) {
+    match (
+        value.field("type").and_then(serde_json::Value::as_str),
+        expr,
+    ) {
         (Some("ConditionalExpression"), JsExpr::Conditional(mut conditional)) => {
             for (key, slot) in [
                 ("test", &mut conditional.test),
@@ -892,7 +899,7 @@ fn preserve_default_parentheses_inner(
                     // conditional's consequent even though the grammar's
                     // right-associativity makes the grouping optional.
                     if key == "consequent"
-                        && child.get("type").and_then(serde_json::Value::as_str)
+                        && child.field("type").and_then(serde_json::Value::as_str)
                             == Some("ConditionalExpression")
                         && source_parenthesizes(child, &context.state.analysis.source)
                     {
@@ -905,7 +912,7 @@ fn preserve_default_parentheses_inner(
         }
         (Some("SequenceExpression"), JsExpr::Sequence(mut sequence)) => {
             if let Some(children) = value
-                .get("expressions")
+                .field("expressions")
                 .and_then(serde_json::Value::as_array)
             {
                 for (child, current) in children.iter().zip(sequence.expressions.iter_mut()) {
@@ -930,10 +937,10 @@ fn parenthesize_snippet_default(expr: JsExpr, context: &ComponentContext) -> JsE
 }
 
 fn source_parenthesizes(value: &serde_json::Value, source: &str) -> bool {
-    let Some(start) = value.get("start").and_then(serde_json::Value::as_u64) else {
+    let Some(start) = value.field("start").and_then(serde_json::Value::as_u64) else {
         return false;
     };
-    let Some(end) = value.get("end").and_then(serde_json::Value::as_u64) else {
+    let Some(end) = value.field("end").and_then(serde_json::Value::as_u64) else {
         return false;
     };
     let (mut before, mut after) = (start as usize, end as usize);
@@ -958,7 +965,7 @@ fn is_simple_expression_json(value: &serde_json::Value) -> bool {
         None => return true, // Literals are simple
     };
 
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let expr_type = match obj.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return true,
     };
@@ -967,32 +974,32 @@ fn is_simple_expression_json(value: &serde_json::Value) -> bool {
         "Literal" | "Identifier" | "ArrowFunctionExpression" | "FunctionExpression" => true,
         "ConditionalExpression" => {
             let test_simple = obj
-                .get("test")
+                .field("test")
                 .map(is_simple_expression_json)
                 .unwrap_or(true);
             let consequent_simple = obj
-                .get("consequent")
+                .field("consequent")
                 .map(is_simple_expression_json)
                 .unwrap_or(true);
             let alternate_simple = obj
-                .get("alternate")
+                .field("alternate")
                 .map(is_simple_expression_json)
                 .unwrap_or(true);
             test_simple && consequent_simple && alternate_simple
         }
         "BinaryExpression" | "LogicalExpression" => {
             let left_simple = obj
-                .get("left")
+                .field("left")
                 .map(is_simple_expression_json)
                 .unwrap_or(true);
             let right_simple = obj
-                .get("right")
+                .field("right")
                 .map(is_simple_expression_json)
                 .unwrap_or(true);
             left_simple && right_simple
         }
         "UnaryExpression" => obj
-            .get("argument")
+            .field("argument")
             .map(is_simple_expression_json)
             .unwrap_or(true),
         // Generic "Expression" fallback from parser (position-only placeholder)

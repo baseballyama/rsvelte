@@ -19,6 +19,7 @@
 use crate::ast::template::DeclarationTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::utils::is_escaped;
 
 /// Visit a declaration tag.
@@ -57,10 +58,10 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     // `build_expression`'s transform tracker.
     {
         let decl_json = node.declaration.as_json();
-        if let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) {
+        if let Some(decls) = decl_json.field("declarations").and_then(|d| d.as_array()) {
             let mut refs: Vec<String> = Vec::new();
             for d in decls {
-                if let Some(init) = d.get("init").filter(|i| !i.is_null()) {
+                if let Some(init) = d.field("init").filter(|i| !i.is_null()) {
                     collect_init_identifiers(init, &mut refs);
                 }
             }
@@ -221,7 +222,7 @@ fn try_emit_async_declaration(
     context: &mut ComponentContext,
 ) -> Option<()> {
     let decl_json = node.declaration.as_json();
-    let decls = decl_json.get("declarations")?.as_array()?;
+    let decls = decl_json.field("declarations")?.as_array()?;
     // Only single-declarator tags are async-lowered here; genuine
     // multi-declarator (`{let a = …, b = …}`) tags fall back to the sync /
     // rejoin path. Destructuring patterns (`{const { x, y } = …}`) ARE handled
@@ -230,8 +231,8 @@ fn try_emit_async_declaration(
         return None;
     }
     let d = decls[0].as_object()?;
-    let id = d.get("id")?;
-    let id_type = id.get("type")?.as_str()?;
+    let id = d.field("id")?;
+    let id_type = id.field("type")?.as_str()?;
     let is_pattern = matches!(
         id_type,
         "ObjectPattern" | "ObjectExpression" | "ArrayPattern" | "ArrayExpression"
@@ -239,7 +240,7 @@ fn try_emit_async_declaration(
     if id_type != "Identifier" && !is_pattern {
         return None;
     }
-    let init = d.get("init").filter(|i| !i.is_null())?;
+    let init = d.field("init").filter(|i| !i.is_null())?;
 
     // Identifiers referenced by the initializer, for async-blocker lookup.
     let mut init_refs: Vec<String> = Vec::new();
@@ -291,9 +292,9 @@ fn try_emit_async_declaration(
         }
         let src = &context.state.analysis.source;
         let lhs_pattern = id
-            .get("start")
+            .field("start")
             .and_then(|v| v.as_u64())
-            .zip(id.get("end").and_then(|v| v.as_u64()))
+            .zip(id.field("end").and_then(|v| v.as_u64()))
             .and_then(|(st, en)| {
                 let (st, en) = (st as usize, en as usize);
                 if st < en && en <= src.len() {
@@ -314,7 +315,7 @@ fn try_emit_async_declaration(
         return Some(());
     }
 
-    let name = id.get("name")?.as_str()?;
+    let name = id.field("name")?.as_str()?;
     super::const_tag::add_const_declaration(
         context,
         name,
@@ -362,8 +363,8 @@ fn find_top_level_assignment_eq(s: &str) -> Option<usize> {
 fn collect_init_identifiers(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::Object(map) => {
-            if map.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                && let Some(n) = map.get("name").and_then(|n| n.as_str())
+            if map.field("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && let Some(n) = map.field("name").and_then(|n| n.as_str())
             {
                 let n = n.to_string();
                 if !out.contains(&n) {

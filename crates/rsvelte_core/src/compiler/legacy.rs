@@ -31,6 +31,7 @@ use crate::ast::{
     StyleDirective, SvelteComponentElement, SvelteDynamicElement, SvelteElement, TemplateNode,
     Text, TitleElement, TransitionDirective, UseDirective,
 };
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Insert ESTree fields into an existing `Map`, in written order.
 ///
@@ -273,7 +274,7 @@ fn add_binding_locs(value: &mut Value, positions: &Utf8ToUtf16, top_level: bool)
     };
 
     let node_type = object
-        .get("type")
+        .field("type")
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
@@ -289,7 +290,7 @@ fn add_binding_locs(value: &mut Value, positions: &Utf8ToUtf16, top_level: bool)
         "RestElement" => add_binding_child(object, "argument", positions),
         "Property" => {
             if object
-                .get("computed")
+                .field("computed")
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
             {
@@ -315,9 +316,9 @@ fn add_binding_locs(value: &mut Value, positions: &Utf8ToUtf16, top_level: bool)
 
     if !object.contains_key("loc")
         && let Some((start, end)) = object
-            .get("start")
+            .field("start")
             .and_then(Value::as_u64)
-            .zip(object.get("end").and_then(Value::as_u64))
+            .zip(object.field("end").and_then(Value::as_u64))
     {
         let loc = if top_level && node_type == "Identifier" {
             estree_loc_with_character(start as usize, end as usize, positions)
@@ -353,9 +354,9 @@ fn add_loc_to_estree_object(object: &mut Map<String, Value>, positions: &Utf8ToU
         return;
     }
     if let Some((start, end)) = object
-        .get("start")
+        .field("start")
         .and_then(Value::as_u64)
-        .zip(object.get("end").and_then(Value::as_u64))
+        .zip(object.field("end").and_then(Value::as_u64))
     {
         insert_loc_after_end(object, estree_loc(start as usize, end as usize, positions));
     }
@@ -439,9 +440,9 @@ fn add_estree_locs(value: &mut Value, positions: &Utf8ToUtf16) {
             }
 
             let span = object
-                .get("start")
+                .field("start")
                 .and_then(Value::as_u64)
-                .zip(object.get("end").and_then(Value::as_u64));
+                .zip(object.field("end").and_then(Value::as_u64));
             if object.contains_key("type")
                 && !object.contains_key("loc")
                 && let Some((start, end)) = span
@@ -466,17 +467,17 @@ fn add_estree_locs(value: &mut Value, positions: &Utf8ToUtf16) {
 pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
     match value {
         Value::Object(map) => {
-            if let Some(Value::Number(n)) = map.get("start")
+            if let Some(Value::Number(n)) = map.field("start")
                 && let Some(pos) = n.as_u64()
             {
                 map.insert("start".to_string(), json!(pos_conv.convert(pos as usize)));
             }
-            if let Some(Value::Number(n)) = map.get("end")
+            if let Some(Value::Number(n)) = map.field("end")
                 && let Some(pos) = n.as_u64()
             {
                 map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
             }
-            if let Some(Value::Number(n)) = map.get("character")
+            if let Some(Value::Number(n)) = map.field("character")
                 && let Some(pos) = n.as_u64()
             {
                 map.insert(
@@ -489,7 +490,7 @@ pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
             if map.contains_key("line")
                 && map.contains_key("column")
                 && let (Some(Value::Number(line)), Some(Value::Number(col))) =
-                    (map.get("line"), map.get("column"))
+                    (map.field("line"), map.field("column"))
                 && let (Some(line_num), Some(col_num)) = (line.as_u64(), col.as_u64())
             {
                 let new_col = pos_conv.convert_column(line_num as usize, col_num as usize);
@@ -676,7 +677,7 @@ fn convert_css_node(node: &mut Value) {
         map.remove("metadata");
 
         // Convert ComplexSelector to Selector
-        if map.get("type") == Some(&json!("ComplexSelector")) {
+        if map.field("type") == Some(&json!("ComplexSelector")) {
             map.insert("type".to_string(), json!("Selector"));
 
             // Flatten children: extract combinator and selectors from each RelativeSelector
@@ -685,13 +686,13 @@ fn convert_css_node(node: &mut Value) {
                 for rs in relative_selectors {
                     if let Value::Object(rs_map) = rs {
                         // Add combinator if present
-                        if let Some(combinator) = rs_map.get("combinator")
+                        if let Some(combinator) = rs_map.field("combinator")
                             && !combinator.is_null()
                         {
                             new_children.push(combinator.clone());
                         }
                         // Add selectors
-                        if let Some(Value::Array(selectors)) = rs_map.get("selectors") {
+                        if let Some(Value::Array(selectors)) = rs_map.field("selectors") {
                             for selector in selectors {
                                 new_children.push(selector.clone());
                             }
@@ -847,11 +848,11 @@ fn convert_const_tag(const_tag: &ConstTag, positions: &Utf8ToUtf16) -> Value {
     let declaration = declaration_json(&const_tag.declaration, positions);
 
     // Extract the declarator from the VariableDeclaration
-    if let Some(declarations) = declaration.get("declarations").and_then(|d| d.as_array())
+    if let Some(declarations) = declaration.field("declarations").and_then(|d| d.as_array())
         && let Some(first_decl) = declarations.first()
     {
-        let id = first_decl.get("id").cloned().unwrap_or(json!(null));
-        let init = first_decl.get("init").cloned().unwrap_or(json!(null));
+        let id = first_decl.field("id").cloned().unwrap_or(json!(null));
+        let init = first_decl.field("init").cloned().unwrap_or(json!(null));
 
         // Remove typeAnnotation from id
         let mut id = id;
@@ -861,10 +862,13 @@ fn convert_const_tag(const_tag: &ConstTag, positions: &Utf8ToUtf16) -> Value {
 
         // Calculate start position (after 'const ')
         let decl_start = declaration
-            .get("start")
+            .field("start")
             .and_then(|s| s.as_u64())
             .unwrap_or(0);
-        let decl_end = declaration.get("end").and_then(|s| s.as_u64()).unwrap_or(0);
+        let decl_end = declaration
+            .field("end")
+            .and_then(|s| s.as_u64())
+            .unwrap_or(0);
 
         let mut expression = json!({
             "type": "AssignmentExpression",
@@ -1072,7 +1076,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock, positions: &Utf8T
     // Get expression end position
     let expression = expression_json(&await_block.expression, positions);
     let expr_end = expression
-        .get("end")
+        .field("end")
         .and_then(|e| e.as_u64())
         .unwrap_or(await_block.start as u64) as usize;
 
@@ -1108,7 +1112,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock, positions: &Utf8T
     }
 
     let pending_end = pending_block
-        .get("end")
+        .field("end")
         .and_then(|e| e.as_u64())
         .map(|e| e as usize);
 
@@ -1140,7 +1144,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock, positions: &Utf8T
     }
 
     let then_end = then_block
-        .get("end")
+        .field("end")
         .and_then(|e| e.as_u64())
         .map(|e| e as usize);
 
@@ -1393,13 +1397,13 @@ fn convert_svelte_element(
     // Check if tag is a literal string and source doesn't have braces
     let tag_expression = expression_json(&element.tag, positions);
     let tag_start = tag_expression
-        .get("start")
+        .field("start")
         .and_then(|s| s.as_u64())
         .unwrap_or(0) as usize;
     let has_braces = tag_start > 0 && source.as_bytes().get(tag_start - 1) == Some(&b'{');
 
     let tag = if !has_braces {
-        if let Some(value) = tag_expression.get("value").and_then(|v| v.as_str()) {
+        if let Some(value) = tag_expression.field("value").and_then(|v| v.as_str()) {
             json!(value)
         } else {
             tag_expression

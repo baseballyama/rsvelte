@@ -8,6 +8,7 @@ use super::super::errors;
 use super::VisitorContext;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 
 /// Get the rune name from a CallExpression node, if it is a rune call.
@@ -19,11 +20,11 @@ use serde_json::Value;
 /// * `node` - The CallExpression node
 /// * `context` - The visitor context
 fn get_rune(node: &Value, context: &VisitorContext) -> Option<String> {
-    if node.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
+    if node.field("type").and_then(|t| t.as_str()) != Some("CallExpression") {
         return None;
     }
 
-    let callee = node.get("callee")?;
+    let callee = node.field("callee")?;
     let keypath = get_global_keypath(callee, context)?;
 
     if super::shared::function::is_rune(&keypath) {
@@ -48,28 +49,31 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
     let mut joined = String::new();
 
     // Handle MemberExpression chain
-    while n.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+    while n.field("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
         // Must not be computed
-        if n.get("computed").and_then(|c| c.as_bool()).unwrap_or(false) {
+        if n.field("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false)
+        {
             return None;
         }
 
         // Property must be an Identifier
-        let property = n.get("property")?;
-        if property.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+        let property = n.field("property")?;
+        if property.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
             return None;
         }
 
-        let prop_name = property.get("name").and_then(|n| n.as_str())?;
+        let prop_name = property.field("name").and_then(|n| n.as_str())?;
         joined = format!(".{}{}", prop_name, joined);
 
-        n = n.get("object")?;
+        n = n.field("object")?;
     }
 
     // Handle CallExpression (for patterns like `$inspect().with`)
-    if n.get("type").and_then(|t| t.as_str()) == Some("CallExpression") {
-        let callee = n.get("callee")?;
-        if callee.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+    if n.field("type").and_then(|t| t.as_str()) == Some("CallExpression") {
+        let callee = n.field("callee")?;
+        if callee.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
             return None;
         }
         joined = format!("(){}", joined);
@@ -77,11 +81,11 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
     }
 
     // Must be an Identifier at the base
-    if n.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+    if n.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
         return None;
     }
 
-    let name = n.get("name").and_then(|n| n.as_str())?;
+    let name = n.field("name").and_then(|n| n.as_str())?;
 
     // Check if it's a binding (if so, it's not a rune/global)
     // This matches the official Svelte compiler's get_global_keypath in scope.js (L1408-1409):
@@ -205,7 +209,7 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
         return get_rune_node(init_node, context).as_deref() == Some("$props");
     }
 
-    if let Some(init) = var_declarator.as_value().get("init") {
+    if let Some(init) = var_declarator.as_value().field("init") {
         let rune = get_rune(init, context);
         return rune.as_deref() == Some("$props");
     }
@@ -390,8 +394,8 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
         ) {
             return false;
         }
-    } else if let Some(id) = parent.as_value().get("id") {
-        let id_type = id.get("type").and_then(|t| t.as_str());
+    } else if let Some(id) = parent.as_value().field("id") {
+        let id_type = id.field("type").and_then(|t| t.as_str());
         if id_type != Some("Identifier") {
             return false;
         }
@@ -527,7 +531,7 @@ fn is_class_property_assignment_at_constructor_root(
     context: &VisitorContext,
 ) -> bool {
     // Check assignment operator is '='
-    if node.get("operator").and_then(|o| o.as_str()) != Some("=") {
+    if node.field("operator").and_then(|o| o.as_str()) != Some("=") {
         return false;
     }
 
@@ -550,29 +554,33 @@ fn is_class_property_assignment_at_constructor_root(
     // Check left side: MemberExpression with 'this' object.
     // If left is null (private field expression not handled by parser), we still
     // accept the placement since we confirmed we're in a constructor.
-    let left = match node.get("left") {
+    let left = match node.field("left") {
         Some(l) if !l.is_null() => l,
         _ => return true, // Accept: we're in constructor, left is null (private field)
     };
 
-    let left_type = left.get("type").and_then(|t| t.as_str());
+    let left_type = left.field("type").and_then(|t| t.as_str());
     if left_type != Some("MemberExpression") {
         return false;
     }
 
-    let object = left.get("object");
-    if object.and_then(|o| o.get("type")).and_then(|t| t.as_str()) != Some("ThisExpression") {
+    let object = left.field("object");
+    if object
+        .and_then(|o| o.field("type"))
+        .and_then(|t| t.as_str())
+        != Some("ThisExpression")
+    {
         return false;
     }
 
     // Check property type: must be (Identifier && !computed) || PrivateIdentifier || Literal
     // This mirrors the official Svelte compiler's is_class_property_assignment_at_constructor_root
     let computed = left
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
-    if let Some(property) = left.get("property") {
-        let prop_type = property.get("type").and_then(|t| t.as_str());
+    if let Some(property) = left.field("property") {
+        let prop_type = property.field("type").and_then(|t| t.as_str());
         match prop_type {
             Some("Identifier") if !computed => true,
             Some("PrivateIdentifier") => true,
@@ -664,11 +672,11 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
     // distinct AST nodes have distinct `start` offsets within a single parse.
     if let Some(body) = grandparent
         .as_value()
-        .get("body")
+        .field("body")
         .and_then(|b| b.as_array())
         && let Some(first) = body.first()
     {
-        let first_start = first.get("start").and_then(|s| s.as_u64());
+        let first_start = first.field("start").and_then(|s| s.as_u64());
         let parent_start = parent.get_field_u64("start");
         return first_start.is_some() && first_start == parent_start;
     }
@@ -801,8 +809,8 @@ pub(crate) fn validate_rune_call(
             if let Some(parent) = get_parent(context, 1)
                 && let Some(id_name) = parent
                     .as_value()
-                    .get("id")
-                    .and_then(|id| id.get("name"))
+                    .field("id")
+                    .and_then(|id| id.field("name"))
                     .and_then(|n| n.as_str())
             {
                 context.analysis.props_id = Some(id_name.to_string());

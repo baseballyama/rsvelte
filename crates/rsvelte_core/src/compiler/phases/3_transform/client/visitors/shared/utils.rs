@@ -11,6 +11,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::assignm
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value used by Phase 2 and both transforms.
 use crate::compiler::phases::phase3_transform::server::evaluate::{
@@ -3943,9 +3944,9 @@ pub(crate) fn collect_expression_identifiers_for_blockers(
 fn collect_expr_ids_recursive(val: &serde_json::Value, names: &mut Vec<String>) {
     match val {
         serde_json::Value::Object(obj) => {
-            let node_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+            let node_type = obj.field("type").and_then(|v| v.as_str()).unwrap_or("");
             if node_type == "Identifier" {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                if let Some(name) = obj.field("name").and_then(|v| v.as_str())
                     && !names.contains(&name.to_string())
                 {
                     names.push(name.to_string());
@@ -4156,7 +4157,7 @@ fn eval_value_text(v: &EvalValue) -> Option<Option<String>> {
 /// Fold a template expression through the shared port of upstream
 /// `scope.evaluate`.
 fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) -> Option<EvalValue> {
-    let expr_type = jv.get("type").and_then(|t| t.as_str())?;
+    let expr_type = jv.field("type").and_then(|t| t.as_str())?;
 
     // `build_template_chunk` memoizes first. A call-bearing chunk is therefore
     // an opaque temporary by the time upstream evaluates it, while recursion
@@ -4181,7 +4182,7 @@ fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) ->
     // source binding would evaluate a different expression.
     if expr_type == "Identifier"
         && jv
-            .get("name")
+            .field("name")
             .and_then(|name| name.as_str())
             .is_some_and(|name| context.state.transform.contains_key(name))
     {
@@ -4406,15 +4407,15 @@ pub(crate) fn is_expression_defined(
 /// Dotted keypath of a static estree-JSON callee (`Math.round` → `"Math.round"`).
 pub(crate) fn json_keypath(node: &serde_json::Value) -> Option<String> {
     let obj = node.as_object()?;
-    match obj.get("type").and_then(|t| t.as_str())? {
-        "Identifier" => obj.get("name").and_then(|n| n.as_str()).map(String::from),
-        "MemberExpression" if obj.get("computed").and_then(|c| c.as_bool()) != Some(true) => {
-            let prop = obj.get("property")?.as_object()?;
-            if prop.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+    match obj.field("type").and_then(|t| t.as_str())? {
+        "Identifier" => obj.field("name").and_then(|n| n.as_str()).map(String::from),
+        "MemberExpression" if obj.field("computed").and_then(|c| c.as_bool()) != Some(true) => {
+            let prop = obj.field("property")?.as_object()?;
+            if prop.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
                 return None;
             }
-            let prop_name = prop.get("name").and_then(|n| n.as_str())?;
-            let base = json_keypath(obj.get("object")?)?;
+            let prop_name = prop.field("name").and_then(|n| n.as_str())?;
+            let base = json_keypath(obj.field("object")?)?;
             Some(format!("{base}.{prop_name}"))
         }
         _ => None,
@@ -4470,7 +4471,7 @@ fn analyze_props_json(
     let Some(obj) = json_value.as_object() else {
         return;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return;
     };
 
@@ -4479,7 +4480,7 @@ fn analyze_props_json(
             // has_member: no
             // has_await: no
             // has_state: check bindings/transforms
-            if !props.has_state && obj.get("name").and_then(|v| v.as_str()).is_some() {
+            if !props.has_state && obj.field("name").and_then(|v| v.as_str()).is_some() {
                 props.has_state = has_reactive_state_json(json_value, context);
             }
         }
@@ -4494,7 +4495,7 @@ fn analyze_props_json(
 
             // has_await: check object subtree
             if !props.has_await
-                && let Some(object) = obj.get("object")
+                && let Some(object) = obj.field("object")
             {
                 props.has_await = has_await_json(object);
             }
@@ -4507,13 +4508,13 @@ fn analyze_props_json(
 
             // has_member: check callee and arguments
             if !props.has_member {
-                if let Some(callee) = obj.get("callee")
+                if let Some(callee) = obj.field("callee")
                     && has_member_json(callee)
                 {
                     props.has_member = true;
                 }
                 if !props.has_member
-                    && let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                    && let Some(args) = obj.field("arguments").and_then(|v| v.as_array())
                 {
                     for arg in args {
                         if has_member_json(arg) {
@@ -4526,13 +4527,13 @@ fn analyze_props_json(
 
             // has_await: check callee and arguments
             if !props.has_await {
-                if let Some(callee) = obj.get("callee")
+                if let Some(callee) = obj.field("callee")
                     && has_await_json(callee)
                 {
                     props.has_await = true;
                 }
                 if !props.has_await
-                    && let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                    && let Some(args) = obj.field("arguments").and_then(|v| v.as_array())
                 {
                     for arg in args {
                         if has_await_json(arg) {
@@ -4547,10 +4548,10 @@ fn analyze_props_json(
             // Upstream's `NewExpression` visitor only calls `context.next()`, so a
             // `new` contributes no flag of its own — every flag comes from the
             // callee and the arguments.
-            if let Some(callee) = obj.get("callee") {
+            if let Some(callee) = obj.field("callee") {
                 analyze_props_json(callee, context, props);
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     analyze_props_json(arg, context, props);
                 }
@@ -4564,15 +4565,15 @@ fn analyze_props_json(
             // has_member: not directly, but don't need to recurse for state/await
         }
         "BinaryExpression" | "LogicalExpression" => {
-            if let Some(left) = obj.get("left") {
+            if let Some(left) = obj.field("left") {
                 analyze_props_json(left, context, props);
             }
-            if let Some(right) = obj.get("right") {
+            if let Some(right) = obj.field("right") {
                 analyze_props_json(right, context, props);
             }
         }
         "UnaryExpression" => {
-            if let Some(argument) = obj.get("argument") {
+            if let Some(argument) = obj.field("argument") {
                 analyze_props_json(argument, context, props);
             }
         }
@@ -4584,19 +4585,19 @@ fn analyze_props_json(
             }
         }
         "TemplateLiteral" => {
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     analyze_props_json(expr_val, context, props);
                 }
             }
         }
         "ChainExpression" => {
-            if let Some(expression) = obj.get("expression") {
+            if let Some(expression) = obj.field("expression") {
                 analyze_props_json(expression, context, props);
             }
         }
         "SequenceExpression" => {
-            if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(expressions) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in expressions {
                     analyze_props_json(expr_val, context, props);
                 }
@@ -4634,17 +4635,17 @@ fn analyze_props_json(
             // has_await: not checked for AssignmentExpression by has_await_json
         }
         "ArrayExpression" => {
-            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = obj.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     analyze_props_json(elem, context, props);
                 }
             }
         }
         "ObjectExpression" => {
-            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = obj.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
                     if let Some(prop_obj) = prop.as_object()
-                        && let Some(value) = prop_obj.get("value")
+                        && let Some(value) = prop_obj.field("value")
                     {
                         analyze_props_json(value, context, props);
                     }
@@ -4652,7 +4653,7 @@ fn analyze_props_json(
             }
         }
         "SpreadElement" => {
-            if let Some(argument) = obj.get("argument") {
+            if let Some(argument) = obj.field("argument") {
                 analyze_props_json(argument, context, props);
             }
         }
@@ -4674,10 +4675,10 @@ fn analyze_props_json(
         "ImportExpression" => {
             // Upstream has no visitor either, so `import(x)` is not a call —
             // only what it is given can be reactive.
-            if let Some(source) = obj.get("source") {
+            if let Some(source) = obj.field("source") {
                 analyze_props_json(source, context, props);
             }
-            if let Some(options) = obj.get("options") {
+            if let Some(options) = obj.field("options") {
                 analyze_props_json(options, context, props);
             }
         }
@@ -5293,15 +5294,18 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
     let Some(obj) = json_value.as_object() else {
         return false;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return false;
     };
 
     match expr_type {
         "Identifier" => {
             // Check if identifier is a reactive binding
-            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
+            if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
+                let start = obj
+                    .field("start")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32);
                 return identifier_has_reactive_state(name, start, context);
             }
             false
@@ -5314,7 +5318,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 return true;
             }
             // Check the object part - recurse directly with JSON reference
-            if let Some(object) = obj.get("object") {
+            if let Some(object) = obj.field("object") {
                 // First check if the object itself references reactive state
                 if has_reactive_state_json(object, context) {
                     return true;
@@ -5325,8 +5329,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 // Since we can't statically determine if the property is reactive,
                 // conservatively treat all member expressions on local variables as potentially reactive.
                 if let Some(obj_inner) = object.as_object()
-                    && obj_inner.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                    && let Some(name) = obj_inner.get("name").and_then(|n| n.as_str())
+                    && obj_inner.field("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && let Some(name) = obj_inner.field("name").and_then(|n| n.as_str())
                 {
                     // Check if this is a local binding (not a global)
                     if context.state.get_binding(name).is_some() {
@@ -5340,8 +5344,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // `{ … }[size]` where `size` is a reactive prop is reactive even
             // though the object literal is not. (The object-only check above
             // misses this.)
-            if obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
-                && let Some(property) = obj.get("property")
+            if obj.field("computed").and_then(|v| v.as_bool()) == Some(true)
+                && let Some(property) = obj.field("property")
                 && has_reactive_state_json(property, context)
             {
                 return true;
@@ -5351,16 +5355,16 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         "CallExpression" => {
             // Check if callee is a pure global function that doesn't depend on reactive state
             // Pure functions like Math.*, encodeURIComponent, etc. are not reactive
-            if let Some(callee) = obj.get("callee").and_then(|v| v.as_object()) {
-                let callee_type = callee.get("type").and_then(|t| t.as_str());
+            if let Some(callee) = obj.field("callee").and_then(|v| v.as_object()) {
+                let callee_type = callee.field("type").and_then(|t| t.as_str());
 
                 // Check for pure global functions like Math.max, encodeURIComponent, etc.
                 if callee_type == Some("Identifier")
-                    && let Some(name) = callee.get("name").and_then(|n| n.as_str())
+                    && let Some(name) = callee.field("name").and_then(|n| n.as_str())
                 {
                     if PURE_GLOBALS.contains(&name) {
                         // Check if any arguments are reactive - recurse with JSON reference
-                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                        if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                             for arg in args {
                                 if has_reactive_state_json(arg, context) {
                                     return true;
@@ -5381,7 +5385,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         return true;
                     } else {
                         // Unknown identifier without transform - could be a global, check arguments only
-                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                        if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                             for arg in args {
                                 if has_reactive_state_json(arg, context) {
                                     return true;
@@ -5393,13 +5397,13 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 }
                 // Check for pure member expressions like Math.max, Math.min, etc.
                 if callee_type == Some("MemberExpression")
-                    && let Some(object) = callee.get("object").and_then(|o| o.as_object())
-                    && let Some("Identifier") = object.get("type").and_then(|t| t.as_str())
-                    && let Some(obj_name) = object.get("name").and_then(|n| n.as_str())
+                    && let Some(object) = callee.field("object").and_then(|o| o.as_object())
+                    && let Some("Identifier") = object.field("type").and_then(|t| t.as_str())
+                    && let Some(obj_name) = object.field("name").and_then(|n| n.as_str())
                     && PURE_OBJECTS.contains(&obj_name)
                 {
                     // Check if any arguments are reactive - recurse with JSON reference
-                    if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                    if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                         for arg in args {
                             if has_reactive_state_json(arg, context) {
                                 return true;
@@ -5413,12 +5417,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // For other call expressions, check callee and arguments recursively.
             // A call is only reactive if the callee or arguments reference reactive state.
             // This handles cases like console.log('rendering') which should NOT be reactive.
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && has_reactive_state_json(callee, context)
             {
                 return true;
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     if has_reactive_state_json(arg, context) {
                         return true;
@@ -5429,12 +5433,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         }
         "BinaryExpression" | "LogicalExpression" => {
             // Check left and right - recurse with JSON reference
-            if let Some(left) = obj.get("left")
+            if let Some(left) = obj.field("left")
                 && has_reactive_state_json(left, context)
             {
                 return true;
             }
-            if let Some(right) = obj.get("right")
+            if let Some(right) = obj.field("right")
                 && has_reactive_state_json(right, context)
             {
                 return true;
@@ -5442,7 +5446,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "UnaryExpression" => {
-            if let Some(argument) = obj.get("argument") {
+            if let Some(argument) = obj.field("argument") {
                 return has_reactive_state_json(argument, context);
             }
             false
@@ -5458,7 +5462,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             false
         }
         "TemplateLiteral" => {
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     if has_reactive_state_json(expr_val, context) {
                         return true;
@@ -5469,14 +5473,14 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         }
         "ChainExpression" => {
             // Optional chaining (e.g., `item?.name`) - recurse into inner expression
-            if let Some(expression) = obj.get("expression") {
+            if let Some(expression) = obj.field("expression") {
                 return has_reactive_state_json(expression, context);
             }
             false
         }
         "SequenceExpression" => {
             // Comma expressions (e.g., `(a, b)`) - check all sub-expressions
-            if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(expressions) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in expressions {
                     if has_reactive_state_json(expr_val, context) {
                         return true;
@@ -5487,7 +5491,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         }
         "AssignmentExpression" => {
             // Assignments (e.g., `a = b`) - check right side
-            if let Some(right) = obj.get("right") {
+            if let Some(right) = obj.field("right") {
                 return has_reactive_state_json(right, context);
             }
             false
@@ -5510,12 +5514,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // marks the enclosing expression `has_state` (it treats `{...x}`
             // like `{...x.values()}`), so a spread always makes the object
             // reactive.
-            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = obj.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    if prop.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                    if prop.field("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
                         return true;
                     }
-                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                    if let Some(value) = prop.as_object().and_then(|p| p.field("value"))
                         && has_reactive_state_json(value, context)
                     {
                         return true;
@@ -5526,7 +5530,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         }
         "ArrayExpression" => {
             // Check all elements
-            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = obj.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if has_reactive_state_json(elem, context) {
                         return true;
@@ -5543,12 +5547,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // `new Foo(args)` — reactive only if the constructor or any argument
             // references reactive state. This mirrors the official Svelte compiler,
             // where NewExpression does not set has_call/has_state by itself.
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && has_reactive_state_json(callee, context)
             {
                 return true;
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     if has_reactive_state_json(arg, context) {
                         return true;
@@ -5570,12 +5574,12 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
         }
         "ImportExpression" => {
             // Not a call upstream — only its operands can be reactive.
-            if let Some(source) = obj.get("source")
+            if let Some(source) = obj.field("source")
                 && has_reactive_state_json(source, context)
             {
                 return true;
             }
-            if let Some(options) = obj.get("options")
+            if let Some(options) = obj.field("options")
                 && has_reactive_state_json(options, context)
             {
                 return true;
@@ -5603,7 +5607,7 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
         // Primitives (strings, numbers, booleans, null) are pure
         return true;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return true;
     };
 
@@ -5611,7 +5615,7 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
         "Literal" | "BooleanLiteral" | "NumericLiteral" | "StringLiteral" | "NullLiteral"
         | "BigIntLiteral" | "RegExpLiteral" => true,
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                 // Rune identifiers ($effect, $state, etc.) are globals with no scope
                 // binding, so they are treated as pure. This matches the official
                 // Svelte compiler's is_pure() which considers globals (binding === null)
@@ -5626,20 +5630,20 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
         "MemberExpression" => {
             // Special case: $effect.tracking is NOT pure, matching the official compiler's
             // check in is_pure(). This ensures $effect.tracking() gets has_call=true.
-            if obj.get("computed").and_then(|v| v.as_bool()) != Some(true) {
-                let is_tracking =
-                    obj.get("property")
-                        .and_then(|p| p.as_object())
-                        .is_some_and(|p_obj| {
-                            p_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                                && p_obj.get("name").and_then(|n| n.as_str()) == Some("tracking")
-                        });
+            if obj.field("computed").and_then(|v| v.as_bool()) != Some(true) {
+                let is_tracking = obj
+                    .field("property")
+                    .and_then(|p| p.as_object())
+                    .is_some_and(|p_obj| {
+                        p_obj.field("type").and_then(|t| t.as_str()) == Some("Identifier")
+                            && p_obj.field("name").and_then(|n| n.as_str()) == Some("tracking")
+                    });
                 let is_effect_obj =
-                    obj.get("object")
+                    obj.field("object")
                         .and_then(|o| o.as_object())
                         .is_some_and(|o_obj| {
-                            o_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                                && o_obj.get("name").and_then(|n| n.as_str()) == Some("$effect")
+                            o_obj.field("type").and_then(|t| t.as_str()) == Some("Identifier")
+                                && o_obj.field("name").and_then(|n| n.as_str()) == Some("$effect")
                         });
                 if is_tracking && is_effect_obj {
                     return false;
@@ -5649,8 +5653,8 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
             // Walk to the leftmost object
             let mut left = json_value;
             while let Some(left_obj) = left.as_object()
-                && left_obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression")
-                && let Some(object) = left_obj.get("object")
+                && left_obj.field("type").and_then(|t| t.as_str()) == Some("MemberExpression")
+                && let Some(object) = left_obj.field("object")
             {
                 left = object;
             }
@@ -5658,17 +5662,17 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
         }
         "CallExpression" => {
             // A call is pure if callee is pure and all args are pure
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && !is_pure_json(callee, context)
             {
                 return false;
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     let arg_val = if let Some(arg_obj) = arg.as_object()
-                        && arg_obj.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
+                        && arg_obj.field("type").and_then(|t| t.as_str()) == Some("SpreadElement")
                     {
-                        arg_obj.get("argument").unwrap_or(arg)
+                        arg_obj.field("argument").unwrap_or(arg)
                     } else {
                         arg
                     };
@@ -5751,13 +5755,13 @@ fn arg_contains_state_or_raw_state_binding(
     let Some(obj) = json_value.as_object() else {
         return false;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return false;
     };
 
     match expr_type {
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                 return context.state.get_binding(name).is_some_and(|b| {
                     matches!(
                         b.kind,
@@ -5795,13 +5799,13 @@ fn references_any_binding_json(json_value: &serde_json::Value, context: &Compone
     let Some(obj) = json_value.as_object() else {
         return false;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return false;
     };
 
     match expr_type {
         "Identifier" => obj
-            .get("name")
+            .field("name")
             .and_then(|v| v.as_str())
             .is_some_and(|name| context.state.get_binding(name).is_some()),
         // A non-computed member/key names a property, not a reference.
@@ -5816,7 +5820,7 @@ fn references_any_binding_json(json_value: &serde_json::Value, context: &Compone
             {
                 return true;
             }
-            obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
+            obj.field("computed").and_then(|v| v.as_bool()) == Some(true)
                 && obj
                     .get(name_key)
                     .is_some_and(|name| references_any_binding_json(name, context))
@@ -5850,7 +5854,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
     let Some(obj) = json_value.as_object() else {
         return false;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return false;
     };
 
@@ -5859,12 +5863,12 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             // Upstream TaggedTemplateExpression.js: has_call iff the TAG is not
             // pure — unlike CallExpression there is NO dependencies term, so
             // `String.raw`…${state}…`` stays unmemoized.
-            if let Some(tag) = obj.get("tag")
+            if let Some(tag) = obj.field("tag")
                 && !is_pure_json(tag, context)
             {
                 return true;
             }
-            if let Some(quasi) = obj.get("quasi")
+            if let Some(quasi) = obj.field("quasi")
                 && has_call_json(quasi, context)
             {
                 return true;
@@ -5880,7 +5884,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             // A call is reactive if either:
             //   1. The callee references a local binding (not pure), or
             //   2. The containing expression has any reactive dependencies.
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && !is_pure_json(callee, context)
             {
                 return true;
@@ -5896,14 +5900,14 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
                 || references_any_binding_json(json_value, context)
         }
         "MemberExpression" => {
-            if let Some(object) = obj.get("object")
+            if let Some(object) = obj.field("object")
                 && has_call_json(object, context)
             {
                 return true;
             }
             // Computed member (e.g. `arr[index_expr]`) — the computed key may contain calls.
-            if obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
-                && let Some(property) = obj.get("property")
+            if obj.field("computed").and_then(|v| v.as_bool()) == Some(true)
+                && let Some(property) = obj.field("property")
                 && has_call_json(property, context)
             {
                 return true;
@@ -5911,12 +5915,12 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "BinaryExpression" | "LogicalExpression" => {
-            if let Some(left) = obj.get("left")
+            if let Some(left) = obj.field("left")
                 && has_call_json(left, context)
             {
                 return true;
             }
-            if let Some(right) = obj.get("right")
+            if let Some(right) = obj.field("right")
                 && has_call_json(right, context)
             {
                 return true;
@@ -5924,7 +5928,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "UnaryExpression" => {
-            if let Some(argument) = obj.get("argument") {
+            if let Some(argument) = obj.field("argument") {
                 return has_call_json(argument, context);
             }
             false
@@ -5940,7 +5944,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "TemplateLiteral" => {
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     if has_call_json(expr_val, context) {
                         return true;
@@ -5950,7 +5954,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "ArrayExpression" => {
-            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = obj.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if has_call_json(elem, context) {
                         return true;
@@ -5960,23 +5964,23 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "ObjectExpression" => {
-            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = obj.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
                     // A spread member (`...x`) is treated like `...x.values()`:
                     // upstream's SpreadElement visitor marks `has_call = true`.
-                    if prop.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                    if prop.field("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
                         return true;
                     }
                     if let Some(prop_obj) = prop.as_object() {
                         // Check property value for calls
-                        if let Some(value) = prop_obj.get("value")
+                        if let Some(value) = prop_obj.field("value")
                             && has_call_json(value, context)
                         {
                             return true;
                         }
                         // Check computed property key for calls (e.g., [createAttachmentKey()])
-                        if prop_obj.get("computed").and_then(|v| v.as_bool()) == Some(true)
-                            && let Some(key) = prop_obj.get("key")
+                        if prop_obj.field("computed").and_then(|v| v.as_bool()) == Some(true)
+                            && let Some(key) = prop_obj.field("key")
                             && has_call_json(key, context)
                         {
                             return true;
@@ -5989,7 +5993,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
         "SequenceExpression" => {
             // Check all expressions in the sequence for calls
             // e.g., (bar, $effect.tracking()) should return true because of the call
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     if has_call_json(expr_val, context) {
                         return true;
@@ -6001,12 +6005,12 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
         "NewExpression" => {
             // A `new` is not itself a call upstream, but its callee and arguments
             // are still walked, so `new Foo(bar())` does carry `has_call`.
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && has_call_json(callee, context)
             {
                 return true;
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     if has_call_json(arg, context) {
                         return true;
@@ -6016,7 +6020,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             false
         }
         "AssignmentExpression" => {
-            if let Some(right) = obj.get("right") {
+            if let Some(right) = obj.field("right") {
                 return has_call_json(right, context);
             }
             false
@@ -6027,7 +6031,7 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             true
         }
         "ChainExpression" => {
-            if let Some(expression) = obj.get("expression") {
+            if let Some(expression) = obj.field("expression") {
                 return has_call_json(expression, context);
             }
             false
@@ -6042,19 +6046,19 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
     let Some(obj) = json_value.as_object() else {
         return false;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return false;
     };
 
     match expr_type {
         "MemberExpression" => true,
         "CallExpression" | "NewExpression" => {
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && has_member_json(callee)
             {
                 return true;
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     if has_member_json(arg) {
                         return true;
@@ -6064,12 +6068,12 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "BinaryExpression" | "LogicalExpression" => {
-            if let Some(left) = obj.get("left")
+            if let Some(left) = obj.field("left")
                 && has_member_json(left)
             {
                 return true;
             }
-            if let Some(right) = obj.get("right")
+            if let Some(right) = obj.field("right")
                 && has_member_json(right)
             {
                 return true;
@@ -6077,7 +6081,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "UnaryExpression" => {
-            if let Some(argument) = obj.get("argument") {
+            if let Some(argument) = obj.field("argument") {
                 return has_member_json(argument);
             }
             false
@@ -6093,7 +6097,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "TemplateLiteral" => {
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     if has_member_json(expr_val) {
                         return true;
@@ -6103,7 +6107,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "ArrayExpression" => {
-            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = obj.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if has_member_json(elem) {
                         return true;
@@ -6113,9 +6117,9 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "ObjectExpression" => {
-            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = obj.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                    if let Some(value) = prop.as_object().and_then(|p| p.field("value"))
                         && has_member_json(value)
                     {
                         return true;
@@ -6125,7 +6129,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "SequenceExpression" => {
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     if has_member_json(expr_val) {
                         return true;
@@ -6193,19 +6197,19 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
     let Some(obj) = json_value.as_object() else {
         return false;
     };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+    let Some(expr_type) = obj.field("type").and_then(|v| v.as_str()) else {
         return false;
     };
 
     match expr_type {
         "AwaitExpression" => true,
         "CallExpression" | "NewExpression" => {
-            if let Some(callee) = obj.get("callee")
+            if let Some(callee) = obj.field("callee")
                 && has_await_json(callee)
             {
                 return true;
             }
-            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     if has_await_json(arg) {
                         return true;
@@ -6215,18 +6219,18 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "MemberExpression" => {
-            if let Some(object) = obj.get("object") {
+            if let Some(object) = obj.field("object") {
                 return has_await_json(object);
             }
             false
         }
         "BinaryExpression" | "LogicalExpression" => {
-            if let Some(left) = obj.get("left")
+            if let Some(left) = obj.field("left")
                 && has_await_json(left)
             {
                 return true;
             }
-            if let Some(right) = obj.get("right")
+            if let Some(right) = obj.field("right")
                 && has_await_json(right)
             {
                 return true;
@@ -6234,7 +6238,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "UnaryExpression" => {
-            if let Some(argument) = obj.get("argument") {
+            if let Some(argument) = obj.field("argument") {
                 return has_await_json(argument);
             }
             false
@@ -6250,7 +6254,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "TemplateLiteral" => {
-            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(exprs) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
                     if has_await_json(expr_val) {
                         return true;
@@ -6260,7 +6264,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "ArrayExpression" => {
-            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = obj.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if has_await_json(elem) {
                         return true;
@@ -6270,9 +6274,9 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "ObjectExpression" => {
-            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = obj.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                    if let Some(value) = prop.as_object().and_then(|p| p.field("value"))
                         && has_await_json(value)
                     {
                         return true;
@@ -6282,7 +6286,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
             false
         }
         "SequenceExpression" => {
-            if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(expressions) = obj.field("expressions").and_then(|v| v.as_array()) {
                 for expr_val in expressions {
                     if has_await_json(expr_val) {
                         return true;
@@ -6329,9 +6333,9 @@ impl EvalScope for ClientEvalScope<'_, '_> {
     fn evaluate_override(&self, node: &serde_json::Value, _depth: u8) -> Option<Evaluation> {
         if self.converted
             && self.context.state.options.dev
-            && node.get("type").and_then(|ty| ty.as_str()) == Some("BinaryExpression")
+            && node.field("type").and_then(|ty| ty.as_str()) == Some("BinaryExpression")
             && node
-                .get("operator")
+                .field("operator")
                 .and_then(|operator| operator.as_str())
                 .is_some_and(|operator| matches!(operator, "===" | "!==" | "==" | "!="))
         {
@@ -6368,7 +6372,7 @@ impl EvalScope for ClientEvalScope<'_, '_> {
             }
         }
         let reference_binding = node
-            .get("start")
+            .field("start")
             .and_then(|v| v.as_u64())
             .and_then(|start| {
                 self.context

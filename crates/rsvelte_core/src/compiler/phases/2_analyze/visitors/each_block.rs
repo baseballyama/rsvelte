@@ -11,6 +11,7 @@ use super::shared::utils::{
 };
 use super::{EachBlockContext, VisitorContext};
 use crate::ast::template::{EachBlock, TemplateNode};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit an each block.
 ///
@@ -303,10 +304,10 @@ fn walk_pattern_defaults_typed(
 /// in each block destructuring patterns where we need reference counts but must
 /// not affect the component's context requirements.
 fn walk_expression_refs_only(node: &serde_json::Value, context: &mut VisitorContext) {
-    let node_type = node.get("type").and_then(|t| t.as_str());
+    let node_type = node.field("type").and_then(|t| t.as_str());
     match node_type {
         Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
                 // Try to find binding and add a reference
                 if let Some(binding_idx) = context
                     .analysis
@@ -315,9 +316,9 @@ fn walk_expression_refs_only(node: &serde_json::Value, context: &mut VisitorCont
                     .or_else(|| context.analysis.root.find_binding_any_scope(name))
                 {
                     let (start, end) = node
-                        .get("start")
+                        .field("start")
                         .and_then(|s| s.as_u64())
-                        .zip(node.get("end").and_then(|e| e.as_u64()))
+                        .zip(node.field("end").and_then(|e| e.as_u64()))
                         .unwrap_or((0, 0));
                     context.analysis.root.bindings[binding_idx].add_reference(
                         start as u32,
@@ -347,11 +348,11 @@ fn walk_expression_children_refs_only(node: &serde_json::Value, context: &mut Vi
             }
             if let Some(arr) = value.as_array() {
                 for item in arr {
-                    if item.get("type").is_some() {
+                    if item.field("type").is_some() {
                         walk_expression_refs_only(item, context);
                     }
                 }
-            } else if value.get("type").is_some() {
+            } else if value.field("type").is_some() {
                 walk_expression_refs_only(value, context);
             }
         }

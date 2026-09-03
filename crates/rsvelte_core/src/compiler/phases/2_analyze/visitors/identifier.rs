@@ -10,6 +10,7 @@ use super::shared::function::is_rune;
 use super::shared::utils::is_reference_for_identifier_typed;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors, warnings};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit an identifier (typed JsNode path).
 ///
@@ -174,8 +175,8 @@ fn visit_identifier_inner(
         }
         // For value entries, use JSON path
         ancestor
-            .get("label")
-            .and_then(|l| l.get("name"))
+            .field("label")
+            .and_then(|l| l.field("name"))
             .and_then(|n| n.as_str())
             == Some("$")
     });
@@ -468,16 +469,16 @@ fn check_callee_is_state_rune(
     }
 
     // Fall back to value-based access
-    if let Some(callee) = call_entry.get("callee") {
-        let is_direct = callee.get("name").and_then(|n| n.as_str()) == Some("$state");
-        let is_member = callee.get("type").and_then(|t| t.as_str()) == Some("MemberExpression")
+    if let Some(callee) = call_entry.field("callee") {
+        let is_direct = callee.field("name").and_then(|n| n.as_str()) == Some("$state");
+        let is_member = callee.field("type").and_then(|t| t.as_str()) == Some("MemberExpression")
             && callee
-                .get("object")
-                .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+                .field("object")
+                .and_then(|o| o.field("name").and_then(|n| n.as_str()))
                 == Some("$state")
             && callee
-                .get("property")
-                .and_then(|p| p.get("name").and_then(|n| n.as_str()))
+                .field("property")
+                .and_then(|p| p.field("name").and_then(|n| n.as_str()))
                 == Some("raw");
         return is_direct || is_member;
     }
@@ -535,8 +536,8 @@ fn validate_rune_usage(
         } else {
             // Fall back to value-based access for property name
             parent
-                .get("property")
-                .and_then(|p| p.get("name"))
+                .field("property")
+                .and_then(|p| p.field("name"))
                 .and_then(|n| n.as_str())
         };
 

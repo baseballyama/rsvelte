@@ -10,6 +10,7 @@ use serde_json::Value;
 
 use crate::ast::arena::ParseArena;
 use crate::ast::typed_expr::JsNode;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Collect bound identifier names from a destructuring pattern (typed).
 ///
@@ -56,27 +57,27 @@ pub(crate) fn collect_pattern_identifiers(
 /// a `serde_json::Value` (template expressions where no `ParseArena` is
 /// threaded). Enumeration order and duplicate handling match the typed walker.
 pub(crate) fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<String>) {
-    match node.get("type").and_then(|t| t.as_str()) {
+    match node.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
-            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
                 names.push(name.to_string());
             }
         }
         Some("ObjectPattern" | "ObjectExpression") => {
-            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
+            if let Some(props) = node.field("properties").and_then(|p| p.as_array()) {
                 for prop in props {
-                    if prop.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
-                        if let Some(arg) = prop.get("argument") {
+                    if prop.field("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                        if let Some(arg) = prop.field("argument") {
                             collect_pattern_identifiers_json(arg, names);
                         }
-                    } else if let Some(value) = prop.get("value") {
+                    } else if let Some(value) = prop.field("value") {
                         collect_pattern_identifiers_json(value, names);
                     }
                 }
             }
         }
         Some("ArrayPattern" | "ArrayExpression") => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+            if let Some(elements) = node.field("elements").and_then(|e| e.as_array()) {
                 for elem in elements {
                     if !elem.is_null() {
                         collect_pattern_identifiers_json(elem, names);
@@ -85,12 +86,12 @@ pub(crate) fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<Str
             }
         }
         Some("AssignmentPattern") => {
-            if let Some(left) = node.get("left") {
+            if let Some(left) = node.field("left") {
                 collect_pattern_identifiers_json(left, names);
             }
         }
         Some("RestElement" | "SpreadElement") => {
-            if let Some(arg) = node.get("argument") {
+            if let Some(arg) = node.field("argument") {
                 collect_pattern_identifiers_json(arg, names);
             }
         }

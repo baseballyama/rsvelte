@@ -10,6 +10,7 @@ use super::super::super::utils::{check_graph_for_cycles, extract_svelte_ignore_w
 use super::super::super::warnings;
 use super::super::VisitorContext;
 use crate::ast::template::{ConstTag, Fragment, TemplateNode};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Insertion-ordered identifier set: the JS original uses a `Set`, and the order
 /// decides which `{@const}` cycle a diagnostic reports.
@@ -194,18 +195,19 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
             // 2. An AssignmentExpression (what the Rust parser currently produces):
             //    { type: "AssignmentExpression", left, right }
 
-            let decl_type = decl_json.get("type").and_then(|t| t.as_str());
+            let decl_type = decl_json.field("type").and_then(|t| t.as_str());
             let (bindings, deps) = if decl_type == Some("VariableDeclaration") {
                 // VariableDeclaration structure
-                if let Some(declarations) = decl_json.get("declarations").and_then(|d| d.as_array())
+                if let Some(declarations) =
+                    decl_json.field("declarations").and_then(|d| d.as_array())
                     && let Some(declaration) = declarations.first()
                 {
-                    let bindings = if let Some(id) = declaration.get("id") {
+                    let bindings = if let Some(id) = declaration.field("id") {
                         extract_pattern_identifiers(id)
                     } else {
                         Vec::new()
                     };
-                    let deps = if let Some(init) = declaration.get("init") {
+                    let deps = if let Some(init) = declaration.field("init") {
                         extract_expression_identifiers(init)
                     } else {
                         IdentifierSet::default()
@@ -216,12 +218,12 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
                 }
             } else if decl_type == Some("AssignmentExpression") {
                 // AssignmentExpression structure
-                let bindings = if let Some(left) = decl_json.get("left") {
+                let bindings = if let Some(left) = decl_json.field("left") {
                     extract_pattern_identifiers(left)
                 } else {
                     Vec::new()
                 };
-                let deps = if let Some(right) = decl_json.get("right") {
+                let deps = if let Some(right) = decl_json.field("right") {
                     extract_expression_identifiers(right)
                 } else {
                     IdentifierSet::default()
@@ -285,14 +287,14 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
 fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
     let mut names = Vec::new();
 
-    match pattern.get("type").and_then(|t| t.as_str()) {
+    match pattern.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = pattern.field("name").and_then(|n| n.as_str()) {
                 names.push(name.to_string());
             }
         }
         Some("ArrayPattern") => {
-            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+            if let Some(elements) = pattern.field("elements").and_then(|e| e.as_array()) {
                 for element in elements {
                     if !element.is_null() {
                         names.extend(extract_pattern_identifiers(element));
@@ -301,21 +303,21 @@ fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
             }
         }
         Some("ObjectPattern") => {
-            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+            if let Some(properties) = pattern.field("properties").and_then(|p| p.as_array()) {
                 for property in properties {
-                    if let Some(value) = property.get("value") {
+                    if let Some(value) = property.field("value") {
                         names.extend(extract_pattern_identifiers(value));
                     }
                 }
             }
         }
         Some("AssignmentPattern") => {
-            if let Some(left) = pattern.get("left") {
+            if let Some(left) = pattern.field("left") {
                 names.extend(extract_pattern_identifiers(left));
             }
         }
         Some("RestElement") => {
-            if let Some(argument) = pattern.get("argument") {
+            if let Some(argument) = pattern.field("argument") {
                 names.extend(extract_pattern_identifiers(argument));
             }
         }
@@ -337,24 +339,24 @@ fn extract_expression_identifiers(expression: &serde_json::Value) -> IdentifierS
 /// (ArrowFunctionExpression, FunctionExpression, FunctionDeclaration)
 /// because those create new scopes where local declarations shadow outer names.
 fn collect_expression_identifiers(expression: &serde_json::Value, identifiers: &mut IdentifierSet) {
-    if let Some(expr_type) = expression.get("type").and_then(|t| t.as_str()) {
+    if let Some(expr_type) = expression.field("type").and_then(|t| t.as_str()) {
         match expr_type {
             "Identifier" => {
-                if let Some(name) = expression.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = expression.field("name").and_then(|n| n.as_str()) {
                     identifiers.insert(name.to_string());
                 }
             }
             "MemberExpression" => {
                 // Only collect from the object, not the property (unless computed)
-                if let Some(object) = expression.get("object") {
+                if let Some(object) = expression.field("object") {
                     collect_expression_identifiers(object, identifiers);
                 }
                 // If computed, also collect from property
                 if expression
-                    .get("computed")
+                    .field("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false)
-                    && let Some(property) = expression.get("property")
+                    && let Some(property) = expression.field("property")
                 {
                     collect_expression_identifiers(property, identifiers);
                 }
@@ -372,24 +374,24 @@ fn collect_expression_identifiers(expression: &serde_json::Value, identifiers: &
             "Property" => {
                 // For computed keys like `[expr]`, collect from the key expression
                 if expression
-                    .get("computed")
+                    .field("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false)
-                    && let Some(key) = expression.get("key")
+                    && let Some(key) = expression.field("key")
                 {
                     collect_expression_identifiers(key, identifiers);
                 }
                 // Always collect from value
-                if let Some(value) = expression.get("value") {
+                if let Some(value) = expression.field("value") {
                     collect_expression_identifiers(value, identifiers);
                 }
             }
             // Handle AssignmentPattern: collect from both left (pattern) and right (default value)
             "AssignmentPattern" => {
-                if let Some(left) = expression.get("left") {
+                if let Some(left) = expression.field("left") {
                     collect_expression_identifiers(left, identifiers);
                 }
-                if let Some(right) = expression.get("right") {
+                if let Some(right) = expression.field("right") {
                     collect_expression_identifiers(right, identifiers);
                 }
             }

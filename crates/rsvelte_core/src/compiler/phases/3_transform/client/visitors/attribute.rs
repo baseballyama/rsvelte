@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
     build_render_statement_with_memoizer, expression_has_await,
 };
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsArrowBody, JsExpr};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::phases::phase3_transform::utils::locate_in_source;
 #[cfg(test)]
 use crate::compiler::utils::can_delegate_event;
@@ -519,13 +520,13 @@ pub(super) fn expression_has_side_effects(expr: &crate::ast::js::Expression) -> 
 }
 
 fn json_has_side_effects(value: &serde_json::Value) -> bool {
-    if let Some(node_type) = value.get("type").and_then(|t| t.as_str()) {
+    if let Some(node_type) = value.field("type").and_then(|t| t.as_str()) {
         match node_type {
             "CallExpression" | "NewExpression" | "AssignmentExpression" | "UpdateExpression" => {
                 return true;
             }
             "SequenceExpression" => {
-                if let Some(serde_json::Value::Array(exprs)) = value.get("expressions") {
+                if let Some(serde_json::Value::Array(exprs)) = value.field("expressions") {
                     return exprs.iter().any(json_has_side_effects);
                 }
             }

@@ -9,6 +9,7 @@
 //!
 //! Reference: esrap npm package Context API
 
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use oxc_allocator::Allocator;
 use std::collections::HashSet;
 
@@ -144,7 +145,7 @@ impl<'a> Context<'a> {
     pub fn has_css_comment_before(&self, end: u64) -> bool {
         self.css_comments
             .get(self.css_comment_index)
-            .and_then(|comment| comment.get("start"))
+            .and_then(|comment| comment.field("start"))
             .and_then(serde_json::Value::as_u64)
             .is_some_and(|start| start < end)
     }
@@ -156,7 +157,7 @@ impl<'a> Context<'a> {
                 self.write(" ");
             }
             let value = self.css_comments[self.css_comment_index]
-                .get("value")
+                .field("value")
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("")
                 .to_string();
@@ -171,7 +172,7 @@ impl<'a> Context<'a> {
 
     pub fn write_next_css_comment(&mut self) {
         let value = self.css_comments[self.css_comment_index]
-            .get("value")
+            .field("value")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("")
             .to_string();

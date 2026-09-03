@@ -37,6 +37,7 @@ use crate::ast::typed_expr::{
     alloc_deser_children, alloc_deser_node, child_node_from_value,
 };
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::utils::is_escaped;
 use compact_str::CompactString;
 
@@ -2429,13 +2430,13 @@ fn parse_expression_with_typescript<'a>(
 
                 let json_val = expr.as_json();
                 let root_type = json_val
-                    .get("type")
+                    .field("type")
                     .and_then(Value::as_str)
                     .map(str::to_owned);
                 let root_span = json_val
-                    .get("start")
+                    .field("start")
                     .and_then(Value::as_u64)
-                    .zip(json_val.get("end").and_then(Value::as_u64))
+                    .zip(json_val.field("end").and_then(Value::as_u64))
                     .map(|(s, e)| (s as u32, e as u32));
                 let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
                 let mut attacher = CommentAttacher {
@@ -2820,7 +2821,7 @@ fn convert_formal_parameter_with_remap<'a>(
 
     if let Some(obj) = val.as_object_mut() {
         // Fix start position
-        if let Some(start_val) = obj.get("start").and_then(|s| s.as_u64()) {
+        if let Some(start_val) = obj.field("start").and_then(|s| s.as_u64()) {
             // start_val = base_offset - 1 + oxc_start = base_offset + (oxc_start - 1)
             // = base_offset + cleaned_pos
             let cleaned_pos = start_val as usize - base_offset;
@@ -2832,7 +2833,7 @@ fn convert_formal_parameter_with_remap<'a>(
         }
 
         // Fix end position
-        if let Some(end_val) = obj.get("end").and_then(|e| e.as_u64()) {
+        if let Some(end_val) = obj.field("end").and_then(|e| e.as_u64()) {
             let cleaned_pos = end_val as usize - base_offset;
             let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
             obj.set_field(
@@ -2843,11 +2844,11 @@ fn convert_formal_parameter_with_remap<'a>(
 
         // Also fix the "right" field's span if this is an AssignmentPattern
         // (the default value expression span)
-        if obj.get("type").and_then(|t| t.as_str()) == Some("AssignmentPattern")
+        if obj.field("type").and_then(|t| t.as_str()) == Some("AssignmentPattern")
             && let Some(right) = obj.get_mut("right")
             && let Some(right_obj) = right.as_object_mut()
         {
-            if let Some(start_val) = right_obj.get("start").and_then(|s| s.as_u64()) {
+            if let Some(start_val) = right_obj.field("start").and_then(|s| s.as_u64()) {
                 let cleaned_pos = start_val as usize - base_offset;
                 let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
                 right_obj.set_field(
@@ -2855,7 +2856,7 @@ fn convert_formal_parameter_with_remap<'a>(
                     serde_json::Value::Number((original_pos as i64).into()),
                 );
             }
-            if let Some(end_val) = right_obj.get("end").and_then(|e| e.as_u64()) {
+            if let Some(end_val) = right_obj.field("end").and_then(|e| e.as_u64()) {
                 let cleaned_pos = end_val as usize - base_offset;
                 let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
                 right_obj.set_field(
@@ -8888,9 +8889,12 @@ impl CommentAttacher<'_> {
         let Some(obj) = node.as_object() else {
             return;
         };
-        let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
-        let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
-        let node_type = obj.get("type").and_then(|t| t.as_str());
+        let start = obj
+            .field("start")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as u32);
+        let end = obj.field("end").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let node_type = obj.field("type").and_then(|t| t.as_str());
 
         if let Some(start) = start {
             while self
@@ -9051,7 +9055,7 @@ impl CommentAttacher<'_> {
 fn is_estree_node(value: &Value) -> bool {
     value
         .as_object()
-        .and_then(|obj| obj.get("type"))
+        .and_then(|obj| obj.field("type"))
         .is_some_and(|t| t.is_string())
 }
 
@@ -11055,7 +11059,7 @@ fn convert_variable_declarator_for_program(
                     id_obj.set_field("typeAnnotation", ts_value);
                     id_obj.set_field("end", Value::Number((ts_end as i64).into()));
                     if let Some(loc) = create_loc(
-                        id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
+                        id_obj.field("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
                         ts_end,
                         line_offsets,
                     ) {

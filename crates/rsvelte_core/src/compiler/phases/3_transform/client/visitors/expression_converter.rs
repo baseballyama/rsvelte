@@ -17,6 +17,7 @@ use crate::compiler::phases::phase3_transform::client::types::{
 };
 use crate::compiler::phases::phase3_transform::js_ast::ExprId;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use compact_str::CompactString;
 use serde_json::Value;
 use std::fmt::Write as _;
@@ -29,7 +30,7 @@ use std::fmt::Write as _;
 fn json_has_await_expression(value: &Value) -> bool {
     match value {
         Value::Object(obj) => {
-            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let node_type = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
             if node_type == "AwaitExpression" {
                 return true;
             }
@@ -57,17 +58,21 @@ fn json_has_await_expression(value: &Value) -> bool {
 fn json_is_simple_expression(value: &Value) -> bool {
     match value {
         Value::Object(obj) => {
-            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let node_type = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
             match node_type {
                 "Literal" | "Identifier" | "ArrowFunctionExpression" | "FunctionExpression" => true,
                 "ConditionalExpression" => {
-                    obj.get("test").is_some_and(json_is_simple_expression)
-                        && obj.get("consequent").is_some_and(json_is_simple_expression)
-                        && obj.get("alternate").is_some_and(json_is_simple_expression)
+                    obj.field("test").is_some_and(json_is_simple_expression)
+                        && obj
+                            .field("consequent")
+                            .is_some_and(json_is_simple_expression)
+                        && obj
+                            .field("alternate")
+                            .is_some_and(json_is_simple_expression)
                 }
                 "BinaryExpression" | "LogicalExpression" => {
-                    obj.get("left").is_some_and(json_is_simple_expression)
-                        && obj.get("right").is_some_and(json_is_simple_expression)
+                    obj.field("left").is_some_and(json_is_simple_expression)
+                        && obj.field("right").is_some_and(json_is_simple_expression)
                 }
                 _ => false,
             }
@@ -103,11 +108,11 @@ fn build_fallback_expr(
     // Case 2: AwaitExpression with simple argument
     let right_type = right_json
         .as_object()
-        .and_then(|o| o.get("type"))
+        .and_then(|o| o.field("type"))
         .and_then(|t| t.as_str())
         .unwrap_or("");
     if right_type == "AwaitExpression"
-        && let Some(argument) = right_json.as_object().and_then(|o| o.get("argument"))
+        && let Some(argument) = right_json.as_object().and_then(|o| o.field("argument"))
         && json_is_simple_expression(argument)
     {
         let arg_converted = convert_json_value(argument, context);
@@ -1692,7 +1697,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
         Value::Object(obj) => {
             // Get the ESTree node type
             let node_type = obj
-                .get("type")
+                .field("type")
                 .and_then(|t| t.as_str())
                 .unwrap_or("Unknown");
 
@@ -1701,7 +1706,9 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "PrivateIdentifier" => JsExpr::Identifier(
                     format!(
                         "#{}",
-                        obj.get("name").and_then(|name| name.as_str()).unwrap_or("")
+                        obj.field("name")
+                            .and_then(|name| name.as_str())
+                            .unwrap_or("")
                     )
                     .into(),
                 ),
@@ -1734,28 +1741,31 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                     // converted source/options as sub-expressions emitted lazily
                     // by codegen (was: eager generate_expr + Raw stringification).
                     let source_expr = obj
-                        .get("source")
+                        .field("source")
                         .map(|source| convert_json_value(source, context))
                         .unwrap_or(JsExpr::Raw("".into()));
                     let source = context.arena.alloc_expr(source_expr);
-                    let options = obj.get("options").filter(|v| !v.is_null()).map(|options| {
-                        let options_expr = convert_json_value(options, context);
-                        context.arena.alloc_expr(options_expr)
-                    });
+                    let options = obj
+                        .field("options")
+                        .filter(|v| !v.is_null())
+                        .map(|options| {
+                            let options_expr = convert_json_value(options, context);
+                            context.arena.alloc_expr(options_expr)
+                        });
                     JsExpr::ImportExpression { source, options }
                 }
                 "MetaProperty" => {
                     // ESTree MetaProperty: meta.property (e.g., import.meta, new.target)
                     let meta = obj
-                        .get("meta")
+                        .field("meta")
                         .and_then(|m| m.as_object())
-                        .and_then(|m| m.get("name"))
+                        .and_then(|m| m.field("name"))
                         .and_then(|n| n.as_str())
                         .unwrap_or("import");
                     let property = obj
-                        .get("property")
+                        .field("property")
                         .and_then(|p| p.as_object())
-                        .and_then(|p| p.get("name"))
+                        .and_then(|p| p.field("name"))
                         .and_then(|n| n.as_str())
                         .unwrap_or("meta");
                     JsExpr::MetaProperty(meta.into(), property.into())
@@ -1805,7 +1815,7 @@ fn convert_identifier(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let name = obj
-        .get("name")
+        .field("name")
         .and_then(|n| n.as_str())
         .unwrap_or("unknown")
         .to_string();
@@ -1865,14 +1875,14 @@ fn convert_literal(
     obj: &serde_json::Map<String, Value>,
     _context: &mut ComponentContext,
 ) -> JsExpr {
-    let value = obj.get("value");
+    let value = obj.field("value");
 
     match value {
         Some(Value::String(s)) => {
             // esrap writes `node.raw` whenever it is set, so quote style AND
             // escape spelling come from the source; the printer's escape set is
             // not esrap's, and cooking here loses `\t`, `\x41`, …
-            if let Some(Value::String(raw)) = obj.get("raw")
+            if let Some(Value::String(raw)) = obj.field("raw")
                 && !raw.is_empty()
             {
                 return JsExpr::Literal(JsLiteral::RawString {
@@ -1887,14 +1897,14 @@ fn convert_literal(
         Some(Value::Null) | None => JsExpr::Literal(JsLiteral::Null),
         _ => {
             // Check for regex
-            if let Some(regex_obj) = obj.get("regex").and_then(|r| r.as_object()) {
+            if let Some(regex_obj) = obj.field("regex").and_then(|r| r.as_object()) {
                 let pattern = regex_obj
-                    .get("pattern")
+                    .field("pattern")
                     .and_then(|p| p.as_str())
                     .unwrap_or("")
                     .to_string();
                 let flags = regex_obj
-                    .get("flags")
+                    .field("flags")
                     .and_then(|f| f.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -1914,7 +1924,7 @@ fn convert_literal(
 fn convert_json_chain_boundary(value: &Value, context: &mut ComponentContext) -> ExprId {
     let is_chain = value
         .as_object()
-        .and_then(|obj| obj.get("type"))
+        .and_then(|obj| obj.field("type"))
         .and_then(Value::as_str)
         == Some("ChainExpression");
     let mut converted = convert_json_value(value, context);
@@ -1943,20 +1953,20 @@ fn convert_member_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let computed = obj
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
 
     let optional = obj
-        .get("optional")
+        .field("optional")
         .and_then(|o| o.as_bool())
         .unwrap_or(false);
 
     // Handle private state field access: this.#foo -> this.#foo.v (in constructor) or $.get(this.#foo)
     // Reference: MemberExpression.js in official Svelte compiler
-    if let Some(prop_obj) = obj.get("property").and_then(|p| p.as_object())
-        && let Some("PrivateIdentifier") = prop_obj.get("type").and_then(|t| t.as_str())
-        && let Some(prop_name) = prop_obj.get("name").and_then(|n| n.as_str())
+    if let Some(prop_obj) = obj.field("property").and_then(|p| p.as_object())
+        && let Some("PrivateIdentifier") = prop_obj.field("type").and_then(|t| t.as_str())
+        && let Some(prop_name) = prop_obj.field("name").and_then(|n| n.as_str())
     {
         let mut field_name = String::with_capacity(1 + prop_name.len());
         field_name.push('#');
@@ -1971,7 +1981,7 @@ fn convert_member_expression(
         if let Some((field_type, in_constructor)) = field_info {
             // Build the base member expression (this.#foo)
             let object = obj
-                .get("object")
+                .field("object")
                 .map(|o| {
                     let __tmp = convert_json_value(o, context);
                     context.arena.alloc_expr(__tmp)
@@ -2028,13 +2038,13 @@ fn convert_member_expression(
     // 3. Must NOT be computed (i.e., `others.bar`, not `others[bar]`)
     // 4. Must NOT be a direct assignment LHS (e.g., `others.bar = x` stays as-is)
     // 5. Property name must NOT be in the binding's exclude_props list
-    if let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
-        && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
-        && let Some(obj_name) = object_obj.get("name").and_then(|n| n.as_str())
+    if let Some(object_obj) = obj.field("object").and_then(|o| o.as_object())
+        && let Some("Identifier") = object_obj.field("type").and_then(|t| t.as_str())
+        && let Some(obj_name) = object_obj.field("name").and_then(|n| n.as_str())
         && let Some(prop_name) = obj
-            .get("property")
+            .field("property")
             .and_then(|p| p.as_object())
-            .and_then(|p| p.get("name"))
+            .and_then(|p| p.field("name"))
             .and_then(|n| n.as_str())
         && super::shared::utils::rest_prop_member_reads_props(
             context, computed, obj_name, prop_name,
@@ -2052,7 +2062,7 @@ fn convert_member_expression(
     }
 
     let object = {
-        obj.get("object")
+        obj.field("object")
             .map(|o| convert_json_chain_boundary(o, context))
             .unwrap_or_else(|| {
                 context
@@ -2062,7 +2072,7 @@ fn convert_member_expression(
     };
 
     let property = if computed {
-        obj.get("property")
+        obj.field("property")
             .map(|p| {
                 JsMemberProperty::Expression({
                     let __tmp = convert_json_value(p, context);
@@ -2072,15 +2082,15 @@ fn convert_member_expression(
             .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
     } else {
         // Check if property is a PrivateIdentifier
-        if let Some(prop_obj) = obj.get("property").and_then(|p| p.as_object())
-            && let Some("PrivateIdentifier") = prop_obj.get("type").and_then(|t| t.as_str())
-            && let Some(prop_name) = prop_obj.get("name").and_then(|n| n.as_str())
+        if let Some(prop_obj) = obj.field("property").and_then(|p| p.as_object())
+            && let Some("PrivateIdentifier") = prop_obj.field("type").and_then(|t| t.as_str())
+            && let Some(prop_name) = prop_obj.field("name").and_then(|n| n.as_str())
         {
             JsMemberProperty::PrivateIdentifier(prop_name.into())
         } else {
-            obj.get("property")
+            obj.field("property")
                 .and_then(|p| p.as_object())
-                .and_then(|p| p.get("name"))
+                .and_then(|p| p.field("name"))
                 .and_then(|n| n.as_str())
                 .map(|n| JsMemberProperty::Identifier(n.into()))
                 .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
@@ -2114,7 +2124,7 @@ fn convert_call_expression(
     // Reference: CallExpression.js lines 91-115 in the official Svelte compiler
     let empty_args: Vec<Value> = Vec::new();
     let raw_args = obj
-        .get("arguments")
+        .field("arguments")
         .and_then(|a| a.as_array())
         .unwrap_or(&empty_args);
     let console_method = if context.state.options.dev {
@@ -2129,7 +2139,7 @@ fn convert_call_expression(
     };
     if let Some(method) = console_method {
         let callee = obj
-            .get("callee")
+            .field("callee")
             .map(|c| convert_json_chain_boundary(c, context))
             .unwrap_or_else(|| {
                 context
@@ -2137,7 +2147,7 @@ fn convert_call_expression(
                     .alloc_expr(JsExpr::Identifier("unknown".into()))
             });
         let args: Vec<JsExpr> = obj
-            .get("arguments")
+            .field("arguments")
             .and_then(|a| a.as_array())
             .map(|args| {
                 args.iter()
@@ -2149,7 +2159,7 @@ fn convert_call_expression(
     }
 
     let callee = obj
-        .get("callee")
+        .field("callee")
         .map(|c| convert_json_chain_boundary(c, context))
         .unwrap_or_else(|| {
             context
@@ -2158,7 +2168,7 @@ fn convert_call_expression(
         });
 
     let arguments = obj
-        .get("arguments")
+        .field("arguments")
         .and_then(|a| a.as_array())
         .map(|args| {
             args.iter()
@@ -2168,7 +2178,7 @@ fn convert_call_expression(
         .unwrap_or_default();
 
     let optional = obj
-        .get("optional")
+        .field("optional")
         .and_then(|o| o.as_bool())
         .unwrap_or(false);
 
@@ -2182,19 +2192,21 @@ fn convert_call_expression(
 /// Extract console method name from a CallExpression JSON node.
 /// Returns Some("log") for `console.log(...)`, etc.
 fn get_console_method_name(obj: &serde_json::Map<String, Value>) -> Option<String> {
-    let callee = obj.get("callee")?.as_object()?;
-    if callee.get("type")?.as_str()? != "MemberExpression" {
+    let callee = obj.field("callee")?.as_object()?;
+    if callee.field("type")?.as_str()? != "MemberExpression" {
         return None;
     }
-    let object = callee.get("object")?.as_object()?;
-    if object.get("type")?.as_str()? != "Identifier" || object.get("name")?.as_str()? != "console" {
+    let object = callee.field("object")?.as_object()?;
+    if object.field("type")?.as_str()? != "Identifier"
+        || object.field("name")?.as_str()? != "console"
+    {
         return None;
     }
-    let property = callee.get("property")?.as_object()?;
-    if property.get("type")?.as_str()? != "Identifier" {
+    let property = callee.field("property")?.as_object()?;
+    if property.field("type")?.as_str()? != "Identifier" {
         return None;
     }
-    Some(property.get("name")?.as_str()?.to_string())
+    Some(property.field("name")?.as_str()?.to_string())
 }
 
 /// The console method a typed callee names, when upstream's dev branch applies:
@@ -2281,33 +2293,33 @@ fn get_rune_from_call(
     obj: &serde_json::Map<String, Value>,
     context: &ComponentContext,
 ) -> Option<String> {
-    let callee = obj.get("callee")?;
+    let callee = obj.field("callee")?;
     let callee_obj = callee.as_object()?;
-    let callee_type = callee_obj.get("type")?.as_str()?;
+    let callee_type = callee_obj.field("type")?.as_str()?;
 
     let rune_name = match callee_type {
         "Identifier" => {
             // Simple rune like $state, $derived, $effect, $inspect
-            callee_obj.get("name")?.as_str()?.to_string()
+            callee_obj.field("name")?.as_str()?.to_string()
         }
         "MemberExpression" => {
             // Could be either:
             // 1. Rune with method like $state.raw(), $derived.by()
             // 2. Rune call chain like $inspect().with()
 
-            let object = callee_obj.get("object")?.as_object()?;
-            let property = callee_obj.get("property")?.as_object()?;
-            let property_name = property.get("name")?.as_str()?;
-            let object_type = object.get("type")?.as_str()?;
+            let object = callee_obj.field("object")?.as_object()?;
+            let property = callee_obj.field("property")?.as_object()?;
+            let property_name = property.field("name")?.as_str()?;
+            let object_type = object.field("type")?.as_str()?;
 
             if object_type == "CallExpression" {
                 // This might be $inspect().with() pattern
                 // The object is a CallExpression, so check if it's a rune call
-                let inner_callee = object.get("callee")?.as_object()?;
-                let inner_callee_type = inner_callee.get("type")?.as_str()?;
+                let inner_callee = object.field("callee")?.as_object()?;
+                let inner_callee_type = inner_callee.field("type")?.as_str()?;
 
                 if inner_callee_type == "Identifier" {
-                    let inner_name = inner_callee.get("name")?.as_str()?;
+                    let inner_name = inner_callee.field("name")?.as_str()?;
                     // Produce "$inspect().with" style keypath
                     let keypath = format!("{}().{}", inner_name, property_name);
                     if RUNES.contains(&keypath.as_str()) {
@@ -2321,7 +2333,7 @@ fn get_rune_from_call(
                 return None;
             } else if object_type == "Identifier" {
                 // Standard rune with method like $state.raw
-                let object_name = object.get("name")?.as_str()?;
+                let object_name = object.field("name")?.as_str()?;
                 format!("{}.{}", object_name, property_name)
             } else {
                 return None;
@@ -2362,7 +2374,7 @@ fn should_proxy_json(value: &Value) -> bool {
         None => return false,
     };
 
-    let node_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let node_type = match obj.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return true, // Unknown type, assume proxy needed
     };
@@ -2379,7 +2391,7 @@ fn should_proxy_json(value: &Value) -> bool {
         // Identifiers might need proxy (could reference objects/arrays),
         // EXCEPT for `undefined` which is a primitive
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                 // undefined doesn't need proxy, everything else does
                 name != "undefined"
             } else {
@@ -2399,7 +2411,7 @@ fn should_proxy_json(value: &Value) -> bool {
 fn is_state_rune_call(value: &Value, context: &ComponentContext) -> bool {
     value
         .as_object()
-        .filter(|obj| obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression"))
+        .filter(|obj| obj.field("type").and_then(|t| t.as_str()) == Some("CallExpression"))
         .and_then(|obj| get_rune_from_call(obj, context))
         .is_some_and(|rune| is_named_declarator_rune(&rune))
 }
@@ -2475,7 +2487,7 @@ fn transform_rune_call(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let arguments = obj
-        .get("arguments")
+        .field("arguments")
         .and_then(|a| a.as_array())
         .cloned()
         .unwrap_or_default();
@@ -2808,12 +2820,12 @@ fn transform_rune_call(
             } else {
                 // $inspect().with - need to get args from the inner $inspect() call
                 // and the callback from the outer .with() call
-                let callee = obj.get("callee").and_then(|c| c.as_object());
+                let callee = obj.field("callee").and_then(|c| c.as_object());
                 if let Some(callee_obj) = callee {
-                    let inner_call = callee_obj.get("object").and_then(|o| o.as_object());
+                    let inner_call = callee_obj.field("object").and_then(|o| o.as_object());
                     if let Some(inner) = inner_call {
                         let inner_args = inner
-                            .get("arguments")
+                            .field("arguments")
                             .and_then(|a| a.as_array())
                             .map(|arr| {
                                 arr.iter()
@@ -2887,7 +2899,7 @@ fn transform_rune_call(
         _ => {
             // Unknown rune - pass through as regular call
             let callee = obj
-                .get("callee")
+                .field("callee")
                 .map(|c| {
                     let __tmp = convert_json_value(c, context);
                     context.arena.alloc_expr(__tmp)
@@ -2917,7 +2929,10 @@ fn convert_binary_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("+");
+    let operator_str = obj
+        .field("operator")
+        .and_then(|o| o.as_str())
+        .unwrap_or("+");
 
     // In dev mode, transform equality operators:
     // === / !== -> $.strict_equals()
@@ -2930,12 +2945,12 @@ fn convert_binary_expression(
             || operator_str == "!=")
     {
         let left = obj
-            .get("left")
+            .field("left")
             .map(|l| convert_json_value(l, context))
             .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
         let right = obj
-            .get("right")
+            .field("right")
             .map(|r| convert_json_value(r, context))
             .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
@@ -2987,7 +3002,7 @@ fn convert_binary_expression(
     };
 
     let left = obj
-        .get("left")
+        .field("left")
         .map(|l| {
             let __tmp = convert_json_value(l, context);
             context.arena.alloc_expr(__tmp)
@@ -2995,7 +3010,7 @@ fn convert_binary_expression(
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let right = obj
-        .get("right")
+        .field("right")
         .map(|r| {
             let __tmp = convert_json_value(r, context);
             context.arena.alloc_expr(__tmp)
@@ -3014,7 +3029,10 @@ fn convert_unary_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("!");
+    let operator_str = obj
+        .field("operator")
+        .and_then(|o| o.as_str())
+        .unwrap_or("!");
 
     let operator = match operator_str {
         "-" => JsUnaryOp::Minus,
@@ -3028,14 +3046,17 @@ fn convert_unary_expression(
     };
 
     let argument = obj
-        .get("argument")
+        .field("argument")
         .map(|a| {
             let __tmp = convert_json_value(a, context);
             context.arena.alloc_expr(__tmp)
         })
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
-    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+    let prefix = obj
+        .field("prefix")
+        .and_then(|p| p.as_bool())
+        .unwrap_or(true);
 
     JsExpr::Unary(JsUnaryExpression {
         operator,
@@ -3049,7 +3070,10 @@ fn convert_logical_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("&&");
+    let operator_str = obj
+        .field("operator")
+        .and_then(|o| o.as_str())
+        .unwrap_or("&&");
 
     let operator = match operator_str {
         "&&" => JsLogicalOp::And,
@@ -3059,7 +3083,7 @@ fn convert_logical_expression(
     };
 
     let left = obj
-        .get("left")
+        .field("left")
         .map(|l| {
             let __tmp = convert_json_value(l, context);
             context.arena.alloc_expr(__tmp)
@@ -3067,7 +3091,7 @@ fn convert_logical_expression(
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let right = obj
-        .get("right")
+        .field("right")
         .map(|r| {
             let __tmp = convert_json_value(r, context);
             context.arena.alloc_expr(__tmp)
@@ -3087,7 +3111,7 @@ fn convert_conditional_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let test = obj
-        .get("test")
+        .field("test")
         .map(|t| {
             let __tmp = convert_json_value(t, context);
             context.arena.alloc_expr(__tmp)
@@ -3095,7 +3119,7 @@ fn convert_conditional_expression(
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let consequent = obj
-        .get("consequent")
+        .field("consequent")
         .map(|c| {
             let __tmp = convert_json_value(c, context);
             context.arena.alloc_expr(__tmp)
@@ -3103,7 +3127,7 @@ fn convert_conditional_expression(
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     let alternate = obj
-        .get("alternate")
+        .field("alternate")
         .map(|a| {
             let __tmp = convert_json_value(a, context);
             context.arena.alloc_expr(__tmp)
@@ -3123,7 +3147,7 @@ fn convert_array_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let elements = obj
-        .get("elements")
+        .field("elements")
         .and_then(|e| e.as_array())
         .map(|elems| {
             elems
@@ -3148,20 +3172,20 @@ fn convert_object_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let properties = obj
-        .get("properties")
+        .field("properties")
         .and_then(|p| p.as_array())
         .map(|props| {
             props
                 .iter()
                 .filter_map(|prop| {
                     let prop_obj = prop.as_object()?;
-                    let prop_type = prop_obj.get("type")?.as_str()?;
+                    let prop_type = prop_obj.field("type")?.as_str()?;
 
                     match prop_type {
                         "Property" => {
                             let key = convert_property_key(prop_obj, context);
                             let value = prop_obj
-                                .get("value")
+                                .field("value")
                                 .map(|v| {
                                     let __tmp = convert_json_value(v, context);
                                     context.arena.alloc_expr(__tmp)
@@ -3171,16 +3195,16 @@ fn convert_object_expression(
                                 });
 
                             let computed = prop_obj
-                                .get("computed")
+                                .field("computed")
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false);
 
                             let shorthand = prop_obj
-                                .get("shorthand")
+                                .field("shorthand")
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
 
-                            let kind = match prop_obj.get("kind")?.as_str()? {
+                            let kind = match prop_obj.field("kind")?.as_str()? {
                                 "init" => JsPropertyKind::Init,
                                 "get" => JsPropertyKind::Get,
                                 "set" => JsPropertyKind::Set,
@@ -3188,7 +3212,7 @@ fn convert_object_expression(
                             };
 
                             let method = prop_obj
-                                .get("method")
+                                .field("method")
                                 .and_then(|v| v.as_bool())
                                 .unwrap_or(false);
 
@@ -3203,7 +3227,7 @@ fn convert_object_expression(
                         }
                         "SpreadElement" => {
                             let argument = prop_obj
-                                .get("argument")
+                                .field("argument")
                                 .map(|a| {
                                     let __tmp = convert_json_value(a, context);
                                     context.arena.alloc_expr(__tmp)
@@ -3229,9 +3253,9 @@ fn convert_property_key(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsPropertyKey {
-    let key = obj.get("key");
+    let key = obj.field("key");
     let computed = obj
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
 
@@ -3243,12 +3267,12 @@ fn convert_property_key(
     }
 
     if let Some(key_obj) = key.and_then(|k| k.as_object()) {
-        if let Some("Identifier") = key_obj.get("type").and_then(|t| t.as_str())
-            && let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
+        if let Some("Identifier") = key_obj.field("type").and_then(|t| t.as_str())
+            && let Some(name) = key_obj.field("name").and_then(|n| n.as_str())
         {
             return JsPropertyKey::Identifier(name.into());
         }
-        if let Some("Literal") = key_obj.get("type").and_then(|t| t.as_str()) {
+        if let Some("Literal") = key_obj.field("type").and_then(|t| t.as_str()) {
             return JsPropertyKey::Literal(convert_literal(key_obj, context).into());
         }
     }
@@ -3261,7 +3285,7 @@ fn convert_property_key(
 /// when entering arrow/function expression bodies.
 fn extract_param_names_from_json(obj: &serde_json::Map<String, Value>) -> Vec<String> {
     let mut names = Vec::new();
-    if let Some(params) = obj.get("params").and_then(|p| p.as_array()) {
+    if let Some(params) = obj.field("params").and_then(|p| p.as_array()) {
         for param in params {
             collect_param_names(param, &mut names);
         }
@@ -3272,29 +3296,33 @@ fn extract_param_names_from_json(obj: &serde_json::Map<String, Value>) -> Vec<St
 /// Recursively collect identifier names from a parameter pattern.
 fn collect_param_names(value: &Value, names: &mut Vec<String>) {
     if let Some(obj) = value.as_object() {
-        match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+        match obj.field("type").and_then(|t| t.as_str()).unwrap_or("") {
             "Identifier" => {
-                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                     names.push(name.to_string());
                 }
             }
             "AssignmentPattern" => {
-                if let Some(left) = obj.get("left") {
+                if let Some(left) = obj.field("left") {
                     collect_param_names(left, names);
                 }
             }
             "ObjectPattern" => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                     for prop in props {
                         if let Some(prop_obj) = prop.as_object() {
-                            match prop_obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+                            match prop_obj
+                                .field("type")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("")
+                            {
                                 "Property" => {
-                                    if let Some(val) = prop_obj.get("value") {
+                                    if let Some(val) = prop_obj.field("value") {
                                         collect_param_names(val, names);
                                     }
                                 }
                                 "RestElement" => {
-                                    if let Some(arg) = prop_obj.get("argument") {
+                                    if let Some(arg) = prop_obj.field("argument") {
                                         collect_param_names(arg, names);
                                     }
                                 }
@@ -3305,7 +3333,7 @@ fn collect_param_names(value: &Value, names: &mut Vec<String>) {
                 }
             }
             "ArrayPattern" => {
-                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                if let Some(elements) = obj.field("elements").and_then(|e| e.as_array()) {
                     for el in elements {
                         if !el.is_null() {
                             collect_param_names(el, names);
@@ -3314,7 +3342,7 @@ fn collect_param_names(value: &Value, names: &mut Vec<String>) {
                 }
             }
             "RestElement" => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     collect_param_names(arg, names);
                 }
             }
@@ -3330,7 +3358,10 @@ fn convert_arrow_function(
 ) -> JsExpr {
     let params = convert_params(obj, context);
 
-    let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let is_async = obj
+        .field("async")
+        .and_then(|a| a.as_bool())
+        .unwrap_or(false);
 
     // Save transforms and remove any for parameter names that shadow outer variables.
     // For example, in `createRawSnippet((count) => { ... })`, the `count` parameter
@@ -3350,24 +3381,24 @@ fn convert_arrow_function(
     // when processing assignments inside the arrow body.
     context.state.push_local_scope();
 
-    let body = if let Some(body_obj) = obj.get("body").and_then(|b| b.as_object()) {
-        if body_obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
+    let body = if let Some(body_obj) = obj.field("body").and_then(|b| b.as_object()) {
+        if body_obj.field("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
             JsArrowBody::Block(convert_block_statement(body_obj, context))
         } else {
             let body_is_assignment = matches!(
-                body_obj.get("type").and_then(|t| t.as_str()),
+                body_obj.field("type").and_then(|t| t.as_str()),
                 Some("AssignmentExpression")
             );
-            let is_exempt_arrow = obj
-                .get("start")
-                .and_then(|v| v.as_u64())
-                .is_some_and(|start| {
-                    context
-                        .state
-                        .analysis
-                        .assign_exempt_arrow_starts
-                        .contains(&(start as u32))
-                });
+            let is_exempt_arrow =
+                obj.field("start")
+                    .and_then(|v| v.as_u64())
+                    .is_some_and(|start| {
+                        context
+                            .state
+                            .analysis
+                            .assign_exempt_arrow_starts
+                            .contains(&(start as u32))
+                    });
             let saved_level = context.state.event_handler_arrow_body_level;
             context.state.event_handler_arrow_body_level =
                 u32::from(is_exempt_arrow && body_is_assignment);
@@ -3401,9 +3432,9 @@ fn convert_function_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let id: Option<CompactString> = obj
-        .get("id")
+        .field("id")
         .and_then(|i| i.as_object())
-        .and_then(|i| i.get("name"))
+        .and_then(|i| i.field("name"))
         .and_then(|n| n.as_str())
         .map(|n| n.into());
 
@@ -3424,7 +3455,7 @@ fn convert_function_expression(
     context.state.push_local_scope();
 
     let body = obj
-        .get("body")
+        .field("body")
         .and_then(|b| b.as_object())
         .map(|b| convert_block_statement(b, context))
         .unwrap_or_default();
@@ -3437,10 +3468,13 @@ fn convert_function_expression(
     context.state.transform_deep_read = saved_transform_deep_read;
     context.state.shadowed_prop_names = saved_shadowed;
 
-    let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let is_async = obj
+        .field("async")
+        .and_then(|a| a.as_bool())
+        .unwrap_or(false);
 
     let is_generator = obj
-        .get("generator")
+        .field("generator")
         .and_then(|g| g.as_bool())
         .unwrap_or(false);
 
@@ -3461,22 +3495,22 @@ fn convert_class_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let id: Option<CompactString> = obj
-        .get("id")
+        .field("id")
         .and_then(|i| i.as_object())
-        .and_then(|i| i.get("name"))
+        .and_then(|i| i.field("name"))
         .and_then(|n| n.as_str())
         .map(|n| n.into());
 
-    let super_class = obj.get("superClass").filter(|v| !v.is_null()).map(|sc| {
+    let super_class = obj.field("superClass").filter(|v| !v.is_null()).map(|sc| {
         let expr = convert_json_value(sc, context);
         context.arena.alloc_expr(expr)
     });
 
     let mut members = Vec::new();
     if let Some(body_arr) = obj
-        .get("body")
+        .field("body")
         .and_then(|b| b.as_object())
-        .and_then(|b| b.get("body"))
+        .and_then(|b| b.field("body"))
         .and_then(|b| b.as_array())
     {
         for m in body_arr {
@@ -3508,7 +3542,7 @@ fn class_declaration_nodes_are_supported(value: &Value) -> bool {
     match value {
         Value::Array(values) => values.iter().all(class_declaration_nodes_are_supported),
         Value::Object(obj) => {
-            if let Some(node_type) = obj.get("type").and_then(|node_type| node_type.as_str())
+            if let Some(node_type) = obj.field("type").and_then(|node_type| node_type.as_str())
                 && !matches!(
                     node_type,
                     "Identifier"
@@ -3586,23 +3620,30 @@ fn class_declaration_nodes_are_supported(value: &Value) -> bool {
 /// / `StaticBlock`) into a `JsClassMember`.
 fn convert_class_member(member: &Value, context: &mut ComponentContext) -> Option<JsClassMember> {
     let obj = member.as_object()?;
-    let member_type = obj.get("type").and_then(|t| t.as_str())?;
+    let member_type = obj.field("type").and_then(|t| t.as_str())?;
     let computed = obj
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
-    let is_static = obj.get("static").and_then(|s| s.as_bool()).unwrap_or(false);
+    let is_static = obj
+        .field("static")
+        .and_then(|s| s.as_bool())
+        .unwrap_or(false);
 
     match member_type {
         "MethodDefinition" => {
-            let key = convert_class_member_key(obj.get("key")?, computed, context);
-            let kind = match obj.get("kind").and_then(|k| k.as_str()).unwrap_or("method") {
+            let key = convert_class_member_key(obj.field("key")?, computed, context);
+            let kind = match obj
+                .field("kind")
+                .and_then(|k| k.as_str())
+                .unwrap_or("method")
+            {
                 "constructor" => JsMethodKind::Constructor,
                 "get" => JsMethodKind::Get,
                 "set" => JsMethodKind::Set,
                 _ => JsMethodKind::Method,
             };
-            let value_obj = obj.get("value").and_then(|v| v.as_object())?;
+            let value_obj = obj.field("value").and_then(|v| v.as_object())?;
             let func = match convert_function_expression(value_obj, context) {
                 JsExpr::Function(f) => f,
                 _ => return None,
@@ -3616,8 +3657,8 @@ fn convert_class_member(member: &Value, context: &mut ComponentContext) -> Optio
             }))
         }
         "PropertyDefinition" => {
-            let key = convert_class_member_key(obj.get("key")?, computed, context);
-            let value = obj.get("value").filter(|v| !v.is_null()).map(|v| {
+            let key = convert_class_member_key(obj.field("key")?, computed, context);
+            let value = obj.field("value").filter(|v| !v.is_null()).map(|v| {
                 let expr = convert_json_value(v, context);
                 context.arena.alloc_expr(expr)
             });
@@ -3642,13 +3683,13 @@ fn convert_class_member_key(
     context: &mut ComponentContext,
 ) -> JsPropertyKey {
     if !computed && let Some(obj) = key_val.as_object() {
-        match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+        match obj.field("type").and_then(|t| t.as_str()).unwrap_or("") {
             "Identifier" => {
-                let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                let name = obj.field("name").and_then(|n| n.as_str()).unwrap_or("");
                 return JsPropertyKey::Identifier(name.into());
             }
             "PrivateIdentifier" => {
-                let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                let name = obj.field("name").and_then(|n| n.as_str()).unwrap_or("");
                 return JsPropertyKey::Identifier(format!("#{name}").into());
             }
             "Literal" => {
@@ -3668,7 +3709,7 @@ fn convert_params(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> Vec<JsPattern> {
-    obj.get("params")
+    obj.field("params")
         .and_then(|p| p.as_array())
         .map(|params| {
             params
@@ -3682,18 +3723,18 @@ fn convert_params(
 /// Convert a JSON parameter value to a JsPattern, handling all ESTree pattern types.
 pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> Option<JsPattern> {
     let obj = value.as_object()?;
-    let param_type = obj.get("type").and_then(|t| t.as_str())?;
+    let param_type = obj.field("type").and_then(|t| t.as_str())?;
     match param_type {
         "Identifier" => {
-            let name = obj.get("name").and_then(|n| n.as_str())?;
+            let name = obj.field("name").and_then(|n| n.as_str())?;
             Some(JsPattern::Identifier(name.into()))
         }
         "AssignmentPattern" => {
             let left = obj
-                .get("left")
+                .field("left")
                 .and_then(|l| convert_param_pattern(l, context))?;
             let right = obj
-                .get("right")
+                .field("right")
                 .map(|r| {
                     let expr = convert_json_value(r, context);
                     // Apply transforms so reactive identifiers in default values get their getter calls
@@ -3707,7 +3748,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
         }
         "RestElement" => {
             let argument = obj
-                .get("argument")
+                .field("argument")
                 .and_then(|a| convert_param_pattern(a, context))?;
             Some(JsPattern::Rest(Box::new(argument)))
         }
@@ -3715,29 +3756,29 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
         // for destructuring in @const tags)
         "ObjectPattern" | "ObjectExpression" => {
             let properties = obj
-                .get("properties")
+                .field("properties")
                 .and_then(|p| p.as_array())
                 .map(|props| {
                     props
                         .iter()
                         .filter_map(|prop| {
                             let prop_obj = prop.as_object()?;
-                            let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
+                            let prop_type = prop_obj.field("type").and_then(|t| t.as_str())?;
                             if prop_type == "RestElement" || prop_type == "SpreadElement" {
                                 let arg = prop_obj
-                                    .get("argument")
+                                    .field("argument")
                                     .and_then(|a| convert_param_pattern(a, context))?;
                                 Some(JsObjectPatternProperty::Rest(Box::new(arg)))
                             } else {
-                                let key_val = prop_obj.get("key").and_then(|k| k.as_object())?;
+                                let key_val = prop_obj.field("key").and_then(|k| k.as_object())?;
                                 let key_type =
-                                    key_val.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                    key_val.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
                                 // Handle Identifier keys, Literal keys, and computed keys
                                 let (key, fallback_name) = if key_type == "Literal" {
                                     // Literal key: { 'the-area': area } or { 2: sum }
                                     {
-                                        let val = key_val.get("value")?;
+                                        let val = key_val.field("value")?;
                                         if let Some(s) = val.as_str() {
                                             (
                                                 JsPropertyKey::Literal(JsLiteral::String(
@@ -3757,7 +3798,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                     }
                                 } else if key_type == "Identifier" {
                                     // Identifier key: { x } or { x: y }
-                                    let name = key_val.get("name").and_then(|n| n.as_str())?;
+                                    let name = key_val.field("name").and_then(|n| n.as_str())?;
                                     (
                                         JsPropertyKey::Identifier(name.into()),
                                         Some(name.to_string()),
@@ -3775,7 +3816,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                 };
 
                                 let value_pat = prop_obj
-                                    .get("value")
+                                    .field("value")
                                     .and_then(|v| convert_param_pattern(v, context))
                                     .or_else(|| {
                                         fallback_name
@@ -3783,11 +3824,11 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                             .map(|n| JsPattern::Identifier(n.clone().into()))
                                     })?;
                                 let shorthand = prop_obj
-                                    .get("shorthand")
+                                    .field("shorthand")
                                     .and_then(|s| s.as_bool())
                                     .unwrap_or(false);
                                 let computed = prop_obj
-                                    .get("computed")
+                                    .field("computed")
                                     .and_then(|c| c.as_bool())
                                     .unwrap_or(false);
                                 Some(JsObjectPatternProperty::Property {
@@ -3806,7 +3847,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
         // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
         "ArrayPattern" | "ArrayExpression" => {
             let elements = obj
-                .get("elements")
+                .field("elements")
                 .and_then(|e| e.as_array())
                 .map(|elems| {
                     elems
@@ -3824,7 +3865,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
             Some(JsPattern::Array(JsArrayPattern { elements }))
         }
         _ => obj
-            .get("name")
+            .field("name")
             .and_then(|n| n.as_str())
             .map(|n| JsPattern::Identifier(n.into())),
     }
@@ -3936,7 +3977,7 @@ fn convert_block_statement(
     let saved_shadowed = context.state.shadowed_prop_names.clone();
 
     let body = obj
-        .get("body")
+        .field("body")
         .and_then(|b| b.as_array())
         .map(|stmts| {
             let mut body: Vec<JsStatement> = Vec::with_capacity(stmts.len());
@@ -3944,12 +3985,12 @@ fn convert_block_statement(
             for stmt in stmts {
                 let stmt_start = stmt
                     .as_object()
-                    .and_then(|o| o.get("start"))
+                    .and_then(|o| o.field("start"))
                     .and_then(|s| s.as_u64())
                     .map(|s| s as usize);
                 let stmt_end = stmt
                     .as_object()
-                    .and_then(|o| o.get("end"))
+                    .and_then(|o| o.field("end"))
                     .and_then(|e| e.as_u64())
                     .map(|e| e as usize);
                 if let Some(start) = stmt_start {
@@ -3982,19 +4023,19 @@ fn convert_block_statement(
 /// rewrite those names as `$$props.name`.
 fn register_block_decl_names_json(stmt: &Value, context: &mut ComponentContext) {
     let Some(obj) = stmt.as_object() else { return };
-    if obj.get("type").and_then(|t| t.as_str()) != Some("VariableDeclaration") {
+    if obj.field("type").and_then(|t| t.as_str()) != Some("VariableDeclaration") {
         return;
     }
-    let Some(decls) = obj.get("declarations").and_then(|d| d.as_array()) else {
+    let Some(decls) = obj.field("declarations").and_then(|d| d.as_array()) else {
         return;
     };
     for decl in decls {
         if let Some(name) = decl
             .as_object()
-            .and_then(|d| d.get("id"))
+            .and_then(|d| d.field("id"))
             .and_then(|id| id.as_object())
-            .filter(|o| o.get("type").and_then(|t| t.as_str()) == Some("Identifier"))
-            .and_then(|o| o.get("name").and_then(|n| n.as_str()))
+            .filter(|o| o.field("type").and_then(|t| t.as_str()) == Some("Identifier"))
+            .and_then(|o| o.field("name").and_then(|n| n.as_str()))
         {
             context.state.shadowed_prop_names.insert(name.to_string());
         }
@@ -4124,22 +4165,23 @@ fn push_own_line_comment_raws(
 /// non-destructuring outer assignment's right-hand side).
 fn convert_expression_statement_child(expr_json: &Value, context: &mut ComponentContext) -> JsExpr {
     if let Some(obj) = expr_json.as_object()
-        && obj.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
-        && let Some(left_val) = obj.get("left")
+        && obj.field("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
+        && let Some(left_val) = obj.field("left")
         && matches!(
             left_val
                 .as_object()
-                .and_then(|o| o.get("type"))
+                .and_then(|o| o.field("type"))
                 .and_then(|t| t.as_str()),
             Some("ArrayPattern" | "ObjectPattern" | "RestElement")
         )
-        && let Some(result) = try_destructure_assignment(left_val, obj.get("right"), context, true)
+        && let Some(result) =
+            try_destructure_assignment(left_val, obj.field("right"), context, true)
     {
         return result;
     }
     if expr_json
         .as_object()
-        .and_then(|obj| obj.get("type"))
+        .and_then(|obj| obj.field("type"))
         .and_then(|t| t.as_str())
         == Some("AssignmentExpression")
     {
@@ -4153,38 +4195,38 @@ fn convert_expression_statement_child(expr_json: &Value, context: &mut Component
 /// Convert a statement node to JsStatement.
 fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsStatement> {
     let obj = stmt.as_object()?;
-    let stmt_type = obj.get("type").and_then(|t| t.as_str())?;
+    let stmt_type = obj.field("type").and_then(|t| t.as_str())?;
 
     match stmt_type {
         "ExpressionStatement" => {
             let expr = obj
-                .get("expression")
+                .field("expression")
                 .map(|e| convert_expression_statement_child(e, context))?;
             Some(JsStatement::Expression(JsExpressionStatement {
                 expression: context.arena.alloc_expr(expr),
                 comment_anchor: obj
-                    .get("start")
+                    .field("start")
                     .and_then(|start| start.as_u64())
                     .map(|start| start as u32),
             }))
         }
         "VariableDeclaration" => {
-            let kind = obj.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+            let kind = obj.field("kind").and_then(|k| k.as_str()).unwrap_or("let");
             let declarations = obj
-                .get("declarations")
+                .field("declarations")
                 .and_then(|d| d.as_array())
                 .map(|decls| {
                     decls
                         .iter()
                         .filter_map(|decl| {
                             let decl_obj = decl.as_object()?;
-                            let id_val = decl_obj.get("id")?;
+                            let id_val = decl_obj.field("id")?;
                             let pattern = convert_param_pattern(id_val, context)?;
 
                             // Register the init expression's node type for should_proxy() lookups.
                             // This enables scope-aware identifier tracing for local variables.
                             if !context.state.local_var_init_types.is_empty()
-                                && let Some(init_json) = decl_obj.get("init")
+                                && let Some(init_json) = decl_obj.field("init")
                                 && let Some(t) = unwrap_ts_expression_type(init_json)
                                 && let JsPattern::Identifier(ref name) = pattern
                             {
@@ -4195,7 +4237,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
                             // In ESTree, `init: null` means no initializer (e.g., `let x;`).
                             // We must filter out JSON null so we don't generate `let x = null;`.
-                            let init = decl_obj.get("init").filter(|i| !i.is_null()).map(|i| {
+                            let init = decl_obj.field("init").filter(|i| !i.is_null()).map(|i| {
                                 let saved_state_declarator_name =
                                     context.state.state_declarator_name.take();
                                 if let JsPattern::Identifier(ref name) = pattern
@@ -4230,7 +4272,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             // Filter out JSON null: `{ "argument": null }` means `return;` (no value),
             // not `return null;`. Without this filter, convert_json_value(Null) produces
             // a null literal, turning bare `return;` into `return null;`.
-            let argument = obj.get("argument").filter(|a| !a.is_null()).map(|a| {
+            let argument = obj.field("argument").filter(|a| !a.is_null()).map(|a| {
                 let __tmp = convert_json_value(a, context);
                 context.arena.alloc_expr(__tmp)
             });
@@ -4242,7 +4284,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         }
         "IfStatement" => {
             let test = obj
-                .get("test")
+                .field("test")
                 .map(|t| {
                     let __tmp = convert_json_value(t, context);
                     context.arena.alloc_expr(__tmp)
@@ -4253,12 +4295,12 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                         .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(false)))
                 });
             let consequent = obj
-                .get("consequent")
+                .field("consequent")
                 .and_then(|c| convert_statement(c, context))
                 .map(|s| context.arena.alloc_stmt(s))
                 .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
             let alternate = obj
-                .get("alternate")
+                .field("alternate")
                 .and_then(|a| convert_statement(a, context))
                 .map(|s| context.arena.alloc_stmt(s));
             Some(JsStatement::If(JsIfStatement {
@@ -4270,35 +4312,35 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         "EmptyStatement" => Some(JsStatement::Empty),
         "ThrowStatement" => {
             let argument = obj
-                .get("argument")
+                .field("argument")
                 .map(|a| convert_json_value(a, context))
                 .unwrap_or(JsExpr::Literal(JsLiteral::Null));
             Some(JsStatement::Throw(context.arena.alloc_expr(argument)))
         }
         "TryStatement" => {
             let block = obj
-                .get("block")
+                .field("block")
                 .and_then(|b| b.as_object())
                 .map(|b| convert_block_statement(b, context))
                 .unwrap_or_else(JsBlockStatement::new);
-            let handler = obj.get("handler").and_then(|h| {
+            let handler = obj.field("handler").and_then(|h| {
                 let h_obj = h.as_object()?;
                 // Route the catch parameter through the full pattern converter so
                 // destructuring catch params (`catch ({ message }) {}`) are
                 // preserved, not just bare identifiers (H-112).
                 let param = h_obj
-                    .get("param")
+                    .field("param")
                     .filter(|p| !p.is_null())
                     .and_then(|p| convert_param_pattern(p, context));
                 // A catch parameter binds like a function parameter, so it shadows
                 // the same transforms one does — for the body only.
                 let mut names: Vec<String> = Vec::new();
-                if let Some(param_val) = h_obj.get("param").filter(|p| !p.is_null()) {
+                if let Some(param_val) = h_obj.field("param").filter(|p| !p.is_null()) {
                     collect_param_names(param_val, &mut names);
                 }
                 let restore = enter_shadowed_names(&names, context);
                 let body = h_obj
-                    .get("body")
+                    .field("body")
                     .and_then(|b| b.as_object())
                     .map(|b| convert_block_statement(b, context))
                     .unwrap_or_else(JsBlockStatement::new);
@@ -4306,7 +4348,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 Some(JsCatchClause { param, body })
             });
             let finalizer = obj
-                .get("finalizer")
+                .field("finalizer")
                 .and_then(|f| f.as_object())
                 .map(|f| convert_block_statement(f, context));
             Some(JsStatement::Try(JsTryStatement {
@@ -4321,24 +4363,24 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             // This prevents `x++` in `for (let x = 0; x < 10; x++)` from being
             // transformed to `$.update(x)` when `x` shadows an outer state variable.
             let mut init_var_names: Vec<String> = Vec::new();
-            if let Some(init_val) = obj.get("init")
+            if let Some(init_val) = obj.field("init")
                 && let Some(init_obj) = init_val.as_object()
-                && init_obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                && init_obj.field("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
             {
                 let kind = init_obj
-                    .get("kind")
+                    .field("kind")
                     .and_then(|k| k.as_str())
                     .unwrap_or("var");
                 // Only let/const create block scope; var is hoisted
                 if (kind == "let" || kind == "const")
-                    && let Some(decls) = init_obj.get("declarations").and_then(|d| d.as_array())
+                    && let Some(decls) = init_obj.field("declarations").and_then(|d| d.as_array())
                 {
                     for decl in decls {
                         if let Some(id) = decl
                             .as_object()
-                            .and_then(|d| d.get("id"))
+                            .and_then(|d| d.field("id"))
                             .and_then(|id| id.as_object())
-                            && let Some(name) = id.get("name").and_then(|n| n.as_str())
+                            && let Some(name) = id.field("name").and_then(|n| n.as_str())
                         {
                             init_var_names.push(name.to_string());
                         }
@@ -4346,22 +4388,25 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 }
             }
 
-            let init = obj.get("init").and_then(|i| {
+            let init = obj.field("init").and_then(|i| {
                 let i_obj = i.as_object()?;
-                let i_type = i_obj.get("type").and_then(|t| t.as_str())?;
+                let i_type = i_obj.field("type").and_then(|t| t.as_str())?;
                 if i_type == "VariableDeclaration" {
-                    let kind = i_obj.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+                    let kind = i_obj
+                        .field("kind")
+                        .and_then(|k| k.as_str())
+                        .unwrap_or("let");
                     let declarations = i_obj
-                        .get("declarations")
+                        .field("declarations")
                         .and_then(|d| d.as_array())
                         .map(|decls| {
                             decls
                                 .iter()
                                 .filter_map(|decl| {
                                     let decl_obj = decl.as_object()?;
-                                    let id_val = decl_obj.get("id")?;
+                                    let id_val = decl_obj.field("id")?;
                                     let pattern = convert_param_pattern(id_val, context)?;
-                                    let init_val = decl_obj.get("init").map(|iv| {
+                                    let init_val = decl_obj.field("init").map(|iv| {
                                         let __tmp = convert_json_value(iv, context);
                                         context.arena.alloc_expr(__tmp)
                                     });
@@ -4401,16 +4446,16 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 None
             };
 
-            let test = obj.get("test").filter(|t| !t.is_null()).map(|t| {
+            let test = obj.field("test").filter(|t| !t.is_null()).map(|t| {
                 let __tmp = convert_json_value(t, context);
                 context.arena.alloc_expr(__tmp)
             });
-            let update = obj.get("update").filter(|u| !u.is_null()).map(|u| {
+            let update = obj.field("update").filter(|u| !u.is_null()).map(|u| {
                 let __tmp = convert_json_value(u, context);
                 context.arena.alloc_expr(__tmp)
             });
             let body = obj
-                .get("body")
+                .field("body")
                 .and_then(|b| convert_statement(b, context))
                 .map(|s| context.arena.alloc_stmt(s))
                 .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
@@ -4432,33 +4477,36 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 
             // Collect variable names declared in `left` to avoid transforming them
             let mut left_var_names: Vec<String> = Vec::new();
-            if let Some(left_obj) = obj.get("left").and_then(|l| l.as_object())
-                && left_obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                && let Some(decls) = left_obj.get("declarations").and_then(|d| d.as_array())
+            if let Some(left_obj) = obj.field("left").and_then(|l| l.as_object())
+                && left_obj.field("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                && let Some(decls) = left_obj.field("declarations").and_then(|d| d.as_array())
             {
                 for decl in decls {
-                    if let Some(id_val) = decl.as_object().and_then(|d| d.get("id")) {
+                    if let Some(id_val) = decl.as_object().and_then(|d| d.field("id")) {
                         collect_param_names(id_val, &mut left_var_names);
                     }
                 }
             }
 
-            let left = obj.get("left").and_then(|l| {
+            let left = obj.field("left").and_then(|l| {
                 let l_obj = l.as_object()?;
-                let l_type = l_obj.get("type").and_then(|t| t.as_str())?;
+                let l_type = l_obj.field("type").and_then(|t| t.as_str())?;
                 if l_type == "VariableDeclaration" {
-                    let kind = l_obj.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+                    let kind = l_obj
+                        .field("kind")
+                        .and_then(|k| k.as_str())
+                        .unwrap_or("let");
                     let declarations = l_obj
-                        .get("declarations")
+                        .field("declarations")
                         .and_then(|d| d.as_array())
                         .map(|decls| {
                             decls
                                 .iter()
                                 .filter_map(|decl| {
                                     let decl_obj = decl.as_object()?;
-                                    let id_val = decl_obj.get("id")?;
+                                    let id_val = decl_obj.field("id")?;
                                     let pattern = convert_param_pattern(id_val, context)?;
-                                    let init_val = decl_obj.get("init").map(|iv| {
+                                    let init_val = decl_obj.field("init").map(|iv| {
                                         let __tmp = convert_json_value(iv, context);
                                         context.arena.alloc_expr(__tmp)
                                     });
@@ -4485,7 +4533,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             })?;
 
             let right = obj
-                .get("right")
+                .field("right")
                 .map(|r| {
                     let __tmp = convert_json_value(r, context);
                     context.arena.alloc_expr(__tmp)
@@ -4499,14 +4547,17 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             let restore = enter_shadowed_names(&left_var_names, context);
 
             let body = obj
-                .get("body")
+                .field("body")
                 .and_then(|b| convert_statement(b, context))
                 .map(|s| context.arena.alloc_stmt(s))
                 .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
 
             leave_shadowed_names(restore, context);
 
-            let is_await = obj.get("await").and_then(|a| a.as_bool()).unwrap_or(false);
+            let is_await = obj
+                .field("await")
+                .and_then(|a| a.as_bool())
+                .unwrap_or(false);
             // `for...in` and `for...of` share `JsForOfStatement`; the `is_for_in`
             // flag drives codegen to emit ` in ` vs ` of ` (H-110). `for await`
             // only applies to `for...of`.
@@ -4520,7 +4571,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         }
         "WhileStatement" => {
             let test = obj
-                .get("test")
+                .field("test")
                 .map(|t| {
                     let __tmp = convert_json_value(t, context);
                     context.arena.alloc_expr(__tmp)
@@ -4531,7 +4582,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                         .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(true)))
                 });
             let body = obj
-                .get("body")
+                .field("body")
                 .and_then(|b| convert_statement(b, context))
                 .map(|s| context.arena.alloc_stmt(s))
                 .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
@@ -4539,7 +4590,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         }
         "DoWhileStatement" => {
             let test = obj
-                .get("test")
+                .field("test")
                 .map(|t| {
                     let __tmp = convert_json_value(t, context);
                     context.arena.alloc_expr(__tmp)
@@ -4550,7 +4601,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                         .alloc_expr(JsExpr::Literal(JsLiteral::Boolean(true)))
                 });
             let body = obj
-                .get("body")
+                .field("body")
                 .and_then(|b| convert_statement(b, context))
                 .map(|s| context.arena.alloc_stmt(s))
                 .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
@@ -4561,11 +4612,11 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             // `break label;` / `continue label;` references a label that no
             // longer exists (ReferenceError at runtime). H-111.
             let label = obj
-                .get("label")
-                .and_then(|l| l.get("name"))
+                .field("label")
+                .and_then(|l| l.field("name"))
                 .and_then(|n| n.as_str())?;
             let body = obj
-                .get("body")
+                .field("body")
                 .and_then(|b| convert_statement(b, context))?;
             let body_id = context.arena.alloc_stmt(body);
             Some(JsStatement::Labeled(JsLabeledStatement {
@@ -4575,18 +4626,18 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         }
         "BreakStatement" => {
             let label = obj
-                .get("label")
+                .field("label")
                 .and_then(|l| l.as_object())
-                .and_then(|l| l.get("name"))
+                .and_then(|l| l.field("name"))
                 .and_then(|n| n.as_str())
                 .map(CompactString::from);
             Some(JsStatement::Break(label))
         }
         "ContinueStatement" => {
             let label = obj
-                .get("label")
+                .field("label")
                 .and_then(|l| l.as_object())
-                .and_then(|l| l.get("name"))
+                .and_then(|l| l.field("name"))
                 .and_then(|n| n.as_str())
                 .map(CompactString::from);
             Some(JsStatement::Continue(label))
@@ -4596,23 +4647,23 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             // flattening dropped the discriminant and merged every case body,
             // destroying the `case` matching. H-109.
             let discriminant = {
-                let d = obj.get("discriminant")?;
+                let d = obj.field("discriminant")?;
                 let expr = convert_json_value(d, context);
                 context.arena.alloc_expr(expr)
             };
             let mut cases = Vec::new();
-            if let Some(cs) = obj.get("cases").and_then(|c| c.as_array()) {
+            if let Some(cs) = obj.field("cases").and_then(|c| c.as_array()) {
                 for case in cs {
                     let Some(case_obj) = case.as_object() else {
                         continue;
                     };
                     // `test` is `null` for the `default:` clause.
-                    let test = case_obj.get("test").filter(|t| !t.is_null()).map(|t| {
+                    let test = case_obj.field("test").filter(|t| !t.is_null()).map(|t| {
                         let expr = convert_json_value(t, context);
                         context.arena.alloc_expr(expr)
                     });
                     let mut consequent = Vec::new();
-                    if let Some(stmts) = case_obj.get("consequent").and_then(|c| c.as_array()) {
+                    if let Some(stmts) = case_obj.field("consequent").and_then(|c| c.as_array()) {
                         for s in stmts {
                             if let Some(converted) = convert_statement(s, context) {
                                 consequent.push(converted);
@@ -4629,9 +4680,9 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         }
         "FunctionDeclaration" => {
             let id: Option<CompactString> = obj
-                .get("id")
+                .field("id")
                 .and_then(|i| i.as_object())
-                .and_then(|i| i.get("name"))
+                .and_then(|i| i.field("name"))
                 .and_then(|n| n.as_str())
                 .map(|n| n.into());
 
@@ -4652,7 +4703,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             context.state.push_local_scope();
 
             let body = obj
-                .get("body")
+                .field("body")
                 .and_then(|b| b.as_object())
                 .map(|b| convert_block_statement(b, context))
                 .unwrap_or_default();
@@ -4665,9 +4716,12 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             context.state.transform_deep_read = saved_transform_deep_read;
             context.state.shadowed_prop_names = saved_shadowed;
 
-            let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+            let is_async = obj
+                .field("async")
+                .and_then(|a| a.as_bool())
+                .unwrap_or(false);
             let is_generator = obj
-                .get("generator")
+                .field("generator")
                 .and_then(|g| g.as_bool())
                 .unwrap_or(false);
 
@@ -4680,8 +4734,8 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ClassDeclaration" => {
-            let start = obj.get("start")?.as_u64()? as usize;
-            let end = obj.get("end")?.as_u64()? as usize;
+            let start = obj.field("start")?.as_u64()? as usize;
+            let end = obj.field("end")?.as_u64()? as usize;
             let source: CompactString = context.state.analysis.source.get(start..end)?.into();
             if !class_declaration_has_structured_fallback(stmt, &source) {
                 return Some(JsStatement::Raw(source));
@@ -4714,16 +4768,19 @@ fn convert_assignment_expression(
     // Taken here so a nested assignment converted while this one is in flight
     // does not inherit it.
     let is_statement = std::mem::take(&mut context.state.assignment_is_statement);
-    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("=");
+    let operator_str = obj
+        .field("operator")
+        .and_then(|o| o.as_str())
+        .unwrap_or("=");
 
     // Check if the LHS is a destructuring pattern (ArrayPattern or ObjectPattern).
     // If so, we need to decompose it into individual assignments and potentially
     // wrap in an IIFE with $.to_array() calls.
     // This corresponds to visit_assignment_expression in shared/assignments.js.
-    if let Some(left_val) = obj.get("left") {
+    if let Some(left_val) = obj.field("left") {
         let left_type = left_val
             .as_object()
-            .and_then(|o| o.get("type"))
+            .and_then(|o| o.field("type"))
             .and_then(|t| t.as_str())
             .unwrap_or("");
 
@@ -4735,7 +4792,7 @@ fn convert_assignment_expression(
         // state.
         if matches!(left_type, "ArrayPattern" | "ObjectPattern" | "RestElement")
             && let Some(result) =
-                try_destructure_assignment(left_val, obj.get("right"), context, false)
+                try_destructure_assignment(left_val, obj.field("right"), context, false)
         {
             return result;
         }
@@ -4764,18 +4821,18 @@ fn convert_assignment_expression(
     // Check if the LHS is a MemberExpression with a direct Identifier object (e.g., props.a)
     // If so, we set the flag to prevent rest_prop → $$props transformation
     let is_direct_member_assignment = if let Some(left_obj) =
-        obj.get("left").and_then(|l| l.as_object())
-        && let Some("MemberExpression") = left_obj.get("type").and_then(|t| t.as_str())
+        obj.field("left").and_then(|l| l.as_object())
+        && let Some("MemberExpression") = left_obj.field("type").and_then(|t| t.as_str())
     {
         // Check if the computed flag is false (non-computed property access)
         let computed = left_obj
-            .get("computed")
+            .field("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
         if !computed {
             // Check if the object is directly an Identifier (not a nested MemberExpression)
-            if let Some(object_obj) = left_obj.get("object").and_then(|o| o.as_object())
-                && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
+            if let Some(object_obj) = left_obj.field("object").and_then(|o| o.as_object())
+                && let Some("Identifier") = object_obj.field("type").and_then(|t| t.as_str())
             {
                 true
             } else {
@@ -4795,7 +4852,7 @@ fn convert_assignment_expression(
     }
 
     let left = obj
-        .get("left")
+        .field("left")
         .map(|l| {
             let __tmp = convert_json_value(l, context);
             context.arena.alloc_expr(__tmp)
@@ -4806,7 +4863,7 @@ fn convert_assignment_expression(
     context.state.in_direct_assignment_lhs = saved_flag;
 
     let right = obj
-        .get("right")
+        .field("right")
         .map(|r| {
             let __tmp = convert_json_value(r, context);
             context.arena.alloc_expr(__tmp)
@@ -4814,14 +4871,16 @@ fn convert_assignment_expression(
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
     // Pre-compute the proxy decision for the RHS
-    let should_proxy_rhs = Some(should_proxy_value(obj.get("right"), context));
+    let should_proxy_rhs = Some(should_proxy_value(obj.field("right"), context));
 
     // Extract the root identifier from the ORIGINAL JSON (before conversion/transforms)
     // This is necessary because convert_json_value applies read transforms that turn
     // `rows` into `rows()`, making it impossible to identify the root identifier later.
-    let original_root_name = obj.get("left").and_then(extract_root_identifier_from_json);
+    let original_root_name = obj
+        .field("left")
+        .and_then(extract_root_identifier_from_json);
     let original_root_start = obj
-        .get("left")
+        .field("left")
         .and_then(extract_root_identifier_start_from_json);
 
     // Mirror the official EachBlock `assign`/`mutate` transforms (EachBlock.js
@@ -4855,7 +4914,7 @@ fn convert_assignment_expression(
             "ownership_invalid_mutation",
             &context.state.analysis.source,
         ) {
-        check_ownership_validation(obj.get("left"), context)
+        check_ownership_validation(obj.field("left"), context)
     } else {
         None
     };
@@ -4894,8 +4953,8 @@ fn convert_assignment_expression(
     let result = preserve_each_mutation_sequence(
         result,
         original_root_name.as_deref(),
-        obj.get("left")
-            .and_then(|left| left.get("type"))
+        obj.field("left")
+            .and_then(|left| left.field("type"))
             .and_then(|node_type| node_type.as_str())
             == Some("MemberExpression"),
         context,
@@ -4922,11 +4981,11 @@ fn convert_assignment_expression(
 /// Check if a JSON AST node has a `svelte-ignore` leading comment with the given code.
 /// This checks the `leadingComments` array for comments containing `svelte-ignore <code>`.
 pub(crate) fn is_svelte_ignored(obj: &serde_json::Map<String, Value>, code: &str) -> bool {
-    if let Some(Value::Array(comments)) = obj.get("leadingComments") {
+    if let Some(Value::Array(comments)) = obj.field("leadingComments") {
         for comment in comments {
             if let Some(value) = comment
                 .as_object()
-                .and_then(|c| c.get("value"))
+                .and_then(|c| c.field("value"))
                 .and_then(|v| v.as_str())
                 && comment_has_svelte_ignore(value, code)
             {
@@ -4952,7 +5011,7 @@ pub(crate) fn is_svelte_ignored_with_source(
     // Also check the source code directly before the node's start position
     // This handles comments inside template expressions (arrow bodies) that
     // aren't attached as leadingComments by our parser
-    if let Some(start) = obj.get("start").and_then(|s| s.as_u64()) {
+    if let Some(start) = obj.field("start").and_then(|s| s.as_u64()) {
         return is_svelte_ignored_before_offset(start as usize, code, source);
     }
     false
@@ -5037,7 +5096,7 @@ pub(crate) fn check_ownership_validation(
     let left_obj = left_val.as_object()?;
 
     // Only validate member expressions
-    if left_obj.get("type")?.as_str()? != "MemberExpression" {
+    if left_obj.field("type")?.as_str()? != "MemberExpression" {
         return None;
     }
 
@@ -5148,9 +5207,9 @@ pub(crate) fn ownership_alias_literal(prop_alias: Option<String>) -> JsExpr {
 /// Get the start position of the root identifier in a member expression chain.
 fn get_root_start_position(val: &Value) -> Option<u32> {
     let obj = val.as_object()?;
-    match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("start")?.as_u64().map(|n| n as u32),
-        "MemberExpression" => get_root_start_position(obj.get("object")?),
+    match obj.field("type")?.as_str()? {
+        "Identifier" => obj.field("start")?.as_u64().map(|n| n as u32),
+        "MemberExpression" => get_root_start_position(obj.field("object")?),
         _ => None,
     }
 }
@@ -5158,9 +5217,9 @@ fn get_root_start_position(val: &Value) -> Option<u32> {
 /// Get the root identifier name from a JSON member expression chain.
 fn get_root_identifier_from_member_json(val: &Value) -> Option<String> {
     let obj = val.as_object()?;
-    match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
-        "MemberExpression" => get_root_identifier_from_member_json(obj.get("object")?),
+    match obj.field("type")?.as_str()? {
+        "Identifier" => obj.field("name")?.as_str().map(|s| s.to_string()),
+        "MemberExpression" => get_root_identifier_from_member_json(obj.field("object")?),
         _ => None,
     }
 }
@@ -5176,18 +5235,21 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Optio
     let mut current = val;
 
     while let Some(obj) = current.as_object() {
-        match obj.get("type").and_then(|t| t.as_str()) {
+        match obj.field("type").and_then(|t| t.as_str()) {
             Some("MemberExpression") => {
-                let property = obj.get("property");
+                let property = obj.field("property");
                 let computed = obj
-                    .get("computed")
+                    .field("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false);
 
                 if let Some(prop_obj) = property.and_then(|p| p.as_object()) {
-                    let prop_type = prop_obj.get("type").and_then(|t| t.as_str());
+                    let prop_type = prop_obj.field("type").and_then(|t| t.as_str());
                     if prop_type == Some("Identifier") {
-                        let name = prop_obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let name = prop_obj
+                            .field("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("");
                         if computed {
                             // Check if there's a transform for this identifier
                             if let Some(transform) = context.state.transform.get(name) {
@@ -5207,7 +5269,7 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Optio
                         }
                     } else if prop_type == Some("Literal") {
                         // Literal property (e.g., obj[0])
-                        if let Some(val) = prop_obj.get("value") {
+                        if let Some(val) = prop_obj.field("value") {
                             if let Some(n) = val.as_f64() {
                                 path.push(b::literal_number(n));
                             } else if let Some(s) = val.as_str() {
@@ -5219,13 +5281,13 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Optio
                     }
                 }
 
-                current = match obj.get("object") {
+                current = match obj.field("object") {
                     Some(o) => o,
                     None => break,
                 };
             }
             Some("Identifier") => {
-                let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                let name = obj.field("name").and_then(|n| n.as_str()).unwrap_or("");
                 path.push(b::string(name));
                 break;
             }
@@ -5626,14 +5688,14 @@ fn is_known_primitive_json(value: Option<&Value>) -> bool {
         // and a function value is not UNKNOWN either.
         "CallExpression" => {
             let no_spread = value
-                .get("arguments")
+                .field("arguments")
                 .and_then(|a| a.as_array())
                 .is_some_and(|args| {
                     args.iter()
-                        .all(|a| a.get("type").and_then(|t| t.as_str()) != Some("SpreadElement"))
+                        .all(|a| a.field("type").and_then(|t| t.as_str()) != Some("SpreadElement"))
                 });
             value
-                .get("callee")
+                .field("callee")
                 .and_then(super::shared::utils::json_keypath)
                 .as_deref()
                 .is_some_and(|keypath| {
@@ -5872,7 +5934,7 @@ fn try_coercive_assignment_transform(
     }
 
     // Right side must not be a known primitive
-    if is_known_primitive_json(obj.get("right")) {
+    if is_known_primitive_json(obj.field("right")) {
         return None;
     }
 
@@ -5880,7 +5942,7 @@ fn try_coercive_assignment_transform(
     // `bind:` directive visits (upstream's `path.at(-1)` arm).
     // Reference: AssignmentExpression.js lines 204-215
     if obj
-        .get("start")
+        .field("start")
         .and_then(|v| v.as_u64())
         .is_some_and(|start| {
             context
@@ -5900,13 +5962,13 @@ fn try_coercive_assignment_transform(
     }
 
     // Left side must be a MemberExpression
-    let left_json = obj.get("left")?.as_object()?;
-    let left_type = left_json.get("type")?.as_str()?;
+    let left_json = obj.field("left")?.as_object()?;
+    let left_type = left_json.field("type")?.as_str()?;
     if left_type != "MemberExpression" {
         return None;
     }
 
-    if let Some(left_value) = obj.get("left")
+    if let Some(left_value) = obj.field("left")
         && extract_root_identifier_from_json(left_value)
             .is_some_and(|root| is_each_item_mutation_root(&root, context))
     {
@@ -5928,7 +5990,7 @@ fn try_coercive_assignment_transform(
 
     // Get the property expression
     let computed = left_json
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
 
@@ -5946,16 +6008,19 @@ fn try_coercive_assignment_transform(
     } else {
         // Non-computed: property name as string literal
         let prop_name = left_json
-            .get("property")
+            .field("property")
             .and_then(|p| p.as_object())
-            .and_then(|p| p.get("name"))
+            .and_then(|p| p.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or("");
         b::string(prop_name)
     };
 
     // Compute the location string: "filename:line:column"
-    let start = left_json.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let start = left_json
+        .field("start")
+        .and_then(|s| s.as_u64())
+        .unwrap_or(0) as usize;
     let source = &context.state.analysis.source;
     let filename = &context.state.analysis.filename;
     let (line, col) =
@@ -6175,7 +6240,7 @@ fn extract_destructure_paths(
         Some(o) => o,
         None => return,
     };
-    let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let node_type = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
     match node_type {
         "Identifier" | "MemberExpression" => {
@@ -6186,13 +6251,16 @@ fn extract_destructure_paths(
         }
 
         "ObjectPattern" => {
-            if let Some(properties) = obj.get("properties").and_then(|p| p.as_array()) {
+            if let Some(properties) = obj.field("properties").and_then(|p| p.as_array()) {
                 for prop in properties {
                     let prop_obj = match prop.as_object() {
                         Some(o) => o,
                         None => continue,
                     };
-                    let prop_type = prop_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    let prop_type = prop_obj
+                        .field("type")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("");
 
                     if prop_type == "RestElement" {
                         // Rest element: { ...rest } = obj
@@ -6201,24 +6269,26 @@ fn extract_destructure_paths(
                         for p in properties {
                             if let Some(p_obj) = p.as_object() {
                                 let p_type =
-                                    p_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                    p_obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
                                 if p_type == "Property"
-                                    && let Some(key) = p_obj.get("key").and_then(|k| k.as_object())
+                                    && let Some(key) =
+                                        p_obj.field("key").and_then(|k| k.as_object())
                                 {
                                     let key_type =
-                                        key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                        key.field("type").and_then(|t| t.as_str()).unwrap_or("");
                                     let computed = p_obj
-                                        .get("computed")
+                                        .field("computed")
                                         .and_then(|c| c.as_bool())
                                         .unwrap_or(false);
 
                                     if key_type == "Identifier" && !computed {
-                                        if let Some(name) = key.get("name").and_then(|n| n.as_str())
+                                        if let Some(name) =
+                                            key.field("name").and_then(|n| n.as_str())
                                         {
                                             key_literals.push(b::string(name));
                                         }
                                     } else if key_type == "Literal" {
-                                        if let Some(val) = key.get("value") {
+                                        if let Some(val) = key.field("value") {
                                             if let Some(s) = val.as_str() {
                                                 key_literals.push(b::string(s));
                                             } else if let Some(n) = val.as_f64() {
@@ -6247,30 +6317,30 @@ fn extract_destructure_paths(
                             vec![expression.clone(), b::array(key_literals)],
                         );
 
-                        if let Some(argument) = prop_obj.get("argument") {
+                        if let Some(argument) = prop_obj.field("argument") {
                             extract_destructure_paths(
                                 paths, inserts, argument, &rest_expr, context,
                             );
                         }
                     } else {
                         // Regular property: { key: value } = obj
-                        let key = prop_obj.get("key");
+                        let key = prop_obj.field("key");
                         let computed = prop_obj
-                            .get("computed")
+                            .field("computed")
                             .and_then(|c| c.as_bool())
                             .unwrap_or(false);
 
                         let member_expr = if let Some(key_val) = key {
                             let key_obj = key_val.as_object();
                             let key_type = key_obj
-                                .and_then(|k| k.get("type"))
+                                .and_then(|k| k.field("type"))
                                 .and_then(|t| t.as_str())
                                 .unwrap_or("");
 
                             if key_type == "Identifier" && !computed {
                                 // obj.key
                                 let name = key_obj
-                                    .and_then(|k| k.get("name"))
+                                    .and_then(|k| k.field("name"))
                                     .and_then(|n| n.as_str())
                                     .unwrap_or("unknown");
                                 b::member(&context.arena, expression.clone(), name)
@@ -6283,7 +6353,7 @@ fn extract_destructure_paths(
                             expression.clone()
                         };
 
-                        let value = prop_obj.get("value").unwrap_or(param);
+                        let value = prop_obj.field("value").unwrap_or(param);
                         extract_destructure_paths(paths, inserts, value, &member_expr, context);
                     }
                 }
@@ -6292,7 +6362,7 @@ fn extract_destructure_paths(
 
         "ArrayPattern" => {
             let elements = obj
-                .get("elements")
+                .field("elements")
                 .and_then(|e| e.as_array())
                 .cloned()
                 .unwrap_or_default();
@@ -6301,7 +6371,7 @@ fn extract_destructure_paths(
             let has_rest = elements
                 .last()
                 .and_then(|e| if e.is_null() { None } else { e.as_object() })
-                .and_then(|o| o.get("type"))
+                .and_then(|o| o.field("type"))
                 .and_then(|t| t.as_str())
                 == Some("RestElement");
 
@@ -6333,7 +6403,10 @@ fn extract_destructure_paths(
                     Some(o) => o,
                     None => continue,
                 };
-                let elem_type = elem_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                let elem_type = elem_obj
+                    .field("type")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("");
 
                 if elem_type == "RestElement" {
                     // ...rest = array.slice(i)
@@ -6343,7 +6416,7 @@ fn extract_destructure_paths(
                         vec![b::number(i as f64)],
                     );
 
-                    if let Some(argument) = elem_obj.get("argument") {
+                    if let Some(argument) = elem_obj.field("argument") {
                         extract_destructure_paths(paths, inserts, argument, &rest_expr, context);
                     }
                 } else {
@@ -6360,8 +6433,8 @@ fn extract_destructure_paths(
             // Generate: $.fallback(expression, defaultValue) or async thunk variant
             // This matches the official compiler's `build_fallback()` which handles
             // simple values, await expressions, and thunk wrapping.
-            let left = obj.get("left");
-            let right = obj.get("right");
+            let left = obj.field("left");
+            let right = obj.field("right");
 
             if let (Some(left_val), Some(right_val)) = (left, right) {
                 let default_val = convert_json_value(right_val, context);
@@ -6388,7 +6461,7 @@ fn try_build_single_assignment(
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     let node_obj = path.node.as_object()?;
-    let node_type = node_obj.get("type").and_then(|t| t.as_str())?;
+    let node_type = node_obj.field("type").and_then(|t| t.as_str())?;
 
     // Extract the root identifier name from the target
     let root_name = extract_root_identifier_from_json(&path.node)?;
@@ -6401,7 +6474,11 @@ fn try_build_single_assignment(
     let replacement_id = transform.replacement_id.clone();
 
     if node_type == "Identifier"
-        && root_name == node_obj.get("name").and_then(|n| n.as_str()).unwrap_or("")
+        && root_name
+            == node_obj
+                .field("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
     {
         // Direct identifier assignment: x = value -> $.set(x, value)
         if let Some(assign_fn) = assign_fn {
@@ -6462,22 +6539,22 @@ fn extract_root_identifier_from_expr(
 /// This is used to extract the root BEFORE conversion applies read transforms.
 fn extract_root_identifier_from_json(value: &Value) -> Option<String> {
     let obj = value.as_object()?;
-    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+    let node_type = obj.field("type").and_then(|t| t.as_str())?;
 
     match node_type {
         "Identifier" => obj
-            .get("name")
+            .field("name")
             .and_then(|n| n.as_str())
             .map(|s| s.to_string()),
         "MemberExpression" => obj
-            .get("object")
+            .field("object")
             .and_then(extract_root_identifier_from_json),
         "ChainExpression" => obj
-            .get("expression")
+            .field("expression")
             .and_then(extract_root_identifier_from_json),
         // Unwrap TypeScript expression wrappers
         "TSAsExpression" | "TSNonNullExpression" | "TSSatisfiesExpression" => obj
-            .get("expression")
+            .field("expression")
             .and_then(extract_root_identifier_from_json),
         _ => None,
     }
@@ -6486,16 +6563,16 @@ fn extract_root_identifier_from_json(value: &Value) -> Option<String> {
 /// Extract the root identifier's source start from a JSON AST node.
 fn extract_root_identifier_start_from_json(value: &Value) -> Option<u32> {
     let obj = value.as_object()?;
-    match obj.get("type").and_then(|node_type| node_type.as_str())? {
+    match obj.field("type").and_then(|node_type| node_type.as_str())? {
         "Identifier" => obj
-            .get("start")
+            .field("start")
             .and_then(Value::as_u64)
             .and_then(|start| u32::try_from(start).ok()),
         "MemberExpression" => obj
-            .get("object")
+            .field("object")
             .and_then(extract_root_identifier_start_from_json),
         "ChainExpression" | "TSAsExpression" | "TSNonNullExpression" | "TSSatisfiesExpression" => {
-            obj.get("expression")
+            obj.field("expression")
                 .and_then(extract_root_identifier_start_from_json)
         }
         _ => None,
@@ -6516,7 +6593,7 @@ fn is_non_coercive_operator(operator: &str) -> bool {
 /// Identifier -> returns "Identifier".
 fn unwrap_ts_expression_type(value: &Value) -> Option<&str> {
     let obj = value.as_object()?;
-    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+    let node_type = obj.field("type").and_then(|t| t.as_str())?;
 
     match node_type {
         "TSAsExpression"
@@ -6525,7 +6602,7 @@ fn unwrap_ts_expression_type(value: &Value) -> Option<&str> {
         | "TSTypeAssertion"
         | "TSInstantiationExpression" => {
             // Unwrap to the inner expression
-            if let Some(expr) = obj.get("expression") {
+            if let Some(expr) = obj.field("expression") {
                 unwrap_ts_expression_type(expr)
             } else {
                 Some(node_type)
@@ -7084,16 +7161,16 @@ fn collect_param_names_from_jsnode(node: &JsNode, names: &mut Vec<String>) {
 /// Extract the identifier name from a JSON value, unwrapping any TypeScript expression wrappers.
 fn get_identifier_name_from_json(value: &Value) -> Option<&str> {
     let obj = value.as_object()?;
-    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+    let node_type = obj.field("type").and_then(|t| t.as_str())?;
 
     match node_type {
-        "Identifier" => obj.get("name").and_then(|n| n.as_str()),
+        "Identifier" => obj.field("name").and_then(|n| n.as_str()),
         "TSAsExpression"
         | "TSNonNullExpression"
         | "TSSatisfiesExpression"
         | "TSTypeAssertion"
         | "TSInstantiationExpression" => obj
-            .get("expression")
+            .field("expression")
             .and_then(get_identifier_name_from_json),
         _ => None,
     }
@@ -7112,7 +7189,10 @@ fn convert_update_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("++");
+    let operator_str = obj
+        .field("operator")
+        .and_then(|o| o.as_str())
+        .unwrap_or("++");
 
     let operator = match operator_str {
         "++" => JsUpdateOp::Increment,
@@ -7120,9 +7200,12 @@ fn convert_update_expression(
         _ => JsUpdateOp::Increment,
     };
 
-    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+    let prefix = obj
+        .field("prefix")
+        .and_then(|p| p.as_bool())
+        .unwrap_or(true);
 
-    let argument_value = obj.get("argument");
+    let argument_value = obj.field("argument");
     let original_root_name = argument_value.and_then(extract_root_identifier_from_json);
 
     // Before converting the argument (which applies read transforms), check if the
@@ -7148,15 +7231,15 @@ fn convert_update_expression(
 
     // Check if the argument is a MemberExpression with a direct Identifier object
     let is_direct_member_update = if let Some(arg_obj) = argument_value.and_then(|a| a.as_object())
-        && let Some("MemberExpression") = arg_obj.get("type").and_then(|t| t.as_str())
+        && let Some("MemberExpression") = arg_obj.field("type").and_then(|t| t.as_str())
     {
         let computed = arg_obj
-            .get("computed")
+            .field("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
         if !computed {
-            if let Some(object_obj) = arg_obj.get("object").and_then(|o| o.as_object())
-                && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
+            if let Some(object_obj) = arg_obj.field("object").and_then(|o| o.as_object())
+                && let Some("Identifier") = object_obj.field("type").and_then(|t| t.as_str())
             {
                 true
             } else {
@@ -7219,7 +7302,7 @@ fn convert_update_expression(
         result,
         original_root_name.as_deref(),
         argument_value
-            .and_then(|argument| argument.get("type"))
+            .and_then(|argument| argument.field("type"))
             .and_then(|node_type| node_type.as_str())
             == Some("MemberExpression"),
         context,
@@ -7246,9 +7329,9 @@ fn convert_update_expression(
 /// Extract an identifier name from a JSON AST node if it's a simple Identifier.
 fn extract_identifier_name_from_json(value: &Value) -> Option<String> {
     let obj = value.as_object()?;
-    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+    let node_type = obj.field("type").and_then(|t| t.as_str())?;
     if node_type == "Identifier" {
-        obj.get("name").and_then(|n| n.as_str()).map(String::from)
+        obj.field("name").and_then(|n| n.as_str()).map(String::from)
     } else {
         None
     }
@@ -7401,7 +7484,7 @@ fn convert_sequence_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let expressions = obj
-        .get("expressions")
+        .field("expressions")
         .and_then(|e| e.as_array())
         .map(|exprs| {
             exprs
@@ -7420,7 +7503,7 @@ fn convert_new_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let callee = obj
-        .get("callee")
+        .field("callee")
         .map(|c| convert_json_chain_boundary(c, context))
         .unwrap_or_else(|| {
             context
@@ -7429,7 +7512,7 @@ fn convert_new_expression(
         });
 
     let arguments = obj
-        .get("arguments")
+        .field("arguments")
         .and_then(|a| a.as_array())
         .map(|args| {
             args.iter()
@@ -7447,12 +7530,12 @@ fn convert_await_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let argument = obj
-        .get("argument")
+        .field("argument")
         .map(|a| convert_json_value(a, context))
         .unwrap_or(JsExpr::Literal(JsLiteral::Null));
 
     // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
-    let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+    let start = obj.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
     if context.state.analysis.pickled_awaits.contains(&start)
         && !context.state.suppress_pickled_await_instrumentation.get()
     {
@@ -7510,7 +7593,7 @@ fn convert_yield_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let argument = obj.get("argument").map(|a| {
+    let argument = obj.field("argument").map(|a| {
         Some({
             let __tmp = convert_json_value(a, context);
             context.arena.alloc_expr(__tmp)
@@ -7518,7 +7601,7 @@ fn convert_yield_expression(
     });
 
     let delegate = obj
-        .get("delegate")
+        .field("delegate")
         .and_then(|d| d.as_bool())
         .unwrap_or(false);
 
@@ -7534,7 +7617,7 @@ fn convert_spread_element(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let argument = obj
-        .get("argument")
+        .field("argument")
         .map(|a| {
             let __tmp = convert_json_value(a, context);
             context.arena.alloc_expr(__tmp)
@@ -7550,21 +7633,21 @@ fn convert_template_literal(
     context: &mut ComponentContext,
 ) -> JsExpr {
     let quasis = obj
-        .get("quasis")
+        .field("quasis")
         .and_then(|q| q.as_array())
         .map(|quasis| {
             quasis
                 .iter()
                 .filter_map(|quasi| {
                     let quasi_obj = quasi.as_object()?;
-                    let value_obj = quasi_obj.get("value")?.as_object()?;
-                    let raw = value_obj.get("raw")?.as_str()?.to_string();
+                    let value_obj = quasi_obj.field("value")?.as_object()?;
+                    let raw = value_obj.field("raw")?.as_str()?.to_string();
                     let cooked = value_obj
-                        .get("cooked")
+                        .field("cooked")
                         .and_then(|c| c.as_str())
                         .unwrap_or(&raw)
                         .to_string();
-                    let tail = quasi_obj.get("tail")?.as_bool()?;
+                    let tail = quasi_obj.field("tail")?.as_bool()?;
 
                     Some(JsTemplateElement {
                         raw: raw.into(),
@@ -7577,7 +7660,7 @@ fn convert_template_literal(
         .unwrap_or_default();
 
     let expressions = obj
-        .get("expressions")
+        .field("expressions")
         .and_then(|e| e.as_array())
         .map(|exprs| {
             exprs
@@ -7603,7 +7686,7 @@ fn convert_tagged_template_expression(
 ) -> JsExpr {
     // Convert the tag expression
     let tag = obj
-        .get("tag")
+        .field("tag")
         .map(|t| {
             let __tmp = convert_json_value(t, context);
             context.arena.alloc_expr(__tmp)
@@ -7616,7 +7699,7 @@ fn convert_tagged_template_expression(
 
     // Convert the quasi (template literal)
     let quasi = obj
-        .get("quasi")
+        .field("quasi")
         .and_then(|q| q.as_object())
         .map(|q| {
             // Convert the quasi which is a TemplateLiteral
@@ -7644,7 +7727,7 @@ fn convert_chain_expression(
     context: &mut ComponentContext,
 ) -> JsExpr {
     // The expression inside a ChainExpression
-    if let Some(expression) = obj.get("expression") {
+    if let Some(expression) = obj.field("expression") {
         convert_json_value(expression, context)
     } else {
         JsExpr::Raw("/* ChainExpression: missing expression */".into())

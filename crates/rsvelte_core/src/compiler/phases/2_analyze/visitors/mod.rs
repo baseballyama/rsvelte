@@ -83,6 +83,7 @@ use super::AnalysisError;
 use super::types::{ComponentAnalysis, CssDomElement};
 use crate::ast::arena::ParseArena;
 use crate::ast::template::{Root, TemplateNode};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Information about the current EachBlock context for animate: validation.
 #[derive(Debug, Clone)]
@@ -204,7 +205,7 @@ impl JsPathEntry {
                 let js_node = unsafe { &**node };
                 Some(js_node.type_str())
             }
-            _ => self.as_value().get("type").and_then(|t| t.as_str()),
+            _ => self.as_value().field("type").and_then(|t| t.as_str()),
         }
     }
 
@@ -273,7 +274,7 @@ impl JsPathEntry {
             _ => self
                 .as_value()
                 .get(field)
-                .and_then(|v| v.get("start"))
+                .and_then(|v| v.field("start"))
                 .and_then(|s| s.as_u64())
                 .map(|n| n as u32),
         }
@@ -296,7 +297,7 @@ impl JsPathEntry {
             _ => self
                 .as_value()
                 .get(field)
-                .and_then(|v| v.get("end"))
+                .and_then(|v| v.field("end"))
                 .and_then(|e| e.as_u64())
                 .map(|n| n as u32),
         }

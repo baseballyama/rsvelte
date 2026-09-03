@@ -8,6 +8,7 @@
 use super::super::types::ComponentAnalysis;
 use super::super::{AnalysisError, errors};
 use crate::ast::css::StyleSheet;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Context passed through CSS analysis, tracking parent rule information.
 struct CssAnalysisState<'a> {
@@ -57,7 +58,7 @@ fn analyze_css_node(
     analysis: &mut ComponentAnalysis,
     state: &CssAnalysisState,
 ) -> Result<(), AnalysisError> {
-    if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+    if let Some(node_type) = node.field("type").and_then(|t| t.as_str()) {
         match node_type {
             "Atrule" => {
                 analyze_atrule(node, analysis, state)?;
@@ -76,7 +77,7 @@ fn analyze_atrule(
     analysis: &mut ComponentAnalysis,
     state: &CssAnalysisState,
 ) -> Result<(), AnalysisError> {
-    let is_keyframes = if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    let is_keyframes = if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         matches!(
             name,
             "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
@@ -86,32 +87,32 @@ fn analyze_atrule(
     };
 
     if is_keyframes
-        && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        && let Some(prelude) = node.field("prelude").and_then(|p| p.as_str())
         && !prelude.starts_with("-global-")
     {
         analysis.css.keyframes.push(prelude.to_string());
     } else if is_keyframes
-        && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        && let Some(prelude) = node.field("prelude").and_then(|p| p.as_str())
         && prelude.starts_with("-global-")
     {
         analysis.css.has_global = true;
     }
 
     // Analyze children (skip validation for keyframes rules)
-    if let Some(block) = node.get("block")
-        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    if let Some(block) = node.field("block")
+        && let Some(children) = block.field("children").and_then(|c| c.as_array())
     {
         for child in children {
             if is_keyframes {
-                if child.get("type").and_then(|t| t.as_str()) == Some("Rule") {
-                    if let Some(prelude) = child.get("prelude")
+                if child.field("type").and_then(|t| t.as_str()) == Some("Rule") {
+                    if let Some(prelude) = child.field("prelude")
                         && has_global_selector(prelude)
                     {
                         analysis.css.has_global = true;
                     }
-                    if let Some(block) = child.get("block")
+                    if let Some(block) = child.field("block")
                         && let Some(nested_children) =
-                            block.get("children").and_then(|c| c.as_array())
+                            block.field("children").and_then(|c| c.as_array())
                     {
                         for nested_child in nested_children {
                             analyze_css_node(nested_child, analysis, state)?;
@@ -129,8 +130,8 @@ fn analyze_atrule(
 }
 /// Check if a simple selector is a `:global` block selector (without args).
 fn is_global_block_selector(simple_selector: &serde_json::Value) -> bool {
-    simple_selector.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-        && simple_selector.get("name").and_then(|n| n.as_str()) == Some("global")
+    simple_selector.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+        && simple_selector.field("name").and_then(|n| n.as_str()) == Some("global")
         && !simple_selector
             .as_object()
             .is_some_and(|obj| obj.contains_key("args"))
@@ -147,18 +148,18 @@ fn analyze_rule(
     //     has_global_selectors &&
     //     block has declarations &&
     //     is_unscoped(path) (all ancestor Rules also have global selectors)
-    if let Some(prelude) = node.get("prelude") {
+    if let Some(prelude) = node.field("prelude") {
         let all_selectors_global = is_prelude_fully_global(prelude);
         if all_selectors_global {
             // Check if block has at least one Declaration
             let has_declarations = node
-                .get("block")
-                .and_then(|b| b.get("children"))
+                .field("block")
+                .and_then(|b| b.field("children"))
                 .and_then(|c| c.as_array())
                 .map(|children| {
                     children
                         .iter()
-                        .any(|c| c.get("type").and_then(|t| t.as_str()) == Some("Declaration"))
+                        .any(|c| c.field("type").and_then(|t| t.as_str()) == Some("Declaration"))
                 })
                 .unwrap_or(false);
 
@@ -169,7 +170,7 @@ fn analyze_rule(
                 .parent_rule
                 .map(|parent| {
                     parent
-                        .get("prelude")
+                        .field("prelude")
                         .map(is_prelude_fully_global)
                         .unwrap_or(false)
                 })
@@ -186,10 +187,13 @@ fn analyze_rule(
 
     // === Rule visitor: :global block validation ===
     // This mirrors the official Svelte's Rule visitor in css-analyze.js
-    if let Some(prelude) = node.get("prelude") {
-        if let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(prelude) = node.field("prelude") {
+        if let Some(complex_selectors) = prelude.field("children").and_then(|c| c.as_array()) {
             for complex_selector in complex_selectors {
-                let children = match complex_selector.get("children").and_then(|c| c.as_array()) {
+                let children = match complex_selector
+                    .field("children")
+                    .and_then(|c| c.as_array())
+                {
                     Some(c) => c,
                     None => continue,
                 };
@@ -197,7 +201,7 @@ fn analyze_rule(
                 let mut local_is_global_block = false;
 
                 for (selector_idx, child) in children.iter().enumerate() {
-                    let selectors = match child.get("selectors").and_then(|s| s.as_array()) {
+                    let selectors = match child.field("selectors").and_then(|s| s.as_array()) {
                         Some(s) => s,
                         None => continue,
                     };
@@ -223,9 +227,9 @@ fn analyze_rule(
                                 local_is_global_block = true;
 
                                 // Check combinator: :global cannot follow a non-space combinator
-                                if let Some(combinator) = child.get("combinator") {
+                                if let Some(combinator) = child.field("combinator") {
                                     let comb_name = combinator
-                                        .get("name")
+                                        .field("name")
                                         .and_then(|n| n.as_str())
                                         .unwrap_or(" ");
                                     if comb_name != " " {
@@ -249,12 +253,12 @@ fn analyze_rule(
 
                                 if is_lone_global {
                                     // Check if the block contains declarations (not just nested rules)
-                                    if let Some(block) = node.get("block")
+                                    if let Some(block) = node.field("block")
                                         && let Some(block_children) =
-                                            block.get("children").and_then(|c| c.as_array())
+                                            block.field("children").and_then(|c| c.as_array())
                                     {
                                         let declaration = block_children.iter().find(|child| {
-                                            child.get("type").and_then(|kind| kind.as_str())
+                                            child.field("type").and_then(|kind| kind.as_str())
                                                 == Some("Declaration")
                                         });
 
@@ -291,12 +295,12 @@ fn analyze_rule(
     }
 
     // === Validate :global(...) selectors (with args) and other selector validations ===
-    if let Some(prelude) = node.get("prelude") {
+    if let Some(prelude) = node.field("prelude") {
         validate_selectors(prelude, state)?;
     }
 
     // === Validate NestingSelector (&) usage ===
-    if let Some(prelude) = node.get("prelude") {
+    if let Some(prelude) = node.field("prelude") {
         validate_nesting_selectors(prelude, state, node, is_global_block)?;
     }
 
@@ -308,17 +312,20 @@ fn analyze_rule(
         source: state.source,
         in_global_block: state.in_global_block || is_global_block,
     };
-    if let Some(block) = node.get("block")
-        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    if let Some(block) = node.field("block")
+        && let Some(children) = block.field("children").and_then(|c| c.as_array())
     {
         for child in children {
-            if let Some(child_type) = child.get("type").and_then(|t| t.as_str())
+            if let Some(child_type) = child.field("type").and_then(|t| t.as_str())
                 && child_type == "Declaration"
             {
-                let property = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                let property = child
+                    .field("property")
+                    .and_then(|p| p.as_str())
+                    .unwrap_or("");
                 let is_custom_property = property.starts_with("--");
 
-                let value = child.get("value");
+                let value = child.field("value");
                 let is_empty = match value {
                     None => true,
                     Some(v) if v.is_null() => true,
@@ -343,20 +350,23 @@ fn validate_nesting_selectors(
     rule: &serde_json::Value,
     is_global_block: bool,
 ) -> Result<(), AnalysisError> {
-    let complex_selectors = match prelude.get("children").and_then(|c| c.as_array()) {
+    let complex_selectors = match prelude.field("children").and_then(|c| c.as_array()) {
         Some(c) => c,
         None => return Ok(()),
     };
 
     for complex_selector in complex_selectors {
-        let children = match complex_selector.get("children").and_then(|c| c.as_array()) {
+        let children = match complex_selector
+            .field("children")
+            .and_then(|c| c.as_array())
+        {
             Some(c) => c,
             None => continue,
         };
 
         for relative_selector in children {
             let selectors = match relative_selector
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
             {
                 Some(s) => s,
@@ -364,7 +374,7 @@ fn validate_nesting_selectors(
             };
 
             for selector in selectors {
-                if selector.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+                if selector.field("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
                     validate_single_nesting_selector(
                         selector,
                         state,
@@ -379,8 +389,8 @@ fn validate_nesting_selectors(
                 }
 
                 // Also check inside pseudo-class args for NestingSelector
-                if selector.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
-                    if let Some(args) = selector.get("args") {
+                if selector.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
+                    if let Some(args) = selector.field("args") {
                         validate_nesting_in_pseudo_args(
                             args,
                             state,
@@ -416,7 +426,7 @@ fn validate_single_nesting_selector(
     if state.parent_rule.is_none() {
         // & at root level - only valid as the first selector inside a lone :global(...)
         // Check: is this rule's prelude a single :global(&) or :global(& ...) ?
-        let complex_selectors = match prelude.get("children").and_then(|c| c.as_array()) {
+        let complex_selectors = match prelude.field("children").and_then(|c| c.as_array()) {
             Some(c) => c,
             None => {
                 return Err(at_node(
@@ -435,7 +445,7 @@ fn validate_single_nesting_selector(
         }
 
         let children = match complex_selectors[0]
-            .get("children")
+            .field("children")
             .and_then(|c| c.as_array())
         {
             Some(c) => c,
@@ -456,7 +466,7 @@ fn validate_single_nesting_selector(
         }
 
         let first_child = &children[0];
-        let selectors = match first_child.get("selectors").and_then(|s| s.as_array()) {
+        let selectors = match first_child.field("selectors").and_then(|s| s.as_array()) {
             Some(s) => s,
             None => {
                 return Err(at_node(
@@ -474,8 +484,8 @@ fn validate_single_nesting_selector(
         }
 
         let first_sel = &selectors[0];
-        if first_sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
-            || first_sel.get("name").and_then(|n| n.as_str()) != Some("global")
+        if first_sel.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+            || first_sel.field("name").and_then(|n| n.as_str()) != Some("global")
         {
             return Err(at_node(
                 errors::css_nesting_selector_invalid_placement(),
@@ -484,18 +494,18 @@ fn validate_single_nesting_selector(
         }
 
         // Check that & is the first selector inside :global(...)
-        if let Some(args) = first_sel.get("args") {
-            if let Some(args_children) = args.get("children").and_then(|c| c.as_array()) {
+        if let Some(args) = first_sel.field("args") {
+            if let Some(args_children) = args.field("children").and_then(|c| c.as_array()) {
                 if let Some(first_complex) = args_children.first() {
                     if let Some(first_complex_children) =
-                        first_complex.get("children").and_then(|c| c.as_array())
+                        first_complex.field("children").and_then(|c| c.as_array())
                     {
                         if let Some(first_rel) = first_complex_children.first() {
                             if let Some(rel_sels) =
-                                first_rel.get("selectors").and_then(|s| s.as_array())
+                                first_rel.field("selectors").and_then(|s| s.as_array())
                             {
                                 if let Some(first_inner) = rel_sels.first() {
-                                    if first_inner.get("type").and_then(|t| t.as_str())
+                                    if first_inner.field("type").and_then(|t| t.as_str())
                                         != Some("NestingSelector")
                                     {
                                         return Err(at_node(
@@ -541,19 +551,19 @@ fn validate_single_nesting_selector(
 
 /// Check if a rule is a lone :global block (single :global selector without extra selectors).
 fn is_parent_lone_global_block(rule: &serde_json::Value) -> bool {
-    if let Some(prelude) = rule.get("prelude") {
-        if let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(prelude) = rule.field("prelude") {
+        if let Some(complex_selectors) = prelude.field("children").and_then(|c| c.as_array()) {
             if complex_selectors.len() != 1 {
                 return false;
             }
             if let Some(children) = complex_selectors[0]
-                .get("children")
+                .field("children")
                 .and_then(|c| c.as_array())
             {
                 if children.len() != 1 {
                     return false;
                 }
-                if let Some(selectors) = children[0].get("selectors").and_then(|s| s.as_array()) {
+                if let Some(selectors) = children[0].field("selectors").and_then(|s| s.as_array()) {
                     if selectors.len() != 1 {
                         return false;
                     }
@@ -579,20 +589,20 @@ fn validate_nesting_in_pseudo_args(
     selectors: &[serde_json::Value],
     is_global_block: bool,
 ) -> Result<(), AnalysisError> {
-    let Some(arg_children) = args.get("children").and_then(|c| c.as_array()) else {
+    let Some(arg_children) = args.field("children").and_then(|c| c.as_array()) else {
         return Ok(());
     };
 
     for complex in arg_children {
-        let Some(complex_children) = complex.get("children").and_then(|c| c.as_array()) else {
+        let Some(complex_children) = complex.field("children").and_then(|c| c.as_array()) else {
             continue;
         };
         for relative in complex_children {
-            let Some(arg_selectors) = relative.get("selectors").and_then(|s| s.as_array()) else {
+            let Some(arg_selectors) = relative.field("selectors").and_then(|s| s.as_array()) else {
                 continue;
             };
             for sel in arg_selectors {
-                match sel.get("type").and_then(|t| t.as_str()) {
+                match sel.field("type").and_then(|t| t.as_str()) {
                     Some("NestingSelector") => validate_single_nesting_selector(
                         sel,
                         state,
@@ -605,7 +615,7 @@ fn validate_nesting_in_pseudo_args(
                         is_global_block,
                     )?,
                     Some("PseudoClassSelector") => {
-                        if let Some(inner) = sel.get("args") {
+                        if let Some(inner) = sel.field("args") {
                             validate_nesting_in_pseudo_args(
                                 inner,
                                 state,
@@ -634,7 +644,7 @@ fn validate_selectors(
     prelude: &serde_json::Value,
     state: &CssAnalysisState,
 ) -> Result<(), AnalysisError> {
-    if let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(complex_selectors) = prelude.field("children").and_then(|c| c.as_array()) {
         for complex_selector in complex_selectors {
             validate_complex_selector(complex_selector, state)?;
         }
@@ -646,8 +656,8 @@ fn validate_selectors(
 /// passes as the first argument to its `e.*` constructor.
 fn at_node(error: AnalysisError, node: &serde_json::Value) -> AnalysisError {
     match (
-        node.get("start").and_then(|v| v.as_u64()),
-        node.get("end").and_then(|v| v.as_u64()),
+        node.field("start").and_then(|v| v.as_u64()),
+        node.field("end").and_then(|v| v.as_u64()),
     ) {
         (Some(start), Some(end)) => error.at(start as u32, end as u32),
         _ => error,
@@ -658,7 +668,7 @@ fn at_node(error: AnalysisError, node: &serde_json::Value) -> AnalysisError {
 /// is the offset just past the `:` — not the declaration node's own end.
 fn empty_declaration_error(declaration: &serde_json::Value, source: Option<&str>) -> AnalysisError {
     let error = errors::css_empty_declaration();
-    let Some(start) = declaration.get("start").and_then(|v| v.as_u64()) else {
+    let Some(start) = declaration.field("start").and_then(|v| v.as_u64()) else {
         return error;
     };
     let Some(colon) = source
@@ -678,8 +688,8 @@ fn trailing_combinator_error(
 ) -> AnalysisError {
     let error = errors::css_selector_invalid();
     let Some(end) = relative_selector
-        .get("combinator")
-        .and_then(|c| c.get("end"))
+        .field("combinator")
+        .and_then(|c| c.field("end"))
         .and_then(|v| v.as_u64())
     else {
         return error;
@@ -696,7 +706,10 @@ fn validate_complex_selector(
     complex_selector: &serde_json::Value,
     state: &CssAnalysisState,
 ) -> Result<(), AnalysisError> {
-    let children = match complex_selector.get("children").and_then(|c| c.as_array()) {
+    let children = match complex_selector
+        .field("children")
+        .and_then(|c| c.as_array())
+    {
         Some(c) => c,
         None => return Ok(()),
     };
@@ -708,7 +721,10 @@ fn validate_complex_selector(
         let global_relative = &children[idx];
 
         // Check :global block invalid placement (inside a pseudoclass)
-        if let Some(selectors) = global_relative.get("selectors").and_then(|s| s.as_array()) {
+        if let Some(selectors) = global_relative
+            .field("selectors")
+            .and_then(|s| s.as_array())
+        {
             if let Some(first_sel) = selectors.first() {
                 // :global without args inside a pseudoclass is invalid
                 if state.in_pseudoclass
@@ -725,7 +741,9 @@ fn validate_complex_selector(
         }
 
         // Check if :global(...) with args is in the middle of the selector
-        if let Some(selectors) = global_relative.get("selectors").and_then(|s| s.as_array())
+        if let Some(selectors) = global_relative
+            .field("selectors")
+            .and_then(|s| s.as_array())
             && let Some(first_sel) = selectors.first()
             && first_sel
                 .as_object()
@@ -733,7 +751,7 @@ fn validate_complex_selector(
         {
             let is_at_start = children[..idx].iter().all(|child| {
                 child
-                    .get("selectors")
+                    .field("selectors")
                     .and_then(|s| s.as_array())
                     .is_none_or(|s| s.is_empty())
             });
@@ -752,31 +770,33 @@ fn validate_complex_selector(
     // Validate :global(...) selector contents and positioning within each RelativeSelector
     for relative_selector in children.iter() {
         if let Some(selectors) = relative_selector
-            .get("selectors")
+            .field("selectors")
             .and_then(|s| s.as_array())
         {
             for (i, selector) in selectors.iter().enumerate() {
-                if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str())
+                if let Some(sel_type) = selector.field("type").and_then(|t| t.as_str())
                     && sel_type == "PseudoClassSelector"
-                    && let Some(name) = selector.get("name").and_then(|n| n.as_str())
+                    && let Some(name) = selector.field("name").and_then(|n| n.as_str())
                     && name == "global"
                 {
                     // Validate :global(...) selector contents
-                    if let Some(args) = selector.get("args") {
+                    if let Some(args) = selector.field("args") {
                         validate_global_args(args, selector, children.len(), selectors.len())?;
                     }
 
                     // Ensure :global(element) is at first position in compound selector
-                    if let Some(args) = selector.get("args")
-                        && let Some(args_children) = args.get("children").and_then(|c| c.as_array())
+                    if let Some(args) = selector.field("args")
+                        && let Some(args_children) =
+                            args.field("children").and_then(|c| c.as_array())
                         && let Some(first_complex) = args_children.first()
                         && let Some(complex_children) =
-                            first_complex.get("children").and_then(|c| c.as_array())
+                            first_complex.field("children").and_then(|c| c.as_array())
                         && let Some(first_rel) = complex_children.first()
                         && let Some(rel_sels) =
-                            first_rel.get("selectors").and_then(|s| s.as_array())
+                            first_rel.field("selectors").and_then(|s| s.as_array())
                         && let Some(first_inner) = rel_sels.first()
-                        && first_inner.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
+                        && first_inner.field("type").and_then(|t| t.as_str())
+                            == Some("TypeSelector")
                         && i != 0
                     {
                         return Err(at_node(
@@ -787,7 +807,7 @@ fn validate_complex_selector(
 
                     // Ensure :global(.class) is not followed by a type selector
                     if let Some(next_sel) = selectors.get(i + 1)
-                        && next_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
+                        && next_sel.field("type").and_then(|t| t.as_str()) == Some("TypeSelector")
                     {
                         return Err(at_node(
                             errors::css_type_selector_invalid_placement(),
@@ -799,8 +819,9 @@ fn validate_complex_selector(
                     if selector
                         .as_object()
                         .is_some_and(|obj| obj.contains_key("args"))
-                        && let Some(args) = selector.get("args")
-                        && let Some(args_children) = args.get("children").and_then(|c| c.as_array())
+                        && let Some(args) = selector.field("args")
+                        && let Some(args_children) =
+                            args.field("children").and_then(|c| c.as_array())
                         && args_children.len() > 1
                         && (children.len() > 1 || selectors.len() > 1)
                     {
@@ -811,18 +832,18 @@ fn validate_complex_selector(
                     validate_global_type_selector_position(selector, selectors)?;
 
                     // Check for :global block inside pseudo-class args
-                    if let Some(args) = selector.get("args") {
+                    if let Some(args) = selector.field("args") {
                         validate_global_block_in_pseudo_args(args)?;
                     }
                 }
 
                 // For other pseudo-classes (:is, :not, :has, :where), validate their args
-                if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str())
+                if let Some(sel_type) = selector.field("type").and_then(|t| t.as_str())
                     && sel_type == "PseudoClassSelector"
-                    && let Some(name) = selector.get("name").and_then(|n| n.as_str())
+                    && let Some(name) = selector.field("name").and_then(|n| n.as_str())
                     && matches!(name, "is" | "not" | "has" | "where")
                 {
-                    if let Some(args) = selector.get("args") {
+                    if let Some(args) = selector.field("args") {
                         let pseudo_state = CssAnalysisState {
                             parent_rule: state.parent_rule,
                             parent_rule_has_parent: state.parent_rule_has_parent,
@@ -843,8 +864,8 @@ fn validate_complex_selector(
         if i == 0
             && !is_nested
             && !state.in_pseudoclass
-            && let Some(combinator) = relative_selector.get("combinator")
-            && combinator.get("type").and_then(|t| t.as_str()) == Some("Combinator")
+            && let Some(combinator) = relative_selector.field("combinator")
+            && combinator.field("type").and_then(|t| t.as_str()) == Some("Combinator")
         {
             return Err(at_node(errors::css_selector_invalid(), combinator));
         }
@@ -852,9 +873,9 @@ fn validate_complex_selector(
 
     // Check for combinator at the end
     if let Some(last) = children.last()
-        && let Some(selectors) = last.get("selectors").and_then(|s| s.as_array())
+        && let Some(selectors) = last.field("selectors").and_then(|s| s.as_array())
         && selectors.is_empty()
-        && last.get("combinator").is_some()
+        && last.field("combinator").is_some()
     {
         return Err(trailing_combinator_error(last, state.source));
     }
@@ -864,11 +885,12 @@ fn validate_complex_selector(
 
 /// Check if :global block (without args) appears inside pseudo-class args.
 fn validate_global_block_in_pseudo_args(args: &serde_json::Value) -> Result<(), AnalysisError> {
-    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = args.field("children").and_then(|c| c.as_array()) {
         for complex in children {
-            if let Some(complex_children) = complex.get("children").and_then(|c| c.as_array()) {
+            if let Some(complex_children) = complex.field("children").and_then(|c| c.as_array()) {
                 for relative in complex_children {
-                    if let Some(selectors) = relative.get("selectors").and_then(|s| s.as_array()) {
+                    if let Some(selectors) = relative.field("selectors").and_then(|s| s.as_array())
+                    {
                         for sel in selectors {
                             if is_global_block_selector(sel) {
                                 return Err(at_node(
@@ -889,7 +911,7 @@ fn validate_global_block_in_pseudo_args(args: &serde_json::Value) -> Result<(), 
 /// This mirrors checking `node.metadata.has_global_selectors` in the official compiler,
 /// which is true when ALL complex selectors have `is_global`.
 fn is_prelude_fully_global(prelude: &serde_json::Value) -> bool {
-    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = prelude.field("children").and_then(|c| c.as_array()) {
         !children.is_empty() && children.iter().all(is_complex_selector_global)
     } else {
         false
@@ -899,7 +921,10 @@ fn is_prelude_fully_global(prelude: &serde_json::Value) -> bool {
 /// Check if a ComplexSelector is fully global.
 /// A ComplexSelector is global when ALL its children (RelativeSelectors) are global or global-like.
 fn is_complex_selector_global(complex_selector: &serde_json::Value) -> bool {
-    if let Some(children) = complex_selector.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = complex_selector
+        .field("children")
+        .and_then(|c| c.as_array())
+    {
         !children.is_empty()
             && children.iter().all(|rel| {
                 is_relative_selector_global_strict(rel) || is_relative_selector_global_like(rel)
@@ -916,15 +941,15 @@ fn is_complex_selector_global(complex_selector: &serde_json::Value) -> bool {
 ///     are unscoped pseudo-classes or pseudo-elements
 fn is_relative_selector_global_strict(relative_selector: &serde_json::Value) -> bool {
     let selectors = match relative_selector
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
     {
         Some(s) if !s.is_empty() => s,
         _ => return false,
     };
     let first = &selectors[0];
-    if first.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
-        || first.get("name").and_then(|n| n.as_str()) != Some("global")
+    if first.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.field("name").and_then(|n| n.as_str()) != Some("global")
     {
         return false;
     }
@@ -932,13 +957,13 @@ fn is_relative_selector_global_strict(relative_selector: &serde_json::Value) -> 
     if !first
         .as_object()
         .is_some_and(|obj| obj.contains_key("args"))
-        || first.get("args").filter(|&a| !a.is_null()).is_none()
+        || first.field("args").filter(|&a| !a.is_null()).is_none()
     {
         return true;
     }
     // Has args: all selectors in this RelativeSelector must be unscoped pseudo-classes or pseudo-elements
     selectors.iter().all(|sel| {
-        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
         if sel_type == "PseudoElementSelector" {
             return true;
         }
@@ -952,7 +977,7 @@ fn is_relative_selector_global_strict(relative_selector: &serde_json::Value) -> 
 /// Check if a RelativeSelector is "global-like" (e.g., :host, :root, ::view-transition-*).
 fn is_relative_selector_global_like(relative_selector: &serde_json::Value) -> bool {
     let selectors = match relative_selector
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
     {
         Some(s) if !s.is_empty() => s,
@@ -960,8 +985,8 @@ fn is_relative_selector_global_like(relative_selector: &serde_json::Value) -> bo
     };
 
     let first = &selectors[0];
-    let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
-    let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+    let first_type = first.field("type").and_then(|t| t.as_str()).unwrap_or("");
+    let first_name = first.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
     // :host
     if first_type == "PseudoClassSelector" && first_name == "host" {
@@ -984,12 +1009,12 @@ fn is_relative_selector_global_like(relative_selector: &serde_json::Value) -> bo
 
     // :root (but not if it also has :has)
     let has_root = selectors.iter().any(|s| {
-        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-            && s.get("name").and_then(|n| n.as_str()) == Some("root")
+        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.field("name").and_then(|n| n.as_str()) == Some("root")
     });
     let has_has = selectors.iter().any(|s| {
-        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-            && s.get("name").and_then(|n| n.as_str()) == Some("has")
+        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.field("name").and_then(|n| n.as_str()) == Some("has")
     });
     if has_root && !has_has {
         return true;
@@ -1001,25 +1026,28 @@ fn is_relative_selector_global_like(relative_selector: &serde_json::Value) -> bo
 /// Check if a PseudoClassSelector is "unscoped" - meaning it doesn't scope its contents.
 /// Mirrors the official `is_unscoped_pseudo_class` from css/utils.js.
 fn is_unscoped_pseudo_class_selector(selector: &serde_json::Value) -> bool {
-    if selector.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+    if selector.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
         return false;
     }
-    let name = selector.get("name").and_then(|n| n.as_str()).unwrap_or("");
+    let name = selector
+        .field("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or("");
 
     // These pseudo-classes scope their contents: :has, :is, :where, :not (with complex args)
     if name == "has" || name == "is" || name == "where" {
         // They can still be unscoped if args is null or all children are global
-        let args = selector.get("args").filter(|a| !a.is_null());
+        let args = selector.field("args").filter(|a| !a.is_null());
         return match args {
             None => true,
             Some(args) => {
                 // All children of args must be global
-                args.get("children")
+                args.field("children")
                     .and_then(|c| c.as_array())
                     .map(|children| {
                         children.iter().all(|complex| {
                             complex
-                                .get("children")
+                                .field("children")
                                 .and_then(|c| c.as_array())
                                 .map(|rels| rels.iter().all(is_relative_selector_global_strict))
                                 .unwrap_or(false)
@@ -1030,16 +1058,16 @@ fn is_unscoped_pseudo_class_selector(selector: &serde_json::Value) -> bool {
         };
     }
     if name == "not" {
-        let args = selector.get("args").filter(|a| !a.is_null());
+        let args = selector.field("args").filter(|a| !a.is_null());
         return match args {
             None => true,
             Some(args) => {
                 let all_simple = args
-                    .get("children")
+                    .field("children")
                     .and_then(|c| c.as_array())
                     .map(|children| {
                         children.iter().all(|c| {
-                            c.get("children")
+                            c.field("children")
                                 .and_then(|cc| cc.as_array())
                                 .map(|rels| rels.len() == 1)
                                 .unwrap_or(false)
@@ -1050,12 +1078,12 @@ fn is_unscoped_pseudo_class_selector(selector: &serde_json::Value) -> bool {
                     return true;
                 }
                 // Check if all children are global
-                args.get("children")
+                args.field("children")
                     .and_then(|c| c.as_array())
                     .map(|children| {
                         children.iter().all(|complex| {
                             complex
-                                .get("children")
+                                .field("children")
                                 .and_then(|c| c.as_array())
                                 .map(|rels| rels.iter().all(is_relative_selector_global_strict))
                                 .unwrap_or(false)
@@ -1073,12 +1101,12 @@ fn is_unscoped_pseudo_class_selector(selector: &serde_json::Value) -> bool {
 /// Check if a RelativeSelector is :global (or :global(...)).
 fn is_global_relative(relative_selector: &serde_json::Value) -> bool {
     if let Some(selectors) = relative_selector
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
     {
         if let Some(first) = selectors.first() {
-            first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && first.get("name").and_then(|n| n.as_str()) == Some("global")
+            first.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && first.field("name").and_then(|n| n.as_str()) == Some("global")
         } else {
             false
         }
@@ -1088,7 +1116,7 @@ fn is_global_relative(relative_selector: &serde_json::Value) -> bool {
 }
 
 fn has_global_selector(prelude: &serde_json::Value) -> bool {
-    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = prelude.field("children").and_then(|c| c.as_array()) {
         for child in children {
             if check_selector_for_global(child) {
                 return true;
@@ -1099,13 +1127,13 @@ fn has_global_selector(prelude: &serde_json::Value) -> bool {
 }
 
 fn check_selector_for_global(selector: &serde_json::Value) -> bool {
-    if let Some(children) = selector.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = selector.field("children").and_then(|c| c.as_array()) {
         for child in children {
-            if let Some(selectors) = child.get("selectors").and_then(|s| s.as_array()) {
+            if let Some(selectors) = child.field("selectors").and_then(|s| s.as_array()) {
                 for sel in selectors {
-                    if let Some(sel_type) = sel.get("type").and_then(|t| t.as_str())
+                    if let Some(sel_type) = sel.field("type").and_then(|t| t.as_str())
                         && sel_type == "PseudoClassSelector"
-                        && let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                        && let Some(name) = sel.field("name").and_then(|n| n.as_str())
                         && name == "global"
                     {
                         return true;
@@ -1124,7 +1152,7 @@ fn validate_global_args(
     num_children: usize,
     num_selectors: usize,
 ) -> Result<(), AnalysisError> {
-    if let Some(arg_children) = args.get("children").and_then(|c| c.as_array()) {
+    if let Some(arg_children) = args.field("children").and_then(|c| c.as_array()) {
         if arg_children.len() > 1 && (num_children > 1 || num_selectors > 1) {
             return Err(at_node(
                 errors::css_global_invalid_selector(),
@@ -1145,16 +1173,16 @@ fn validate_global_type_selector_position(
         .position(|s| std::ptr::eq(s, global_selector))
         .unwrap_or(0);
 
-    if let Some(args) = global_selector.get("args")
-        && let Some(arg_children) = args.get("children").and_then(|c| c.as_array())
+    if let Some(args) = global_selector.field("args")
+        && let Some(arg_children) = args.field("children").and_then(|c| c.as_array())
         && let Some(first_complex) = arg_children.first()
         && let Some(first_relative_children) =
-            first_complex.get("children").and_then(|c| c.as_array())
+            first_complex.field("children").and_then(|c| c.as_array())
         && let Some(first_relative) = first_relative_children.first()
         && let Some(first_relative_selectors) =
-            first_relative.get("selectors").and_then(|s| s.as_array())
+            first_relative.field("selectors").and_then(|s| s.as_array())
         && let Some(first_sel) = first_relative_selectors.first()
-        && first_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
+        && first_sel.field("type").and_then(|t| t.as_str()) == Some("TypeSelector")
         && global_idx != 0
     {
         return Err(at_node(
@@ -1164,7 +1192,7 @@ fn validate_global_type_selector_position(
     }
 
     if let Some(next_sel) = all_selectors.get(global_idx + 1)
-        && next_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
+        && next_sel.field("type").and_then(|t| t.as_str()) == Some("TypeSelector")
     {
         return Err(at_node(
             errors::css_type_selector_invalid_placement(),
@@ -1185,16 +1213,16 @@ pub fn extract_css_selector_info(stylesheet: &StyleSheet, analysis: &mut Compone
 }
 
 fn extract_selectors_from_node(node: &serde_json::Value, analysis: &mut ComponentAnalysis) {
-    if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+    if let Some(node_type) = node.field("type").and_then(|t| t.as_str()) {
         match node_type {
             "Rule" => {
                 // Extract selectors from the rule's prelude
-                if let Some(prelude) = node.get("prelude") {
+                if let Some(prelude) = node.field("prelude") {
                     extract_selectors_from_prelude(prelude, analysis);
                 }
                 // Recursively process nested rules
-                if let Some(block) = node.get("block")
-                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                if let Some(block) = node.field("block")
+                    && let Some(children) = block.field("children").and_then(|c| c.as_array())
                 {
                     for child in children {
                         extract_selectors_from_node(child, analysis);
@@ -1202,8 +1230,8 @@ fn extract_selectors_from_node(node: &serde_json::Value, analysis: &mut Componen
                 }
             }
             "Atrule" => {
-                if let Some(block) = node.get("block")
-                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                if let Some(block) = node.field("block")
+                    && let Some(children) = block.field("children").and_then(|c| c.as_array())
                 {
                     for child in children {
                         extract_selectors_from_node(child, analysis);
@@ -1217,7 +1245,7 @@ fn extract_selectors_from_node(node: &serde_json::Value, analysis: &mut Componen
 
 fn extract_selectors_from_prelude(prelude: &serde_json::Value, analysis: &mut ComponentAnalysis) {
     // prelude is a SelectorList with children (ComplexSelectors)
-    if let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(complex_selectors) = prelude.field("children").and_then(|c| c.as_array()) {
         for complex_selector in complex_selectors {
             extract_selectors_from_complex(complex_selector, analysis);
         }
@@ -1229,10 +1257,13 @@ fn extract_selectors_from_complex(
     analysis: &mut ComponentAnalysis,
 ) {
     // ComplexSelector has children (RelativeSelectors)
-    if let Some(relative_selectors) = complex_selector.get("children").and_then(|c| c.as_array()) {
+    if let Some(relative_selectors) = complex_selector
+        .field("children")
+        .and_then(|c| c.as_array())
+    {
         for relative_selector in relative_selectors {
             if let Some(selectors) = relative_selector
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
             {
                 for sel in selectors {
@@ -1244,10 +1275,10 @@ fn extract_selectors_from_complex(
 }
 
 fn extract_simple_selector(selector: &serde_json::Value, analysis: &mut ComponentAnalysis) {
-    if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str()) {
+    if let Some(sel_type) = selector.field("type").and_then(|t| t.as_str()) {
         match sel_type {
             "TypeSelector" => {
-                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = selector.field("name").and_then(|n| n.as_str()) {
                     if name == "*" {
                         analysis.css.has_universal_selector = true;
                     } else {
@@ -1256,26 +1287,26 @@ fn extract_simple_selector(selector: &serde_json::Value, analysis: &mut Componen
                 }
             }
             "ClassSelector" => {
-                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = selector.field("name").and_then(|n| n.as_str()) {
                     analysis.css.selector_class_names.insert(name.to_string());
                 }
             }
             "IdSelector" => {
-                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = selector.field("name").and_then(|n| n.as_str()) {
                     analysis.css.selector_id_names.insert(name.to_string());
                 }
             }
             "PseudoClassSelector" => {
                 // Process :global() args and other pseudo-classes
-                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = selector.field("name").and_then(|n| n.as_str()) {
                     if name == "global" {
                         // Extract selectors from :global() args
-                        if let Some(args) = selector.get("args") {
+                        if let Some(args) = selector.field("args") {
                             extract_selectors_from_prelude(args, analysis);
                         }
                     } else if name == "is" || name == "where" || name == "not" || name == "has" {
                         // Extract selectors from pseudo-class args
-                        if let Some(args) = selector.get("args") {
+                        if let Some(args) = selector.field("args") {
                             extract_selectors_from_prelude(args, analysis);
                         }
                     }

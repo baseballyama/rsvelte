@@ -8,6 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::types::DomStructure;
 use crate::ast::template::{self, Fragment, TemplateNode};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Represents the value of an attribute for CSS matching purposes.
 #[derive(Debug, Clone)]
@@ -37,10 +38,10 @@ fn gather_possible_values(
     if *unknown {
         return;
     }
-    let ty = node.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let ty = node.field("type").and_then(|t| t.as_str()).unwrap_or("");
     match ty {
         "Literal" => {
-            if let Some(v) = node.get("value") {
+            if let Some(v) = node.field("value") {
                 if let Some(s) = v.as_str() {
                     values.push(s.to_string());
                 } else if let Some(b) = v.as_bool() {
@@ -55,20 +56,23 @@ fn gather_possible_values(
             }
         }
         "ConditionalExpression" => {
-            if let Some(cons) = node.get("consequent") {
+            if let Some(cons) = node.field("consequent") {
                 gather_possible_values(cons, is_class, is_nested, values, unknown);
             }
-            if let Some(alt) = node.get("alternate") {
+            if let Some(alt) = node.field("alternate") {
                 gather_possible_values(alt, is_class, is_nested, values, unknown);
             }
         }
         "LogicalExpression" => {
-            let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+            let op = node
+                .field("operator")
+                .and_then(|o| o.as_str())
+                .unwrap_or("");
             if op == "&&" {
                 // Gather left values into a temp set to detect UNKNOWN
                 let mut left_values = Vec::new();
                 let mut left_unknown = false;
-                if let Some(l) = node.get("left") {
+                if let Some(l) = node.field("left") {
                     gather_possible_values(
                         l,
                         is_class,
@@ -95,20 +99,20 @@ fn gather_possible_values(
                         }
                     }
                 }
-                if let Some(r) = node.get("right") {
+                if let Some(r) = node.field("right") {
                     gather_possible_values(r, is_class, is_nested, values, unknown);
                 }
             } else {
-                if let Some(l) = node.get("left") {
+                if let Some(l) = node.field("left") {
                     gather_possible_values(l, is_class, is_nested, values, unknown);
                 }
-                if let Some(r) = node.get("right") {
+                if let Some(r) = node.field("right") {
                     gather_possible_values(r, is_class, is_nested, values, unknown);
                 }
             }
         }
         "ArrayExpression" if is_class => {
-            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+            if let Some(elements) = node.field("elements").and_then(|e| e.as_array()) {
                 for entry in elements {
                     if !entry.is_null() {
                         gather_possible_values(entry, is_class, true, values, unknown);
@@ -117,30 +121,33 @@ fn gather_possible_values(
             }
         }
         "ObjectExpression" if is_class => {
-            if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+            if let Some(properties) = node.field("properties").and_then(|p| p.as_array()) {
                 for property in properties {
-                    let prop_ty = property.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    let prop_ty = property
+                        .field("type")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("");
                     if prop_ty != "Property" {
                         *unknown = true;
                         continue;
                     }
                     let computed = property
-                        .get("computed")
+                        .field("computed")
                         .and_then(|c| c.as_bool())
                         .unwrap_or(false);
                     if computed {
                         *unknown = true;
                         continue;
                     }
-                    if let Some(key) = property.get("key") {
-                        let key_ty = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                    if let Some(key) = property.field("key") {
+                        let key_ty = key.field("type").and_then(|t| t.as_str()).unwrap_or("");
                         if key_ty == "Identifier" {
-                            if let Some(name) = key.get("name").and_then(|n| n.as_str()) {
+                            if let Some(name) = key.field("name").and_then(|n| n.as_str()) {
                                 values.push(name.to_string());
                                 continue;
                             }
                         } else if key_ty == "Literal"
-                            && let Some(v) = key.get("value")
+                            && let Some(v) = key.field("value")
                         {
                             if let Some(s) = v.as_str() {
                                 values.push(s.to_string());
@@ -557,15 +564,15 @@ fn extract_selectors_from_rule(
     parent_selectors: &[CssComplexSelector],
     parent_is_fully_global: bool,
 ) {
-    let node_type = match node.get("type").and_then(|t| t.as_str()) {
+    let node_type = match node.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return,
     };
     match node_type {
         "Rule" => {
-            if let Some(metadata) = node.get("metadata")
+            if let Some(metadata) = node.field("metadata")
                 && metadata
-                    .get("is_global_block")
+                    .field("is_global_block")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false)
             {
@@ -573,8 +580,9 @@ fn extract_selectors_from_rule(
             }
             // Parse this rule's own prelude selectors
             let mut own_selectors: Vec<CssComplexSelector> = Vec::new();
-            if let Some(prelude) = node.get("prelude")
-                && let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array())
+            if let Some(prelude) = node.field("prelude")
+                && let Some(complex_selectors) =
+                    prelude.field("children").and_then(|c| c.as_array())
             {
                 for cs in complex_selectors {
                     if let Some(parsed) = parse_complex_selector(cs) {
@@ -631,8 +639,8 @@ fn extract_selectors_from_rule(
 
             // Recurse into nested rules with the effective selectors as the new
             // parent_selectors context.
-            if let Some(block) = node.get("block")
-                && let Some(children) = block.get("children").and_then(|c| c.as_array())
+            if let Some(block) = node.field("block")
+                && let Some(children) = block.field("children").and_then(|c| c.as_array())
             {
                 for child in children {
                     extract_selectors_from_rule(child, selectors, &effective, own_is_fully_global);
@@ -645,8 +653,8 @@ fn extract_selectors_from_rule(
             // it, so a step still has to satisfy its parent rule chain; the
             // parser emits an empty relative selector for `0%`, which matches
             // any element, and `from` / `to` stay type selectors that match none.
-            if let Some(block) = node.get("block")
-                && let Some(children) = block.get("children").and_then(|c| c.as_array())
+            if let Some(block) = node.field("block")
+                && let Some(children) = block.field("children").and_then(|c| c.as_array())
             {
                 for child in children {
                     extract_selectors_from_rule(
@@ -821,7 +829,7 @@ fn substitute_explicit_nesting(
 }
 
 fn parse_complex_selector(cs: &serde_json::Value) -> Option<CssComplexSelector> {
-    let children = cs.get("children")?.as_array()?;
+    let children = cs.field("children")?.as_array()?;
     let mut relative_selectors = Vec::new();
     for rel in children {
         if let Some(parsed) = parse_relative_selector(rel) {
@@ -837,23 +845,23 @@ fn parse_complex_selector(cs: &serde_json::Value) -> Option<CssComplexSelector> 
 }
 
 fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelector> {
-    let combinator = rel.get("combinator").and_then(|c| {
+    let combinator = rel.field("combinator").and_then(|c| {
         if c.is_null() {
             None
         } else {
-            c.get("name")
+            c.field("name")
                 .and_then(|n| n.as_str())
                 .map(|s| s.to_string())
         }
     });
 
     let is_global = rel
-        .get("metadata")
-        .and_then(|m| m.get("is_global"))
+        .field("metadata")
+        .and_then(|m| m.field("is_global"))
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    let selectors_json = rel.get("selectors")?.as_array()?;
+    let selectors_json = rel.field("selectors")?.as_array()?;
 
     // Compute `is_global_like` the way upstream's css-analyze.js RelativeSelector
     // visitor does (the parser does not store this metadata in the JSON AST):
@@ -861,8 +869,8 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
     //    `:host` or a `::view-transition*` pseudo-element, or
     // 2. any selector is `:root` and none is `:has`.
     let is_global_like = rel
-        .get("metadata")
-        .and_then(|m| m.get("is_global_like"))
+        .field("metadata")
+        .and_then(|m| m.field("is_global_like"))
         .and_then(|v| v.as_bool())
         .unwrap_or_else(|| compute_is_global_like(selectors_json));
     let mut selectors = Vec::new();
@@ -884,13 +892,13 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
 /// `is_global_like` computation (lines 156-181).
 fn compute_is_global_like(selectors_json: &[serde_json::Value]) -> bool {
     let ty = |s: &serde_json::Value| {
-        s.get("type")
+        s.field("type")
             .and_then(|t| t.as_str())
             .unwrap_or("")
             .to_string()
     };
     let name = |s: &serde_json::Value| {
-        s.get("name")
+        s.field("name")
             .and_then(|n| n.as_str())
             .unwrap_or("")
             .to_string()
@@ -931,36 +939,36 @@ fn compute_is_global_like(selectors_json: &[serde_json::Value]) -> bool {
 }
 
 fn parse_simple_selector(sel: &serde_json::Value) -> Option<CssSimpleSelector> {
-    let sel_type = sel.get("type")?.as_str()?;
+    let sel_type = sel.field("type")?.as_str()?;
     match sel_type {
         "TypeSelector" => {
-            let name = sel.get("name")?.as_str()?.to_string();
+            let name = sel.field("name")?.as_str()?.to_string();
             Some(CssSimpleSelector::Type(name))
         }
         "ClassSelector" => {
-            let name = sel.get("name")?.as_str()?.to_string();
+            let name = sel.field("name")?.as_str()?.to_string();
             Some(CssSimpleSelector::Class(decode_css_escape(&name)))
         }
         "IdSelector" => {
-            let name = sel.get("name")?.as_str()?.to_string();
+            let name = sel.field("name")?.as_str()?.to_string();
             Some(CssSimpleSelector::Id(decode_css_escape(&name)))
         }
         "AttributeSelector" => {
             let name = sel
-                .get("name")
+                .field("name")
                 .and_then(|n| n.as_str())
                 .unwrap_or("")
                 .to_string();
             let matcher = sel
-                .get("matcher")
+                .field("matcher")
                 .and_then(|m| if m.is_null() { None } else { m.as_str() })
                 .map(|s| s.to_string());
             let value = sel
-                .get("value")
+                .field("value")
                 .and_then(|v| if v.is_null() { None } else { v.as_str() })
                 .map(|s| s.to_string());
             let flags = sel
-                .get("flags")
+                .field("flags")
                 .and_then(|f| if f.is_null() { None } else { f.as_str() })
                 .map(|s| s.to_string());
             Some(CssSimpleSelector::Attribute {
@@ -971,12 +979,12 @@ fn parse_simple_selector(sel: &serde_json::Value) -> Option<CssSimpleSelector> {
             })
         }
         "PseudoClassSelector" => {
-            let name = sel.get("name")?.as_str()?.to_string();
-            let args = sel.get("args").and_then(|args| {
+            let name = sel.field("name")?.as_str()?.to_string();
+            let args = sel.field("args").and_then(|args| {
                 if args.is_null() {
                     return None;
                 }
-                let children = args.get("children")?.as_array()?;
+                let children = args.field("children")?.as_array()?;
                 let mut complex_selectors = Vec::new();
                 for cs in children {
                     if let Some(parsed) = parse_complex_selector(cs) {
@@ -1388,15 +1396,15 @@ fn has_sibling_combinator(selector: &CssComplexSelector) -> bool {
 fn get_render_tag_callee_name(render_tag: &template::RenderTag) -> Option<String> {
     // Use JSON-based approach to avoid arena dependency
     let expr_json = render_tag.expression.as_json();
-    let expr = if expr_json.get("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
-        expr_json.get("expression").unwrap_or(expr_json)
+    let expr = if expr_json.field("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
+        expr_json.field("expression").unwrap_or(expr_json)
     } else {
         expr_json
     };
-    let callee = expr.get("callee")?;
-    if callee.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+    let callee = expr.field("callee")?;
+    if callee.field("type").and_then(|t| t.as_str()) == Some("Identifier") {
         callee
-            .get("name")
+            .field("name")
             .and_then(|n| n.as_str())
             .map(String::from)
     } else {
@@ -3295,9 +3303,9 @@ fn component_snippet_resolution(attributes: &[template::Attribute]) -> (bool, Ve
             template::Attribute::Attribute(a) => {
                 if let template::AttributeValue::Expression(expr_tag) = &a.value {
                     let json = expr_tag.expression.as_json();
-                    match json.get("type").and_then(|t| t.as_str()) {
+                    match json.field("type").and_then(|t| t.as_str()) {
                         Some("Identifier") => {
-                            if let Some(n) = json.get("name").and_then(|n| n.as_str()) {
+                            if let Some(n) = json.field("name").and_then(|n| n.as_str()) {
                                 names.push(n.to_string());
                             }
                         }

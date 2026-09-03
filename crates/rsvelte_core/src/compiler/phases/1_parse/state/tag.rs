@@ -24,6 +24,7 @@ use crate::error::ParseResult;
 
 use super::super::parser::{Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 fn leftover_token_offset(content: &str, ts: bool) -> Option<usize> {
     super::super::read::expression::trailing_token_offset(content, ts).filter(|&off| {
@@ -577,11 +578,11 @@ impl<'a> Parser<'a> {
                     .clone();
 
             let id_start = pattern_value
-                .get("start")
+                .field("start")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(seg_off as u64);
             let decl_end = init_value
-                .get("end")
+                .field("end")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(id_start + seg.len() as u64);
 
@@ -2526,12 +2527,12 @@ impl<'a> Parser<'a> {
                         // A comma-separated list parses as a SequenceExpression;
                         // anything else is one argument.
                         let value = expression.as_json();
-                        let expr_type = value.get("type").and_then(|t| t.as_str());
+                        let expr_type = value.field("type").and_then(|t| t.as_str());
 
                         if expr_type == Some("SequenceExpression") {
                             // Extract expressions from sequence
                             if let Some(expressions) =
-                                value.get("expressions").and_then(|e| e.as_array())
+                                value.field("expressions").and_then(|e| e.as_array())
                             {
                                 expressions
                                     .iter()

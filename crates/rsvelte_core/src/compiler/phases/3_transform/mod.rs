@@ -24,6 +24,7 @@ pub use js_ast::{JsExpr, JsProgram, JsStatement};
 
 use super::phase2_analyze::ComponentAnalysis;
 use crate::ast::template::Root;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::{CompileOptions, GenerateMode};
 use memchr::memmem;
 
@@ -353,7 +354,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
         // non-JS sources (CSS, SCSS, etc.) since JS output should never reference
         // style sources.
         if let Ok(map) = serde_json::from_str::<serde_json::Value>(pp_map)
-            && let Some(sources) = map.get("sources").and_then(|v| v.as_array())
+            && let Some(sources) = map.field("sources").and_then(|v| v.as_array())
         {
             let css_source_indices: rustc_hash::FxHashSet<u32> = sources
                 .iter()
@@ -462,7 +463,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
         let pp_info = options.sourcemap.as_ref().and_then(|pp_map| {
             let map: serde_json::Value = serde_json::from_str(pp_map).ok()?;
             let sources = map
-                .get("sources")
+                .field("sources")
                 .and_then(|v| v.as_array())
                 .map(|arr| {
                     arr.iter()
@@ -471,7 +472,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 })
                 .unwrap_or_default();
             let sources_content = map
-                .get("sourcesContent")
+                .field("sourcesContent")
                 .and_then(|v| v.as_array())
                 .map(|arr| {
                     arr.iter()
@@ -480,7 +481,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 })
                 .unwrap_or_default();
             let names = map
-                .get("names")
+                .field("names")
                 .and_then(|v| v.as_array())
                 .map(|arr| {
                     arr.iter()
@@ -718,7 +719,7 @@ pub(crate) fn remap_css_sourcemap(
         Err(_) => return css_map_json.to_string(),
     };
 
-    let css_mappings_str = match css_map.get("mappings").and_then(|v| v.as_str()) {
+    let css_mappings_str = match css_map.field("mappings").and_then(|v| v.as_str()) {
         Some(s) => s,
         None => return css_map_json.to_string(),
     };
@@ -748,13 +749,13 @@ pub(crate) fn remap_css_sourcemap(
     let pp_map: serde_json::Value =
         serde_json::from_str(pp_map_json).unwrap_or(serde_json::Value::Null);
     let original_content = pp_map
-        .get("sourcesContent")
+        .field("sourcesContent")
         .and_then(|v| v.as_array())
         .and_then(|arr| arr.first())
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let names: Vec<String> = pp_map
-        .get("names")
+        .field("names")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -768,7 +769,7 @@ pub(crate) fn remap_css_sourcemap(
 
     // Get file and source names from CSS map
     let file_name = css_map
-        .get("file")
+        .field("file")
         .and_then(|v| v.as_str())
         .unwrap_or("input.svelte.css");
     let source_name = options
@@ -783,7 +784,7 @@ pub(crate) fn remap_css_sourcemap(
         })
         .unwrap_or_else(|| {
             css_map
-                .get("sources")
+                .field("sources")
                 .and_then(|v| v.as_array())
                 .and_then(|arr| arr.first())
                 .and_then(|v| v.as_str())

@@ -14,6 +14,7 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Build an event listener attachment.
 ///
@@ -127,7 +128,7 @@ fn typed_walk_for_call(node: &JsNode, arena: &ParseArena) -> bool {
 fn json_walk_for_call(val: &serde_json::Value) -> bool {
     match val {
         serde_json::Value::Object(obj) => {
-            if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
+            if let Some(t) = obj.field("type").and_then(|t| t.as_str()) {
                 if t == "CallExpression" {
                     return true;
                 }

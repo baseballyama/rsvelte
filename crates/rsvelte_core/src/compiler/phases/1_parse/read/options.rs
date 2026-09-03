@@ -25,6 +25,7 @@ use crate::error::{ParseError, ParseResult};
 use serde_json::Value as JsonValue;
 
 use super::super::parser::Parser;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 // Upstream emits one message per code regardless of which check failed.
 const INVALID_TAGNAME: &str = "Tag name must be lowercase and hyphenated";
@@ -234,10 +235,10 @@ fn get_static_value(attr: &crate::ast::template::AttributeNode<'_>) -> Option<St
 /// `get_static_value` reads through (a template literal deliberately is not one).
 fn literal_string(expression: &Expression<'_>) -> Option<String> {
     let json = expression.as_json();
-    if json.get("type") != Some(&JsonValue::String("Literal".to_string())) {
+    if json.field("type") != Some(&JsonValue::String("Literal".to_string())) {
         return None;
     }
-    json.get("value")?.as_str().map(str::to_string)
+    json.field("value")?.as_str().map(str::to_string)
 }
 
 /// Upstream's `get_boolean_value`.
@@ -264,10 +265,10 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode<'_>) -> ParseRes
 
 fn literal_bool(expression: &Expression<'_>) -> Option<bool> {
     let json = expression.as_json();
-    if json.get("type") != Some(&JsonValue::String("Literal".to_string())) {
+    if json.field("type") != Some(&JsonValue::String("Literal".to_string())) {
         return None;
     }
-    json.get("value")?.as_bool()
+    json.field("value")?.as_bool()
 }
 
 /// Parse the customElement option.
@@ -308,13 +309,13 @@ fn parse_custom_element_option<'a>(
     };
 
     let json = expression.as_json();
-    let ty = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let ty = json.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
     if ty != "ObjectExpression" {
         // Before Svelte 4 it was necessary to explicitly set customElement to
         // null or else you'd get a warning; upstream still accepts it, and
         // returning `None` keeps the custom-element pipeline off (H-115).
-        if ty == "Literal" && json.get("value") == Some(&JsonValue::Null) {
+        if ty == "Literal" && json.field("value") == Some(&JsonValue::Null) {
             return Ok(None);
         }
         return Err(invalid());
@@ -335,7 +336,7 @@ fn parse_custom_element_object<'a>(
     let mut extend = None;
 
     let empty = Vec::new();
-    let properties = match obj_expr.get("properties") {
+    let properties = match obj_expr.field("properties") {
         Some(JsonValue::Array(properties)) => properties,
         _ => &empty,
     };
@@ -349,13 +350,15 @@ fn parse_custom_element_object<'a>(
             ));
         }
         let key = property_key(prop).unwrap_or_default();
-        let value = prop.get("value");
+        let value = prop.field("value");
 
         match key {
             "tag" => {
                 // Upstream reads `tag[1]?.value`, so anything that is not a
                 // string literal reaches `validate_tag` as a non-string.
-                let tag_value = value.and_then(|v| v.get("value")).and_then(|v| v.as_str());
+                let tag_value = value
+                    .and_then(|v| v.field("value"))
+                    .and_then(|v| v.as_str());
                 validate_tag_name(tag_value, attr)?;
                 tag = tag_value.map(|t| t.to_string().into());
             }
@@ -364,13 +367,16 @@ fn parse_custom_element_object<'a>(
                 // be "open"/"none"; an ObjectExpression (ShadowRootInit) is
                 // passed through verbatim.
                 let value_type = value
-                    .and_then(|v| v.get("type"))
+                    .and_then(|v| v.field("type"))
                     .and_then(|t| t.as_str())
                     .unwrap_or("");
                 if value_type == "ObjectExpression" {
                     shadow_object = value.cloned();
                 } else {
-                    match value.and_then(|v| v.get("value")).and_then(|v| v.as_str()) {
+                    match value
+                        .and_then(|v| v.field("value"))
+                        .and_then(|v| v.as_str())
+                    {
                         Some("open") if value_type == "Literal" => shadow = Some(ShadowMode::Open),
                         Some("none") if value_type == "Literal" => shadow = Some(ShadowMode::None),
                         _ => {
@@ -428,7 +434,8 @@ fn validate_custom_element_props(
         if !is_plain_property(entry) {
             return Err(invalid());
         }
-        let Some(JsonValue::Array(fields)) = entry.get("value").and_then(object_properties) else {
+        let Some(JsonValue::Array(fields)) = entry.field("value").and_then(object_properties)
+        else {
             return Err(invalid());
         };
 
@@ -436,12 +443,12 @@ fn validate_custom_element_props(
             if !is_plain_property(field) {
                 return Err(invalid());
             }
-            let value = field.get("value");
-            if value.and_then(|v| v.get("type")).and_then(|t| t.as_str()) != Some("Literal") {
+            let value = field.field("value");
+            if value.and_then(|v| v.field("type")).and_then(|t| t.as_str()) != Some("Literal") {
                 return Err(invalid());
             }
             let value = value
-                .and_then(|v| v.get("value"))
+                .and_then(|v| v.field("value"))
                 .unwrap_or(&JsonValue::Null);
 
             let ok = match property_key(field).unwrap_or_default() {
@@ -461,26 +468,26 @@ fn validate_custom_element_props(
 
 /// The `properties` array of an `ObjectExpression`, or `None` for anything else.
 fn object_properties(node: &JsonValue) -> Option<&JsonValue> {
-    if node.get("type")?.as_str()? != "ObjectExpression" {
+    if node.field("type")?.as_str()? != "ObjectExpression" {
         return None;
     }
-    node.get("properties")
+    node.field("properties")
 }
 
 /// Upstream's repeated `property.type !== 'Property' || property.computed ||
 /// property.key.type !== 'Identifier'` guard.
 fn is_plain_property(node: &JsonValue) -> bool {
-    node.get("type").and_then(|t| t.as_str()) == Some("Property")
-        && node.get("computed") != Some(&JsonValue::Bool(true))
+    node.field("type").and_then(|t| t.as_str()) == Some("Property")
+        && node.field("computed") != Some(&JsonValue::Bool(true))
         && node
-            .get("key")
-            .and_then(|k| k.get("type"))
+            .field("key")
+            .and_then(|k| k.field("type"))
             .and_then(|t| t.as_str())
             == Some("Identifier")
 }
 
 fn property_key(node: &JsonValue) -> Option<&str> {
-    node.get("key")?.get("name")?.as_str()
+    node.field("key")?.field("name")?.as_str()
 }
 
 /// Upstream's `validate_tag`: a non-string is always invalid, and a falsy tag

@@ -16,6 +16,7 @@ use crate::ast::css::StyleSheet;
 use crate::ast::{
     Attribute, AttributeValue, AttributeValuePart, Fragment, Root, TemplateNode, Text,
 };
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit the root node and generate source code.
 ///
@@ -681,11 +682,11 @@ fn visit_attribute_node(context: &mut Context, attr: &crate::ast::AttributeNode)
 /// * `attr` - The attribute as JSON value
 fn visit_json_attribute(context: &mut Context, attr: &serde_json::Value) {
     // Extract name and value from JSON
-    if let Some(name) = attr.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = attr.field("name").and_then(|n| n.as_str()) {
         context.write(name);
 
         // Check if it has a value
-        if let Some(value) = attr.get("value")
+        if let Some(value) = attr.field("value")
             && !value.is_null()
             && value.as_bool() != Some(true)
             && let Some(val_str) = value.as_str()
@@ -1165,7 +1166,7 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
 
         for child in &stylesheet.children {
             let start = child
-                .get("start")
+                .field("start")
                 .and_then(serde_json::Value::as_u64)
                 .unwrap_or(0);
             while context.has_css_comment_before(start) {

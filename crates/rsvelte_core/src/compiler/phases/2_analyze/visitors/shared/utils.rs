@@ -9,6 +9,7 @@ use crate::ast::typed_expr::{JsNode, LiteralValue};
 use crate::compiler::phases::phase3_transform::server::evaluate::{
     EvalScope, EvalValue, Evaluation, evaluate_binding_initial,
 };
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -38,7 +39,7 @@ struct AnalysisEvalScope<'a> {
 impl EvalScope for AnalysisEvalScope<'_> {
     fn evaluate_identifier(&self, node: &serde_json::Value, name: &str, depth: u8) -> Evaluation {
         let by_position = node
-            .get("start")
+            .field("start")
             .and_then(serde_json::Value::as_u64)
             .and_then(|start| {
                 self.analysis.root.bindings.iter().find(|binding| {
@@ -1133,7 +1134,7 @@ pub fn validate_assignment_node(
 
         if let Some(ref field_name) = name
             && let Some(field) = context.state_fields.get(field_name)
-            && field.node.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
+            && field.node.field("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
         {
             let mut i = context.js_path.len();
             while i > 0 {
@@ -1154,7 +1155,7 @@ pub fn validate_assignment_node(
                         let node_start = argument.start();
                         let field_start = field
                             .node
-                            .get("start")
+                            .field("start")
                             .and_then(|s| s.as_u64())
                             .map(|n| n as u32);
 

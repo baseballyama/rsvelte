@@ -17,6 +17,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::element
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event_handler;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use indexmap::IndexMap;
 
 /// Component node types.
@@ -962,19 +963,20 @@ pub(in crate::compiler::phases::phase3_transform::client) fn build_destructured_
 /// (`AssignmentExpression`) deliberately bind nothing.
 fn extract_let_binding_names(json: &serde_json::Value, out: &mut Vec<compact_str::CompactString>) {
     let Some(obj) = json.as_object() else { return };
-    match obj.get("type").and_then(|t| t.as_str()) {
+    match obj.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                 out.push(name.into());
             }
         }
         Some("ObjectExpression") => {
-            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+            if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                 for prop in props {
-                    let target = if prop.get("type").and_then(|t| t.as_str()) == Some("Property") {
-                        prop.get("value")
+                    let target = if prop.field("type").and_then(|t| t.as_str()) == Some("Property")
+                    {
+                        prop.field("value")
                     } else {
-                        prop.get("argument")
+                        prop.field("argument")
                     };
                     if let Some(target) = target {
                         extract_let_binding_names(target, out);
@@ -983,7 +985,7 @@ fn extract_let_binding_names(json: &serde_json::Value, out: &mut Vec<compact_str
             }
         }
         Some("ArrayExpression") => {
-            if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+            if let Some(elements) = obj.field("elements").and_then(|e| e.as_array()) {
                 for el in elements {
                     if !el.is_null() {
                         extract_let_binding_names(el, out);
@@ -1003,16 +1005,16 @@ fn expression_to_let_pattern(
     context: &mut ComponentContext,
 ) -> JsPattern {
     let source_slice = |o: &serde_json::Map<String, serde_json::Value>| -> Option<String> {
-        let s = o.get("start").and_then(|v| v.as_u64())? as usize;
-        let e = o.get("end").and_then(|v| v.as_u64())? as usize;
+        let s = o.field("start").and_then(|v| v.as_u64())? as usize;
+        let e = o.field("end").and_then(|v| v.as_u64())? as usize;
         context.state.analysis.source.get(s..e).map(str::to_string)
     };
     let Some(obj) = json.as_object() else {
         return b::id_pattern("$$unknown");
     };
-    match obj.get("type").and_then(|t| t.as_str()) {
+    match obj.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => b::id_pattern(
-            obj.get("name")
+            obj.field("name")
                 .and_then(|n| n.as_str())
                 .unwrap_or("$$unknown"),
         ),
@@ -1020,34 +1022,37 @@ fn expression_to_let_pattern(
         // so the pattern spellings alias the expression ones here.
         Some("ObjectExpression") | Some("ObjectPattern") => {
             let mut properties = Vec::new();
-            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+            if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                 for prop in props {
                     let Some(p) = prop.as_object() else { continue };
-                    if p.get("type").and_then(|t| t.as_str()) != Some("Property") {
-                        if let Some(arg) = p.get("argument") {
+                    if p.field("type").and_then(|t| t.as_str()) != Some("Property") {
+                        if let Some(arg) = p.field("argument") {
                             properties.push(JsObjectPatternProperty::Rest(Box::new(
                                 expression_to_let_pattern(arg, context),
                             )));
                         }
                         continue;
                     }
-                    let computed = p.get("computed").and_then(|c| c.as_bool()).unwrap_or(false);
+                    let computed = p
+                        .field("computed")
+                        .and_then(|c| c.as_bool())
+                        .unwrap_or(false);
                     let shorthand = p
-                        .get("shorthand")
+                        .field("shorthand")
                         .and_then(|s| s.as_bool())
                         .unwrap_or(false);
-                    let Some(key_obj) = p.get("key").and_then(|k| k.as_object()) else {
+                    let Some(key_obj) = p.field("key").and_then(|k| k.as_object()) else {
                         continue;
                     };
                     let key = if computed {
                         let raw = source_slice(key_obj).unwrap_or_default();
                         JsPropertyKey::Computed(context.arena.alloc_expr(b::raw(raw)))
-                    } else if let Some(name) = key_obj.get("name").and_then(|n| n.as_str()) {
+                    } else if let Some(name) = key_obj.field("name").and_then(|n| n.as_str()) {
                         JsPropertyKey::Identifier(name.into())
                     } else {
                         let raw = source_slice(key_obj).unwrap_or_default();
                         let cooked = key_obj
-                            .get("value")
+                            .field("value")
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .into();
@@ -1057,7 +1062,7 @@ fn expression_to_let_pattern(
                         })
                     };
                     let value = p
-                        .get("value")
+                        .field("value")
                         .map(|v| expression_to_let_pattern(v, context))
                         .unwrap_or_else(|| b::id_pattern("$$unknown"));
                     properties.push(JsObjectPatternProperty::Property {
@@ -1072,7 +1077,7 @@ fn expression_to_let_pattern(
         }
         Some("ArrayExpression") | Some("ArrayPattern") => {
             let mut elements = Vec::new();
-            if let Some(els) = obj.get("elements").and_then(|e| e.as_array()) {
+            if let Some(els) = obj.field("elements").and_then(|e| e.as_array()) {
                 for el in els {
                     if el.is_null() {
                         elements.push(None);
@@ -1084,17 +1089,17 @@ fn expression_to_let_pattern(
             b::array_pattern(elements)
         }
         Some("SpreadElement") | Some("RestElement") => JsPattern::Rest(Box::new(
-            obj.get("argument")
+            obj.field("argument")
                 .map(|a| expression_to_let_pattern(a, context))
                 .unwrap_or_else(|| b::id_pattern("$$unknown")),
         )),
         Some("AssignmentExpression") | Some("AssignmentPattern") => {
             let left = obj
-                .get("left")
+                .field("left")
                 .map(|l| expression_to_let_pattern(l, context))
                 .unwrap_or_else(|| b::id_pattern("$$unknown"));
             let right_raw = obj
-                .get("right")
+                .field("right")
                 .and_then(|r| r.as_object())
                 .and_then(source_slice)
                 .unwrap_or_else(|| "undefined".to_string());
@@ -2249,13 +2254,13 @@ fn typed_is_store_member_expression(
 /// walk is checked against.
 fn json_is_store_member_expression(val: &serde_json::Value, context: &ComponentContext) -> bool {
     if let Some(obj) = val.as_object()
-        && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
+        && let Some("MemberExpression") = obj.field("type").and_then(|t| t.as_str())
     {
         // Get the root object of the member expression chain
         let root = get_member_expression_root(obj);
         if let Some(root_obj) = root
-            && let Some("Identifier") = root_obj.get("type").and_then(|t| t.as_str())
-            && let Some(name) = root_obj.get("name").and_then(|n| n.as_str())
+            && let Some("Identifier") = root_obj.field("type").and_then(|t| t.as_str())
+            && let Some(name) = root_obj.field("name").and_then(|n| n.as_str())
             && let Some(binding) = context.state.get_binding(name)
         {
             return binding.kind
@@ -2269,9 +2274,9 @@ fn json_is_store_member_expression(val: &serde_json::Value, context: &ComponentC
 fn get_member_expression_root(
     obj: &serde_json::Map<String, serde_json::Value>,
 ) -> Option<&serde_json::Map<String, serde_json::Value>> {
-    let object = obj.get("object")?;
+    let object = obj.field("object")?;
     if let Some(inner_obj) = object.as_object() {
-        if inner_obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        if inner_obj.field("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
             return get_member_expression_root(inner_obj);
         }
         return Some(inner_obj);
@@ -2284,11 +2289,11 @@ fn get_member_expression_root(
 fn get_store_info_from_member(expr: &Expression) -> Option<(String, String)> {
     let val = expr.as_json();
     if let Some(obj) = val.as_object()
-        && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
+        && let Some("MemberExpression") = obj.field("type").and_then(|t| t.as_str())
     {
         let root = get_member_expression_root(obj)?;
-        if let Some("Identifier") = root.get("type").and_then(|t| t.as_str())
-            && let Some(name) = root.get("name").and_then(|n| n.as_str())
+        if let Some("Identifier") = root.field("type").and_then(|t| t.as_str())
+            && let Some(name) = root.field("name").and_then(|n| n.as_str())
             && name.starts_with('$')
         {
             // $store -> store
@@ -3540,10 +3545,10 @@ fn get_binding_root_name(expr: &Expression) -> Option<String> {
 
 fn get_root_identifier_from_json(val: &serde_json::Value) -> Option<String> {
     let obj = val.as_object()?;
-    match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+    match obj.field("type")?.as_str()? {
+        "Identifier" => obj.field("name")?.as_str().map(|s| s.to_string()),
         "MemberExpression" => {
-            let object = obj.get("object")?;
+            let object = obj.field("object")?;
             get_root_identifier_from_json(object)
         }
         _ => None,

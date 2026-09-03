@@ -14,6 +14,7 @@ use crate::ast::js::Expression;
 use crate::ast::template::{ExpressionMetadata, SnippetBlock, TemplateNode};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a snippet block.
 pub fn visit<'a, 'b: 'a>(
@@ -673,11 +674,11 @@ fn check_hoistable(
         };
         let json = declaration.as_json();
         if let Some(obj) = json.as_object()
-            && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-            && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+            && obj.field("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+            && let Some(decls) = obj.field("declarations").and_then(|d| d.as_array())
         {
             for d in decls {
-                if let Some(id) = d.get("id")
+                if let Some(id) = d.field("id")
                     && let Some(names) = extract_pattern_names(id)
                 {
                     for n in names {
@@ -913,11 +914,11 @@ fn check_hoistable(
             TemplateNode::ConstTag(tag) => {
                 let json = tag.declaration.as_json();
                 if let Some(obj) = json.as_object()
-                    && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                    && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+                    && obj.field("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                    && let Some(decls) = obj.field("declarations").and_then(|d| d.as_array())
                 {
                     for d in decls {
-                        if let Some(init) = d.get("init")
+                        if let Some(init) = d.field("init")
                             && !init.is_null()
                             && !expression_only_uses_params(init, param_names, context)
                         {
@@ -949,11 +950,11 @@ fn check_hoistable(
             TemplateNode::DeclarationTag(tag) => {
                 let json = tag.declaration.as_json();
                 if let Some(obj) = json.as_object()
-                    && obj.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
-                    && let Some(decls) = obj.get("declarations").and_then(|d| d.as_array())
+                    && obj.field("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+                    && let Some(decls) = obj.field("declarations").and_then(|d| d.as_array())
                 {
                     for d in decls {
-                        if let Some(init) = d.get("init")
+                        if let Some(init) = d.field("init")
                             && !init.is_null()
                             && !expression_only_uses_params(init, param_names, context)
                         {
@@ -1145,36 +1146,37 @@ fn extract_all_param_names(param: &Expression) -> Vec<String> {
 /// Extract all names from a pattern (Identifier, ObjectPattern, ArrayPattern) - JSON version.
 fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
     if let serde_json::Value::Object(obj) = val {
-        let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+        let expr_type = obj.field("type").and_then(|v| v.as_str())?;
 
         match expr_type {
             "Identifier" => {
-                let name = obj.get("name").and_then(|v| v.as_str())?.to_string();
+                let name = obj.field("name").and_then(|v| v.as_str())?.to_string();
                 Some(vec![name])
             }
             "ObjectPattern" => {
                 let mut names = Vec::new();
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                     for prop in props {
                         if let Some(prop_obj) = prop.as_object() {
-                            if prop_obj.get("type").and_then(|v| v.as_str()) == Some("Property") {
-                                if let Some(value) = prop_obj.get("value") {
-                                    let actual_value = if value.get("type").and_then(|v| v.as_str())
-                                        == Some("AssignmentPattern")
-                                    {
-                                        value.get("left")
-                                    } else {
-                                        Some(value)
-                                    };
+                            if prop_obj.field("type").and_then(|v| v.as_str()) == Some("Property") {
+                                if let Some(value) = prop_obj.field("value") {
+                                    let actual_value =
+                                        if value.field("type").and_then(|v| v.as_str())
+                                            == Some("AssignmentPattern")
+                                        {
+                                            value.field("left")
+                                        } else {
+                                            Some(value)
+                                        };
                                     if let Some(v) = actual_value
                                         && let Some(inner_names) = extract_pattern_names(v)
                                     {
                                         names.extend(inner_names);
                                     }
                                 }
-                            } else if prop_obj.get("type").and_then(|v| v.as_str())
+                            } else if prop_obj.field("type").and_then(|v| v.as_str())
                                 == Some("RestElement")
-                                && let Some(arg) = prop_obj.get("argument")
+                                && let Some(arg) = prop_obj.field("argument")
                                 && let Some(inner_names) = extract_pattern_names(arg)
                             {
                                 names.extend(inner_names);
@@ -1186,7 +1188,7 @@ fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
             }
             "ArrayPattern" => {
                 let mut names = Vec::new();
-                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                if let Some(elements) = obj.field("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null()
                             && let Some(inner_names) = extract_pattern_names(elem)
@@ -1198,13 +1200,13 @@ fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
                 Some(names)
             }
             "AssignmentPattern" => {
-                if let Some(left) = obj.get("left") {
+                if let Some(left) = obj.field("left") {
                     return extract_pattern_names(left);
                 }
                 None
             }
             "RestElement" => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     return extract_pattern_names(arg);
                 }
                 None
@@ -1343,12 +1345,12 @@ fn collect_local_bindings(val: &serde_json::Value, out: &mut FxHashSet<String>) 
             }
         }
         serde_json::Value::Object(o) => {
-            let ty = o.get("type").and_then(|t| t.as_str());
+            let ty = o.field("type").and_then(|t| t.as_str());
             match ty {
                 Some("VariableDeclarator")
                 | Some("FunctionDeclaration")
                 | Some("ClassDeclaration") => {
-                    if let Some(id) = o.get("id")
+                    if let Some(id) = o.field("id")
                         && let Some(names) = extract_pattern_names(id)
                     {
                         for n in names {
@@ -1363,7 +1365,7 @@ fn collect_local_bindings(val: &serde_json::Value, out: &mut FxHashSet<String>) 
                 Some("FunctionDeclaration")
                     | Some("FunctionExpression")
                     | Some("ArrowFunctionExpression")
-            ) && let Some(params) = o.get("params").and_then(|p| p.as_array())
+            ) && let Some(params) = o.field("params").and_then(|p| p.as_array())
             {
                 for p in params {
                     if let Some(names) = extract_pattern_names(p) {
@@ -1374,7 +1376,7 @@ fn collect_local_bindings(val: &serde_json::Value, out: &mut FxHashSet<String>) 
                 }
             }
             if ty == Some("CatchClause")
-                && let Some(param) = o.get("param")
+                && let Some(param) = o.field("param")
                 && let Some(names) = extract_pattern_names(param)
             {
                 for n in names {
@@ -1399,19 +1401,21 @@ fn refs_hoistable(
 ) -> bool {
     match val {
         serde_json::Value::Array(a) => a.iter().all(|v| refs_hoistable(v, params, context)),
-        serde_json::Value::Object(o) => match o.get("type").and_then(|t| t.as_str()) {
+        serde_json::Value::Object(o) => match o.field("type").and_then(|t| t.as_str()) {
             Some("Identifier") => o
-                .get("name")
+                .field("name")
                 .and_then(|n| n.as_str())
                 .is_none_or(|n| is_identifier_hoistable(n, params, context)),
             Some("MemberExpression") => {
-                if let Some(obj) = o.get("object")
+                if let Some(obj) = o.field("object")
                     && !refs_hoistable(obj, params, context)
                 {
                     return false;
                 }
-                if o.get("computed").and_then(|c| c.as_bool()).unwrap_or(false)
-                    && let Some(prop) = o.get("property")
+                if o.field("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                    && let Some(prop) = o.field("property")
                     && !refs_hoistable(prop, params, context)
                 {
                     return false;
@@ -1419,13 +1423,15 @@ fn refs_hoistable(
                 true
             }
             Some("Property") => {
-                if o.get("computed").and_then(|c| c.as_bool()).unwrap_or(false)
-                    && let Some(key) = o.get("key")
+                if o.field("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                    && let Some(key) = o.field("key")
                     && !refs_hoistable(key, params, context)
                 {
                     return false;
                 }
-                o.get("value")
+                o.field("value")
                     .is_none_or(|v| refs_hoistable(v, params, context))
             }
             _ => o
@@ -1457,11 +1463,11 @@ fn expression_only_uses_params(
     context: &VisitorContext,
 ) -> bool {
     if let serde_json::Value::Object(obj) = val {
-        let expr_type = obj.get("type").and_then(|v| v.as_str());
+        let expr_type = obj.field("type").and_then(|v| v.as_str());
 
         match expr_type {
             Some("Identifier") => {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                     return is_identifier_hoistable(name, param_names, context);
                 }
                 true
@@ -1474,12 +1480,12 @@ fn expression_only_uses_params(
             | Some("NullLiteral") => true,
 
             Some("CallExpression") | Some("NewExpression") => {
-                if let Some(callee) = obj.get("callee")
+                if let Some(callee) = obj.field("callee")
                     && !expression_only_uses_params(callee, param_names, context)
                 {
                     return false;
                 }
-                if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
+                if let Some(args) = obj.field("arguments").and_then(|a| a.as_array()) {
                     for arg in args {
                         if !expression_only_uses_params(arg, param_names, context) {
                             return false;
@@ -1490,20 +1496,20 @@ fn expression_only_uses_params(
             }
 
             Some("ChainExpression") => obj
-                .get("expression")
+                .field("expression")
                 .is_none_or(|e| expression_only_uses_params(e, param_names, context)),
 
             Some("MemberExpression") => {
-                if let Some(object) = obj.get("object")
+                if let Some(object) = obj.field("object")
                     && !expression_only_uses_params(object, param_names, context)
                 {
                     return false;
                 }
                 if obj
-                    .get("computed")
+                    .field("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false)
-                    && let Some(prop) = obj.get("property")
+                    && let Some(prop) = obj.field("property")
                     && !expression_only_uses_params(prop, param_names, context)
                 {
                     return false;
@@ -1512,12 +1518,12 @@ fn expression_only_uses_params(
             }
 
             Some("BinaryExpression") | Some("LogicalExpression") => {
-                if let Some(left) = obj.get("left")
+                if let Some(left) = obj.field("left")
                     && !expression_only_uses_params(left, param_names, context)
                 {
                     return false;
                 }
-                if let Some(right) = obj.get("right")
+                if let Some(right) = obj.field("right")
                     && !expression_only_uses_params(right, param_names, context)
                 {
                     return false;
@@ -1537,7 +1543,7 @@ fn expression_only_uses_params(
             }
 
             Some("TemplateLiteral") => {
-                if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
+                if let Some(exprs) = obj.field("expressions").and_then(|e| e.as_array()) {
                     for e in exprs {
                         if !expression_only_uses_params(e, param_names, context) {
                             return false;
@@ -1548,7 +1554,7 @@ fn expression_only_uses_params(
             }
 
             Some("ArrayExpression") => {
-                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                if let Some(elements) = obj.field("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
                         if !elem.is_null()
                             && !expression_only_uses_params(elem, param_names, context)
@@ -1561,19 +1567,19 @@ fn expression_only_uses_params(
             }
 
             Some("ObjectExpression") => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                     for prop in props {
                         if let Some(prop_obj) = prop.as_object() {
                             if prop_obj
-                                .get("computed")
+                                .field("computed")
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false)
-                                && let Some(key) = prop_obj.get("key")
+                                && let Some(key) = prop_obj.field("key")
                                 && !expression_only_uses_params(key, param_names, context)
                             {
                                 return false;
                             }
-                            if let Some(value) = prop_obj.get("value")
+                            if let Some(value) = prop_obj.field("value")
                                 && !expression_only_uses_params(value, param_names, context)
                             {
                                 return false;
@@ -1585,26 +1591,26 @@ fn expression_only_uses_params(
             }
 
             Some("SpreadElement") => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     return expression_only_uses_params(arg, param_names, context);
                 }
                 true
             }
 
             Some("UnaryExpression") | Some("UpdateExpression") => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     return expression_only_uses_params(arg, param_names, context);
                 }
                 true
             }
 
             Some("AssignmentExpression") => {
-                if let Some(left) = obj.get("left")
+                if let Some(left) = obj.field("left")
                     && !expression_only_uses_params(left, param_names, context)
                 {
                     return false;
                 }
-                if let Some(right) = obj.get("right")
+                if let Some(right) = obj.field("right")
                     && !expression_only_uses_params(right, param_names, context)
                 {
                     return false;
@@ -1613,7 +1619,7 @@ fn expression_only_uses_params(
             }
 
             Some("SequenceExpression") => {
-                if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
+                if let Some(exprs) = obj.field("expressions").and_then(|e| e.as_array()) {
                     for e in exprs {
                         if !expression_only_uses_params(e, param_names, context) {
                             return false;

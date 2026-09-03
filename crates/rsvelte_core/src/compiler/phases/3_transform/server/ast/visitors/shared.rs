@@ -24,6 +24,7 @@
 use crate::ast::js::Expression;
 use crate::ast::template::{Fragment, RegularElement, TemplateNode};
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use crate::compiler::phases::phase3_transform::shared::template::escape_html;
 use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, replace_leading_whitespace, replace_trailing_whitespace,
@@ -883,12 +884,12 @@ fn sort_const_tags<'n, 'b, N: AsRef<TemplateNode<'b>>>(
             // span would wrongly include `const ` in the `<lhs> = <rhs>` split.
             let decl_json = ct.declaration.as_json();
             let (start, end) = decl_json
-                .get("declarations")
+                .field("declarations")
                 .and_then(|d| d.as_array())
                 .and_then(|d| d.first())
                 .and_then(|declarator| {
-                    let s = declarator.get("start").and_then(|n| n.as_u64())? as usize;
-                    let e = declarator.get("end").and_then(|n| n.as_u64())? as usize;
+                    let s = declarator.field("start").and_then(|n| n.as_u64())? as usize;
+                    let e = declarator.field("end").and_then(|n| n.as_u64())? as usize;
                     Some((s, e))
                 })
                 .unwrap_or((0, 0));

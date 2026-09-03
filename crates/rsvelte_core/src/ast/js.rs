@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::arena::{IdRange, JsNodeId};
 use super::span::SourceLocation;
 use super::typed_expr::{JsNode, Loc, SourcePosition};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Wrapper for a typed `JsNode` with lazy JSON cache.
 /// The cache is only populated when `as_json()` is first called (during Phase 2/3),
@@ -673,7 +674,7 @@ impl<'de> Deserialize<'de> for Expression<'_> {
         // must return a deserialize Error here rather than letting
         // `JsNode::from_value` degrade a typeless object to `Null`.
         let is_node = value
-            .get("type")
+            .field("type")
             .and_then(|t| t.as_str())
             .is_some_and(|t| !t.is_empty());
         if !is_node {

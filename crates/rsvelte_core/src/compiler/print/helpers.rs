@@ -4,6 +4,7 @@
 //! such as formatting blocks and handling attributes.
 
 use super::{Context, PrintError};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use std::cell::RefCell;
 use std::fmt::Write as _;
 
@@ -184,8 +185,8 @@ pub fn unsupported_nodes_error(recorded: &[String]) -> PrintError {
 }
 
 fn record_unsupported_node(node: &serde_json::Value, node_type: Option<&str>) {
-    let start = node.get("start").and_then(serde_json::Value::as_u64);
-    let end = node.get("end").and_then(serde_json::Value::as_u64);
+    let start = node.field("start").and_then(serde_json::Value::as_u64);
+    let end = node.field("end").and_then(serde_json::Value::as_u64);
     let location = match (start, end) {
         (Some(start), Some(end)) => format!(" at {start}..{end}"),
         (Some(start), None) => format!(" at {start}"),
@@ -277,8 +278,13 @@ fn binary_operator_precedence(operator: &str) -> Option<u8> {
 /// `??` may not sit next to `&&` or `||` unparenthesized, however the two
 /// precedences compare.
 fn mixed_logical_min(parent_operator: &str, child: &serde_json::Value, min_precedence: u8) -> u8 {
-    let child_operator = (child.get("type").and_then(|t| t.as_str()) == Some("LogicalExpression"))
-        .then(|| child.get("operator").and_then(|o| o.as_str()).unwrap_or(""));
+    let child_operator =
+        (child.field("type").and_then(|t| t.as_str()) == Some("LogicalExpression")).then(|| {
+            child
+                .field("operator")
+                .and_then(|o| o.as_str())
+                .unwrap_or("")
+        });
     match (parent_operator, child_operator) {
         ("??", Some("&&" | "||")) | ("&&" | "||", Some("??")) => precedence::PRIMARY,
         _ => min_precedence,
@@ -287,20 +293,24 @@ fn mixed_logical_min(parent_operator: &str, child: &serde_json::Value, min_prece
 
 /// The precedence of an expression node as printed by [`EstreeGenerator`].
 fn node_precedence(node: &serde_json::Value) -> u8 {
-    match node.get("type").and_then(|t| t.as_str()) {
+    match node.field("type").and_then(|t| t.as_str()) {
         Some("SequenceExpression") => precedence::SEQUENCE,
         Some("AssignmentExpression")
         | Some("ArrowFunctionExpression")
         | Some("YieldExpression") => precedence::ASSIGNMENT,
         Some("ConditionalExpression") => precedence::CONDITIONAL,
         Some("BinaryExpression") | Some("LogicalExpression") => node
-            .get("operator")
+            .field("operator")
             .and_then(|o| o.as_str())
             .and_then(binary_operator_precedence)
             .unwrap_or(precedence::PRIMARY),
         Some("UnaryExpression") | Some("AwaitExpression") => precedence::UNARY,
         Some("UpdateExpression") => {
-            if node.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true) {
+            if node
+                .field("prefix")
+                .and_then(|p| p.as_bool())
+                .unwrap_or(true)
+            {
                 precedence::UNARY
             } else {
                 precedence::POSTFIX
@@ -312,7 +322,7 @@ fn node_precedence(node: &serde_json::Value) -> u8 {
         | Some("TaggedTemplateExpression")
         | Some("ImportExpression") => precedence::CALL,
         Some("ChainExpression") => node
-            .get("expression")
+            .field("expression")
             .map(node_precedence)
             .unwrap_or(precedence::CALL),
         _ => precedence::PRIMARY,
@@ -332,7 +342,7 @@ impl EstreeGenerator {
     }
 
     fn generate_node(&mut self, node: &serde_json::Value) {
-        let node_type = node.get("type").and_then(|t| t.as_str());
+        let node_type = node.field("type").and_then(|t| t.as_str());
 
         match node_type {
             Some("Identifier") => self.generate_identifier(node),
@@ -359,33 +369,33 @@ impl EstreeGenerator {
             Some("ThisExpression") => self.output.push_str("this"),
             Some("NewExpression") => self.generate_new_expression(node),
             Some("ChainExpression") => {
-                if let Some(expr) = node.get("expression") {
+                if let Some(expr) = node.field("expression") {
                     self.generate_node(expr);
                 }
             }
             Some("AwaitExpression") => {
                 self.output.push_str("await ");
-                if let Some(arg) = node.get("argument") {
+                if let Some(arg) = node.field("argument") {
                     self.generate_expression(arg, precedence::UNARY);
                 }
             }
             Some("YieldExpression") => {
                 self.output.push_str("yield");
                 if node
-                    .get("delegate")
+                    .field("delegate")
                     .and_then(|d| d.as_bool())
                     .unwrap_or(false)
                 {
                     self.output.push('*');
                 }
-                if let Some(arg) = node.get("argument") {
+                if let Some(arg) = node.field("argument") {
                     self.output.push(' ');
                     self.generate_expression(arg, precedence::ASSIGNMENT);
                 }
             }
             Some("ParenthesizedExpression") => {
                 self.output.push('(');
-                if let Some(expr) = node.get("expression") {
+                if let Some(expr) = node.field("expression") {
                     self.generate_node(expr);
                 }
                 self.output.push(')');
@@ -393,26 +403,26 @@ impl EstreeGenerator {
             Some("Property") => self.generate_property(node),
             Some("Super") => self.output.push_str("super"),
             Some("MetaProperty") => {
-                if let Some(meta) = node.get("meta") {
+                if let Some(meta) = node.field("meta") {
                     self.generate_node(meta);
                 }
                 self.output.push('.');
-                if let Some(property) = node.get("property") {
+                if let Some(property) = node.field("property") {
                     self.generate_node(property);
                 }
             }
             Some("ImportExpression") => self.generate_import_expression(node),
             Some("TaggedTemplateExpression") => {
-                if let Some(tag) = node.get("tag") {
+                if let Some(tag) = node.field("tag") {
                     self.generate_node(tag);
                 }
-                if let Some(quasi) = node.get("quasi") {
+                if let Some(quasi) = node.field("quasi") {
                     self.generate_node(quasi);
                 }
             }
             Some("PrivateIdentifier") => {
                 self.output.push('#');
-                if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
                     self.output.push_str(name);
                 }
             }
@@ -426,7 +436,7 @@ impl EstreeGenerator {
             }
             Some("BlockStatement") => self.generate_block_statement(node),
             Some("ExpressionStatement") => {
-                if let Some(expr) = node.get("expression") {
+                if let Some(expr) = node.field("expression") {
                     self.generate_expression_statement(expr);
                 }
                 self.output.push(';');
@@ -438,11 +448,11 @@ impl EstreeGenerator {
             Some("BreakStatement") => self.generate_break_or_continue(node, "break"),
             Some("ContinueStatement") => self.generate_break_or_continue(node, "continue"),
             Some("LabeledStatement") => {
-                if let Some(label) = node.get("label") {
+                if let Some(label) = node.field("label") {
                     self.generate_node(label);
                 }
                 self.output.push_str(": ");
-                if let Some(body) = node.get("body") {
+                if let Some(body) = node.field("body") {
                     self.generate_node(body);
                 }
             }
@@ -455,17 +465,17 @@ impl EstreeGenerator {
             Some("ForOfStatement") => self.generate_for_in_of_statement(node, "of"),
             Some("WhileStatement") => {
                 self.output.push_str("while (");
-                if let Some(test) = node.get("test") {
+                if let Some(test) = node.field("test") {
                     self.generate_node(test);
                 }
                 self.output.push_str(") ");
-                self.generate_body_statement(node.get("body"));
+                self.generate_body_statement(node.field("body"));
             }
             Some("DoWhileStatement") => {
                 self.output.push_str("do ");
-                self.generate_body_statement(node.get("body"));
+                self.generate_body_statement(node.field("body"));
                 self.output.push_str(" while (");
-                if let Some(test) = node.get("test") {
+                if let Some(test) = node.field("test") {
                     self.generate_node(test);
                 }
                 self.output.push_str(");");
@@ -486,15 +496,15 @@ impl EstreeGenerator {
     }
 
     fn generate_identifier(&mut self, node: &serde_json::Value) {
-        if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+        if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
             self.output.push_str(name);
         }
     }
 
     fn generate_literal(&mut self, node: &serde_json::Value) {
-        if let Some(raw) = node.get("raw").and_then(|r| r.as_str()) {
+        if let Some(raw) = node.field("raw").and_then(|r| r.as_str()) {
             self.output.push_str(raw);
-        } else if let Some(value) = node.get("value") {
+        } else if let Some(value) = node.field("value") {
             match value {
                 serde_json::Value::String(s) => {
                     self.output.push('"');
@@ -525,10 +535,10 @@ impl EstreeGenerator {
     }
 
     fn generate_member_expression(&mut self, node: &serde_json::Value) {
-        if let Some(object) = node.get("object") {
+        if let Some(object) = node.field("object") {
             // A numeric literal receiver needs parens even though it is primary.
-            let needs_parens = (object.get("type").and_then(|t| t.as_str()) == Some("Literal")
-                && object.get("value").and_then(|v| v.as_f64()).is_some())
+            let needs_parens = (object.field("type").and_then(|t| t.as_str()) == Some("Literal")
+                && object.field("value").and_then(|v| v.as_f64()).is_some())
                 || node_precedence(object) < precedence::CALL;
 
             if needs_parens {
@@ -541,11 +551,11 @@ impl EstreeGenerator {
         }
 
         let optional = node
-            .get("optional")
+            .field("optional")
             .and_then(|o| o.as_bool())
             .unwrap_or(false);
         let computed = node
-            .get("computed")
+            .field("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
 
@@ -561,19 +571,22 @@ impl EstreeGenerator {
             // (previously it was skipped when `optional`, yielding the invalid
             // `obj?.key]`). M-037.
             self.output.push('[');
-            if let Some(property) = node.get("property") {
+            if let Some(property) = node.field("property") {
                 self.generate_node(property);
             }
             self.output.push(']');
-        } else if let Some(property) = node.get("property")
-            && let Some(name) = property.get("name").and_then(|n| n.as_str())
+        } else if let Some(property) = node.field("property")
+            && let Some(name) = property.field("name").and_then(|n| n.as_str())
         {
             self.output.push_str(name);
         }
     }
 
     fn generate_binary_expression(&mut self, node: &serde_json::Value) {
-        let operator = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+        let operator = node
+            .field("operator")
+            .and_then(|o| o.as_str())
+            .unwrap_or("");
         let own = binary_operator_precedence(operator).unwrap_or(precedence::PRIMARY);
         // `**` is the one right-associative binary operator.
         let (left_min, right_min) = if operator == "**" {
@@ -582,22 +595,22 @@ impl EstreeGenerator {
             (own, own + 1)
         };
 
-        if let Some(left) = node.get("left") {
+        if let Some(left) = node.field("left") {
             self.generate_expression(left, mixed_logical_min(operator, left, left_min));
         }
         if !operator.is_empty() {
             let _ = write!(self.output, " {operator} ");
         }
-        if let Some(right) = node.get("right") {
+        if let Some(right) = node.field("right") {
             self.generate_expression(right, mixed_logical_min(operator, right, right_min));
         }
     }
 
     fn generate_call_expression(&mut self, node: &serde_json::Value) {
-        if let Some(callee) = node.get("callee") {
+        if let Some(callee) = node.field("callee") {
             // A `function`/`class` callee also has to be parenthesized so the
             // call does not read as a declaration.
-            let min = match callee.get("type").and_then(|t| t.as_str()) {
+            let min = match callee.field("type").and_then(|t| t.as_str()) {
                 Some("FunctionExpression") | Some("ClassExpression") => precedence::PRIMARY + 1,
                 _ => precedence::CALL,
             };
@@ -605,7 +618,7 @@ impl EstreeGenerator {
         }
 
         let optional = node
-            .get("optional")
+            .field("optional")
             .and_then(|o| o.as_bool())
             .unwrap_or(false);
         if optional {
@@ -613,7 +626,7 @@ impl EstreeGenerator {
         }
 
         self.output.push('(');
-        if let Some(args) = node.get("arguments").and_then(|a| a.as_array()) {
+        if let Some(args) = node.field("arguments").and_then(|a| a.as_array()) {
             for (i, arg) in args.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -626,7 +639,7 @@ impl EstreeGenerator {
 
     fn generate_array_expression(&mut self, node: &serde_json::Value) {
         self.output.push('[');
-        if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+        if let Some(elements) = node.field("elements").and_then(|e| e.as_array()) {
             for (i, elem) in elements.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -643,7 +656,7 @@ impl EstreeGenerator {
 
     fn generate_object_expression(&mut self, node: &serde_json::Value) {
         self.output.push_str("{ ");
-        if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+        if let Some(properties) = node.field("properties").and_then(|p| p.as_array()) {
             for (i, prop) in properties.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -655,28 +668,31 @@ impl EstreeGenerator {
     }
 
     fn generate_property(&mut self, node: &serde_json::Value) {
-        let prop_type = node.get("type").and_then(|t| t.as_str());
+        let prop_type = node.field("type").and_then(|t| t.as_str());
 
         if prop_type == Some("SpreadElement") {
             self.output.push_str("...");
-            if let Some(arg) = node.get("argument") {
+            if let Some(arg) = node.field("argument") {
                 self.generate_node(arg);
             }
             return;
         }
 
-        let kind = node.get("kind").and_then(|k| k.as_str()).unwrap_or("init");
+        let kind = node
+            .field("kind")
+            .and_then(|k| k.as_str())
+            .unwrap_or("init");
         let computed = node
-            .get("computed")
+            .field("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
         let shorthand = node
-            .get("shorthand")
+            .field("shorthand")
             .and_then(|s| s.as_bool())
             .unwrap_or(false);
 
         if shorthand {
-            if let Some(value) = node.get("value") {
+            if let Some(value) = node.field("value") {
                 self.generate_node(value);
             }
             return;
@@ -688,7 +704,7 @@ impl EstreeGenerator {
         let is_method = kind == "get"
             || kind == "set"
             || node
-                .get("method")
+                .field("method")
                 .and_then(|m| m.as_bool())
                 .unwrap_or(false);
 
@@ -701,7 +717,7 @@ impl EstreeGenerator {
             self.output.push('[');
         }
 
-        if let Some(key) = node.get("key") {
+        if let Some(key) = node.field("key") {
             self.generate_node(key);
         }
 
@@ -711,20 +727,23 @@ impl EstreeGenerator {
 
         self.output.push_str(": ");
 
-        if let Some(value) = node.get("value") {
+        if let Some(value) = node.field("value") {
             self.generate_expression(value, precedence::ASSIGNMENT);
         }
     }
 
     fn generate_arrow_function(&mut self, node: &serde_json::Value) {
-        let is_async = node.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+        let is_async = node
+            .field("async")
+            .and_then(|a| a.as_bool())
+            .unwrap_or(false);
         if is_async {
             self.output.push_str("async ");
         }
 
-        if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+        if let Some(params) = node.field("params").and_then(|p| p.as_array()) {
             if params.len() == 1
-                && params[0].get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && params[0].field("type").and_then(|t| t.as_str()) == Some("Identifier")
             {
                 self.generate_node(&params[0]);
             } else {
@@ -741,8 +760,8 @@ impl EstreeGenerator {
 
         self.output.push_str(" => ");
 
-        if let Some(body) = node.get("body") {
-            let body_type = body.get("type").and_then(|t| t.as_str());
+        if let Some(body) = node.field("body") {
+            let body_type = body.field("type").and_then(|t| t.as_str());
             if body_type == Some("BlockStatement") {
                 self.generate_block_statement(body);
             } else {
@@ -759,9 +778,12 @@ impl EstreeGenerator {
     }
 
     fn generate_function_expression(&mut self, node: &serde_json::Value) {
-        let is_async = node.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+        let is_async = node
+            .field("async")
+            .and_then(|a| a.as_bool())
+            .unwrap_or(false);
         let is_generator = node
-            .get("generator")
+            .field("generator")
             .and_then(|g| g.as_bool())
             .unwrap_or(false);
 
@@ -775,7 +797,7 @@ impl EstreeGenerator {
             self.output.push('*');
         }
 
-        if let Some(id) = node.get("id")
+        if let Some(id) = node.field("id")
             && !id.is_null()
         {
             self.output.push(' ');
@@ -783,7 +805,7 @@ impl EstreeGenerator {
         }
 
         self.output.push('(');
-        if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+        if let Some(params) = node.field("params").and_then(|p| p.as_array()) {
             for (i, param) in params.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -794,7 +816,7 @@ impl EstreeGenerator {
         self.output.push(')');
 
         self.output.push(' ');
-        if let Some(body) = node.get("body") {
+        if let Some(body) = node.field("body") {
             self.generate_block_statement(body);
         }
     }
@@ -825,15 +847,15 @@ impl EstreeGenerator {
 
     fn generate_import_expression(&mut self, node: &serde_json::Value) {
         self.output.push_str("import(");
-        if let Some(source) = node.get("source") {
+        if let Some(source) = node.field("source") {
             self.generate_node(source);
         }
         // ESTree moved the second argument from `arguments` to `options`;
         // whichever spelling carries it must not be dropped.
-        if let Some(options) = node.get("options").filter(|o| !o.is_null()) {
+        if let Some(options) = node.field("options").filter(|o| !o.is_null()) {
             self.output.push_str(", ");
             self.generate_node(options);
-        } else if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
+        } else if let Some(arguments) = node.field("arguments").and_then(|a| a.as_array()) {
             for argument in arguments {
                 self.output.push_str(", ");
                 self.generate_node(argument);
@@ -843,7 +865,7 @@ impl EstreeGenerator {
     }
 
     fn generate_block_statement(&mut self, node: &serde_json::Value) {
-        let body = node.get("body").and_then(|b| b.as_array());
+        let body = node.field("body").and_then(|b| b.as_array());
         match body {
             Some(statements) if !statements.is_empty() => {
                 self.output.push_str("{ ");
@@ -872,7 +894,7 @@ impl EstreeGenerator {
             self.output.push_str("{}");
             return;
         };
-        if body.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
+        if body.field("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
             self.generate_block_statement(body);
         } else {
             self.output.push_str("{ ");
@@ -883,7 +905,7 @@ impl EstreeGenerator {
 
     fn generate_return_or_throw(&mut self, node: &serde_json::Value, keyword: &str) {
         self.output.push_str(keyword);
-        if let Some(argument) = node.get("argument")
+        if let Some(argument) = node.field("argument")
             && !argument.is_null()
         {
             self.output.push(' ');
@@ -894,7 +916,7 @@ impl EstreeGenerator {
 
     fn generate_break_or_continue(&mut self, node: &serde_json::Value, keyword: &str) {
         self.output.push_str(keyword);
-        if let Some(label) = node.get("label")
+        if let Some(label) = node.field("label")
             && !label.is_null()
         {
             self.output.push(' ');
@@ -904,10 +926,13 @@ impl EstreeGenerator {
     }
 
     fn generate_variable_declaration(&mut self, node: &serde_json::Value, terminate: bool) {
-        let kind = node.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
+        let kind = node
+            .field("kind")
+            .and_then(|k| k.as_str())
+            .unwrap_or("const");
         self.output.push_str(kind);
         self.output.push(' ');
-        if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
+        if let Some(declarations) = node.field("declarations").and_then(|d| d.as_array()) {
             for (i, declaration) in declarations.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -921,10 +946,10 @@ impl EstreeGenerator {
     }
 
     fn generate_variable_declarator(&mut self, node: &serde_json::Value) {
-        if let Some(id) = node.get("id") {
+        if let Some(id) = node.field("id") {
             self.generate_node(id);
         }
-        if let Some(init) = node.get("init")
+        if let Some(init) = node.field("init")
             && !init.is_null()
         {
             self.output.push_str(" = ");
@@ -934,17 +959,17 @@ impl EstreeGenerator {
 
     fn generate_if_statement(&mut self, node: &serde_json::Value) {
         self.output.push_str("if (");
-        if let Some(test) = node.get("test") {
+        if let Some(test) = node.field("test") {
             self.generate_node(test);
         }
         self.output.push_str(") ");
 
-        let alternate = node.get("alternate").filter(|a| !a.is_null());
+        let alternate = node.field("alternate").filter(|a| !a.is_null());
         if alternate.is_some() {
             // Braced unconditionally: a bare `if (a) if (b) c();` consequent
             // would otherwise capture this statement's `else`.
-            self.generate_body_statement(node.get("consequent"));
-        } else if let Some(consequent) = node.get("consequent") {
+            self.generate_body_statement(node.field("consequent"));
+        } else if let Some(consequent) = node.field("consequent") {
             self.generate_node(consequent);
         }
 
@@ -956,41 +981,45 @@ impl EstreeGenerator {
 
     fn generate_for_statement(&mut self, node: &serde_json::Value) {
         self.output.push_str("for (");
-        if let Some(init) = node.get("init").filter(|i| !i.is_null()) {
+        if let Some(init) = node.field("init").filter(|i| !i.is_null()) {
             self.generate_for_head(init);
         }
         self.output.push_str("; ");
-        if let Some(test) = node.get("test").filter(|t| !t.is_null()) {
+        if let Some(test) = node.field("test").filter(|t| !t.is_null()) {
             self.generate_node(test);
         }
         self.output.push_str("; ");
-        if let Some(update) = node.get("update").filter(|u| !u.is_null()) {
+        if let Some(update) = node.field("update").filter(|u| !u.is_null()) {
             self.generate_node(update);
         }
         self.output.push_str(") ");
-        self.generate_body_statement(node.get("body"));
+        self.generate_body_statement(node.field("body"));
     }
 
     fn generate_for_in_of_statement(&mut self, node: &serde_json::Value, operator: &str) {
         self.output.push_str("for ");
-        if node.get("await").and_then(|a| a.as_bool()).unwrap_or(false) {
+        if node
+            .field("await")
+            .and_then(|a| a.as_bool())
+            .unwrap_or(false)
+        {
             self.output.push_str("await ");
         }
         self.output.push('(');
-        if let Some(left) = node.get("left") {
+        if let Some(left) = node.field("left") {
             self.generate_for_head(left);
         }
         let _ = write!(self.output, " {operator} ");
-        if let Some(right) = node.get("right") {
+        if let Some(right) = node.field("right") {
             self.generate_node(right);
         }
         self.output.push_str(") ");
-        self.generate_body_statement(node.get("body"));
+        self.generate_body_statement(node.field("body"));
     }
 
     /// A declaration in a `for` head carries no terminator of its own.
     fn generate_for_head(&mut self, node: &serde_json::Value) {
-        if node.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration") {
+        if node.field("type").and_then(|t| t.as_str()) == Some("VariableDeclaration") {
             self.generate_variable_declaration(node, false);
         } else {
             self.generate_node(node);
@@ -999,11 +1028,11 @@ impl EstreeGenerator {
 
     fn generate_switch_statement(&mut self, node: &serde_json::Value) {
         self.output.push_str("switch (");
-        if let Some(discriminant) = node.get("discriminant") {
+        if let Some(discriminant) = node.field("discriminant") {
             self.generate_node(discriminant);
         }
         self.output.push_str(") ");
-        match node.get("cases").and_then(|c| c.as_array()) {
+        match node.field("cases").and_then(|c| c.as_array()) {
             Some(cases) if !cases.is_empty() => {
                 self.output.push_str("{ ");
                 self.generate_statement_list(cases);
@@ -1014,7 +1043,7 @@ impl EstreeGenerator {
     }
 
     fn generate_switch_case(&mut self, node: &serde_json::Value) {
-        match node.get("test").filter(|t| !t.is_null()) {
+        match node.field("test").filter(|t| !t.is_null()) {
             Some(test) => {
                 self.output.push_str("case ");
                 self.generate_node(test);
@@ -1022,7 +1051,7 @@ impl EstreeGenerator {
             }
             None => self.output.push_str("default:"),
         }
-        if let Some(consequent) = node.get("consequent").and_then(|c| c.as_array())
+        if let Some(consequent) = node.field("consequent").and_then(|c| c.as_array())
             && !consequent.is_empty()
         {
             self.output.push(' ');
@@ -1032,16 +1061,16 @@ impl EstreeGenerator {
 
     fn generate_try_statement(&mut self, node: &serde_json::Value) {
         self.output.push_str("try ");
-        if let Some(block) = node.get("block") {
+        if let Some(block) = node.field("block") {
             self.generate_block_statement(block);
         }
-        if let Some(handler) = node.get("handler")
+        if let Some(handler) = node.field("handler")
             && !handler.is_null()
         {
             self.output.push(' ');
             self.generate_node(handler);
         }
-        if let Some(finalizer) = node.get("finalizer")
+        if let Some(finalizer) = node.field("finalizer")
             && !finalizer.is_null()
         {
             self.output.push_str(" finally ");
@@ -1051,41 +1080,41 @@ impl EstreeGenerator {
 
     fn generate_catch_clause(&mut self, node: &serde_json::Value) {
         self.output.push_str("catch ");
-        if let Some(param) = node.get("param")
+        if let Some(param) = node.field("param")
             && !param.is_null()
         {
             self.output.push('(');
             self.generate_node(param);
             self.output.push_str(") ");
         }
-        if let Some(body) = node.get("body") {
+        if let Some(body) = node.field("body") {
             self.generate_block_statement(body);
         }
     }
 
     fn generate_class(&mut self, node: &serde_json::Value) {
         self.output.push_str("class");
-        if let Some(id) = node.get("id")
+        if let Some(id) = node.field("id")
             && !id.is_null()
         {
             self.output.push(' ');
             self.generate_node(id);
         }
-        if let Some(super_class) = node.get("superClass")
+        if let Some(super_class) = node.field("superClass")
             && !super_class.is_null()
         {
             self.output.push_str(" extends ");
             self.generate_node(super_class);
         }
         self.output.push(' ');
-        match node.get("body") {
+        match node.field("body") {
             Some(body) => self.generate_class_body(body),
             None => self.output.push_str("{}"),
         }
     }
 
     fn generate_class_body(&mut self, node: &serde_json::Value) {
-        match node.get("body").and_then(|b| b.as_array()) {
+        match node.field("body").and_then(|b| b.as_array()) {
             Some(members) if !members.is_empty() => {
                 self.output.push_str("{ ");
                 self.generate_statement_list(members);
@@ -1097,28 +1126,28 @@ impl EstreeGenerator {
 
     fn generate_method_definition(&mut self, node: &serde_json::Value) {
         if node
-            .get("static")
+            .field("static")
             .and_then(|s| s.as_bool())
             .unwrap_or(false)
         {
             self.output.push_str("static ");
         }
-        let value = node.get("value");
+        let value = node.field("value");
         if let Some(value) = value {
             if value
-                .get("async")
+                .field("async")
                 .and_then(|a| a.as_bool())
                 .unwrap_or(false)
             {
                 self.output.push_str("async ");
             }
-            match node.get("kind").and_then(|k| k.as_str()) {
+            match node.field("kind").and_then(|k| k.as_str()) {
                 Some("get") => self.output.push_str("get "),
                 Some("set") => self.output.push_str("set "),
                 _ => {}
             }
             if value
-                .get("generator")
+                .field("generator")
                 .and_then(|g| g.as_bool())
                 .unwrap_or(false)
             {
@@ -1128,7 +1157,7 @@ impl EstreeGenerator {
         self.generate_member_key(node);
         self.output.push('(');
         if let Some(params) = value
-            .and_then(|v| v.get("params"))
+            .and_then(|v| v.field("params"))
             .and_then(|p| p.as_array())
         {
             for (i, param) in params.iter().enumerate() {
@@ -1139,7 +1168,7 @@ impl EstreeGenerator {
             }
         }
         self.output.push_str(") ");
-        match value.and_then(|v| v.get("body")) {
+        match value.and_then(|v| v.field("body")) {
             Some(body) => self.generate_block_statement(body),
             None => self.output.push_str("{}"),
         }
@@ -1147,14 +1176,14 @@ impl EstreeGenerator {
 
     fn generate_property_definition(&mut self, node: &serde_json::Value) {
         if node
-            .get("static")
+            .field("static")
             .and_then(|s| s.as_bool())
             .unwrap_or(false)
         {
             self.output.push_str("static ");
         }
         self.generate_member_key(node);
-        if let Some(value) = node.get("value")
+        if let Some(value) = node.field("value")
             && !value.is_null()
         {
             self.output.push_str(" = ");
@@ -1165,13 +1194,13 @@ impl EstreeGenerator {
 
     fn generate_member_key(&mut self, node: &serde_json::Value) {
         let computed = node
-            .get("computed")
+            .field("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
         if computed {
             self.output.push('[');
         }
-        if let Some(key) = node.get("key") {
+        if let Some(key) = node.field("key") {
             self.generate_node(key);
         }
         if computed {
@@ -1186,24 +1215,24 @@ impl EstreeGenerator {
         let mut namespace_import = None;
         let mut named_imports = Vec::new();
 
-        if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array()) {
+        if let Some(specifiers) = node.field("specifiers").and_then(|s| s.as_array()) {
             for specifier in specifiers {
-                match specifier.get("type").and_then(|t| t.as_str()) {
+                match specifier.field("type").and_then(|t| t.as_str()) {
                     Some("ImportDefaultSpecifier") => {
-                        default_import = specifier.get("local").map(estree_to_string);
+                        default_import = specifier.field("local").map(estree_to_string);
                     }
                     Some("ImportNamespaceSpecifier") => {
                         namespace_import = specifier
-                            .get("local")
+                            .field("local")
                             .map(|local| format!("* as {}", estree_to_string(local)));
                     }
                     Some("ImportSpecifier") => {
                         let imported = specifier
-                            .get("imported")
+                            .field("imported")
                             .map(estree_to_string)
                             .unwrap_or_default();
                         let local = specifier
-                            .get("local")
+                            .field("local")
                             .map(estree_to_string)
                             .unwrap_or_default();
                         if imported == local {
@@ -1233,22 +1262,22 @@ impl EstreeGenerator {
             self.output.push_str(" from ");
         }
 
-        if let Some(source) = node.get("source") {
+        if let Some(source) = node.field("source") {
             self.generate_node(source);
         }
         self.output.push(';');
     }
 
     fn generate_export_declaration(&mut self, node: &serde_json::Value) {
-        let node_type = node.get("type").and_then(|t| t.as_str());
+        let node_type = node.field("type").and_then(|t| t.as_str());
 
         if node_type == Some("ExportDefaultDeclaration") {
             self.output.push_str("export default ");
-            if let Some(declaration) = node.get("declaration") {
+            if let Some(declaration) = node.field("declaration") {
                 self.generate_node(declaration);
                 // A declaration terminates itself; an expression does not.
                 let declares = matches!(
-                    declaration.get("type").and_then(|t| t.as_str()),
+                    declaration.field("type").and_then(|t| t.as_str()),
                     Some("FunctionDeclaration") | Some("ClassDeclaration")
                 );
                 if !declares {
@@ -1262,28 +1291,28 @@ impl EstreeGenerator {
 
         if node_type == Some("ExportAllDeclaration") {
             self.output.push('*');
-            if let Some(exported) = node.get("exported")
+            if let Some(exported) = node.field("exported")
                 && !exported.is_null()
             {
                 self.output.push_str(" as ");
                 self.generate_node(exported);
             }
             self.output.push_str(" from ");
-            if let Some(source) = node.get("source") {
+            if let Some(source) = node.field("source") {
                 self.generate_node(source);
             }
             self.output.push(';');
             return;
         }
 
-        if let Some(declaration) = node.get("declaration")
+        if let Some(declaration) = node.field("declaration")
             && !declaration.is_null()
         {
             self.generate_node(declaration);
             return;
         }
 
-        if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array())
+        if let Some(specifiers) = node.field("specifiers").and_then(|s| s.as_array())
             && !specifiers.is_empty()
         {
             self.output.push_str("{ ");
@@ -1292,11 +1321,11 @@ impl EstreeGenerator {
                     self.output.push_str(", ");
                 }
                 let exported = specifier
-                    .get("exported")
+                    .field("exported")
                     .map(estree_to_string)
                     .unwrap_or_default();
                 let local = specifier
-                    .get("local")
+                    .field("local")
                     .map(estree_to_string)
                     .unwrap_or_default();
                 if exported == local {
@@ -1308,7 +1337,7 @@ impl EstreeGenerator {
             self.output.push_str(" }");
         }
 
-        if let Some(source) = node.get("source")
+        if let Some(source) = node.field("source")
             && !source.is_null()
         {
             self.output.push_str(" from ");
@@ -1319,19 +1348,25 @@ impl EstreeGenerator {
     }
 
     fn generate_unary_expression(&mut self, node: &serde_json::Value) {
-        let prefix = node.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
-        let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+        let prefix = node
+            .field("prefix")
+            .and_then(|p| p.as_bool())
+            .unwrap_or(true);
+        let op = node
+            .field("operator")
+            .and_then(|o| o.as_str())
+            .unwrap_or("");
 
         if prefix {
             self.output.push_str(op);
             if matches!(op, "typeof" | "void" | "delete") {
                 self.output.push(' ');
             }
-            if let Some(arg) = node.get("argument") {
+            if let Some(arg) = node.field("argument") {
                 self.generate_expression(arg, precedence::UNARY);
             }
         } else {
-            if let Some(arg) = node.get("argument") {
+            if let Some(arg) = node.field("argument") {
                 self.generate_expression(arg, precedence::UNARY);
             }
             self.output.push_str(op);
@@ -1339,16 +1374,22 @@ impl EstreeGenerator {
     }
 
     fn generate_update_expression(&mut self, node: &serde_json::Value) {
-        let prefix = node.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
-        let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+        let prefix = node
+            .field("prefix")
+            .and_then(|p| p.as_bool())
+            .unwrap_or(true);
+        let op = node
+            .field("operator")
+            .and_then(|o| o.as_str())
+            .unwrap_or("");
 
         if prefix {
             self.output.push_str(op);
-            if let Some(arg) = node.get("argument") {
+            if let Some(arg) = node.field("argument") {
                 self.generate_expression(arg, precedence::POSTFIX);
             }
         } else {
-            if let Some(arg) = node.get("argument") {
+            if let Some(arg) = node.field("argument") {
                 self.generate_expression(arg, precedence::POSTFIX);
             }
             self.output.push_str(op);
@@ -1356,15 +1397,15 @@ impl EstreeGenerator {
     }
 
     fn generate_conditional_expression(&mut self, node: &serde_json::Value) {
-        if let Some(test) = node.get("test") {
+        if let Some(test) = node.field("test") {
             self.generate_expression(test, precedence::CONDITIONAL + 1);
         }
         self.output.push_str(" ? ");
-        if let Some(consequent) = node.get("consequent") {
+        if let Some(consequent) = node.field("consequent") {
             self.generate_expression(consequent, precedence::ASSIGNMENT);
         }
         self.output.push_str(" : ");
-        if let Some(alternate) = node.get("alternate") {
+        if let Some(alternate) = node.field("alternate") {
             self.generate_expression(alternate, precedence::ASSIGNMENT);
         }
     }
@@ -1372,13 +1413,13 @@ impl EstreeGenerator {
     fn generate_template_literal(&mut self, node: &serde_json::Value) {
         self.output.push('`');
 
-        if let Some(quasis) = node.get("quasis").and_then(|q| q.as_array()) {
-            let expressions = node.get("expressions").and_then(|e| e.as_array());
+        if let Some(quasis) = node.field("quasis").and_then(|q| q.as_array()) {
+            let expressions = node.field("expressions").and_then(|e| e.as_array());
 
             for (i, quasi) in quasis.iter().enumerate() {
                 if let Some(raw) = quasi
-                    .get("value")
-                    .and_then(|v| v.get("raw"))
+                    .field("value")
+                    .and_then(|v| v.field("raw"))
                     .and_then(|r| r.as_str())
                 {
                     self.output.push_str(raw);
@@ -1399,7 +1440,7 @@ impl EstreeGenerator {
 
     fn generate_array_pattern(&mut self, node: &serde_json::Value) {
         self.output.push('[');
-        if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+        if let Some(elements) = node.field("elements").and_then(|e| e.as_array()) {
             for (i, elem) in elements.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -1416,44 +1457,44 @@ impl EstreeGenerator {
 
     fn generate_object_pattern(&mut self, node: &serde_json::Value) {
         self.output.push_str("{ ");
-        if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+        if let Some(properties) = node.field("properties").and_then(|p| p.as_array()) {
             for (i, prop) in properties.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
                 }
 
-                let prop_type = prop.get("type").and_then(|t| t.as_str());
+                let prop_type = prop.field("type").and_then(|t| t.as_str());
                 if prop_type == Some("RestElement") {
                     self.output.push_str("...");
-                    if let Some(arg) = prop.get("argument") {
+                    if let Some(arg) = prop.field("argument") {
                         self.generate_node(arg);
                     }
                 } else {
                     let shorthand = prop
-                        .get("shorthand")
+                        .field("shorthand")
                         .and_then(|s| s.as_bool())
                         .unwrap_or(false);
                     let computed = prop
-                        .get("computed")
+                        .field("computed")
                         .and_then(|c| c.as_bool())
                         .unwrap_or(false);
 
                     if shorthand {
-                        if let Some(value) = prop.get("value") {
+                        if let Some(value) = prop.field("value") {
                             self.generate_expression(value, precedence::ASSIGNMENT);
                         }
                     } else {
                         if computed {
                             self.output.push('[');
                         }
-                        if let Some(key) = prop.get("key") {
+                        if let Some(key) = prop.field("key") {
                             self.generate_node(key);
                         }
                         if computed {
                             self.output.push(']');
                         }
                         self.output.push_str(": ");
-                        if let Some(value) = prop.get("value") {
+                        if let Some(value) = prop.field("value") {
                             self.generate_node(value);
                         }
                     }
@@ -1465,44 +1506,44 @@ impl EstreeGenerator {
 
     fn generate_rest_element(&mut self, node: &serde_json::Value) {
         self.output.push_str("...");
-        if let Some(arg) = node.get("argument") {
+        if let Some(arg) = node.field("argument") {
             self.generate_expression(arg, precedence::ASSIGNMENT);
         }
     }
 
     fn generate_spread_element(&mut self, node: &serde_json::Value) {
         self.output.push_str("...");
-        if let Some(arg) = node.get("argument") {
+        if let Some(arg) = node.field("argument") {
             self.generate_expression(arg, precedence::ASSIGNMENT);
         }
     }
 
     fn generate_assignment_pattern(&mut self, node: &serde_json::Value) {
-        if let Some(left) = node.get("left") {
+        if let Some(left) = node.field("left") {
             self.generate_node(left);
         }
         self.output.push_str(" = ");
-        if let Some(right) = node.get("right") {
+        if let Some(right) = node.field("right") {
             self.generate_node(right);
         }
     }
 
     fn generate_assignment_expression(&mut self, node: &serde_json::Value) {
-        if let Some(left) = node.get("left") {
+        if let Some(left) = node.field("left") {
             self.generate_node(left);
         }
-        if let Some(op) = node.get("operator").and_then(|o| o.as_str()) {
+        if let Some(op) = node.field("operator").and_then(|o| o.as_str()) {
             self.output.push(' ');
             self.output.push_str(op);
             self.output.push(' ');
         }
-        if let Some(right) = node.get("right") {
+        if let Some(right) = node.field("right") {
             self.generate_expression(right, precedence::ASSIGNMENT);
         }
     }
 
     fn generate_sequence_expression(&mut self, node: &serde_json::Value) {
-        if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
+        if let Some(expressions) = node.field("expressions").and_then(|e| e.as_array()) {
             for (i, expr) in expressions.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -1514,16 +1555,16 @@ impl EstreeGenerator {
 
     fn generate_new_expression(&mut self, node: &serde_json::Value) {
         self.output.push_str("new ");
-        if let Some(callee) = node.get("callee") {
+        if let Some(callee) = node.field("callee") {
             // `new f()()` must not re-read as `new (f()())`.
-            let min = match callee.get("type").and_then(|t| t.as_str()) {
+            let min = match callee.field("type").and_then(|t| t.as_str()) {
                 Some("CallExpression") => precedence::PRIMARY + 1,
                 _ => precedence::CALL,
             };
             self.generate_expression(callee, min);
         }
         self.output.push('(');
-        if let Some(args) = node.get("arguments").and_then(|a| a.as_array()) {
+        if let Some(args) = node.field("arguments").and_then(|a| a.as_array()) {
             for (i, arg) in args.iter().enumerate() {
                 if i > 0 {
                     self.output.push_str(", ");
@@ -1563,8 +1604,8 @@ impl EstreeGenerator {
 pub fn is_shorthand_identifier(expr: &crate::ast::js::Expression, name: &str) -> bool {
     let value = expr.as_json();
     if let Some(obj) = value.as_object()
-        && obj.get("type") == Some(&serde_json::Value::String("Identifier".to_string()))
-        && let Some(expr_name) = obj.get("name").and_then(|v| v.as_str())
+        && obj.field("type") == Some(&serde_json::Value::String("Identifier".to_string()))
+        && let Some(expr_name) = obj.field("name").and_then(|v| v.as_str())
     {
         return expr_name == name;
     }
@@ -1623,9 +1664,12 @@ pub fn format_variable_declaration_from_source(
     let json = expr.as_json();
 
     // Extract kind (should be "const")
-    let kind = json.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
+    let kind = json
+        .field("kind")
+        .and_then(|k| k.as_str())
+        .unwrap_or("const");
 
-    if let Some(declarations) = json.get("declarations").and_then(|d| d.as_array()) {
+    if let Some(declarations) = json.field("declarations").and_then(|d| d.as_array()) {
         let mut result = format!("{} ", kind);
 
         for (i, decl) in declarations.iter().enumerate() {
@@ -1635,10 +1679,13 @@ pub fn format_variable_declaration_from_source(
 
             // Get the declarator's start..end from source if available
             let decl_start = decl
-                .get("start")
+                .field("start")
                 .and_then(|s| s.as_u64())
                 .map(|n| n as usize);
-            let decl_end = decl.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
+            let decl_end = decl
+                .field("end")
+                .and_then(|e| e.as_u64())
+                .map(|n| n as usize);
 
             if let (Some(src), Some(s), Some(e)) = (source, decl_start, decl_end)
                 && s < e
@@ -1649,10 +1696,10 @@ pub fn format_variable_declaration_from_source(
             }
 
             // Fallback: construct from AST
-            if let Some(id) = decl.get("id") {
+            if let Some(id) = decl.field("id") {
                 result.push_str(&estree_to_string(id));
             }
-            if let Some(init) = decl.get("init")
+            if let Some(init) = decl.field("init")
                 && !init.is_null()
             {
                 result.push_str(" = ");
@@ -1727,12 +1774,12 @@ fn get_program_body_positions(program: &crate::ast::js::Expression) -> Vec<(usiz
     // The typed path would require ParseArena to resolve IdRange;
     // as_json() handles arena resolution internally via to_value().
     let json = program.as_json();
-    if let Some(body) = json.get("body").and_then(|v| v.as_array()) {
+    if let Some(body) = json.field("body").and_then(|v| v.as_array()) {
         return body
             .iter()
             .filter_map(|stmt| {
-                let s = stmt.get("start").and_then(|s| s.as_u64())? as usize;
-                let e = stmt.get("end").and_then(|e| e.as_u64())? as usize;
+                let s = stmt.field("start").and_then(|s| s.as_u64())? as usize;
+                let e = stmt.field("end").and_then(|e| e.as_u64())? as usize;
                 Some((s, e))
             })
             .collect();
@@ -1795,7 +1842,7 @@ fn strip_base_indent(text: &str, base_indent: usize) -> String {
 /// Returns the formatted JavaScript code as a string.
 pub fn format_program(program: &serde_json::Value) -> String {
     // For a Program node, we need to handle the body array
-    if let Some(body) = program.get("body").and_then(|v| v.as_array()) {
+    if let Some(body) = program.field("body").and_then(|v| v.as_array()) {
         if body.is_empty() {
             return String::new();
         }

@@ -33,6 +33,7 @@
 
 use crate::ast::template::SnippetBlock;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 
 /// Visit a `{#snippet name(params)}...{/snippet}` block.
@@ -184,25 +185,25 @@ pub(super) fn collect_param_pattern_names(
 }
 
 fn collect_pattern_names_json(json: &Value, out: &mut rustc_hash::FxHashSet<String>) {
-    let ty = json.get("type").and_then(Value::as_str).unwrap_or("");
+    let ty = json.field("type").and_then(Value::as_str).unwrap_or("");
     match ty {
         "Identifier" => {
-            if let Some(name) = json.get("name").and_then(Value::as_str) {
+            if let Some(name) = json.field("name").and_then(Value::as_str) {
                 out.insert(name.to_string());
             }
         }
         "AssignmentPattern" => {
-            if let Some(left) = json.get("left") {
+            if let Some(left) = json.field("left") {
                 collect_pattern_names_json(left, out);
             }
         }
         "RestElement" => {
-            if let Some(arg) = json.get("argument") {
+            if let Some(arg) = json.field("argument") {
                 collect_pattern_names_json(arg, out);
             }
         }
         "ArrayPattern" => {
-            if let Some(elems) = json.get("elements").and_then(Value::as_array) {
+            if let Some(elems) = json.field("elements").and_then(Value::as_array) {
                 for el in elems {
                     if !el.is_null() {
                         collect_pattern_names_json(el, out);
@@ -211,14 +212,14 @@ fn collect_pattern_names_json(json: &Value, out: &mut rustc_hash::FxHashSet<Stri
             }
         }
         "ObjectPattern" => {
-            if let Some(props) = json.get("properties").and_then(Value::as_array) {
+            if let Some(props) = json.field("properties").and_then(Value::as_array) {
                 for prop in props {
-                    let pty = prop.get("type").and_then(Value::as_str).unwrap_or("");
+                    let pty = prop.field("type").and_then(Value::as_str).unwrap_or("");
                     if pty == "RestElement" {
-                        if let Some(arg) = prop.get("argument") {
+                        if let Some(arg) = prop.field("argument") {
                             collect_pattern_names_json(arg, out);
                         }
-                    } else if let Some(value) = prop.get("value") {
+                    } else if let Some(value) = prop.field("value") {
                         collect_pattern_names_json(value, out);
                     }
                 }
@@ -235,12 +236,12 @@ fn collect_pattern_names_json(json: &Value, out: &mut rustc_hash::FxHashSet<Stri
 /// patterns are taken from the source span with the type annotation stripped.
 pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &str) -> String {
     let json = expr.as_json();
-    let node_type = json.get("type").and_then(Value::as_str).unwrap_or("");
+    let node_type = json.field("type").and_then(Value::as_str).unwrap_or("");
 
     match node_type {
         "AssignmentPattern" => {
-            let left = json.get("left");
-            let right = json.get("right");
+            let left = json.field("left");
+            let right = json.field("right");
 
             let left_str = if let Some(left_val) = left {
                 let left_expr = crate::ast::js::Expression::from_json(left_val.clone());
@@ -264,7 +265,10 @@ pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &
                     // A SequenceExpression default (`c = (2, 3)`) covers only the
                     // inner `2, 3` span — re-wrap it in parens to preserve the
                     // comma-expression semantics in parameter position.
-                    let right_type = right_val.get("type").and_then(Value::as_str).unwrap_or("");
+                    let right_type = right_val
+                        .field("type")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
                     if right_type == "SequenceExpression" {
                         format!("({val})")
                     } else {

@@ -4,6 +4,7 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 
 use super::arena::{IdRange, JsNodeId, ParseArena};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourcePosition {
@@ -991,10 +992,10 @@ fn opaque_ts_with_comments(value: &Value) -> Value {
                 return;
             };
             let key = obj
-                .get("type")
+                .field("type")
                 .and_then(|v| v.as_str())
-                .zip(obj.get("start").and_then(Value::as_u64))
-                .zip(obj.get("end").and_then(Value::as_u64));
+                .zip(obj.field("start").and_then(Value::as_u64))
+                .zip(obj.field("end").and_then(Value::as_u64));
             if let Some(((node_type, start), end)) = key
                 && let Some((leading, trailing)) =
                     arena.node_comments(node_type, start as u32, end as u32)
@@ -2590,24 +2591,24 @@ fn member_modifiers_from_value(obj: &serde_json::Map<String, Value>) -> TsMember
         readonly: get_bool(obj, "readonly"),
         r#override: get_bool(obj, "override"),
         accessibility: obj
-            .get("accessibility")
+            .field("accessibility")
             .and_then(serde_json::Value::as_str)
             .and_then(TsAccessibility::from_keyword),
     }
 }
 
 fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
-    let loc_val = obj.get("loc")?;
+    let loc_val = obj.field("loc")?;
     let loc_obj = loc_val.as_object()?;
-    let start_obj = loc_obj.get("start")?.as_object()?;
-    let end_obj = loc_obj.get("end")?.as_object()?;
+    let start_obj = loc_obj.field("start")?.as_object()?;
+    let end_obj = loc_obj.field("end")?.as_object()?;
 
     Some(Box::new(Loc {
         start: SourcePosition {
             line: get_u32(start_obj, "line"),
             column: get_u32(start_obj, "column"),
             character: start_obj
-                .get("character")
+                .field("character")
                 .and_then(serde_json::Value::as_u64)
                 .and_then(|n| u32::try_from(n).ok()),
         },
@@ -2615,7 +2616,7 @@ fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
             line: get_u32(end_obj, "line"),
             column: get_u32(end_obj, "column"),
             character: end_obj
-                .get("character")
+                .field("character")
                 .and_then(serde_json::Value::as_u64)
                 .and_then(|n| u32::try_from(n).ok()),
         },
@@ -2720,7 +2721,7 @@ impl JsNode {
                 // ESTree object. Return before the ordinary typed conversion
                 // removes `loc` and child fields from the owned map.
                 let opaque_type = owned_obj
-                    .get("type")
+                    .field("type")
                     .and_then(Value::as_str)
                     .map(str::to_owned);
                 if matches!(
@@ -2737,11 +2738,11 @@ impl JsNode {
                     )
                 ) {
                     let start = owned_obj
-                        .get("start")
+                        .field("start")
                         .and_then(Value::as_u64)
                         .unwrap_or_default() as u32;
                     let end = owned_obj
-                        .get("end")
+                        .field("end")
                         .and_then(Value::as_u64)
                         .unwrap_or_default() as u32;
                     let value = Box::new(Value::Object(owned_obj));
@@ -2766,7 +2767,7 @@ impl JsNode {
                 }
 
                 let obj = &mut owned_obj;
-                let type_str = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                let type_str = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
                 let start = get_u32(obj, "start");
                 let end = get_u32(obj, "end");
                 let loc = convert_loc(obj);
@@ -2778,10 +2779,10 @@ impl JsNode {
                 // read, so the compile path (capture off) pays almost nothing.
                 if type_str != "Program" && crate::ast::arena::comment_capture_active() {
                     let leading = obj
-                        .get("leadingComments")
+                        .field("leadingComments")
                         .and_then(|v| v.as_array().cloned());
                     let trailing = obj
-                        .get("trailingComments")
+                        .field("trailingComments")
                         .and_then(|v| v.as_array().cloned());
                     if leading.is_some() || trailing.is_some() {
                         with_deser_arena(|a| {
@@ -2797,7 +2798,7 @@ impl JsNode {
                         loc,
                         name: get_str(obj, "name"),
                         optional: get_bool(obj, "optional"),
-                        type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
+                        type_annotation: obj.field("typeAnnotation").cloned().map(Box::new),
                     },
                     "PrivateIdentifier" => Self::PrivateIdentifier {
                         start,
@@ -2806,17 +2807,17 @@ impl JsNode {
                         name: get_str(obj, "name"),
                     },
                     "Literal" => {
-                        let regex = obj.get("regex").and_then(|r| r.as_object()).map(|r| {
+                        let regex = obj.field("regex").and_then(|r| r.as_object()).map(|r| {
                             Box::new(RegexValue {
                                 pattern: get_str(r, "pattern"),
                                 flags: get_str(r, "flags"),
                             })
                         });
-                        let bigint = obj.get("bigint").and_then(|b| b.as_str());
+                        let bigint = obj.field("bigint").and_then(|b| b.as_str());
                         let lit_value = if let Some(digits) = bigint {
                             LiteralValue::BigInt(digits.into())
                         } else {
-                            match obj.get("value") {
+                            match obj.field("value") {
                                 Some(Value::String(s)) => LiteralValue::String(s.as_str().into()),
                                 Some(Value::Number(n)) => {
                                     LiteralValue::Number(n.as_f64().unwrap_or(0.0))
@@ -2904,7 +2905,7 @@ impl JsNode {
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
                         expression: get_bool(obj, "expression"),
-                        type_parameters: obj.get("typeParameters").cloned().map(Box::new),
+                        type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                         type_parameters_after_body: false,
                     },
                     "ClassExpression" => Self::ClassExpression {
@@ -2925,7 +2926,7 @@ impl JsNode {
                         expression: get_bool(obj, "expression"),
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
-                        type_parameters: obj.get("typeParameters").cloned().map(Box::new),
+                        type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                     },
                     "AssignmentExpression" => Self::AssignmentExpression {
                         start,
@@ -2976,11 +2977,11 @@ impl JsNode {
                         quasi: convert_child(obj, "quasi"),
                     },
                     "TemplateElement" => {
-                        let value_obj = obj.get("value").and_then(|v| v.as_object());
+                        let value_obj = obj.field("value").and_then(|v| v.as_object());
                         let tev = TemplateElementValue {
                             raw: value_obj.map(|v| get_str(v, "raw")).unwrap_or_default(),
                             cooked: value_obj.and_then(|v| {
-                                v.get("cooked")
+                                v.field("cooked")
                                     .and_then(|c| c.as_str())
                                     .map(std::convert::Into::into)
                             }),
@@ -3063,14 +3064,14 @@ impl JsNode {
                         end,
                         loc,
                         properties: convert_array(obj, "properties"),
-                        type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
+                        type_annotation: obj.field("typeAnnotation").cloned().map(Box::new),
                     },
                     "ArrayPattern" => Self::ArrayPattern {
                         start,
                         end,
                         loc,
                         elements: convert_nullable_array(obj, "elements"),
-                        type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
+                        type_annotation: obj.field("typeAnnotation").cloned().map(Box::new),
                     },
                     "AssignmentPattern" => Self::AssignmentPattern {
                         start,
@@ -3104,10 +3105,10 @@ impl JsNode {
                         source_type: get_str(obj, "sourceType"),
                         metadata: Box::new(ProgramMetadata {
                             leading_comments: obj
-                                .get("leadingComments")
+                                .field("leadingComments")
                                 .and_then(|v| v.as_array().cloned()),
                             trailing_comments: obj
-                                .get("trailingComments")
+                                .field("trailingComments")
                                 .and_then(|v| v.as_array().cloned()),
                             // Reconstructed-from-Value programs carry no analyze-only
                             // svelte-ignore map; comment-bearing nodes in that path keep
@@ -3152,7 +3153,7 @@ impl JsNode {
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
                         expression: get_bool(obj, "expression"),
-                        type_parameters: obj.get("typeParameters").cloned().map(Box::new),
+                        type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                     },
                     "ClassDeclaration" => Self::ClassDeclaration {
                         start,
@@ -3283,7 +3284,7 @@ impl JsNode {
                         specifiers: convert_array(obj, "specifiers"),
                         source: convert_child(obj, "source"),
                         import_kind: obj
-                            .get("importKind")
+                            .field("importKind")
                             .and_then(|v| v.as_str())
                             .map(std::convert::Into::into),
                         attributes: convert_array(obj, "attributes"),
@@ -3295,7 +3296,7 @@ impl JsNode {
                         imported: convert_child(obj, "imported"),
                         local: convert_child(obj, "local"),
                         import_kind: obj
-                            .get("importKind")
+                            .field("importKind")
                             .and_then(|v| v.as_str())
                             .map(std::convert::Into::into),
                     },
@@ -3319,7 +3320,7 @@ impl JsNode {
                         specifiers: convert_array(obj, "specifiers"),
                         source: convert_optional_child(obj, "source"),
                         export_kind: obj
-                            .get("exportKind")
+                            .field("exportKind")
                             .and_then(|v| v.as_str())
                             .map(std::convert::Into::into),
                         attributes: convert_array(obj, "attributes"),
@@ -3331,7 +3332,7 @@ impl JsNode {
                         exported: convert_optional_child(obj, "exported"),
                         source: convert_child(obj, "source"),
                         export_kind: obj
-                            .get("exportKind")
+                            .field("exportKind")
                             .and_then(|v| v.as_str())
                             .map(std::convert::Into::into),
                         attributes: convert_array(obj, "attributes"),
@@ -3342,7 +3343,7 @@ impl JsNode {
                         loc,
                         declaration: convert_child(obj, "declaration"),
                         export_kind: obj
-                            .get("exportKind")
+                            .field("exportKind")
                             .and_then(|v| v.as_str())
                             .map(std::convert::Into::into),
                     },
@@ -3353,7 +3354,7 @@ impl JsNode {
                         local: convert_child(obj, "local"),
                         exported: convert_child(obj, "exported"),
                         export_kind: obj
-                            .get("exportKind")
+                            .field("exportKind")
                             .and_then(|v| v.as_str())
                             .map(std::convert::Into::into),
                     },
@@ -3410,7 +3411,7 @@ impl JsNode {
                         loc,
                         expression: convert_child(obj, "expression"),
                         type_annotation: Box::new(
-                            obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
+                            obj.field("typeAnnotation").cloned().unwrap_or(Value::Null),
                         ),
                     },
                     "TSSatisfiesExpression" => Self::TSSatisfiesExpression {
@@ -3419,7 +3420,7 @@ impl JsNode {
                         loc,
                         expression: convert_child(obj, "expression"),
                         type_annotation: Box::new(
-                            obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
+                            obj.field("typeAnnotation").cloned().unwrap_or(Value::Null),
                         ),
                     },
                     "TSNonNullExpression" => Self::TSNonNullExpression {
@@ -3434,7 +3435,7 @@ impl JsNode {
                         loc,
                         expression: convert_child(obj, "expression"),
                         type_annotation: Box::new(
-                            obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
+                            obj.field("typeAnnotation").cloned().unwrap_or(Value::Null),
                         ),
                     },
                     "TSInstantiationExpression" => Self::TSInstantiationExpression {
@@ -3443,7 +3444,7 @@ impl JsNode {
                         loc,
                         expression: convert_child(obj, "expression"),
                         type_arguments: Box::new(
-                            obj.get("typeArguments").cloned().unwrap_or(Value::Null),
+                            obj.field("typeArguments").cloned().unwrap_or(Value::Null),
                         ),
                     },
                     "Line" | "Block" => Self::Comment {

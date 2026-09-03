@@ -44,6 +44,7 @@ use crate::compiler::phases::phase3_transform::server::ast::script::{DeclRune, d
 use crate::compiler::phases::phase3_transform::server::ast::{
     AsyncConstsGroup, ServerTransformState,
 };
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use oxc_ast::ast::{Expression as OxcExpression, Statement};
 
 /// Visit a `{let …}` / `{const …}` declaration tag — lower its declarators and
@@ -254,22 +255,22 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
 /// that value. Reactive (`$state` / `$derived`) inits never fold.
 fn register_constant_folds<'a>(node: &DeclarationTag, state: &mut ServerTransformState<'a>) {
     let decl_json = node.declaration.as_json();
-    let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) else {
+    let Some(decls) = decl_json.field("declarations").and_then(|d| d.as_array()) else {
         return;
     };
     for d in decls {
-        let (Some(id), Some(init)) = (d.get("id"), d.get("init")) else {
+        let (Some(id), Some(init)) = (d.field("id"), d.field("init")) else {
             continue;
         };
-        if init.is_null() || id.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+        if init.is_null() || id.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
             continue;
         }
-        let Some(name) = id.get("name").and_then(|n| n.as_str()) else {
+        let Some(name) = id.field("name").and_then(|n| n.as_str()) else {
             continue;
         };
         let (Some(s), Some(e)) = (
-            init.get("start").and_then(|v| v.as_u64()),
-            init.get("end").and_then(|v| v.as_u64()),
+            init.field("start").and_then(|v| v.as_u64()),
+            init.field("end").and_then(|v| v.as_u64()),
         ) else {
             continue;
         };
@@ -434,13 +435,13 @@ fn compute_decl_tag_blockers(state: &ServerTransformState, init_refs: &[String])
 /// the un-rewritten assignment target for a destructured async declaration.
 fn raw_declarator_id(node: &DeclarationTag, state: &ServerTransformState) -> Option<String> {
     let decl_json = node.declaration.as_json();
-    let decls = decl_json.get("declarations").and_then(|d| d.as_array())?;
+    let decls = decl_json.field("declarations").and_then(|d| d.as_array())?;
     if decls.len() != 1 {
         return None;
     }
-    let id = decls[0].get("id")?;
-    let s = id.get("start").and_then(|v| v.as_u64())? as usize;
-    let e = id.get("end").and_then(|v| v.as_u64())? as usize;
+    let id = decls[0].field("id")?;
+    let s = id.field("start").and_then(|v| v.as_u64())? as usize;
+    let e = id.field("end").and_then(|v| v.as_u64())? as usize;
     if s >= e || e > state.source.len() {
         return None;
     }

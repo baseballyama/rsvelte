@@ -5,6 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/css/css-warn.js`.
 
 use crate::ast::css::StyleSheet;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Warning for an unused CSS selector.
 #[derive(Debug, Clone)]
@@ -33,14 +34,14 @@ fn collect_warnings(stylesheet: &StyleSheet, warnings: &mut Vec<CssWarning>) {
 }
 
 fn collect_node_warnings(node: &serde_json::Value, warnings: &mut Vec<CssWarning>) {
-    if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+    if let Some(node_type) = node.field("type").and_then(|t| t.as_str()) {
         match node_type {
             "Rule" => {
                 collect_rule_warnings(node, warnings);
             }
             "Atrule" => {
-                if let Some(block) = node.get("block")
-                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                if let Some(block) = node.field("block")
+                    && let Some(children) = block.field("children").and_then(|c| c.as_array())
                 {
                     for child in children {
                         collect_node_warnings(child, warnings);
@@ -54,12 +55,12 @@ fn collect_node_warnings(node: &serde_json::Value, warnings: &mut Vec<CssWarning
 
 fn collect_rule_warnings(rule: &serde_json::Value, warnings: &mut Vec<CssWarning>) {
     // Check if the rule has unused metadata
-    if let Some(metadata) = rule.get("metadata")
-        && let Some(used) = metadata.get("used").and_then(|u| u.as_bool())
+    if let Some(metadata) = rule.field("metadata")
+        && let Some(used) = metadata.field("used").and_then(|u| u.as_bool())
         && !used
     {
-        let start = rule.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
-        let end = rule.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
+        let start = rule.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+        let end = rule.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
 
         warnings.push(CssWarning {
             selector: format!("selector at {}:{}", start, end),
@@ -70,8 +71,8 @@ fn collect_rule_warnings(rule: &serde_json::Value, warnings: &mut Vec<CssWarning
     }
 
     // Recursively check nested rules
-    if let Some(block) = rule.get("block")
-        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    if let Some(block) = rule.field("block")
+        && let Some(children) = block.field("children").and_then(|c| c.as_array())
     {
         for child in children {
             collect_node_warnings(child, warnings);

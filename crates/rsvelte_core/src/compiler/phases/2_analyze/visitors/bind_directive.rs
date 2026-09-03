@@ -13,6 +13,7 @@ use crate::compiler::phases::phase2_analyze::binding_properties::{
     BINDING_PROPERTIES, all_binding_names, get_valid_bindings,
 };
 use crate::compiler::phases::phase2_analyze::errors;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 /// Visit a bind directive with explicit element context.
 ///
 /// This is called from regular_element visitor when we have direct access to the element.
@@ -815,18 +816,18 @@ fn get_object_name_via_json(node: &JsNode) -> Option<String> {
 }
 
 fn get_object_name_from_json(v: &serde_json::Value) -> Option<String> {
-    let node_type = v.get("type")?.as_str()?;
+    let node_type = v.field("type")?.as_str()?;
     match node_type {
-        "Identifier" => v.get("name").and_then(|n| n.as_str()).map(String::from),
+        "Identifier" => v.field("name").and_then(|n| n.as_str()).map(String::from),
         "MemberExpression" => {
-            let obj = v.get("object")?;
+            let obj = v.field("object")?;
             get_object_name_from_json(obj)
         }
         "TSAsExpression"
         | "TSSatisfiesExpression"
         | "TSNonNullExpression"
         | "TSTypeAssertion"
-        | "TSInstantiationExpression" => get_object_name_from_json(v.get("expression")?),
+        | "TSInstantiationExpression" => get_object_name_from_json(v.field("expression")?),
         _ => None,
     }
 }

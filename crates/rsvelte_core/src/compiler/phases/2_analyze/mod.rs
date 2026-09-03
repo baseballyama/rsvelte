@@ -48,6 +48,7 @@ use crate::ast::arena::ParseArena;
 use crate::ast::template::Root;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::CompileOptions;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Analyze a parsed Svelte component.
 ///
@@ -183,8 +184,8 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // 49-53: `remove_typescript_nodes(customElementOptions.extend)`).
         let extend = ce_opts.extend.as_ref().and_then(|expr| {
             let json = expr.as_json();
-            let start = json.get("start")?.as_u64()? as usize;
-            let end = json.get("end")?.as_u64()? as usize;
+            let start = json.field("start")?.as_u64()? as usize;
+            let end = json.field("end")?.as_u64()? as usize;
             let text = source.get(start..end)?.to_string();
             let is_ts = |script: &Option<Box<crate::ast::Script>>| {
                 script.as_ref().is_some_and(|s| {
@@ -212,8 +213,8 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // upstream passes the AST through to `create_custom_element`
         // (transform-client.js line 641: `shadow_root_init = ce.shadow`).
         let shadow_object_source = ce_opts.shadow_object.as_ref().and_then(|obj| {
-            let start = obj.get("start")?.as_u64()? as usize;
-            let end = obj.get("end")?.as_u64()? as usize;
+            let start = obj.field("start")?.as_u64()? as usize;
+            let end = obj.field("end")?.as_u64()? as usize;
             Some(source.get(start..end)?.to_string())
         });
         analysis.custom_element = Some(types::CustomElementConfig {
@@ -1274,8 +1275,8 @@ fn blob_span(node: &serde_json::Value) -> (u32, u32) {
 /// `Identifier` is terminal because every JSON walker's `Identifier` arm
 /// recorded the name and stopped, never descending into a nested annotation.
 fn for_each_blob_identifier(blob: &serde_json::Value, f: &mut impl FnMut(&str, (u32, u32))) {
-    if blob.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-        if let Some(name) = blob.get("name").and_then(|n| n.as_str()) {
+    if blob.field("type").and_then(|t| t.as_str()) == Some("Identifier") {
+        if let Some(name) = blob.field("name").and_then(|n| n.as_str()) {
             f(name, blob_span(blob));
         }
         return;
@@ -5109,55 +5110,55 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
         Some(o) => o,
         None => return,
     };
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let expr_type = match obj.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return,
     };
     match expr_type {
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str())
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str())
                 && !ids.iter().any(|i| i == name)
             {
                 ids.push(name.to_string());
             }
         }
         "MemberExpression" => {
-            if let Some(object) = obj.get("object") {
+            if let Some(object) = obj.field("object") {
                 extract_all_identifiers_from_expr(object, ids);
             }
             // Only extract computed property identifiers (e.g., [index] in arr[index])
-            if obj.get("computed").and_then(|c| c.as_bool()) == Some(true)
-                && let Some(property) = obj.get("property")
+            if obj.field("computed").and_then(|c| c.as_bool()) == Some(true)
+                && let Some(property) = obj.field("property")
             {
                 extract_all_identifiers_from_expr(property, ids);
             }
         }
         "CallExpression" => {
-            if let Some(callee) = obj.get("callee") {
+            if let Some(callee) = obj.field("callee") {
                 extract_all_identifiers_from_expr(callee, ids);
             }
-            if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
+            if let Some(args) = obj.field("arguments").and_then(|a| a.as_array()) {
                 for arg in args {
                     extract_all_identifiers_from_expr(arg, ids);
                 }
             }
         }
         "BinaryExpression" | "LogicalExpression" => {
-            if let Some(left) = obj.get("left") {
+            if let Some(left) = obj.field("left") {
                 extract_all_identifiers_from_expr(left, ids);
             }
-            if let Some(right) = obj.get("right") {
+            if let Some(right) = obj.field("right") {
                 extract_all_identifiers_from_expr(right, ids);
             }
         }
         "ConditionalExpression" => {
-            if let Some(test) = obj.get("test") {
+            if let Some(test) = obj.field("test") {
                 extract_all_identifiers_from_expr(test, ids);
             }
-            if let Some(consequent) = obj.get("consequent") {
+            if let Some(consequent) = obj.field("consequent") {
                 extract_all_identifiers_from_expr(consequent, ids);
             }
-            if let Some(alternate) = obj.get("alternate") {
+            if let Some(alternate) = obj.field("alternate") {
                 extract_all_identifiers_from_expr(alternate, ids);
             }
         }
@@ -5281,34 +5282,34 @@ fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
         Some(o) => o,
         None => return,
     };
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let expr_type = match obj.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return,
     };
     match expr_type {
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                 parts.push(name.to_string());
             }
         }
         "MemberExpression" => {
             // Walk the object part
-            if let Some(object) = obj.get("object") {
+            if let Some(object) = obj.field("object") {
                 build_keypath_parts(object, parts);
             }
             // Handle the property part
             let computed = obj
-                .get("computed")
+                .field("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             if computed {
                 // Computed property: arr[idx] → push "[idx]"
-                if let Some(property) = obj.get("property") {
+                if let Some(property) = obj.field("property") {
                     let prop_str = build_binding_keypath(property);
                     parts.push(format!("[{}]", prop_str));
                 }
-            } else if let Some(property) = obj.get("property")
-                && let Some(name) = property.get("name").and_then(|n| n.as_str())
+            } else if let Some(property) = obj.field("property")
+                && let Some(name) = property.field("name").and_then(|n| n.as_str())
             {
                 // Static property: obj.prop → push "prop"
                 parts.push(name.to_string());
@@ -6510,7 +6511,7 @@ fn collect_identifier_names_in_json(
     use serde_json::Value;
     match value {
         Value::Object(obj) => {
-            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let node_type = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
             // TypeScript type-space nodes (`TSTypeAnnotation`, `TSTypeReference`,
             // …) never contain value references — their identifiers live in type
@@ -6525,7 +6526,7 @@ fn collect_identifier_names_in_json(
 
             // If this is an Identifier node, collect its name.
             if node_type == "Identifier"
-                && let Some(Value::String(name)) = obj.get("name")
+                && let Some(Value::String(name)) = obj.field("name")
             {
                 out.insert(name.clone());
             }
@@ -6541,11 +6542,11 @@ fn collect_identifier_names_in_json(
                     "MemberExpression" => {
                         // For non-computed member expressions, the property is a name slot, not a ref
                         k == "property"
-                            && obj.get("computed").and_then(|c| c.as_bool()) != Some(true)
+                            && obj.field("computed").and_then(|c| c.as_bool()) != Some(true)
                     }
                     "Property" | "MethodDefinition" | "PropertyDefinition" => {
                         // Non-computed object/class property keys are name slots, not refs
-                        k == "key" && obj.get("computed").and_then(|c| c.as_bool()) != Some(true)
+                        k == "key" && obj.field("computed").and_then(|c| c.as_bool()) != Some(true)
                     }
                     "FunctionDeclaration"
                     | "FunctionExpression"

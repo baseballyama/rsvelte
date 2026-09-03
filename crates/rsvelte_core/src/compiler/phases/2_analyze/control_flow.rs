@@ -7,6 +7,7 @@
 
 use super::types::{DomStructure, SiblingCertainty};
 use crate::ast::template::{Attribute, Fragment, TemplateNode};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::FxHashMap;
 
 pub fn stylesheet_has_sibling_combinator(stylesheet: &crate::ast::css::StyleSheet) -> bool {
@@ -14,9 +15,9 @@ pub fn stylesheet_has_sibling_combinator(stylesheet: &crate::ast::css::StyleShee
     while let Some(value) = pending.pop() {
         match value {
             serde_json::Value::Object(object) => {
-                if object.get("type").and_then(serde_json::Value::as_str) == Some("Combinator")
+                if object.field("type").and_then(serde_json::Value::as_str) == Some("Combinator")
                     && object
-                        .get("name")
+                        .field("name")
                         .and_then(serde_json::Value::as_str)
                         .is_some_and(|name| matches!(name, "+" | "~"))
                 {
@@ -87,17 +88,17 @@ fn node_ptr(node: &TemplateNode) -> NodePtr {
 /// The snippet a `{@render name(...)}` renders, when the callee is a plain name.
 fn render_tag_callee_name(render_tag: &crate::ast::template::RenderTag) -> Option<String> {
     let expr = render_tag.expression.as_json();
-    let expr = if expr.get("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
-        expr.get("expression").unwrap_or(expr)
+    let expr = if expr.field("type").and_then(|t| t.as_str()) == Some("ChainExpression") {
+        expr.field("expression").unwrap_or(expr)
     } else {
         expr
     };
-    let callee = expr.get("callee")?;
-    if callee.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+    let callee = expr.field("callee")?;
+    if callee.field("type").and_then(|t| t.as_str()) != Some("Identifier") {
         return None;
     }
     callee
-        .get("name")
+        .field("name")
         .and_then(|n| n.as_str())
         .map(String::from)
 }

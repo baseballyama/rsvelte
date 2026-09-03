@@ -50,6 +50,7 @@ use crate::ast::template::ConstTag;
 use crate::compiler::phases::phase3_transform::server::ast::{
     AsyncConstsGroup, ServerTransformState,
 };
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a `{@const <pattern> = <init>}` tag — async path
 /// (`add_async_const`) when blocked, else the sync `const … = …;` statement.
@@ -67,7 +68,7 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
     // `id` (pattern) and `init` source spans from its JSON view, mirroring the
     // text oracle's source-slice decomposition.
     let decl_json = node.declaration.as_json();
-    let Some(declarators) = decl_json.get("declarations").and_then(|d| d.as_array()) else {
+    let Some(declarators) = decl_json.field("declarations").and_then(|d| d.as_array()) else {
         return;
     };
     let Some(declarator) = declarators.first() else {
@@ -76,8 +77,8 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
 
     let span = |v: &serde_json::Value, key: &str| -> Option<(usize, usize)> {
         let obj = v.get(key)?;
-        let s = obj.get("start").and_then(|n| n.as_u64())? as usize;
-        let e = obj.get("end").and_then(|n| n.as_u64())? as usize;
+        let s = obj.field("start").and_then(|n| n.as_u64())? as usize;
+        let e = obj.field("end").and_then(|n| n.as_u64())? as usize;
         (e > s && e <= state.source.len()).then_some((s, e))
     };
 
@@ -132,12 +133,12 @@ fn try_async_const<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) ->
     // wrongly include `const ` in the `<lhs> = <rhs>` split.
     let decl_json = node.declaration.as_json();
     let Some((start, end)) = decl_json
-        .get("declarations")
+        .field("declarations")
         .and_then(|d| d.as_array())
         .and_then(|d| d.first())
         .and_then(|declarator| {
-            let s = declarator.get("start").and_then(|n| n.as_u64())? as usize;
-            let e = declarator.get("end").and_then(|n| n.as_u64())? as usize;
+            let s = declarator.field("start").and_then(|n| n.as_u64())? as usize;
+            let e = declarator.field("end").and_then(|n| n.as_u64())? as usize;
             Some((s, e))
         })
     else {

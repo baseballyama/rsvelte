@@ -8,6 +8,7 @@ use crate::ast::js::Expression;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a JavaScript script content from an Expression.
 ///
@@ -45,7 +46,7 @@ pub fn visit_script_expr(
                 if let Some(comments) = metadata.leading_comments.as_ref()
                     && let Some(text) = comments
                         .last()
-                        .and_then(|c| c.get("value"))
+                        .and_then(|c| c.field("value"))
                         .and_then(|v| v.as_str())
                 {
                     let ignores = extract_svelte_ignore(text, context.analysis.runes);

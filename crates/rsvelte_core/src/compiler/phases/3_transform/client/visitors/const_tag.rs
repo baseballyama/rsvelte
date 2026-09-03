@@ -17,6 +17,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::declara
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a const tag.
 ///
@@ -354,23 +355,23 @@ fn extract_identifiers_from_pattern(pattern: &serde_json::Value) -> Vec<String> 
 }
 
 fn collect_identifiers(pattern: &serde_json::Value, out: &mut Vec<String>) {
-    let pat_type = pattern.get("type").and_then(|v| v.as_str());
+    let pat_type = pattern.field("type").and_then(|v| v.as_str());
     match pat_type {
         Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|v| v.as_str()) {
+            if let Some(name) = pattern.field("name").and_then(|v| v.as_str()) {
                 out.push(name.to_string());
             }
         }
         // Handle both ObjectPattern (official AST) and ObjectExpression (our parser's AST)
         Some("ObjectPattern") | Some("ObjectExpression") => {
-            if let Some(properties) = pattern.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = pattern.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    let prop_type = prop.get("type").and_then(|v| v.as_str());
+                    let prop_type = prop.field("type").and_then(|v| v.as_str());
                     if prop_type == Some("RestElement") || prop_type == Some("SpreadElement") {
-                        if let Some(arg) = prop.get("argument") {
+                        if let Some(arg) = prop.field("argument") {
                             collect_identifiers(arg, out);
                         }
-                    } else if let Some(value) = prop.get("value") {
+                    } else if let Some(value) = prop.field("value") {
                         collect_identifiers(value, out);
                     }
                 }
@@ -378,7 +379,7 @@ fn collect_identifiers(pattern: &serde_json::Value, out: &mut Vec<String>) {
         }
         // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
         Some("ArrayPattern") | Some("ArrayExpression") => {
-            if let Some(elements) = pattern.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = pattern.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if !elem.is_null() {
                         collect_identifiers(elem, out);
@@ -387,12 +388,12 @@ fn collect_identifiers(pattern: &serde_json::Value, out: &mut Vec<String>) {
             }
         }
         Some("RestElement") | Some("SpreadElement") => {
-            if let Some(arg) = pattern.get("argument") {
+            if let Some(arg) = pattern.field("argument") {
                 collect_identifiers(arg, out);
             }
         }
         Some("AssignmentPattern") | Some("AssignmentExpression") => {
-            if let Some(left) = pattern.get("left") {
+            if let Some(left) = pattern.field("left") {
                 collect_identifiers(left, out);
             }
         }
@@ -402,37 +403,37 @@ fn collect_identifiers(pattern: &serde_json::Value, out: &mut Vec<String>) {
 
 /// Render a pattern JSON as a string for raw output fallback.
 fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
-    let pat_type = pattern.get("type").and_then(|v| v.as_str());
+    let pat_type = pattern.field("type").and_then(|v| v.as_str());
     match pat_type {
         Some("Identifier") => pattern
-            .get("name")
+            .field("name")
             .and_then(|v| v.as_str())
             .unwrap_or("_")
             .to_string(),
         Some("ObjectPattern") | Some("ObjectExpression") => {
             let props: Vec<String> = pattern
-                .get("properties")
+                .field("properties")
                 .and_then(|v| v.as_array())
                 .map(|props| {
                     props
                         .iter()
                         .map(|prop| {
-                            let prop_type = prop.get("type").and_then(|v| v.as_str());
+                            let prop_type = prop.field("type").and_then(|v| v.as_str());
                             if prop_type == Some("RestElement") {
                                 let arg = prop
-                                    .get("argument")
+                                    .field("argument")
                                     .map(render_pattern_as_string)
                                     .unwrap_or_default();
                                 format!("...{}", arg)
                             } else {
                                 let key = prop
-                                    .get("key")
-                                    .and_then(|k| k.get("name"))
+                                    .field("key")
+                                    .and_then(|k| k.field("name"))
                                     .and_then(|n| n.as_str())
                                     .unwrap_or("_");
-                                let value = prop.get("value").map(render_pattern_as_string);
+                                let value = prop.field("value").map(render_pattern_as_string);
                                 let shorthand = prop
-                                    .get("shorthand")
+                                    .field("shorthand")
                                     .and_then(|s| s.as_bool())
                                     .unwrap_or(false);
                                 if shorthand || value.as_deref() == Some(key) {
@@ -451,7 +452,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
         }
         Some("ArrayPattern") | Some("ArrayExpression") => {
             let elems: Vec<String> = pattern
-                .get("elements")
+                .field("elements")
                 .and_then(|v| v.as_array())
                 .map(|elems| {
                     elems
@@ -470,7 +471,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
         }
         Some("RestElement") => {
             let arg = pattern
-                .get("argument")
+                .field("argument")
                 .map(render_pattern_as_string)
                 .unwrap_or_default();
             format!("...{}", arg)
@@ -478,7 +479,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
         Some("AssignmentPattern") => {
             // We don't render defaults in the const destructuring pattern
             pattern
-                .get("left")
+                .field("left")
                 .map(render_pattern_as_string)
                 .unwrap_or_default()
         }
@@ -501,9 +502,9 @@ fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String>
 fn collect_json_identifiers(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::Object(obj) => {
-            if let Some(typ) = obj.get("type").and_then(|t| t.as_str()) {
+            if let Some(typ) = obj.field("type").and_then(|t| t.as_str()) {
                 if typ == "Identifier" {
-                    if let Some(name) = obj.get("name").and_then(|n| n.as_str())
+                    if let Some(name) = obj.field("name").and_then(|n| n.as_str())
                         && !out.contains(&name.to_string())
                     {
                         out.push(name.to_string());
@@ -935,24 +936,24 @@ fn parse_variable_declaration<'a>(expr: &Expression<'a>) -> Option<ParsedDeclara
     {
         let json_value = expr.as_json();
         let obj = json_value.as_object()?;
-        let expr_type = obj.get("type")?.as_str()?;
+        let expr_type = obj.field("type")?.as_str()?;
 
         match expr_type {
             "VariableDeclaration" => {
-                let declarations = obj.get("declarations")?.as_array()?;
+                let declarations = obj.field("declarations")?.as_array()?;
                 if declarations.is_empty() {
                     return None;
                 }
 
                 let first_decl = declarations[0].as_object()?;
-                let id = first_decl.get("id")?;
-                let init = first_decl.get("init")?;
+                let id = first_decl.field("id")?;
+                let init = first_decl.field("init")?;
 
                 let id_obj = id.as_object()?;
-                let id_type = id_obj.get("type")?.as_str()?;
+                let id_type = id_obj.field("type")?.as_str()?;
 
                 if id_type == "Identifier" {
-                    let name = id_obj.get("name")?.as_str()?.to_string();
+                    let name = id_obj.field("name")?.as_str()?.to_string();
                     let init_expr = Expression::from_json(init.clone());
                     Some(ParsedDeclaration {
                         id_name: name,
@@ -973,14 +974,14 @@ fn parse_variable_declaration<'a>(expr: &Expression<'a>) -> Option<ParsedDeclara
             }
             "AssignmentExpression" => {
                 // Our Rust parser format: { type: "AssignmentExpression", left: id, right: init }
-                let left = obj.get("left")?;
-                let right = obj.get("right")?;
+                let left = obj.field("left")?;
+                let right = obj.field("right")?;
 
                 let left_obj = left.as_object()?;
-                let left_type = left_obj.get("type")?.as_str()?;
+                let left_type = left_obj.field("type")?.as_str()?;
 
                 if left_type == "Identifier" {
-                    let name = left_obj.get("name")?.as_str()?.to_string();
+                    let name = left_obj.field("name")?.as_str()?.to_string();
                     let init_expr = Expression::from_json(right.clone());
                     Some(ParsedDeclaration {
                         id_name: name,

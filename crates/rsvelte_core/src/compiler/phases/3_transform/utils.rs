@@ -7,6 +7,7 @@ use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
@@ -279,11 +280,11 @@ fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, V
             Some(o) => o,
             None => return (vec![], vec![]),
         };
-        let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        let expr_type = obj.field("type").and_then(|v| v.as_str()).unwrap_or("");
 
         match expr_type {
             "VariableDeclaration" => {
-                let declarations = match obj.get("declarations").and_then(|v| v.as_array()) {
+                let declarations = match obj.field("declarations").and_then(|v| v.as_array()) {
                     Some(d) => d,
                     None => return (vec![], vec![]),
                 };
@@ -294,11 +295,11 @@ fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, V
                     Some(d) => d,
                     None => return (vec![], vec![]),
                 };
-                let id = match first_decl.get("id") {
+                let id = match first_decl.field("id") {
                     Some(id) => id,
                     None => return (vec![], vec![]),
                 };
-                let init = match first_decl.get("init") {
+                let init = match first_decl.field("init") {
                     Some(init) => init,
                     None => return (vec![], vec![]),
                 };
@@ -312,11 +313,11 @@ fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, V
                 (declared, referenced)
             }
             "AssignmentExpression" => {
-                let left = match obj.get("left") {
+                let left = match obj.field("left") {
                     Some(l) => l,
                     None => return (vec![], vec![]),
                 };
-                let right = match obj.get("right") {
+                let right = match obj.field("right") {
                     Some(r) => r,
                     None => return (vec![], vec![]),
                 };
@@ -336,29 +337,29 @@ fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, V
 
 /// Collect all identifier names from a JSON pattern (destructuring or simple identifier).
 fn collect_identifiers_from_json_pattern(pattern: &serde_json::Value, out: &mut Vec<String>) {
-    let pat_type = pattern.get("type").and_then(|v| v.as_str());
+    let pat_type = pattern.field("type").and_then(|v| v.as_str());
     match pat_type {
         Some("Identifier") => {
-            if let Some(name) = pattern.get("name").and_then(|v| v.as_str()) {
+            if let Some(name) = pattern.field("name").and_then(|v| v.as_str()) {
                 out.push(name.to_string());
             }
         }
         Some("ObjectPattern") | Some("ObjectExpression") => {
-            if let Some(properties) = pattern.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = pattern.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
-                    let prop_type = prop.get("type").and_then(|v| v.as_str());
+                    let prop_type = prop.field("type").and_then(|v| v.as_str());
                     if prop_type == Some("RestElement") || prop_type == Some("SpreadElement") {
-                        if let Some(arg) = prop.get("argument") {
+                        if let Some(arg) = prop.field("argument") {
                             collect_identifiers_from_json_pattern(arg, out);
                         }
-                    } else if let Some(value) = prop.get("value") {
+                    } else if let Some(value) = prop.field("value") {
                         collect_identifiers_from_json_pattern(value, out);
                     }
                 }
             }
         }
         Some("ArrayPattern") | Some("ArrayExpression") => {
-            if let Some(elements) = pattern.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = pattern.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if !elem.is_null() {
                         collect_identifiers_from_json_pattern(elem, out);
@@ -367,12 +368,12 @@ fn collect_identifiers_from_json_pattern(pattern: &serde_json::Value, out: &mut 
             }
         }
         Some("RestElement") | Some("SpreadElement") => {
-            if let Some(arg) = pattern.get("argument") {
+            if let Some(arg) = pattern.field("argument") {
                 collect_identifiers_from_json_pattern(arg, out);
             }
         }
         Some("AssignmentPattern") | Some("AssignmentExpression") => {
-            if let Some(left) = pattern.get("left") {
+            if let Some(left) = pattern.field("left") {
                 collect_identifiers_from_json_pattern(left, out);
             }
         }
@@ -383,7 +384,7 @@ fn collect_identifiers_from_json_pattern(pattern: &serde_json::Value, out: &mut 
 /// Collect all identifier names referenced in a JSON expression (for dependency analysis).
 /// This walks the expression AST to find all Identifier nodes that are references.
 fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<String>) {
-    let expr_type = match expr.get("type").and_then(|v| v.as_str()) {
+    let expr_type = match expr.field("type").and_then(|v| v.as_str()) {
         Some(t) => t,
         None => {
             // Handle arrays (e.g., function arguments)
@@ -398,7 +399,7 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
 
     match expr_type {
         "Identifier" => {
-            if let Some(name) = expr.get("name").and_then(|v| v.as_str()) {
+            if let Some(name) = expr.field("name").and_then(|v| v.as_str()) {
                 // Skip JS keywords/literals
                 if !is_js_keyword_or_literal(name) {
                     out.push(name.to_string());
@@ -407,55 +408,55 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
         }
         "MemberExpression" => {
             // Only walk the object part, not the property (when not computed)
-            if let Some(object) = expr.get("object") {
+            if let Some(object) = expr.field("object") {
                 collect_identifiers_from_json_expr(object, out);
             }
             // For computed properties like a[b], also walk the property
             if expr
-                .get("computed")
+                .field("computed")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
-                && let Some(property) = expr.get("property")
+                && let Some(property) = expr.field("property")
             {
                 collect_identifiers_from_json_expr(property, out);
             }
         }
         "BinaryExpression" | "LogicalExpression" => {
-            if let Some(left) = expr.get("left") {
+            if let Some(left) = expr.field("left") {
                 collect_identifiers_from_json_expr(left, out);
             }
-            if let Some(right) = expr.get("right") {
+            if let Some(right) = expr.field("right") {
                 collect_identifiers_from_json_expr(right, out);
             }
         }
         "UnaryExpression" | "UpdateExpression" => {
-            if let Some(arg) = expr.get("argument") {
+            if let Some(arg) = expr.field("argument") {
                 collect_identifiers_from_json_expr(arg, out);
             }
         }
         "ConditionalExpression" => {
-            if let Some(test) = expr.get("test") {
+            if let Some(test) = expr.field("test") {
                 collect_identifiers_from_json_expr(test, out);
             }
-            if let Some(consequent) = expr.get("consequent") {
+            if let Some(consequent) = expr.field("consequent") {
                 collect_identifiers_from_json_expr(consequent, out);
             }
-            if let Some(alternate) = expr.get("alternate") {
+            if let Some(alternate) = expr.field("alternate") {
                 collect_identifiers_from_json_expr(alternate, out);
             }
         }
         "CallExpression" | "NewExpression" => {
-            if let Some(callee) = expr.get("callee") {
+            if let Some(callee) = expr.field("callee") {
                 collect_identifiers_from_json_expr(callee, out);
             }
-            if let Some(args) = expr.get("arguments").and_then(|v| v.as_array()) {
+            if let Some(args) = expr.field("arguments").and_then(|v| v.as_array()) {
                 for arg in args {
                     collect_identifiers_from_json_expr(arg, out);
                 }
             }
         }
         "ArrayExpression" => {
-            if let Some(elements) = expr.get("elements").and_then(|v| v.as_array()) {
+            if let Some(elements) = expr.field("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
                     if !elem.is_null() {
                         collect_identifiers_from_json_expr(elem, out);
@@ -464,40 +465,40 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
             }
         }
         "ObjectExpression" => {
-            if let Some(properties) = expr.get("properties").and_then(|v| v.as_array()) {
+            if let Some(properties) = expr.field("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
                     // For computed keys, walk the key
                     if prop
-                        .get("computed")
+                        .field("computed")
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false)
-                        && let Some(key) = prop.get("key")
+                        && let Some(key) = prop.field("key")
                     {
                         collect_identifiers_from_json_expr(key, out);
                     }
-                    if let Some(value) = prop.get("value") {
+                    if let Some(value) = prop.field("value") {
                         collect_identifiers_from_json_expr(value, out);
                     }
                 }
             }
         }
         "SpreadElement" => {
-            if let Some(arg) = expr.get("argument") {
+            if let Some(arg) = expr.field("argument") {
                 collect_identifiers_from_json_expr(arg, out);
             }
         }
         "TemplateLiteral" => {
-            if let Some(expressions) = expr.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(expressions) = expr.field("expressions").and_then(|v| v.as_array()) {
                 for expression in expressions {
                     collect_identifiers_from_json_expr(expression, out);
                 }
             }
         }
         "TaggedTemplateExpression" => {
-            if let Some(tag) = expr.get("tag") {
+            if let Some(tag) = expr.field("tag") {
                 collect_identifiers_from_json_expr(tag, out);
             }
-            if let Some(quasi) = expr.get("quasi") {
+            if let Some(quasi) = expr.field("quasi") {
                 collect_identifiers_from_json_expr(quasi, out);
             }
         }
@@ -506,14 +507,14 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
             // The function's own parameters shadow outer bindings
         }
         "SequenceExpression" => {
-            if let Some(expressions) = expr.get("expressions").and_then(|v| v.as_array()) {
+            if let Some(expressions) = expr.field("expressions").and_then(|v| v.as_array()) {
                 for expression in expressions {
                     collect_identifiers_from_json_expr(expression, out);
                 }
             }
         }
         "AssignmentExpression" => {
-            if let Some(right) = expr.get("right") {
+            if let Some(right) = expr.field("right") {
                 collect_identifiers_from_json_expr(right, out);
             }
         }

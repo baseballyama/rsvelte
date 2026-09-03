@@ -55,6 +55,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Transform an AwaitBlock node into client-side JavaScript.
 ///
@@ -494,9 +495,9 @@ fn extract_identifiers(expr: &Expression) -> Vec<String> {
 fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String>) {
     let val = expr.as_json();
     if let serde_json::Value::Object(obj) = val {
-        match obj.get("type").and_then(|v| v.as_str()) {
+        match obj.field("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                     let trimmed = name.trim();
                     // Check if this "identifier" is actually a destructuring pattern string
                     if trimmed.starts_with('{') || trimmed.starts_with('[') {
@@ -507,14 +508,14 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                 }
             }
             Some("ObjectPattern") => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                     for prop in props {
                         // Check if this is a RestElement inside the properties
-                        if let Some(prop_type) = prop.get("type").and_then(|t| t.as_str())
+                        if let Some(prop_type) = prop.field("type").and_then(|t| t.as_str())
                             && prop_type == "RestElement"
                         {
                             // Extract from the argument of RestElement
-                            if let Some(arg) = prop.get("argument") {
+                            if let Some(arg) = prop.field("argument") {
                                 extract_identifiers_recursive(
                                     &Expression::from_json(arg.clone()),
                                     identifiers,
@@ -524,12 +525,12 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                         }
 
                         // Regular Property
-                        if let Some(value) = prop.get("value") {
+                        if let Some(value) = prop.field("value") {
                             extract_identifiers_recursive(
                                 &Expression::from_json(value.clone()),
                                 identifiers,
                             );
-                        } else if let Some(key) = prop.get("key") {
+                        } else if let Some(key) = prop.field("key") {
                             // Shorthand property
                             extract_identifiers_recursive(
                                 &Expression::from_json(key.clone()),
@@ -540,7 +541,7 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                 }
             }
             Some("ArrayPattern") => {
-                if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
+                if let Some(elems) = obj.field("elements").and_then(|e| e.as_array()) {
                     for elem in elems {
                         if !elem.is_null() {
                             extract_identifiers_recursive(
@@ -552,12 +553,12 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
                 }
             }
             Some("RestElement") => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     extract_identifiers_recursive(&Expression::from_json(arg.clone()), identifiers);
                 }
             }
             Some("AssignmentPattern") => {
-                if let Some(left) = obj.get("left") {
+                if let Some(left) = obj.field("left") {
                     extract_identifiers_recursive(
                         &Expression::from_json(left.clone()),
                         identifiers,
@@ -714,9 +715,9 @@ fn convert_value_to_pattern_with_context(
     context: &mut ComponentContext,
 ) -> JsPattern {
     if let serde_json::Value::Object(obj) = val {
-        match obj.get("type").and_then(|v| v.as_str()) {
+        match obj.field("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                     let trimmed = name.trim();
                     if trimmed.starts_with('{') || trimmed.starts_with('[') {
                         return parse_pattern_string(trimmed, &context.arena);
@@ -725,7 +726,7 @@ fn convert_value_to_pattern_with_context(
                 }
             }
             Some("AssignmentPattern") => {
-                if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                if let (Some(left), Some(right)) = (obj.field("left"), obj.field("right")) {
                     let left_pattern = convert_value_to_pattern_with_context(left, context);
                     let right_expr = convert_value_to_js_expr_simple(right, &context.arena);
                     return JsPattern::Assignment(JsAssignmentPattern {
@@ -735,39 +736,39 @@ fn convert_value_to_pattern_with_context(
                 }
             }
             Some("ObjectPattern") => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                     let properties = props
                         .iter()
                         .filter_map(|prop| {
                             let prop_obj = prop.as_object()?;
-                            let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
+                            let prop_type = prop_obj.field("type").and_then(|t| t.as_str())?;
 
                             if prop_type == "RestElement" {
-                                if let Some(arg) = prop_obj.get("argument") {
+                                if let Some(arg) = prop_obj.field("argument") {
                                     let inner = convert_value_to_pattern_with_context(arg, context);
                                     return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
                                 }
                                 return None;
                             }
 
-                            let key_val = prop_obj.get("key")?;
+                            let key_val = prop_obj.field("key")?;
                             let key = key_val.as_object()?;
-                            let value = prop_obj.get("value")?;
+                            let value = prop_obj.field("value")?;
 
                             let shorthand = prop_obj
-                                .get("shorthand")
+                                .field("shorthand")
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
 
                             let computed = prop_obj
-                                .get("computed")
+                                .field("computed")
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false);
 
                             let value_pattern =
                                 convert_value_to_pattern_with_context(value, context);
 
-                            let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                            let key_type = key.field("type").and_then(|t| t.as_str()).unwrap_or("");
                             let property_key = if computed {
                                 // Computed key: use convert_expression to apply reactive transforms
                                 // This converts num++ to $.update(num) and num to $.get(num) etc.
@@ -776,20 +777,21 @@ fn convert_value_to_pattern_with_context(
                                 let converted = apply_transforms_to_expression(&converted, context);
                                 JsPropertyKey::Computed(context.arena.alloc_expr(converted))
                             } else if key_type == "Literal" {
-                                if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                                if let Some(n) = key.field("value").and_then(|v| v.as_f64()) {
                                     JsPropertyKey::Literal(JsLiteral::Number(n))
-                                } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                                } else if let Some(s) = key.field("value").and_then(|v| v.as_str())
+                                {
                                     JsPropertyKey::Literal(JsLiteral::String(s.into()))
                                 } else {
                                     let raw =
-                                        key.get("raw").and_then(|r| r.as_str()).unwrap_or("0");
+                                        key.field("raw").and_then(|r| r.as_str()).unwrap_or("0");
                                     JsPropertyKey::Literal(JsLiteral::String(raw.into()))
                                 }
-                            } else if let Some(name) = key.get("name").and_then(|v| v.as_str()) {
+                            } else if let Some(name) = key.field("name").and_then(|v| v.as_str()) {
                                 JsPropertyKey::Identifier(name.into())
-                            } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                            } else if let Some(s) = key.field("value").and_then(|v| v.as_str()) {
                                 JsPropertyKey::Literal(JsLiteral::String(s.into()))
-                            } else if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                            } else if let Some(n) = key.field("value").and_then(|v| v.as_f64()) {
                                 JsPropertyKey::Literal(JsLiteral::Number(n))
                             } else {
                                 JsPropertyKey::Identifier("unknown".into())
@@ -808,7 +810,7 @@ fn convert_value_to_pattern_with_context(
                 }
             }
             Some("ArrayPattern") => {
-                if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
+                if let Some(elems) = obj.field("elements").and_then(|e| e.as_array()) {
                     let elements = elems
                         .iter()
                         .map(|elem| {
@@ -824,7 +826,7 @@ fn convert_value_to_pattern_with_context(
                 }
             }
             Some("RestElement") => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     let inner = convert_value_to_pattern_with_context(arg, context);
                     return JsPattern::Rest(Box::new(inner));
                 }
@@ -842,9 +844,9 @@ fn convert_value_to_pattern_with_context(
 /// AssignmentPattern, and RestElement.
 fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPattern {
     if let serde_json::Value::Object(obj) = val {
-        match obj.get("type").and_then(|v| v.as_str()) {
+        match obj.field("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                if let Some(name) = obj.field("name").and_then(|v| v.as_str()) {
                     let trimmed = name.trim();
                     // Check if this "identifier" is actually a destructuring pattern string
                     if trimmed.starts_with('{') || trimmed.starts_with('[') {
@@ -855,7 +857,7 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
             }
             Some("AssignmentPattern") => {
                 // Default value pattern: `a = 3` or `{ x } = {}`
-                if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                if let (Some(left), Some(right)) = (obj.field("left"), obj.field("right")) {
                     let left_pattern = convert_value_to_pattern(left, arena);
                     let right_expr = convert_value_to_js_expr_simple(right, arena);
                     return JsPattern::Assignment(JsAssignmentPattern {
@@ -865,16 +867,16 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
                 }
             }
             Some("ObjectPattern") => {
-                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                if let Some(props) = obj.field("properties").and_then(|p| p.as_array()) {
                     let properties = props
                         .iter()
                         .filter_map(|prop| {
                             let prop_obj = prop.as_object()?;
-                            let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
+                            let prop_type = prop_obj.field("type").and_then(|t| t.as_str())?;
 
                             // Handle RestElement inside ObjectPattern
                             if prop_type == "RestElement" {
-                                if let Some(arg) = prop_obj.get("argument") {
+                                if let Some(arg) = prop_obj.field("argument") {
                                     let inner = convert_value_to_pattern(arg, arena);
                                     return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
                                 }
@@ -882,24 +884,24 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
                             }
 
                             // Handle regular Property
-                            let key_val = prop_obj.get("key")?;
+                            let key_val = prop_obj.field("key")?;
                             let key = key_val.as_object()?;
-                            let value = prop_obj.get("value")?;
+                            let value = prop_obj.field("value")?;
 
                             let shorthand = prop_obj
-                                .get("shorthand")
+                                .field("shorthand")
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
 
                             let computed = prop_obj
-                                .get("computed")
+                                .field("computed")
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false);
 
                             let value_pattern = convert_value_to_pattern(value, arena);
 
                             // Determine property key
-                            let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                            let key_type = key.field("type").and_then(|t| t.as_str()).unwrap_or("");
                             let property_key = if computed {
                                 // Computed key: [expr]
                                 JsPropertyKey::Computed(
@@ -909,21 +911,22 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
                                 )
                             } else if key_type == "Literal" {
                                 // Literal key (number or string)
-                                if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                                if let Some(n) = key.field("value").and_then(|v| v.as_f64()) {
                                     JsPropertyKey::Literal(JsLiteral::Number(n))
-                                } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                                } else if let Some(s) = key.field("value").and_then(|v| v.as_str())
+                                {
                                     JsPropertyKey::Literal(JsLiteral::String(s.into()))
                                 } else {
                                     let raw =
-                                        key.get("raw").and_then(|r| r.as_str()).unwrap_or("0");
+                                        key.field("raw").and_then(|r| r.as_str()).unwrap_or("0");
                                     JsPropertyKey::Literal(JsLiteral::String(raw.into()))
                                 }
-                            } else if let Some(name) = key.get("name").and_then(|v| v.as_str()) {
+                            } else if let Some(name) = key.field("name").and_then(|v| v.as_str()) {
                                 JsPropertyKey::Identifier(name.into())
-                            } else if let Some(s) = key.get("value").and_then(|v| v.as_str()) {
+                            } else if let Some(s) = key.field("value").and_then(|v| v.as_str()) {
                                 // String literal key
                                 JsPropertyKey::Literal(JsLiteral::String(s.into()))
-                            } else if let Some(n) = key.get("value").and_then(|v| v.as_f64()) {
+                            } else if let Some(n) = key.field("value").and_then(|v| v.as_f64()) {
                                 // Numeric literal key
                                 JsPropertyKey::Literal(JsLiteral::Number(n))
                             } else {
@@ -943,7 +946,7 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
                 }
             }
             Some("ArrayPattern") => {
-                if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
+                if let Some(elems) = obj.field("elements").and_then(|e| e.as_array()) {
                     let elements = elems
                         .iter()
                         .map(|elem| {
@@ -959,7 +962,7 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
                 }
             }
             Some("RestElement") => {
-                if let Some(arg) = obj.get("argument") {
+                if let Some(arg) = obj.field("argument") {
                     let inner = convert_value_to_pattern(arg, arena);
                     return JsPattern::Rest(Box::new(inner));
                 }
@@ -975,18 +978,18 @@ fn convert_value_to_pattern(val: &serde_json::Value, arena: &JsArena) -> JsPatte
 fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> JsExpr {
     match val {
         serde_json::Value::Object(obj) => {
-            let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let node_type = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
             match node_type {
                 "Identifier" => {
                     let name = obj
-                        .get("name")
+                        .field("name")
                         .and_then(|v| v.as_str())
                         .unwrap_or("undefined");
                     JsExpr::Identifier(name.into())
                 }
                 "Literal" => {
-                    if let Some(raw) = obj.get("raw").and_then(|r| r.as_str()) {
-                        let value = obj.get("value");
+                    if let Some(raw) = obj.field("raw").and_then(|r| r.as_str()) {
+                        let value = obj.field("value");
                         if let Some(n) = value.and_then(|v| v.as_f64()) {
                             JsExpr::Literal(JsLiteral::Number(n))
                         } else if let Some(s) = value.and_then(|v| v.as_str()) {
@@ -998,11 +1001,11 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                         } else {
                             JsExpr::Raw(raw.into())
                         }
-                    } else if let Some(n) = obj.get("value").and_then(|v| v.as_f64()) {
+                    } else if let Some(n) = obj.field("value").and_then(|v| v.as_f64()) {
                         JsExpr::Literal(JsLiteral::Number(n))
-                    } else if let Some(s) = obj.get("value").and_then(|v| v.as_str()) {
+                    } else if let Some(s) = obj.field("value").and_then(|v| v.as_str()) {
                         JsExpr::Literal(JsLiteral::String(s.into()))
-                    } else if let Some(b) = obj.get("value").and_then(|v| v.as_bool()) {
+                    } else if let Some(b) = obj.field("value").and_then(|v| v.as_bool()) {
                         JsExpr::Literal(JsLiteral::Boolean(b))
                     } else {
                         JsExpr::Literal(JsLiteral::Null)
@@ -1011,12 +1014,12 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 "TemplateLiteral" => {
                     // Convert template literal
                     let quasis_arr = obj
-                        .get("quasis")
+                        .field("quasis")
                         .and_then(|q| q.as_array())
                         .cloned()
                         .unwrap_or_default();
                     let expressions_arr = obj
-                        .get("expressions")
+                        .field("expressions")
                         .and_then(|e| e.as_array())
                         .cloned()
                         .unwrap_or_default();
@@ -1026,13 +1029,13 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                         .enumerate()
                         .map(|(i, quasi)| {
                             let raw = quasi
-                                .get("value")
-                                .and_then(|v| v.get("raw"))
+                                .field("value")
+                                .and_then(|v| v.field("raw"))
                                 .and_then(|r| r.as_str())
                                 .unwrap_or("");
                             let cooked = quasi
-                                .get("value")
-                                .and_then(|v| v.get("cooked"))
+                                .field("value")
+                                .and_then(|v| v.field("cooked"))
                                 .and_then(|c| c.as_str())
                                 .unwrap_or(raw);
                             JsTemplateElement {
@@ -1055,14 +1058,17 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "BinaryExpression" => {
                     let left = obj
-                        .get("left")
+                        .field("left")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Literal(JsLiteral::Number(0.0)));
                     let right = obj
-                        .get("right")
+                        .field("right")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Literal(JsLiteral::Number(0.0)));
-                    let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("+");
+                    let op_str = obj
+                        .field("operator")
+                        .and_then(|o| o.as_str())
+                        .unwrap_or("+");
                     let operator = str_to_binary_op(op_str);
                     JsExpr::Binary(JsBinaryExpression {
                         operator,
@@ -1072,16 +1078,16 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "MemberExpression" => {
                     let object = obj
-                        .get("object")
+                        .field("object")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Identifier("undefined".into()));
-                    let prop_val = obj.get("property");
+                    let prop_val = obj.field("property");
                     let computed = obj
-                        .get("computed")
+                        .field("computed")
                         .and_then(|c| c.as_bool())
                         .unwrap_or(false);
                     let optional = obj
-                        .get("optional")
+                        .field("optional")
                         .and_then(|o| o.as_bool())
                         .unwrap_or(false);
                     let property = if computed {
@@ -1095,7 +1101,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                     } else {
                         let prop_name = prop_val
                             .and_then(|v| v.as_object())
-                            .and_then(|o| o.get("name"))
+                            .and_then(|o| o.field("name"))
                             .and_then(|n| n.as_str())
                             .unwrap_or("undefined");
                         JsMemberProperty::Identifier(prop_name.into())
@@ -1109,11 +1115,11 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "CallExpression" => {
                     let callee = obj
-                        .get("callee")
+                        .field("callee")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Identifier("undefined".into()));
                     let args = obj
-                        .get("arguments")
+                        .field("arguments")
                         .and_then(|a| a.as_array())
                         .map(|arr| {
                             arr.iter()
@@ -1122,7 +1128,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                         })
                         .unwrap_or_default();
                     let optional = obj
-                        .get("optional")
+                        .field("optional")
                         .and_then(|o| o.as_bool())
                         .unwrap_or(false);
                     JsExpr::Call(JsCallExpression {
@@ -1133,16 +1139,22 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "UpdateExpression" => {
                     let argument = obj
-                        .get("argument")
+                        .field("argument")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Identifier("undefined".into()));
-                    let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("++");
+                    let op_str = obj
+                        .field("operator")
+                        .and_then(|o| o.as_str())
+                        .unwrap_or("++");
                     let operator = if op_str == "--" {
                         JsUpdateOp::Decrement
                     } else {
                         JsUpdateOp::Increment
                     };
-                    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(false);
+                    let prefix = obj
+                        .field("prefix")
+                        .and_then(|p| p.as_bool())
+                        .unwrap_or(false);
                     JsExpr::Update(JsUpdateExpression {
                         operator,
                         argument: arena.alloc_expr(argument),
@@ -1151,7 +1163,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "ObjectExpression" => {
                     let props = obj
-                        .get("properties")
+                        .field("properties")
                         .and_then(|p| p.as_array())
                         .cloned()
                         .unwrap_or_default();
@@ -1159,30 +1171,30 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                         .iter()
                         .filter_map(|p| {
                             let p_obj = p.as_object()?;
-                            let key_val = p_obj.get("key")?;
+                            let key_val = p_obj.field("key")?;
                             let key_obj = key_val.as_object()?;
-                            let val = p_obj.get("value")?;
+                            let val = p_obj.field("value")?;
                             let computed = p_obj
-                                .get("computed")
+                                .field("computed")
                                 .and_then(|c| c.as_bool())
                                 .unwrap_or(false);
                             let shorthand = p_obj
-                                .get("shorthand")
+                                .field("shorthand")
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
 
-                            let key = if computed {
-                                JsPropertyKey::Computed(
-                                    arena.alloc_expr(convert_value_to_js_expr_simple(
-                                        key_val, arena,
-                                    )),
-                                )
-                            } else if let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
-                            {
-                                JsPropertyKey::Identifier(name.into())
-                            } else {
-                                JsPropertyKey::Identifier("unknown".into())
-                            };
+                            let key =
+                                if computed {
+                                    JsPropertyKey::Computed(arena.alloc_expr(
+                                        convert_value_to_js_expr_simple(key_val, arena),
+                                    ))
+                                } else if let Some(name) =
+                                    key_obj.field("name").and_then(|n| n.as_str())
+                                {
+                                    JsPropertyKey::Identifier(name.into())
+                                } else {
+                                    JsPropertyKey::Identifier("unknown".into())
+                                };
 
                             Some(JsObjectMember::Property(JsProperty {
                                 key,
@@ -1201,7 +1213,7 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "ArrayExpression" => {
                     let elems = obj
-                        .get("elements")
+                        .field("elements")
                         .and_then(|e| e.as_array())
                         .cloned()
                         .unwrap_or_default();
@@ -1219,12 +1231,18 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "UnaryExpression" => {
                     let argument = obj
-                        .get("argument")
+                        .field("argument")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Literal(JsLiteral::Number(0.0)));
-                    let op_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("-");
+                    let op_str = obj
+                        .field("operator")
+                        .and_then(|o| o.as_str())
+                        .unwrap_or("-");
                     let operator = str_to_unary_op(op_str);
-                    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+                    let prefix = obj
+                        .field("prefix")
+                        .and_then(|p| p.as_bool())
+                        .unwrap_or(true);
                     JsExpr::Unary(JsUnaryExpression {
                         operator,
                         argument: arena.alloc_expr(argument),
@@ -1233,15 +1251,15 @@ fn convert_value_to_js_expr_simple(val: &serde_json::Value, arena: &JsArena) -> 
                 }
                 "ConditionalExpression" => {
                     let test = obj
-                        .get("test")
+                        .field("test")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Literal(JsLiteral::Boolean(false)));
                     let consequent = obj
-                        .get("consequent")
+                        .field("consequent")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Identifier("undefined".into()));
                     let alternate = obj
-                        .get("alternate")
+                        .field("alternate")
                         .map(|v| convert_value_to_js_expr_simple(v, arena))
                         .unwrap_or(JsExpr::Identifier("undefined".into()));
                     JsExpr::Conditional(JsConditionalExpression {

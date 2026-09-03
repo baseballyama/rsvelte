@@ -34,6 +34,7 @@ use serde_json::Value;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::server::evaluate as server_evaluate;
 use crate::compiler::phases::phase3_transform::server::evaluate::EvalCtx;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 pub(super) const CONSOLE_METHODS: &[&str] = &[
     "debug",
@@ -77,7 +78,7 @@ pub(super) fn args_need_wrap(args: &[Value], analysis: &ComponentAnalysis) -> bo
     }
     with_eval_ctx(analysis, None, |ctx| {
         args.iter().any(|arg| {
-            arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
+            arg.field("type").and_then(|t| t.as_str()) == Some("SpreadElement")
                 || ctx.evaluate_estree(arg, 0).has_unknown()
         })
     })

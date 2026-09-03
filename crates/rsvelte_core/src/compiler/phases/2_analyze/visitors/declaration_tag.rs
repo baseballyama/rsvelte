@@ -21,6 +21,7 @@ use super::{FragmentOwnerType, VisitorContext};
 use crate::ast::template::DeclarationTag;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a declaration tag.
 ///
@@ -129,11 +130,11 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
     // reactive binding referenced at the "top level" of an initializer warns.
     if context.analysis.runes && !context.is_ignored("state_referenced_locally") {
         let decl_json = tag.declaration.as_json();
-        if let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) {
+        if let Some(decls) = decl_json.field("declarations").and_then(|d| d.as_array()) {
             // Collect first to drop the borrow on `tag` before mutating `context`.
             let inits: Vec<serde_json::Value> = decls
                 .iter()
-                .filter_map(|d| d.get("init"))
+                .filter_map(|d| d.field("init"))
                 .filter(|i| !i.is_null())
                 .cloned()
                 .collect();
@@ -153,9 +154,9 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
 /// branch of the main `Identifier` visitor.
 fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext) {
     use serde_json::Value;
-    match node.get("type").and_then(|t| t.as_str()) {
+    match node.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
-            let Some(name) = node.get("name").and_then(|n| n.as_str()) else {
+            let Some(name) = node.field("name").and_then(|n| n.as_str()) else {
                 return;
             };
             let eligible = context
@@ -172,8 +173,11 @@ fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext
                     )
                 });
             if eligible {
-                let start = node.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
-                let end = node.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
+                let start = node
+                    .field("start")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32);
+                let end = node.field("end").and_then(|v| v.as_u64()).map(|v| v as u32);
                 context
                     .analysis
                     .warnings
@@ -187,13 +191,13 @@ fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext
         | Some("FunctionExpression")
         | Some("FunctionDeclaration") => {}
         Some("CallExpression") => {
-            if let Some(callee) = node.get("callee") {
+            if let Some(callee) = node.field("callee") {
                 warn_local_state_reads(callee, context);
             }
             // `$state(…)` / `$derived(…)` arguments become closures, so reads
             // there are reactive — skip them.
             if !callee_is_state_rune(node)
-                && let Some(args) = node.get("arguments").and_then(|a| a.as_array())
+                && let Some(args) = node.field("arguments").and_then(|a| a.as_array())
             {
                 for arg in args {
                     warn_local_state_reads(arg, context);
@@ -202,7 +206,7 @@ fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext
         }
         // The assignment target is a write, not a read; only walk the value.
         Some("AssignmentExpression") => {
-            if let Some(right) = node.get("right") {
+            if let Some(right) = node.field("right") {
                 warn_local_state_reads(right, context);
             }
         }
@@ -230,18 +234,18 @@ fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext
 /// (or `.raw` / `.frozen` / `.by`) rune — whose arguments are treated as
 /// closures for the purposes of `state_referenced_locally`.
 fn callee_is_state_rune(call: &serde_json::Value) -> bool {
-    let Some(callee) = call.get("callee") else {
+    let Some(callee) = call.field("callee") else {
         return false;
     };
-    match callee.get("type").and_then(|t| t.as_str()) {
+    match callee.field("type").and_then(|t| t.as_str()) {
         Some("Identifier") => matches!(
-            callee.get("name").and_then(|n| n.as_str()),
+            callee.field("name").and_then(|n| n.as_str()),
             Some("$state" | "$derived")
         ),
         Some("MemberExpression") => matches!(
             callee
-                .get("object")
-                .and_then(|o| o.get("name"))
+                .field("object")
+                .and_then(|o| o.field("name"))
                 .and_then(|n| n.as_str()),
             Some("$state" | "$derived")
         ),

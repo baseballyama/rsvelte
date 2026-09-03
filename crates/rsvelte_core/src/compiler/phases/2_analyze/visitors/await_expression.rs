@@ -7,6 +7,7 @@
 use super::{JsPathEntry, VisitorContext};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 
 /// Returns true when the JS path between the current node and the enclosing
@@ -106,19 +107,19 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
 
     for entry in js_path.iter().rev() {
         let parent = entry.as_value();
-        let parent_type = parent.get("type").and_then(|t| t.as_str());
+        let parent_type = parent.field("type").and_then(|t| t.as_str());
 
         if parent_type == Some("ConstTag") {
             return false;
         }
 
-        if parent.get("metadata").is_some() {
+        if parent.field("metadata").is_some() {
             return true;
         }
 
         match parent_type {
             Some("ArrayExpression") => {
-                if let Some(Value::Array(elements)) = parent.get("elements")
+                if let Some(Value::Array(elements)) = parent.field("elements")
                     && !is_same_node(elements.last(), current)
                 {
                     return false;
@@ -126,13 +127,13 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             }
 
             Some("AssignmentExpression") | Some("BinaryExpression") | Some("LogicalExpression") => {
-                if is_same_node(parent.get("left"), current) {
+                if is_same_node(parent.field("left"), current) {
                     return false;
                 }
             }
 
             Some("CallExpression") | Some("NewExpression") => {
-                if let Some(Value::Array(args)) = parent.get("arguments")
+                if let Some(Value::Array(args)) = parent.field("arguments")
                     && !is_same_node(args.last(), current)
                 {
                     return false;
@@ -140,24 +141,24 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             }
 
             Some("ConditionalExpression") => {
-                if is_same_node(parent.get("test"), current) {
+                if is_same_node(parent.field("test"), current) {
                     return false;
                 }
             }
 
             Some("MemberExpression") => {
                 if parent
-                    .get("computed")
+                    .field("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false)
-                    && is_same_node(parent.get("object"), current)
+                    && is_same_node(parent.field("object"), current)
                 {
                     return false;
                 }
             }
 
             Some("ObjectExpression") => {
-                if let Some(Value::Array(props)) = parent.get("properties")
+                if let Some(Value::Array(props)) = parent.field("properties")
                     && !is_same_node(props.last(), current)
                 {
                     return false;
@@ -165,13 +166,13 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             }
 
             Some("Property") => {
-                if is_same_node(parent.get("key"), current) {
+                if is_same_node(parent.field("key"), current) {
                     return false;
                 }
             }
 
             Some("SequenceExpression") => {
-                if let Some(Value::Array(exprs)) = parent.get("expressions")
+                if let Some(Value::Array(exprs)) = parent.field("expressions")
                     && !is_same_node(exprs.last(), current)
                 {
                     return false;
@@ -179,8 +180,8 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             }
 
             Some("TaggedTemplateExpression") => {
-                if let Some(quasi) = parent.get("quasi")
-                    && let Some(Value::Array(exprs)) = quasi.get("expressions")
+                if let Some(quasi) = parent.field("quasi")
+                    && let Some(Value::Array(exprs)) = quasi.field("expressions")
                     && !is_same_node(exprs.last(), current)
                 {
                     return false;
@@ -188,7 +189,7 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             }
 
             Some("TemplateLiteral") => {
-                if let Some(Value::Array(exprs)) = parent.get("expressions")
+                if let Some(Value::Array(exprs)) = parent.field("expressions")
                     && !is_same_node(exprs.last(), current)
                 {
                     return false;
@@ -214,10 +215,10 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
 fn is_same_node(a: Option<&Value>, b: &Value) -> bool {
     match a {
         Some(a_val) => {
-            let a_start = a_val.get("start").and_then(|s| s.as_u64());
-            let b_start = b.get("start").and_then(|s| s.as_u64());
-            let a_end = a_val.get("end").and_then(|s| s.as_u64());
-            let b_end = b.get("end").and_then(|s| s.as_u64());
+            let a_start = a_val.field("start").and_then(|s| s.as_u64());
+            let b_start = b.field("start").and_then(|s| s.as_u64());
+            let a_end = a_val.field("end").and_then(|s| s.as_u64());
+            let b_end = b.field("end").and_then(|s| s.as_u64());
             a_start.is_some() && a_start == b_start && a_end == b_end
         }
         None => false,

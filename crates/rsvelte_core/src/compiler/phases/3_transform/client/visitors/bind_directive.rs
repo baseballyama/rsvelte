@@ -23,6 +23,7 @@ use crate::compiler::phases::phase3_transform::js_ast::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::js_ast::to_oxc::SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 // Note: We implement bind_this directly here rather than using shared/utils
 // to avoid complex borrow checker issues with the context
@@ -963,31 +964,31 @@ fn build_group_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) 
         Some(o) => o,
         None => return,
     };
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let expr_type = match obj.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return,
     };
     match expr_type {
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                 parts.push(name.to_string());
             }
         }
         "MemberExpression" => {
-            if let Some(object) = obj.get("object") {
+            if let Some(object) = obj.field("object") {
                 build_group_keypath_parts(object, parts);
             }
             let computed = obj
-                .get("computed")
+                .field("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             if computed {
-                if let Some(property) = obj.get("property") {
+                if let Some(property) = obj.field("property") {
                     let prop_str = build_group_binding_keypath(property);
                     parts.push(format!("[{}]", prop_str));
                 }
-            } else if let Some(property) = obj.get("property")
-                && let Some(name) = property.get("name").and_then(|n| n.as_str())
+            } else if let Some(property) = obj.field("property")
+                && let Some(name) = property.field("name").and_then(|n| n.as_str())
             {
                 parts.push(name.to_string());
             }
@@ -1205,7 +1206,7 @@ fn expression_json_is_member(val: &serde_json::Value) -> bool {
         Some(o) => o,
         None => return false,
     };
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let expr_type = match obj.field("type").and_then(|t| t.as_str()) {
         Some(t) => t,
         None => return false,
     };
@@ -1213,7 +1214,7 @@ fn expression_json_is_member(val: &serde_json::Value) -> bool {
         "MemberExpression" => true,
         "CallExpression" => {
             // For call expressions, check the callee
-            if let Some(callee) = obj.get("callee") {
+            if let Some(callee) = obj.field("callee") {
                 expression_json_is_member(callee)
             } else {
                 false
@@ -2579,10 +2580,10 @@ fn analyze_each_binding_expression(
 fn extract_member_path(
     obj: &serde_json::Map<String, serde_json::Value>,
 ) -> Option<(String, String)> {
-    let object = obj.get("object")?.as_object()?;
-    let property = obj.get("property")?.as_object()?;
+    let object = obj.field("object")?.as_object()?;
+    let property = obj.field("property")?.as_object()?;
     let computed = obj
-        .get("computed")
+        .field("computed")
         .and_then(|c| c.as_bool())
         .unwrap_or(false);
 
@@ -2592,13 +2593,13 @@ fn extract_member_path(
         let prop_str = format_json_expr(&prop_val);
         format!("[{}]", prop_str)
     } else {
-        property.get("name").and_then(|n| n.as_str())?.to_string()
+        property.field("name").and_then(|n| n.as_str())?.to_string()
     };
 
-    let object_type = object.get("type").and_then(|t| t.as_str())?;
+    let object_type = object.field("type").and_then(|t| t.as_str())?;
 
     if object_type == "Identifier" {
-        let root_name = object.get("name").and_then(|n| n.as_str())?;
+        let root_name = object.field("name").and_then(|n| n.as_str())?;
         Some((root_name.to_string(), prop_name))
     } else if object_type == "MemberExpression" {
         let (root, parent_path) = extract_member_path(object)?;
@@ -2616,17 +2617,17 @@ fn extract_member_path(
 fn format_json_expr(val: &serde_json::Value) -> String {
     match val {
         serde_json::Value::Object(obj) => {
-            let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let expr_type = obj.field("type").and_then(|t| t.as_str()).unwrap_or("");
             match expr_type {
                 "Identifier" => obj
-                    .get("name")
+                    .field("name")
                     .and_then(|n| n.as_str())
                     .unwrap_or("?")
                     .to_string(),
                 "Literal" | "NumericLiteral" => {
-                    if let Some(raw) = obj.get("raw").and_then(|r| r.as_str()) {
+                    if let Some(raw) = obj.field("raw").and_then(|r| r.as_str()) {
                         raw.to_string()
-                    } else if let Some(v) = obj.get("value") {
+                    } else if let Some(v) = obj.field("value") {
                         match v {
                             serde_json::Value::Number(n) => n.to_string(),
                             serde_json::Value::String(s) => format!("'{}'", s),
@@ -2823,10 +2824,10 @@ fn collect_ast_identifiers(expr: &Expression) -> Vec<String> {
 fn collect_ast_identifiers_recursive(val: &serde_json::Value, names: &mut Vec<String>) {
     match val {
         serde_json::Value::Object(obj) => {
-            let node_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+            let node_type = obj.field("type").and_then(|v| v.as_str()).unwrap_or("");
             match node_type {
                 "Identifier" => {
-                    if let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                    if let Some(name) = obj.field("name").and_then(|v| v.as_str())
                         && !names.contains(&name.to_string())
                     {
                         names.push(name.to_string());
@@ -2966,13 +2967,13 @@ pub fn emit_validate_binding(
 /// Extract the root identifier name from a JSON expression.
 fn extract_root_identifier_span_from_json(val: &serde_json::Value) -> Option<(String, u32, u32)> {
     let obj = val.as_object()?;
-    match obj.get("type")?.as_str()? {
+    match obj.field("type")?.as_str()? {
         "Identifier" => Some((
-            obj.get("name")?.as_str()?.to_string(),
-            u32::try_from(obj.get("start")?.as_u64()?).ok()?,
-            u32::try_from(obj.get("end")?.as_u64()?).ok()?,
+            obj.field("name")?.as_str()?.to_string(),
+            u32::try_from(obj.field("start")?.as_u64()?).ok()?,
+            u32::try_from(obj.field("end")?.as_u64()?).ok()?,
         )),
-        "MemberExpression" => extract_root_identifier_span_from_json(obj.get("object")?),
+        "MemberExpression" => extract_root_identifier_span_from_json(obj.field("object")?),
         _ => None,
     }
 }
@@ -3085,31 +3086,31 @@ fn build_ast_member_path_recursive(
         Some(o) => o,
         None => return true,
     };
-    match obj.get("type").and_then(|t| t.as_str()) {
+    match obj.field("type").and_then(|t| t.as_str()) {
         Some("MemberExpression") => {
             // Recurse into object first
-            if let Some(object) = obj.get("object")
+            if let Some(object) = obj.field("object")
                 && !build_ast_member_path_recursive(object, path, read_computed)
             {
                 return false;
             }
             // Add current property
             let computed = obj
-                .get("computed")
+                .field("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
-            let Some(property) = obj.get("property") else {
+            let Some(property) = obj.field("property") else {
                 return true;
             };
             let Some(prop_obj) = property.as_object() else {
                 return true;
             };
-            let Some(prop_type) = prop_obj.get("type").and_then(|t| t.as_str()) else {
+            let Some(prop_type) = prop_obj.field("type").and_then(|t| t.as_str()) else {
                 return true;
             };
             match prop_type {
                 "Identifier" => {
-                    if let Some(name) = prop_obj.get("name").and_then(|n| n.as_str()) {
+                    if let Some(name) = prop_obj.field("name").and_then(|n| n.as_str()) {
                         if computed {
                             path.push(read_computed(name));
                         } else {
@@ -3119,7 +3120,7 @@ fn build_ast_member_path_recursive(
                     true
                 }
                 "Literal" => {
-                    if let Some(value) = prop_obj.get("value") {
+                    if let Some(value) = prop_obj.field("value") {
                         if let Some(s) = value.as_str() {
                             path.push(b::string(s));
                         } else if let Some(n) = value.as_f64() {
@@ -3132,7 +3133,7 @@ fn build_ast_member_path_recursive(
             }
         }
         Some("Identifier") => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = obj.field("name").and_then(|n| n.as_str()) {
                 path.push(b::string(name));
             }
             true

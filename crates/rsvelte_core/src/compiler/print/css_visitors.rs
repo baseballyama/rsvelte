@@ -7,6 +7,7 @@
 //! Reference: `svelte/packages/svelte/src/compiler/print/index.js` (lines 172-325)
 
 use super::Context;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 use std::fmt::Write as _;
 
@@ -19,7 +20,7 @@ use std::fmt::Write as _;
 /// * `context` - The context to write to
 /// * `node` - The CSS node to visit (as JSON value)
 pub fn visit_css_node(context: &mut Context, node: &Value) {
-    if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+    if let Some(node_type) = node.field("type").and_then(|t| t.as_str()) {
         match node_type {
             "Atrule" => visit_atrule(context, node),
             "AttributeSelector" => visit_attribute_selector(context, node),
@@ -53,17 +54,20 @@ pub fn visit_css_node(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Atrule node
 fn visit_atrule(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         // For @font-face, the CSS parser may incorrectly parse declarations as selectors.
         // Use source text extraction as a workaround when source is available.
         if name == "font-face"
             && let Some(source) = context.source
         {
             let start = node
-                .get("start")
+                .field("start")
                 .and_then(|s| s.as_u64())
                 .map(|n| n as usize);
-            let end = node.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
+            let end = node
+                .field("end")
+                .and_then(|e| e.as_u64())
+                .map(|n| n as usize);
             if let (Some(s), Some(e)) = (start, end)
                 && s < e
                 && e <= source.len()
@@ -90,14 +94,14 @@ fn visit_atrule(context: &mut Context, node: &Value) {
         context.write("@");
         context.write(&escape_identifier(name));
 
-        if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        if let Some(prelude) = node.field("prelude").and_then(|p| p.as_str())
             && !prelude.is_empty()
         {
             context.write(" ");
             context.write(prelude);
         }
 
-        if let Some(block) = node.get("block") {
+        if let Some(block) = node.field("block") {
             if !block.is_null() {
                 context.write(" ");
                 visit_block(context, block);
@@ -195,17 +199,17 @@ fn escape_identifier(name: &str) -> String {
 /// * `context` - The context to write to
 /// * `node` - The AttributeSelector node
 fn visit_attribute_selector(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         context.write("[");
         context.write(&escape_identifier(name));
 
-        if let Some(matcher) = node.get("matcher").and_then(|m| m.as_str()) {
+        if let Some(matcher) = node.field("matcher").and_then(|m| m.as_str()) {
             context.write(matcher);
-            if let Some(value) = node.get("value").and_then(|v| v.as_str()) {
+            if let Some(value) = node.field("value").and_then(|v| v.as_str()) {
                 // Value includes quotes if originally quoted
                 context.write(value);
 
-                if let Some(flags) = node.get("flags").and_then(|f| f.as_str()) {
+                if let Some(flags) = node.field("flags").and_then(|f| f.as_str()) {
                     context.write(" ");
                     context.write(flags);
                 }
@@ -233,8 +237,8 @@ fn visit_attribute_selector(context: &mut Context, node: &Value) {
 fn visit_block(context: &mut Context, node: &Value) {
     context.write("{");
 
-    let end = node.get("end").and_then(Value::as_u64).unwrap_or(0);
-    if let Some(children) = node.get("children").and_then(|c| c.as_array())
+    let end = node.field("end").and_then(Value::as_u64).unwrap_or(0);
+    if let Some(children) = node.field("children").and_then(|c| c.as_array())
         && (!children.is_empty() || context.has_css_comment_before(end))
     {
         context.indent();
@@ -243,7 +247,7 @@ fn visit_block(context: &mut Context, node: &Value) {
         let mut started = false;
 
         for child in children {
-            let start = child.get("start").and_then(Value::as_u64).unwrap_or(0);
+            let start = child.field("start").and_then(Value::as_u64).unwrap_or(0);
             while context.has_css_comment_before(start) {
                 if started {
                     context.newline();
@@ -283,7 +287,7 @@ fn visit_block(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The ClassSelector node
 fn visit_class_selector(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         context.write(".");
         context.write(&escape_identifier(name));
     }
@@ -298,7 +302,7 @@ fn visit_class_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The ComplexSelector node
 fn visit_complex_selector(context: &mut Context, node: &Value) {
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         for selector in children {
             visit_css_node(context, selector);
         }
@@ -314,8 +318,8 @@ fn visit_complex_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Declaration node
 fn visit_declaration(context: &mut Context, node: &Value) {
-    if let Some(property) = node.get("property").and_then(|p| p.as_str())
-        && let Some(value) = node.get("value").and_then(|v| v.as_str())
+    if let Some(property) = node.field("property").and_then(|p| p.as_str())
+        && let Some(value) = node.field("value").and_then(|v| v.as_str())
     {
         context.write(property);
         context.write(": ");
@@ -333,7 +337,7 @@ fn visit_declaration(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The IdSelector node
 fn visit_id_selector(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         context.write("#");
         context.write(&escape_identifier(name));
     }
@@ -360,7 +364,7 @@ fn visit_nesting_selector(context: &mut Context, _node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Nth node
 fn visit_nth(context: &mut Context, node: &Value) {
-    if let Some(value) = node.get("value").and_then(|v| v.as_str()) {
+    if let Some(value) = node.field("value").and_then(|v| v.as_str()) {
         context.write(value);
     }
 }
@@ -374,7 +378,7 @@ fn visit_nth(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Percentage node
 fn visit_percentage(context: &mut Context, node: &Value) {
-    if let Some(value) = node.get("value").and_then(|v| v.as_str()) {
+    if let Some(value) = node.field("value").and_then(|v| v.as_str()) {
         // `value` already contains the trailing `%` (the parser captures the
         // `%` as part of the literal — same shape as upstream's Percentage
         // AST). Mirrors upstream commit `ca3f35bf7` which fixed
@@ -392,16 +396,16 @@ fn visit_percentage(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The PseudoClassSelector node
 fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         context.write(":");
         context.write(&escape_identifier(name));
 
-        if let Some(args) = node.get("args")
+        if let Some(args) = node.field("args")
             && !args.is_null()
         {
             context.write("(");
 
-            if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
+            if let Some(children) = args.field("children").and_then(|c| c.as_array()) {
                 let mut started = false;
 
                 for arg in children {
@@ -429,15 +433,15 @@ fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The PseudoElementSelector node
 fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         context.write("::");
         context.write(&escape_identifier(name));
-        if let Some(args) = node.get("args")
+        if let Some(args) = node.field("args")
             && !args.is_null()
         {
             context.write("(");
             visit_selector_list(context, args);
-            let end = node.get("end").and_then(Value::as_u64).unwrap_or(0);
+            let end = node.field("end").and_then(Value::as_u64).unwrap_or(0);
             if context.write_css_comments_before(end, true) {
                 context.write(" ");
             }
@@ -455,9 +459,9 @@ fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The RelativeSelector node
 fn visit_relative_selector(context: &mut Context, node: &Value) {
-    if let Some(combinator) = node.get("combinator")
+    if let Some(combinator) = node.field("combinator")
         && !combinator.is_null()
-        && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+        && let Some(name) = combinator.field("name").and_then(|n| n.as_str())
     {
         if name == " " {
             context.write(" ");
@@ -468,17 +472,20 @@ fn visit_relative_selector(context: &mut Context, node: &Value) {
         }
     }
 
-    if let Some(selectors) = node.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = node.field("selectors").and_then(|s| s.as_array()) {
         if selectors.is_empty() {
             // Empty selectors array - try to extract from source text.
             // This happens for keyframe selectors like "50%" that the parser
             // doesn't store as typed selector nodes.
             if let Some(source) = context.source
                 && let Some(s) = node
-                    .get("start")
+                    .field("start")
                     .and_then(|s| s.as_u64())
                     .map(|n| n as usize)
-                && let Some(e) = node.get("end").and_then(|e| e.as_u64()).map(|n| n as usize)
+                && let Some(e) = node
+                    .field("end")
+                    .and_then(|e| e.as_u64())
+                    .map(|n| n as usize)
                 && s < e
                 && e <= source.len()
             {
@@ -508,14 +515,14 @@ fn visit_relative_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Rule node
 fn visit_rule(context: &mut Context, node: &Value) {
-    if let Some(prelude) = node.get("prelude")
-        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    if let Some(prelude) = node.field("prelude")
+        && let Some(children) = prelude.field("children").and_then(|c| c.as_array())
     {
         for (index, selector) in children.iter().enumerate() {
             visit_css_node(context, selector);
             if let Some(next) = children.get(index + 1) {
                 context.write(",");
-                let start = next.get("start").and_then(Value::as_u64).unwrap_or(0);
+                let start = next.field("start").and_then(Value::as_u64).unwrap_or(0);
                 if context.has_css_comment_before(start) {
                     context.write(" ");
                     context.write_css_comments_before(start, true);
@@ -527,8 +534,8 @@ fn visit_rule(context: &mut Context, node: &Value) {
 
     context.write(" ");
 
-    if let Some(block) = node.get("block") {
-        let start = block.get("start").and_then(Value::as_u64).unwrap_or(0);
+    if let Some(block) = node.field("block") {
+        let start = block.field("start").and_then(Value::as_u64).unwrap_or(0);
         if context.write_css_comments_before(start, true) {
             context.write(" ");
         }
@@ -545,10 +552,10 @@ fn visit_rule(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The SelectorList node
 fn visit_selector_list(context: &mut Context, node: &Value) {
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         let mut started = false;
         for selector in children {
-            let start = selector.get("start").and_then(Value::as_u64).unwrap_or(0);
+            let start = selector.field("start").and_then(Value::as_u64).unwrap_or(0);
             if context.has_css_comment_before(start) {
                 if started {
                     context.write(" ");
@@ -575,7 +582,7 @@ fn visit_selector_list(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The TypeSelector node
 fn visit_type_selector(context: &mut Context, node: &Value) {
-    if let Some(namespace) = node.get("namespace").and_then(|n| n.as_str()) {
+    if let Some(namespace) = node.field("namespace").and_then(|n| n.as_str()) {
         if namespace == "*" {
             context.write("*");
         } else {
@@ -583,7 +590,7 @@ fn visit_type_selector(context: &mut Context, node: &Value) {
         }
         context.write("|");
     }
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+    if let Some(name) = node.field("name").and_then(|n| n.as_str()) {
         if name == "*" {
             context.write(name);
         } else {

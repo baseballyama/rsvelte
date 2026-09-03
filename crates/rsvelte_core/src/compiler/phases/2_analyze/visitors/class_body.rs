@@ -13,6 +13,7 @@ use super::super::types::StateField;
 use super::VisitorContext;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Visit a class body.
 ///
@@ -31,7 +32,7 @@ fn visit_impl(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Get the class body array
-    let body = match node.get("body").and_then(|b| b.as_array()) {
+    let body = match node.field("body").and_then(|b| b.as_array()) {
         Some(b) => b,
         None => return Ok(()),
     };
@@ -48,8 +49,8 @@ fn visit_impl(
 
     /// Helper function to get a node's `(start, end)` source range
     fn span(node: &Value) -> Option<(u32, u32)> {
-        let start = node.get("start")?.as_u64()? as u32;
-        let end = node.get("end")?.as_u64()? as u32;
+        let start = node.field("start")?.as_u64()? as u32;
+        let end = node.field("end")?.as_u64()? as u32;
         Some((start, end))
     }
 
@@ -64,18 +65,18 @@ fn visit_impl(
 
     /// Helper function to get the name from a key (Identifier, PrivateIdentifier, or Literal)
     fn get_name(key: &Value) -> Option<String> {
-        match key.get("type").and_then(|t| t.as_str()) {
-            Some("Literal") => key.get("value").and_then(|v| {
+        match key.field("type").and_then(|t| t.as_str()) {
+            Some("Literal") => key.field("value").and_then(|v| {
                 v.as_str()
                     .map(|s| s.to_string())
                     .or_else(|| v.as_i64().map(|n| n.to_string()))
             }),
             Some("PrivateIdentifier") => key
-                .get("name")
+                .field("name")
                 .and_then(|n| n.as_str())
                 .map(|n| format!("#{}", n)),
             Some("Identifier") => key
-                .get("name")
+                .field("name")
                 .and_then(|n| n.as_str())
                 .map(|s| s.to_string()),
             _ => None,
@@ -84,30 +85,30 @@ fn visit_impl(
 
     /// Helper function to check if a value is a rune call and return the rune name
     fn get_rune(value: &Value) -> Option<String> {
-        if value.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
+        if value.field("type").and_then(|t| t.as_str()) != Some("CallExpression") {
             return None;
         }
 
-        let callee = value.get("callee")?;
+        let callee = value.field("callee")?;
 
         // Handle direct rune calls ($state, $derived, etc.)
-        if callee.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-            let name = callee.get("name").and_then(|n| n.as_str())?;
+        if callee.field("type").and_then(|t| t.as_str()) == Some("Identifier") {
+            let name = callee.field("name").and_then(|n| n.as_str())?;
             if is_state_creation_rune(name) {
                 return Some(name.to_string());
             }
         }
 
         // Handle member expression runes ($state.raw, $derived.by)
-        if callee.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-            let object = callee.get("object")?;
-            let property = callee.get("property")?;
+        if callee.field("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+            let object = callee.field("object")?;
+            let property = callee.field("property")?;
 
-            if object.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                && property.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+            if object.field("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && property.field("type").and_then(|t| t.as_str()) == Some("Identifier")
             {
-                let obj_name = object.get("name").and_then(|n| n.as_str())?;
-                let prop_name = property.get("name").and_then(|n| n.as_str())?;
+                let obj_name = object.field("name").and_then(|n| n.as_str())?;
+                let prop_name = property.field("name").and_then(|n| n.as_str())?;
                 let full_name = format!("{}.{}", obj_name, prop_name);
 
                 if is_state_creation_rune(&full_name) {
@@ -170,24 +171,24 @@ fn visit_impl(
 
     // Process property definitions and methods
     for child in body {
-        let child_type = child.get("type").and_then(|t| t.as_str());
+        let child_type = child.field("type").and_then(|t| t.as_str());
 
         // Handle PropertyDefinition
         if child_type == Some("PropertyDefinition") {
             let computed = child
-                .get("computed")
+                .field("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             let is_static = child
-                .get("static")
+                .field("static")
                 .and_then(|s| s.as_bool())
                 .unwrap_or(false);
 
             if !computed
                 && !is_static
-                && let Some(key) = child.get("key")
+                && let Some(key) = child.field("key")
             {
-                let value = child.get("value");
+                let value = child.field("value");
                 handle_field(child, key, value, &mut state_fields, &mut fields, false)?;
 
                 // Track the field for duplicate detection
@@ -213,7 +214,7 @@ fn visit_impl(
         // Handle MethodDefinition
         if child_type == Some("MethodDefinition") {
             let kind = child
-                .get("kind")
+                .field("kind")
                 .and_then(|k| k.as_str())
                 .unwrap_or("method");
 
@@ -221,16 +222,16 @@ fn visit_impl(
                 constructor = Some(child);
             } else {
                 let computed = child
-                    .get("computed")
+                    .field("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false);
 
                 if !computed
-                    && let Some(key) = child.get("key")
+                    && let Some(key) = child.field("key")
                     && let Some(name) = get_name(key)
                 {
                     let is_static = child
-                        .get("static")
+                        .field("static")
                         .and_then(|s| s.as_bool())
                         .unwrap_or(false);
                     let field_key = if is_static {
@@ -275,59 +276,59 @@ fn visit_impl(
 
     // Process constructor assignments (this.x = $state(...))
     if let Some(constructor_node) = constructor
-        && let Some(value) = constructor_node.get("value")
-        && let Some(body) = value.get("body")
-        && let Some(body_array) = body.get("body").and_then(|b| b.as_array())
+        && let Some(value) = constructor_node.field("value")
+        && let Some(body) = value.field("body")
+        && let Some(body_array) = body.field("body").and_then(|b| b.as_array())
     {
         for statement in body_array {
             // Must be ExpressionStatement
-            if statement.get("type").and_then(|t| t.as_str()) != Some("ExpressionStatement") {
+            if statement.field("type").and_then(|t| t.as_str()) != Some("ExpressionStatement") {
                 continue;
             }
 
             // Must be AssignmentExpression
-            let expr = match statement.get("expression") {
+            let expr = match statement.field("expression") {
                 Some(e) => e,
                 None => continue,
             };
 
-            if expr.get("type").and_then(|t| t.as_str()) != Some("AssignmentExpression") {
+            if expr.field("type").and_then(|t| t.as_str()) != Some("AssignmentExpression") {
                 continue;
             }
 
             // Left side must be MemberExpression with ThisExpression
-            let left = match expr.get("left") {
+            let left = match expr.field("left") {
                 Some(l) => l,
                 None => continue,
             };
 
-            if left.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
+            if left.field("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
                 continue;
             }
 
-            let object = match left.get("object") {
+            let object = match left.field("object") {
                 Some(o) => o,
                 None => continue,
             };
 
-            if object.get("type").and_then(|t| t.as_str()) != Some("ThisExpression") {
+            if object.field("type").and_then(|t| t.as_str()) != Some("ThisExpression") {
                 continue;
             }
 
             // Skip computed properties with non-literal keys
             let computed = left
-                .get("computed")
+                .field("computed")
                 .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             if computed
-                && let Some(property) = left.get("property")
-                && property.get("type").and_then(|t| t.as_str()) != Some("Literal")
+                && let Some(property) = left.field("property")
+                && property.field("type").and_then(|t| t.as_str()) != Some("Literal")
             {
                 continue;
             }
 
             // Handle the assignment
-            if let (Some(property), Some(right)) = (left.get("property"), expr.get("right")) {
+            if let (Some(property), Some(right)) = (left.field("property"), expr.field("right")) {
                 handle_field(
                     expr,
                     property,

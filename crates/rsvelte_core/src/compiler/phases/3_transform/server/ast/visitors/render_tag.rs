@@ -40,6 +40,7 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use serde_json::Value;
 
 use super::shared::{EMPTY_COMMENT, PromiseOptimiser, TemplateEntry};
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 
 /// Slice the component source `[start, end)` (the optimiser blocker / await
 /// predicate operates on raw source text). `None` for an out-of-range span.
@@ -57,7 +58,7 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
 
     // Unwrap the optional chain to reach the inner `CallExpression`.
     let call_json: &Value = if is_optional {
-        match expr_json.get("expression") {
+        match expr_json.field("expression") {
             Some(v) => v,
             None => return,
         }
@@ -65,18 +66,18 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
         expr_json
     };
 
-    if call_json.get("type").and_then(Value::as_str) != Some("CallExpression") {
+    if call_json.field("type").and_then(Value::as_str) != Some("CallExpression") {
         return;
     }
 
     // -- callee -------------------------------------------------------------
-    let callee = match call_json.get("callee") {
+    let callee = match call_json.field("callee") {
         Some(c) => c,
         None => return,
     };
     let (c_start, c_end) = match (
-        callee.get("start").and_then(Value::as_u64),
-        callee.get("end").and_then(Value::as_u64),
+        callee.field("start").and_then(Value::as_u64),
+        callee.field("end").and_then(Value::as_u64),
     ) {
         (Some(s), Some(e)) => (s as usize, e as usize),
         _ => return,
@@ -106,11 +107,11 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
     // routed through the optimiser so a blocked argument makes the tag async.
     let mut args = vec![state.b.id("$$renderer")];
     let mut comment_cursor = c_end as u32;
-    if let Some(arg_list) = call_json.get("arguments").and_then(Value::as_array) {
+    if let Some(arg_list) = call_json.field("arguments").and_then(Value::as_array) {
         for arg in arg_list {
             if let (Some(a_start), Some(a_end)) = (
-                arg.get("start").and_then(Value::as_u64),
-                arg.get("end").and_then(Value::as_u64),
+                arg.field("start").and_then(Value::as_u64),
+                arg.field("end").and_then(Value::as_u64),
             ) {
                 let (a_start, a_end) = (a_start as usize, a_end as usize);
                 let mut arg_expr = state.reparse_slice(a_start, a_end);

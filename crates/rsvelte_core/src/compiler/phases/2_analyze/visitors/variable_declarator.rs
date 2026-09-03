@@ -11,6 +11,7 @@ use super::shared::utils;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::BindingKind;
 use crate::compiler::phases::phase2_analyze::scope::is_known_defined_global_call;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 /// Collect svelte-ignore codes from the parent VariableDeclaration's or
 /// ExportNamedDeclaration's leading comments.
 fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
@@ -53,10 +54,10 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
                 // where `script_ignore_comments` is empty).
                 if codes.len() == before
                     && node.as_js_node().is_none()
-                    && let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array())
+                    && let Some(comments) = node.field("leadingComments").and_then(|c| c.as_array())
                 {
                     for comment in comments {
-                        if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
+                        if let Some(value) = comment.field("value").and_then(|v| v.as_str()) {
                             let extracted =
                                 crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
                                     value,
