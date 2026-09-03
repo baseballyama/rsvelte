@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { arch, cpus, loadavg, platform, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
+import { pgoEnv } from "../bench/pgo-env.mjs";
 import { flattenTemplateHoles, oxfmtTree, stripBlankLines } from "../compat-corpus/normalize.mjs";
 import { OXVELTE_REV, OXVELTE_VERSION, oxvelteInstalled } from "../bench/oxvelte-oracle.mjs";
 
@@ -212,7 +213,15 @@ function rustArm(eligible, target, mode, tag) {
       String(Math.max(warmups, 1)),
     ];
     if (target.dev) args.push("--dev");
-    const result = spawnSync("cargo", args, { cwd: root, encoding: "utf8", maxBuffer: 1 << 24 });
+    const result = spawnSync("cargo", args, {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 1 << 24,
+      // The published surface numbers are the speed of what the npm package
+      // ships, and what it ships is PGO-built. This arm has its own cargo
+      // spawn; wiring only run-benchmark.mjs measured a non-PGO binary here.
+      env: { ...process.env, ...pgoEnv() },
+    });
     if (result.status !== 0)
       throw new Error(result.stderr || `Rust benchmark exited ${result.status}`);
     return JSON.parse(result.stdout).times[0];
