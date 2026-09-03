@@ -2166,6 +2166,50 @@ pub(super) fn strip_leading_comments(s: &str) -> &str {
     }
 }
 
+/// Strip one paren pair that encloses the whole expression. acorn builds no `ParenthesizedExpression`, so upstream's
+/// `should_proxy` never sees a redundant pair; this text sniff has to be
+/// transparent to one too.
+fn strip_enclosing_parens_once(expr: &str) -> Option<&str> {
+    let inner = expr.strip_prefix('(')?;
+    let close = find_matching_paren(inner)?;
+    inner[close + 1..]
+        .trim()
+        .is_empty()
+        .then(|| inner[..close].trim())
+}
+
+/// A `,` outside every bracket and string is a `SequenceExpression`, which
+/// `should_proxy` does not recognise and therefore proxies.
+fn contains_top_level_comma(expr: &str) -> bool {
+    let bytes = expr.as_bytes();
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut string_char = b'\0';
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            if c == string_char && !is_escaped(bytes, i) {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'\'' | b'"' | b'`' => {
+                in_string = true;
+                string_char = c;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' if depth > 0 => depth -= 1,
+            b',' if depth == 0 => return true,
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Determine if an expression needs proxying (could return an object/array).
 ///
 /// Returns `true` for:
@@ -2188,7 +2232,17 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
     // compiler sees the comment as leading trivia on the AST node, so
     // `should_proxy` still fires; this text sniff must skip it too, otherwise
     // `trimmed.starts_with("new ")` (and the call/identifier checks) miss.
-    let trimmed = strip_leading_comments(expr.trim()).trim();
+    let mut trimmed = strip_leading_comments(expr.trim()).trim();
+    while let Some(inner) = strip_enclosing_parens_once(trimmed) {
+        trimmed = strip_leading_comments(inner).trim();
+    }
+    let trimmed = trimmed;
+
+    // A top-level `,` is a SequenceExpression, which `should_proxy` proxies.
+    // It binds looser than every operator sniffed below, so it is decided first.
+    if contains_top_level_comma(trimmed) {
+        return true;
+    }
 
     // Arrow functions and function expressions don't need proxy wrapping
     // They're functions themselves, not objects/arrays
@@ -2253,6 +2307,15 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
     // In the official Svelte compiler, AwaitExpression is not in the list of types
     // that return false from should_proxy, so it always returns true.
     if trimmed.starts_with("await ") {
+        return true;
+    }
+
+    // A pair enclosing the whole expression was stripped above, so a leading
+    // `(` that survives has a tail: a call, member access or tagged template on
+    // a parenthesized base. None of the three is on `should_proxy`'s no-proxy
+    // list, and `is_top_level_function_call` below reads only an identifier
+    // callee, so this shape had no predicate at all.
+    if trimmed.starts_with('(') {
         return true;
     }
 
