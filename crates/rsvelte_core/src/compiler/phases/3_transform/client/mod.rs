@@ -2922,10 +2922,13 @@ fn rehome_derived_jsdoc(code: &str) -> String {
     let mut rest = code.as_str();
     const PREFIX: &str = "$.derived(() => /**";
 
-    while let Some(start) = rest.find(PREFIX) {
+    // A 19-byte needle that almost never matches: `str::find` builds a two-way
+    // searcher per call, `memmem` prefilters on a rare byte pair.
+    while let Some(start) = memchr::memmem::find(rest.as_bytes(), PREFIX.as_bytes()) {
         result.push_str(&rest[..start]);
         let comment_start = start + "$.derived(() => ".len();
-        let Some(comment_end) = rest[comment_start + 3..].find("*/") else {
+        let Some(comment_end) = memchr::memmem::find(&rest.as_bytes()[comment_start + 3..], b"*/")
+        else {
             result.push_str(&rest[start..]);
             return result;
         };
@@ -2935,7 +2938,8 @@ fn rehome_derived_jsdoc(code: &str) -> String {
             result.push_str(&rest[start..]);
             return result;
         }
-        let line_start = rest[..start].rfind('\n').map_or(0, |index| index + 1);
+        let line_start =
+            memchr::memrchr(b'\n', &rest.as_bytes()[..start]).map_or(0, |index| index + 1);
         let line = &rest[line_start..start];
         let indent = &line[..line.len() - line.trim_start_matches([' ', '\t']).len()];
         result.push_str("$.derived((");
@@ -3569,14 +3573,12 @@ fn copied_spans_for_normalized_code(
         const NEAR_RESYNC_WINDOW: usize = 32;
         let code_tail = &code.as_bytes()[output..];
         let input_tail = &stripped.as_bytes()[input..];
-        let next_input = input_tail
-            .iter()
-            .take(RESYNC_WINDOW)
-            .position(|&byte| byte == output_byte);
-        let next_output = code_tail
-            .iter()
-            .take(RESYNC_WINDOW)
-            .position(|&byte| byte == input_byte);
+        let next_input = memchr::memchr(
+            output_byte,
+            &input_tail[..input_tail.len().min(RESYNC_WINDOW)],
+        );
+        let next_output =
+            memchr::memchr(input_byte, &code_tail[..code_tail.len().min(RESYNC_WINDOW)]);
         let (skip_input, skip_output) = match (next_input, next_output) {
             (Some(left), Some(right)) if left <= right => (left, 0),
             (Some(left), None) => (left, 0),
@@ -3599,15 +3601,13 @@ fn copied_spans_for_normalized_code(
                     best = Some((run, skip_input, skip_output));
                 }
             };
-            for (skip, &byte) in input_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
-                if byte == output_byte {
-                    consider(common_run(code_tail, &input_tail[skip..]), skip, 0);
-                }
+            let near_input = &input_tail[..input_tail.len().min(NEAR_RESYNC_WINDOW)];
+            for skip in memchr::memchr_iter(output_byte, near_input) {
+                consider(common_run(code_tail, &input_tail[skip..]), skip, 0);
             }
-            for (skip, &byte) in code_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
-                if byte == input_byte {
-                    consider(common_run(&code_tail[skip..], input_tail), 0, skip);
-                }
+            let near_output = &code_tail[..code_tail.len().min(NEAR_RESYNC_WINDOW)];
+            for skip in memchr::memchr_iter(input_byte, near_output) {
+                consider(common_run(&code_tail[skip..], input_tail), 0, skip);
             }
             if let Some((_, skip_input, skip_output)) = best {
                 input += skip_input;

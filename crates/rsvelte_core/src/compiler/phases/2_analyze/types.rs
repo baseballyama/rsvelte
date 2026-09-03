@@ -373,7 +373,9 @@ fn blank_comments_and_strings(raw: &str) -> String {
 /// - Property names like `foo.$state`
 fn has_rune_text(raw: &str, rune_name: &str) -> bool {
     let mut start = 0;
-    while let Some(pos) = raw[start..].find(rune_name) {
+    // One searcher for the whole walk: `str::find` rebuilds one per iteration.
+    let finder = memchr::memmem::Finder::new(rune_name.as_bytes());
+    while let Some(pos) = finder.find(&raw.as_bytes()[start..]) {
         let abs_pos = start + pos;
 
         // Check character before: must not be `$` or an identifier char

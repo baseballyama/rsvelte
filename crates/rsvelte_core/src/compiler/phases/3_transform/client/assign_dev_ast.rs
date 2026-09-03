@@ -393,7 +393,7 @@ struct Site {
     column: usize,
     root: String,
     path: Vec<PathElement>,
-    operator: String,
+    operator: &'static str,
     used: bool,
 }
 
@@ -427,7 +427,6 @@ impl AssignSites {
                     break;
                 }
             }
-            let root = source[start..i].to_string();
             let mut path = Vec::new();
             let mut pos = i;
             let mut malformed = false;
@@ -498,9 +497,9 @@ impl AssignSites {
             sites.push(Site {
                 line,
                 column,
-                root,
+                root: source[start..i].to_string(),
                 path,
-                operator: operator.to_string(),
+                operator,
                 used: false,
             });
             i = pos;
@@ -527,7 +526,7 @@ mod tests {
         let shapes: Vec<_> = sites
             .sites
             .iter()
-            .map(|s| (s.root.as_str(), s.path.len(), s.operator.as_str()))
+            .map(|s| (s.root.as_str(), s.path.len(), s.operator))
             .collect();
         assert_eq!(shapes, vec![("key", 1, "="), ("obj", 1, "??=")]);
         assert_eq!(sites.sites[1].path[0], PathElement::Computed);
