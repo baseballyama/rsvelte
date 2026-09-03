@@ -5664,6 +5664,40 @@ uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
+Attribution of `parse-ast-known-failures.json`:
+
+| n | target | cluster |
+|---|---|---|
+| 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
+
+Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
+loose: true}`:
+
+```
+official  Error: An impossible situation occurred
+rsvelte   OK type=Root
+```
+
+The error carries no code, no position and no frame, which is what separates it from a diagnostic:
+`loose` exists to return an AST for a document still being typed, so rsvelte accepting it is the
+behaviour the mode is for.
+
+This table is **partial**; `attribution-check` prints its `n` sum against the ratchet's own length,
+so neither number is repeated here. Every other key is a rsvelte-side defect whose only terminal is
+the entry going away — `upstream_issues/` would be false, and `deliberate-divergences` asserts a
+choice plus a test pinning the behaviour, which for a wrong span or a wrong node type would pin the
+defect.
+
+**The two `ast-mode` keys are not covered by that row, and what separates them is a number
+collision.** The cluster table above cites `#3385` for them, and `upstream_issues/` reports are
+named after the rsvelte issue that tracks them — so one number reaches two different things:
+official's `loose` crash, which is the row above, and a rsvelte-side legacy-root shape difference,
+which is those two keys. They stay unattributed. This is the second instalment of the collision
+recorded above for `unclosed-element`: that one was a shared *name* between an issue and a gate
+source, this one is a shared *number*, and it points the worse way, because one of the two things
+is ours and the other is upstream's.
+
+
 **A fix here shrinks and grows the ratchet at once, and the two directions have to be read
 separately, and [`GATES.md` 39b](GATES.md#39b--a-divergence-stops-the-walk-so-what-is-behind-it-is-uncompared--s)
 said so before any of it happened** — "fixing one will *add* keys as its children become
