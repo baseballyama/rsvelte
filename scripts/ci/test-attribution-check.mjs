@@ -49,7 +49,12 @@ const PASSING = {
 };
 
 let failures = 0;
+// Derived, never written down: a literal count is a claim about the siblings below
+// that nobody re-derives when one is added, and this file has already carried a stale
+// one.
+let ran = 0;
 const check = (name, cond, detail) => {
+	ran++;
 	if (cond) return;
 	failures++;
 	console.error(`FAIL ${name}\n${detail}`);
@@ -161,8 +166,36 @@ const PENDING_TREE = (() => {
 	check('a pending entry that is not a ratchet fails', r.code === 1 && /is not a ratchet/.test(r.out), r.out);
 }
 
+// The summary is the campaign's progress readout, so it must count what the TABLES
+// cover, not the size of every ratchet that has one. A partial table on a pending
+// ratchet is the shape that made it read 24,158 where the answer was 418.
+{
+	const files = {
+		'a-known-failures.json': JSON.stringify(['one', 'two', 'three']),
+		'a-known-failures.md': [
+			'# a',
+			'',
+			'Attribution of `a-known-failures.json`:',
+			'',
+			'| n | target | cluster |',
+			'|---|---|---|',
+			'| 1 | `upstream_issues/x.md` | upstream rejects it |',
+			'',
+		].join('\n'),
+		'attribution-pending.json': JSON.stringify(['a-known-failures.json']),
+	};
+	const r = run(files, ['upstream_issues/x.md'], ['--gate-known']);
+	check('a partial table passes --gate-known on a pending ratchet', r.code === 0, r.out);
+	check(
+		'and the summary counts the table, not the ratchet',
+		/attribute 1 of 3 listed entries/.test(r.out),
+		r.out,
+	);
+	check('the ratchet size is never reported as attributed', !/attribute 3 /.test(r.out), r.out);
+}
+
 if (failures) {
 	console.error(`\n[test-attribution-check] ${failures} control(s) did not behave as specified.`);
 	process.exit(1);
 }
-console.log('[test-attribution-check] 19 controls pass (3 positive, 15 negative, 1 empty-ratchet).');
+console.log(`[test-attribution-check] ${ran} controls pass.`);

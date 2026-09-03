@@ -174,9 +174,11 @@
 		"corpus:scss": "node scripts/compat-corpus/scss-verify.mjs",
 		"check:attribution": "node scripts/ci/attribution-check.mjs",
 		"check:attribution-known": "node scripts/ci/attribution-check.mjs --gate-known",
+		"check:attribution-progress": "node scripts/ci/attribution-progress-check.mjs",
 		"check:lsp-mechanisms": "node scripts/ci/lsp-mechanisms-check.mjs",
 		"test:lsp-mechanisms-check": "node scripts/dev/test-lsp-mechanisms-check.mjs",
 		"test:attribution-check": "node scripts/ci/test-attribution-check.mjs",
+		"test:attribution-progress-check": "node scripts/ci/test-attribution-progress-check.mjs",
 		"check:ratchet-unit-delta": "node scripts/ci/ratchet-unit-delta.mjs"
 	},
 	"devDependencies": {

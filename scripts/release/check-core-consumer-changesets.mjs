@@ -72,6 +72,15 @@ const RULES = [
     requires: ['@rsvelte/svelte-check'],
   },
   {
+    prefix: 'crates/rsvelte_bindings_support/src/',
+    // Only `rsvelte_napi` depends on it, and that ships only as the
+    // `rsvelte.node` cdylib -- so this crate writes the binary parse envelope
+    // that `@rsvelte/vite-plugin-svelte-native` decodes, and reaches no other
+    // artifact. The rule below covers the crate that links it and not the one
+    // that writes it, which is how a decoder can ship ahead of its writer.
+    requires: ['@rsvelte/vite-plugin-svelte-native'],
+  },
+  {
     prefix: 'crates/rsvelte_napi/src/',
     // Ships only as the `rsvelte.node` cdylib inside the vps-native binaries,
     // whose fixed group has no dependency edge to any other artifact. A

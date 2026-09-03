@@ -93,6 +93,7 @@ for (const [file, text] of docs) {
 }
 
 let attributed = 0;
+let listedUnderBlock = 0;
 let empty = 0;
 for (const f of ratchets) {
 	const n = count(JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')));
@@ -147,7 +148,11 @@ for (const f of ratchets) {
 			if (!fs.existsSync(path.join(process.env.ATTRIBUTION_ROOT || ROOT, u))) fail(`${b.file}:${r.line}  ${f} cites ${u}, which does not exist`);
 		}
 	}
-	attributed += n;
+	// The table's own coverage, not the ratchet's size: a partial table on a large
+	// pending ratchet would otherwise report all of its entries as attributed, which
+	// is the summary reading the opposite of what the per-file line above says.
+	attributed += sum;
+	listedUnderBlock += n;
 }
 
 for (const k of blocks.keys()) {
@@ -176,7 +181,7 @@ if (problems.length) {
 
 console.log(
 	`[attribution-check${GATE_KNOWN ? ' --gate-known' : ''}] ${ratchets.length} ratchets: ${empty} empty, ` +
-		`${ratchets.length - empty} carrying ${attributed} attributed entries` +
+		`${ratchets.length - empty} carrying tables that attribute ${attributed} of ${listedUnderBlock} listed entries` +
 		(GATE_KNOWN && pending.length
 			? `; ${pending.length} still awaiting one (${pending.join(', ')}) — this mode does not gate that.`
 			: '.'),
