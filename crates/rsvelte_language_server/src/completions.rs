@@ -69,12 +69,16 @@ fn build_completions(
     let before = preceding(text, offset);
 
     if let Some(prefix) = tag_prefix(text, offset) {
-        return Some(html_tag_completions(
-            text,
-            offset,
-            prefix,
-            markdown_documentation,
-        ));
+        let mut list = html_tag_completions(text, offset, prefix, markdown_documentation);
+        // `collectTagSuggestions` also offers the enclosing close tag, but only
+        // from the `<` itself — a partly typed name is an open tag alone.
+        if prefix.is_empty() {
+            list.items.extend(
+                close_tag_completions(text, offset, offset, true, offset, markdown_documentation)
+                    .items,
+            );
+        }
+        return Some(list);
     }
 
     if let Some((element_tag, replace)) = match start_tag_context(text, offset) {
@@ -155,7 +159,197 @@ fn build_completions(
         return Some(modifier_completions(attribute.name));
     }
 
+    if let Some(bracket) = end_tag_bracket(text, offset) {
+        let name_end = tag_name_end(text, offset);
+        return Some(close_tag_completions(
+            text,
+            offset,
+            bracket + 1,
+            false,
+            name_end,
+            markdown_documentation,
+        ));
+    }
+
     component_documentation(before)
+}
+
+/// The `<` of the end tag being typed at `offset`, restating positionally the
+/// three tokens `htmlCompletion.js:384-423` reaches close tags from.
+fn end_tag_bracket(text: &str, offset: usize) -> Option<usize> {
+    let before = text.get(..offset)?;
+    let bracket = before.rfind('<')?;
+    let typed = before.get(bracket + 1..)?.strip_prefix('/')?;
+    let name = typed.trim_start_matches(rsvelte_core::is_js_whitespace);
+    name.bytes().all(is_tag_name_byte).then_some(bracket)
+}
+
+/// `scanNextForEndPos(EndTag)`: the cursor keeps whatever name run it sits in.
+fn tag_name_end(text: &str, offset: usize) -> usize {
+    let bytes = text.as_bytes();
+    let mut end = offset;
+    while bytes.get(end).is_some_and(|byte| is_tag_name_byte(*byte)) {
+        end += 1;
+    }
+    end
+}
+
+const fn is_tag_name_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'$')
+}
+
+/// `getLineIndent` (`htmlCompletion.js:83-95`): the line's leading whitespace,
+/// or nothing when code precedes `offset` on that line.
+fn line_indent(text: &str, offset: usize) -> Option<&str> {
+    let before = text.get(..offset)?;
+    let indent = match before.rfind(['\n', '\r']) {
+        Some(newline) => &before[newline + 1..],
+        None => before,
+    };
+    indent
+        .chars()
+        .all(rsvelte_core::is_js_whitespace)
+        .then_some(indent)
+}
+
+/// `isInsideMoustacheTag` (`lib/documents/utils.ts:626-643`), seeded with the
+/// enclosing element's `<` as upstream seeds it with `findNodeAt(offset).start`.
+fn inside_moustache(text: &str, from: usize, offset: usize) -> bool {
+    let bytes = text.as_bytes();
+    let Some(relative) = text.get(from..offset).and_then(|slice| slice.find('{')) else {
+        return false;
+    };
+    let mut index = from + relative;
+    while index < offset {
+        if bytes[index] != b'{' {
+            index += 1;
+            continue;
+        }
+        let Some(end) = moustache_end(text, index) else {
+            return true;
+        };
+        index = end;
+    }
+    index > offset
+}
+
+/// `scanMatchingBraces`: the offset past the `}` that closes `start`, or
+/// nothing when the expression is still open at the end of the document.
+fn moustache_end(text: &str, start: usize) -> Option<usize> {
+    let bytes = text.as_bytes();
+    let mut depth = 0u32;
+    let mut i = start;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            quote @ (b'"' | b'\'' | b'`') => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// `collectCloseTagSuggestions` (`htmlCompletion.js:96-141`). The ancestor's
+/// name is the document's, not the tag data's, so a component and
+/// `svelte:head` are offered; only the no-ancestor fallback reads the provider.
+fn close_tag_completions(
+    text: &str,
+    offset: usize,
+    after_open_bracket: usize,
+    in_open_tag: bool,
+    name_end: usize,
+    markdown: bool,
+) -> CompletionList {
+    let enclosing = crate::html_tags::enclosing_open_tag(text, offset);
+    // `HTMLPlugin.ts:143` drops the whole request inside a template expression.
+    if inside_moustache(text, enclosing.as_ref().map_or(0, |(_, at)| *at), offset) {
+        return CompletionList {
+            is_incomplete: false,
+            items: Vec::new(),
+        };
+    }
+    let index = LineIndex::new(text);
+    let close = if text[name_end..]
+        .trim_start_matches(rsvelte_core::is_js_whitespace)
+        .starts_with('>')
+    {
+        ""
+    } else {
+        ">"
+    };
+    let replace = |start: usize, end: usize| {
+        lsp_types::Range::new(
+            index.position(text, start.min(offset)),
+            index.position(text, end),
+        )
+    };
+    let mut items = Vec::new();
+    if let Some((tag, tag_bracket)) = enclosing {
+        let mut filter_text = format!("/{tag}");
+        let mut range = replace(after_open_bracket, name_end);
+        let mut new_text = format!("/{tag}{close}");
+        if let (Some(start_indent), Some(end_indent)) = (
+            line_indent(text, tag_bracket),
+            line_indent(text, after_open_bracket - 1),
+        ) && start_indent != end_indent
+        {
+            filter_text = format!("{end_indent}</{tag}");
+            range = replace(after_open_bracket - 1 - end_indent.len(), offset);
+            new_text = format!("{start_indent}</{tag}{close}");
+        }
+        items.push(CompletionItem {
+            label: format!("/{tag}"),
+            kind: Some(CompletionItemKind::PROPERTY),
+            filter_text: Some(filter_text),
+            insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+            text_edit: Some(lsp_types::CompletionTextEdit::Edit(TextEdit {
+                range,
+                new_text,
+            })),
+            ..CompletionItem::default()
+        });
+    } else if !in_open_tag {
+        let range = replace(after_open_bracket, name_end);
+        items.extend(provider::tags().map(|tag| {
+            CompletionItem {
+                label: format!("/{}", tag.name),
+                kind: Some(CompletionItemKind::PROPERTY),
+                documentation: html_data::documentation::documentation(
+                    &html_data::documentation::Entry {
+                        description: tag.description,
+                        status: tag.status.as_ref(),
+                        browsers: tag.browsers,
+                        references: tag.references,
+                    },
+                    markdown,
+                )
+                .map(|value| html_documentation(markdown, value)),
+                filter_text: Some(format!("/{}{close}", tag.name)),
+                insert_text_format: Some(InsertTextFormat::PLAIN_TEXT),
+                text_edit: Some(lsp_types::CompletionTextEdit::Edit(TextEdit {
+                    range,
+                    new_text: format!("/{}{close}", tag.name),
+                })),
+                ..CompletionItem::default()
+            }
+        }));
+    }
+    CompletionList {
+        is_incomplete: false,
+        items,
+    }
 }
 
 /// `getCollectingType` (`getIdClassCompletion.ts:31-42`): which selector kind a
@@ -1039,5 +1233,178 @@ mod tests {
                 .unwrap()
                 .contains(&"class".to_string())
         );
+    }
+
+    /// Every expectation below is the official server's own answer, read off
+    /// `textDocument/completion` with `triggerCharacter: "/"` on the same
+    /// document and offset.
+    fn close_tags(text: &str, offset: usize) -> Vec<(String, String, String, String)> {
+        completions(text, offset)
+            .map(|list| {
+                list.items
+                    .into_iter()
+                    .filter(|item| item.label.starts_with('/'))
+                    .map(|item| {
+                        let lsp_types::CompletionTextEdit::Edit(edit) =
+                            item.text_edit.expect("a close tag always carries an edit")
+                        else {
+                            panic!("close tags use a plain edit");
+                        };
+                        (
+                            item.label,
+                            item.filter_text.expect("a close tag always filters"),
+                            edit.new_text,
+                            format!(
+                                "{}:{}-{}:{}",
+                                edit.range.start.line,
+                                edit.range.start.character,
+                                edit.range.end.line,
+                                edit.range.end.character
+                            ),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn after_slash(text: &str) -> usize {
+        text.find("</").expect("an end tag") + 2
+    }
+
+    /// The two branches of `collectCloseTagSuggestions` are each other's
+    /// negative control: the ancestor branch drops the `>` from `filterText`
+    /// and the no-ancestor branch keeps it, so a port that reaches one rule
+    /// only fails the other.
+    #[test]
+    fn an_ancestor_on_the_same_line_replaces_the_slash_alone() {
+        assert_eq!(
+            close_tags("<div></", 7),
+            [(
+                "/div".to_string(),
+                "/div".to_string(),
+                "/div>".to_string(),
+                "0:6-0:7".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn no_ancestor_offers_every_known_tag_with_the_bracket_in_the_filter() {
+        let offered = close_tags("</\n", 2);
+        assert_eq!(offered.len(), provider::tags().count());
+        assert_eq!(
+            offered[0],
+            (
+                "/html".to_string(),
+                "/html>".to_string(),
+                "/html>".to_string(),
+                "0:1-0:2".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn a_differing_indent_replaces_the_whole_line_prefix() {
+        let text = "<div>\n  </\n</div>\n";
+        assert_eq!(
+            close_tags(text, after_slash(text)),
+            [(
+                "/div".to_string(),
+                "  </div".to_string(),
+                "</div>".to_string(),
+                "1:0-1:4".to_string()
+            )]
+        );
+    }
+
+    /// The ancestor's own indent rides along in `newText`, and only the
+    /// nearest still-open ancestor is offered.
+    #[test]
+    fn the_nearest_ancestor_carries_its_own_indent() {
+        let text = "<div>\n  <span>\n    </\n";
+        assert_eq!(
+            close_tags(text, after_slash(text)),
+            [(
+                "/span".to_string(),
+                "    </span".to_string(),
+                "  </span>".to_string(),
+                "2:0-2:6".to_string()
+            )]
+        );
+    }
+
+    /// The name comes from the document, so a component and a `svelte:`
+    /// element are offered even though the tag data lists neither.
+    #[test]
+    fn a_component_and_a_svelte_element_are_ancestors() {
+        for (text, tag) in [
+            ("<Foo>\n  </\n", "Foo"),
+            ("<svelte:head>\n  </\n", "svelte:head"),
+        ] {
+            let offered = close_tags(text, after_slash(text));
+            assert_eq!(offered.len(), 1, "{text:?}");
+            assert_eq!(offered[0].0, format!("/{tag}"), "{text:?}");
+            assert_eq!(offered[0].2, format!("</{tag}>"), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn a_following_bracket_drops_the_one_the_edit_would_add() {
+        let text = "<div>\n  </>\n";
+        assert_eq!(close_tags(text, after_slash(text))[0].2, "</div");
+    }
+
+    /// A void element, a self-closing element and an already-closed sibling
+    /// are all skipped on the walk up.
+    #[test]
+    fn only_a_still_open_ancestor_is_offered() {
+        for text in [
+            "<div>\n  <br>\n  </\n",
+            "<div>\n  <Foo />\n  </\n",
+            "<div>\n  <span></span>\n  </\n",
+        ] {
+            let offset = text.rfind("</").expect("an end tag") + 2;
+            let offered = close_tags(text, offset);
+            assert_eq!(offered.len(), 1, "{text:?}");
+            assert_eq!(offered[0].0, "/div", "{text:?}");
+        }
+    }
+
+    /// An ancestor whose end tag begins before the cursor is not an ancestor,
+    /// so a fully typed close tag falls through to the whole tag list.
+    #[test]
+    fn a_closed_ancestor_falls_back_to_the_tag_list() {
+        for (text, offset, range) in [
+            ("<div></div>\n", 9, "0:6-0:10"),
+            ("<div>\n  </div>\n", 13, "1:3-1:7"),
+            ("<div></div>\n</\n", 14, "1:1-1:2"),
+        ] {
+            let offered = close_tags(text, offset);
+            assert_eq!(offered.len(), provider::tags().count(), "{text:?}");
+            assert_eq!(offered[0].3, range, "{text:?}");
+        }
+    }
+
+    /// `collectTagSuggestions` offers the enclosing close tag from a bare `<`
+    /// as well, and offers nothing there when the cursor has no ancestor.
+    #[test]
+    fn an_open_bracket_offers_the_enclosing_close_tag_only() {
+        let text = "<div>\n  <\n</div>\n";
+        let offered = close_tags(text, 9);
+        assert_eq!(offered.len(), 1);
+        assert_eq!(offered[0].0, "/div");
+        assert_eq!(offered[0].3, "1:0-1:3");
+        assert!(close_tags("<\n", 1).is_empty());
+        // A partly typed name is an open tag alone.
+        assert!(close_tags("<div>\n  <sp\n</div>\n", 11).is_empty());
+    }
+
+    /// A script body, a style body and a mustache belong to other providers.
+    #[test]
+    fn an_end_tag_inside_another_region_is_not_completed() {
+        assert!(close_tags("<script>\n  const a = 1; //</\n</script>\n", 27).is_empty());
+        assert!(close_tags("<style>\n  a { /* </ */ }\n</style>\n", 19).is_empty());
+        assert!(close_tags("<div>{ </ }</div>\n", 9).is_empty());
     }
 }

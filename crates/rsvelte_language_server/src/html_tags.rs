@@ -10,6 +10,8 @@ use lsp_types::{DocumentHighlight, DocumentHighlightKind, LinkedEditingRanges, R
 
 use crate::text::LineIndex;
 
+const HTML_COMMENT_OPEN: &str = "<!--";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TagPair {
     open: ByteRange<usize>,
@@ -62,6 +64,85 @@ pub fn close_tag(text: &str, offset: usize) -> Option<String> {
         .next()?;
     (!name.is_empty() && !name.starts_with(['/', '!', '?']) && !is_void(name))
         .then(|| format!("</{name}>"))
+}
+
+/// The start tag `offset` sits inside that is still open there, as
+/// `collectCloseTagSuggestions` (`htmlCompletion.js:106-117`) walks up from
+/// `findNodeBefore(offset)`: an ancestor counts while it has no end tag, or its
+/// end tag begins after the cursor. The name comes from the document rather
+/// than from the tag data, because a component and `svelte:head` are ancestors
+/// the data provider does not list.
+#[must_use]
+pub(crate) fn enclosing_open_tag(text: &str, offset: usize) -> Option<(String, usize)> {
+    scan_open_tags(text)
+        .into_iter()
+        .filter(|open| open.lt < offset && open.close_lt.is_none_or(|close| close > offset))
+        .max_by_key(|open| open.lt)
+        .map(|open| (open.name, open.lt))
+}
+
+struct OpenTag {
+    name: String,
+    lt: usize,
+    close_lt: Option<usize>,
+}
+
+fn scan_open_tags(text: &str) -> Vec<OpenTag> {
+    let mut all: Vec<OpenTag> = Vec::new();
+    let mut stack: Vec<usize> = Vec::new();
+    let bytes = text.as_bytes();
+    let mut cursor = 0;
+
+    while cursor < bytes.len() {
+        let Some(relative) = text[cursor..].find('<') else {
+            break;
+        };
+        let start = cursor + relative;
+        if text[start..].starts_with(HTML_COMMENT_OPEN) {
+            cursor = text[start + 4..]
+                .find("-->")
+                .map_or(bytes.len(), |end| start + 7 + end);
+            continue;
+        }
+        let mut name_start = start + 1;
+        let closing = bytes.get(name_start) == Some(&b'/');
+        if closing {
+            name_start += 1;
+            while bytes.get(name_start).is_some_and(u8::is_ascii_whitespace) {
+                name_start += 1;
+            }
+        }
+        let mut name_end = name_start;
+        while bytes
+            .get(name_end)
+            .is_some_and(|byte| is_tag_name_byte(*byte))
+        {
+            name_end += 1;
+        }
+        if name_end == name_start {
+            cursor = start + 1;
+            continue;
+        }
+        let Some(end) = text[name_end..].find('>').map(|end| name_end + end) else {
+            break;
+        };
+        let name = &text[name_start..name_end];
+        if closing {
+            if let Some(position) = stack.iter().rposition(|&index| all[index].name == name) {
+                let index = stack.remove(position);
+                all[index].close_lt = Some(start);
+            }
+        } else if !is_void(name) && !text[name_end..end].trim_end().ends_with('/') {
+            all.push(OpenTag {
+                name: name.to_string(),
+                lt: start,
+                close_lt: None,
+            });
+            stack.push(all.len() - 1);
+        }
+        cursor = end + 1;
+    }
+    all
 }
 
 fn range(index: &LineIndex, text: &str, span: ByteRange<usize>) -> Range {
