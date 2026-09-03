@@ -9306,9 +9306,12 @@ fn transform_instance_script_for_visitors(
     // top-level bindings. They're not in state_vars (to avoid incorrectly transforming
     // top-level references), so neither text-based nor AST-based transforms handle them.
     // This must run regardless of runes mode.
+    let _t = super::profile::timer_start();
     if !shadowed_local_reactive_vars.is_empty() {
         result = transform_shadowed_local_state_vars(&result, &shadowed_local_reactive_vars);
     }
+    super::profile::record_prefrag(16, super::profile::timer_elapsed(_t));
+    let _t = super::profile::timer_start();
 
     // Must run after the runes AST pass: it matches the post-transform `prop()` getter
     // form, which does not exist yet while the per-statement pipeline is still running.
@@ -9324,6 +9327,8 @@ fn transform_instance_script_for_visitors(
             wrap_prop_mutation_validation(&result, &prop_mutation_vars, &analysis.source)
         });
     }
+    super::profile::record_prefrag(17, super::profile::timer_elapsed(_t));
+    let _t = super::profile::timer_start();
 
     // Dev-mode equality / `await` instrumentation for legacy components. Upstream
     // runs one visitor map over both modes; here the runes half rides inside the
@@ -9336,6 +9341,8 @@ fn transform_instance_script_for_visitors(
     {
         result = instrumented;
     }
+    super::profile::record_prefrag(18, super::profile::timer_elapsed(_t));
+    let _t = super::profile::timer_start();
 
     if dev
         && let Some(instrumented) =
@@ -9343,6 +9350,7 @@ fn transform_instance_script_for_visitors(
     {
         result = instrumented;
     }
+    super::profile::record_prefrag(19, super::profile::timer_elapsed(_t));
 
     super::profile::record_st_post_passes(super::profile::timer_elapsed(_stage));
 

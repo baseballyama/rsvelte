@@ -117,7 +117,7 @@ impl std::ops::AddAssign for Phase3Breakdown {
     }
 }
 
-pub const PREFRAG_SLOTS: usize = 16;
+pub const PREFRAG_SLOTS: usize = 20;
 pub const PREFRAG_LABELS: [&str; PREFRAG_SLOTS] = [
     "strip_dead_comments_from_program",
     "program_to_oxc (client-only)",
@@ -135,6 +135,10 @@ pub const PREFRAG_LABELS: [&str; PREFRAG_SLOTS] = [
     "  map: line tables + two full scans",
     "  map: three-way partition loop",
     "  map: sort by (gen_line, gen_col)",
+    "  post: shadowed_local_state_vars",
+    "  post: prop_mutation_validation",
+    "  post: legacy dev tail (dev-only)",
+    "  post: assign dev tail (dev-only)",
 ];
 
 /// Whether each slot's time is inside the "Pre-frag setup" residual. A slot that
@@ -145,8 +149,10 @@ pub const PREFRAG_IN_RESIDUAL: [bool; PREFRAG_SLOTS] = [
     // Slot 4 (`compute_blocker_primary_names`) now sits inside GAP slot 8, so
     // subtracting both would take it out of the residual twice.
     // Slots 13-15 are inside slot 12, so they must not be subtracted again.
+    // Slots 16-19 sit inside `script_text_transform`'s `post_passes`, not in the
+    // pre-fragment residual, so they are named here without being subtracted.
     true, false, true, true, false, true, true, true, true, true, true, true, true, false, false,
-    false,
+    false, false, false, false, false,
 ];
 
 /// One level below [`Phase3Breakdown::script_text_transform`], which is the
