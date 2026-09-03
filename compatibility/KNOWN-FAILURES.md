@@ -4552,25 +4552,33 @@ structural field for which `rsvelte-language-server` differs from the pinned off
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
-### Why this ratchet carries no attribution block
+### Why this ratchet's attribution is partial
 
 The DoD gate allows three end states per entry: gone, a filed `upstream_issues/` report, or
-`deliberate-divergences` pinned by a test. **None of the 23,746 entries here has a target of the
-second or third kind**, and that is a property of the population rather than an unwritten column.
+`deliberate-divergences` pinned by a test. **Every entry outside the table below has a target of
+neither the second nor the third kind**, and that is a property of the population rather than an
+unwritten column. The exceptions are the `initialize` capability cluster, attributable only
+because a capability's value can be recovered from each side's source and checked against the
+ratchet's digest. No count is written into this paragraph on purpose: the ratchet's size is
+declared once above, where `known-failures-md-check` compares it to the JSON, and a subtraction
+of it here would be the one number in the section that nothing gates.
 
-* Every entry is a field or aggregate on which `rsvelte-language-server` answers differently from
-  the pinned official `svelte-language-server`. The oracle is the official server; a divergence is
-  rsvelte's side by construction.
-* This section references `upstream_issues/` **zero** times, and no entry names one.
-* The standing decision on this ratchet is that it is not finished until it reaches **0**. That is
-  a statement that the terminal state is elimination, so there is nothing to attribute.
+* Outside that cluster, every entry is a field or aggregate on which `rsvelte-language-server`
+  answers differently from the pinned official `svelte-language-server`. The oracle is the
+  official server, so a divergence is rsvelte's side unless someone reproduces the value and
+  shows otherwise — which is what the one `upstream_issues/` row below did.
+* Outside that cluster, this section references `upstream_issues/` **zero** times and no entry
+  names one.
+* The standing decision on this ratchet is that it is not finished until it reaches **0**. For
+  the unattributed remainder that is a statement that the terminal state is elimination, so
+  there is nothing to attribute.
 
-Writing a block here would mean inventing 23,746 targets. The ratchet belongs on the pending list
-until it is burned down.
+Writing a target for the rest would mean inventing one for every entry the table does not cover.
+The ratchet stays on the pending list until it is burned down.
 
-**No cluster breakdown is offered, deliberately.** For a ratchet whose entries are all headed for
-deletion, a cluster table buys no attribution and would cost a classification pass over 23,746
-keys; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
+**No cluster breakdown is offered for the remainder, deliberately.** For entries all headed for
+deletion, a cluster table buys no attribution and would cost a classification pass over every
+remaining key; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
 Partition of `lsp-known-failures.json` by key kind: `21630 + 1776 + 340` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
@@ -4644,7 +4652,7 @@ Attribution of `lsp-known-failures.json`:
 | 5 | `deliberate-divergences` | `initialize` capabilities rsvelte declares differently on purpose, each pinned by a test: the `" "` completion trigger, the two `source.fixAll` code-action kinds, `workspace.workspaceFolders`, `positionEncoding`, `diagnosticProvider.identifier` |
 | 1 | `upstream_issues/svelte-language-server-duplicate-completion-trigger-character.md` | upstream lists `"@"` twice in `completionProvider.triggerCharacters`, so the arrays differ as multisets |
 
-This table is **partial**: it covers 6 of 23,746. The remaining entries are unattributed, not
+This table is **partial**, and its coverage is the sum of its own `n` column against the entry count declared above -- `attribution-check` prints the two side by side, so neither is repeated here. The remaining entries are unattributed, not
 attributed to nothing — the `aggregate:` half carries no field in its key, so what an entry is
 cannot be read from the ratchet at all, and every row above had to be recovered by reproducing a
 digest. A partial table is the honest intermediate state for a ratchet this size; the alternative
