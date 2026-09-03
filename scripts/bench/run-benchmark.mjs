@@ -303,6 +303,28 @@ function benchmarkJavaScript(files, iterations, task) {
 }
 
 /**
+ * The compile/parse/svelte2tsx rows are published as the speed of what the npm
+ * package ships, and what it ships is built with `pgo/rsvelte.profdata` — so the
+ * measured binary is built with it too. It is scoped to `benchmark_runner`
+ * because that is the extent of the profile's training set: `-Cprofile-use`
+ * treats a function with no counters as never executed, so handing the profile
+ * to the formatter, linter or checker would make those *colder*, and none of
+ * their shipped binaries is built with it either.
+ *
+ * A separate target directory keeps the flag out of the fingerprint of every
+ * other build in the tree, which would otherwise rebuild on each alternation.
+ */
+function pgoEnv(binName) {
+  if (binName !== "benchmark_runner") return {};
+  const profile = join(REPO_ROOT, "pgo/rsvelte.profdata");
+  if (!existsSync(profile)) return {};
+  return {
+    RUSTFLAGS: `${process.env.RUSTFLAGS ?? ""} -Cprofile-use=${profile}`.trim(),
+    CARGO_TARGET_DIR: process.env.CARGO_TARGET_DIR ?? join(REPO_ROOT, "target-pgo-use"),
+  };
+}
+
+/**
  * Benchmark Rust compiler using the benchmark binary.
  *
  * `binName` selects which Cargo binary drives the task. Compiler tasks
@@ -358,6 +380,7 @@ async function benchmarkRust(
     const proc = spawn("cargo", args, {
       cwd: join(__dirname, "../.."),
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...pgoEnv(binName) },
     });
 
     let stdout = "";

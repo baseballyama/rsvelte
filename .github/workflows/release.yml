@@ -201,11 +201,21 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Assert the PGO profile is applicable
+        shell: bash
+        run: ./scripts/perf/assert-pgo-profile.sh
+
       - name: Build NAPI cdylib
         shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
           CC_aarch64_unknown_linux_gnu: ${{ matrix.linker }}
+          # The compiler is the one artifact whose speed this repository
+          # publishes a number for, so it is the one built with the checked-in
+          # profile. See pgo/README.md for why this is a per-workflow flag and
+          # not `[profile.release]` (cargo has no per-profile rustflags on
+          # stable) and why it is not set on the gate builds.
+          RUSTFLAGS: -Cprofile-use=${{ github.workspace }}/pgo/rsvelte.profdata
         run: cargo build --profile dist-napi -p rsvelte_napi --lib --target ${{ matrix.target }}
 
       - name: Stage .node binary

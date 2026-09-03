@@ -89,6 +89,8 @@ perf.data
 perf.data.old
 *.profraw
 *.profdata
+# except the one every shipped artifact is built with
+!pgo/rsvelte.profdata
 samply.json.gz
 target/criterion/
 
@@ -188,6 +190,9 @@ scripts/bench/oxvelte-oracle/
 /target-ast/
 /target-rt/
 /target-verify/
+# the PGO arms: one instrumented, one the report builds with the profile
+/target-pgo/
+/target-pgo-use/
 
 # Built by scripts/compat-corpus/scss-verify.mjs so both SCSS backends can resolve
 # a corpus package that imports itself by its published specifier.
