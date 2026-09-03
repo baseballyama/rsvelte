@@ -2981,6 +2981,49 @@ whether the instrument could have produced a non-zero on that input at all; if t
 from reading the classifier's branches rather than from the data, the zero belongs in a sentence
 about the instrument.
 
+### A dead instrument does not have to return a zero — it can return one plausible red
+
+The recorded case of an instrument dead on the carrying population returns **0**, and a zero
+invites suspicion. The other half returns a number that looks like a finding. A triage tool
+compared every corpus file an open issue names against the oracle and reported one issue as
+`files=6 bad=4`, with the four rows all one path:
+
+```
+pattern/issues/3072-extends-shapes-legal.svelte.js  client / client-dev / server / server-dev
+```
+
+The tool called `compile()` on **both** sides of a `.svelte.(js|ts)`, where the entry point is
+`compileModule()`. Both sides were wrong and wrong *differently*, so the output was not an
+absence — it was **five green files and one red one**, which is exactly what a live instrument
+looks like. Re-run through `compileModule` on both sides: 4/4 `match`.
+
+Two things generalise. **A verifier with one code path, pointed at a population with two entry
+points, fails on the minority and passes on the majority** — and the majority is what certifies
+it. And what caught it was the *shape* of the one red path, not the count: the id ends in
+`.svelte.js`, which cannot be compared by the component entry point. The same tool made the same
+class of error one row over, comparing a **CSS** issue on `js.code`; that one was caught by
+reading the issue's title. Reading a title does not scale. Enumerate the kinds of output an issue
+is about (`js` / `css` / warnings / map / AST) *before* comparing, and give the verifier one path
+per kind — the population's entry points are a property you can count, and the tool's are too.
+
+### A cell can be EQ for a reason unrelated to what it is named, and no name check finds that
+
+A control's name is a claim about coverage, and a name that misdescribes its cell is caught by
+grepping the name against the cell's input. This is one level worse, because the **verdict** is
+right: a cell named `string literal (OVER)` — a `$$props` inside a string, which the compiler
+must not rewrite — was `EQ` before the fix and `EQ` after it. Not because strings were handled,
+but because in that particular source the string lands on a line that also carries `$.prop(`,
+and the broken rule skipped whole lines. The cell was correct **by the mechanism it existed to
+catch**.
+
+Its name grep-checks clean, its verdict is right, and it cannot move — so it contributes nothing
+in either direction and reads as a passing control. The other eight cells of the same grid moved
+`DIFF -> EQ`; had the grid been three cells instead of nine, "1 of 3 already passing" would have
+been the whole signal. What separates it is asking, per cell, **which rule produces the expected
+answer here** — for a cell that must not change, if the answer is the rule under repair rather
+than the rule under test, move the cell (here: put the string on a line with no generated call)
+before measuring the fix, not after.
+
 ### Report a measurement as `mechanism | carrier | population | result`, and the mistakes cannot hide
 
 Three failures of the same family landed in one afternoon, and each one is a different column
