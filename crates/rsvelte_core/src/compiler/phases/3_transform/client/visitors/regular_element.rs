@@ -1567,6 +1567,11 @@ pub fn visit_regular_element(
             if let Some(stmt) = child_async_consts_stmt {
                 block_body.push(stmt);
             }
+        } else {
+            // `RegularElement.js:333` hands the children the PARENT's `consts`
+            // array itself, so the splice at `:443` re-emits every enclosing
+            // declaration inside the wrapper as well as outside it.
+            block_body.extend(context.state.consts.iter().cloned());
         }
         block_body.extend(child_init);
         block_body.extend(element_state_init);

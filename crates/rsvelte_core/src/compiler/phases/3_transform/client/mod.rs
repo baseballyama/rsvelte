@@ -2347,13 +2347,14 @@ pub(crate) fn transform_client(
         }
     }
 
-    // Add legacy reactive imports (after all imports, before other declarations)
-    // Reference: transform-client.js line 211: module.body.unshift(...state.legacy_reactive_imports)
-    body.extend(legacy_reactive_imports);
-
     // Add module-level snippets (after imports, before module script exports)
     // This ensures `const foo = ...` comes before `export { foo }`
     body.extend(module_level_snippets);
+
+    // `transform-client.js:201` unshifts these onto `module.body`, and `:513`
+    // then puts `module_level_snippets` ahead of it — so they follow the
+    // snippets, not the imports.
+    body.extend(legacy_reactive_imports);
 
     // Add module script non-import content (exports, declarations, etc.)
     // This comes after module_level_snippets so that `export { foo }` can reference `const foo`

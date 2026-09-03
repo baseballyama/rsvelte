@@ -5583,6 +5583,17 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             }
             false
         }
+        "TaggedTemplateExpression" => {
+            // `TaggedTemplateExpression.js` sets `has_state` from the TAG's
+            // purity alone; the quasi is reached by the ordinary walk.
+            if let Some(tag) = obj.get("tag")
+                && (!is_pure_json(tag, context) || has_reactive_state_json(tag, context))
+            {
+                return true;
+            }
+            obj.get("quasi")
+                .is_some_and(|quasi| has_reactive_state_json(quasi, context))
+        }
         _ => {
             // Unknown expression type - conservatively assume reactive
             // (using set_text for a static expression is safe but slower,
@@ -6771,8 +6782,12 @@ mod tests {
             // pure and therefore follows the dynamic member-expression path.
             ("this.foo", true),
             // Shapes the typed walk deliberately does NOT answer — these reach
-            // the JSON fallback, so they agree by construction.
-            ("tag`x`", true),
+            // the JSON fallback, so they agree by construction. The tagged
+            // templates still pin a value: upstream reads the TAG's purity, so
+            // an unbound tag is inert and a bound one is not.
+            ("tag`x`", false),
+            ("count`x`", true),
+            ("konst`x`", true),
             ("(class {})", true),
         ];
 

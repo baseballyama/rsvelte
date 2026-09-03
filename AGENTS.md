@@ -4246,6 +4246,57 @@ on — and when the answer looks like "this family never reaches that code", che
 "reaches it and cannot tell two answers apart" is the commoner case and the two prescribe
 different fixes.
 
+### A catch-all whose default is the SAFE answer is invisible to every gate but byte equality
+
+`has_reactive_state_json` is rsvelte's port of upstream's `has_state`, written as a `match` over
+node-type strings with `_ => true` and a comment explaining the choice: wrapping a static
+expression in a `$.template_effect` is slower and correct, while not wrapping a reactive one is
+a bug. That reasoning is right, and it is exactly what made the missing arm unfindable.
+`TaggedTemplateExpression` had none, so `pattern={String.raw`a`}` was wrapped where upstream
+writes the attribute once at init — output that behaves identically, passes every runtime
+fixture, parses, and is *only* wrong as bytes. Measured: 15 expression kinds x 2 hosts, **24 EQ
+/ 6 DIFF**, and all six are a tagged template whose tag is pure; a local tag and a member tag
+rooted at a local stay wrapped, which is what separates the fix from "never wrap a tagged
+template".
+
+Two things generalize. **A conservative default converts a missing enumeration entry from a
+crash into a silent divergence**, so the usual defence — the arm that is absent throws — does not
+apply, and which gate can see it is decided by the *direction* of the default: over-approximating
+is visible to output equality alone, under-approximating is visible to a runtime test. And the
+enumeration's own members are the census: this `match` names 20 types, `has_call_json` beside it
+names `TaggedTemplateExpression` correctly with a comment citing the upstream file, so **the two
+ports of one upstream visitor disagreed about which node types exist** — the sibling was the
+cheapest place to find the gap and nothing compares them.
+
+**And the one defence this file names against the two-ports class was present, and pinned the
+wrong value.** `typed_reactive_state_front_end_agrees_with_the_json_walk` compares the typed
+front end to the JSON walk **and spells out the expected answer** — exactly so that "a front end
+that always says `false` can't pass by agreeing with an equally broken oracle". Its row for
+`` tag`x` `` read `true`, under a comment saying the typed walk does not answer this shape so the
+two "agree by construction". Both halves are accurate; the number was transcribed from what the
+JSON walk did, which was the `_ => true` fallback. Fixing the compiler turned the test red, and
+the oracle says `false` for an unbound tag and `true` for a bound one. So an independently
+pinned expectation is only independent of the *other port*, not of the port it was read from —
+generate the value from the oracle even when the assertion's purpose is to compare two ports,
+and note that the shape a comment calls "unanswered" is the one whose expectation nobody
+derived.
+
+### A predicate's NAME can name a construct that cannot reach it
+
+`RegularElement.js:324` computes `has_declarations` as `!node.fragment.metadata.transparent`, and
+the grid cell written to exercise the `true` branch — an element holding its own `{@const}` — is
+rejected by the compiler: `{@const}` must be the immediate child of a block, a snippet or a
+component, never of a plain element. What actually clears `transparent` is a **`DeclarationTag`**
+(`{const x = …}` / `{let x = …}`, no `@`; `1-parse/state/tag.js:41`, `1-parse/index.js:310`),
+which is the one declaration form an element may hold. The cell threw, which is the lucky
+outcome — the same inference could as easily have produced a cell that compiles and exercises the
+other branch.
+
+The rule is the grid-construction twin of "generate an expected value from the oracle, do not
+back it out of its output": when a cell exists to reach a named flag, derive the input from the
+**code that sets the flag**, not from what the flag is called. Here the two are one `grep` apart
+and the name is actively misleading.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.

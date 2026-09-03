@@ -2950,11 +2950,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 7 entries)
+### Client (`known-failures.client.json`, 4 entries)
 
-Partition of `known-failures.client.json` by verdict: `7`
+Partition of `known-failures.client.json` by verdict: `4`
 
-- **7 — the generated JS differs** (`js` / `code-differs`).
+- **4 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
@@ -3285,7 +3285,43 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 7 arrived with the wave-2 enrolment (#3176) and is described
+Three entries left this target and `client-dev` on three separate decisions, each measured with
+its own grid.
+
+`headscale-ui/…/ServerSettings.svelte` carried `pattern={String.raw`…`}`.
+`TaggedTemplateExpression.js` gives a tagged template `has_state` only when its TAG is not pure,
+and `is_pure` calls any identifier with no binding a global — so `String.raw`…`` is inert and the
+attribute is written once at init. rsvelte's `has_reactive_state_json` has no arm for the node
+type at all and fell into its conservative `_ => true`, wrapping every tagged template in a
+`$.template_effect`. That default is why nothing found it earlier: over-wrapping is correct
+behaviour and wrong bytes, so only output equality can see it. 15 expression kinds × 2 hosts
+reads 24 EQ / 6 DIFF, and all six are a pure tag; a local tag and a member tag rooted at a local
+stay wrapped, which separates the fix from "never wrap a tagged template". The sibling
+`has_call_json` names the node type correctly, citing the upstream file — two ports of one
+visitor disagreeing about which node types exist, and nothing compares them.
+
+`photon/…/navbar/Profile.svelte` was an ordering divergence with no other content:
+`transform-client.js:201` unshifts the legacy `$.reactive_import(…)` declarations onto the
+MODULE program's body and `:513` assembles `[...imports, ...module_level_snippets, ...body]`, so
+a hoisted `{#snippet}` precedes them. rsvelte emitted them straight after the imports. Both
+outputs were 593 lines; moving two declarations 60 lines made 62 lines differ, which is what a
+first-differing-line reading would have called a large divergence. Each control in the 4-cell
+grid holds only one of the two declarations and so cannot express an order at all.
+
+`trakt-web/…/navbar/_internal/NavbarHeader.svelte` is upstream aliasing an array.
+`RegularElement.js:333` gives an element's children the PARENT's `consts` array itself when
+`has_declarations` is false, and `:443` splices that same array into the `{ … }` wrapper the
+element grows for a `{#snippet}` — so an enclosing `{@const}` is declared a second time inside
+the wrapper. `has_declarations` is `!fragment.metadata.transparent`, which only a
+**`DeclarationTag`** (`{const x = …}` / `{let x = …}`, no `@`) clears; `{@const}` cannot be an
+element's immediate child at all, so the first version of that cell was rejected by both
+compilers. `<svelte:element>` delegates to `Fragment.js:68`, whose `consts` is a fresh `[]`, and
+is the cell that separates the aliasing from "an element with a snippet re-expands".
+
+Two arms over the corpus moved 6 of 134,180 units (129,450 live) — the three files on `client`
+and `client-dev` and nothing else — `MISMATCH -> match: 6`, `match -> MISMATCH: 0`.
+
+Every one of the remaining 4 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3389,11 +3425,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 12 entries)
+### Client dev (`known-failures.client-dev.json`, 9 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `12`
+Partition of `known-failures.client-dev.json` by verdict: `9`
 
-- **12 — the generated JS differs.**
+- **9 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
@@ -3430,7 +3466,7 @@ the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)`
 binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
 expression's shape alone. A moved unit is not a retired entry.
 
-All remaining 12 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 9 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 5 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
