@@ -477,11 +477,14 @@ mod tests {
 
     #[test]
     fn reports_unknown_css_properties() {
-        let diagnostics = diagnostics("<style>a { colro: red; --theme: blue }</style>");
-        assert_eq!(diagnostics.len(), 1);
+        let typo = diagnostics("<style>a { colro: red; --theme: blue }</style>");
+        assert_eq!(typo.len(), 1);
         assert_eq!(
-            diagnostics[0].code,
+            typo[0].code,
             Some(NumberOrString::String("css_unknown_property".to_string()))
         );
+        // The scan stops at the first `:` on a line, so the `--theme` above is
+        // never read and the custom-property guard decides nothing there.
+        assert!(diagnostics("<style>a {\n  --theme: blue;\n}</style>").is_empty());
     }
 }
