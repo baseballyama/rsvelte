@@ -4155,6 +4155,97 @@ The cheap discriminator is not the PR state, which is what was stale: it is
 `git log --oneline origin/main | grep '(#N)'`. Ask whether the work is on `main` before treating
 a missing branch, an `UNKNOWN` mergeable, or a fresh conflict as something to repair.
 
+### A ratchet entry's own NAME can be the wrong axis, and the fixture agrees with it
+
+`known-failures.client-dev.json` carried
+`svelte/…/snapshot/samples/delegated-locally-declared-shadowed/index.svelte`, whose one
+differing line is a `console.log` wrapped in `$.log_if_contains_state` that upstream leaves
+plain. The name says shadowing, the fixture is a locally declared `const index` masking an
+each index, and a grid built on that axis passes half its cells and reads as done.
+
+Shadowing is not the axis. The discriminating cell is one where **no outer name of that
+spelling exists at all** — `const q = Number(e.currentTarget.dataset.i); console.log(q)` in an
+`onclick` diverges exactly as the fixture does. What separates the cells is the **host**:
+crossing 4 hosts × 6 declaration shapes gives 3 divergences, all in the `template arrow` host
+and none in the instance-function, instance-top-level or module-script hosts, because
+`console_wrap.rs` answers the same question through two ports and only the estree one is wrong.
+
+This is one level earlier than "a justification names the wrong axis to reproduce on": here the
+*corpus id itself* names it, so the wrong axis arrives with the entry rather than with someone's
+prose. When a ratchet id reads like a diagnosis, treat it as a report of what someone hit.
+
+### The refutation can be inside a line you already read
+
+Two people chased the same defect from the same `DEBUG_EVAL` line:
+
+```
+[evaluate] name=q kind=Normal scope=2 decl_start=None updated=false initial=None initial_type=None
+```
+
+Both read `initial=None`, found a mechanism that predicts it (`process_binding_pattern_typed`
+never writes `binding.initial`), and implemented a fix that moved **0 of 44 cells**. The same
+line says `decl_start=None`, and that function writes `declaration_start` unconditionally — so
+the record `evaluate` resolves was never the one that function creates, and the whole search was
+in the wrong file. Every assignment to `declaration_start` in the tree is `Some(...)` (13 sites,
+none clearing it), which closes it: not "cleared after being set", but "a different record".
+
+This is not an unmeasured quantity. It is a measured one that was **printed and not read**,
+because a mechanism consistent with the first field arrived before the second field was looked
+at. No additional instrumentation can surface it — only finishing the line.
+
+### Count the WRITERS of a field, not the callers of the function you suspect
+
+Chasing that record, `#[track_caller]` was added to `declare_binding` and all 22 call sites were
+printed. The picture stayed contradictory, and the reason is that `declare_binding` is not the
+only writer of `bindings`: `ScopeRoot::push_binding` is a fifth, with six call sites of its own,
+and `2_analyze/visitors/shared/utils.rs`'s statement walker pushes a *temporary* record through
+it. The instrumentation was complete and the population was wrong.
+
+The failure signature is worth separating from the ordinary one: an incomplete instrument goes
+**silent**, and a complete instrument over the wrong population produces a **contradictory
+picture** — every line correct, and no line explaining what you observe. When a value has more
+than one way in, enumerate the field's writers before instrumenting any one of them.
+
+### A key with a valueless element leaves ORDER as the only discriminator
+
+`assign_dev_ast.rs` matches a lowered assignment back against a source-order site list keyed
+`(root, path, operator)`, and a computed member contributes `PathElement::Computed`, which
+carries no value. So `o.p[2]` and `o.p[3]` have the *same* key, and the only thing separating
+their two sites is which is still unclaimed — which makes the visit order part of the rule. The
+visitor claimed its site post-order, after descending, so the inner link of a chain took the
+outer's site and every `$.assign` in a computed chain reported the same column.
+
+The cell that says so is the one that was already **passing**: a static-key chain
+(`o.a = o.b = s`) has two distinct keys and was correct throughout, so a grid of computed chains
+alone cannot tell "claims in source order" from "always claims the first site". Ask of any
+key-matched rewrite which of its key's fields are *valueless*; each one converts a lookup into
+an ordering dependency that nothing in the key documents.
+
+### The constant a grid holds fixed was fixed by a PREDICTION, and being wrong is green
+
+`AGENTS.md` already records a grid whose held constant turned out to be the branch condition
+(`node.pos` was 0 in every cell). Two more landed on one day, and both are the *reaching is not
+discriminating* shape rather than the *never entered* one — which is the part that had to be
+measured rather than assumed, because the first write-up of this row asserted the second and was
+wrong. A prop-default grid held the declaration at **one prop**: every cell reached esrap's
+comment cursor and every cell agreed, because with nothing before it the annotation can only be
+flushed ahead of the value. Add a second prop and the same rule trails it on the *first*
+`$.prop` instead, which is where rsvelte drops it. A `console_wrap` grid held `target` at
+**client-dev**: all 44 cells reached `scope.evaluate` — the client calls the server's port since
+#3027 — and the regression it missed is on `server`, because only the server consumer inlines
+the folded value into a template string. The corpus sweep says so directly: the carrier moved on
+`server` and `server-dev` and did not move on `client` or `client-dev`, same input, same fold.
+
+Two things generalize. The held constant is fixed because someone judged it irrelevant, and that
+judgement is a *prediction*, not a measurement — so the axis worth adding is on the side you did
+**not** vary, which is why enumerating more failing shapes never finds it. And the symptom is a
+**green** grid, so nothing prompts the check: 8/8 against the oracle and 44/44, both while the
+mechanism they were written for had a branch no cell could separate. Before trusting a green
+family, list what every one of its cells has in common and ask which of those the oracle branches
+on — and when the answer looks like "this family never reaches that code", check it, because
+"reaches it and cannot tell two answers apart" is the commoner case and the two prescribe
+different fixes.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
