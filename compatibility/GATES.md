@@ -4924,6 +4924,40 @@ discards an arm whose sibling heads are literals throws away **149 of the 590 it
 … }`), which are exactly the JSON-walking lint rules. The screen's error is only visible in the
 pile it rejects.
 
+### 39j — the population floor counts pairs, so it cannot see which repositories produced them — **[D]**
+
+`MIN_COMPONENTS = 10000` (`parse-ast-verify.mjs:109`) is a floor on *compared pairs*, which is the
+right guard against the vacuous-green class it was written for and says nothing about source
+coverage. Measured 2026-09-03 on a checkout with **7 of the 104 declared sources populated**:
+`collect.mjs` writes **11,673 entries** and this gate runs to completion over them. The other two
+floors in the pipeline are the same quantity at different thresholds — 1000 in `collect.mjs`,
+30000 in `verify.mjs` and `svelte2tsx-verify.mjs` — so that same checkout clears two of the three,
+and 30000 catching this one instance is an accident of where the threshold sits, not a property it
+measures.
+
+The direction that matters is the rewrite. A **verdict** from a narrowed population fails loudly
+here, because a ratchet with 301 entries reports every unmeasured key as `listed key no longer
+diverges`; `--update-baseline` **deletes** them instead. Nor is the shortfall silent — it is 97
+`missing at submodules … skipping` warnings — but they sit above a plausible five-figure total
+that is the one line anyone reads.
+
+Closed by `unpopulatedCorpusSources` / `unpopulatedSourcesReason` in `baseline-guard.mjs`, wired
+into the rewrite guards of this gate, `verify.mjs` (both manifest-based sites) and
+`svelte2tsx-verify.mjs`, and printed by `collect.mjs` as `sources: N/104 populated` plus one
+`EMPTY <path>` line per absent source. It throws rather than returning an empty list when either
+input is missing, because "I could not measure the coverage" and "the coverage is complete" are
+the same empty array.
+
+**Only `lint-verify.mjs` already had this** (`lint-verify.mjs:216-227`), with a comment stating
+the reason in the general form — "the entry-count floor is a lower bound, so it cannot see the
+loss of one small repo". One gate held the lesson and three did not, which is the two-ports shape
+with the comparison missing: nothing in the tree asked whether the sibling guards agreed.
+
+Controls, both directions: a synthetic manifest built from 7 source ids reports 97 of 104 with the
+paths named, the real tree reports 0, and a sandbox that declares one source its manifest does not
+cover exits 2 with no ratchet rewritten while the identical run exits 0 once the declared set
+matches again (`scripts/dev/test-corpus-verify-baseline-flags.mjs`).
+
 ---
 
 ## 40. Wasm compile-option boundary — `scripts/dev/test-wasm-compile-options.mjs`

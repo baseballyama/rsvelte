@@ -98,9 +98,16 @@ function buildSandbox() {
 		fs.copyFileSync(path.join(CORPUS_SCRIPTS, f), path.join(sandbox, 'scripts/compat-corpus', f));
 	}
 	linkDependencies(sandbox);
+	// `--update-baseline` now also refuses when a declared corpus source
+	// contributed no manifest entry, so the sandbox has to declare the sources
+	// its manifest covers. One is enough; the coverage case gets its own arm.
+	fs.writeFileSync(
+		path.join(sandbox, 'scripts/compat-corpus/corpus-sources.json'),
+		JSON.stringify([{ path: 'submodules/sandbox', id: 'sandbox' }])
+	);
 	const manifest = [];
 	for (let i = 0; i < ENTRIES; i++) {
-		const id = `e${i}`;
+		const id = `sandbox/e${i}`;
 		manifest.push({ id, source: `${id}.svelte` });
 		for (const tree of ['expected', 'actual']) {
 			const dir = path.join(CORPUS, tree, id);
@@ -240,6 +247,36 @@ for (const flag of ['--update-warning-baseline', '--update-error-baseline', '--u
 	const r = run('--from-report', report, flag);
 	check(`exit 2 for ${flag}`, r.status === 2, `status ${r.status}`);
 	check(`diagnostic ratchets untouched for ${flag}`, untouched(DIAGNOSTIC_RATCHETS).length === DIAGNOSTIC_RATCHETS.length);
+}
+
+// A floor on the number of entries cannot see WHICH repositories produced them,
+// so a checkout missing 97 of 104 submodules clears it at five figures and the
+// rewrite deletes every entry from the 97. The declared set is exact.
+console.log('\na declared source that contributed no entry refuses the rewrite');
+{
+	const sourcesPath = path.join(sandbox, 'scripts/compat-corpus/corpus-sources.json');
+	const declared = JSON.parse(fs.readFileSync(sourcesPath, 'utf8'));
+	fs.writeFileSync(
+		sourcesPath,
+		JSON.stringify([...declared, { path: 'submodules/never-collected', id: 'never-collected' }])
+	);
+	const r = run('--update-warning-baseline', '--update-error-baseline', '--update-parse-baseline');
+	check('exit 2', r.status === 2, `status ${r.status}\n${r.stderr}`);
+	check(
+		'names the absent source by path',
+		/submodules\/never-collected/.test(r.stderr),
+		r.stderr.slice(0, 400)
+	);
+	check(
+		'no ratchet rewritten',
+		untouched(DIAGNOSTIC_RATCHETS).length === DIAGNOSTIC_RATCHETS.length,
+		rewritten(DIAGNOSTIC_RATCHETS).join(', ')
+	);
+	// ... and the same run passes once the declared set matches again, so the
+	// refusal is the coverage axis and not some other state this arm left behind.
+	fs.writeFileSync(sourcesPath, JSON.stringify(declared));
+	const after = run('--update-warning-baseline', '--update-error-baseline', '--update-parse-baseline');
+	check('exit 0 once the set matches again', after.status === 0, `status ${after.status}\n${after.stderr}`);
 }
 
 fs.rmSync(sandbox, { recursive: true, force: true });

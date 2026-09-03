@@ -1796,7 +1796,10 @@ pub(super) fn transform_legacy_state_declarations<'a>(
             // inside the for-loop should be skipped - it's a loop variable, not a state variable.
             {
                 let mut search_offset = 0;
-                while let Some(rel_pos) = result[search_offset..].find(&pattern_with_init) {
+                // Hoisted: `str::find` rebuilds a two-way searcher on every step
+                // of this walk, and the needle never changes inside it.
+                let finder = memchr::memmem::Finder::new(pattern_with_init.as_bytes());
+                while let Some(rel_pos) = finder.find(&result.as_bytes()[search_offset..]) {
                     let pos = search_offset + rel_pos;
                     if !at_statement_top_level(&result, pos) {
                         search_offset = pos + pattern_with_init.len();
@@ -1954,7 +1957,10 @@ pub(super) fn transform_legacy_state_declarations<'a>(
             let pattern_no_init = format!("{} {};", keyword, var);
             {
                 let mut search_offset = 0;
-                while let Some(rel_pos) = result[search_offset..].find(&pattern_no_init) {
+                // Hoisted: `str::find` rebuilds a two-way searcher on every step
+                // of this walk, and the needle never changes inside it.
+                let finder = memchr::memmem::Finder::new(pattern_no_init.as_bytes());
+                while let Some(rel_pos) = finder.find(&result.as_bytes()[search_offset..]) {
                     let pos = search_offset + rel_pos;
                     if !at_statement_top_level(&result, pos) {
                         search_offset = pos + pattern_no_init.len();
@@ -2003,7 +2009,10 @@ pub(super) fn transform_legacy_state_declarations<'a>(
             let pattern_no_semi = format!("{} {}", keyword, var);
             {
                 let mut search_offset = 0;
-                while let Some(rel_pos) = result[search_offset..].find(&pattern_no_semi) {
+                // Hoisted: `str::find` rebuilds a two-way searcher on every step
+                // of this walk, and the needle never changes inside it.
+                let finder = memchr::memmem::Finder::new(pattern_no_semi.as_bytes());
+                while let Some(rel_pos) = finder.find(&result.as_bytes()[search_offset..]) {
                     let pos = search_offset + rel_pos;
                     if !at_statement_top_level(&result, pos) {
                         search_offset = pos + pattern_no_semi.len();

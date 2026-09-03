@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url';
 import { stripBlankLines, readIf, firstDiffLine, oxfmtTree, oxfmtParses as oxfmtParsesFile } from './normalize.mjs';
 import { MIN_MAPPED_LINE_COVERAGE, mappedLineCoverage, mappingViolations } from './sourcemap.mjs';
 import { MIN_FULL_CORPUS_ENTRIES, S2T_TREES, cleanupArtifacts } from './artifacts.mjs';
+import { refuseUnrepresentativeBaseline, unpopulatedSourcesReason } from './baseline-guard.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -369,6 +370,8 @@ if (UPDATE_BASELINE) {
 		);
 		process.exit(2);
 	}
+	// An entry count cannot see which repositories produced the entries.
+	refuseUnrepresentativeBaseline('s2t-verify', [unpopulatedSourcesReason(ROOT)]);
 	const updates = [[failures, BASELINE_PATH]];
 	if (!ALT_BASELINE) updates.push([unparseableFailures, UNPARSEABLE_BASELINE_PATH]);
 	// A --baseline run targets some alternate TSX ratchet; rewriting the one real

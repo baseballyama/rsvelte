@@ -157,7 +157,10 @@ import {
   requireGenerationUnchanged,
   missingCompiledArtifacts,
 } from "./artifacts.mjs";
-import { refuseUnrepresentativeBaseline } from "./baseline-guard.mjs";
+import {
+  refuseUnrepresentativeBaseline,
+  unpopulatedSourcesReason,
+} from "./baseline-guard.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -280,6 +283,15 @@ function requireFullCorpus(measured, what) {
     "  fix: git submodule update --init --depth 1 … && node scripts/compat-corpus/collect.mjs",
   );
   process.exit(2);
+}
+
+// The floor above counts ENTRIES, so it cannot see which repositories produced
+// them -- a checkout with 7 of 104 submodules collects five figures. Only
+// `lint-verify.mjs` checked its repo set exactly; the comment there says the
+// entry floor "cannot see the loss of one small repo" and the lesson stayed in
+// that one file.
+function requireFullSourceCoverage() {
+  refuseUnrepresentativeBaseline("verify", [unpopulatedSourcesReason(ROOT)]);
 }
 
 // Which ratchet families this run actually wrote, checked against
@@ -1041,6 +1053,7 @@ for (const spec of DIAGNOSTIC_FAMILIES) {
         // Same FALSE-SHRINK trap as the output baselines: this rewrite drops
         // every id the run did not measure.
         requireFullCorpus(manifest.length, "corpus entries");
+        requireFullSourceCoverage();
         fs.writeFileSync(p, JSON.stringify([...ids].sort(), null, "\t") + "\n");
         WRITTEN.add(spec.family);
         console.log(
@@ -1109,6 +1122,7 @@ function finish(code) {
 
 if (UPDATE_BASELINE) {
   requireFullCorpus(manifest.length, "corpus entries");
+  requireFullSourceCoverage();
   writeBaselines(failsByTarget);
   finish(0);
 }
