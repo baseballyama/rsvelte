@@ -359,15 +359,9 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PropMemberMutateCollector<'a, 'sem> {
         let before = &self.source[expr.span.start as usize..root_span.start as usize];
         let after = &self.source[root_span.end as usize..expr.span.end as usize];
         let mutation = format!("{}({}{}(){}, true)", root_name, before, root_name, after);
-        let rewrite = match self.prop_invalidate_bodies.get(root_name) {
-            Some(body) if !body.is_empty() => {
-                format!(
-                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
-                    mutation, body
-                )
-            }
-            _ => mutation,
-        };
+        // `UpdateExpression.js` does not import `build_assignment`, so upstream
+        // never grows the `$.invalidate_inner_signals` tail on a `++` / `--`.
+        let rewrite = mutation;
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }
@@ -592,10 +586,9 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for PropMemberMutateRewriter<'a, '_> {
             let wrapped = self
                 .b
                 .call(prop.as_str(), vec![mutation, self.b.bool(true)]);
-            *expr = match self.invalidate_call(&prop) {
-                Some(invalidate) => self.b.sequence(vec![wrapped, invalidate]),
-                None => wrapped,
-            };
+            // `UpdateExpression.js` does not import `build_assignment`, so upstream
+            // never grows the `$.invalidate_inner_signals` tail on a `++` / `--`.
+            *expr = wrapped;
             self.changed = true;
             return;
         }

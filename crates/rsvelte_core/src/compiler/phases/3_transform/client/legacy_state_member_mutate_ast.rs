@@ -321,15 +321,9 @@ impl<'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'_, '_> {
 
         let outer_text = &self.source[expr.span.start as usize..expr.span.end as usize];
         let mutate = format!("$.mutate({}, {})", root_name, outer_text);
-        let rewrite = match self.invalidate_bodies.get(root_name) {
-            Some(body) if !body.is_empty() => {
-                format!(
-                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
-                    mutate, body
-                )
-            }
-            _ => mutate,
-        };
+        // `UpdateExpression.js` does not import `build_assignment`, so upstream
+        // never grows the `$.invalidate_inner_signals` tail on a `++` / `--`.
+        let rewrite = mutate;
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }
@@ -880,13 +874,9 @@ impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for LegacyStateMemberMutateRewriter<'a,
             let root = root.to_string();
             let taken = std::mem::replace(expr, self.b.void0());
             let mutate = self.b.call("$.mutate", vec![self.b.id(&root), taken]);
-            *expr = match self.invalidate_bodies.get(&root) {
-                Some(body) if !body.is_empty() => match self.invalidate_call(body) {
-                    Some(invalidate) => self.b.sequence(vec![mutate, invalidate]),
-                    None => mutate,
-                },
-                _ => mutate,
-            };
+            // `UpdateExpression.js` does not import `build_assignment`, so upstream
+            // never grows the `$.invalidate_inner_signals` tail on a `++` / `--`.
+            *expr = mutate;
             self.changed = true;
             return;
         }

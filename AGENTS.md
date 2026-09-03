@@ -4297,6 +4297,97 @@ back it out of its output": when a cell exists to reach a named flag, derive the
 **code that sets the flag**, not from what the flag is called. Here the two are one `grep` apart
 and the name is actively misleading.
 
+### A completion predicate can be satisfied by the PREVIOUS run's output file
+
+`until [ -f /tmp/sw-head.json ]; do sleep 20; done` fired instantly and reported
+`SWEEP HEAD DONE 20765747 bytes` for a run that was 40 seconds old. The file was
+two days old, from a sweep of a different tree. Nothing was empty, nothing was
+truncated, the byte count was plausible, and the arm's own probes had already
+printed correctly — the only thing wrong was *which run wrote it*.
+
+It is the stale-verdict class with the artifact in the role of the check-run,
+and the tell is the same one that catches an `awk` key collapse: a **shape** that
+cannot occur. The base arm's JSON had 6 top-level keys (`arm`, `sha256`,
+`probe`, `rows`, `hashes`, `liveness`) and the "head" had 104,439, because the
+older instrument wrote a flat `{key: hash}` map. Comparing the two structures is
+what exposed it; comparing their sizes would not have.
+
+The structural tell was luck, and reading it as the rule is the mistake to
+avoid: the two files had different shapes only because the instrument's output
+format had changed two days earlier. With a stable format, 29 MB against 21 MB
+reads as "a different tree" and nothing looks wrong. The format-independent
+test is **freshness** — `touch out.START` before launching and wait on
+`[ out.json -nt out.START ]`.
+
+Three fixes, and rank them by which way they fail rather than by what they
+buy. Deleting the output before launching is the only one whose failure is
+safe: if the run crashes and writes nothing, `-f` stays false forever, so a
+false green becomes a hang — the same property as a settle predicate an empty
+population cannot satisfy. Keying the wait on the **job** rather than its
+artifact is what a harness that tracks background commands already offers.
+Stamping the artifact with the arm's sha256 and reading it back is the only
+one that survives someone else's run landing in the same path — and note the
+sweep here already wrote `arm` and `sha256` at the top level and nobody read
+them, which is the declared-but-unread-field row wearing a different hat.
+
+### A control must traverse the stage the measurement died on
+
+The recorded rule is that a control has to bypass at least one stage the
+measurement passes through — that buys *independence*. It does not buy
+*reachability*, and the two fail separately. Looking for a peer's shared script,
+`find /tmp -maxdepth 4 -name 'port-probe2.py'` returned nothing; the positive
+control `find /tmp -maxdepth 4 -name 'cc-socks'` returned a hit, and that was
+read as "so `find` works, so the file is absent". The file existed. `/tmp` is a
+symlink to `private/tmp` and bare `find` does not descend one, and the original
+was a level deeper than `-maxdepth 4` reaches. The control was satisfied at
+**depth 2 through a different root**, so it exercised neither property that was
+killing the measurement.
+
+Measured both ways on the same tree: `find /tmp -maxdepth 4 …` → 0 hits with the
+file present; `find /tmp/ …` and `find -L /tmp …` → the path. The rule that
+covers it: **a control has to be satisfied by the same path the measurement
+takes** — same root, same depth, same traversal — and only then does its
+success say the instrument reached your question. A control that succeeds
+somewhere easier proves the command exists, which nobody doubted.
+
+### A stage that MERGES two measurements is the truncation table's other half
+
+Every row of the truncating-stage table loses a datum. A stage can instead make
+two data look like one, and that reads as a smaller population rather than as a
+missing one. A probe runner extracted results with
+`code.match(/console\.log\([^\n]*/g)` and joined the matches with `' ~~ '`.
+Each match runs to **end of line** and `g` advances `lastIndex` past the whole
+match, so a second call on the same line is swallowed: a cell with three
+`console.log` calls printed two `~~` pieces, and the piece count reads as a call
+count. It also manufactured a false finding — one piece read
+`console.log(n); else console.log(1);`, which was proposed as evidence that a
+`$: if` body had been split at the statement level, when the regex cannot
+produce a piece beginning with `else` at all and the two calls were simply on
+one line.
+
+The same runner mixed two scopes in one line: its WRAP/plain verdict tested the
+**whole file** while the displayed arguments were **per line**, so a cell with
+one wrapped and one unwrapped call reports `WRAP`. Ask of any result line what
+scope each of its fields was computed at; a merging stage is invisible to
+`pipestatus`, to a truncation check, and to re-reading the output.
+
+### A bundle's price cannot be set from one of its members
+
+Two defects were bundled as one batch because they share a *rule* (where an
+`$.invalidate_inner_signals` tail belongs), and the batch was then priced —
+"this needs new plumbing through the port" — from a `grep` in **one** of the two
+files: 0 hits, positive control 40. The measurement was right and the price was
+wrong, because the other member lives in a different file where the same grep
+returns 6, and its missing wrapper sits in the *same function* as a sibling
+branch that already calls the helper, 140 lines away. One member needed a new
+parameter threaded through; the other needed a call the enclosing function
+already makes.
+
+Sharing a rule is what makes two defects one story; it says nothing about
+whether they share a cost. Price each member, or split the bundle — and note
+that the cheap member is the one that looks unnecessary to measure, because the
+expensive member's number is already in hand and reads like the batch's.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
