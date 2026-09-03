@@ -8,7 +8,6 @@
 	"photon/src/lib/ui/navbar/Profile.svelte",
 	"primo/src/lib/builder/ui/Button.svelte",
 	"svelte-bits/src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte",
-	"svelte-lexical/demos/qalam/src/lib/notesStore.svelte.ts",
 	"svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte",

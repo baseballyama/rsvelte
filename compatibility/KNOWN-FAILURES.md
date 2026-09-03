@@ -3365,17 +3365,25 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 16 entries)
+### Client dev (`known-failures.client-dev.json`, 15 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `16`
+Partition of `known-failures.client-dev.json` by verdict: `15`
 
-- **16 — the generated JS differs.**
+- **15 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 16 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and it is the largest of the four — 7 JS entries that `client` does not
+All remaining 15 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+it, and it is the largest of the four — 6 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
+
+`svelte-lexical/…/notesStore.svelte.ts` left it when the text port of upstream's `should_proxy`
+became transparent to parentheses (#4254). acorn builds no `ParenthesizedExpression`, so
+upstream decides on what the parens hold; rsvelte ports that predicate twice and only the AST
+one recursed through the pair. The entry was `client-dev`-only because the dev await
+instrumentation rewrites the right-hand side into `(await $.track_reactivity_loss(…))()` before
+the proxy decision reads it, so production never reached the shape — one line of 166, with the
+same source byte-equal on `client`.
 
 Four entries left this target when a module script started reaching the dev `$.assign` rule.
 Upstream has one `AssignmentExpression` visitor and no module/component split, so

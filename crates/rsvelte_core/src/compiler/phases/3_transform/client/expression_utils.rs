@@ -2179,7 +2179,8 @@ fn strip_enclosing_parens_once(expr: &str) -> Option<&str> {
 }
 
 /// A `,` outside every bracket and string is a `SequenceExpression`, which
-/// `should_proxy` does not recognise and therefore proxies.
+/// `should_proxy` does not recognise and therefore proxies. The caller strips
+/// the source's trailing comma first, so a `,` reaching here is an operator.
 fn contains_top_level_comma(expr: &str) -> bool {
     let bytes = expr.as_bytes();
     let mut depth = 0usize;
@@ -2233,8 +2234,18 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
     // `should_proxy` still fires; this text sniff must skip it too, otherwise
     // `trimmed.starts_with("new ")` (and the call/identifier checks) miss.
     let mut trimmed = strip_leading_comments(expr.trim()).trim();
-    while let Some(inner) = strip_enclosing_parens_once(trimmed) {
-        trimmed = strip_leading_comments(inner).trim();
+    loop {
+        // A class field's initializer arrives with the source's trailing comma
+        // when the call is written across lines. It is not expression syntax,
+        // and leaving it on hides the paren pair underneath it.
+        if let Some(head) = trimmed.strip_suffix(',') {
+            trimmed = head.trim_end();
+            continue;
+        }
+        match strip_enclosing_parens_once(trimmed) {
+            Some(inner) => trimmed = strip_leading_comments(inner).trim(),
+            None => break,
+        }
     }
     let trimmed = trimmed;
 
@@ -2310,13 +2321,24 @@ pub(super) fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
-    // A pair enclosing the whole expression was stripped above, so a leading
-    // `(` that survives has a tail: a call, member access or tagged template on
-    // a parenthesized base. None of the three is on `should_proxy`'s no-proxy
-    // list, and `is_top_level_function_call` below reads only an identifier
-    // callee, so this shape had no predicate at all.
-    if trimmed.starts_with('(') {
-        return true;
+    // A call, member access or tagged template on a parenthesized base. None is
+    // on `should_proxy`'s no-proxy list, and `is_top_level_function_call` below
+    // reads only an identifier callee, so this shape had no predicate at all.
+    // The tail is enumerated rather than treated as a catch-all: an arrow whose
+    // parameter list spans lines (`(event) =>\n …`) also opens with a paren
+    // group, and `should_proxy` refuses it.
+    if let Some(rest) = trimmed.strip_prefix('(')
+        && let Some(close) = find_matching_paren(rest)
+    {
+        let after = rest[close + 1..].trim_start();
+        if after.starts_with('(')
+            || after.starts_with('.')
+            || after.starts_with('[')
+            || after.starts_with('`')
+            || after.starts_with("?.")
+        {
+            return true;
+        }
     }
 
     // `should_proxy` proxies everything it does not recognise; this sniff only

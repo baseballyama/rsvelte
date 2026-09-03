@@ -197,6 +197,17 @@ fn a_parenthesized_right_hand_side_is_decided_by_what_the_parens_hold() {
         ("((x) => x)", false),
         ("(!a)", false),
         ("(a + b)", false),
+        // An arrow whose parameter list is parenthesized opens with a paren
+        // group that does NOT enclose the expression, so it reaches the
+        // call/member rule below. Both spellings, because the multi-line one is
+        // what a real module carries and the single-line one is what a grid
+        // written by hand carries.
+        ("(x) => x", false),
+        (
+            "(event) =>\n\t\tevent.type === 'click'\n\t\t\t? 'clicked'\n\t\t\t: 'other'",
+            false,
+        ),
+        ("async (x) => x", false),
     ] {
         assert_eq!(assign_set_is_proxied(rhs), proxied, "`{rhs}`");
     }
@@ -216,7 +227,49 @@ fn a_call_or_member_on_a_parenthesized_base_is_still_proxied() {
         "(o).p",
         "(o)[0]",
         "(backend.init()).x",
+        "(o)?.p",
+        "(o)?.[0]",
     ] {
         assert!(assign_set_is_proxied(rhs), "`{rhs}`");
+    }
+}
+
+#[test]
+fn a_trailing_comma_is_not_a_sequence_expression() {
+    // A class field whose `$state(...)` call is written across lines arrives with
+    // the source's trailing comma inside the argument text. `a,` is not a
+    // `SequenceExpression`, so the initializer is decided by what precedes it.
+    // The host matters: the assignment path never sees a trailing comma, so a
+    // grid written only on `v = <rhs>` cannot reach this at all.
+    for (src, proxied) in [
+        (
+            "export class C {\n\th = $state(\n\t\t(e) =>\n\t\t\te.type === 'click'\n\t\t\t\t? 'a'\n\t\t\t\t: 'b',\n\t);\n}\n",
+            false,
+        ),
+        (
+            "export class C {\n\th = $state(\n\t\t(e) =>\n\t\t\te.type === 'click'\n\t\t\t\t? 'a'\n\t\t\t\t: 'b'\n\t);\n}\n",
+            false,
+        ),
+        (
+            "export class C {\n\th = $state(\n\t\t{ a: 1 },\n\t);\n}\n",
+            true,
+        ),
+        (
+            "export class C {\n\th = $state(\n\t\t(a, o),\n\t);\n}\n",
+            true,
+        ),
+    ] {
+        let js = compile_module(
+            src,
+            ModuleCompileOptions {
+                filename: Some("Test.svelte.js".to_string()),
+                generate: GenerateMode::Client,
+                ..Default::default()
+            },
+        )
+        .expect("compile")
+        .js
+        .code;
+        assert_eq!(js.contains("$.proxy("), proxied, "{src}\n-> {js}");
     }
 }
