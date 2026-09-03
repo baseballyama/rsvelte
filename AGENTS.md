@@ -2706,6 +2706,54 @@ that has to be checked.** Knowing the trap and adding `--lib` does not entail th
 the two feel like one event because they are one intention. The check is one line: look in the
 output for a fingerprint only the workaround can produce — here, a four-digit `running` count.
 
+### A list truncated for DISPLAY becomes a population when something downstream reads it
+
+The row above protects a denominator that a stage drops on the way to your eyes. There is a
+worse arrangement, because no stage is truncating anything at read time: the truncation
+happened when the *previous* run wrote its report, and the next stage consumed the report.
+
+A corpus screen found 262 carrier files and printed them with `carriers.slice(0, 40)` — a
+display cap, correct and deliberate. The tightening pass that ran next read that printed list
+as its input and reported `carrier files scanned = 40`, then classified those 40 into a clean
+table. Every stage was right: the screen really did find 262, the cap really is a display
+choice, and the classifier really did classify 40 files correctly. **Nothing was truncated
+between a command and its reader, so none of the usual checks fire** — the exit status is the
+classifier's own, the output is complete, and re-reading it more carefully shows a correct
+table of a set nobody chose.
+
+Corrected by writing the full list to a second file (`*.out.carriers`, uncapped) and re-running,
+the same classifier reported 262 and **8 defect candidates against the 40-file run's 1**. The
+capped run's single candidate was real, and its neighbours were simply absent.
+
+Two things generalize. **The defect is not the cap, it is one array serving two consumers** —
+a human reading a report and a program reading a population — so the repair is a second
+artifact rather than a wider cap, and a wider cap only moves the threshold. And what caught it
+was that the second stage **printed the size of what it had been handed**: `scanned = 40`
+beside a screen that had said 262 is a contradiction visible without reading either program.
+A stage that consumes another stage's output should print that input's cardinality, because
+its own author is the only person positioned to notice the number is wrong.
+
+### A control's NAME is a claim, and the control passing does not check it
+
+A classifier shipped with eight two-sided controls, each named for the shape it was meant to
+pin (`KNOWN-literal`, `KNOWN-global:Number`, `no-decl`, `unknown-init`, and their negatives).
+The set passed, was ablated, went red, was restored, and the tree came back byte-identical —
+the whole prescribed procedure.
+
+Then the labels were corrected, because two of them named a shape the cell did not contain.
+**All eight verdicts were unchanged.** They had to be: the assertions compare a computed label
+against an expected label, and the *name* of the cell is read by nobody. So the control set
+demonstrated that the classifier is self-consistent and demonstrated nothing whatever about
+which shapes it covers — while its names are the only record of that, and are what a later
+reader will cite as coverage.
+
+This is one step past a grid holding an axis fixed. There, the cells are real and the axis is
+missing; here the cell may not contain what its name says at all, and **the passing run is
+what makes nobody re-read the name**. The cheap check is the same shape as an injection: take
+the control's name as a prediction about the cell's *input text* and grep the input for it.
+A control named `KNOWN-global:Number` whose source contains no `Number` is caught in one
+command; no amount of ablation finds it, because ablation moves the code and holds the cells.
+
 ### An enumerated concern gets one item crossed off and reads as answered
 
 "That `loc` change reaches phase 3's comment decision **and** the source map, so 'only `parse()`
