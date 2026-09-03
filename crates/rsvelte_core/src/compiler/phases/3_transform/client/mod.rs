@@ -5443,15 +5443,13 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 /// Node types for which upstream `should_proxy` returns false (→ the value is
 /// NOT wrapped in `$.proxy(...)`). An Identifier whose binding resolves to one
 /// of these initial node types is therefore non-proxyable.
-fn is_non_proxy_node_type(nt: &str) -> bool {
-    matches!(
+fn is_non_proxy_node_type(nt: &str, identifier_name: Option<&str>) -> bool {
+    // The name is a parameter rather than a caller-side `||` arm because
+    // upstream's `should_proxy` answers `false` for `undefined` in the same
+    // clause as the literal types: two of four call sites had forgotten it.
+    !crate::compiler::phases::phase3_transform::client::visitors::shared::utils::should_proxy_node_type(
         nt,
-        "Literal"
-            | "TemplateLiteral"
-            | "ArrowFunctionExpression"
-            | "FunctionExpression"
-            | "UnaryExpression"
-            | "BinaryExpression"
+        identifier_name,
     )
 }
 
@@ -5698,10 +5696,8 @@ fn transform_module_script_runes_with_target(
                 && (b.initial_is_function
                     || b.initial_node_type
                         .as_deref()
-                        .map(is_non_proxy_node_type)
-                        .unwrap_or(false)
-                    || (b.initial_node_type.as_deref() == Some("Identifier")
-                        && b.initial_identifier_name.as_deref() == Some("undefined")))
+                        .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
+                        .unwrap_or(false))
         })
         .map(|b| b.name.clone())
         .collect();
@@ -7004,7 +7000,7 @@ fn compute_non_proxy_scope(analysis: &ComponentAnalysis) -> NonProxyScope {
             let ok = b
                 .initial_node_type
                 .as_deref()
-                .map(is_non_proxy_node_type)
+                .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
                 .unwrap_or(false);
             let entry = per_name.entry(b.name.clone()).or_insert((true, 0));
             if !ok {
@@ -7066,13 +7062,10 @@ fn compute_non_proxy_scope(analysis: &ComponentAnalysis) -> NonProxyScope {
                         | BindingKind::StoreSub
                 )
                 && b.import_source.is_none()
-                && (b
-                    .initial_node_type
+                && b.initial_node_type
                     .as_deref()
-                    .map(is_non_proxy_node_type)
+                    .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
                     .unwrap_or(false)
-                    || (b.initial_node_type.as_deref() == Some("Identifier")
-                        && b.initial_identifier_name.as_deref() == Some("undefined")))
             {
                 return true;
             }
@@ -7928,7 +7921,7 @@ fn transform_instance_script_for_visitors(
                 && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
                 && b.initial_node_type
                     .as_deref()
-                    .map(is_non_proxy_node_type)
+                    .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
                     .unwrap_or(false)
             {
                 v.push(b.name.clone());

@@ -2950,11 +2950,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 9 entries)
+### Client (`known-failures.client.json`, 8 entries)
 
-Partition of `known-failures.client.json` by verdict: `9`
+Partition of `known-failures.client.json` by verdict: `8`
 
-- **9 — the generated JS differs** (`js` / `code-differs`).
+- **8 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
@@ -3261,7 +3261,7 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
-Every one of the remaining 9 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 8 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3365,17 +3365,33 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 15 entries)
+### Client dev (`known-failures.client-dev.json`, 14 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `15`
+Partition of `known-failures.client-dev.json` by verdict: `14`
 
-- **15 — the generated JS differs.**
+- **14 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 15 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 14 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 6 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
+
+`immich/…/asset-viewer/ActivityViewer.svelte` left this target and `client` for the other half of
+the same predicate. Upstream's `should_proxy` answers `false` for `undefined` in the **same
+clause** as the literal types, and resolves a bare identifier by recursing on `binding.initial` —
+so a prop whose destructure default is `undefined` is not proxied when it is written into a
+`$state`. rsvelte ports that node-type list twice: `should_proxy_node_type` carries the
+`undefined` arm, and `is_non_proxy_node_type` was its negation **without** it. Two of that
+function's four call sites had bolted the arm back on at the call site and two had not, which is
+the "a pass is missing from a branch" shape — measured one cell per shape, 8 of 24 diverged and
+the reported one was among them. The name is now a parameter of the predicate, so the decision
+cannot be spelled without answering it. One shape is still open and is a **different** port: a
+`<script module>` local initialised to `undefined` and written into a module `$state` reaches the
+module text pipeline, which carries its own list. Its carrier count over the collected corpus is
+**0 of 33,545** — measured with two positive controls, 1,981 files do have a module script and
+3,425 do contain a `= undefined`, so the zero is the conjunction and not the detector — which is
+why it is filed rather than fixed here.
 
 `svelte-lexical/…/notesStore.svelte.ts` left it when the text port of upstream's `should_proxy`
 became transparent to parentheses (#4254). acorn builds no `ParenthesizedExpression`, so
