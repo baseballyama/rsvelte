@@ -2740,6 +2740,7 @@ dependencies = [
  "compact_str",
  "fancy-regex",
  "javascript-globals",
+ "memchr",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
