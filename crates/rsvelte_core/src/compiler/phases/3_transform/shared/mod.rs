@@ -8,6 +8,7 @@ pub mod async_body;
 pub mod class_body;
 pub mod hoisted_vars;
 pub mod js_scan;
+pub mod json_field;
 pub mod module_tail_comment;
 pub mod offsets;
 pub mod rune_parens;

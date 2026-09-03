@@ -11,6 +11,7 @@ use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::DomStructure;
+use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use rustc_hash::FxHashSet;
 use serde_json::Value;
 
@@ -175,7 +176,7 @@ fn substitute_is_branch(
 /// Record an argument `ComplexSelector` as unreachable, keyed by its start
 /// offset — upstream's `metadata.used = false` on that node.
 fn mark_branch_unused(inner_complex: &Value, ctx: &CssContext) {
-    let Some(start) = inner_complex.get("start").and_then(|s| s.as_u64()) else {
+    let Some(start) = inner_complex.field("start").and_then(|s| s.as_u64()) else {
         return;
     };
     ctx.unused_branches
@@ -206,26 +207,29 @@ fn collect_is_where_unused_warnings(
     ctx: &CssContext,
     warnings: &mut Vec<CssUnusedWarning>,
 ) {
-    let rel_selectors = match complex_selector.get("children").and_then(|c| c.as_array()) {
+    let rel_selectors = match complex_selector
+        .field("children")
+        .and_then(|c| c.as_array())
+    {
         Some(rs) => rs,
         None => return,
     };
 
     for (ri, rel) in rel_selectors.iter().enumerate() {
-        let selectors = match rel.get("selectors").and_then(|s| s.as_array()) {
+        let selectors = match rel.field("selectors").and_then(|s| s.as_array()) {
             Some(s) => s,
             None => continue,
         };
 
         for (si, sel) in selectors.iter().enumerate() {
-            let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            let sel_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
+            let sel_name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
             if sel_type == "PseudoClassSelector"
                 && (sel_name == "is" || sel_name == "where" || sel_name == "has")
-                && let Some(args) = sel.get("args")
+                && let Some(args) = sel.field("args")
                 && !args.is_null()
-                && let Some(children) = args.get("children").and_then(|c| c.as_array())
+                && let Some(children) = args.field("children").and_then(|c| c.as_array())
             {
                 // A `:has()` argument is matched against the subject's subtree, not
                 // substituted into the enclosing chain, and upstream's `css-warn.js`
@@ -249,7 +253,7 @@ fn collect_is_where_unused_warnings(
                     // the official compiler assumes they match (can't determine
                     // unused for cross-component selectors).
                     let inner_parts = inner_complex
-                        .get("children")
+                        .field("children")
                         .and_then(|c| c.as_array())
                         .map(|a| a.len())
                         .unwrap_or(0);
@@ -268,10 +272,10 @@ fn collect_is_where_unused_warnings(
                     // bare `.a` element exists. Mirrors upstream marking each
                     // `:is` argument's `metadata.used` during the real walk.
                     let branch_selectors = inner_complex
-                        .get("children")
+                        .field("children")
                         .and_then(|c| c.as_array())
                         .and_then(|a| a.first())
-                        .and_then(|r| r.get("selectors"))
+                        .and_then(|r| r.field("selectors"))
                         .and_then(|s| s.as_array());
 
                     let unused = match branch_selectors {
@@ -299,11 +303,11 @@ fn collect_is_where_unused_warnings(
                     if unused {
                         mark_branch_unused(inner_complex, ctx);
                         let start = inner_complex
-                            .get("start")
+                            .field("start")
                             .and_then(|s| s.as_u64())
                             .unwrap_or(0) as u32;
                         let end = inner_complex
-                            .get("end")
+                            .field("end")
                             .and_then(|e| e.as_u64())
                             .unwrap_or(0) as u32;
                         let text = get_complex_selector_text(inner_complex, css_source, css_start);
@@ -329,7 +333,7 @@ fn collect_unused_warnings_from_nodes<'a>(
     in_global_block: bool,
 ) {
     for node in nodes {
-        if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+        if let Some(node_type) = node.field("type").and_then(|t| t.as_str()) {
             match node_type {
                 "Rule" => {
                     // Check if this rule creates a :global block context for its children
@@ -341,9 +345,9 @@ fn collect_unused_warnings_from_nodes<'a>(
                     // But still check the current rule's own selector even if it contains :global
                     // (e.g., `.unused :global { ... }` should warn about `.unused :global`).
                     if !in_global_block
-                        && let Some(prelude) = node.get("prelude")
+                        && let Some(prelude) = node.field("prelude")
                         && let Some(complex_selectors) =
-                            prelude.get("children").and_then(|c| c.as_array())
+                            prelude.field("children").and_then(|c| c.as_array())
                     {
                         // Do NOT push the current rule's prelude before checking its own
                         // selectors. parent_preludes should only contain ancestor preludes.
@@ -353,12 +357,12 @@ fn collect_unused_warnings_from_nodes<'a>(
                             let is_unused = is_complex_selector_unused(complex_selector, ctx);
                             if is_unused {
                                 let start = complex_selector
-                                    .get("start")
+                                    .field("start")
                                     .and_then(|s| s.as_u64())
                                     .unwrap_or(0)
                                     as u32;
                                 let end = complex_selector
-                                    .get("end")
+                                    .field("end")
                                     .and_then(|e| e.as_u64())
                                     .unwrap_or(0) as u32;
                                 let text = get_complex_selector_text(
@@ -389,11 +393,11 @@ fn collect_unused_warnings_from_nodes<'a>(
                     }
 
                     // Recursively check nested rules
-                    if let Some(block) = node.get("block")
-                        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                    if let Some(block) = node.field("block")
+                        && let Some(children) = block.field("children").and_then(|c| c.as_array())
                     {
                         // Push parent prelude for nested context
-                        if let Some(prelude) = node.get("prelude") {
+                        if let Some(prelude) = node.field("prelude") {
                             ctx.parent_preludes.borrow_mut().push(prelude);
                         }
                         collect_unused_warnings_from_nodes(
@@ -404,18 +408,18 @@ fn collect_unused_warnings_from_nodes<'a>(
                             warnings,
                             children_in_global_block,
                         );
-                        if node.get("prelude").is_some() {
+                        if node.field("prelude").is_some() {
                             ctx.parent_preludes.borrow_mut().pop();
                         }
                     }
                 }
                 "Atrule" => {
-                    if let Some(block) = node.get("block")
-                        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                    if let Some(block) = node.field("block")
+                        && let Some(children) = block.field("children").and_then(|c| c.as_array())
                     {
                         // Check if this is @keyframes or @page - selectors inside these are not checked
                         // @page contains declarations and margin at-rules, not selectors
-                        let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let name = node.field("name").and_then(|n| n.as_str()).unwrap_or("");
                         let skip_children = name == "keyframes"
                             || name == "-webkit-keyframes"
                             || name == "-moz-keyframes"
@@ -567,10 +571,10 @@ fn render_stylesheet_internal(
         let mut writer = transform_css(children, &selector, hash, css_content, css_start, &ctx);
         if let Some(stylesheet) = ast {
             for comment in &stylesheet.comments {
-                if let Some(start) = comment.get("start").and_then(Value::as_u64) {
+                if let Some(start) = comment.field("start").and_then(Value::as_u64) {
                     writer.mark(start as usize);
                 }
-                if let Some(end) = comment.get("end").and_then(Value::as_u64) {
+                if let Some(end) = comment.field("end").and_then(Value::as_u64) {
                     writer.mark(end as usize);
                 }
             }
@@ -719,14 +723,14 @@ fn collect_keyframe_names_from_node(
     keyframes: &mut FxHashSet<String>,
     in_global_block: bool,
 ) {
-    let node_type = node.get("type").and_then(|t| t.as_str());
+    let node_type = node.field("type").and_then(|t| t.as_str());
     match node_type {
         Some("Atrule") => {
-            let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = node.field("name").and_then(|n| n.as_str()).unwrap_or("");
             if matches!(
                 name,
                 "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
-            ) && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+            ) && let Some(prelude) = node.field("prelude").and_then(|p| p.as_str())
             {
                 let keyframe_name = prelude.trim();
                 // Don't collect keyframes that start with -global- or are inside :global{} blocks
@@ -734,8 +738,8 @@ fn collect_keyframe_names_from_node(
                     keyframes.insert(keyframe_name.to_string());
                 }
             }
-            if let Some(block) = node.get("block")
-                && let Some(children) = block.get("children").and_then(|c| c.as_array())
+            if let Some(block) = node.field("block")
+                && let Some(children) = block.field("children").and_then(|c| c.as_array())
             {
                 for child in children {
                     collect_keyframe_names_from_node(child, keyframes, in_global_block);
@@ -748,8 +752,8 @@ fn collect_keyframe_names_from_node(
             let is_global = selector_contains_global_block(node);
             let child_in_global = in_global_block || is_global;
 
-            if let Some(block) = node.get("block")
-                && let Some(children) = block.get("children").and_then(|c| c.as_array())
+            if let Some(block) = node.field("block")
+                && let Some(children) = block.field("children").and_then(|c| c.as_array())
             {
                 for child in children {
                     collect_keyframe_names_from_node(child, keyframes, child_in_global);
@@ -1221,10 +1225,10 @@ fn emit_selector(
 }
 
 fn mark_node(output: &mut CssWriter, node: &Value) {
-    if let Some(start) = node.get("start").and_then(|s| s.as_u64()) {
+    if let Some(start) = node.field("start").and_then(|s| s.as_u64()) {
         output.mark(start as usize);
     }
-    if let Some(end) = node.get("end").and_then(|e| e.as_u64()) {
+    if let Some(end) = node.field("end").and_then(|e| e.as_u64()) {
         output.mark(end as usize);
     }
 }
@@ -1237,8 +1241,8 @@ fn mark_tree(output: &mut CssWriter, node: &Value) {
         Value::Object(map) => {
             if map.contains_key("start") && map.contains_key("type") {
                 mark_node(output, node);
-                let name = map.get("name").and_then(|n| n.as_str());
-                match map.get("type").and_then(|t| t.as_str()) {
+                let name = map.field("name").and_then(|n| n.as_str());
+                match map.field("type").and_then(|t| t.as_str()) {
                     Some("PseudoClassSelector")
                         if !matches!(name, Some("is" | "where" | "has" | "not")) =>
                     {
@@ -1278,7 +1282,7 @@ fn mark_tree(output: &mut CssWriter, node: &Value) {
 /// A block copied through verbatim still has its declarations visited.
 fn mark_block(output: &mut CssWriter, block: &Value) {
     mark_node(output, block);
-    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = block.field("children").and_then(|c| c.as_array()) {
         for child in children {
             mark_node(output, child);
         }
@@ -1342,7 +1346,7 @@ fn transform_node_preserving<'a>(
     ctx: &CssContext<'a>,
     parent_has_local_selectors: bool,
 ) {
-    match node.get("type").and_then(|t| t.as_str()) {
+    match node.field("type").and_then(|t| t.as_str()) {
         Some("Rule") => {
             transform_rule_preserving(
                 node,
@@ -1379,12 +1383,12 @@ fn transform_node_preserving<'a>(
 /// Check if a rule is empty (no declarations, and any nested rules are either unused or empty).
 /// This follows the official Svelte implementation's is_empty() function.
 fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: bool) -> bool {
-    let block = match rule.get("block") {
+    let block = match rule.field("block") {
         Some(b) => b,
         None => return true,
     };
 
-    let children = match block.get("children").and_then(|c| c.as_array()) {
+    let children = match block.field("children").and_then(|c| c.as_array()) {
         Some(c) => c,
         None => return true,
     };
@@ -1398,7 +1402,7 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
     let this_is_global_block = is_in_global_block;
 
     for child in children {
-        let child_type = child.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let child_type = child.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
         match child_type {
             "Declaration" => return false, // Has a declaration, not empty
@@ -1406,13 +1410,13 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
                 // Push the PARENT rule's prelude for NestingSelector resolution
                 // so that check_selector_unused on the child rule can resolve & correctly.
                 // The parent rule is the current `rule` parameter.
-                let rule_prelude = rule.get("prelude");
+                let rule_prelude = rule.field("prelude");
                 if let Some(rp) = rule_prelude {
                     ctx.parent_preludes.borrow_mut().push(rp);
                 }
 
                 // Check if the nested rule is used
-                let is_used = if let Some(prelude) = child.get("prelude") {
+                let is_used = if let Some(prelude) = child.field("prelude") {
                     check_selector_unused(prelude, ctx) == UnusedStatus::Used
                 } else {
                     true
@@ -1434,11 +1438,11 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
                 // Mirrors upstream: `if (child.block === null || child.block.children.length > 0) return false;`
                 // i.e. a blockless at-rule (like @import) or an at-rule with
                 // block content makes the rule non-empty.
-                let block_is_null = child.get("block").is_none_or(|b| b.is_null());
+                let block_is_null = child.field("block").is_none_or(|b| b.is_null());
                 if block_is_null
                     || child
-                        .get("block")
-                        .and_then(|b| b.get("children"))
+                        .field("block")
+                        .and_then(|b| b.field("children"))
                         .and_then(|c| c.as_array())
                         .is_some_and(|atrule_children| !atrule_children.is_empty())
                 {
@@ -1454,20 +1458,20 @@ fn is_rule_empty<'a>(rule: &'a Value, ctx: &CssContext<'a>, is_in_global_block: 
 
 /// Check if a rule is a :global block (selector is just `:global` without arguments)
 fn is_global_block(node: &Value) -> bool {
-    if let Some(prelude) = node.get("prelude")
-        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    if let Some(prelude) = node.field("prelude")
+        && let Some(children) = prelude.field("children").and_then(|c| c.as_array())
         && children.len() == 1
         && let Some(complex) = children.first()
-        && let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array())
+        && let Some(relative_selectors) = complex.field("children").and_then(|c| c.as_array())
         && relative_selectors.len() == 1
         && let Some(rel) = relative_selectors.first()
-        && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
+        && let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array())
         && selectors.len() == 1
         && let Some(sel) = selectors.first()
     {
-        return sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
-            && sel.get("args").is_none();
+        return sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && sel.field("name").and_then(|n| n.as_str()) == Some("global")
+            && sel.field("args").is_none();
     }
     false
 }
@@ -1475,20 +1479,20 @@ fn is_global_block(node: &Value) -> bool {
 /// Check if a rule starts with :global (with or without arguments)
 /// This includes both `:global { ... }` and `:global(.x) { ... }`
 fn is_global_selector_rule(node: &Value) -> bool {
-    if let Some(prelude) = node.get("prelude")
-        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    if let Some(prelude) = node.field("prelude")
+        && let Some(children) = prelude.field("children").and_then(|c| c.as_array())
         && !children.is_empty()
     {
         // Check each complex selector - if ANY starts with :global, this is a global block
         for complex in children {
-            if let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array())
+            if let Some(relative_selectors) = complex.field("children").and_then(|c| c.as_array())
                 && !relative_selectors.is_empty()
                 && let Some(rel) = relative_selectors.first()
-                && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
+                && let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array())
                 && !selectors.is_empty()
                 && let Some(sel) = selectors.first()
-                && sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                && sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && sel.field("name").and_then(|n| n.as_str()) == Some("global")
             {
                 return true;
             }
@@ -1500,18 +1504,18 @@ fn is_global_selector_rule(node: &Value) -> bool {
 /// Check if a rule's selector contains `:global` without arguments anywhere
 /// This handles cases like `p :global { ... }` where :global is not the first selector
 fn selector_contains_global_block(node: &Value) -> bool {
-    if let Some(prelude) = node.get("prelude")
-        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    if let Some(prelude) = node.field("prelude")
+        && let Some(children) = prelude.field("children").and_then(|c| c.as_array())
     {
         for complex in children {
-            if let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+            if let Some(relative_selectors) = complex.field("children").and_then(|c| c.as_array()) {
                 for rel in relative_selectors {
-                    if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+                    if let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) {
                         for sel in selectors {
-                            if sel.get("type").and_then(|t| t.as_str())
+                            if sel.field("type").and_then(|t| t.as_str())
                                 == Some("PseudoClassSelector")
-                                && sel.get("name").and_then(|n| n.as_str()) == Some("global")
-                                && sel.get("args").is_none()
+                                && sel.field("name").and_then(|n| n.as_str()) == Some("global")
+                                && sel.field("args").is_none()
                             {
                                 return true;
                             }
@@ -1569,10 +1573,10 @@ fn push_minified_declaration(
 }
 
 fn has_nested_rules(block: &Value) -> bool {
-    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = block.field("children").and_then(|c| c.as_array()) {
         children.iter().any(|child| {
             matches!(
-                child.get("type").and_then(|t| t.as_str()),
+                child.field("type").and_then(|t| t.as_str()),
                 Some("Rule") | Some("Atrule")
             )
         })
@@ -1584,8 +1588,8 @@ fn has_nested_rules(block: &Value) -> bool {
 /// Check if a rule has local selectors (i.e., selectors that need scoping)
 /// A rule has local selectors if any of its complex selectors is NOT entirely global/global-like
 fn rule_has_local_selectors(node: &Value) -> bool {
-    if let Some(prelude) = node.get("prelude")
-        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    if let Some(prelude) = node.field("prelude")
+        && let Some(children) = prelude.field("children").and_then(|c| c.as_array())
     {
         for complex in children {
             if !is_complex_selector_global_like(complex) {
@@ -1599,7 +1603,7 @@ fn rule_has_local_selectors(node: &Value) -> bool {
 /// Check if a complex selector is entirely global or global-like
 /// This means all its relative selectors are either :global() or global-like (:root, :host, etc.)
 fn is_complex_selector_global_like(complex: &Value) -> bool {
-    if let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+    if let Some(relative_selectors) = complex.field("children").and_then(|c| c.as_array()) {
         for rel in relative_selectors {
             if !is_relative_selector_global_like(rel) {
                 return false;
@@ -1613,26 +1617,26 @@ fn is_complex_selector_global_like(complex: &Value) -> bool {
 
 /// A relative selector that is nothing but `:global` / `:global(...)`.
 fn relative_selector_is_only_global(rel: &Value) -> bool {
-    rel.get("selectors")
+    rel.field("selectors")
         .and_then(|s| s.as_array())
         .is_some_and(|sels| {
             sels.len() == 1
-                && sels[0].get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && sels[0].get("name").and_then(|n| n.as_str()) == Some("global")
+                && sels[0].field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && sels[0].field("name").and_then(|n| n.as_str()) == Some("global")
         })
 }
 
 /// Check if a relative selector is global or global-like
 fn is_relative_selector_global_like(rel: &Value) -> bool {
-    if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) {
         if selectors.is_empty() {
             return true;
         }
 
         // Check if the first selector is :global
         let first = &selectors[0];
-        let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let first_type = first.field("type").and_then(|t| t.as_str()).unwrap_or("");
+        let first_name = first.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
         // :global() is global
         if first_type == "PseudoClassSelector" && first_name == "global" {
@@ -1646,12 +1650,12 @@ fn is_relative_selector_global_like(rel: &Value) -> bool {
 
         // Check for :root (without :has)
         let has_root = selectors.iter().any(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("root")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("root")
         });
         let has_has = selectors.iter().any(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("has")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("has")
         });
         if has_root && !has_has {
             return true;
@@ -1659,7 +1663,7 @@ fn is_relative_selector_global_like(rel: &Value) -> bool {
 
         // Check if all selectors are pseudo and first is view-transition*
         let all_pseudo = selectors.iter().all(|s| {
-            let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let sel_type = s.field("type").and_then(|t| t.as_str()).unwrap_or("");
             sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
         });
         if all_pseudo && first_type == "PseudoElementSelector" {
@@ -1701,7 +1705,7 @@ fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
     // while keeping selectors for classes that appear in dynamic expressions.
 
     // Check each complex selector in the selector list
-    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = prelude.field("children").and_then(|c| c.as_array()) {
         let mut has_no_match = false;
         let mut all_unused = true;
 
@@ -1763,8 +1767,8 @@ fn first_reachable_relative_selector(rel_selectors: &[Value]) -> usize {
     truncate_trailing_globals(rel_selectors)
         .iter()
         .rposition(|rel| {
-            rel.get("combinator")
-                .and_then(|combinator| combinator.get("name"))
+            rel.field("combinator")
+                .and_then(|combinator| combinator.field("name"))
                 .and_then(|name| name.as_str())
                 .is_some_and(|name| !matches!(name, " " | ">" | "+" | "~"))
         })
@@ -1774,7 +1778,7 @@ fn first_reachable_relative_selector(rel_selectors: &[Value]) -> usize {
 /// The part of a complex selector upstream's backward walk actually visits, or
 /// `None` when that is the whole thing.
 fn reachable_complex_selector(complex: &Value) -> Option<Value> {
-    let children = complex.get("children").and_then(|c| c.as_array())?;
+    let children = complex.field("children").and_then(|c| c.as_array())?;
     let from = first_reachable_relative_selector(children);
     if from == 0 || from >= children.len() {
         return None;
@@ -1812,7 +1816,7 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     // element in this component, yet the global-anchored rule must survive). A
     // nested selector with no `&` (an implicit descendant like `.foo`) stays
     // scoped and is pruned normally; a `&` under a SCOPED parent likewise.
-    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array())
+    if let Some(rel_selectors) = complex.field("children").and_then(|c| c.as_array())
         && nesting_resolves_to_global_parent(rel_selectors, ctx)
     {
         return false;
@@ -1824,7 +1828,7 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     // that shares its compound (`:global(img).k`) or its chain (`.zz :global(img)`)
     // with a local part is reported as usual.
     if complex
-        .get("children")
+        .field("children")
         .and_then(|c| c.as_array())
         .is_some_and(|rels| rels.len() == 1 && relative_selector_is_only_global(&rels[0]))
     {
@@ -1843,7 +1847,7 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     }
 
     // Get the relative selectors (like "div > span" has multiple relative selectors)
-    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+    if let Some(rel_selectors) = complex.field("children").and_then(|c| c.as_array()) {
         // Check for :host > element pattern FIRST (before the global-like check)
         // because :host > span can be unused if span is not a root child
         if is_host_child_selector_unused(rel_selectors, ctx) {
@@ -1858,14 +1862,14 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
         // Check if the first selector is :host without children (global-like)
         let first_is_host_only = rel_selectors.len() == 1
             && rel_selectors.first().is_some_and(|rel| {
-                rel.get("selectors")
+                rel.field("selectors")
                     .and_then(|s| s.as_array())
                     .is_some_and(|arr| {
                         arr.len() == 1
                             && arr.first().is_some_and(|s| {
-                                s.get("type").and_then(|t| t.as_str())
+                                s.field("type").and_then(|t| t.as_str())
                                     == Some("PseudoClassSelector")
-                                    && s.get("name").and_then(|n| n.as_str()) == Some("host")
+                                    && s.field("name").and_then(|n| n.as_str()) == Some("host")
                             })
                     })
             });
@@ -1947,12 +1951,12 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
         let mut after_bare_global = false;
         for rel in rel_selectors {
             // Check each simple selector in this relative selector
-            if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+            if let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) {
                 // Check if this relative selector starts with bare :global (no args)
                 let starts_with_bare_global = selectors.first().is_some_and(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
-                        && s.get("args").is_none()
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("global")
+                        && s.field("args").is_none()
                 });
 
                 // If starts with bare :global, mark all subsequent selectors as global
@@ -1969,9 +1973,9 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
 
                 // Skip :host pseudo-classes (they're global-like)
                 let starts_with_host = selectors.first().is_some_and(|s| {
-                    let sel_type = s.get("type").and_then(|t| t.as_str());
+                    let sel_type = s.field("type").and_then(|t| t.as_str());
                     if sel_type == Some("PseudoClassSelector") {
-                        let name = s.get("name").and_then(|n| n.as_str());
+                        let name = s.field("name").and_then(|n| n.as_str());
                         name == Some("host")
                     } else {
                         false
@@ -1986,12 +1990,12 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                 // :root.foo, .foo:root, :root.unknown should all be kept
                 // unless :root is combined with :has (which needs to check inner selectors)
                 let has_root = selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("root")
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("root")
                 });
                 let has_has = selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("has")
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("has")
                 });
 
                 // Upstream `truncate` drops every simple selector except `:has`
@@ -2002,9 +2006,9 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                         let has_only: Vec<Value> = selectors
                             .iter()
                             .filter(|s| {
-                                s.get("type").and_then(|t| t.as_str())
+                                s.field("type").and_then(|t| t.as_str())
                                     == Some("PseudoClassSelector")
-                                    && s.get("name").and_then(|n| n.as_str()) == Some("has")
+                                    && s.field("name").and_then(|n| n.as_str()) == Some("has")
                             })
                             .cloned()
                             .collect();
@@ -2019,8 +2023,8 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                 // This handles :global(.foo) - with args
                 let is_entirely_global = selectors.len() == 1
                     && selectors.first().is_some_and(|s| {
-                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.field("name").and_then(|n| n.as_str()) == Some("global")
                     });
 
                 if is_entirely_global {
@@ -2029,9 +2033,9 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
 
                 for sel in selectors {
                     // Skip :global() selectors themselves, but check other selectors
-                    let is_global_selector = sel.get("type").and_then(|t| t.as_str())
+                    let is_global_selector = sel.field("type").and_then(|t| t.as_str())
                         == Some("PseudoClassSelector")
-                        && sel.get("name").and_then(|n| n.as_str()) == Some("global");
+                        && sel.field("name").and_then(|n| n.as_str()) == Some("global");
 
                     if is_global_selector {
                         continue;
@@ -2067,7 +2071,7 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
 
     // Check each parent prelude's subject selector against DOM elements
     for pp in parent_preludes.iter() {
-        let complex_selectors = match pp.get("children").and_then(|c| c.as_array()) {
+        let complex_selectors = match pp.field("children").and_then(|c| c.as_array()) {
             Some(cs) => cs,
             None => continue,
         };
@@ -2078,7 +2082,7 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
             // The compound scan below reads `:has(...)` as constraining nothing,
             // so a parent whose only reason to be unused is its `:has` looked
             // alive and every rule nested in it survived with it.
-            if let Some(rels) = complex.get("children").and_then(|c| c.as_array())
+            if let Some(rels) = complex.field("children").and_then(|c| c.as_array())
                 && without_parent_preludes(ctx, || is_has_selector_unused(rels, ctx))
             {
                 return false;
@@ -2088,32 +2092,32 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
             let mut ids: Vec<String> = Vec::new();
             let mut elements: Vec<String> = Vec::new();
 
-            if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array())
+            if let Some(rel_selectors) = complex.field("children").and_then(|c| c.as_array())
                 && let Some(last_rel) = rel_selectors.last()
-                && let Some(selectors) = last_rel.get("selectors").and_then(|s| s.as_array())
+                && let Some(selectors) = last_rel.field("selectors").and_then(|s| s.as_array())
             {
                 for sel in selectors {
-                    let sel_type = sel.get("type").and_then(|t| t.as_str());
+                    let sel_type = sel.field("type").and_then(|t| t.as_str());
                     match sel_type {
                         Some("ClassSelector") => {
-                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                                 classes.push(decode_css_escape(name));
                             }
                         }
                         Some("IdSelector") => {
-                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                                 ids.push(decode_css_escape(name));
                             }
                         }
                         Some("TypeSelector") => {
-                            if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                            if let Some(name) = sel.field("name").and_then(|n| n.as_str())
                                 && name != "*"
                             {
                                 elements.push(decode_css_escape(name));
                             }
                         }
                         Some("PseudoClassSelector") => {
-                            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
                             // :global(...) always matches
                             if name == "global" {
                                 return true;
@@ -2220,27 +2224,27 @@ fn is_nested_selector_unused_against_ancestors(rel_selectors: &[Value], ctx: &Cs
 /// True when `rel` is a compound that means exactly `&` — a lone
 /// NestingSelector, or a single-branch `:is(&)` / `:where(&)` around one.
 fn compound_is_nesting_only(rel: &Value) -> bool {
-    let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+    let Some(sels) = rel.field("selectors").and_then(|s| s.as_array()) else {
         return false;
     };
     if sels.len() != 1 {
         return false;
     }
     let sel = &sels[0];
-    match sel.get("type").and_then(|t| t.as_str()) {
+    match sel.field("type").and_then(|t| t.as_str()) {
         Some("NestingSelector") => true,
         Some("PseudoClassSelector") => {
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             if name != "is" && name != "where" {
                 return false;
             }
-            sel.get("args")
-                .and_then(|a| a.get("children"))
+            sel.field("args")
+                .and_then(|a| a.field("children"))
                 .and_then(|c| c.as_array())
                 .is_some_and(|branches| {
                     branches.len() == 1
                         && branches[0]
-                            .get("children")
+                            .field("children")
                             .and_then(|c| c.as_array())
                             .is_some_and(|rels| {
                                 rels.len() == 1 && compound_is_nesting_only(&rels[0])
@@ -2252,8 +2256,8 @@ fn compound_is_nesting_only(rel: &Value) -> bool {
 }
 
 fn combinator_name(rel: &Value) -> &str {
-    rel.get("combinator")
-        .and_then(|c| c.get("name"))
+    rel.field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ")
 }
@@ -2311,7 +2315,7 @@ fn resolve_explicit_nesting_chains(
                 chain.push(rel.clone());
                 continue;
             }
-            let combinator = rel.get("combinator").cloned();
+            let combinator = rel.field("combinator").cloned();
             let last = parent.len() - 1;
             for (j, parent_rel) in parent.iter().enumerate() {
                 // `&.x` constrains the element the parent chain ends on, so the
@@ -2366,7 +2370,7 @@ fn resolve_subject_nesting_conjunctions(
         }
     }
 
-    let subject_combinator = rel_selectors[last].get("combinator").cloned();
+    let subject_combinator = rel_selectors[last].field("combinator").cloned();
     let mut out = Vec::with_capacity(parent_chains.len());
     for parent in parent_chains {
         if parent
@@ -2414,7 +2418,7 @@ fn is_structural_chain_conjunction_unused(chains: &[Vec<Value>], ctx: &CssContex
             }
         }
         for rel in chain {
-            let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+            let Some(sels) = rel.field("selectors").and_then(|s| s.as_array()) else {
                 return false;
             };
             if sels.is_empty() || !sels.iter().all(structural_simple_selector_is_evaluable) {
@@ -2447,11 +2451,11 @@ fn is_structural_chain_conjunction_unused(chains: &[Vec<Value>], ctx: &CssContex
 /// `&`-nested selector under `:root { … }` must still be pruned normally.
 fn nesting_resolves_to_global_parent(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     let has_nesting = rel_selectors.iter().any(|rel| {
-        rel.get("selectors")
+        rel.field("selectors")
             .and_then(|s| s.as_array())
             .is_some_and(|arr| {
                 arr.iter()
-                    .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+                    .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
             })
     });
     if !has_nesting {
@@ -2467,20 +2471,20 @@ fn nesting_resolves_to_global_parent(rel_selectors: &[Value], ctx: &CssContext) 
     // component-local test and are kept.)
     for rel in rel_selectors {
         if let Some(comb) = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             && (comb == "+" || comb == "~")
         {
             return false;
         }
         if rel
-            .get("selectors")
+            .field("selectors")
             .and_then(|s| s.as_array())
             .is_some_and(|arr| {
                 arr.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("has")
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("has")
                 })
             })
         {
@@ -2495,12 +2499,12 @@ fn nesting_resolves_to_global_parent(rel_selectors: &[Value], ctx: &CssContext) 
     // The parent is global for `&`-anchoring only if it has a complex selector
     // whose every relative selector is a `:global(...)` pseudo-class.
     parent
-        .get("children")
+        .field("children")
         .and_then(|c| c.as_array())
         .is_some_and(|complexes| {
             complexes.iter().any(|complex| {
                 complex
-                    .get("children")
+                    .field("children")
                     .and_then(|c| c.as_array())
                     .is_some_and(|rels| {
                         !rels.is_empty() && rels.iter().all(relative_selector_is_global_pseudo)
@@ -2513,12 +2517,12 @@ fn nesting_resolves_to_global_parent(rel_selectors: &[Value], ctx: &CssContext) 
 /// without args) — i.e. it is explicitly global, as opposed to merely
 /// "global-like" (`:root` / `:host` / view-transition pseudo-elements).
 fn relative_selector_is_global_pseudo(rel: &Value) -> bool {
-    rel.get("selectors")
+    rel.field("selectors")
         .and_then(|s| s.as_array())
         .is_some_and(|arr| {
             arr.iter().any(|s| {
-                s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                    && s.field("name").and_then(|n| n.as_str()) == Some("global")
             })
         })
 }
@@ -2541,10 +2545,10 @@ fn is_nesting_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool
 
     // Look for relative selectors that contain NestingSelector combined with other selectors
     for rel in rel_selectors {
-        if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+        if let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) {
             let has_nesting = selectors
                 .iter()
-                .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+                .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
 
             if !has_nesting || selectors.len() < 2 {
                 // No NestingSelector, or NestingSelector alone (no compound)
@@ -2557,20 +2561,20 @@ fn is_nesting_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool
             let mut required_elements: Vec<String> = Vec::new();
 
             for sel in selectors {
-                let sel_type = sel.get("type").and_then(|t| t.as_str());
+                let sel_type = sel.field("type").and_then(|t| t.as_str());
                 match sel_type {
                     Some("ClassSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                             required_classes.push(decode_css_escape(name));
                         }
                     }
                     Some("IdSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                             required_ids.push(decode_css_escape(name));
                         }
                     }
                     Some("TypeSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                        if let Some(name) = sel.field("name").and_then(|n| n.as_str())
                             && name != "*"
                         {
                             required_elements.push(decode_css_escape(name));
@@ -2684,10 +2688,10 @@ fn is_pure_nesting_selector_unused(rel_selectors: &[Value], ctx: &CssContext) ->
     }
 
     let all_nesting = rel_selectors.iter().all(|rel| {
-        if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+        if let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) {
             selectors.len() == 1
                 && selectors.first().is_some_and(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                    s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector")
                 })
         } else {
             false
@@ -2700,10 +2704,10 @@ fn is_pure_nesting_selector_unused(rel_selectors: &[Value], ctx: &CssContext) ->
 
     // All combinators must be descendant (space) combinators
     let all_descendant = rel_selectors.iter().skip(1).all(|rel| {
-        let comb = rel.get("combinator");
+        let comb = rel.field("combinator");
         match comb {
             None => true, // No combinator = implicit descendant
-            Some(c) => c.get("name").and_then(|n| n.as_str()).unwrap_or(" ") == " ",
+            Some(c) => c.field("name").and_then(|n| n.as_str()).unwrap_or(" ") == " ",
         }
     });
 
@@ -2790,30 +2794,30 @@ fn extract_selector_constraints(
     ids: &mut Vec<String>,
     elements: &mut Vec<String>,
 ) {
-    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = prelude.field("children").and_then(|c| c.as_array()) {
         for complex in children {
-            if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+            if let Some(rel_selectors) = complex.field("children").and_then(|c| c.as_array()) {
                 // The last relative selector is the "subject" - the element the rule applies to
                 // For `.a .b .c`, the subject is `.c`
                 // For a simple selector like `.a`, the subject is `.a`
                 if let Some(last_rel) = rel_selectors.last()
-                    && let Some(selectors) = last_rel.get("selectors").and_then(|s| s.as_array())
+                    && let Some(selectors) = last_rel.field("selectors").and_then(|s| s.as_array())
                 {
                     for sel in selectors {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str());
+                        let sel_type = sel.field("type").and_then(|t| t.as_str());
                         match sel_type {
                             Some("ClassSelector") => {
-                                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                                     classes.push(decode_css_escape(name));
                                 }
                             }
                             Some("IdSelector") => {
-                                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                                     ids.push(decode_css_escape(name));
                                 }
                             }
                             Some("TypeSelector") => {
-                                if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                                if let Some(name) = sel.field("name").and_then(|n| n.as_str())
                                     && name != "*"
                                 {
                                     elements.push(decode_css_escape(name));
@@ -2834,33 +2838,36 @@ fn extract_selector_constraints(
 fn extract_selector_constraint_branches(
     prelude: &Value,
 ) -> Vec<(Vec<String>, Vec<String>, Vec<String>)> {
-    let Some(children) = prelude.get("children").and_then(|c| c.as_array()) else {
+    let Some(children) = prelude.field("children").and_then(|c| c.as_array()) else {
         return Vec::new();
     };
 
     children
         .iter()
         .filter_map(|complex| {
-            let last_rel = complex.get("children").and_then(|c| c.as_array())?.last()?;
-            let selectors = last_rel.get("selectors").and_then(|s| s.as_array())?;
+            let last_rel = complex
+                .field("children")
+                .and_then(|c| c.as_array())?
+                .last()?;
+            let selectors = last_rel.field("selectors").and_then(|s| s.as_array())?;
             let mut classes = Vec::new();
             let mut ids = Vec::new();
             let mut elements = Vec::new();
 
             for sel in selectors {
-                match sel.get("type").and_then(|t| t.as_str()) {
+                match sel.field("type").and_then(|t| t.as_str()) {
                     Some("ClassSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                             classes.push(decode_css_escape(name));
                         }
                     }
                     Some("IdSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                             ids.push(decode_css_escape(name));
                         }
                     }
                     Some("TypeSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                        if let Some(name) = sel.field("name").and_then(|n| n.as_str())
                             && name != "*"
                         {
                             elements.push(decode_css_escape(name));
@@ -2884,12 +2891,12 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     // Check if first selector is :host
     let first = &rel_selectors[0];
     let first_is_host = first
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .and_then(|arr| arr.first())
         .is_some_and(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("host")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("host")
         });
 
     // A `:root` compound without `:has` is global-like exactly like `:host`:
@@ -2897,13 +2904,13 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     // only be satisfied when the subject is a root child.
     let first_is_root = !first_is_host
         && first
-            .get("selectors")
+            .field("selectors")
             .and_then(|s| s.as_array())
             .is_some_and(|arr| {
                 let named = |n: &str| {
                     arr.iter().any(|s| {
-                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && s.get("name").and_then(|n2| n2.as_str()) == Some(n)
+                        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.field("name").and_then(|n2| n2.as_str()) == Some(n)
                     })
                 };
                 named("root") && !named("has")
@@ -2919,8 +2926,8 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     // Check if second selector uses child combinator (>)
     let second = &rel_selectors[1];
     let combinator = second
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ");
 
@@ -2929,11 +2936,11 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     }
 
     // Get the element type from the second selector
-    if let Some(selectors) = second.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = second.field("selectors").and_then(|s| s.as_array()) {
         for sel in selectors {
-            let sel_type = sel.get("type").and_then(|t| t.as_str());
+            let sel_type = sel.field("type").and_then(|t| t.as_str());
             if sel_type == Some("TypeSelector") {
-                if let Some(tag_name) = sel.get("name").and_then(|n| n.as_str()) {
+                if let Some(tag_name) = sel.field("name").and_then(|n| n.as_str()) {
                     // Universal selector might match
                     if tag_name == "*" {
                         return false;
@@ -2948,7 +2955,7 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
                     }
                 }
             } else if sel_type == Some("ClassSelector")
-                && let Some(class_name) = sel.get("name").and_then(|n| n.as_str())
+                && let Some(class_name) = sel.field("name").and_then(|n| n.as_str())
             {
                 // Check if any root child has this class
                 let is_root_child_with_class = ctx
@@ -2970,7 +2977,7 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
 /// This is stricter than "unused" - it means the selector absolutely cannot match
 /// due to mutually exclusive control flow branches
 fn is_sibling_combinator_no_match(complex: &Value, ctx: &CssContext) -> bool {
-    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+    if let Some(rel_selectors) = complex.field("children").and_then(|c| c.as_array()) {
         is_sibling_combinator_no_match_impl(rel_selectors, ctx)
     } else {
         false
@@ -3028,8 +3035,8 @@ fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext
     let mut sibling_combinator_found = false;
     for rel in rel_selectors.iter().skip(1) {
         let combinator = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
 
@@ -3049,8 +3056,8 @@ fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext
         let after = &rel_selectors[1];
 
         let combinator = after
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
 
@@ -3097,24 +3104,25 @@ fn relative_selector_is_outer_global(rel: &Value) -> bool {
     if is_global_like(rel) {
         return true;
     }
-    let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+    let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) else {
         return false;
     };
     let Some(first) = selectors.first() else {
         return false;
     };
-    let first_is_global = first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-        && first.get("name").and_then(|n| n.as_str()) == Some("global");
+    let first_is_global = first.field("type").and_then(|t| t.as_str())
+        == Some("PseudoClassSelector")
+        && first.field("name").and_then(|n| n.as_str()) == Some("global");
     if !first_is_global {
         return false;
     }
-    if first.get("args").is_none() {
+    if first.field("args").is_none() {
         return true; // bare :global
     }
     // `:global(...)` stays global only if every simple selector is pseudo.
     selectors.iter().all(|s| {
         matches!(
-            s.get("type").and_then(|t| t.as_str()),
+            s.field("type").and_then(|t| t.as_str()),
             Some("PseudoClassSelector") | Some("PseudoElementSelector")
         )
     })
@@ -3150,12 +3158,12 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
     // Check if the first selector is :global() - this affects how we check siblings
     let first_is_global = rel_selectors.first().is_some_and(|rel| {
-        rel.get("selectors")
+        rel.field("selectors")
             .and_then(|s| s.as_array())
             .and_then(|arr| arr.first())
             .is_some_and(|sel| {
-                sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                    && sel.field("name").and_then(|n| n.as_str()) == Some("global")
             })
     });
 
@@ -3163,8 +3171,8 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
     if first_is_global && rel_selectors.len() == 2 {
         let second = &rel_selectors[1];
         let combinator = second
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
 
@@ -3228,8 +3236,8 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
     for (i, rel) in rel_selectors.iter().enumerate().skip(1) {
         let combinator = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
 
@@ -3264,8 +3272,8 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         if !ctx.has_control_flow && sibling_idx >= 2 {
             // Check the combinator before the sibling pattern
             let parent_combinator = rel_selectors[sibling_idx - 1]
-                .get("combinator")
-                .and_then(|c| c.get("name"))
+                .field("combinator")
+                .and_then(|c| c.field("name"))
                 .and_then(|n| n.as_str())
                 .unwrap_or(" ");
 
@@ -3483,14 +3491,14 @@ fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
         is_groups: Vec::new(),
     };
     let Some(first) = rel
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .and_then(|a| a.first())
     else {
         return empty();
     };
-    if first.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
-        || first.get("name").and_then(|n| n.as_str()) != Some("global")
+    if first.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.field("name").and_then(|n| n.as_str()) != Some("global")
     {
         return empty();
     }
@@ -3501,13 +3509,13 @@ fn global_inner_selector_info(rel: &Value) -> SelectorInfo {
     // predicates rather than matching `.z` while ignoring its required `.a`
     // ancestor.
     if let Some(complex) = first
-        .get("args")
-        .and_then(|a| a.get("children"))
+        .field("args")
+        .and_then(|a| a.field("children"))
         .and_then(|c| c.as_array())
         .and_then(|c| c.first())
-        && let Some(rels) = complex.get("children").and_then(|c| c.as_array())
+        && let Some(rels) = complex.field("children").and_then(|c| c.as_array())
         && rels.len() == 1
-        && let Some(sels) = rels[0].get("selectors").and_then(|s| s.as_array())
+        && let Some(sels) = rels[0].field("selectors").and_then(|s| s.as_array())
     {
         return extract_selector_info_from_selectors(sels);
     }
@@ -3552,20 +3560,20 @@ fn matcher_matches_at(matcher: &SiblingMatcher, idx: usize, ctx: &CssContext) ->
 /// `:global(X)` relative selector, or `None`.
 fn global_inner_complex_rels(rel: &Value) -> Option<&Vec<Value>> {
     let first = rel
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .and_then(|a| a.first())?;
-    if first.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
-        || first.get("name").and_then(|n| n.as_str()) != Some("global")
+    if first.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+        || first.field("name").and_then(|n| n.as_str()) != Some("global")
     {
         return None;
     }
     let complex = first
-        .get("args")
-        .and_then(|a| a.get("children"))
+        .field("args")
+        .and_then(|a| a.field("children"))
         .and_then(|c| c.as_array())
         .and_then(|c| c.first())?;
-    complex.get("children").and_then(|c| c.as_array())
+    complex.field("children").and_then(|c| c.as_array())
 }
 
 /// True when the structural ancestor walk models the real DOM ancestry.
@@ -3638,8 +3646,8 @@ fn chain_is_structurally_evaluable(rels: &[Value]) -> bool {
     }
     for rel in rels.iter().skip(1) {
         let comb = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
         if comb != " " && comb != ">" {
@@ -3647,7 +3655,7 @@ fn chain_is_structurally_evaluable(rels: &[Value]) -> bool {
         }
     }
     rels.iter().all(|rel| {
-        rel.get("selectors")
+        rel.field("selectors")
             .and_then(|s| s.as_array())
             .is_some_and(|sels| {
                 !sels.is_empty() && sels.iter().all(structural_simple_selector_is_evaluable)
@@ -3682,8 +3690,8 @@ fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
     }
     for rel in rels.iter().skip(1) {
         let comb = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
         if comb != " " && comb != ">" && comb != "+" && comb != "~" {
@@ -3691,7 +3699,7 @@ fn level_is_structurally_evaluable(rels: &[Value]) -> bool {
         }
     }
     rels.iter().all(|rel| {
-        rel.get("selectors")
+        rel.field("selectors")
             .and_then(|s| s.as_array())
             .is_some_and(|sels| {
                 !sels.is_empty() && sels.iter().all(structural_simple_selector_is_evaluable)
@@ -3707,17 +3715,17 @@ fn head_nesting_level_is_evaluable(rels: &[Value]) -> bool {
     let Some((head, rest)) = rels.split_first() else {
         return false;
     };
-    let Some(head_sels) = head.get("selectors").and_then(|s| s.as_array()) else {
+    let Some(head_sels) = head.field("selectors").and_then(|s| s.as_array()) else {
         return false;
     };
     if !head_sels
         .iter()
-        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+        .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
     {
         return false;
     }
     if !head_sels.iter().all(|s| {
-        s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+        s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector")
             || structural_simple_selector_is_evaluable(s)
     }) {
         return false;
@@ -3731,20 +3739,20 @@ fn head_nesting_level_is_evaluable(rels: &[Value]) -> bool {
 /// anything else, including a compound that mixes `:is()` with other simple
 /// selectors — upstream only expands a *bare* functional-pseudo compound.
 fn functional_pseudo_selector_list(rel: &Value) -> Option<&Vec<Value>> {
-    let sels = rel.get("selectors").and_then(|s| s.as_array())?;
+    let sels = rel.field("selectors").and_then(|s| s.as_array())?;
     if sels.len() != 1 {
         return None;
     }
     let sel = &sels[0];
-    if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+    if sel.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
         return None;
     }
-    let name = sel.get("name").and_then(|n| n.as_str())?;
+    let name = sel.field("name").and_then(|n| n.as_str())?;
     if name != "is" && name != "where" {
         return None;
     }
-    sel.get("args")
-        .and_then(|a| a.get("children"))
+    sel.field("args")
+        .and_then(|a| a.field("children"))
         .and_then(|c| c.as_array())
 }
 
@@ -3766,7 +3774,7 @@ fn collect_relative_selector_branches(rels: &[Value], out: &mut Vec<Vec<Value>>)
         && let Some(inner_complexes) = functional_pseudo_selector_list(&rels[0])
     {
         for complex in inner_complexes {
-            if let Some(inner_rels) = complex.get("children").and_then(|c| c.as_array()) {
+            if let Some(inner_rels) = complex.field("children").and_then(|c| c.as_array()) {
                 collect_relative_selector_branches(inner_rels, out);
             }
         }
@@ -3779,11 +3787,11 @@ fn collect_relative_selector_branches(rels: &[Value], out: &mut Vec<Vec<Value>>)
 /// comma branch) and ORs the match across all of them instead of requiring a
 /// single complex selector.
 fn collect_level_branches(prelude: &Value, out: &mut Vec<Vec<Value>>) {
-    let Some(children) = prelude.get("children").and_then(|c| c.as_array()) else {
+    let Some(children) = prelude.field("children").and_then(|c| c.as_array()) else {
         return;
     };
     for complex in children {
-        if let Some(rels) = complex.get("children").and_then(|c| c.as_array()) {
+        if let Some(rels) = complex.field("children").and_then(|c| c.as_array()) {
             collect_relative_selector_branches(rels, out);
         }
     }
@@ -3796,7 +3804,7 @@ fn collect_level_branches(prelude: &Value, out: &mut Vec<Vec<Value>>) {
 fn with_descendant_head(rel: &Value) -> Value {
     let mut cloned = rel.clone();
     let is_null = cloned
-        .get("combinator")
+        .field("combinator")
         .map(|c| c.is_null())
         .unwrap_or(true);
     if is_null && let Value::Object(map) = &mut cloned {
@@ -3821,8 +3829,10 @@ fn with_descendant_head(rel: &Value) -> Value {
 /// `&` stands for, keeping the lower level's combinator. `None` when the head
 /// has no `&` (an implicit descendant) or the substitution is not expressible.
 fn merge_nesting_head(lower_subject: &Value, head: &Value) -> Option<Value> {
-    let head_selectors = head.get("selectors").and_then(|s| s.as_array())?;
-    let lower_selectors = lower_subject.get("selectors").and_then(|s| s.as_array())?;
+    let head_selectors = head.field("selectors").and_then(|s| s.as_array())?;
+    let lower_selectors = lower_subject
+        .field("selectors")
+        .and_then(|s| s.as_array())?;
     let merged = replace_nesting_in_selectors(head_selectors, lower_selectors)?;
     let mut out = lower_subject.clone();
     if let Value::Object(map) = &mut out {
@@ -3877,8 +3887,9 @@ fn build_parent_chains(preludes: &[&Value], level: usize) -> Option<Vec<Vec<Valu
 /// handled by [`extract_selector_info_resolving_nesting`]) are dropped;
 /// returns `None` when every branch is dropped or unevaluable.
 fn resolve_bare_nesting_chains(rel: &Value, ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
-    let sels = rel.get("selectors").and_then(|s| s.as_array())?;
-    if sels.len() != 1 || sels[0].get("type").and_then(|t| t.as_str()) != Some("NestingSelector") {
+    let sels = rel.field("selectors").and_then(|s| s.as_array())?;
+    if sels.len() != 1 || sels[0].field("type").and_then(|t| t.as_str()) != Some("NestingSelector")
+    {
         return None;
     }
     let parent_preludes = ctx.parent_preludes.borrow();
@@ -3908,7 +3919,7 @@ fn resolve_sibling_matcher(rel: &Value, ctx: &CssContext) -> SiblingMatcher {
 }
 
 fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
-    if let Some(selectors) = rel_selector.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = rel_selector.field("selectors").and_then(|s| s.as_array()) {
         extract_selector_info_from_selectors(selectors)
     } else {
         SelectorInfo {
@@ -3933,11 +3944,11 @@ fn extract_selector_info_resolving_nesting(rel: &Value, ctx: &CssContext) -> Sel
     let mut info = extract_selector_info(rel);
 
     let has_nesting = rel
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .is_some_and(|arr| {
             arr.iter()
-                .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+                .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
         });
     if !has_nesting {
         return info;
@@ -3962,13 +3973,13 @@ fn extract_selector_info_resolving_nesting(rel: &Value, ctx: &CssContext) -> Sel
             let Some(parent) = parent_preludes.last() else {
                 return info;
             };
-            if let Some(children) = parent.get("children").and_then(|c| c.as_array()) {
+            if let Some(children) = parent.field("children").and_then(|c| c.as_array()) {
                 for complex in children {
                     // The element `&` names is the parent's SUBJECT — its last
                     // relative selector, not its only one.
-                    if let Some(rels) = complex.get("children").and_then(|c| c.as_array())
+                    if let Some(rels) = complex.field("children").and_then(|c| c.as_array())
                         && let Some(last) = rels.last()
-                        && let Some(sels) = last.get("selectors").and_then(|s| s.as_array())
+                        && let Some(sels) = last.field("selectors").and_then(|s| s.as_array())
                     {
                         branches.push(extract_selector_info_from_selectors(sels));
                     }
@@ -3988,27 +3999,27 @@ fn extract_selector_info_resolving_nesting(rel: &Value, ctx: &CssContext) -> Sel
 fn extract_is_groups(selectors: &[Value]) -> Vec<Vec<SelectorInfo>> {
     let mut groups = Vec::new();
     for sel in selectors {
-        if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+        if sel.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
             continue;
         }
-        let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
         if name != "is" && name != "where" {
             continue;
         }
         let Some(children) = sel
-            .get("args")
-            .and_then(|a| a.get("children"))
+            .field("args")
+            .and_then(|a| a.field("children"))
             .and_then(|c| c.as_array())
         else {
             continue;
         };
         let mut branches: Vec<SelectorInfo> = Vec::new();
         for branch in children {
-            let rels = branch.get("children").and_then(|c| c.as_array());
+            let rels = branch.field("children").and_then(|c| c.as_array());
             match rels {
                 // Single compound (no combinator): match against its constraints.
                 Some(rs) if rs.len() == 1 => {
-                    if let Some(inner) = rs[0].get("selectors").and_then(|s| s.as_array()) {
+                    if let Some(inner) = rs[0].field("selectors").and_then(|s| s.as_array()) {
                         branches.push(extract_selector_info_from_selectors(inner));
                     }
                 }
@@ -4168,8 +4179,8 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     // If any sibling combinator (~, +) is present, skip this check
     for rel in rel_selectors.iter().skip(1) {
         let combinator = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
         if combinator == "~" || combinator == "+" {
@@ -4180,13 +4191,13 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     // Skip if first selector is :host, :global, etc.
     let first = &rel_selectors[0];
     let first_is_special = first
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .and_then(|arr| arr.first())
         .is_some_and(|s| {
-            let sel_type = s.get("type").and_then(|t| t.as_str());
+            let sel_type = s.field("type").and_then(|t| t.as_str());
             if sel_type == Some("PseudoClassSelector") {
-                let name = s.get("name").and_then(|n| n.as_str());
+                let name = s.field("name").and_then(|n| n.as_str());
                 matches!(name, Some("host") | Some("global") | Some("root"))
             } else {
                 false
@@ -4271,8 +4282,8 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     let owned_chain: Vec<(&str, &str)> = (1..rel_selectors.len())
         .map(|i| {
             let combinator = rel_selectors[i]
-                .get("combinator")
-                .and_then(|c| c.get("name"))
+                .field("combinator")
+                .and_then(|c| c.field("name"))
                 .and_then(|n| n.as_str())
                 .unwrap_or(" ");
             let tag = match owned_tags[i].as_deref() {
@@ -4358,8 +4369,8 @@ fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssConte
     }
     for rel in rel_selectors.iter().skip(1) {
         let combinator = rel
-            .get("combinator")
-            .and_then(|c| c.get("name"))
+            .field("combinator")
+            .and_then(|c| c.field("name"))
             .and_then(|n| n.as_str())
             .unwrap_or(" ");
         if combinator != " " && combinator != ">" {
@@ -4367,7 +4378,7 @@ fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssConte
         }
     }
     for rel in rel_selectors {
-        let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        let Some(sels) = rel.field("selectors").and_then(|s| s.as_array()) else {
             return false;
         };
         if sels.is_empty() || !sels.iter().all(structural_simple_selector_is_evaluable) {
@@ -4401,7 +4412,7 @@ fn is_structural_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
         return false;
     }
     let rel = &rel_selectors[0];
-    let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+    let Some(sels) = rel.field("selectors").and_then(|s| s.as_array()) else {
         return false;
     };
     if sels.len() < 2 || !sels.iter().all(structural_simple_selector_is_evaluable) {
@@ -4423,8 +4434,8 @@ fn is_structural_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
 
 /// Whether a simple selector narrows which elements a compound can match.
 fn structural_simple_selector_constrains(sel: &Value) -> bool {
-    let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
-    match sel.get("type").and_then(|t| t.as_str()) {
+    let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
+    match sel.field("type").and_then(|t| t.as_str()) {
         Some("TypeSelector") => name != "*",
         Some("ClassSelector") | Some("IdSelector") | Some("AttributeSelector") => true,
         Some("PseudoClassSelector") => {
@@ -4444,8 +4455,8 @@ fn structural_ancestors_satisfy_links(
         return true;
     }
     let combinator = rels[link_idx]
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ");
     let prev = &rels[link_idx - 1];
@@ -4491,31 +4502,31 @@ fn structural_ancestors_satisfy_links(
 }
 
 fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
-    match sel.get("type").and_then(|t| t.as_str()) {
+    match sel.field("type").and_then(|t| t.as_str()) {
         Some("TypeSelector") | Some("ClassSelector") | Some("IdSelector") => {
-            sel.get("name").and_then(|n| n.as_str()).is_some()
+            sel.field("name").and_then(|n| n.as_str()).is_some()
         }
         Some("AttributeSelector") => {
             // Only the parsed shape (separate name/matcher/value); the legacy
             // raw shape stuffs the whole content into `name`.
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             !name.is_empty()
                 && !name.contains('=')
                 && !name.contains('[')
                 && !name.contains('\\')
                 && !sel
-                    .get("value")
+                    .field("value")
                     .and_then(|v| v.as_str())
                     .is_some_and(|v| v.contains('\\'))
         }
         Some("PseudoClassSelector") => {
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             // `:global` scoping and the global-like `:host`/`:root` (which
             // match outside the component tree) are not evaluable here.
             if matches!(name, "global" | "host" | "root") {
                 return false;
             }
-            if sel.get("args").map(|a| a.is_null()).unwrap_or(true) {
+            if sel.field("args").map(|a| a.is_null()).unwrap_or(true) {
                 return true;
             }
             match name {
@@ -4525,7 +4536,7 @@ fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
                 "is" | "where" => functional_pseudo_branches(sel).is_some_and(|branches| {
                     branches.iter().all(|branch| {
                         functional_branch_compound(branch).is_none_or(|rel| {
-                            rel.get("selectors")
+                            rel.field("selectors")
                                 .and_then(|s| s.as_array())
                                 .is_some_and(|sels| {
                                     !sels.is_empty()
@@ -4551,11 +4562,11 @@ fn structural_element_matches_compound(
     el: &crate::compiler::phases::phase2_analyze::types::CssDomElement,
     rel: &Value,
 ) -> bool {
-    let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) else {
+    let Some(sels) = rel.field("selectors").and_then(|s| s.as_array()) else {
         return false;
     };
     sels.iter().all(|sel| {
-        let raw = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let raw = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
         // A template's class/id/tag carries the character an escape stands for.
         let decoded;
         let name = if raw.contains('\\') {
@@ -4564,7 +4575,7 @@ fn structural_element_matches_compound(
         } else {
             raw
         };
-        match sel.get("type").and_then(|t| t.as_str()) {
+        match sel.field("type").and_then(|t| t.as_str()) {
             Some("TypeSelector") => {
                 name == "*" || el.is_dynamic_tag || el.tag_name.eq_ignore_ascii_case(name)
             }
@@ -4587,13 +4598,13 @@ fn structural_element_matches_compound(
             }
             Some("AttributeSelector") => {
                 let matcher = sel
-                    .get("matcher")
+                    .field("matcher")
                     .and_then(|m| if m.is_null() { None } else { m.as_str() });
                 let value = sel
-                    .get("value")
+                    .field("value")
                     .and_then(|v| if v.is_null() { None } else { v.as_str() });
                 let flags = sel
-                    .get("flags")
+                    .field("flags")
                     .and_then(|f| if f.is_null() { None } else { f.as_str() });
                 structural_element_matches_attribute(el, name, matcher, value, flags)
             }
@@ -4616,15 +4627,15 @@ fn structural_element_matches_compound(
 /// The argument selector list of a functional pseudo-class, or `None` when it
 /// takes no arguments.
 fn functional_pseudo_branches(sel: &Value) -> Option<&Vec<Value>> {
-    sel.get("args")
-        .and_then(|a| a.get("children"))
+    sel.field("args")
+        .and_then(|a| a.field("children"))
         .and_then(|c| c.as_array())
 }
 
 /// The single compound of an argument branch. `None` for a multi-part branch,
 /// which upstream assumes matches rather than resolving.
 fn functional_branch_compound(complex: &Value) -> Option<&Value> {
-    let rels = complex.get("children").and_then(|c| c.as_array())?;
+    let rels = complex.field("children").and_then(|c| c.as_array())?;
     (rels.len() == 1).then(|| &rels[0])
 }
 
@@ -4689,12 +4700,12 @@ fn structural_element_matches_attribute(
 /// Get the type selector name from a relative selector
 fn get_type_selector_name(rel_selector: &Value) -> Option<String> {
     rel_selector
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .and_then(|arr| {
             arr.iter().find_map(|sel| {
-                if sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector") {
-                    sel.get("name").and_then(|n| n.as_str()).map(String::from)
+                if sel.field("type").and_then(|t| t.as_str()) == Some("TypeSelector") {
+                    sel.field("name").and_then(|n| n.as_str()).map(String::from)
                 } else {
                     None
                 }
@@ -4757,7 +4768,7 @@ fn collect_option_descendants(ctx: &CssContext, parent_idx: usize, options: &mut
 /// Check if a relative selector is a universal pseudo-class (like :not())
 /// that implicitly matches any element type
 fn is_universal_pseudo_selector(rel_selector: &Value) -> bool {
-    if let Some(selectors) = rel_selector.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = rel_selector.field("selectors").and_then(|s| s.as_array()) {
         // Must have at least one selector
         if selectors.is_empty() {
             return false;
@@ -4765,15 +4776,15 @@ fn is_universal_pseudo_selector(rel_selector: &Value) -> bool {
 
         // Check if all selectors are pseudo-classes/elements (no type selector)
         let all_pseudo = selectors.iter().all(|s| {
-            let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let sel_type = s.field("type").and_then(|t| t.as_str()).unwrap_or("");
             sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
         });
 
         if all_pseudo {
             // Check if the first is :not, :is, :where (which match any element)
             let first = &selectors[0];
-            if first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
-                let name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            if first.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
+                let name = first.field("name").and_then(|n| n.as_str()).unwrap_or("");
                 return matches!(name, "not" | "is" | "where" | "has");
             }
         }
@@ -4845,7 +4856,7 @@ fn decode_css_escape(name: &str) -> String {
 /// For example, `x:has(> z)` is unused if no `x` element has a direct child `z`.
 fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     for (ri, rel) in rel_selectors.iter().enumerate() {
-        let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+        let Some(selectors) = rel.field("selectors").and_then(|s| s.as_array()) else {
             continue;
         };
         for sel in selectors {
@@ -4938,7 +4949,7 @@ fn nesting_substitute_alternatives(ctx: &CssContext) -> Option<Vec<Vec<Value>>> 
         .filter_map(|chain| {
             chain
                 .last()?
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
                 .cloned()
         })
@@ -4949,15 +4960,15 @@ fn nesting_substitute_alternatives(ctx: &CssContext) -> Option<Vec<Vec<Value>>> 
 /// Whether any relative selector of `complex` carries a top-level `&`.
 fn relative_selectors_carry_nesting(complex: &Value) -> bool {
     complex
-        .get("children")
+        .field("children")
         .and_then(|c| c.as_array())
         .is_some_and(|rels| {
             rels.iter().any(|rel| {
-                rel.get("selectors")
+                rel.field("selectors")
                     .and_then(|s| s.as_array())
                     .is_some_and(|sels| {
                         sels.iter().any(|s| {
-                            s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                            s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector")
                         })
                     })
             })
@@ -4971,7 +4982,7 @@ fn relative_selectors_carry_nesting(complex: &Value) -> bool {
 fn branch_alternatives(branch: &[Value], ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
     if !branch
         .iter()
-        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+        .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
     {
         return None;
     }
@@ -4998,13 +5009,13 @@ fn without_parent_preludes<T>(ctx: &CssContext, f: impl FnOnce() -> T) -> T {
 fn replace_nesting_in_selectors(selectors: &[Value], substitute: &[Value]) -> Option<Vec<Value>> {
     if !selectors
         .iter()
-        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+        .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
     {
         return None;
     }
     let mut out = Vec::with_capacity(selectors.len() + substitute.len());
     for sel in selectors {
-        if sel.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+        if sel.field("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
             out.extend(substitute.iter().cloned());
         } else {
             out.push(sel.clone());
@@ -5015,11 +5026,11 @@ fn replace_nesting_in_selectors(selectors: &[Value], substitute: &[Value]) -> Op
 
 /// Rewrite an argument `ComplexSelector` so each `&` becomes `substitute`.
 fn replace_nesting_in_complex(complex: &Value, substitute: &[Value]) -> Option<Value> {
-    let rels = complex.get("children")?.as_array()?;
+    let rels = complex.field("children")?.as_array()?;
     let mut children = Vec::with_capacity(rels.len());
     let mut replaced = false;
     for rel in rels {
-        let selectors = rel.get("selectors").and_then(|s| s.as_array());
+        let selectors = rel.field("selectors").and_then(|s| s.as_array());
         match selectors.and_then(|s| replace_nesting_in_selectors(s, substitute)) {
             Some(new_selectors) => {
                 replaced = true;
@@ -5045,22 +5056,22 @@ fn replace_nesting_in_complex(complex: &Value, substitute: &[Value]) -> Option<V
 /// Whether a `&` appears anywhere in this compound, a pseudo-class's argument
 /// list included — upstream finds it with a `walk`, which descends into `args`.
 fn relative_selector_has_nesting(rel: &Value) -> bool {
-    rel.get("selectors")
+    rel.field("selectors")
         .and_then(|s| s.as_array())
         .is_some_and(|sels| sels.iter().any(simple_selector_has_nesting))
 }
 
 fn simple_selector_has_nesting(sel: &Value) -> bool {
-    match sel.get("type").and_then(|t| t.as_str()) {
+    match sel.field("type").and_then(|t| t.as_str()) {
         Some("NestingSelector") => true,
         Some("PseudoClassSelector") => sel
-            .get("args")
-            .and_then(|a| a.get("children"))
+            .field("args")
+            .and_then(|a| a.field("children"))
             .and_then(|c| c.as_array())
             .is_some_and(|complexes| {
                 complexes.iter().any(|complex| {
                     complex
-                        .get("children")
+                        .field("children")
                         .and_then(|c| c.as_array())
                         .is_some_and(|rels| rels.iter().any(relative_selector_has_nesting))
                 })
@@ -5070,8 +5081,8 @@ fn simple_selector_has_nesting(sel: &Value) -> bool {
 }
 
 fn is_has_pseudo(sel: &Value) -> bool {
-    sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-        && sel.get("name").and_then(|n| n.as_str()) == Some("has")
+    sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+        && sel.field("name").and_then(|n| n.as_str()) == Some("has")
 }
 
 /// Whether each argument of one `:has()` can match inside the subtree of an
@@ -5095,8 +5106,8 @@ fn has_argument_unused_flags(
     }
 
     let has_children = sel
-        .get("args")?
-        .get("children")
+        .field("args")?
+        .field("children")
         .and_then(|c| c.as_array())
         .filter(|c| !c.is_empty())?;
 
@@ -5127,13 +5138,13 @@ fn has_argument_unused_flags(
     let subject_info = extract_selector_info_from_selectors(selectors);
 
     let subject_is_root = selectors.iter().any(|s| {
-        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-            && s.get("name").and_then(|n| n.as_str()) == Some("root")
+        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.field("name").and_then(|n| n.as_str()) == Some("root")
     });
     let subject_is_global = selectors.iter().any(|s| {
-        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-            && s.get("name").and_then(|n| n.as_str()) == Some("global")
-            && s.get("args").is_some()
+        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.field("name").and_then(|n| n.as_str()) == Some("global")
+            && s.field("args").is_some()
     });
 
     // For `:root:has()` / `:global(.foo):has()` the subject is the document root
@@ -5210,26 +5221,27 @@ fn has_argument_unused_flags(
 fn enclosing_rule_is_global_or_root(ctx: &CssContext) -> bool {
     ctx.parent_preludes.borrow().iter().any(|prelude| {
         prelude
-            .get("children")
+            .field("children")
             .and_then(|c| c.as_array())
             .is_some_and(|complexes| {
                 complexes.iter().any(|complex| {
                     complex
-                        .get("children")
+                        .field("children")
                         .and_then(|c| c.as_array())
                         .is_some_and(|rels| {
                             rels.iter().any(|rel| {
                                 relative_selector_is_global_pseudo(rel)
-                                    || rel.get("selectors").and_then(|s| s.as_array()).is_some_and(
-                                        |sels| {
+                                    || rel
+                                        .field("selectors")
+                                        .and_then(|s| s.as_array())
+                                        .is_some_and(|sels| {
                                             sels.iter().any(|s| {
-                                                s.get("type").and_then(|t| t.as_str())
+                                                s.field("type").and_then(|t| t.as_str())
                                                     == Some("PseudoClassSelector")
-                                                    && s.get("name").and_then(|n| n.as_str())
+                                                    && s.field("name").and_then(|n| n.as_str())
                                                         == Some("root")
                                             })
-                                        },
-                                    )
+                                        })
                             })
                         })
                 })
@@ -5242,7 +5254,7 @@ fn enclosing_rule_is_global_or_root(ctx: &CssContext) -> bool {
 /// For descendant/child :has() arguments, check if the element exists anywhere.
 /// For sibling :has() arguments, check if sibling relationships exist.
 fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> bool {
-    let Some(rel_selectors) = has_complex.get("children").and_then(|c| c.as_array()) else {
+    let Some(rel_selectors) = has_complex.field("children").and_then(|c| c.as_array()) else {
         return false;
     };
 
@@ -5253,10 +5265,10 @@ fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> boo
     // If any relative selector contains a NestingSelector (&), we can't resolve it
     // through the DOM structure. Be conservative and treat as potentially used.
     for rel in rel_selectors {
-        if let Some(sels) = rel.get("selectors").and_then(|s| s.as_array())
+        if let Some(sels) = rel.field("selectors").and_then(|s| s.as_array())
             && sels
                 .iter()
-                .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+                .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
         {
             return false;
         }
@@ -5264,18 +5276,18 @@ fn is_has_argument_unused_globally(has_complex: &Value, ctx: &CssContext) -> boo
 
     let first = &rel_selectors[0];
     let combinator = first
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ");
 
     let first_info = extract_selector_info(first);
 
     // Handle :global() arguments - always potentially used
-    if let Some(selectors) = first.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = first.field("selectors").and_then(|s| s.as_array()) {
         let is_global = selectors.first().is_some_and(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("global")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("global")
         });
         if is_global {
             return false;
@@ -5335,7 +5347,7 @@ fn is_has_argument_unused(
     subject_elements: &[usize],
     ctx: &CssContext,
 ) -> bool {
-    let Some(rel_selectors) = has_complex.get("children").and_then(|c| c.as_array()) else {
+    let Some(rel_selectors) = has_complex.field("children").and_then(|c| c.as_array()) else {
         return false;
     };
 
@@ -5346,8 +5358,8 @@ fn is_has_argument_unused(
     // Get the first relative selector and its combinator
     let first = &rel_selectors[0];
     let combinator = first
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" "); // default is descendant
 
@@ -5357,10 +5369,10 @@ fn is_has_argument_unused(
     // we can check against the DOM structure
 
     // Handle :global() arguments - these are always considered used
-    if let Some(selectors) = first.get("selectors").and_then(|s| s.as_array()) {
+    if let Some(selectors) = first.field("selectors").and_then(|s| s.as_array()) {
         let is_global = selectors.first().is_some_and(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("global")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("global")
         });
         if is_global {
             return false; // :global() is always potentially used
@@ -5507,7 +5519,7 @@ fn is_has_argument_unused(
 /// exactly one — several would each constrain the same element and this shape
 /// cannot express the conjunction.
 fn nested_has_arguments(rel: &Value) -> Option<&Vec<Value>> {
-    let selectors = rel.get("selectors")?.as_array()?;
+    let selectors = rel.field("selectors")?.as_array()?;
     let mut found = None;
     for sel in selectors {
         if !is_has_pseudo(sel) {
@@ -5517,8 +5529,8 @@ fn nested_has_arguments(rel: &Value) -> Option<&Vec<Value>> {
             return None;
         }
         found = sel
-            .get("args")
-            .and_then(|a| a.get("children"))
+            .field("args")
+            .and_then(|a| a.field("children"))
             .and_then(|c| c.as_array())
             .filter(|c| !c.is_empty());
         found?;
@@ -5536,8 +5548,8 @@ fn elements_matching_relative(
     ctx: &CssContext,
 ) -> Option<Vec<usize>> {
     let combinator = rel
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ");
     // `selector_matches_element` answers "matches nothing" for a compound with
@@ -5596,8 +5608,8 @@ fn is_multi_part_has_unused(
 
     let first = &rel_selectors[0];
     let combinator = first
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ");
 
@@ -5715,10 +5727,10 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
     };
 
     for sel in selectors {
-        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
         match sel_type {
             "TypeSelector" => {
-                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                     if name == "*" {
                         info.is_universal = true;
                     } else {
@@ -5727,12 +5739,12 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
                 }
             }
             "ClassSelector" => {
-                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                     info.classes.push(decode_css_escape(name));
                 }
             }
             "IdSelector" => {
-                if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                     info.id = Some(decode_css_escape(name));
                 }
             }
@@ -5747,10 +5759,10 @@ fn extract_selector_info_from_selectors(selectors: &[Value]) -> SelectorInfo {
 
 /// Check if a simple selector is unused
 fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
-    let sel_type = sel.get("type").and_then(|t| t.as_str());
+    let sel_type = sel.field("type").and_then(|t| t.as_str());
     match sel_type {
         Some("TypeSelector") => {
-            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                 // Don't prune if there are dynamic elements
                 if ctx.has_dynamic_elements {
                     return false;
@@ -5768,7 +5780,7 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             }
         }
         Some("ClassSelector") => {
-            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                 // If there are dynamic classes that we can't statically analyze,
                 // we must assume any class selector could potentially match
                 if ctx.has_dynamic_classes {
@@ -5782,7 +5794,7 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             }
         }
         Some("IdSelector") => {
-            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+            if let Some(name) = sel.field("name").and_then(|n| n.as_str()) {
                 // If any element has a dynamically-valued id, it could resolve to
                 // any value at runtime, so any #id selector is potentially used.
                 if ctx.has_dynamic_ids {
@@ -5797,10 +5809,10 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             // Check for :is()/:has() where ALL inner selectors are unused
             // Note: :not() is handled differently - even if the inner selector doesn't exist,
             // :not(X) matches "all elements that are NOT X", so it's always potentially used
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             if (name == "is" || name == "where" || name == "has")
-                && let Some(args) = sel.get("args")
-                && let Some(children) = args.get("children").and_then(|c| c.as_array())
+                && let Some(args) = sel.field("args")
+                && let Some(children) = args.field("children").and_then(|c| c.as_array())
             {
                 // Check if ALL selectors inside are definitely unused
                 // Only mark as unused if ALL inner selectors are simple class/id
@@ -5822,15 +5834,15 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
         }
         Some("AttributeSelector") => {
             // Try new format (separate name, matcher, value, flags fields)
-            let attr_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let attr_name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             let matcher = sel
-                .get("matcher")
+                .field("matcher")
                 .and_then(|m| if m.is_null() { None } else { m.as_str() });
             let value = sel
-                .get("value")
+                .field("value")
                 .and_then(|v| if v.is_null() { None } else { v.as_str() });
             let flags = sel
-                .get("flags")
+                .field("flags")
                 .and_then(|f| if f.is_null() { None } else { f.as_str() });
 
             if matcher.is_some() || attr_name.contains('=') || attr_name.contains('[') {
@@ -6179,7 +6191,7 @@ fn is_functional_branch_unused(
     host: Option<BranchHost>,
     ctx: &CssContext,
 ) -> bool {
-    let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) else {
+    let Some(rel_selectors) = complex.field("children").and_then(|c| c.as_array()) else {
         return false;
     };
     if rel_selectors.len() != 1 {
@@ -6190,13 +6202,13 @@ fn is_functional_branch_unused(
     };
     // A leading combinator (`:has(> .b)`) is relative to the subject, not to the
     // enclosing chain, so neither check below models it.
-    if rel.get("combinator").is_some_and(|c| !c.is_null()) {
+    if rel.field("combinator").is_some_and(|c| !c.is_null()) {
         return false;
     }
 
     match host {
         Some(host) => {
-            let Some(branch) = rel.get("selectors").and_then(|s| s.as_array()) else {
+            let Some(branch) = rel.field("selectors").and_then(|s| s.as_array()) else {
                 return false;
             };
             let synth = substitute_is_branch(host.complex, host.ri, host.si, branch);
@@ -6216,18 +6228,18 @@ fn is_functional_compound_unused(
     ctx: &CssContext,
 ) -> Option<bool> {
     for (ri, rel) in rel_selectors.iter().enumerate() {
-        let selectors = rel.get("selectors").and_then(|s| s.as_array())?;
+        let selectors = rel.field("selectors").and_then(|s| s.as_array())?;
         for (si, sel) in selectors.iter().enumerate() {
-            if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
+            if sel.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
                 continue;
             }
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             if name != "is" && name != "where" {
                 continue;
             }
             let Some(branches) = sel
-                .get("args")
-                .and_then(|a| a.get("children"))
+                .field("args")
+                .and_then(|a| a.field("children"))
                 .and_then(|c| c.as_array())
                 .filter(|c| !c.is_empty())
             else {
@@ -6235,12 +6247,15 @@ fn is_functional_compound_unused(
             };
             let inlinable = branches.iter().all(|branch| {
                 branch
-                    .get("children")
+                    .field("children")
                     .and_then(|c| c.as_array())
                     .is_some_and(|rs| {
                         rs.len() == 1
-                            && rs[0].get("combinator").is_none_or(|c| c.is_null())
-                            && rs[0].get("selectors").and_then(|s| s.as_array()).is_some()
+                            && rs[0].field("combinator").is_none_or(|c| c.is_null())
+                            && rs[0]
+                                .field("selectors")
+                                .and_then(|s| s.as_array())
+                                .is_some()
                     })
             });
             if !inlinable {
@@ -6268,7 +6283,7 @@ fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 /// Read the marking walk's verdict for one argument. Falls back to the isolated
 /// check only when the walk has not run (the printer always runs it first).
 fn branch_is_marked_unused(complex: &Value, ctx: &CssContext) -> bool {
-    match (&*ctx.unused_branches.borrow(), complex.get("start")) {
+    match (&*ctx.unused_branches.borrow(), complex.field("start")) {
         (Some(marked), Some(start)) => start.as_u64().is_some_and(|s| marked.contains(&(s as u32))),
         (Some(_), None) => false,
         (None, _) => is_is_inner_selector_unused(complex, ctx),
@@ -6290,8 +6305,8 @@ fn transform_rule_preserving<'a>(
     is_in_global_block: bool,
     is_in_bare_global_block: bool,
 ) {
-    let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let node_start = node.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let node_end = node.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // Copy leading content from source, then mirror upstream's
     // `remove_preceding_whitespace(node.start)` so comments (and their own
@@ -6364,7 +6379,7 @@ fn transform_rule_preserving<'a>(
 
     // Check if the rule is unused (selector doesn't match any template elements)
     // Skip unused check when inside a bare :global {} block (all selectors are global)
-    if !is_in_bare_global_block && let Some(prelude) = node.get("prelude") {
+    if !is_in_bare_global_block && let Some(prelude) = node.field("prelude") {
         let unused_status = check_selector_unused(prelude, ctx);
         if unused_status != UnusedStatus::Used {
             if ctx.minify {
@@ -6397,7 +6412,7 @@ fn transform_rule_preserving<'a>(
     }
 
     // Get the prelude (selector list)
-    if let Some(prelude) = node.get("prelude") {
+    if let Some(prelude) = node.field("prelude") {
         mark_tree(output, prelude);
         // Transform selectors
         let transformed_selector = transform_selector_list(
@@ -6412,8 +6427,9 @@ fn transform_rule_preserving<'a>(
             is_in_global_block,
             is_in_bare_global_block,
         );
-        let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-        let prelude_end_for_map = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        let prelude_start = prelude.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let prelude_end_for_map =
+            prelude.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
         emit_selector(
             output,
             &transformed_selector,
@@ -6425,10 +6441,10 @@ fn transform_rule_preserving<'a>(
         );
 
         // Get the block and process it
-        if let Some(block) = node.get("block") {
-            let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-            let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        if let Some(block) = node.field("block") {
+            let prelude_end = prelude.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            let block_start = block.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
             // Preserve original whitespace between selector and block brace;
             // upstream never removes it, in minify mode either.
@@ -6509,8 +6525,8 @@ fn transform_block_with_nested_rules<'a>(
     parent_has_local_selectors: bool,
     is_in_bare_global_block: bool,
 ) {
-    let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let block_start = block.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // Output the opening brace
     mark_node(output, block);
@@ -6518,11 +6534,11 @@ fn transform_block_with_nested_rules<'a>(
 
     let mut last_end = block_start + 1; // After the '{'
 
-    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = block.field("children").and_then(|c| c.as_array()) {
         for child in children {
-            let child_type = child.get("type").and_then(|t| t.as_str());
-            let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            let child_type = child.field("type").and_then(|t| t.as_str());
+            let child_start = child.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let child_end = child.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
             // Copy content before this child; the whitespace run immediately
             // before it is dropped per child kind below, so comments survive.
@@ -6591,7 +6607,10 @@ fn transform_block_with_nested_rules<'a>(
                     let decl_end = child_end.saturating_sub(css_start);
                     if decl_end <= css_source.len() && decl_start < decl_end {
                         let decl_text = &css_source[decl_start..decl_end];
-                        let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                        let prop = child
+                            .field("property")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("");
                         mark_node(output, child);
                         if ctx.minify && !is_animation_declaration(prop) {
                             output.trim_preceding_whitespace();
@@ -6644,9 +6663,9 @@ fn transform_nested_atrule<'a>(
     parent_has_local_selectors: bool,
     is_in_bare_global_block: bool,
 ) {
-    let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-    let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+    let node_start = node.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let node_end = node.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let name = node.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
     mark_node(output, node);
 
@@ -6679,7 +6698,7 @@ fn transform_nested_atrule<'a>(
 
         output.copy(node_start, src(node_start, p_start));
 
-        let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
+        let prelude = node.field("prelude").and_then(|p| p.as_str()).unwrap_or("");
         if prelude.starts_with("-global-") {
             // Remove the `-global-` prefix
             output.copy(p_start + 8, src(p_start + 8, node_end));
@@ -6694,15 +6713,15 @@ fn transform_nested_atrule<'a>(
     }
 
     // Blockless at-rules (e.g. @import) — copy verbatim.
-    let block = node.get("block").filter(|b| !b.is_null());
+    let block = node.field("block").filter(|b| !b.is_null());
     let Some(block) = block else {
         mark_tree(output, node);
         output.copy(node_start, src(node_start, node_end));
         return;
     };
 
-    let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let block_start = block.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // `@media (...) {` — copied verbatim from source.
     mark_node(output, block);
@@ -6710,11 +6729,11 @@ fn transform_nested_atrule<'a>(
 
     let mut last_end = block_start + 1;
 
-    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = block.field("children").and_then(|c| c.as_array()) {
         for child in children {
-            let child_type = child.get("type").and_then(|t| t.as_str());
-            let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            let child_type = child.field("type").and_then(|t| t.as_str());
+            let child_start = child.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let child_end = child.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
             // Copy content before this child; the whitespace run immediately
             // before it is dropped per child kind below, so comments survive.
@@ -6772,7 +6791,10 @@ fn transform_nested_atrule<'a>(
                     );
                 }
                 Some("Declaration") => {
-                    let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                    let prop = child
+                        .field("property")
+                        .and_then(|p| p.as_str())
+                        .unwrap_or("");
                     let decl_text = src(child_start, child_end);
                     mark_node(output, child);
                     if ctx.minify && !is_animation_declaration(prop) {
@@ -6811,13 +6833,13 @@ fn transform_global_block<'a>(
     _ctx: &CssContext<'a>,
 ) {
     // Get positions
-    let prelude = node.get("prelude");
-    let block = node.get("block");
+    let prelude = node.field("prelude");
+    let block = node.field("block");
 
     if let (Some(prelude), Some(block)) = (prelude, block) {
-        let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-        let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-        let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        let prelude_start = prelude.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let block_start = block.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         if !_ctx.minify {
             // Comment out `:global {`. Upstream brackets it with `prependRight`
@@ -6838,12 +6860,13 @@ fn transform_global_block<'a>(
         // In minify mode, just skip the :global { wrapper entirely
 
         // Process inner content
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+        if let Some(children) = block.field("children").and_then(|c| c.as_array()) {
             let mut last_end = block_start + 1;
 
             for child in children {
-                let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-                let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+                let child_start =
+                    child.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+                let child_end = child.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
                 // Copy whitespace before child
                 if child_start > last_end {
@@ -6858,7 +6881,7 @@ fn transform_global_block<'a>(
                 // the same Rule/Atrule visitors; only the scoping is skipped.
                 {
                     let mut local_last_end = child_start;
-                    match child.get("type").and_then(|t| t.as_str()) {
+                    match child.field("type").and_then(|t| t.as_str()) {
                         Some("Rule") => transform_rule_preserving(
                             child,
                             _selector,
@@ -6887,7 +6910,10 @@ fn transform_global_block<'a>(
                             true,
                         ),
                         Some("Declaration") => {
-                            let prop = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                            let prop = child
+                                .field("property")
+                                .and_then(|p| p.as_str())
+                                .unwrap_or("");
                             let from = child_start.saturating_sub(css_start);
                             let to = child_end.saturating_sub(css_start);
                             if to <= css_source.len() && from < to {
@@ -6941,7 +6967,7 @@ fn collect_global_pseudo_cuts(
     css_start: usize,
     out: &mut Vec<(usize, usize)>,
 ) {
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         for child in children {
             collect_global_pseudo_cuts(child, css_source, css_start, out);
         }
@@ -6952,22 +6978,22 @@ fn collect_global_pseudo_cuts(
         }
     }
     let after_space = node
-        .get("combinator")
-        .and_then(|c| c.get("name"))
+        .field("combinator")
+        .and_then(|c| c.field("name"))
         .and_then(|n| n.as_str())
         == Some(" ");
-    let Some(selectors) = node.get("selectors").and_then(|s| s.as_array()) else {
+    let Some(selectors) = node.field("selectors").and_then(|s| s.as_array()) else {
         return;
     };
     for (idx, sel) in selectors.iter().enumerate() {
-        if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
-            || sel.get("name").and_then(|n| n.as_str()) != Some("global")
+        if sel.field("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
+            || sel.field("name").and_then(|n| n.as_str()) != Some("global")
         {
             continue;
         }
         let (Some(start), Some(end)) = (
-            sel.get("start").and_then(|v| v.as_u64()),
-            sel.get("end").and_then(|v| v.as_u64()),
+            sel.field("start").and_then(|v| v.as_u64()),
+            sel.field("end").and_then(|v| v.as_u64()),
         ) else {
             continue;
         };
@@ -6976,7 +7002,7 @@ fn collect_global_pseudo_cuts(
             continue;
         }
         let (from, to) = (start - css_start, end - css_start);
-        if sel.get("args").is_none_or(Value::is_null) {
+        if sel.field("args").is_none_or(Value::is_null) {
             let mut cut = from;
             if after_space && idx == 0 {
                 while cut > 0 && css_source.as_bytes()[cut - 1].is_ascii_whitespace() {
@@ -7003,8 +7029,8 @@ fn transform_atrule_preserving<'a>(
     last_end: &mut usize,
     ctx: &CssContext<'a>,
 ) {
-    let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let node_start = node.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let node_end = node.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // Copy leading whitespace from source. Upstream's
     // `remove_preceding_whitespace(node.start)` lives in the Rule visitor only,
@@ -7023,7 +7049,7 @@ fn transform_atrule_preserving<'a>(
     }
 
     mark_node(output, node);
-    let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+    let name = node.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
     // Handle keyframes - need special handling for name prefixing
     if name == "keyframes"
@@ -7031,7 +7057,7 @@ fn transform_atrule_preserving<'a>(
         || name == "-moz-keyframes"
         || name == "-o-keyframes"
     {
-        let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
+        let prelude = node.field("prelude").and_then(|p| p.as_str()).unwrap_or("");
 
         // Mirror the official Atrule visitor: the prelude starts after `@name`
         // plus any spaces, and the hash goes in as a `prependRight` insertion so
@@ -7068,7 +7094,7 @@ fn transform_atrule_preserving<'a>(
     }
 
     // Check if block exists and is not null
-    let block = node.get("block").filter(|b| !b.is_null());
+    let block = node.field("block").filter(|b| !b.is_null());
 
     // For at-rules without nested selectors (font-face, charset, import, page, namespace),
     // copy the entire rule from source
@@ -7112,7 +7138,7 @@ fn transform_atrule_preserving<'a>(
     let mut header = String::from("@");
     header.push_str(name);
 
-    if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+    if let Some(prelude) = node.field("prelude").and_then(|p| p.as_str())
         && !prelude.is_empty()
     {
         header.push(' ');
@@ -7120,13 +7146,13 @@ fn transform_atrule_preserving<'a>(
     }
 
     if let Some(block) = block {
-        let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let block_start = block.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
         header.push_str(" {");
         mark_node(output, block);
         output.copy_verbatim(css_source, css_start, node_start, &header);
 
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+        if let Some(children) = block.field("children").and_then(|c| c.as_array()) {
             let mut inner_last_end = block_start + 1; // after '{'
             for child in children {
                 transform_node_preserving(
@@ -7144,7 +7170,7 @@ fn transform_atrule_preserving<'a>(
             }
             // Copy trailing content in block. An at-rule's closing brace keeps
             // its whitespace: only the Rule visitor trims upstream.
-            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
             if inner_last_end < block_end {
                 let trail_start = inner_last_end.saturating_sub(css_start);
                 let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
@@ -7154,7 +7180,7 @@ fn transform_atrule_preserving<'a>(
             }
         }
 
-        let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        let block_end = block.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
         output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
     } else {
         output.push_str(&header);
@@ -7180,7 +7206,7 @@ fn transform_selector_list(
 ) -> String {
     let mut result = String::new();
 
-    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = prelude.field("children").and_then(|c| c.as_array()) {
         // Minified mode: delegate to specialized function
         if ctx.minify {
             return transform_selector_list_minified(
@@ -7198,8 +7224,8 @@ fn transform_selector_list(
 
         // Determine the separator style based on the original source
         // If the prelude spans multiple lines, use newline-based separators
-        let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-        let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        let prelude_start = prelude.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let prelude_end = prelude.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         let sep_start = prelude_start.saturating_sub(css_start);
         let sep_end = prelude_end.saturating_sub(css_start);
@@ -7221,11 +7247,11 @@ fn transform_selector_list(
 
         for complex_selector in children.iter() {
             let sel_start = complex_selector
-                .get("start")
+                .field("start")
                 .and_then(|s| s.as_u64())
                 .unwrap_or(0) as usize;
             let sel_end = complex_selector
-                .get("end")
+                .field("end")
                 .and_then(|e| e.as_u64())
                 .unwrap_or(0) as usize;
 
@@ -7404,7 +7430,7 @@ fn transform_selector_list_minified(
     // Replicate the official Svelte pruning algorithm.
     let mut removals: Vec<(usize, usize)> = Vec::new();
     let first_start = children[0]
-        .get("start")
+        .field("start")
         .and_then(|s| s.as_u64())
         .unwrap_or(0) as usize;
 
@@ -7414,8 +7440,8 @@ fn transform_selector_list_minified(
     let mut has_previous_used = false;
 
     for (i, cs) in children.iter().enumerate() {
-        let sel_start = cs.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-        let sel_end = cs.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        let sel_start = cs.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let sel_end = cs.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         if used[i] == pruning {
             if pruning {
@@ -7463,8 +7489,8 @@ fn transform_selector_list_minified(
                 is_in_bare_global_block,
                 Some(ctx),
             );
-            let sel_start = cs.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let sel_end = cs.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            let sel_start = cs.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let sel_end = cs.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
             used_selectors.push((transformed, sel_start, sel_end));
         }
     }
@@ -7530,7 +7556,7 @@ fn transform_selector_list_minified(
 /// This includes :host, :root (without :has), and ::view-transition* pseudo elements
 fn is_global_like(relative_selector: &Value) -> bool {
     if let Some(selectors) = relative_selector
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
     {
         if selectors.is_empty() {
@@ -7538,8 +7564,8 @@ fn is_global_like(relative_selector: &Value) -> bool {
         }
 
         let first = &selectors[0];
-        let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let first_type = first.field("type").and_then(|t| t.as_str()).unwrap_or("");
+        let first_name = first.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
         // :host is global-like (regardless of other selectors in the same relative selector)
         if first_type == "PseudoClassSelector" && first_name == "host" {
@@ -7548,7 +7574,7 @@ fn is_global_like(relative_selector: &Value) -> bool {
 
         // Check if all selectors are pseudo-classes or pseudo-elements
         let all_pseudo = selectors.iter().all(|s| {
-            let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let sel_type = s.field("type").and_then(|t| t.as_str()).unwrap_or("");
             sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
         });
 
@@ -7570,12 +7596,12 @@ fn is_global_like(relative_selector: &Value) -> bool {
 
         // :root is global-like (unless it contains :has)
         let has_root = selectors.iter().any(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("root")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("root")
         });
         let has_has = selectors.iter().any(|s| {
-            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && s.get("name").and_then(|n| n.as_str()) == Some("has")
+            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.field("name").and_then(|n| n.as_str()) == Some("has")
         });
 
         if has_root && !has_has {
@@ -7605,10 +7631,13 @@ fn push_global_args_text(
     css_start: usize,
 ) {
     let sel_start = global_sel
-        .get("start")
+        .field("start")
         .and_then(|s| s.as_u64())
         .unwrap_or(0) as usize;
-    let sel_end = global_sel.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let sel_end = global_sel
+        .field("end")
+        .and_then(|e| e.as_u64())
+        .unwrap_or(0) as usize;
     // Inner content spans `:global(`.end ..= the byte before the closing `)`.
     let inner_start = sel_start + ":global(".len();
     let inner_end = sel_end.saturating_sub(1); // drop the trailing ')'
@@ -7650,16 +7679,16 @@ fn transform_complex_selector(
     // Track if the previous selector was scoped - for specificity bumping decisions
     let mut _previous_was_scoped = false;
 
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
         // If so, we use direct class (not :where()) for :is()/:not()/:has() content
         // Also use direct class if we're inside a :global() block
         let has_global_anywhere = is_in_global_block
             || children.iter().any(|rs| {
-                if let Some(selectors) = rs.get("selectors").and_then(|s| s.as_array()) {
+                if let Some(selectors) = rs.field("selectors").and_then(|s| s.as_array()) {
                     selectors.iter().any(|s| {
-                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.field("name").and_then(|n| n.as_str()) == Some("global")
                     })
                 } else {
                     false
@@ -7677,17 +7706,17 @@ fn transform_complex_selector(
                         return false;
                     }
                     let scoped = relative_selector
-                        .get("metadata")
-                        .and_then(|metadata| metadata.get("scoped"))
+                        .field("metadata")
+                        .and_then(|metadata| metadata.field("scoped"))
                         .and_then(|scoped| scoped.as_bool())
                         .unwrap_or(true);
                     scoped
                         && relative_selector
-                            .get("selectors")
+                            .field("selectors")
                             .and_then(|selectors| selectors.as_array())
                             .is_some_and(|selectors| {
                                 selectors.iter().any(|selector| {
-                                    let ty = selector.get("type").and_then(|ty| ty.as_str());
+                                    let ty = selector.field("type").and_then(|ty| ty.as_str());
                                     !matches!(
                                         ty,
                                         Some(
@@ -7712,17 +7741,17 @@ fn transform_complex_selector(
             let is_reachable = rel_index >= first_reachable;
             // Check if this relative selector starts with bare :global (no args)
             let starts_with_bare_global = relative_selector
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
                 .and_then(|arr| arr.first())
                 .is_some_and(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
-                        && s.get("args").is_none()
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("global")
+                        && s.field("args").is_none()
                 });
 
             let selectors_count = relative_selector
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
                 .map(|a| a.len())
                 .unwrap_or(0);
@@ -7756,8 +7785,8 @@ fn transform_complex_selector(
             if is_global_modifier {
                 // Check if this is in a nested context (no combinator and first selector)
                 let combinator_name = relative_selector
-                    .get("combinator")
-                    .and_then(|c| c.get("name"))
+                    .field("combinator")
+                    .and_then(|c| c.field("name"))
                     .and_then(|n| n.as_str());
 
                 // In nested context (:global.x with no combinator), prepend &
@@ -7768,14 +7797,14 @@ fn transform_complex_selector(
                 // Don't output the space combinator - the modifiers attach directly
                 // to the previous selector (e.g., "div :global.x" -> "div.x")
                 if let Some(selectors) = relative_selector
-                    .get("selectors")
+                    .field("selectors")
                     .and_then(|s| s.as_array())
                 {
                     for sel in selectors {
                         // Skip the :global pseudo-class itself
-                        if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
-                            && sel.get("args").is_none()
+                        if sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && sel.field("name").and_then(|n| n.as_str()) == Some("global")
+                            && sel.field("args").is_none()
                         {
                             continue;
                         }
@@ -7802,8 +7831,8 @@ fn transform_complex_selector(
             if next_is_global {
                 // Output combinator - always output space even when result is empty,
                 // because the space replaces where :global was removed
-                if let Some(combinator) = relative_selector.get("combinator")
-                    && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+                if let Some(combinator) = relative_selector.field("combinator")
+                    && let Some(name) = combinator.field("name").and_then(|n| n.as_str())
                 {
                     if name == " " {
                         result.push(' ');
@@ -7813,7 +7842,7 @@ fn transform_complex_selector(
                 }
                 // Output selectors without scoping
                 if let Some(selectors) = relative_selector
-                    .get("selectors")
+                    .field("selectors")
                     .and_then(|s| s.as_array())
                 {
                     for sel in selectors {
@@ -7842,8 +7871,8 @@ fn transform_complex_selector(
             next_is_global = false;
 
             // Get combinator
-            if let Some(combinator) = relative_selector.get("combinator")
-                && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+            if let Some(combinator) = relative_selector.field("combinator")
+                && let Some(name) = combinator.field("name").and_then(|n| n.as_str())
                 && (name != " " || !result.is_empty())
             {
                 if let Some(text) = (!result.is_empty())
@@ -7893,20 +7922,20 @@ fn transform_complex_selector(
 
             // Get selectors
             if let Some(selectors) = relative_selector
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
             {
                 // Check if the entire relative selector is :global (i.e., starts with :global)
                 let is_entirely_global = selectors.first().is_some_and(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("global")
                 });
 
                 // Check if any selector contains :global() - for partial global handling
                 let has_partial_global = !is_entirely_global
                     && selectors.iter().any(|s| {
-                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                        s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.field("name").and_then(|n| n.as_str()) == Some("global")
                     });
 
                 // Check if this is a global-like selector (:host, :root, ::view-transition*)
@@ -7933,11 +7962,11 @@ fn transform_complex_selector(
                     // Handle :global selector - extract :global() content without scoping,
                     // but scope subsequent selectors like :is() with direct class
                     for sel in selectors {
-                        if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                        if sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
                             // Extract the content inside :global() from source
-                            if let Some(args) = sel.get("args") {
+                            if let Some(args) = sel.field("args") {
                                 push_global_args_text(
                                     &mut result,
                                     sel,
@@ -7967,23 +7996,23 @@ fn transform_complex_selector(
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
                     let needs_scoping = is_reachable
                         && relative_selector
-                            .get("metadata")
-                            .and_then(|m| m.get("scoped"))
+                            .field("metadata")
+                            .and_then(|m| m.field("scoped"))
                             .and_then(|s| s.as_bool())
                             .unwrap_or(true);
 
                     // Check if this contains a NestingSelector - if so, skip scoping
                     // (the & inherits scoping from parent rule)
-                    let has_nesting = selectors
-                        .iter()
-                        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+                    let has_nesting = selectors.iter().any(|s| {
+                        s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                    });
 
                     // Find the last non-pseudo, non-global, non-nesting selector for scoping
                     let mut last_non_pseudo_idx = None;
                     for (idx, sel) in selectors.iter().enumerate() {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
                         let is_global_pseudo = sel_type == "PseudoClassSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("global");
+                            && sel.field("name").and_then(|n| n.as_str()) == Some("global");
                         if sel_type != "PseudoElementSelector"
                             && sel_type != "PseudoClassSelector"
                             && sel_type != "NestingSelector"
@@ -7995,13 +8024,13 @@ fn transform_complex_selector(
 
                     let mut selector_parts = String::new();
                     for (idx, sel) in selectors.iter().enumerate() {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
                         if sel_type == "PseudoClassSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                            && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
                             // Extract the content inside :global() from source
-                            if let Some(args) = sel.get("args") {
+                            if let Some(args) = sel.field("args") {
                                 push_global_args_text(
                                     &mut selector_parts,
                                     sel,
@@ -8058,23 +8087,23 @@ fn transform_complex_selector(
                     // Regular scoped selector
                     let needs_scoping = is_reachable
                         && relative_selector
-                            .get("metadata")
-                            .and_then(|m| m.get("scoped"))
+                            .field("metadata")
+                            .and_then(|m| m.field("scoped"))
                             .and_then(|s| s.as_bool())
                             .unwrap_or(true); // Default to scoping
 
                     // Check if this relative selector contains a NestingSelector (&)
                     // If so, skip adding scoping - the & refers to the parent rule which already has scoping
-                    let has_nesting_selector = selectors
-                        .iter()
-                        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+                    let has_nesting_selector = selectors.iter().any(|s| {
+                        s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                    });
 
                     // Build the selector parts
                     let mut selector_parts = String::new();
                     let mut last_non_pseudo_idx = None;
 
                     for (idx, sel) in selectors.iter().enumerate() {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
                         // NestingSelector also counts as non-pseudo for determining where to add scoping
                         if sel_type != "PseudoElementSelector"
                             && sel_type != "PseudoClassSelector"
@@ -8097,9 +8126,10 @@ fn transform_complex_selector(
                         // the unconditional :root / :host exemptions and the :is internal-scoping
                         // case which rsvelte already collapses here.
                         let first_is_global_like = selectors.first().is_some_and(|s| {
-                            if s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            if s.field("type").and_then(|t| t.as_str())
+                                == Some("PseudoClassSelector")
                             {
-                                let name = s.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                                let name = s.field("name").and_then(|n| n.as_str()).unwrap_or("");
                                 if name == "host" || name == "root" {
                                     return true;
                                 }
@@ -8125,7 +8155,7 @@ fn transform_complex_selector(
                     }
 
                     for (idx, sel) in selectors.iter().enumerate() {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
                         // Upstream walks the compound from the END and replaces `*`
                         // only when it is the selector it stops on; a `*` earlier in
@@ -8166,10 +8196,10 @@ fn transform_complex_selector(
                         // the first inner selector still gets the direct class.
                         let is_standalone_is_where = selectors.len() == 1
                             && selectors.first().is_some_and(|s| {
-                                s.get("type").and_then(|t| t.as_str())
+                                s.field("type").and_then(|t| t.as_str())
                                     == Some("PseudoClassSelector")
                                     && matches!(
-                                        s.get("name").and_then(|n| n.as_str()),
+                                        s.field("name").and_then(|n| n.as_str()),
                                         Some("is") | Some("where")
                                     )
                             });
@@ -8209,7 +8239,7 @@ fn transform_complex_selector(
             }
 
             prev_rel_span = compound_start(relative_selector)
-                .zip(relative_selector.get("end").and_then(|e| e.as_u64()))
+                .zip(relative_selector.field("end").and_then(|e| e.as_u64()))
                 .map(|(s, e)| (s, e as usize));
         }
     }
@@ -8219,10 +8249,10 @@ fn transform_complex_selector(
 
 fn compound_start(relative_selector: &Value) -> Option<usize> {
     relative_selector
-        .get("selectors")
+        .field("selectors")
         .and_then(|s| s.as_array())
         .and_then(|a| a.first())
-        .and_then(|s| s.get("start"))
+        .and_then(|s| s.field("start"))
         .and_then(|s| s.as_u64())
         .map(|s| s as usize)
 }
@@ -8236,7 +8266,7 @@ fn leading_combinator_text(
     css_source: &str,
     css_start: usize,
 ) -> Option<String> {
-    let from = (node.get("start").and_then(|s| s.as_u64())? as usize).checked_sub(css_start)?;
+    let from = (node.field("start").and_then(|s| s.as_u64())? as usize).checked_sub(css_start)?;
     let to = compound_start(relative_selector)?.checked_sub(css_start)?;
     if to <= from || to > css_source.len() {
         return None;
@@ -8384,8 +8414,8 @@ fn append_modifier(target: &mut String, modifier: &str) {
 /// A namespaced universal — `svg|*`, `*|*` — is not: the scoping class is
 /// appended to it rather than replacing it, or the `svg|` prefix would be lost.
 fn is_bare_universal(sel: &Value) -> bool {
-    sel.get("name").and_then(|n| n.as_str()) == Some("*")
-        && sel.get("namespace").is_none_or(Value::is_null)
+    sel.field("name").and_then(|n| n.as_str()) == Some("*")
+        && sel.field("namespace").is_none_or(Value::is_null)
 }
 
 fn format_simple_selector(sel: &Value) -> String {
@@ -8398,8 +8428,8 @@ fn format_simple_selector(sel: &Value) -> String {
 /// scanned for — the same shape `PseudoElementSelector` already needed.
 fn pseudo_source_text(sel: &Value, css_source: &str, css_start: Option<usize>) -> Option<String> {
     let css_start = css_start?;
-    let start = sel.get("start").and_then(|s| s.as_u64())? as usize;
-    let end = sel.get("end").and_then(|e| e.as_u64())? as usize;
+    let start = sel.field("start").and_then(|s| s.as_u64())? as usize;
+    let end = sel.field("end").and_then(|e| e.as_u64())? as usize;
     let src_start = start.checked_sub(css_start)?;
     let mut src_end = end.checked_sub(css_start)?;
 
@@ -8442,7 +8472,7 @@ fn format_simple_selector_with_scope(
     use_direct_class: bool,
     outer_specificity_bumped: bool,
 ) -> String {
-    let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
 
     match sel_type {
         "TypeSelector" | "ClassSelector" | "IdSelector" => {
@@ -8457,8 +8487,8 @@ fn format_simple_selector_with_scope(
 
             // Try to extract from original source first (preserves escape sequences)
             if let (Some(start), Some(end), Some(css_start)) = (
-                sel.get("start").and_then(|s| s.as_u64()),
-                sel.get("end").and_then(|e| e.as_u64()),
+                sel.field("start").and_then(|s| s.as_u64()),
+                sel.field("end").and_then(|e| e.as_u64()),
                 css_start,
             ) {
                 let start = start as usize;
@@ -8475,15 +8505,15 @@ fn format_simple_selector_with_scope(
             format!(
                 "{}{}",
                 prefix,
-                sel.get("name").and_then(|n| n.as_str()).unwrap_or("")
+                sel.field("name").and_then(|n| n.as_str()).unwrap_or("")
             )
         }
         "AttributeSelector" => {
             // Upstream never rewrites the brackets, so the author's spacing
             // (`[ data-k ]`) survives; `name`/`matcher`/`value` cannot carry it.
             if let (Some(start), Some(end), Some(css_start)) = (
-                sel.get("start").and_then(|s| s.as_u64()),
-                sel.get("end").and_then(|e| e.as_u64()),
+                sel.field("start").and_then(|s| s.as_u64()),
+                sel.field("end").and_then(|e| e.as_u64()),
                 css_start,
             ) {
                 let src_start = (start as usize).saturating_sub(css_start);
@@ -8497,10 +8527,10 @@ fn format_simple_selector_with_scope(
                 }
             }
 
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            let matcher = sel.get("matcher").and_then(|m| m.as_str());
-            let value = sel.get("value").and_then(|v| v.as_str());
-            let flags = sel.get("flags").and_then(|f| f.as_str());
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
+            let matcher = sel.field("matcher").and_then(|m| m.as_str());
+            let value = sel.field("value").and_then(|v| v.as_str());
+            let flags = sel.field("flags").and_then(|f| f.as_str());
 
             let mut result = format!("[{}", name);
             if let (Some(m), Some(v)) = (matcher, value) {
@@ -8515,13 +8545,13 @@ fn format_simple_selector_with_scope(
             result
         }
         "PseudoClassSelector" => {
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
 
             // Handle :is(), :not(), :has(), :where() - these take selector lists as
             // arguments and need to scope their inner selectors. Mirrors upstream
             // Svelte's `PseudoClassSelector` visitor which calls `context.next()`
             // for is/where/has/not so the inner SelectorList gets scoped.
-            if let Some(args) = sel.get("args") {
+            if let Some(args) = sel.field("args") {
                 // Upstream descends with `context.next()` regardless of whether a
                 // modifier will be added, so a nested `:global(...)` is unwrapped
                 // even where the scope class is not (an empty `selector` here).
@@ -8569,8 +8599,8 @@ fn format_simple_selector_with_scope(
             // including any arguments like ::view-transition-group(foo)
             // The parser sets end position to after the name, so we need to scan for arguments
             if let (Some(start), Some(end), Some(css_start)) = (
-                sel.get("start").and_then(|s| s.as_u64()),
-                sel.get("end").and_then(|e| e.as_u64()),
+                sel.field("start").and_then(|s| s.as_u64()),
+                sel.field("end").and_then(|e| e.as_u64()),
                 css_start,
             ) {
                 let start = start as usize;
@@ -8605,7 +8635,7 @@ fn format_simple_selector_with_scope(
             }
 
             // Fallback: reconstruct from name only (may lose arguments)
-            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name = sel.field("name").and_then(|n| n.as_str()).unwrap_or("");
             format!("::{}", name)
         }
         "NestingSelector" => "&".to_string(),
@@ -8615,7 +8645,7 @@ fn format_simple_selector_with_scope(
             // Without this arm the value got dropped during scoping and
             // selectors like `.foo:nth-child(3)` were emitted as
             // `.foo.svelte-xxx:nth-child()`.
-            sel.get("value")
+            sel.field("value")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string()
@@ -8649,7 +8679,7 @@ fn transform_is_not_args(
     outer_specificity_bumped: bool,
 ) -> String {
     // args should be a SelectorList
-    let Some(children) = args.get("children").and_then(|c| c.as_array()) else {
+    let Some(children) = args.field("children").and_then(|c| c.as_array()) else {
         return get_selector_text(args);
     };
     if children.is_empty() {
@@ -8837,7 +8867,7 @@ fn transform_is_not_complex_selector(
 ) -> String {
     let mut result = String::new();
 
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         // For :not(), only scope if there are multiple relative selectors (complex selector with combinators)
         // For :is() and :has(), always scope
         let is_simple_selector = children.len() == 1;
@@ -8871,8 +8901,8 @@ fn transform_is_not_complex_selector(
 
         for relative_selector in children {
             // Get combinator
-            if let Some(combinator) = relative_selector.get("combinator")
-                && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+            if let Some(combinator) = relative_selector.field("combinator")
+                && let Some(name) = combinator.field("name").and_then(|n| n.as_str())
                 && (name != " " || !result.is_empty())
             {
                 if name == " " {
@@ -8880,16 +8910,16 @@ fn transform_is_not_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start of :has() argument (e.g., :has(> y))
                     // Preserve original source whitespace between combinator and selector
-                    if let Some(comb_end) = combinator.get("end").and_then(|e| e.as_u64()) {
+                    if let Some(comb_end) = combinator.field("end").and_then(|e| e.as_u64()) {
                         let comb_end = comb_end as usize;
                         // Get the gap between combinator end and first selector start
                         if let Some(selectors) = relative_selector
-                            .get("selectors")
+                            .field("selectors")
                             .and_then(|s| s.as_array())
                         {
                             if let Some(first_sel) = selectors.first() {
                                 if let Some(sel_start) =
-                                    first_sel.get("start").and_then(|s| s.as_u64())
+                                    first_sel.field("start").and_then(|s| s.as_u64())
                                 {
                                     let sel_start = sel_start as usize;
                                     result.push_str(name);
@@ -8918,27 +8948,27 @@ fn transform_is_not_complex_selector(
 
             // Get selectors in this relative selector
             if let Some(selectors) = relative_selector
-                .get("selectors")
+                .field("selectors")
                 .and_then(|s| s.as_array())
             {
                 // Check if this is a :global() selector
                 let is_global = selectors.first().is_some_and(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                    s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.field("name").and_then(|n| n.as_str()) == Some("global")
                 });
 
                 // Check if any selector in this relative selector is a NestingSelector
                 let has_nesting = selectors
                     .iter()
-                    .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+                    .any(|s| s.field("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
 
                 if is_global {
                     // Handle :global() - extract inner content without scoping
                     for sel in selectors {
-                        if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                        if sel.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && sel.field("name").and_then(|n| n.as_str()) == Some("global")
                         {
-                            if let Some(global_args) = sel.get("args") {
+                            if let Some(global_args) = sel.field("args") {
                                 result.push_str(&get_selector_text(global_args));
                             }
                         } else {
@@ -8958,7 +8988,7 @@ fn transform_is_not_complex_selector(
 
                     // Find the last non-pseudo selector
                     for (idx, sel) in selectors.iter().enumerate() {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
                         if sel_type != "PseudoElementSelector" && sel_type != "PseudoClassSelector"
                         {
                             last_non_pseudo_idx = Some(idx);
@@ -8973,8 +9003,8 @@ fn transform_is_not_complex_selector(
                     // `:is(...)` / `:where(...)` which scope their content internally.
                     if last_non_pseudo_idx.is_none() && !selector.is_empty() {
                         let skip = selectors.first().is_some_and(|s| {
-                            let t = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                            let n = s.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                            let t = s.field("type").and_then(|t| t.as_str()).unwrap_or("");
+                            let n = s.field("name").and_then(|n| n.as_str()).unwrap_or("");
                             t == "PseudoClassSelector"
                                 && (n == "root"
                                     || n == "host"
@@ -8990,7 +9020,7 @@ fn transform_is_not_complex_selector(
                     }
 
                     for (idx, sel) in selectors.iter().enumerate() {
-                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let sel_type = sel.field("type").and_then(|t| t.as_str()).unwrap_or("");
                         let is_universal = sel_type == "TypeSelector" && is_bare_universal(sel);
 
                         // If this is a universal selector (*) that will be replaced by :where(),
@@ -9061,16 +9091,19 @@ fn strip_bare_global_from_text(
     let raw = get_complex_selector_text(complex_selector, css_source, css_start);
 
     // Check if this complex selector has any bare :global relative selectors
-    if let Some(children) = complex_selector.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = complex_selector
+        .field("children")
+        .and_then(|c| c.as_array())
+    {
         let has_bare_global = children.iter().any(|rel| {
-            rel.get("selectors")
+            rel.field("selectors")
                 .and_then(|s| s.as_array())
                 .is_some_and(|arr| {
                     arr.len() == 1
                         && arr.first().is_some_and(|s| {
-                            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                                && s.get("name").and_then(|n| n.as_str()) == Some("global")
-                                && s.get("args").is_none()
+                            s.field("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                                && s.field("name").and_then(|n| n.as_str()) == Some("global")
+                                && s.field("args").is_none()
                         })
                 })
         });
@@ -9096,8 +9129,8 @@ fn global_stripped_complex_selector_text(
     css_source: &str,
     css_start: usize,
 ) -> String {
-    let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let start = node.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let end = node.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
     let from = start.saturating_sub(css_start);
     let to = end.saturating_sub(css_start);
     if to > css_source.len() || from >= to {
@@ -9121,8 +9154,8 @@ fn global_stripped_complex_selector_text(
 }
 
 fn get_complex_selector_text(node: &Value, css_source: &str, css_start: usize) -> String {
-    let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-    let end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+    let start = node.field("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let end = node.field("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
     let src_start = start.saturating_sub(css_start);
     let src_end = end.saturating_sub(css_start);
     if src_end <= css_source.len() && src_start < src_end {
@@ -9134,20 +9167,20 @@ fn get_complex_selector_text(node: &Value, css_source: &str, css_start: usize) -
 
 fn get_selector_text(node: &Value) -> String {
     // Handle Raw type (used for pseudo element arguments like ::view-transition-group(foo))
-    if node.get("type").and_then(|t| t.as_str()) == Some("Raw") {
+    if node.field("type").and_then(|t| t.as_str()) == Some("Raw") {
         return node
-            .get("value")
+            .field("value")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
     }
 
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+    if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         let mut result = String::new();
         for child in children {
             // Check if this is a RelativeSelector with a combinator
-            if let Some(combinator) = child.get("combinator")
-                && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+            if let Some(combinator) = child.field("combinator")
+                && let Some(name) = combinator.field("name").and_then(|n| n.as_str())
             {
                 if result.is_empty() {
                     // Leading combinator in a relative selector list (e.g.
@@ -9166,7 +9199,7 @@ fn get_selector_text(node: &Value) -> String {
             }
 
             // Add the selectors from this relative selector or child
-            if let Some(selectors) = child.get("selectors").and_then(|s| s.as_array()) {
+            if let Some(selectors) = child.field("selectors").and_then(|s| s.as_array()) {
                 for sel in selectors {
                     result.push_str(&format_simple_selector(sel));
                 }
@@ -9175,7 +9208,7 @@ fn get_selector_text(node: &Value) -> String {
             }
         }
         result
-    } else if let Some(selectors) = node.get("selectors").and_then(|s| s.as_array()) {
+    } else if let Some(selectors) = node.field("selectors").and_then(|s| s.as_array()) {
         let mut result = String::new();
         for sel in selectors {
             result.push_str(&format_simple_selector(sel));
