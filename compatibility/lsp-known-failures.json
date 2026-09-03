@@ -21643,8 +21643,6 @@
 	"differential:fixtures/code-action-anchor-add|textDocument/codeAction|phase=edit|:extra-rsvelte[count=1,hash=e27600e1864d]",
 	"differential:fixtures/code-action-anchor-rel|textDocument/codeAction|:extra-rsvelte[count=1,hash=cb4c51ab40a2]",
 	"differential:fixtures/code-action-anchor-rel|textDocument/codeAction|phase=edit|:extra-rsvelte[count=1,hash=cb4c51ab40a2]",
-	"differential:fixtures/code-action-foreign|textDocument/codeAction|:extra-rsvelte[count=1,hash=5befc359d11b]",
-	"differential:fixtures/code-action-foreign|textDocument/codeAction|phase=edit|:extra-rsvelte[count=1,hash=5befc359d11b]",
 	"differential:fixtures/code-action-ignore-indent|textDocument/codeAction|:extra-rsvelte[count=1,hash=f2b9b4ef1625]",
 	"differential:fixtures/code-action-ignore-indent|textDocument/codeAction|phase=edit|:extra-rsvelte[count=1,hash=f2b9b4ef1625]",
 	"differential:fixtures/code-action-ignore-parent|textDocument/codeAction|:extra-rsvelte[count=1,hash=17ebab48bd5c]",

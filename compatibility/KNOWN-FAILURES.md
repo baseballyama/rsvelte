@@ -4546,7 +4546,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23744 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23742 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -4580,13 +4580,13 @@ The ratchet stays on the pending list until it is burned down.
 deletion, a cluster table buys no attribution and would cost a classification pass over every
 remaining key; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
-Partition of `lsp-known-failures.json` by key kind: `21630 + 1774 + 340` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21630 + 1772 + 340` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11877 + 11867`
+Partition of `lsp-known-failures.json` by request phase: `11876 + 11866`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -4761,6 +4761,34 @@ positions. `crates/rsvelte_projection/tests/svelte2tsx_await_binding_map.rs` pin
 The third row is not a defect on either side and is the first candidate for
 `deliberate-divergences` in this ratchet — but only once it is pinned by a test, which it is not
 yet.
+
+### Two `code-action-foreign` entries retired because the request changed, not the server
+
+`suites.mjs` built every `textDocument/codeAction` request's diagnostic with `source: "svelte"`
+hardcoded, while the manifest entry it was built from declares `diagnostic_source: "eslint"` —
+so the fixture transcribing upstream's `it('if no svelte diagnostic')` had never sent a foreign
+source, and neither server was answering the question the case is named for. Reading the field
+retires both of its entries.
+
+This is a **(c) retirement — the input changed** — and not a fix: nothing in
+`rsvelte-language-server` moved. Measured on two arms differing only in `suites.mjs` (same server
+binaries, distinct file hashes, a probe separating them in both directions), the fixtures suite
+goes from 226 divergent fields to 224 with `cases`, `compared`, `skipped` and all three
+oracle-calibration ratios identical, 2 stale entries and **0 new**.
+
+**The axis those entries were observing is not preserved, and cannot be here.** With the source
+corrected both servers decline for the stated reason, so what the pair had actually been
+measuring — whether an ignore action is offered on an **empty document**, the case's `source`
+being `""` — no longer has a carrier. A fixture that preserves it cannot be added: `fixtureCases`
+draws only from `manifest.behavior_cases`, whose names are asserted equal as a multiset to
+upstream's `it()` call sites, with no unported call site to attach one to. #4217 tracks giving
+that axis somewhere to live; it is deliberately not fixed here, because a second case list
+changes this gate's population and needs its own control.
+
+The same object's `severity` was unread too (12 of 14 codeAction entries declare it; the string
+occurred nowhere under `scripts/compat-lsp/`). It is read now and moves nothing, because the
+upstream case that names the condition sends no `code` and is answered before severity is
+reached — see `GATES.md` blind spot 27t, which is why reading it does not make the guard gated.
 
 ### The mechanism of a divergence is carried beside the ratchet, not in its key
 

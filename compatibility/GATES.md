@@ -1075,9 +1075,54 @@ person writing the same prediction.
 **Evidence [D]:** the entry counts and directions are read from the committed ratchet at three
 revisions via `git grep <rev>`; the unread-field claim is a grep with a stated positive control.
 **Unmeasured:** what the extra action actually is in each of the nine fixtures — see 27r for why
-that needs a run rather than a preimage — and whether any other manifest field is likewise unread.
+that needs a run rather than a preimage. Two more were: `severity` and `diagnostic_source`, in
+the same object — see 27t.
 
 ---
+
+### Blind spot 27t — upstream's own test does not exercise the condition it names, and a faithful transcription inherits the hole [S]
+
+`code_actions.rs:279-284` gates an ignore action on four conditions, one of which is
+`diagnostic.severity != Some(DiagnosticSeverity::ERROR)`. Upstream's counterpart
+(`getQuickfixes.ts:189-197`) opens with `code && …`, and the upstream test that names this
+condition — `getCodeAction.test.ts:89`, `it('if diagnostic is error')` — sends
+`severity: DiagnosticSeverity.Error` and **no `code`**. The first conjunct is already false, so
+`[]` is returned before severity is read. The test passes whatever the severity rule is.
+
+The fixtures suite transcribes that test faithfully, so **the severity guard is exercised by
+nothing here**, and the transcription's own faithfulness is what reproduces the gap: a case that
+sends `severity: error` *with* a code would discriminate, and it does not exist upstream to
+transcribe. This is one level past a grid that holds one of the oracle's properties fixed — there
+the grid's author chose the constant; here the oracle's coverage hole is copied exactly *because*
+the copy is accurate.
+
+It cannot be repaired inside this suite. `suites.mjs:145-148` builds the fixture cases from
+`manifest.behavior_cases` alone, `upstream_fixture_manifest.rs:189` asserts that each suite's
+behavior-case names equal the **multiset** of upstream's `it()` call-site names (` [...]` suffix
+stripped), and `unit_coverage.unported_it_call_sites` is `0` — so there is no unported `it()` to
+attach a case to, a new name breaks the assert, and a second ` [variant]` of an existing name
+breaks it on the count. Reproducing that comparison independently, with the current tree as a
+positive control, gives `EQUAL true` now, `false` for a new name and `false` for an extra
+variant. The assert is working as designed: it is what makes this suite a transcription rather
+than a mixture, and mixing rsvelte-authored cases in would also stop it detecting an unported
+upstream test. The axis therefore needs a case list the multiset assert does not cover.
+
+Two sibling fields of the same manifest object were **declared and read by nothing**:
+`severity` (12 of the 14 codeAction entries declare it; the string does not occur anywhere in
+`scripts/compat-lsp/**/*.mjs`) and `diagnostic_source` (12 declare it; the harness hardcoded
+`source: "svelte"`). Both are read now. Reading `diagnostic_source` is a discriminating case —
+it retires exactly the two `code-action-foreign` entries, with `cases`, `compared`, `skipped` and
+all three oracle-calibration ratios identical across the two arms — while reading `severity`
+moves nothing, for the reason above.
+
+**Evidence [S]:** the condition order is read from `getQuickfixes.ts:189-197` and
+`code_actions.rs:279-284`; the absent `code` from `getCodeAction.test.ts:89`; the closed
+population from `upstream_fixture_manifest.rs:189` plus `unit_coverage.unported_it_call_sites`,
+with the multiset comparison reproduced independently and controlled in both directions. The
+`diagnostic_source` half is **[D]** (−2 entries, 0 new, denominators unmoved). **Unmeasured:**
+whether the severity guard's four conditions agree with upstream's three on any input at all —
+`is_compiler_code` has no upstream counterpart and is tracked separately — and whether the other
+`textDocument/*` methods' manifest params carry further unread fields.
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
 
