@@ -4686,10 +4686,15 @@ classes over 4,468 files — and both are recorded in the script header.
 ### 39b — a divergence stops the walk, so what is behind it is uncompared — **[S]**
 
 `diffKeys` does not descend past a `type` mismatch (two node types have no fields in common), and
-does not descend into a key that is `#missing` or `#extra`. So the 141 `node-type` keys and the
-75 `estree-fields` keys each hide an entire subtree that has never been compared: fixing one will
+does not descend into a key that is `#missing` or `#extra`. So every `node-type` key and every
+`estree-fields` key hides an entire subtree that has never been compared: fixing one will
 *add* keys as its children become reachable. This is the same one-directional coupling the
-lint gates have between `start` and `end` — expected, not a regression.
+lint gates have between `start` and `end` — expected, not a regression. **Measured on the first
+instance**: #4220's seven TypeScript type arms retired 16 keys and enrolled 2, from one
+mechanism — and three of the sixteen were node types the fix never named, freed from under a
+`.type#value` that had been masking them. The two counts this row carried (141 and 75) were the
+first baseline's and had gone stale by a factor of ~2.5; read them live off
+`parse-ast-known-failures.json`, whose values are the cluster labels.
 
 ### 39c — both-reject is not compared at all — **[S]**
 
