@@ -119,6 +119,12 @@ function buildSandbox() {
 		}
 	}
 	fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest));
+	// The guard reads this sandbox as a checkout, and an undeclared source set is
+	// unmeasurable coverage rather than complete coverage, so it refuses the rewrite.
+	fs.writeFileSync(
+		path.join(sandbox, 'scripts/compat-corpus/corpus-sources.json'),
+		JSON.stringify(manifest.map((e) => ({ id: e.id, path: `submodules/${e.id}` }))),
+	);
 }
 
 /** Overwrite one entry's files, returning a restore closure. */

@@ -13,7 +13,8 @@
 //! - `eslint-disable [ids]` … `eslint-enable [ids]` — a **block range** (Wave
 //!   2): everything between the two directives (to EOF when never re-enabled).
 //! - `svelte-ignore code` — treated like `disable-next-line` for the listed
-//!   codes.
+//!   codes, which are the compiler's warning codes only: a `svelte/<rule>` id
+//!   is ignored, matching the oracle.
 //!
 //! An empty id list means "all rules" (the `*` token).
 
@@ -113,7 +114,7 @@ impl Suppressions {
                 // (no codes) suppresses NOTHING — Svelte's svelte-ignore needs
                 // explicit codes, and the eslint oracle never lets it disable
                 // `svelte/*` rules. Only add codes when the list is non-empty.
-                s.add_line_no_wildcard(lineno + 1, rest);
+                s.add_line_svelte_ignore(lineno + 1, rest);
             }
             // Upstream re-enables ALL (plugin) suppressions at every `<script>`
             // start tag (`SvelteScriptElement` pushes an enable-all block at the
@@ -159,15 +160,16 @@ impl Suppressions {
         }
     }
 
-    /// Like [`add_line`] but the `*` wildcard is never honoured. Used for
-    /// `svelte-ignore`, which (unlike `eslint-disable`) must NOT suppress every
-    /// rule: a bare `<!-- svelte-ignore -->` (empty → `parse_ids` yields `["*"]`)
-    /// suppresses nothing, and a stray `*` token alongside real codes
-    /// (`<!-- svelte-ignore * foo -->`) is dropped while `foo` is kept.
-    fn add_line_no_wildcard(&mut self, line: u32, rest: &str) {
+    /// Like [`add_line`] but for `svelte-ignore`, whose id vocabulary is the
+    /// compiler's warning codes rather than ESLint rule ids. Two tokens are
+    /// therefore dropped rather than registered: `*`, because a bare
+    /// `<!-- svelte-ignore -->` (empty → `parse_ids` yields `["*"]`) suppresses
+    /// nothing; and any `/`-bearing id, because `svelte/<rule>` names a plugin
+    /// rule the oracle's `svelte-ignore` cannot disable.
+    fn add_line_svelte_ignore(&mut self, line: u32, rest: &str) {
         let entry = self.by_line.entry(line).or_default();
         for id in parse_ids(rest) {
-            if id != ALL {
+            if id != ALL && !id.contains('/') {
                 entry.insert(id);
             }
         }
