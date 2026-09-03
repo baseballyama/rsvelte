@@ -2869,13 +2869,13 @@ because a baseline is a durable claim about a population and an unmeasurable pop
 green one.
 
 
-### Both marginals in the thousands, the interaction at zero
+### The product was counted correctly, and it was the wrong product
 
-This file already argues that the collected corpus samples the *marginal* distribution of
-published code while an interaction can occur zero times in it (#2254's shape, 0 of 14,026
-files). The sharper form measures the marginals too, and it is cheap. Deciding whether a
-corpus can separate "drop `optional` when a call has type arguments" from "drop it when it
-has type arguments **and** is not an optional chain", over 34,835 files:
+Deciding whether the collected corpus can separate two candidate rules — "drop `optional`
+when a call has type arguments" versus "drop it when it has type arguments **and** is not in
+an optional chain" — the discriminating syntax was taken to be `f?.<T>(x)`, an optional call
+that itself carries type arguments. Counted over 34,835 files, with both marginals as live
+controls:
 
 | pattern | files |
 |---|---|
@@ -2883,16 +2883,33 @@ has type arguments **and** is not an optional chain", over 34,835 files:
 | `name<T>(` — an explicit type argument at all | 2,040 |
 | `?.<` — the two together | **0** |
 
-Each half has thousands of carriers and their product has none, so the one cell where the two
-candidate rules disagree is unreachable at any corpus size, and a fix built to either rule
-retires the same ratchet keys. The same census found `` tag<T>`x` `` at 0, i.e. one of the
-three node kinds carrying the mechanism is unscored as well.
+Every one of those numbers is right, and the conclusion drawn from the zero — *no corpus of
+any size scores the difference between the two rules, so it needs a unit test* — is false.
+The cell that discriminates is `o?.m<T>(x)`, where the `?.` sits on an earlier member and the
+type-argument-bearing call is merely **inside** the chain; `?.<` matches none of those, and
+the corpus holds **15** of them (`ref?.element.querySelector<HTMLDivElement>('…')` and
+friends, across 12 repositories). Probed against the oracle, six cells close the rule:
+`optional` is dropped exactly when there are type arguments and the call is not inside a
+`ChainExpression`.
 
-Two things to take. **A conjunction's carrier count is not bounded below by its conjuncts'** —
-"both halves are common" feels like evidence the product exists and is not; only the product
-counts. And **the measurement is a grep**, so it is an upper bound rather than a parse (a
-comment between `?.` and `<` is missed) — which is exactly what you want here, because the
-claim being supported is a *zero*.
+**The arithmetic was never the weak part.** A product cannot be inferred from its factors,
+which is why it was measured — but *which* product to measure came from a hypothesis about
+which syntax discriminates, and that hypothesis is the thing no amount of care about the
+counting can check. Re-reading the grep finds nothing, forever, because the grep is a correct
+implementation of the wrong question.
+
+**What did find it was re-reading data already in hand**: the two ratchet keys carry 1,884
+and 1,875 carriers, and the difference of **9** is not noise — it is a set, and it can be
+listed. That is the "re-key a grid before adding rows to it" move applied to a ratchet: no
+new measurement, a different projection of the same one. Had the fix shipped on the wrong
+rule it would have looked green, because `optional#extra` goes 1,875 → 0 under either rule
+and the 15 files that separate them are counted by neither key.
+
+So when a zero is about to license "this needs a unit test rather than a corpus entry", spend
+one probe on the **premise** rather than on the count: enumerate, from the oracle, the shapes
+in which the two rules disagree, instead of writing down the one you thought of. Here that
+enumeration also shrinks the unit-test-only residue from two shapes to one —
+`` tag<T>`x` ``, which really is 0.
 
 
 ### A SHA you did not resolve is an identifier you invented
