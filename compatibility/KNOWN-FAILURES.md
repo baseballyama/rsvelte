@@ -3391,7 +3391,7 @@ cannot be spelled without answering it. One shape is still open and is a **diffe
 module text pipeline, which carries its own list. Its carrier count over the collected corpus is
 **0 of 33,545** — measured with two positive controls, 1,981 files do have a module script and
 3,425 do contain a `= undefined`, so the zero is the conjunction and not the detector — which is
-why it is filed rather than fixed here.
+why it is filed (#4264) rather than fixed here.
 
 `svelte-lexical/…/notesStore.svelte.ts` left it when the text port of upstream's `should_proxy`
 became transparent to parentheses (#4254). acorn builds no `ParenthesizedExpression`, so
