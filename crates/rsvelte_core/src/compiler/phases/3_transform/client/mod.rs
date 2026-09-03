@@ -8102,7 +8102,7 @@ fn transform_instance_script_for_visitors(
                     super::profile::PA_EL_TRANSFORM,
                     statement.len() as u64,
                 );
-                transform_export_let(&statement, analysis)
+                transform_export_let(&statement, analysis, dev)
             };
             // After converting to $.prop(), apply prop read wrapping to the DEFAULT VALUE
             // inside $.prop() calls. wrap_prop_source_reads skips lines containing $.prop(),
@@ -8212,7 +8212,8 @@ fn transform_instance_script_for_visitors(
                     || first_line_trimmed.starts_with("var "))
             {
                 // Check if any of the declarators are BindableProp
-                if let Some(transformed) = transform_let_with_reexported_props(&statement, analysis)
+                if let Some(transformed) =
+                    transform_let_with_reexported_props(&statement, analysis, dev)
                 {
                     result.push_str(&transformed);
                     result.push('\n');

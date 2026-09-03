@@ -3409,6 +3409,21 @@ correct throughout, which is what separates "claims in source order" from "alway
 first site"; a grid of computed chains alone cannot. Two arms over the corpus moved 2 of 134,180
 units (129,450 live), `MISMATCH -> match: 1`, `match -> MISMATCH: 0`.
 
+`svelvet/…/Edge/Edge.svelte` moved on this target without leaving it. Upstream runs
+`is_simple_expression` on the **visited** default of a legacy `export let`, and in dev
+`BinaryExpression.js` rewrites all four equality operators into `$.strict_equals` / `$.equals`
+CALLS unconditionally — so `export let straight = edgeStyle === 'straight'` is simple in
+production and not simple in dev, where it becomes `$.prop(…, 24, () => …)`. rsvelte answered
+from the source shape, and the same reduction found a second, opposite defect in the text scan
+that decides it: a `(` after an operator opens a parenthesised operand, not a call, so
+`a || (b === 'x')` was read as a call and made lazy in production where official is eager. A
+13-shape × 2-mode grid separates the two directions and holds five mode-invariant rows
+(`a < 1`, `a + 1`, a literal, an identifier, and an arrow whose body holds the operator — an
+arrow is simple whatever it contains, which is what fails a text search for the token). Two arms
+over the corpus moved 1 of 134,180 units (129,450 live). The entry stays because its remaining
+line is comment placement: esrap attaches a trailing `//` to the literal inside
+`$.mutable_source(false)` and rsvelte keeps it at end of line.
+
 The other moved unit is `svelte-bits/…/MetallicPaint.svelte`, whose verdict did **not** change:
 its location is now right and its remaining line is the other half — upstream declines to wrap
 the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)` follows the
