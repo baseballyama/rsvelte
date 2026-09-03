@@ -3376,16 +3376,34 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 13 entries)
+### Client dev (`known-failures.client-dev.json`, 12 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `13`
+Partition of `known-failures.client-dev.json` by verdict: `12`
 
-- **13 — the generated JS differs.**
+- **12 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
-All remaining 13 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and it is the largest of the four — 6 JS entries that `client` does not
+`huly/…/HelpAndSupport.svelte` left this target with the site claim in
+`assign_dev_ast.rs`. `$.assign(…, '<file>:<line>:<column>')` locates the assignment's own
+left-hand side, and rsvelte finds that by matching the lowered target back against a
+source-order site list keyed `(root, path, operator)` — where a computed member contributes a
+valueless `Computed` element, so `o.p[2]` and `o.p[3]` share a key and only the order the sites
+are consumed in separates them. The visitor claimed its site *after* descending, so the inner
+link of `loc.path[2] = loc.path[3] = settingId` took the outer's site and reported `53:4` where
+official reports `53:18`. A static-key chain (`o.a = o.b = s`) has two distinct keys and was
+correct throughout, which is what separates "claims in source order" from "always claims the
+first site"; a grid of computed chains alone cannot. Two arms over the corpus moved 2 of 134,180
+units (129,450 live), `MISMATCH -> match: 1`, `match -> MISMATCH: 0`.
+
+The other moved unit is `svelte-bits/…/MetallicPaint.svelte`, whose verdict did **not** change:
+its location is now right and its remaining line is the other half — upstream declines to wrap
+the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)` follows the
+binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
+expression's shape alone. A moved unit is not a retired entry.
+
+All remaining 12 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+it, and it is the largest of the four — 5 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
 `immich/…/asset-viewer/ActivityViewer.svelte` left this target and `client` for the other half of

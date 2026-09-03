@@ -1,6 +1,5 @@
 [
 	"headscale-ui/src/lib/settings/ServerSettings.svelte",
-	"huly/plugins/workbench-resources/src/components/HelpAndSupport.svelte",
 	"immich/web/src/lib/components/timeline/Timeline.svelte",
 	"musicat/src/lib/settings/SettingsPopup.svelte",
 	"photon/src/lib/ui/navbar/Profile.svelte",
