@@ -81,7 +81,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { assertOracleCompiles, OFFICIAL_COMPILER_REL } from './oracle.mjs';
 import { unattributedBindingReason, BINDING_REL } from './binding.mjs';
-import { refuseUnrepresentativeBaseline } from './baseline-guard.mjs';
+import { refuseUnrepresentativeBaseline, unpopulatedSourcesReason } from './baseline-guard.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -588,6 +588,9 @@ if (UPDATE) {
 		// durable claim about a tree and must name the tree it was measured on.
 		unattributedBindingReason(ROOT),
 		FILTER && `--filter ${FILTER} narrows the population; the rewrite would delete every key outside it`,
+		// The floor below counts pairs, which a 7-of-104-submodule checkout clears
+		// at five figures; this one names the repositories the run never opened.
+		unpopulatedSourcesReason(ROOT),
 		compared.modern < MIN_COMPONENTS &&
 			`only ${compared.modern} modern-axis pairs compared (need >= ${MIN_COMPONENTS})`,
 	]);

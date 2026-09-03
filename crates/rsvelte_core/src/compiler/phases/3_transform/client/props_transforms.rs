@@ -4288,21 +4288,28 @@ fn reactive_statement_ranges(source: &str) -> Vec<(usize, usize)> {
     while i + 1 < bytes.len() {
         match (bytes[i], bytes[i + 1]) {
             (b'/', b'/') => {
-                while i < bytes.len() && bytes[i] != b'\n' {
-                    i += 1;
-                }
+                i = memchr::memchr(b'\n', &bytes[i..]).map_or(bytes.len(), |at| i + at);
             }
             (b'/', b'*') => {
                 i += 2;
-                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
+                i = match memchr::memmem::find(&bytes[i..], b"*/") {
+                    Some(at) => i + at,
+                    None => bytes.len().saturating_sub(1),
+                };
                 i += 2;
             }
             (quote @ (b'"' | b'\'' | b'`'), _) => {
                 i += 1;
-                while i < bytes.len() && bytes[i] != quote {
-                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                while i < bytes.len() {
+                    let Some(at) = memchr::memchr2(quote, b'\\', &bytes[i..]) else {
+                        i = bytes.len();
+                        break;
+                    };
+                    i += at;
+                    if bytes[i] == quote {
+                        break;
+                    }
+                    i += 2;
                 }
                 i += 1;
             }
@@ -4614,6 +4621,29 @@ impl CodeSpans {
         let mut code_from = 0usize;
         let mut i = memchr::memmem::find(bytes, b"<script").unwrap_or(0);
         while i < bytes.len() {
+            // Every state below is looking for one of at most three bytes, so
+            // step over the run in between with SIMD rather than one at a time.
+            let rest = &bytes[i..];
+            let next_interesting = match state {
+                S::Code => match (
+                    memchr::memchr3(b'/', b'\'', b'"', rest),
+                    memchr::memchr(b'`', rest),
+                ) {
+                    (Some(a), Some(b)) => Some(a.min(b)),
+                    (Some(a), None) => Some(a),
+                    (None, b) => b,
+                },
+                S::Line => memchr::memchr(b'\n', rest),
+                S::Block => memchr::memmem::find(rest, b"*/"),
+                S::Single => memchr::memchr2(b'\\', b'\'', rest),
+                S::Double => memchr::memchr2(b'\\', b'"', rest),
+                S::Template => memchr::memchr2(b'\\', b'`', rest),
+            };
+            let skip = next_interesting.unwrap_or(rest.len());
+            if skip > 0 {
+                i += skip;
+                continue;
+            }
             let was_code = state == S::Code;
             let c = bytes[i];
             let next = bytes.get(i + 1).copied();

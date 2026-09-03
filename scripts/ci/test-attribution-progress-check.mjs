@@ -122,6 +122,19 @@ const check = (name, condition, detail) => {
 	check('the same mechanism in two ports may cite two issues', r.code === 0, r.out);
 }
 
+// The key joins the two fields, and both are free text. Under a space these
+// two records collapse onto one key and the run fails; under NUL they do not.
+{
+	const progress = {
+		'a-known-failures.json': [
+			{ id: 'one', issue: 1, port: 'client dev', mechanism: 'x' },
+			{ id: 'two', issue: 9, port: 'client', mechanism: 'dev x' },
+		],
+	};
+	const r = run({ ...PASSING, 'attribution-progress.json': progress });
+	check('a separator inside a field does not collapse two pairs', r.code === 0, r.out);
+}
+
 for (const [field, value] of [
 	['issue', '4211'],
 	['issue', 0],
