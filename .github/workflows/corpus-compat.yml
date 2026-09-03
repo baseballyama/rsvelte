@@ -88,6 +88,8 @@ concurrency:
 
 permissions:
   contents: read
+  # `Collect the changed files` reads the PR files API for the three-dot list.
+  pull-requests: read
 
 env:
   # The NAPI build is the whole job's bottleneck (~5 min of the ~6 min total):
@@ -126,14 +128,28 @@ jobs:
 
       # Only a `pull_request` has a diff to narrow by. A push, schedule or
       # dispatch writes no list, and the filter then enables every job.
+      #
+      # A PR's own changes are the diff against its MERGE BASE. `git diff BASE
+      # HEAD` is the two-dot one, which for a branch behind `main` also reports
+      # everything `main` gained, with the sign reversed -- and a shallow fetch
+      # cannot compute the merge base to correct it. The files API returns the
+      # three-dot list directly. Measured 2026-09-03: three of 24 open PRs were
+      # opening the 950-job-minute `lsp-corpus` hatch that way, none of them
+      # touching an LSP path (#4211 17 files -> 11, #4218 24 -> 4, #4219 25 -> 5).
       - name: Collect the changed files
         if: github.event_name == 'pull_request'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
-          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+            --jq '.[].filename' > changed-files.txt
+          # A pull request always changes at least one file, so an empty list
+          # means the query failed. Left empty it enables every job gate and
+          # CLOSES `lsp-ratchet`, the only output a pull request consults --
+          # failing open everywhere and closed on the one hatch that matters.
+          test -s changed-files.txt
           wc -l < changed-files.txt
 
       - name: Decide which gates the change can reach
