@@ -29,9 +29,8 @@ export const UNCLASSIFIED = "unclassified";
 export const MECHANISMS = [
   // Architectural: rsvelte proxies tsgo, official bundles `typescript`.
   "ts-lib-copy",
-  // The four renderings a `tsgo --lsp` hover spells differently from `tsc`'s
-  // quick info, each pinned by one probe position in
-  // `upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md`.
+  // One label per rewrite in `TS_RENDER_RULES`: a rendering a `tsgo --lsp`
+  // hover spells differently from `tsc`'s quick info.
   "ts-render-union-order",
   "ts-render-quote-style",
   "ts-render-local-modifier",
@@ -50,7 +49,7 @@ export const MECHANISMS = [
   "ts-render-multiple",
   // Not a rendering difference at all: the same declaration, typed.
   "ts-type-any",
-  // The residual: a hover text none of those four rules explains. It is NOT
+  // The residual: a hover text no rewrite in `TS_RENDER_RULES` explains. It is NOT
   // attributed to tsgo -- the same probe shows `tsc` and `tsgo` agreeing on the
   // shapes this bucket holds, so which side is wrong is unmeasured.
   "ts-render",
@@ -217,10 +216,10 @@ function declarationHead(text) {
   return { kind: "?", name: first.slice(0, 32) };
 }
 
-// The four `tsgo` renderings `upstream_issues/tsgo-lsp-hover-renders-four-
-// things-differently-from-tsc.md` reproduces, each written as the rewrite that
-// makes the two texts equal. The rewrite decides the LABEL only -- it never
-// decides whether the entry diverges -- so it cannot hide a difference.
+// Each `tsgo` rendering that differs from `tsc`'s quick info, written as the
+// rewrite that makes the two texts equal. The rewrite decides the LABEL only --
+// it never decides whether the entry diverges -- so it cannot hide a
+// difference.
 const sortUnions = (text) =>
   text.replace(/(?:"[^"]*"|'[^']*'|[\w.$<>[\]]+)(?:\s*\|\s*(?:"[^"]*"|'[^']*'|[\w.$<>[\]]+))+/g, (run) =>
     run
@@ -339,7 +338,7 @@ function classifyHover(official, rsvelte) {
   }
   if (typeof left !== "string" || typeof right !== "string") return UNCLASSIFIED;
   // Ahead of the head comparison, because `(local function) f()` vs `function
-  // f()` reads as a KIND disagreement and is one of the four renderer rules.
+  // f()` reads as a KIND disagreement and is one of the `TS_RENDER_RULES`.
   // Each rule demands full equality after its rewrite, so a genuinely different
   // symbol cannot match one.
   const rendered = classifyTsRender(left, right);
