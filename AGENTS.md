@@ -1958,6 +1958,86 @@ first substitution pushed the new arm aside and whose third re-created its name:
 collapsing a rename chain into one command hides the intermediate state that
 would have shown `a` being defined twice.
 
+### A probe on one entry point certifies a path the measurement does not use
+
+Two callers benchmark the same binary and share no code: `run-benchmark.mjs`'s
+`benchmarkRust` and `run-performance.mjs`'s `rustArm`, which spawns cargo itself.
+A PGO flag wired into the first was probed two-sidedly — with the profile present
+the env carried `-Cprofile-use`, with it hidden it did not — and that probe was
+read as "the report builds with PGO". It does not: the four compile surfaces go
+through `rustArm`, and a full report measured a **non-PGO** binary on every one of
+them while the probe said otherwise.
+
+Two things found it, and neither was the probe. A **second method disagreed**: a
+tightly-paired `perf_bench` A/B on one tree read 1.100x on client where the report
+read 1.015x, and 1.139x on client-dev where the report read 0.956x. And the
+artifact that settled it was an **mtime** — `target/release/benchmark_runner` had
+been written during the report, and nothing should touch that path when the flag
+is in effect.
+
+So the rule is not "probe both directions", which was done. It is: **the probe has
+to be on the entry point the measurement uses**, and the way to find out which one
+that is, is to grep for the spawn rather than for the function you patched. The
+repaired probe does not read an env at all — it deletes
+`target/release/benchmark_runner`, runs a surface, and requires it to still be
+absent; then hides the profile and requires it to come back.
+
+### rustc's two `-Cprofile-use` failure modes are not equally loud
+
+A **missing** profile path is a hard error. A **corrupt or truncated** one — a bad
+merge, an LFS pointer, a partial checkout — is a *warning*, and the build then
+succeeds and ships a binary with no profile applied. That is a failure whose
+output is shaped exactly like success, and it is why `scripts/perf/assert-pgo-profile.sh`
+checks the indexed-profile magic before every shipped build rather than trusting
+the build's exit code. Measured: `rustc -Cprofile-use=<random bytes>` exits 0 with
+`warning: invalid instrumentation profile data (bad magic)`.
+
+### Read the deterministic fields of a profile before the timings
+
+One `compile_profile` run put 73% of client-dev's overhead in Phase 2 (`Visitors`
+51.43ms → 85.59ms). Re-measured ABBA at n=5, the Phase 2 delta is **+3.7ms of
++51.85ms** — the first reading was a single run's noise, and phase 2 has no
+`generate` dependence and one trivial `dev` one, which is what should have made it
+suspect before it was quoted.
+
+The same output carried a signal that was never in doubt: `reparse (driver)` went
+from **3629 to 8120 calls**. A call count is deterministic; a duration on one run
+is not. When a profile prints both, the counts are where a hypothesis should start,
+and the timings are what needs the repeated, interleaved measurement.
+
+### A quiet-box check that prints is not a quiet-box check
+
+A thread-scaling sweep ran to completion with `mdworker_shared` at **44.7%** — the
+script printed the CPU top after quiescing, and the number was read after the run
+rather than acted on before it. Spotlight's worker was not in the suspend list
+because the previous session had suspended `mds_stores` and not `mdworker`.
+
+The gate now **aborts** below its threshold, and it carries its own positive
+control: `yes > /dev/null` in the background must appear as the loudest process, so
+a reader that selects nothing is distinguishable from a box that is quiet.
+
+### Darwin QoS does not move this workload's parallel scaling
+
+Measured, so it is not re-opened: all five QoS classes (`interactive`, `initiated`,
+`default`, `utility`, and inheriting) give **3.5–4.4x** at 6, 8 and 10 threads on
+client and client-dev, with no class separating from the others by more than the
+run-to-run spread.
+
+The scaling shape is core placement, not contention inside the compiler. CPU time
+per unit work is flat to 4 threads (1.00 → 1.10) and then steps: **1.38 at 5
+threads, 1.93 at 8**. On this 6P+4E box, one thread on an E-core predicts
+`(4 + 3)/5 = 1.4` and all four E-cores in use predicts `(4 + 4·3)/8 = 2.0`, which
+is what the two steps read. A contention story would have bent the curve from two
+threads, and it does not: 1→2 is 1.95x with CPU flat.
+
+### zsh does not word-split an unquoted parameter, and the symptom is a short table
+
+`order="client client-dev"; for a in $order` runs **once**, with `$a` set to the
+whole string — so an A/B loop silently measures one arm twice and prints half the
+rows it should. Three rows where six were expected is the signature; the numbers
+themselves look entirely normal, because they are real measurements of the wrong
+thing. Use an array (`order=(client client-dev)`) or `${=order}`.
+
 ### When the result is a ratio, pair the arms in time
 
 The section above is about *which binary* an arm measured. A second class is
@@ -2826,6 +2906,99 @@ check. So the printed field cannot be the size of what you counted; it has to be
 names of what you could not count**: one `EMPTY <path>` line per zero-file source, derived
 from the manifest by set difference. Ninety-six such lines are unmissable. The number
 7,142 is not.
+
+
+### The prescription above was already written, and three of the four guards did not have it
+
+The row you just read ends by naming the fix — one `EMPTY <path>` line per zero-file source,
+derived from the manifest by set difference. Measured on 2026-09-03, one of the four
+`--update-baseline` guards in the corpus pipeline had it. `lint-verify.mjs:216-227` checks its
+repo set exactly, and its comment states the general rule — "the entry-count floor is a lower
+bound, so it cannot see the loss of one small repo, nor a SUPERSET run whose extra entries CI
+can never reproduce". `verify.mjs`, `parse-ast-verify.mjs` and `svelte2tsx-verify.mjs` counted
+entries and nothing else. **A rule written in this file and implemented in one sibling is not
+implemented**, and nothing greps for the difference — this is the "sentence that ends in
+*should*" hazard with the sentence in a comment rather than in a doc.
+
+Three things generalize past the fix.
+
+**Three thresholds on one quantity are one guard.** The floors are 1000 (`collect.mjs`), 10000
+(`parse-ast-verify.mjs`) and 30000 (`verify.mjs`, `svelte2tsx-verify.mjs`) — all counting corpus
+*entries*. A checkout with 7 of 104 sources populated collects 11,673 and clears two of the
+three. That 30000 caught the one observed instance is where the threshold happens to sit, not
+something it measures: 60 populated sources clear it and still delete 44 repositories' worth of
+baseline. Before reading a floor as protection, ask what quantity it counts and whether the
+failure you fear moves that quantity at all.
+
+**`present` is not `usable`, and only the PRODUCT separates them.** The first coverage predicate
+written for this was `readdirSync(dir).length > 0`, and it passes for a submodule directory
+holding nothing but `.git`. Measured on one tree, three states each exiting 0 with a plausible
+total: `11,673` with 97 sources absent, **`20,647` with all 104 present and 49 contributing zero
+files**, and `34,835` correct. The middle one is the dangerous one — the directory exists,
+`git submodule status` prints the right SHA, and `git submodule update --init --depth 1` returns
+0; what fixes it is `--init --force --recursive`. A predicate over the *inputs* cannot tell state
+2 from state 3, and one over the *product* (does this source appear in the manifest at all)
+cannot fail to. Where a guard can be written against what a stage produced rather than against
+what it was given, write it there — the input is what you hoped for and the product is what
+happened.
+
+**"I could not measure it" and "it is complete" must not be the same value.** The first version
+returned `[]` when the manifest was absent, which is the fabricated-zero shape one level in: a
+missing corpus read as full coverage. It throws now, and the caller converts that into a refusal,
+because a baseline is a durable claim about a population and an unmeasurable population is not a
+green one.
+
+
+### The product was counted correctly, and it was the wrong product
+
+Deciding whether the collected corpus can separate two candidate rules — "drop `optional`
+when a call has type arguments" versus "drop it when it has type arguments **and** is not in
+an optional chain" — the discriminating syntax was taken to be `f?.<T>(x)`, an optional call
+that itself carries type arguments. Counted over 34,835 files, with both marginals as live
+controls:
+
+| pattern | files |
+|---|---|
+| `?.(` — an optional call at all | 2,996 |
+| `name<T>(` — an explicit type argument at all | 2,040 |
+| `?.<` — the two together | **0** |
+
+Every one of those numbers is right, and the conclusion drawn from the zero — *no corpus of
+any size scores the difference between the two rules, so it needs a unit test* — is false.
+The cell that discriminates is `o?.m<T>(x)`, where the `?.` sits on an earlier member and the
+type-argument-bearing call is merely **inside** the chain; `?.<` matches none of those, and
+the corpus holds **15** of them (`ref?.element.querySelector<HTMLDivElement>('…')` and
+friends, across 12 repositories). Probed against the oracle, six cells close the rule:
+`optional` is dropped exactly when there are type arguments and the call is not inside a
+`ChainExpression`.
+
+**The arithmetic was never the weak part.** A product cannot be inferred from its factors,
+which is why it was measured — but *which* product to measure came from a hypothesis about
+which syntax discriminates, and that hypothesis is the thing no amount of care about the
+counting can check. Re-reading the grep finds nothing, forever, because the grep is a correct
+implementation of the wrong question. Both marginals were run as live controls, and that is
+precisely what a control cannot help with here: **a zero flanked by live controls shows the
+instrument works, never that it is aimed at the right thing.**
+
+**What did find it was re-reading data already in hand**: the two ratchet keys carry 1,884
+and 1,875 carriers, and the difference of **9** is not noise — it is a set, and it can be
+listed. That is the "re-key a grid before adding rows to it" move applied to a ratchet: no
+new measurement, a different projection of the same one. Had the fix shipped on the wrong
+rule it would have looked green, because `optional#extra` goes 1,875 → 0 under either rule
+and the 15 files that separate them are counted by neither key.
+
+So when a zero is about to license "this needs a unit test rather than a corpus entry", spend
+one probe on the **premise** rather than on the count: enumerate, from the oracle, the shapes
+in which the two rules disagree, instead of writing down the one you thought of. Here that
+enumeration also shrinks the unit-test-only residue from two shapes to one —
+`` tag<T>`x` ``, which really is 0.
+
+One coda, because it nearly became a third error. A neighbouring ratchet key, `optional#value`,
+also carries **15** entries, and two 15s next to each other read as one mechanism seen twice.
+Listing both sets took one command and they are **disjoint**: `optional#value` is
+`f?.(…)` — an optional *call* whose `optional` rsvelte emits as `false`, with no type arguments
+anywhere — and it survives both of the fixes above. **Equal cardinality is not identity**, and
+the check is cheaper than the sentence explaining why the coincidence must mean something.
 
 
 ### A SHA you did not resolve is an identifier you invented

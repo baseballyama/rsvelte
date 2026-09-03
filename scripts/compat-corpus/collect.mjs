@@ -32,6 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeGeneration } from './artifacts.mjs';
 import { ignoredPaths } from './gitignored.mjs';
+import { unpopulatedCorpusSources } from './baseline-guard.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -190,6 +191,16 @@ for (const src of SOURCES) {
 manifest.sort((a, b) => (a.id < b.id ? -1 : 1));
 fs.writeFileSync(path.join(CORPUS, 'manifest.json'), JSON.stringify(manifest, null, '\t') + '\n');
 console.log(`[collect] total: ${manifest.length} corpus entries -> ${path.relative(ROOT, OUT)}`);
+
+// The total is the only line anyone reads, and it is a plausible five figures
+// with 7 of 104 sources populated -- the shortfall was already on screen as 97
+// warnings, above. State it as a coverage line and one path per absent source,
+// because 97 lines are unmissable where a smaller number is not.
+{
+	const missing = unpopulatedCorpusSources(ROOT);
+	console.log(`[collect] sources: ${SOURCES.length - missing.length}/${SOURCES.length} populated`);
+	for (const src of missing) console.log(`[collect] EMPTY ${src.path}`);
+}
 
 // A near-empty manifest would make every downstream verify.mjs comparison
 // pass vacuously instead of catching a real regression.
