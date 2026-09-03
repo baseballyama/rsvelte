@@ -2828,6 +2828,73 @@ from the manifest by set difference. Ninety-six such lines are unmissable. The n
 7,142 is not.
 
 
+### The prescription above was already written, and three of the four guards did not have it
+
+The row you just read ends by naming the fix — one `EMPTY <path>` line per zero-file source,
+derived from the manifest by set difference. Measured on 2026-09-03, one of the four
+`--update-baseline` guards in the corpus pipeline had it. `lint-verify.mjs:216-227` checks its
+repo set exactly, and its comment states the general rule — "the entry-count floor is a lower
+bound, so it cannot see the loss of one small repo, nor a SUPERSET run whose extra entries CI
+can never reproduce". `verify.mjs`, `parse-ast-verify.mjs` and `svelte2tsx-verify.mjs` counted
+entries and nothing else. **A rule written in this file and implemented in one sibling is not
+implemented**, and nothing greps for the difference — this is the "sentence that ends in
+*should*" hazard with the sentence in a comment rather than in a doc.
+
+Three things generalize past the fix.
+
+**Three thresholds on one quantity are one guard.** The floors are 1000 (`collect.mjs`), 10000
+(`parse-ast-verify.mjs`) and 30000 (`verify.mjs`, `svelte2tsx-verify.mjs`) — all counting corpus
+*entries*. A checkout with 7 of 104 sources populated collects 11,673 and clears two of the
+three. That 30000 caught the one observed instance is where the threshold happens to sit, not
+something it measures: 60 populated sources clear it and still delete 44 repositories' worth of
+baseline. Before reading a floor as protection, ask what quantity it counts and whether the
+failure you fear moves that quantity at all.
+
+**`present` is not `usable`, and only the PRODUCT separates them.** The first coverage predicate
+written for this was `readdirSync(dir).length > 0`, and it passes for a submodule directory
+holding nothing but `.git`. Measured on one tree, three states each exiting 0 with a plausible
+total: `11,673` with 97 sources absent, **`20,647` with all 104 present and 49 contributing zero
+files**, and `34,835` correct. The middle one is the dangerous one — the directory exists,
+`git submodule status` prints the right SHA, and `git submodule update --init --depth 1` returns
+0; what fixes it is `--init --force --recursive`. A predicate over the *inputs* cannot tell state
+2 from state 3, and one over the *product* (does this source appear in the manifest at all)
+cannot fail to. Where a guard can be written against what a stage produced rather than against
+what it was given, write it there — the input is what you hoped for and the product is what
+happened.
+
+**"I could not measure it" and "it is complete" must not be the same value.** The first version
+returned `[]` when the manifest was absent, which is the fabricated-zero shape one level in: a
+missing corpus read as full coverage. It throws now, and the caller converts that into a refusal,
+because a baseline is a durable claim about a population and an unmeasurable population is not a
+green one.
+
+
+### Both marginals in the thousands, the interaction at zero
+
+This file already argues that the collected corpus samples the *marginal* distribution of
+published code while an interaction can occur zero times in it (#2254's shape, 0 of 14,026
+files). The sharper form measures the marginals too, and it is cheap. Deciding whether a
+corpus can separate "drop `optional` when a call has type arguments" from "drop it when it
+has type arguments **and** is not an optional chain", over 34,835 files:
+
+| pattern | files |
+|---|---|
+| `?.(` — an optional call at all | 2,996 |
+| `name<T>(` — an explicit type argument at all | 2,040 |
+| `?.<` — the two together | **0** |
+
+Each half has thousands of carriers and their product has none, so the one cell where the two
+candidate rules disagree is unreachable at any corpus size, and a fix built to either rule
+retires the same ratchet keys. The same census found `` tag<T>`x` `` at 0, i.e. one of the
+three node kinds carrying the mechanism is unscored as well.
+
+Two things to take. **A conjunction's carrier count is not bounded below by its conjuncts'** —
+"both halves are common" feels like evidence the product exists and is not; only the product
+counts. And **the measurement is a grep**, so it is an upper bound rather than a parse (a
+comment between `?.` and `<` is missed) — which is exactly what you want here, because the
+claim being supported is a *zero*.
+
+
 ### A SHA you did not resolve is an identifier you invented
 
 `AGENTS.md` records that an arm's *label* lies — the file name, `buildInfo()`, the
