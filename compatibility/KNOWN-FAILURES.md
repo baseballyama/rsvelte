@@ -4552,24 +4552,30 @@ structural field for which `rsvelte-language-server` differs from the pinned off
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
-### Why this ratchet carries no attribution block
+### Why this ratchet's attribution is partial
 
 The DoD gate allows three end states per entry: gone, a filed `upstream_issues/` report, or
-`deliberate-divergences` pinned by a test. **None of the 23,746 entries here has a target of the
-second or third kind**, and that is a property of the population rather than an unwritten column.
+`deliberate-divergences` pinned by a test. **23,740 of the 23,746 entries here have a target of
+neither the second nor the third kind**, and that is a property of the population rather than an
+unwritten column. The six that do are the `initialize` capability cluster tabled below, which is
+attributable only because a capability's value can be recovered from each side's source and
+checked against the ratchet's digest.
 
-* Every entry is a field or aggregate on which `rsvelte-language-server` answers differently from
-  the pinned official `svelte-language-server`. The oracle is the official server; a divergence is
-  rsvelte's side by construction.
-* This section references `upstream_issues/` **zero** times, and no entry names one.
-* The standing decision on this ratchet is that it is not finished until it reaches **0**. That is
-  a statement that the terminal state is elimination, so there is nothing to attribute.
+* Outside that cluster, every entry is a field or aggregate on which `rsvelte-language-server`
+  answers differently from the pinned official `svelte-language-server`. The oracle is the
+  official server, so a divergence is rsvelte's side unless someone reproduces the value and
+  shows otherwise — which is what the one `upstream_issues/` row below did.
+* Outside that cluster, this section references `upstream_issues/` **zero** times and no entry
+  names one.
+* The standing decision on this ratchet is that it is not finished until it reaches **0**. For
+  the unattributed remainder that is a statement that the terminal state is elimination, so
+  there is nothing to attribute.
 
-Writing a block here would mean inventing 23,746 targets. The ratchet belongs on the pending list
-until it is burned down.
+Writing a target for the rest would mean inventing 23,740 of them. The ratchet stays on the
+pending list until it is burned down.
 
-**No cluster breakdown is offered, deliberately.** For a ratchet whose entries are all headed for
-deletion, a cluster table buys no attribution and would cost a classification pass over 23,746
+**No cluster breakdown is offered for the remainder, deliberately.** For entries all headed for
+deletion, a cluster table buys no attribution and would cost a classification pass over 23,740
 keys; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
 Partition of `lsp-known-failures.json` by key kind: `21630 + 1776 + 340` — real-world corpus
