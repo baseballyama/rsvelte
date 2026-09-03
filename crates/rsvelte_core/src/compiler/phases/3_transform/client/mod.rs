@@ -7741,6 +7741,18 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // Every prop, unfiltered: a destructure's right-hand side is cached when the
+    // VISITED read is not an `Identifier` (`shared/assignments.js:21`), and a
+    // prop reads as `name()` or `$$props.name` whether or not it is ever
+    // assigned — which is what the list above filters on.
+    let destructure_rhs_prop_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
+        .map(|b| b.name.clone())
+        .collect();
+
     // For each prop binding that carries `legacy_indirect_bindings` (legacy
     // `<select bind:value={prop…}>` whose subtree references other variables),
     // precompute the `$.invalidate_inner_signals(() => { … })` body — the read
@@ -8360,6 +8372,7 @@ fn transform_instance_script_for_visitors(
                         non_reactive_state_vars,
                         store_sub_vars,
                         prop_assignment_transform_vars,
+                        &destructure_rhs_prop_vars,
                     ))
                     .map(Cow::Owned)
                     .unwrap_or(t)

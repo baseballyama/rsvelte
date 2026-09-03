@@ -72,20 +72,29 @@ pub(super) fn transform_destructure_assignments(
     state_vars: &[String],
     store_sub_vars: &[String],
 ) -> String {
-    transform_destructure_assignments_with_props(statement, state_vars, &[], store_sub_vars, &[])
-        .into_owned()
+    transform_destructure_assignments_with_props(
+        statement,
+        state_vars,
+        &[],
+        store_sub_vars,
+        &[],
+        &[],
+    )
+    .into_owned()
 }
 
 /// Transform destructure assignments, with knowledge of prop variables.
 ///
 /// `prop_vars` are variable names that will be transformed to function calls
-/// (e.g., `numbers` → `numbers()` for prop getters). They matter twice: a prop
-/// *target* makes the destructure eligible for the expansion just like a state
-/// or store target (upstream routes every extracted path through the ordinary
-/// assignment lowering), and a prop on the *right-hand side* forces the IIFE
-/// form (with `$$value` caching) because the official compiler visits the RHS
-/// first, turning it into a CallExpression, and then checks
-/// `should_cache = value.type !== 'Identifier'`.
+/// (e.g., `numbers` → `numbers()` for prop getters); a prop *target* makes the
+/// destructure eligible for the expansion just like a state or store target
+/// (upstream routes every extracted path through the ordinary assignment
+/// lowering).
+///
+/// `rhs_cache_prop_vars` is every prop, including the ones that are not
+/// assignment targets: upstream visits the right-hand side before testing
+/// `should_cache = value.type !== 'Identifier'`, and a prop reads as `name()`
+/// or `$$props.name` — neither is an `Identifier`, so either forces the IIFE.
 ///
 /// `non_reactive_state_vars` is subtracted from `state_vars` for that same
 /// right-hand-side test: only a state variable whose read becomes `$.get(…)`
@@ -96,6 +105,7 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
     non_reactive_state_vars: &[String],
     store_sub_vars: &[String],
     prop_vars: &[String],
+    rhs_cache_prop_vars: &[String],
 ) -> Cow<'a, str> {
     #[cfg(feature = "measure-destructure-scanner")]
     crate::measure_destructure_scanner::record_entry();
@@ -122,6 +132,11 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
     let store_set: rustc_hash::FxHashSet<&str> =
         store_sub_vars.iter().map(|s| s.as_str()).collect();
     let prop_set: rustc_hash::FxHashSet<&str> = prop_vars.iter().map(|s| s.as_str()).collect();
+    // Every prop, not only the ones eligible as a destructure TARGET: upstream's
+    // `should_cache` looks at the visited right-hand side, and a prop reads as
+    // `name()` or `$$props.name` — neither is an `Identifier`.
+    let rhs_cache_prop_set: rustc_hash::FxHashSet<&str> =
+        rhs_cache_prop_vars.iter().map(|s| s.as_str()).collect();
     let reactive_state_set: rustc_hash::FxHashSet<&str> = state_vars
         .iter()
         .map(|s| s.as_str())
@@ -135,6 +150,7 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
         store_sub_vars,
         &store_set,
         &prop_set,
+        &rhs_cache_prop_set,
         &reactive_state_set,
     ) {
         #[cfg(feature = "measure-destructure-scanner")]
@@ -162,6 +178,7 @@ pub(super) fn find_and_transform_one_destructure(
     store_sub_vars: &[String],
     store_set: &rustc_hash::FxHashSet<&str>,
     prop_set: &rustc_hash::FxHashSet<&str>,
+    rhs_cache_prop_set: &rustc_hash::FxHashSet<&str>,
     reactive_state_set: &rustc_hash::FxHashSet<&str>,
 ) -> Option<String> {
     #[cfg(feature = "measure-destructure-scanner")]
@@ -451,7 +468,7 @@ pub(super) fn find_and_transform_one_destructure(
 
     // Check if RHS will become a function call
     let rhs_trimmed = rhs_str.trim();
-    let rhs_will_be_call = prop_set.contains(rhs_trimmed)
+    let rhs_will_be_call = rhs_cache_prop_set.contains(rhs_trimmed)
         || store_set.contains(rhs_trimmed)
         || reactive_state_set.contains(rhs_trimmed);
 
@@ -2104,6 +2121,7 @@ mod tests {
             &[],
             &[],
             &props,
+            &props,
         );
         assert!(out.contains("a = value.café"), "{out}");
     }
@@ -2114,6 +2132,7 @@ mod tests {
         let out = transform_destructure_assignments_with_props(
             "query((res) => { ;[doc] = res }, options);",
             &state,
+            &[],
             &[],
             &[],
             &[],
@@ -2132,6 +2151,7 @@ mod tests {
             &[],
             &[],
             &[],
+            &[],
         );
 
         assert!(out.contains("})(priorities[value])"), "{out}");
@@ -2143,8 +2163,14 @@ mod tests {
     fn destructure_scanner_measurement_counts_a_real_rewrite_and_final_rescan() {
         crate::measure_destructure_scanner::reset();
         let state = vec!["a".to_string()];
-        let out =
-            transform_destructure_assignments_with_props("({ a } = value);", &state, &[], &[], &[]);
+        let out = transform_destructure_assignments_with_props(
+            "({ a } = value);",
+            &state,
+            &[],
+            &[],
+            &[],
+            &[],
+        );
         assert!(out.contains("a = value.a"), "{out}");
 
         let stats = crate::measure_destructure_scanner::snapshot();

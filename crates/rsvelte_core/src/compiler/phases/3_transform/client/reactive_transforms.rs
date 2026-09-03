@@ -391,6 +391,9 @@ pub(super) fn transform_reactive_statement(
                 non_reactive_state_vars,
                 store_sub_vars,
                 prop_assignment_transform_vars,
+                // `$:` is legacy-only, where every prop reads as `name()` and so
+                // is already in the list above.
+                prop_assignment_transform_vars,
             );
             let body: &str = body;
             let temp = transform_update_expressions(
@@ -627,6 +630,7 @@ pub(super) fn transform_reactive_statement(
             state_vars,
             non_reactive_state_vars,
             store_sub_vars,
+            prop_assignment_transform_vars,
             prop_assignment_transform_vars,
         );
         let body: &str = body;

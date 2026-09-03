@@ -1,6 +1,5 @@
 [
 	"musicat/src/lib/settings/SettingsPopup.svelte",
 	"primo/src/lib/builder/ui/Button.svelte",
-	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
-	"syntaxfm-website/src/routes/(site)/guests/+page.svelte"
+	"svelte-tweakpane-ui/src/lib/control/Point.svelte"
 ]

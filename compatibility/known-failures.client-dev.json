@@ -6,6 +6,5 @@
 	"svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte",
 	"svelte-tweakpane-ui/src/lib/control/Point.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte",
-	"svelvet/src/lib/components/Edge/Edge.svelte",
-	"syntaxfm-website/src/routes/(site)/guests/+page.svelte"
+	"svelvet/src/lib/components/Edge/Edge.svelte"
 ]

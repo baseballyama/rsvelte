@@ -2950,11 +2950,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 4 entries)
+### Client (`known-failures.client.json`, 3 entries)
 
-Partition of `known-failures.client.json` by verdict: `4`
+Partition of `known-failures.client.json` by verdict: `3`
 
-- **4 — the generated JS differs** (`js` / `code-differs`).
+- **3 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
@@ -3285,6 +3285,17 @@ comments and compare" said the opposite, because official's line reduces to a ba
 the stripper invents a structural difference; that is the stricter-reconstruction hazard two
 paragraphs above, reached from the other side.
 
+`syntaxfm-website/…/guests/+page.svelte` left this target and `client-dev` on the right-hand
+side of a destructuring assignment. `shared/assignments.js:20-22` reads
+`should_cache = value.type !== 'Identifier'` off the **visited** node, so a prop is cached in
+`$$value` whichever read form it takes; rsvelte answered from the list of props eligible as
+assignment *targets*, which in runes mode excludes a prop that is never written — and that is
+exactly the prop whose read is `$$props.data`, a member expression. A 7-row grid over the
+binding kind of the right-hand side separates it from "cache whenever the binding is reactive":
+a `$state` object reads as a bare identifier and must NOT be cached, while a `$derived` reads as
+`$.get(data)` and must be. Two arms moved 2 of 134,180 units (129,450 live),
+`MISMATCH -> match: 2`, `match -> MISMATCH: 0`.
+
 Three entries left this target and `client-dev` on three separate decisions, each measured with
 its own grid.
 
@@ -3321,7 +3332,7 @@ is the cell that separates the aliasing from "an element with a snippet re-expan
 Two arms over the corpus moved 6 of 134,180 units (129,450 live) — the three files on `client`
 and `client-dev` and nothing else — `MISMATCH -> match: 6`, `match -> MISMATCH: 0`.
 
-Every one of the remaining 4 arrived with the wave-2 enrolment (#3176) and is described
+Every one of the remaining 3 arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3425,11 +3436,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 9 entries)
+### Client dev (`known-failures.client-dev.json`, 8 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `9`
+Partition of `known-failures.client-dev.json` by verdict: `8`
 
-- **9 — the generated JS differs.**
+- **8 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
@@ -3466,7 +3477,7 @@ the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)`
 binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
 expression's shape alone. A moved unit is not a retired entry.
 
-All remaining 9 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 8 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 5 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
