@@ -78,6 +78,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `3609-svelte-snippet-param-shadowed-by-const.md` | sveltejs/svelte | #3609 | unrecorded |
 | `3635-esrap-side-effect-import-drops-attributes.md` | sveltejs/esrap | #3635 | unrecorded |
 | `3651-svelte-async-autofocus-and-event-output-is-unparseable.md` | sveltejs/svelte | #3651 | unrecorded |
+| `4251-svelte-acorn-typescript-comment-duplication.md` | sveltejs/svelte | #4251 | unrecorded |
 | `4046-svelte-a-reordered-reactive-statement-reprints-earlier-comments.md` | sveltejs/svelte | #4046 | unrecorded |
 | `4111-svelte-await-catch-binding-transform-leaks-out-of-the-block.md` | sveltejs/svelte | #4111 | unrecorded |
 | `4117-svelte-class-shorthand-reaches-attributes-untransformed.md` | sveltejs/svelte | #4117 | unrecorded |

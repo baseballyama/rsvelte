@@ -67,6 +67,7 @@
 		"test:corpus-targets": "node scripts/dev/test-corpus-targets.mjs",
 		"test:known-failures-md-check": "node scripts/dev/test-known-failures-md-check.mjs",
 		"test:deliberate-divergences": "node scripts/dev/deliberate-divergences-check.mjs",
+    "test:acorn-comment-duplication": "node scripts/dev/test-acorn-comment-duplication.mjs",
 		"test:lsp-ratchet": "node --test scripts/compat-lsp/*.test.mjs",
 		"test:release-comment": "node scripts/dev/test-release-comment.mjs",
 		"test:css-prune-verdict": "node scripts/dev/test-css-prune-sweep-warning-verdict.mjs",

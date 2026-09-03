@@ -1197,6 +1197,15 @@ jobs:
         if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-lint-severity-exit-attribution.mjs
 
+      # Pins OFFICIAL's comment duplication at every TypeScript speculation point
+      # (`@sveltejs/acorn-typescript` 1.0.10, fixed upstream in 1.0.13). It goes red when
+      # Svelte bumps the dependency, and that red is the expiry signal for
+      # `upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`. Placed after
+      # the submodule install above, which is what it reads the oracle and the plugin from.
+      - name: Check the acorn-typescript comment-duplication pin
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
+        run: node scripts/dev/test-acorn-comment-duplication.mjs
+
       # The ratchet-doc count parser. Lives here rather than in Corpus Compat so
       # it runs without the corpus: it needs no submodules and no build.
       - name: Check the known-failures doc count parser
