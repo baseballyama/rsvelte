@@ -4909,12 +4909,14 @@ largest completion labels are still zero — repairing any one of them removes n
 ratchet.
 
 **Two counts of "labels" answer different questions, and the smaller one is the work.** The sidecar
-declares **142** labels and the artifacts use **72**; the merge only ever adds a label, so the other
-**70** are carried by zero entries and have nothing behind them to establish a terminal for. Sizing
-the terminal work at 142 counts a vocabulary, not a population. Going the other way, a greedy union
-over the used labels touches every one of those entries with **12** labels, and two of them
-(`rsvelte-empty`, `completion-item-set-extra-ts`) already reach 75.2% — so neither 142 nor 72 is the
-number of decisions that would move the ratchet either.
+declares more labels than the artifacts use: **72** are carried by an entry, and because the merge
+only ever adds a label, every other declared label is carried by zero entries and has nothing behind
+it to establish a terminal for. Sizing the terminal work by the declared vocabulary counts a
+vocabulary, not a population — `pnpm run check:lsp-mechanisms` prints the declared count, so it is
+not restated here. Going the other way, a greedy union over the used labels touches every one of
+those entries with **12** labels, and two of them (`rsvelte-empty`,
+`completion-item-set-extra-ts`) already reach 75.2% — so neither the declared vocabulary nor 72 is
+the number of decisions that would move the ratchet either.
 
 `unclassified` is 2,120 entries and is the sole label on 2,116 of them, which is the `differential:`
 and `expected:` half spelled out rather than left blank: the classifier runs on the corpus branch

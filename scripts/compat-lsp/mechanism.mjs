@@ -10,6 +10,9 @@ import { identity } from "./diff.mjs";
 const PAIRING_KEY_FIELDS = ["kind", "sortText", "filterText"];
 const PAIRING_KEY_SLUG = { kind: "kind", sortText: "sort-text", filterText: "filter-text" };
 const COMPLETION_PROVIDERS = ["ts", "html", "html-close-tag", "css", "svg", "emmet", "other", "mixed"];
+// `mixed` is `providerOf`'s answer for a SET of items, so a label read off ONE
+// item cannot carry it: `completionProvider` has no such return.
+const SINGLE_ITEM_PROVIDERS = COMPLETION_PROVIDERS.filter((provider) => provider !== "mixed");
 function pairingKeyLabelSpace() {
   const space = [];
   for (let mask = 1; mask < 1 << PAIRING_KEY_FIELDS.length; mask += 1)
@@ -79,9 +82,7 @@ export const MECHANISMS = [
   // items come from, because one `/items` difference hid TypeScript, HTML tag,
   // HTML attribute and CSS data gaps under one name.
   ...["missing", "extra"].flatMap((direction) =>
-    ["ts", "html", "html-close-tag", "css", "svg", "emmet", "other", "mixed"].map(
-      (provider) => `completion-item-set-${direction}-${provider}`,
-    ),
+    COMPLETION_PROVIDERS.map((provider) => `completion-item-set-${direction}-${provider}`),
   ),
   // Measured on melt-ui: the arrays differ (18.9% of label-paired items, upstream
   // omits the `(` at a new-identifier location) and upstream omits the field
@@ -121,7 +122,7 @@ export const MECHANISMS = [
   // `new-text` carries the provider, because the two arms measured on it are an
   // HTML attribute snippet (`accesskey="$1"`) and a module specifier trimmed to
   // the part after the word range -- two builders, not two spellings.
-  ...COMPLETION_PROVIDERS.map((provider) => `completion-text-edit-new-text-${provider}`),
+  ...SINGLE_ITEM_PROVIDERS.map((provider) => `completion-text-edit-new-text-${provider}`),
   ...["presence-rsvelte-only", "presence-official-only", "other"].map(
     (suffix) => `completion-additional-text-edits-${suffix}`,
   ),
@@ -270,9 +271,11 @@ const TS_RENDER_RULES = [
 ];
 
 // The same declaration with the type erased: rsvelte answers `any` where
-// official names a type, which no rewrite can express because it is not a
-// rendering difference. Every differing line must have the shape, so a genuinely
-// different symbol whose type happens to be `any` cannot match.
+// official does not, which no rewrite can express because it is not a rendering
+// difference. The predicate constrains rsvelte's side only, so official's tail
+// is whatever sits there -- `unknown`, `never`, a longer type, or nothing.
+// Every differing line must have the shape, so a genuinely different symbol
+// whose type happens to be `any` cannot match.
 function differsOnlyByAny(official, rsvelte) {
   const left = official.split("\n");
   const right = rsvelte.split("\n");

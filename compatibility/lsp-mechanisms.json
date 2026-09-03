@@ -364,9 +364,6 @@
 		"completion-text-edit-new-text-other": {
 			"terminal": null
 		},
-		"completion-text-edit-new-text-mixed": {
-			"terminal": null
-		},
 		"completion-additional-text-edits-presence-rsvelte-only": {
 			"terminal": null
 		},
