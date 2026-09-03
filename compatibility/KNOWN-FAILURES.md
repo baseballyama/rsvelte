@@ -5637,18 +5637,18 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `78 + 52 + 46 + 38 + 36 + 14 + 14 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `80 + 52 + 46 + 38 + 32 + 16 + 14 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 78 | 41 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `span` | 80 | 42 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 52 | 27 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 38 | 19 | ESTree fields rsvelte's serializer omits or adds: `importKind`, `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
-| `unclustered` | 36 | 22 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `unclustered` | 32 | 20 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 46 | 23 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
-| `child-count` | 14 | 9 | an array of children with a different length. |
+| `child-count` | 16 | 10 | an array of children with a different length. |
 | `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
@@ -5657,7 +5657,7 @@ Partition of `parse-ast-known-failures.json` by cluster: `78 + 52 + 46 + 38 + 36
 `legacy`, so 287 keys are **156 distinct bases**: 131 appear on both axes and 25 on one
 (131x2 + 25 = 287, a 1.84x collapse). The defect ceiling is 156. The per-cluster collapse is not
 uniform — `estree-fields` and `comment-attachment` are 2.00x (every base is on both axes),
-`css-shape` and `child-count` 1.56x (legacy-only shapes), `ast-mode` and
+`css-shape` 1.56x and `child-count` 1.60x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
 **No base's two axes sit in different clusters** (0 of 131), so a cluster can be worked end to end
@@ -5691,10 +5691,51 @@ and was unreachable while the parent's type mismatch stopped the descent. This i
 ratchet has elsewhere; here the retired 16 are the collapse side and the enrolled 2 are the
 carrier side.
 
+**#4249 is the second instance of that coupling, and it is net-zero rather than net-negative.**
+Correcting `{modern,legacy}::TSModuleBlock.type#value` — rsvelte emitted a `TSModuleBlock` where
+official has a nested `TSModuleDeclaration` for a dotted `namespace A.B { }`, along with the
+absent `id` and `declare` fields — retired **6** keys (2 `node-type`, 4 `unclustered`) and
+enrolled **6**: `{modern,legacy}` x `Literal.type#value`, `TSModuleBlock#span` and
+`TSModuleBlock.body[]#length`. The total is unchanged at 287. What is *not* net-zero is
+`unclustered`, which fell 36 -> 32: those four keys were in the bucket for divergences nobody had
+classified.
+
+All six enrolled keys are **one** mechanism, it is **pre-existing**, and it is not this fix's.
+rsvelte's `parse()` drops a top-level `declare function` from the script body
+(`convert_function_declaration_as_node` returns `None` for `FunctionType::TSDeclareFunction`,
+`1_parse/read/expression.rs:10489`). Because `diffKeys` compares arrays index-by-index, one
+missing statement misaligns every sibling after it, and official's `declare module 'foobar'`
+block is compared against rsvelte's `namespace SomeNamespace` block one position out. Attribution:
+**#4249**.
+
+Two rsvelte binaries on the same input, against official. This is what establishes that the fix
+did not introduce the divergence, and it is the kind of evidence that cannot be reconstructed
+once both arms are gone:
+
+```
+STAGED 0f773c75 (fix/parse-ts-module-declaration)   body=1  types=[VariableDeclaration]
+ref    2523e10f (without the module-decl change)    body=1  types=[VariableDeclaration]
+official                                            body=2  types=[TSDeclareFunction, VariableDeclaration]
+```
+
+That it is one mechanism and not six was settled by **ablation** rather than by reading the key
+names: deleting only the line `declare function declared_fn(): void;` from a copy of the carrier
+takes that file's divergence-key set from **26 to 9 on both axes**, and every `TSModuleBlock` and
+`Literal` key disappears. That measurement used a re-implementation of `verify.mjs`'s keyer, so
+it establishes the mechanism's cardinality, not the gate's key spellings.
+
+The strip itself is correct for `compile()`, where a type-only declaration must not reach the
+output, and wrong for `parse()`, where official returns the node — one strip serving two public
+surfaces, the same family as #3385 / #3386 / #3387. It is therefore not a deliberate divergence.
+`crates/rsvelte_core/tests/parse_ts_exotic_types.rs:151` pins the current behaviour, so fixing
+#4249 turns that assertion red; that is the single assertion having pinned `compile()`'s correct
+erasure and `parse()`'s incorrect one together, not a regression. Exactly **1** of 30,698
+collected `.svelte` files carries the shape, so no amount of corpus growth reaches it.
+
 #### What the `unclustered` bases actually are (measured 2026-08-31)
 
 The counts in this subsection are as measured on that date, when the cluster held **27** bases;
-the table above is counted live from the JSON and now reads **22**, the five having been fixed
+the table above is counted live from the JSON and now reads **20**, the seven having been fixed
 since. The dated figures are left as measured rather than rescaled.
 
 Classified by reproducing each key from a minimal source with the gate's own `diffKeys` algebra,
