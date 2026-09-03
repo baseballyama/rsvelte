@@ -1470,6 +1470,25 @@ that is real, findable in the source (`HTMLPlugin.ts:484-489`, `featureEnabled('
 is the moment a plausible mechanism is cheapest to find and least worth trusting**,
 because the same symptom now has two producers and the instrument is one of them.
 
+### A profile symbol can already BE the optimization you are about to apply
+
+`CharSearcher::next_match` sits at 2.37% of a client compile, which reads as a
+`char`-needle search worth replacing with `memchr`. It already *is* one:
+`library/core/src/str/pattern.rs:439` is `memchr::memchr(last_byte, bytes)`, so
+`.find('\n')` was a memchr scan before the conversion and after it, differing only
+in SIMD width. Measured over 255 converted sites, 12 ABBA pairs per target:
+client 0.9926, server 1.0200, client-dev 0.9903, server-dev 1.0055 — two of four
+the wrong way, none significant, with correctness clean (0 divergences over
+32,654 live units) so the null is the answer rather than a broken arm.
+
+The contrast with the sibling change that *did* pay is the reusable part.
+`StrSearcher::new` is **setup** — a two-way searcher with a critical-factorization
+precompute, rebuilt per call, which std does not avoid — and deleting setup is a
+real saving. `CharSearcher` has no setup to delete. So a symbol named after a
+search is worth converting only when the time in it is setup you can remove, and
+which of the two you are looking at costs one `grep` of `library/core` to settle,
+before an arm is built rather than after two are measured.
+
 ### `-p <crate>` is not the denominator either
 
 The file already says to state the denominator of a test run and to read a suite's
