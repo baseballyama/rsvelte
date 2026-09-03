@@ -83,6 +83,12 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `4117-svelte-class-shorthand-reaches-attributes-untransformed.md` | sveltejs/svelte | #4117 | unrecorded |
 | `4177-svelte2tsx-is-attribute-mustache-first-chunk-crash.md` | sveltejs/language-tools (svelte2tsx) | #4177 | unrecorded |
 | `4197-svelte-class-index-signature-typeerror.md` | sveltejs/svelte | #4197 | unrecorded |
+| `eslint-plugin-svelte-no-add-event-listener-suggestion.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
+| `eslint-plugin-svelte-no-goto-without-base-namespace-import-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
+| `eslint-plugin-svelte-no-navigation-without-base-empty-href-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
+| `eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
+| `eslint-plugin-svelte-shorthand-directive-modifier.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
+| `esrap-property-prints-a-function-expression-as-a-method.md` | sveltejs/esrap (shipped by sveltejs/svelte's lockfile) | — | unrecorded |
 | `grass-css-color-4-relative-syntax.md` | connorskees/grass | — | unrecorded |
 | `grass-explicit-extension-specifier.md` | connorskees/grass | — | unrecorded |
 | `grass-hoists-a-declaration-written-after-a-nested-rule.md` | connorskees/grass | — | unrecorded |
@@ -90,12 +96,6 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `grass-missing-css-color-4-api.md` | connorskees/grass | — | unrecorded |
 | `grass-slash-list-divided-inside-a-nested-rule.md` | connorskees/grass | — | unrecorded |
 | `grass-tailwind-important-apply.md` | connorskees/grass | — | unrecorded |
-| `eslint-plugin-svelte-no-add-event-listener-suggestion.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
-| `eslint-plugin-svelte-no-goto-without-base-namespace-import-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
-| `eslint-plugin-svelte-no-navigation-without-base-empty-href-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
-| `eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
-| `eslint-plugin-svelte-shorthand-directive-modifier.md` | sveltejs/eslint-plugin-svelte | — | unrecorded |
-| `esrap-property-prints-a-function-expression-as-a-method.md` | sveltejs/esrap (shipped by sveltejs/svelte's lockfile) | — | unrecorded |
 | `lsp-render-tag-kills-every-template-definition.md` | sveltejs/language-tools | — | unrecorded |
 | `oxfmt-const-tag-ending-in-a-line-comment.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-each-pattern-default-unknown-node-type.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
@@ -111,18 +111,22 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `svelte-eslint-parser-self-closing-style-lookalike-component.md` | sveltejs/svelte-eslint-parser | — | unrecorded |
 | `svelte-fromcodepoint-rangeerror.md` | sveltejs/svelte | #3617 | unrecorded |
 | `svelte-inspect-with-in-a-declarator.md` | sveltejs/svelte | #3614, #3627 | unrecorded |
+| `svelte-language-server-duplicate-completion-trigger-character.md` | sveltejs/language-tools (svelte-language-server) | — | unrecorded |
+| `svelte-language-server-hovers-svelte2tsx-synthesized-render-function.md` | sveltejs/language-tools (language-server) | #4154 | unrecorded |
+| `svelte-language-server-rune-definition-lands-inside-the-jsdoc.md` | sveltejs/language-tools (language-server) | #4154 | unrecorded |
 | `svelte-named-class-expression-shadowing-a-rune-emits-unparseable-output.md` | sveltejs/svelte | — | unrecorded |
 | `svelte-scss-line-comment-hides-an-animation-name-from-keyframe-scoping.md` | sveltejs/svelte | #4048 | unrecorded |
 | `svelte-server-treats-a-dollar-parameter-as-a-store.md` | sveltejs/svelte | #4048 | unrecorded |
 | `svelte-snippet-name-colliding-with-an-import.md` | sveltejs/svelte | #3567 | unrecorded |
 | `svelte2tsx-bom-crashes-on-any-component-with-a-script.md` | sveltejs/language-tools (svelte2tsx) | #4048 | unrecorded |
-| `svelte-language-server-duplicate-completion-trigger-character.md` | sveltejs/language-tools (svelte-language-server) | — | unrecorded |
 | `svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
 | `svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
 | `svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
 | `svelte2tsx-shorthand-style-directive-modifier.md` | sveltejs/language-tools (svelte2tsx) | #3567, #3578 | unrecorded |
 | `svelte2tsx-transposes-an-unclosed-start-tag.md` | sveltejs/language-tools (svelte2tsx) | — | unrecorded |
 | `tsgo-lsp-completion-item-omits-the-typescript-kind.md` | microsoft/typescript-go (`tsgo --lsp`) | — | unrecorded |
+| `tsgo-lsp-completion-omits-the-commit-character-inputs.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
+| `tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 
 **26** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
 against `eslint-plugin-svelte`, one against `svelte-eslint-parser`), two out of the

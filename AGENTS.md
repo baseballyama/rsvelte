@@ -664,7 +664,10 @@ no last-in-body or separator rule, and the fact that upstream hands every script
 statement.
 
 The ratchet starts at 2721 entries over 494 diverging units, keyed `<id>::<mode>::<field-class>`
-and partitioned by cause in the paired `.md`. Read the composition, not the count: the top three
+and partitioned by cause in `compatibility/KNOWN-FAILURES.md` — **not** in a paired
+`parse-ast-known-failures.md`, which does not exist: the consolidated ratchets keep the old
+filename only as the checker's key, and reading "the paired `.md`" as a file to open sends you
+after one that is not there. Read the composition, not the count: the top three
 causes are template-node field sets (1395), script-node field sets (681) and **`loc.character`
 attached in exactly the wrong direction** (392) — official's positions come from
 `locate-character` (which returns `character`) and from acorn (which does not), and rsvelte has
@@ -2869,8 +2872,10 @@ day of each other.
 **A gate can be written, unit-tested, self-tested and wired to nothing.**
 `scripts/ci/attribution-check.mjs` owns the question "is every ratchet entry attributed", ships 8
 passing controls under `pnpm run test:attribution-check`, and
-`grep -rn 'attribution-check\|check:attribution' .github/workflows/` returns **0**. On the day
-this was found, *both* people who had published a census of that question had built it by hand
+was, on the day this was found, reachable from no workflow —
+`grep -rn 'attribution-check\|check:attribution' .github/workflows/` returned **0**, and it
+returns two lines now, because writing that sentence down is what got it wired. Run the grep;
+do not read its recorded answer. Also on that day, *both* people who had published a census of that question had built it by hand
 from the `Attribution of` prose in `KNOWN-FAILURES.md` rather than by running the checker — one of
 them in the same report that named that prose as ungated and rotting. The two hand-built censuses
 agreed to within a difference that fully explains (16 = client 22→14 plus client-dev 36→28), and
@@ -3125,8 +3130,12 @@ value sits on which side, which a run does not: a run says the two differ. A gat
 digest is not storing less evidence than one that stores values — it is storing evidence that
 can only be produced by someone who already knows the answer. The reason `parse-ast` felt different is a control it
 happens to have: running the same comparator with the **official** compiler on both sides
-returns 0 keys, which is what licenses "every listed key is attributable to rsvelte's side."
-The LSP gate has no such self-compare, so its keys carry resolution and no direction.
+returns 0 keys. Read that for exactly what it excludes — **comparator artifacts, not fault
+location**: it says every listed key is a real difference between the two compilers, and says
+nothing about which side is wrong. `parse-ast`'s own
+`accepts-what-official-rejects` cluster is the counterexample sitting inside the same ratchet —
+official crashes on `<div class="a>text</div>` under `loose` and rsvelte returns a `Root`, so the
+key is upstream's. The LSP gate has no self-compare at all, so its keys carry neither.
 
 The second half is the one that costs a wrong terminal state. Two of the ten are capabilities
 rsvelte does not implement (`codeAction/resolve`, ten of official's eleven commands). Filing
@@ -3284,6 +3293,848 @@ silently ends the unintended one.
 Ask of any harness repair which observations it *stops* making, not only which it starts. The
 answer is not derivable from the fixture's name, its comment, or the field being fixed — all
 three describe the designed axis, which is the half that was never in effect.
+
+### Compare the BLOB, not the revision, when asking whether an old artifact still applies
+
+`AGENTS.md` records that a run's artifact names the tree it measured, and that reading that
+first dissolves the question "does `main` moving invalidate this". The sharper form is to
+compare the *inputs* rather than the revision, because a revision only tells you the tree
+moved — it cannot tell you the move was irrelevant.
+
+Measured on 2026-09-03. The LSP mechanism sidecar can only be regenerated from the complete
+17-artifact set of one `lsp-corpus` run, which costs ~1,300 job-minutes and runs on a nightly
+schedule. The previous night's run had all 17 artifacts unexpired, at a commit five merges
+behind `main` — which by revision alone is a stale measurement. By blob:
+
+```
+compatibility/lsp-known-failures.json   778ef30ed…  at both commits   IDENTICAL
+scripts/compat-lsp/mechanism.mjs        b0a78b26c…  at both commits   IDENTICAL
+scripts/compat-lsp/merge-current.mjs                                  IDENTICAL
+the only intervening change under scripts/compat-lsp/: two new *.test.mjs files
+```
+
+So the regeneration is exactly as valid as it was that night, and a 1,300-job-minute run was
+not needed. `git rev-parse <rev>:<path>` is one command per input and answers a question the
+commit graph cannot: **not "did the tree move" but "did anything this measurement reads move".**
+
+The direction to be careful in is the other one — equal blobs for the inputs you thought of
+says nothing about an input you did not enumerate, so list what the regeneration actually
+reads (here: the ratchet it rewrites, the classifier, and the merger) before concluding.
+
+
+### A third kind of red: the runner vanished, and its fingerprint is that there is no log
+
+This file records that a *cancelled* shard reads as `FAILURE` under a rollup, and that a
+*superseded* run keeps its old `FAILURE` attached. A third kind was measured on 2026-09-03:
+
+```
+step 11   started_at 02:46:54   completed_at null   status in_progress
+job       completed after 109 minutes with conclusion `failure`
+gh run view --job <id> --log-failed   ->  log not found: <id>
+annotation: The hosted runner lost communication with the server.
+```
+
+It is not spelled `cancelled` anywhere, and the usual move — read the failing step's output —
+returns **nothing, because nothing was produced**. Reading the log more carefully cannot help;
+only the *annotation* names it. So the first question about a red CI job is not "what failed"
+but **"is there a log at all"**: an absent log is a platform failure and the remedy is
+`gh run rerun <run-id> --failed`, while a present log is yours.
+
+The same run also put a recorded constant out of date. Its 16 LSP shards took
+`51 58 61 67 72 72 74 79 83 84 84 96 103 105 106 109` minutes — nine of them above the 67 this
+file gives as the maximum, and ~1,300 job-minutes against the recorded 950. One run does not
+replace a constant derived from three complete ones, but a recorded constant that no longer
+overlaps a current measurement has to say so, and this one is load-bearing: it is the
+arithmetic that moved the gate to a schedule.
+
+
+### A property written into a coverage table BEFORE the run is a stronger warrant than the same sentence after it
+
+`GATES.md` 39b says a divergence stops the walk, so fixing one adds keys as its children
+become reachable — "expected, not a regression". When #4220 then produced 16 retirements and
+2 new keys, that sentence was already in the table, dated, and written about the mechanism
+rather than about the run. The same sentence composed after the red would be unfalsifiable:
+every red has an explanation available once you know the answer.
+
+So when a gate's coverage row predicts a shape of failure, say so in the row, and when a run
+later produces that shape, **cite the row rather than restating it** — the citation carries a
+date and the restatement does not.
+
+
+### The DIRECTION of a divergence cannot be read from the key's name, nor from your own account of the mechanism
+
+Three instances in one afternoon on one gate, each caught only by printing both sides' actual
+values:
+
+| what was read | what it said | what was true |
+|---|---|---|
+| the discriminating input for a rule about optional calls | `f?.<T>(x)`, chosen from the author's own description of the mechanism | the carrier is `o?.m<T>(x)`, where `?.` is on an earlier member — 15 corpus files, and the chosen shape has 0 |
+| `Root.comments[]#length`, `…leadingComments#missing` | rsvelte drops a comment | **official emits the same comment twice**, 183 files |
+| `#4220`'s two `NEW divergence` lines | a defect newly visible on rsvelte's side | the same upstream duplication; there is nothing on rsvelte's side to fix |
+
+The third is the one to remember, because **the ratchet's own vocabulary supplies the wrong
+direction**: `NEW` reads as "a new divergence of ours" when it means "a divergence compared for
+the first time", and `#missing` reads as "we are missing it" when it means "this side's array is
+shorter". Neither word is about which side is right. A key names a *difference*; only the two
+values name a *direction*.
+
+The cheap defence is the same in all three: print both sides' values for one carrier before
+writing the sentence. The expensive failure is that a wrong direction still produces a plausible
+fix — the first instance's fix would have retired the same ratchet keys while breaking 15 files,
+because both candidate rules take `optional#extra` from 1,875 to 0.
+
+
+### A rule that covers 98% is more dangerous than one that covers 60%
+
+A comment-duplication rule was closed on a 20-cell grid built by construction: "the comment
+leading the FIRST member of a `TSTypeLiteral` is emitted twice". Classifying all 225 duplicate
+spans in the 183 carrying files, **220 fit and 5 do not** — one of them a JSDoc on the *second*
+member, where the member before it happens to be a function type, an axis the grid did not have.
+
+At 60% nobody ships the rule. At 98% every constructed cell passes, the ratchet moves, and the
+five that do not fit are invisible because a partial reproduction and a complete one are the same
+green. What separated them was counting the residue rather than the coverage: 220 was never the
+number to look at, 5 was.
+
+The fix is not a bigger grid — a constructed grid carries its author's blind spot by definition,
+which is what the fifth case demonstrates. It is to stop deriving the rule from observed shapes
+at all and read the *oracle's own mechanism*: the upstream line that decides to emit the comment
+twice. A positional rule inferred from carriers is a curve fit; the upstream branch is the
+function.
+
+
+### "Should we reproduce upstream's bug" has a third input: can the reproduction's fidelity be measured?
+
+`deliberate-divergences` decides between reproducing upstream's output and diverging from it, and
+its stated criterion is about **which side is wrong** — reproduce unless the bytes are invalid
+JavaScript or change the program's runtime meaning. Applied to an upstream comment duplication
+(183 corpus files, `parse()` AST), that criterion says reproduce, and the ruling given was
+reproduce. It was wrong, and the missing input is not about correctness at all.
+
+The duplication comes from `@sveltejs/acorn-typescript`: `lookahead()` sets `isLookahead` (which
+makes the comment skippers return early) and `tsLookAhead()` does not, so a comment consumed
+during a speculative parse fires `onComment`, the state rewinds, and the real parse fires it
+again. Confirmed by ablation in both directions — patched, 10 cells agree; restored (`sha256`
+verified), the duplication returns; four control cells (`interface`, `enum`, a JS object literal,
+a second member) do not move either way.
+
+Reproducing that means re-implementing *which regions upstream speculates over*: at least three
+`tsLookAhead` call sites, **plus at least one path still unidentified** — with `tsLookAhead` and
+`tryParse` both neutralized, 5 of 225 duplicate spans survive. So the reproduction is an
+approximation, and here is the part that decides it: **a complete reproduction and a 220/225 one
+produce the same green.** The ratchet key is a length mismatch; once the 183 retire, nothing in
+the tree distinguishes "we matched upstream" from "we matched upstream where we happened to
+look". The residue was countable only because someone counted it before the fix, and nothing
+carries that count forward.
+
+Two further facts point the same way. Upstream's fix is one line, and a bug upstream is likely to
+fix is a reproduction that inverts on the day it lands. And the honest justification is a
+**category the registry did not have**: not "we are right and they are wrong", but *"which side
+is right is settled, and we cannot imitate the wrong side accurately"*. Writing it as one of the
+existing categories would loosen the criterion for everyone after.
+
+The pin needs controls, not just the case: a test asserting "rsvelte emits the comment once" also
+passes when rsvelte emits no comments at all.
+
+### A resolved version in `node_modules` is not the version the artifact runs
+
+`AGENTS.md` records that three things answer to "the official compiler" and disagree. A
+fourth variable sits under all of them: **which transitive dependency each one actually
+executes**, which is not what `node_modules` shows.
+
+An upstream comment-duplication defect was traced to `@sveltejs/acorn-typescript@1.0.10`
+and confirmed fixed in 1.0.13. The repository's own tree resolves 1.0.13 while
+`submodules/svelte/node_modules` holds 1.0.10, so the divergence was about to be justified
+as an artefact of our pin — with the corollary that a user installing `svelte` from npm sees
+no duplication. Measured on one input, both official entry points return **`comments=2`**:
+
+```
+npm svelte        VERSION=5.56.10  comments=2  [Block:31..39, Block:31..39]
+submodule source  VERSION=5.56.10  comments=2  [Block:31..39, Block:31..39]
+```
+
+The npm `svelte/compiler` is a **bundle**: `tsLookAhead` and `isLookahead` appear in it as
+inlined source and `require('@sveltejs/acorn-typescript')` appears **zero** times. The 1.0.13
+directory is real, reachable and irrelevant — it belongs to a different dependency path and
+never reaches the compiler. So a published fix in a dependency does not reach a consumer
+until the consumer **republishes**, and a version number read off a directory is a label in
+exactly the sense the arm-identity table means: `sha256`, or here `comments=2`, is the
+identity.
+
+Two things generalize. The corollary is the dangerous half — "our pin is the cause" and "no
+real user is affected" are one inference apart, and the second was about to enter a
+`deliberate-divergences` justification, where it would have been read as measured. And an
+expiry condition inherits the confusion: the gate's expiry is *our lockfile moving*, while
+the upstream expiry is *svelte republishing with a newer bundle*, and those are two different
+dates. Write both, or the entry expires against the wrong event.
+
+### When the gate's predicate is a conjunction, the marginal-gain curve's stopping point is not the work
+
+A ratchet's mechanism sidecar gives each entry a SET of labels, and the obvious question —
+which labels matter — was answered with a greedy cover: **12 labels touch all 23,746
+entries, two of them 75.2%**. Correct, and it was about to be written down as the number of
+decisions the backlog needs. The checker's predicate is a different cover:
+
+```js
+for (const label of labels) {
+  if (label === UNCLASSIFIED || (declared[label]?.terminal ?? null) === null) {
+    blocked.add(id); break;      // one missing label blocks the whole entry
+  }
+}
+```
+
+An entry unblocks only when **every** label in its set has a terminal, and entries average
+7.35. So there are two covers, and the gate needed the other one:
+
+| labels | entries touched | entries finished |
+|---|---|---|
+| 12 (greedy by touching) | 23,746 (100%) | 10,420 (43.9%) |
+| all 71 that a finishable entry carries | 23,746 | **21,626 (91.1%)** |
+
+The decision count is **71**, and it is necessary as well as sufficient: measured, exactly
+one used label (`unclassified`) never appears on a finishable entry, and no other is dead.
+That one matters because `UNCLASSIFIED` is tested *before* the terminal lookup, so giving it
+a terminal moves nothing — writing 72 leaves one label of a second, different work item
+inside the first.
+
+**The greedy curve's stopping point is not the answer either.** Because the predicate is a
+conjunction, finish-coverage is not submodular: greedy halts around 28 labels at roughly 60%
+— not because more labels are useless but because none *alone* finishes another entry — and
+the several dozen it never picks finish about 30% more when taken together. A marginal-gain
+curve that flattens to zero is evidence about single labels, not about the remaining work.
+(Both the stopping point and the residue are tie-break dependent — two implementations gave
+14,200 and 14,366 — so neither number is quotable; 71, 2,120 and 21,626 are order-free.)
+
+The second work item is what the touching cover hid completely. **2,120 entries carry the
+permanently-blocking `unclassified` label — 2,116 of them as their only label — so no
+terminal decision moves them.** Ordered by carriers it is an ordinary fifth-place row;
+ordered by what it blocks it is a different file's problem. Re-keyed on (method, pointer, kind) with the *unit dropped*, those 2,116 collapse to
+**85 triples** over 12 methods — a projection that keeps the unit reports 1,826 "shapes",
+which is just the file count. What the collapse does NOT establish is the cause; the row
+below records how the obvious reading of it was falsified.
+
+Three quantities, and each was read as the next one by someone: **142** labels declared
+(vocabulary), **71** that a terminal moves (decisions), **2,120** entries no terminal reaches
+(a different job). Before reducing a set-valued key to "which members matter", read the
+consuming predicate for its quantifier — `some` and `every` gave covers differing by 2.3x
+here, and the cheaper one is what you compute by reflex.
+
+### Before suspecting a function is missing a case, count the population where it is CALLED
+
+2,116 ratchet entries carried the classifier's `unclassified` label. Two people investigated
+independently and reached the same wrong cause. One grepped `mechanism.mjs` for the four
+methods those entries name — `diagnostic`, `documentSymbol`, `inlayHint`, `foldingRange` —
+and found **0 hits each**, with a live positive control (`completion`, 65 hits). The other
+read the classifier's dispatch and agreed. The conclusion, "the classifier has no rules for
+these methods", was about to become a work item sized at 1,926 entries (91%).
+
+It is false, and one line of the same table denies it: **`completion` 100 and `hover` 16 are
+also `unclassified`** — methods the classifier demonstrably handles. The cause is one branch
+up, in the caller:
+
+```js
+if (entry.suite === "corpus") {
+  … classifyDivergence(…)          // the only call site
+} else {
+  recordMechanisms(key, [UNCLASSIFIED]);   // unconditional, method never examined
+}
+```
+
+Measured, the 2,116 are exactly `upstream-testfiles` 1,220 + `upstream-features` 668 +
+`fixtures` 228 + **corpus 0** — the whole of every suite the classifier is not called for,
+not a set it failed to name. Adding arms to `mechanism.mjs` would have moved **zero**. And
+the branch is deliberate and documented four lines above itself: *"`classifyDivergence` runs
+on the corpus branch only … the absence is spelled rather than left blank."* Both
+investigators had read the paragraph in `KNOWN-FAILURES.md` that describes that very `else`.
+
+Three things generalize. **Two instruments that both read inside the function share its blind
+spot**, so their agreement certifies nothing — this is "a control must bypass at least one
+stage the measurement passes through", with the shared stage being *which file we opened*.
+**A partially wired dispatch is worse than an unwired one**: nothing is called for zero
+suites, which someone notices, whereas one live branch out of four reads as missing rules.
+And what reversed it was not more reading but **a population the hypothesis forbids** — the
+100 `completion` entries — which is the discriminating-cell rule arriving from the other side:
+there the cell that must be green kills the explanation, here the row that must be empty is
+not.
+
+Two details make it cheaper than it sounds. The counterexample was **already printed** — the
+`completion 100` line was in the first investigator's own method census, produced before the
+hypothesis was formed and read past — and the arithmetic said so too: the four "missing"
+methods sum to 1,926 against a population of 2,116, and the 190-entry shortfall is the whole
+finding. No new measurement was needed, only reading the denominator. And the follow-up
+measurement then split the population again: the classifier needs `text` (available in every
+suite, 100%) and sometimes `position` (present for exactly the fixture completion/hover
+requests, absent everywhere else), so **116 of the 2,116 need one branch wired and no new
+rule at all**, while the other 1,926 need rules that cannot use `position`. One answer per
+input field; asking only about `text` gives "everything is available" and asking only about
+`position` gives "only fixtures", and neither alone separates the two work items.
+
+Last, the grep's own shape is worth keeping, because its author had written the row that
+covers it **that same morning**: *a zero flanked by live controls shows the instrument works,
+never that it is aimed at the right thing.* The control passed, the four zeros were true, and
+"does `mechanism.mjs` mention this method" was never checked for relevance to "is
+`mechanism.mjs` reached". The existing row about quoting a hazard and then walking into it has
+a stronger instance now: not someone else's rule misapplied, but the author's own rule,
+re-enacted within hours of writing it, on the next measurement they took.
+
+### A constant offset between two harnesses is identity evidence
+
+`AGENTS.md` records that a *uniform* offset falsifies a line-breaking explanation, because two
+engines that disagree about where to break do not agree about every column by a constant. The
+same fact has a positive use. Reducing an upstream parser defect to a bare
+`acorn.Parser.extend(tsPlugin())` harness raises the usual question of whether the reduction
+still measures what the gate measures. Two checks were available: the harness reproduced the
+official compiler's DUP / non-DUP **partition** cell for cell (8 of 17), and every one of its
+comment spans sat exactly **19 bytes** below the official one — the length of the
+`<script lang="ts">\n` prelude the official path prepends and the harness does not.
+
+The partition match is the weaker of the two: two different mechanisms can sort the same cells
+the same way. A constant offset across every cell says the two are looking at the same bytes,
+and it costs nothing extra because both harnesses already print spans. Print spans, not counts,
+and read the difference for a constant before arguing about fidelity in prose.
+
+### Four counts in one day were read as work, and each one changes when you change the denominator
+
+One backlog, one afternoon, four numbers — every one of them true, every one of them quoted
+as the size of the job, and every one of them wrong for that purpose:
+
+| the count | what it actually measures | the work |
+|---|---|---|
+| 142 declared labels | the vocabulary | 71 carry an entry |
+| 12 labels cover everything | the *touching* cover | the gate wants the *finishing* cover |
+| greedy stops at 28 | where single labels stop paying | ~71, because the rest pay jointly |
+| 4 methods are 91% of the entries | which suite is largest | 7 methods need rules |
+
+The last is the cleanest statement of the family. `diagnostic`, `documentSymbol`, `inlayHint`
+and `foldingRange` really are 1,926 of 2,116 entries — because `upstream-testfiles` is the
+biggest suite and those are the four requests it issues. Ask instead *which methods have no
+rule*, and the answer is seven: the fixtures suite also issues `formatting`, `codeAction`,
+`selectionRange` and `documentHighlight`, each with a few dozen entries and each needing its
+own rule. **Entry count ranks the population; it does not enumerate the work**, and the two
+coincide only when one unit of work fixes one entry.
+
+Read that last row against the natural conclusion: it was found by the person who had made
+the count, without anyone checking their arithmetic, because they moved from the sidecar to
+the run's own output. Three of the four were caught by a second reader and one by a second
+*measurement*, and it is the measurement that is reproducible — see the row below.
+
+### A second stage re-derives a number; a second person is only one way to get one
+
+`AGENTS.md` says the thing that actually fires these rules is the same quantity produced
+twice by independent derivations, and that extra people are one way to buy that. Here is the
+form with no second person in it.
+
+An investigator measured "how many entries have the classifier's context available" by
+counting what the case loader returns, and published **100% — 0 unavailable**. Thirty minutes
+later the same investigator, testing a different question, put a read-only probe inside the
+running gate and found **10 entries that throw**: `sourceOf(entry)` is
+`entry.text ?? entry.loadText()`, and the `initialize` entry is a two-field synthetic object
+(`{ id, suite }`) constructed at the call site — not a document at all, so it has neither. The
+first measurement was not wrong, it was *unqualified*: 100% **of the 422 cases the loader
+returns**, a population that structurally cannot contain a synthesized entry.
+
+Nothing about re-reading the first measurement finds that. The static enumeration and the
+live run are two stages, and only the second one instantiates the object. That is the
+prescription this file already gives for controls — a control must bypass at least one stage
+the measurement passes through — stated the other way round: **deliberately route a second
+measurement through a different stage, and it reports the first one's missing qualifier**.
+
+The finding also sharpened the fix. "No context available" invites a `try`/`catch` guard;
+"this entry is not a document" is a predicate, and it is the right one, because the two
+spellings differ exactly when `loadText` fails for some *other* reason — which a `catch`
+silently merges into the same bucket. And the comment that had been called over-general turns
+out to be true of one sub-population (the synthetic entry really has no source) and false of
+another (the fixture completion/hover entries have both text and position). It should be
+narrowed to say which, not deleted: a deleted comment is rediscovered.
+
+### Two PRs that merge cleanly can still be ordered, because git cannot see a cross-file invariant
+
+A sidecar file carries one record per ratchet entry, and its checker is two-sided: a ratchet
+entry with no record fails, **and a record naming an id the ratchet does not list fails**.
+Two PRs were declared independent by their author and by the integrator, correctly by every
+test either of them ran:
+
+- one shrinks `lsp-known-failures.json` from 23,746 to 23,742;
+- the other adds the 23,746-record sidecar **and wires the checker into CI**.
+
+They touch different files. `git merge` succeeds either way with no conflict. Merged in the
+wrong order, `main` goes red on the gate the second PR just installed — and it is `main`, so
+nothing on either PR could have caught it: each one's merge ref contains only the other's
+*absence*.
+
+Measured, all four retired ids are present in the sidecar, which is what turns a theoretical
+ordering question into a certainty. The fix is not a rebase: it is four deletions in the
+sidecar, which invents nothing and does **not** require the 950-job-minute regeneration the
+checker's own error message points at — that message is about *generating* mechanism sets,
+and removing a record for an id nobody lists any more is a different operation. Reading a
+tool's "cannot be done by hand" as covering every edit to its output is how a cheap fix gets
+priced as an expensive one.
+
+Two habits come out of it. When a PR adds a file **derived** from another file, ask which
+open PRs change the source — "we touch different files" is the wrong test, and it is the test
+everyone runs. And when the derived file's checker is two-sided, the danger is the direction
+that fires on `main` only: a PR that shrinks the source is green alone, green in its own
+merge ref, and red in combination.
+
+One method note, because the first answer was wrong and looked right. The ratchet is a JSON
+**array**; `Object.keys` on it returns `"0".."23745"`, so the first set-difference reported
+the retired ids as `23742, 23743, 23744, 23745` — four plausible-looking values, in the right
+count, that are index labels rather than entries. The count being exactly the expected 4 is
+what made it read as a result. Print one of the values before believing the set.
+
+### Declaring a probe non-discriminating is not replacing it
+
+`AGENTS.md` says to identify an arm by a discriminating probe on its output, and to probe for
+what the arm should contain **and** for what it should lack. A third failure sits between
+those two, and it is the one that survives knowing both.
+
+An investigator probed a staged binary for one branch's fingerprint (`declare module "x" {}`
+→ `TSModuleDeclaration`, present) and reported the arm as that branch's tree. They also
+noticed, in the same session and in writing, that their *second* probe was
+non-discriminating — `type A = keyof B` → `TSTypeOperator` is on `main` already, so it
+separates nothing — and then **kept using it, with nothing in its place**. Naming a probe as
+useless retires its evidence; it does not retire the claim the probe was supporting, and the
+claim goes on being quoted.
+
+Measured once a real fingerprint was substituted (node names taken from the PR's own diff:
+`TSConditionalType`, `TSMappedType`, `TSImportType`, `TSTypeQuery`), the staged binary held
+**two** unmerged branches' work while `HEAD` held one, with `git merge-base --is-ancestor`
+denying the second — the same shape as a binary that silently carried two fixes to one file,
+now with two *branches* instead.
+
+What caught it was neither probe. It was an **arithmetic contradiction**: pre-fix code that
+can only produce `param.span.start == 40` returned 48. A number the code forbids is worth more
+than another probe, because a probe answers only the hypothesis handed to it while an
+impossible value indicts the whole arm. When a measurement disagrees with what the source
+says it must produce, stop measuring and identify the binary.
+
+Two cheap habits follow. Take a fingerprint's *values* from the change's own diff rather than
+from memory of what the feature is called — "exotic types" suggested `keyof`, and `keyof` was
+the one node in the family that predates the change. And when you write "this probe does not
+discriminate", write the replacement in the same message or state that the claim it supported
+is now unsupported; there is no third option in which the old conclusion quietly stands.
+
+And a precondition made of probes inherits every one of their weaknesses. After the first
+miss, printing three fingerprints was made a **precondition** for re-baselining a ratchet —
+and one of the three (`declare module "x" {}` → `TSModuleDeclaration`, for a branch about
+module declarations) names a type `origin/main`'s own parse path already mentions in five
+files. Same investigator, same day, same mechanism: the fingerprint was taken from what the
+branch is *called*, and the name's most obvious token is the one most likely to predate it.
+A precondition that a non-discriminating probe satisfies is worse than no precondition,
+because "I printed all three" now reads as an arm identity that was never established. The
+requirement has to be one level lower: each fingerprint's value must appear in the **added**
+lines of the change's own diff.
+
+### Misclassifications are not equally bad: one misdirects, the other closes the file
+
+`AGENTS.md` already says an attribution to "upstream" deserves the first read, *because it is
+the only attribution whose consequence is that nobody ever measures it again*. Generalised,
+that is an ordering over every wrong terminal a backlog entry can be given, and the ordering
+is what decides which one to guard hardest:
+
+- **Naming a mechanism by the carrier's spelling** sends the next person to the wrong axis.
+  They arrive, measure, and find the description does not match — costly, and self-correcting.
+- **Writing `deliberate` for a behaviour nothing implements** stops the next person from
+  coming at all. Nothing self-corrects, because a closed entry produces no observation.
+
+So the check on a `deliberate` classification is not "is the reasoning sound" but a
+precondition: **point at the code that implements the behaviour being chosen.** A divergence
+that exists because the feature was never built is not a choice, and pinning it as one
+freezes a product that advertises something nothing serves.
+
+The same asymmetry explains why an over-rejection is cheap and its fix is expensive (an
+over-rejection is loud; the quiet wrong output behind it is not), and why a gate's blank row
+must be spelled `UNMEASURED` rather than left empty. In each case the dangerous direction is
+the one that produces *no further evidence*, and it is worth guarding out of proportion to how
+often it occurs.
+
+### "This red is expected" must name the artifact, or the exemption widens on its own
+
+A merge order made one PR's CI legitimately fail: the PR installs a two-sided checker, and a
+sibling merge shrinks the ratchet the checker reads, so the PR goes red until it deletes four
+now-unlisted records. That was broadcast as "the red is expected". One recipient wrote it back
+as *"if anyone says main is red, I will not treat it as a defect"* — one level wider than what
+was said, and in the direction that costs everything: a false alarm is one wasted look, while
+a too-wide exemption **permanently hides a real failure**, and here the hidden thing is the
+campaign's own exit criterion (every `main` workflow green).
+
+Nothing in the original message was wrong; the widening happened in the restatement, silently,
+and would have stayed silent. What surfaced it was that the recipient restated it at all. So
+the rule is on the receiving side: **when you are told a red is expected, repeat back which
+artifact it is on** — the PR, its merge ref, `main`, or one named job — and let the sender
+correct the scope. Repetition is not politeness here, it is the only place the widening
+becomes visible.
+
+The sender's half is to say the negative too. "The PR will be red" invites "so red is fine";
+"the PR will be red **and `main` will not** — if `main` goes red, that is my ordering mistake,
+tell me" closes the direction the listener would otherwise generalise into.
+
+### A tool that cannot represent the byte you asked about answers with a NUMBER
+
+The truncating-stage table collects stages that fabricate a datum — `|| echo 0`, a rejected
+timestamp, an unquoted glob. Two instances on 2026-09-03 share a sharper property: the
+fabricated value is a **plausible count**, so nothing about the output invites a second look.
+
+| what was run | what came back | why |
+|---|---|---|
+| `diff main.mjs mine.mjs \| wc -l` | `1` — read as "one line differs" | one NUL byte in either file makes `diff` print `Binary files … differ`, which is one line. `diff -a` gives 16 |
+| `command grep -c $'\x00' file` | `97` — the file's line count | the shell cannot put a NUL in argv, so the pattern is the **empty string** and every line matches |
+
+`grep`'s recorded failure mode prints *nothing*, and an empty result is suspected. A number is
+not: the first was read as "the two files are nearly identical", and the second was read as a
+measurement until it was noticed that 97 is exactly `wc -l`. The second is worse still, because
+the cause is a property of the **shell**, not of the command — re-reading the command line
+forever will not show it.
+
+Count a byte with something that can hold it (`python3 -c "…count(b'\x00')"`, `od`, `tr -d`),
+and run the instrument against a file you built to contain one. Both directions were needed
+here: the branch read 0, `main` read 1, and a two-byte probe read 1.
+
+The first instance is worth one more sentence, because it is a closed loop:
+**the file whose NUL broke `diff` was the file the change existed to remove that NUL from.**
+The defect under repair had disabled the instrument measuring the repair.
+
+### A predicate can be correct and never reach its population, and only an INJECTION finds that
+
+Four instances in one day, from three people. In every one the predicate is a correct
+statement about the thing it names, and in every one it was evaluated against inputs that
+cannot make it fire:
+
+| the predicate | why it could not fire |
+|---|---|
+| `it('if diagnostic is error')` sending `severity: Error` | the guard opens with `code &&`, and the test sends no `code` |
+| "no gate observes this" | computed over the gates that were run, not over the gates that exist |
+| `git diff … \| grep -c '^[-+].*"declared"'` | the file contains the string `"declared"` **zero** times; the label table's key is `mechanisms` |
+| `command grep -c $'\x00' file` | the shell cannot pass the byte, so the pattern is empty |
+
+Two of the four were handed to someone else as a check to run, with a stated role
+("this is the independent other half"), which is worse than writing one for yourself: a
+predicate with a job description attached is not re-derived by its receiver.
+
+The discriminating move is the same in all four and it points at the **population**, not at the
+predicate: break one thing the predicate is supposed to see, and require red. Delete one line
+from `mechanisms`; add one rule to `flat/recommended`; add a `code` to the diagnostic; put a NUL
+in the file. Poking the predicate itself kills none of them — each is already a correct
+predicate. This is the positive-control rule with its direction named: the control has to be
+constructed on the side the instrument is pointed at.
+
+### A guard your own unmerged branch adds is ABSENT on `main`, not an error — and that is true of mechanisms, not only flags
+
+This file records that a flag an unmerged PR adds reads on `main` as absence rather than as
+error, so "I ran it with the CI flag" is a claim about the tree. The same holds for a
+**mechanism**, and it is harder to catch, because a mechanism has no argv to inspect.
+
+Measured on 2026-09-03: a peer was told that their `--update-baseline` run would be refused if a
+declared corpus source contributed nothing, citing `baseline-guard.mjs`'s
+`unpopulatedSourcesReason`. That function exists only in an unmerged PR;
+`parse-ast-verify.mjs` on `main` builds its refusal from three other reasons, none of which is
+about source coverage. The peer measured coverage directly instead, with a fabricated source as
+a positive control, and got an answer that depends on neither claim.
+
+Two things make it worth a row rather than a note. The assertion sat **in the same paragraph**
+that warned the peer not to read "it was not refused" as evidence of coverage — so the warning
+was right and the mechanism it named was not present. And the failure is silent in the
+flattering direction: an absent guard never refuses, so the run looks exactly like a run that
+passed a guard.
+
+### A value you send is a NAME by the time it is read
+
+A range endpoint spelled as a symbolic ref is not an endpoint, because `origin/main` moves. The
+same failure survives resolving it, when the resolved value travels: a SHA written into a
+message is correct when written and can be superseded before it is used.
+
+Measured twice on 2026-09-03. `82df28b74` was `main` when it was sent and `569c7a419` by the
+time the recipient acted; a second message's `main` was three merges old on arrival. In both
+cases the recipient re-resolved with `git rev-parse origin/main` and proceeded correctly — which
+is the protocol, not luck.
+
+So the sender's obligation is not "resolve before sending" (that was done) but **to mark the
+value as a reading**: write "`main` = X (this value at this time)", so the receiver knows the
+freshness is theirs to establish. And the receiver's obligation is to resolve rather than to
+paste. A bare SHA in prose reads as an identity, and it is a measurement.
+
+### One upstream predicate, three ports here, and each port answers the scope question differently
+
+`two-ports-inventory` collects places where one upstream function is ported twice and nothing
+compares the ports. Upstream's dev `console` instrumentation is a three-port instance, and the
+three differ in exactly the input that decides the answer.
+
+Upstream has one test (`CallExpression.js:100-102`):
+`node.arguments.some((arg) => arg.type === 'SpreadElement' || scope.evaluate(arg).has_unknown)`.
+
+| port | entry point | how an identifier is resolved |
+|---|---|---|
+| `console_wrap::args_need_wrap` | a template expression | `with_eval_ctx(analysis, **None**, …)` — no scope index at all |
+| `console_wrap::shape_can_be_unknown` | a script fragment / the dev tails | `LocalConsts` (real symbol resolution over the generated program), falling back to `instance_scope_index` |
+| `console_wrap::args_text_need_wrap` | a fragment oxc rejected | `shape_can_be_unknown(expr, analysis, **None**)` — not even locals |
+
+The carrier is upstream's own snapshot fixture `delegated-locally-declared-shadowed`, whose
+`onclick` arrow declares `const index` shadowing an each index. Upstream resolves `index` to the
+local `const`, evaluates `Number(…)` to NUMBER through its `globals` table (`scope.js:64`), and
+does not wrap — `has_unknown` is set only for `UNKNOWN` (`scope.js:588-592`). rsvelte wraps.
+
+**The half worth keeping is why the JSON port cannot see the shadow, because the code says so in
+a comment that is true.** `evaluate_identifier` admits only bindings in the root, instance,
+root-fragment and template scopes, above a comment reading "Bindings inside script functions
+(params, function-local lets) can never be referenced from a template expression". That is
+correct about a function in the **script**. The fixture's function is written in the
+**template**, where the binding and the reference are the same expression. So the rule is right
+about the population it names and is applied to one it does not cover — the code-comment form of
+"a row carries a scope, and citing it is not checking it".
+
+Two cautions for whoever fixes it. Repairing the JSON port leaves the other two, and the text
+port has no scope at all. And the issue that reported this named `console_dev_ast.rs` as the
+likely port; that port is **not on this carrier's path**, and would have answered correctly if it
+were — a plausible mechanism, consistent with the symptom, and not the cause.
+
+### An expected value backed out of your OWN tree's other code path is the same error as backing it out of the oracle
+
+The recorded rule is to generate an expected value from the oracle rather than infer it from a
+few of the oracle's outputs. There is a nearer-to-hand version: infer it from a **different
+function in your own tree** that the path under test does not call.
+
+Measured on 2026-09-03. A three-fingerprint arm probe declared `main`'s value for a
+`TSParameterProperty`'s key set as `type,start,end,accessibility,readonly,parameter`, read out of
+`convert_formal_parameter`. `parse()` does not reach that function; the measured value on a real
+reference binary is `type,start,end`. The verdict the probe was built to deliver (this fix is
+ABSENT from this arm) was correct, and its expected string was not — so a mismatch would have
+been read as the wrong finding.
+
+The same session produced the companion error, which is about the artifact rather than the
+value: `--stage` writes `.corpus-cache/rsvelte.node`, and every probe that day had been reading
+`apps/npm/vite-plugin-svelte-native-darwin-arm64/rsvelte.node`. The measurements were sound (two
+binaries, two distinct hashes, nine cells agreeing) but one of them was **not the file the gates
+load**, while the word "staged" implies that it is. Name an artifact by its path in any claim
+about arm identity; the word for what a command does to it is not a path.
+
+### A grid can hold an axis fixed that its own subject depends on — and the ablation control will not find it
+
+A fix made `should_proxy`'s text port paren-transparent. Its grid carried 20 right-hand-side
+shapes in two hosts, measured against the oracle, with six agreeing cells as controls, and an
+ablation that reddened exactly the two new tests. All of that passed. A 134,180-unit two-arm
+corpus sweep then reported `MOVED = 5`: **1 `MISMATCH -> match` and 4 `match -> MISMATCH`.**
+
+The regression was `$state((event) =>\n  event.type === 'click' ? … )` — a multi-line arrow.
+The fix's third rule said "a leading `(` that does not enclose the whole expression is a call
+or member on a parenthesized base", written as a catch-all `starts_with('(') → true`. An
+arrow's parameter list is also a leading paren group.
+
+The grid's arrow cell was `((x) => x)` — **fully parenthesized**, so it was stripped and
+re-decided on the inside, and passed. Every paren cell in the grid enclosed the whole
+expression. The axis the fix turns on — *does the leading paren group span the expression* —
+was the axis the grid held constant, and a control set drawn from the same cells inherits that.
+Ablation cannot see it either: ablation asks "does removing the fix redden these cells", and
+these cells were never the ones at risk.
+
+The related recorded rows are close but not this: *"a grid of failing cells cannot regress"* is
+about which cells you pick; *"widening a set to close an enumeration hazard moves you along a
+new axis"* is about the members a widening admits. This one is **the axis the RULE distinguishes
+being the axis the GRID fixes**, which is decidable by reading the rule you just wrote and
+asking which of its branches no cell reaches. Here: two branches (strip / do-not-strip) and
+every cell took the first.
+
+### A catch-all in place of an enumeration is a claim that you know every shape that reaches it
+
+The same rule again, at the level of how it was spelled. The correct form enumerates the tails
+that make a leading paren group into a proxyable node — `(`, `.`, `[`, a backtick, `?.` — and
+leaves everything else alone. Written as `starts_with('(') → true`, it asserts that no other
+tail exists.
+
+The recorded row says an enumeration assembled from bug reports is a work log, not a partition.
+This is one worse: the enumeration came from **nothing but the author's imagination of what
+could follow**, and it was never written down as a list, so there was no list to check. A
+catch-all hides the enumeration inside a claim.
+
+### A defect's own issue is where its remaining direction goes to die
+
+#4223 reports a `$$props` read rewritten inside a comment. Its body says the sibling defect —
+a genuine read *skipped* because the exclusion is per line — was "fixed by narrowing the
+exclusion to the occurrence". Measured on `main`: the exclusion is still a line scan, no commit
+narrows it, and `svelte-tweakpane-ui/.../Point.svelte:187` carries both halves on one line. Its
+`client` and `client-dev` ratchet entries were the only 2 of 25 with no candidate target.
+
+The recorded hazard is a sentence ending in "should", which reads as "does" to everyone who is
+not editing that file. This is stronger: the sentence is a **past-tense assertion of a fix, in
+the issue that owns the defect**, so the one document a searcher would consult tells them to
+stop. And the issue's `Reach` section measured `0 real-world carriers` — correctly, for the
+*other* direction — which reads as confirmation.
+
+Two rules. When an issue describes a sibling defect as fixed, that clause is a claim about the
+tree and needs the same `git log -S` a changeset would. And a `Reach` measurement must name
+which direction it measured, because a number under a heading inherits the heading's scope.
+
+### "Has no open issue" is an inverted selector for ratchet work
+
+Screening 18 output-ratchet files by whether any open issue mentions them surfaced 4 with none,
+and two of those — `known-failures.server{,-dev}.json`'s pair — are a **deliberate divergence**
+with a `GATES.md` section, a pin, and an `upstream_issues/` report. A deliberate divergence has
+no issue *by design*: it is a decision, not a defect.
+
+Every cheap proxy for "is this worth working on" — issue count, recent activity, discussion
+volume — moves **down** when an entry reaches a terminal. So selecting by a proxy ranks the
+terminated entries first.
+
+What makes it worth a row is that the correct selector was already computed and already read:
+`attribution-check.mjs` had been run in the same session, its output listed exactly five
+problem files, and `known-failures.server*.json` was not among them. The recorded rule — ask
+which artifact owns the question — was violated while holding that artifact's output.
+
+### A byte you believe is a space can be a NUL, and two tools disagree about it
+
+A sweep script built its key as `${id}\0${target}` where a space was intended. The Bash tool
+refused the same content ("contains control characters"); the Write tool accepted it. The
+divergence surfaced three stages later, as `ERR_INVALID_ARG_VALUE ... without null bytes` in a
+consumer.
+
+It was harmless — better, in fact, since a corpus id can contain a space (`Checkbox
+Group.svelte`) and `lastIndexOf(' ')` would have mis-paired a file with a target, which is the
+recorded `awk` key-collapse hazard. But the *reason* it was harmless was luck. Two things
+generalize: a rejection from one tool and acceptance from another is evidence about the
+content, not about the tools; and when a key's separator is chosen, prefer one that cannot
+occur in the data over one that reads well.
+
+### Under a conjunction, a label's carrier count is not its value
+
+`lsp-mechanisms-check.mjs` unblocks a ratchet entry only when **every** label on it has a
+terminal, and entries carry 7.36 labels on average. Ranking the 72 carried labels by carrier
+count and taking the top 15 fully covers **2,740** of 23,742 entries. Ranking by greedy marginal
+gain and taking 15 covers **13,406** — 4.9x, same budget.
+
+`rsvelte-empty` sits on 10,602 entries and unblocks almost none of them, because those entries
+carry seven other labels. `unclassified` sits on 2,112 and unblocks all 2,112, because every one
+of them is single-labelled.
+
+The cover curve is also not monotone in usefulness: it is flat from 30 to 45 labels
+(16,478 → 16,480) and then jumps to 20,670 at 50. The flat region is a co-occurring cluster
+whose members are worth nothing individually and everything together. **A label measuring zero
+marginal gain is not evidence it is unnecessary** — it may be waiting for its cluster to close.
+
+### A paragraph asserting a gate is NOT wired goes stale by being acted on
+
+The count-in-prose hazard has a state-valued twin with a worse property: **the sentence is most
+likely to become false precisely because someone read it.** A number drifts when the world moves
+independently of the text; "this is not wired" is an instruction to wire it, so writing it down
+*creates* the drift, and nothing greps for a stale negative. `attribution-check.mjs` was recorded
+as reachable from no workflow and is reachable from two lines of `ci.yml` today, because the
+paragraph naming it as unwired is what got it wired.
+
+The repair is the same shape as "a count that cannot be written cannot go stale": record the
+**grep**, not its answer. A reader who runs it gets today's state; a reader who reads `returns 0`
+gets the state on the day it was typed, with nothing in the sentence to say which.
+
+### A checker gates a pin's EXISTENCE, not the pin's TRUTH
+
+`deliberate-divergences` requires a pin and `known-failures-md-check` verifies the pin is
+**there**. Nothing verifies that the pinned table still describes both compilers. Re-measuring
+one such section by hand found all five rows still accurate — which is the point, because nobody
+would have found out otherwise: the section is a DoD *terminal*, and a terminal is where
+re-reading stops.
+
+This is not "a gated and an ungated half rot separately" — that one is two spellings of one claim
+drifting apart. Here **a claim and its truth are gated separately**: existence is checked,
+content is not, and the entry counts as attributed either way. Putting something in a terminal
+removes the last reason anyone re-reads it.
+
+### A rule with three ports, and the fix is to make the wrong answer unspellable
+
+Upstream's `should_proxy` answers `false` for `undefined` in the same clause as the literal
+types. rsvelte ports that node-type list twice — `should_proxy_node_type(nt, identifier_name)`
+has the `undefined` arm, and `is_non_proxy_node_type(nt)` was its negation **without** it — and
+the second had four call sites of which **two bolted the arm back on at the call site and two did
+not**. So the answer depended on which list a binding happened to reach: measured one cell per
+shape, 8 of 24 diverged.
+
+The reusable half is the repair. Fixing the two sites restores today's answers and leaves the
+convention that produced them ("callers add the `undefined` check") intact, so the next call site
+is a coin flip. Making the identifier name a **parameter** of the predicate means the omission no
+longer compiles. Where a port has drifted at some call sites and not others, ask what made the
+omission expressible — the fix belongs there, not at the sites.
+
+### A count you write into a test is a second claim, and the cells passing does not check it
+
+A 22-cell table asserted against the oracle passed every cell, and the test still failed — on the
+line where its author had written "5 cells must proxy and 6 must not". It is **4 and 7**. The
+cells were measured; the summary was typed. Replacing both numbers with `assert!(CELLS.iter()
+.any(|c| c.2))` and its negation says the same thing (a predicate that never proxies passes every
+`false` row) and cannot go stale, because the table is now the only source.
+
+Same rule as prose, one context in: a literal beside a measurement inherits none of the
+measurement's authority.
+
+### A gate's entry condition is written in paths, and paths do not know what a diff means
+
+`corpus-compat-job-filter` emits `lsp-ratchet=true` for any diff touching `scripts/compat-lsp/**`,
+and that flag re-admits the ~950 job-minute `lsp-corpus` job on a pull request. A **comment-only**
+8-line change to `mechanism.mjs` therefore started 16 real-world LSP shards. The hatch is doing
+exactly what it was built for — the PR that shrinks the ratchet is the one that most needs the
+verdict — and it has no way to ask whether the diff can reach the measurement.
+
+Do not read that as "narrow the filter": under-approximating a blast radius costs a skipped gate,
+which reads exactly like a passing one. Read it as the price list. A path-triggered gate charges
+the same for a comment as for a rewrite, so the question before touching a triggering path is
+what it costs, not whether it is needed.
+
+### A line-oriented grep is a false negative against a multi-line import
+
+`grep "emmet" | grep "import"` requires both on **one line**, so a multi-line
+`import {\n  a,\n  b\n} from '@vscode/emmet-helper';` contributes nothing and a whole file drops
+out of the census — here turning "two entry points" into "one" and losing the second.
+
+The detector was not a control on the grep. It was **a second count of the same quantity
+disagreeing**: total mentions said the file was involved, the import census said it was not, and
+the contradiction is what fired. This is the general rule arriving at the smallest possible
+scale — one person, two greps, two minutes — and it is still the only thing that fired.
+
+### A constant's value domain is not a function's value domain
+
+A label vocabulary was declared as one 8-value list and consumed at three generation sites. Two
+of them feed an **aggregating** function that can return `mixed`; the third feeds a **single-item**
+classifier that cannot. So exactly one of the 24 generated labels is structurally unreachable,
+and the blast radius of "drop `mixed` from the list" is the other nine — two of which carry 7,212
+and 7,014 ratchet entries. Reading the constant and calling its length the blast radius proposes
+discarding a live classification as vocabulary hygiene.
+
+The same file also held the 8 values **twice**, once as the constant and once inline forty lines
+away: identical today, and editing either leaves the other behind. That is the two-ports shape
+with both ports inside one file, where colocation is what makes it invisible.
+
+### A report can be written, cited, and never filed
+
+`mechanism.mjs` cited `upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md`
+as the justification for seven labels. The file does not exist in `upstream_issues/` — and it
+does exist, complete with both arms' output and two negative controls, in a session scratchpad.
+The citation was not invented; the **commit** was missed.
+
+Two things follow. A dangling citation is not evidence the claim is unmade, so deleting it is
+right and deleting it *only* is a loss — look for the artifact before concluding the work was
+never done. And the reason nobody noticed for weeks is that `check-upstream-issues.mjs` gates a
+bijection between the index and the files **in the directory**, and no gate reads the citations in
+`scripts/`: a reference from outside the directory the checker owns is unchecked in both
+directions.
+
+### A self-test can depend on the very literal you are making underivable
+
+Replacing "All remaining 15 arrived …" with "All remaining entries arrived …" removed a number
+that could go stale — and broke `test-known-failures-md-check`, whose stale-restatement control
+**injects a mutation into that sentence** and needs a `[\d,]+` there to mutate.
+
+The number was not ungated prose: the checker validates it, which is why a control exists for it.
+So the rule "a count that cannot be written cannot go stale" has a precondition — it applies to
+counts **nothing checks**. Where a checker already owns a number, removing it deletes a test.
+Before making a figure underivable, grep the gates for it; if something asserts it, the figure is
+already defended and the change is a regression in coverage.
+
+### An already-merged PR can still list as open, and its deleted branch is not a bug to fix
+
+`gh pr list --state open` returned a PR whose head ref 404s. Recreating the branch from
+`refs/pull/N/head` made `update-branch` reachable — and it then reported a conflict, because the
+PR had been **squash-merged four minutes earlier** and its content was already on `main` under a
+different commit. The listing was a stale read, the 404 was the merge's own branch cleanup, and
+the conflict was `main` disagreeing with a replay of what it already contained.
+
+The cheap discriminator is not the PR state, which is what was stale: it is
+`git log --oneline origin/main | grep '(#N)'`. Ask whether the work is on `main` before treating
+a missing branch, an `UNKNOWN` mergeable, or a fresh conflict as something to repair.
 
 ### Working with Subagents
 

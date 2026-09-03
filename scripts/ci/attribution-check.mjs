@@ -181,7 +181,9 @@ if (problems.length) {
 
 console.log(
 	`[attribution-check${GATE_KNOWN ? ' --gate-known' : ''}] ${ratchets.length} ratchets: ${empty} empty, ` +
-		`${ratchets.length - empty} carrying tables that attribute ${attributed} of ${listedUnderBlock} listed entries` +
+		// Counted from `blocks`, not as `ratchets.length - empty`: a non-empty
+		// ratchet with no block would be reported as carrying a table.
+		`${blocks.size} carrying tables that attribute ${attributed} of ${listedUnderBlock} listed entries` +
 		(GATE_KNOWN && pending.length
 			? `; ${pending.length} still awaiting one (${pending.join(', ')}) — this mode does not gate that.`
 			: '.'),
