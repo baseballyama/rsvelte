@@ -2964,6 +2964,154 @@ on while nothing implements it. **Before a cluster goes to `deliberate-divergenc
 each entry whether the behaviour exists**; the ones that do not stay listed and are described
 as unimplemented, which is the DoD working rather than failing.
 
+### One `cargo build`, two artifacts: a target filter drops one and leaves the OLD one there
+
+`cargo build --release -p rsvelte_napi -p rsvelte_lint --bin rsvelte-lint` built one of
+the two: the observed effect is that `--bin` selects targets across every `-p`, so the package
+with no such target produced nothing. `Compiling rsvelte_core`, `Finished`, and a
+present-and-readable `.node` all appeared exactly as they would on success, because the previous
+build's artifact was still sitting at that path. This is not the recorded "a build flag silently
+skipped the artifact" row: there the artifact is **absent**, which eventually announces itself;
+here it is **stale**, which never does.
+
+Reported from a two-arm build here: the two `.node` files were byte-identical (`sha256`
+equal) while the `rsvelte-lint` binaries in the same two directories really were distinct. **One command, two
+carriers, one of them dead** — and a sweep over the dead carrier is forced to report `moved 0`.
+The live carrier is what makes it convincing: an instrument returning zero everywhere invites
+suspicion, and one returning a real number on one axis and zero on another reads as a finding.
+
+The zero also ran **against** its author's hypothesis, which is the direction that gets waved
+through. A flattering zero gets a second look; an unflattering one is accepted as the cost of
+honesty. Hash both artifacts, and read the hashes before reading the result.
+
+### The fingerprint of a stale base is a file you did not touch appearing in your own diff
+
+`git merge-base --is-ancestor origin/main HEAD` answers the question, and nothing prompts anyone
+to ask it. What actually surfaced a 13-commit branch cut before two merges was
+`git diff origin/main..HEAD -- crates/` printing `typed_expr.rs`, `1_parse/read/expression.rs`
+and a changeset nobody on that branch had written: a two-dot diff compares trees, so everything
+`main` gained while you were away appears in your diff **with the sign reversed**.
+
+That is worth more than the discipline of running the check on a schedule, because it fires
+without being remembered — you are already reading the diff for some other reason. Six of that
+branch's commits then dropped as "patch contents already upstream" and two `GATES.md` conflicts
+resolved to text that was, verbatim, the post-apply form of the branch's own commits; confirming
+that by diff rather than assuming it is what keeps a squash-merged sibling from silently
+reverting you.
+
+### A strict reconstruction's DIFF is a candidate, and a BIG diff is a more persuasive candidate
+
+The recorded asymmetry says a stricter local comparison reporting zero needs no fidelity
+argument, while a non-zero is only a candidate list. What it does not say is that the
+candidates arrive **ranked by size**, and size reads as explanatory power. A raw-byte comparison
+put one entry at 321 differing lines of 336 and it was named as the mechanism and picked as the
+next target — by two people, one of whom had supplied the asymmetry an hour earlier. Normalized,
+that entry's real difference is **one line**, and the 321 are block-comment continuation lines
+that oxfmt re-aligns on both sides. The gate never saw them.
+
+So the ranking a strict reconstruction produces is a ranking of *what normalization absorbs*,
+which is close to the opposite of what you want. Normalize before you rank, and prefer the
+entry whose diff is small enough to read.
+
+### A ratchet's membership pattern is a positive control you get for free
+
+Reconstructing a gate needs an argument that the reconstruction is faithful, and the usual price
+is running it first on cases the gate has already ruled on. Sometimes the ruling is already in
+your hands: five entries were classified by whether their divergence survives comment-stripping,
+and the prediction "survives ⟺ listed in `known-failures.client.json`" was checked against the
+JSON — 2 listed and surviving, 3 unlisted and not. **Both directions have instances**, so a
+classifier that leans either way fails, and no separate calibration run was needed.
+
+Look for this whenever a classification you are making happens to predict an existing ratchet's
+membership. It costs one `grep` and it is a two-sided control.
+
+### Upstream's own test can fail to exercise the condition it is named after, and a faithful port inherits the hole
+
+`getCodeAction.test.ts:89` is `it('if diagnostic is error')` and sends
+`severity: DiagnosticSeverity.Error` — and no `code`. `isIgnorableSvelteDiagnostic` opens with
+`code &&`, so the empty result is settled before severity is looked at. The rsvelte port's
+`severity != Some(ERROR)` guard is therefore tested by nothing, on either side, and the
+transcription is **exactly faithful**: it reproduced the case, the name, and the hole.
+
+The recorded shape one level over is a grid holding an oracle's own property fixed. This is
+sharper, because fidelity is the *mechanism* of the loss rather than a coincidence — the more
+carefully upstream's units are transcribed, the more precisely the gap is copied. When a suite's
+population is pinned to upstream's `it()` call sites (here by a multiset assert over call-site
+names, with `unported_it_call_sites = 0`), no axis upstream declines to test can live there at
+all, and closing one means changing the gate's population rather than adding a case.
+
+### When two ports differ by ONE extra condition, the direction is fixed by your side alone
+
+A code action was proposed by upstream and not by rsvelte, and the difference reduced to one
+extra term in rsvelte's guard. Reading only rsvelte's side, the conclusion drawn was that
+upstream must hold something stricter that rsvelte spells differently — and the sign came out
+backwards: `!code.contains('/')` makes rsvelte the **stricter** side, and upstream has no
+counterpart at all.
+
+The recorded rule is that only the oracle can name a cause. This is its asymmetric case: where
+the diff is "one side has a condition the other lacks", the *direction* needs no oracle — the
+extra condition can only narrow the side that carries it. What needs the oracle is whether the
+other side compensates elsewhere, and the answer is often that it simply does not. Reading an
+absence as an implied mirror is how a one-line difference acquires an imaginary counterpart.
+
+### A justification can name a real constraint and still be false, because the constraint lives elsewhere
+
+`is_compiler_code` declines to offer `<!-- svelte-ignore <id> -->` for a namespaced rule id, and
+its doc comment gives the reason: such a comment would do nothing. Two modules away,
+`rsvelte_lint`'s `suppression.rs` documents `svelte-ignore code` as "treated like
+`disable-next-line` for the listed codes" and inserts every non-`*` token into the set the
+report path looks up — so the comment works. Measured on both sides: rsvelte-lint suppresses,
+`eslint-plugin-svelte` does not (its `getSvelteIgnoreItems` has exactly two consumers, both
+under `shared/svelte-compile-warns/`).
+
+Two properties make this expensive. The justification is *about another module*, so nobody
+reading either file has both halves in view; and the same input makes `rsvelte-lint` contradict
+itself — it honours the comment and simultaneously reports `svelte/no-unused-svelte-ignore` on
+it. That second finding matches the oracle exactly, position and message, so the lint gates'
+`(ruleId, line, column, message)` key passes it and the only visible symptom is one *missing*
+finding, which reads as an ordinary gap rather than as a vocabulary split. **A gate keyed on
+agreement will pass the half of a self-contradiction that happens to be right.**
+
+### An agent's copy of this file rots on its own, and no grep finds that
+
+Two halves of a number going stale at different rates is recorded here. There is a third copy:
+the snapshot a session loaded at startup. One agent held `304 / loc-presence 9 / 165 bases` for
+a ratchet the tree and the JSON both put at `301 / 6 / 163` — the tree was right and the reader
+was behind, which is the reverse of the failure this file usually warns about. Nothing in the
+session can detect it: the numbers are internally consistent, they came from this file, and
+there is no local artifact to compare them against.
+
+So the rule that survives is not "trust the tree over the prose" — it is **re-read the section
+with `sed -n` before quoting a number out of it**, because your copy is a measurement of a tree
+too, and it has no revision stamped on it.
+
+### Classify a ratchet entry's disappearance as fixed, attributed, or INPUT-CHANGED
+
+An entry leaves a ratchet three ways, and only two of them are progress: the behaviour was
+fixed, a target was found for it, or **the input changed so the divergence is no longer
+produced**. The third is the one that looks identical in the diff and needs a name, because it
+turns green without anything being repaired.
+
+The instance: a fixture hardcoded `source: "svelte"` where the harness meant to pass the
+declared `diagnostic_source`, and repairing that deletes two entries. The behaviour they were
+observing — rsvelte offers an ignore action on an empty, unparsed document where official
+returns `[]` — is untouched and would simply stop being watched. Every (c) retirement therefore
+carries one extra obligation: say where the axis went. "Nowhere yet, and here is the issue that
+opens a place for it" is an acceptable answer; silence is not, and neither is a second fixture
+that measures an axis on which the two sides agree.
+
+### A fixture sits at the intersection of two axes, and repairing the designed one deletes the accidental one
+
+The same fixture is the general case. It was written to measure a *foreign diagnostic source*
+and, because the harness dropped that field, it was actually measuring the empty-document axis
+instead. Nobody chose the second axis, nothing documents it, and it is the only observation of
+that behaviour anywhere in the gate. Fixing the harness restores the intended measurement and
+silently ends the unintended one.
+
+Ask of any harness repair which observations it *stops* making, not only which it starts. The
+answer is not derivable from the fixture's name, its comment, or the field being fixed — all
+three describe the designed axis, which is the half that was never in effect.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
