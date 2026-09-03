@@ -1517,6 +1517,30 @@ file puts many declarations in one file. When a family's cells are one construct
 file, its green says nothing about the same constructs sharing a file — and the
 interference is invisible in the output of the fragment that causes it.
 
+### A number written as a literal is a claim, and knowing that does not stop you writing one
+
+Three instances in one afternoon, and the third is the one to keep. A test file's closing line
+said `19 controls pass` where the file ran **22**. The P3 attribution gate's summary said
+`14 carrying 24158 attributed entries` where the tables attribute **418** -- `attributed += n`
+added the whole ratchet for any file holding a block, so one partial table on a 23,746-entry
+ratchet moved the campaign's own progress readout by 58x, in the flattering direction, while the
+per-file line two screens above it printed the right answer all along. Then the commit repairing
+those two **introduced three new literals**: prose reading `23,740 of the 23,746` and
+`covers 6 of 23,746`, in a section where `known-failures-md-check` gates the partition lines and
+gates no prose, three hours before a peer's PR moved the ratchet to 23,744.
+
+The first two are ordinary. The third is the finding: the author was, in that same commit
+message, writing down that a gated half and an ungated half rot separately -- and put three
+ungated numbers into the ungated half. Knowing a rule, and having just typed it, does not arm it.
+
+What arms it is not vigilance but **having no literal to check**. The repair was not to pick the
+right number, it was to write the rule against the artifact instead of against a count: "every
+entry outside the table below", "one for every entry the table does not cover", "over every
+remaining key". The section now contains exactly one occurrence of the ratchet's size -- the
+declaration the checker reads -- verified by changing it and watching the checker name the file,
+the stated number and the JSON's. A count that cannot be written cannot go stale, and that beats
+a count someone promises to re-derive.
+
 ### A pre-registered falsification is only as good as its "then" clause
 
 Handing a peer a check to run after a merge, the wording was: "the default mode reports
