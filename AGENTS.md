@@ -2896,7 +2896,9 @@ friends, across 12 repositories). Probed against the oracle, six cells close the
 which is why it was measured — but *which* product to measure came from a hypothesis about
 which syntax discriminates, and that hypothesis is the thing no amount of care about the
 counting can check. Re-reading the grep finds nothing, forever, because the grep is a correct
-implementation of the wrong question.
+implementation of the wrong question. Both marginals were run as live controls, and that is
+precisely what a control cannot help with here: **a zero flanked by live controls shows the
+instrument works, never that it is aimed at the right thing.**
 
 **What did find it was re-reading data already in hand**: the two ratchet keys carry 1,884
 and 1,875 carriers, and the difference of **9** is not noise — it is a set, and it can be
@@ -2910,6 +2912,13 @@ one probe on the **premise** rather than on the count: enumerate, from the oracl
 in which the two rules disagree, instead of writing down the one you thought of. Here that
 enumeration also shrinks the unit-test-only residue from two shapes to one —
 `` tag<T>`x` ``, which really is 0.
+
+One coda, because it nearly became a third error. A neighbouring ratchet key, `optional#value`,
+also carries **15** entries, and two 15s next to each other read as one mechanism seen twice.
+Listing both sets took one command and they are **disjoint**: `optional#value` is
+`f?.(…)` — an optional *call* whose `optional` rsvelte emits as `false`, with no type arguments
+anywhere — and it survives both of the fixes above. **Equal cardinality is not identity**, and
+the check is cheaper than the sentence explaining why the coincidence must mean something.
 
 
 ### A SHA you did not resolve is an identifier you invented
