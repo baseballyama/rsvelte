@@ -98,7 +98,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `grass-slash-list-divided-inside-a-nested-rule.md` | connorskees/grass | — | unrecorded |
 | `grass-tailwind-important-apply.md` | connorskees/grass | — | unrecorded |
 | `lsp-render-tag-kills-every-template-definition.md` | sveltejs/language-tools | — | unrecorded |
-| `oxc-formatter-css-rejects-a-repeated-combinator-svelte-accepts.md` | oxc-project/oxc (`oxc_formatter_css`) | — | unrecorded |
+| `oxc-formatter-css-does-not-round-trip-css-the-svelte-compiler-accepts.md` | oxc-project/oxc (`oxc_formatter_css`) | — | unrecorded |
 | `oxfmt-const-tag-ending-in-a-line-comment.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-each-pattern-default-unknown-node-type.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-single-quoted-attribute-containing-a-double-quote.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
@@ -139,8 +139,9 @@ divided inside a nested rule) — and three out of the LSP differential campaign
 are later: two `oxfmt` CSS reports from the formatter-parity corpus, one against `esrap`, one
 against `language-tools`, and one against `prettier-plugin-svelte` from the formatter-parity
 burndown (an inline element in a text run overflows `printWidth`, and re-formatting the output is
-not a fixed point), one against `oxc_formatter_css` from the same burndown (a repeated combinator
-the Svelte compiler accepts), and three against `svelte2tsx` from the svelte2tsx-ratchet burndown.
+not a fixed point), one against `oxc_formatter_css` from the same burndown (three shapes the Svelte
+compiler accepts and passes through byte-for-byte that the CSS formatter does not
+round-trip), and three against `svelte2tsx` from the svelte2tsx-ratchet burndown.
 None of them names an issue internally — `—` records that, rather than
 inventing a number, and `check-upstream-issues.mjs` holds the count above to the table so this
 paragraph cannot go stale the way it already had (it read "Fifteen" against 19 rows).
