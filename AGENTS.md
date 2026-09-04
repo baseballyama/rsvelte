@@ -2858,6 +2858,33 @@ The saturation it exposed is worth stating as a shape rather than a number: 28 c
 nightly scheduled gate holding three quarters of the slots. Neither the check names nor their
 conclusions can separate those two; only the job census can.
 
+### Summing jobs is the right unit, and `?status=in_progress` is the wrong set to sum over
+
+The recorded fix for "a run count is not a job count" is to ask capacity by summing
+`runs/<id>/jobs`. That is necessary and not sufficient, because the *set* of runs still has to
+come from somewhere, and the obvious source is wrong in exactly the way the original row warns
+about: `actions/runs?status=in_progress` filters by the **run's** status, and a run whose status
+is `queued` can hold jobs that are running. Measured within one minute of each other on the same
+account:
+
+```
+runs?status=in_progress -> 6 runs -> summed jobs in_progress =  5
+runs of BOTH statuses   ->         -> summed jobs in_progress = 20   (the ceiling)
+```
+
+The `5` was read as "the pool is nearly empty, so 25 queued jobs must be blocked by something
+else", and a workflow's `concurrency:` block was opened to look for the cause. There was no cause:
+the account was saturated. One CI run in that census reported `queued` at run level while carrying
+`in_progress=2, queued=10` — it is the row's own example, met from the other side by someone who
+had just cited the row.
+
+The rule that survives is about **which quantity a filter names**. A status filter on a collection
+is a filter on that collection's members, never on the things they contain; when the question is
+about the contained thing, the filter has to be dropped and the aggregation done over everything.
+And the failure was not a plausible-looking number this time — it was a number that *contradicted*
+the observable (25 jobs waiting while the pool looked idle) and was believed anyway, because the
+contradiction was read as evidence about the workflow rather than about the census.
+
 ### Two branches appending sections to one document merge cleanly and duplicate in silence
 
 `main` carried 140 `### ` sections of this file, a peer's branch 151, and mine 142 — that last
