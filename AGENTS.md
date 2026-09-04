@@ -5656,6 +5656,113 @@ about the author's side only. The document's value is not that it changes its au
 it is that **someone else can take the form out of it**. Both halves were observed here within an
 hour, on the same rule.
 
+### The per-push fix to a concurrency group is what hides the per-EVENT collision
+
+This file already records a group keyed by `github.ref` with `cancel-in-progress: true`, where
+every merge cancelled its predecessor and `main` carried no verdict. The repair —
+`${{ github.head_ref || github.sha }}` — is correct about that axis and creates a second one.
+`github.head_ref` is empty for every event but a pull request, so a `push`, a `schedule` and a
+`workflow_dispatch` on one ref all fall through to the same `github.sha` and land in **one group**.
+Measured 2026-09-04: the nightly `Corpus Compat` created at 20:33:28Z killed the merge's own push
+run at 20:33:47Z, with 11 of that run's 12 jobs already green and `Compiler parity` seventeen
+minutes in, leaving `main` with a `cancelled` verdict at the merge commit.
+
+Two things generalize, and neither is about concurrency. **A fix that names one axis reads as a fix
+for the class**, so the second axis is not merely unguarded — the guard that exists is cited as
+covering it: `workflow-trigger-guard` had a rule requiring `github.sha` or `github.run_id` in any
+cancelling group, and all seven colliding workflows *satisfied* it. And the file's own comment said
+the opposite of what it did — "a push to `main` shares a group with nothing and cannot be
+cancelled" — which is the `a comment asserting fidelity is where this class hides` row with a
+workflow file as the host.
+
+The census that found the carrier set is its own small lesson. `grep -A3 '^concurrency:'` returned
+9 of 21 workflows and a "no block" list of 4, and the two lists summing to 13 rather than 21 is the
+only thing wrong with the output: `corpus-compat.yml`'s `group:` sits **ten** lines below its
+header, behind a comment. A window sized by a guess about a file's *structure* fails the same way a
+`| tail` does, except that it corrupts a **partition** — both halves are wrong at once, and only
+the denominator says so.
+
+### A number a peer hands you has a population, and asking for it is the receiver's job
+
+`Report a measurement as mechanism | carrier | population | result` is written for the producer.
+The receiving half is not symmetric, because **a blank population and a universal one are the same
+pixel**: nothing in `2` says whether it counts everything or one slice.
+
+Measured 2026-09-04. A peer reported that a formatter pipeline's external-engine producers were
+**2 sites**, and a `complement` design was built on it — stamp those two, call the rest ours, and
+the enumeration closes on the engine side where a union over 101 sites could not. The `2` was
+correct for *"edit-vec sites that push engine output directly"* and the design needed *"paths that
+produce engine-derived bytes"*, which is **7** (`format_program` ×5, `format_css`, `format_json`) and
+overlaps 21 of the 50 sites the design had classified as ours. Worse, one of the two was not a
+static fact at all: the CSS "engine" is a swappable callback (`options.style_formatter`), so which
+engine ran is an option value and not a grep's business.
+
+The peer's count was not wrong and their write-up disclosed no population, which is the ordinary
+state of a number in a message. What was wrong is that the receiver built on it without asking, and
+then attributed the miss to the sender's missing field. **The cost of not asking lands on the
+receiver**, and it lands in the direction this file already names as the expensive one: a
+complement whose engine side is under-enumerated silently sorts boundary bytes into "the engine's
+fault", which is the classification nobody re-measures.
+
+### Two gates scoring one ratchet give two "remaining" numbers, and the smaller gap is the worse one
+
+`lsp-known-failures.json` is read by two checkers with two predicates. `attribution-check` counts
+entries carrying an **attribution target** and says 1224. `lsp-mechanisms-check` counts entries
+every one of whose **labels has a terminal** and says 1218. Both are right, they answer different
+questions, and they differ by 6 — which is exactly small enough that either reads as a restatement
+of the other, so "the remaining entries" silently means two different sets depending on which gate
+the speaker last ran. (The 6 are the `initialize` capability entries, attributed by hand in the
+table rather than through a terminal.)
+
+Two people published both numbers in one afternoon without noticing the pair, each having derived
+one of them correctly. What separates this from an ordinary stale figure is that **neither number
+is wrong and neither is derived from the other**, so no recount finds it; only naming the predicate
+does. Write `attributed 1224` and `terminal-unblocked 1218`, never `remaining`.
+
+The same exchange produced the census version of it, and the first reading of that was wrong in a
+way worth keeping. Two independent counts of "how many ratchets are there" came back 67 and 68 over
+identical non-empty sets, and both parties agreed the gap was **a definition rather than a
+measurement**, since only empty members moved. It is not: `attribution-check.mjs:55-57` owns the
+discovery rule, and line 52 states why the one differing file is excluded — a `.provenance.` sidecar
+annotates another ratchet's entries and is not a population of divergences. The boundary is measured,
+by an artifact, with its reason written down; the 68 was derived from this file's prose instead.
+
+**A boundary is a definition only until you find out who owns it**, and "ask which artifact owns the
+question" is exactly the rule that had been quoted at someone else earlier in the same campaign, over
+this same script. The concession is the other half: told "yours may be the more faithful reading, I
+have not measured that", the receiver spent a message before measuring — and the concession ran in
+their own favour. An unmeasured concession is cheap to settle in either direction, and the direction
+that flatters you is the one that does not prompt you to.
+
+### Three instruments, three domain facts each one did not carry, and all three returned a plausible number
+
+Collected across three sessions on 2026-09-04, one per session, each found by a peer's number
+disagreeing rather than by its own author:
+
+| the instrument | the fact it did not carry | what it returned |
+|---|---|---|
+| a P0 verifier reading runs at a commit | two runs of one workflow can sit at one commit, so group by NAME and take the newest | a superseded run's `cancelled`, reported three times as a live P0 failure |
+| a check census counting `conclusion == "failure"` | `conclusion` is not two-valued — `cancelled` and `skipped` are neither | a green verdict over a run whose shards never executed |
+| a ratchet census taking the method as a key's last segment | the key can carry a `phase=` suffix, so the method is not at a fixed position | `phase=edit` as a method, and every real method at exactly half its size |
+
+Each is the shape this file already names for `perf_bench` against `compile_profile` — one instrument
+rejects what it does not understand and its sibling ignores it — with the missing knowledge moved from
+the *argument* to the *domain*. And each returned a well-formed value: none is a zero, a blank or a
+crash, so nothing about the output invites a second look.
+
+The reusable half is what the repair is not. "Remember the rule" fails, and all three authors had
+quoted the relevant rule that same day. What works is putting the fact **inside** the instrument, so
+the wrong answer is not expressible: group by name in the function that reads runs, take `conclusion`
+as an enumeration rather than a comparison, key on a named segment rather than a position. The
+rewritten P0 verifier spells all three — it refuses a sha that is not 40 characters, runs the
+abbreviated form every time as a live negative control that must return zero, and exits non-zero on an
+empty set rather than calling it clean.
+
+Two of the three were caught because a peer published a different number for the same quantity, which
+is this file's recorded condition for these rules firing. The third was caught by a **shape** — a
+method named `phase=edit` cannot exist — while its counts (3630, 2944) were entirely plausible. Where
+a projection can produce an impossible *value*, that beats any threshold on the count.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
