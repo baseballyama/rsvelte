@@ -1180,7 +1180,12 @@ same file (a closing tag hugged as `</div></Footer` + `>`, the same line count o
 both sides, one line over `printWidth` on each), so the result is outside this
 population entirely and says nothing about the entry it came from. A file that
 carries several divergences reduces toward whichever one is cheapest to keep, and
-the cheapest one is rarely the one being studied. The predicate has to be the
+the cheapest one is rarely the one being studied. That drift is systematic rather
+than incidental, which is what separates this from the ratchet-key rule it otherwise
+mirrors: a key that cannot tell two things apart suppresses both **symmetrically**,
+while a reduction actively minimises, so a predicate wider than its goal walks
+*toward* whichever member of the class shrinks furthest. The 105 lines are not a
+coincidence — they are why the wrong answer was persuasive. The predicate has to be the
 signature — here, the first differing line overflows, the oracle's fits, and the
 oracle's is a proper prefix of rsvelte's — and it costs nothing extra, because the
 reduction is already computing both outputs on every probe. Read the distribution and not the cell: a
