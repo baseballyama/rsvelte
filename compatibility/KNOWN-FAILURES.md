@@ -1405,7 +1405,7 @@ Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 515`
 
 ### Entries by DIFF SHAPE — a second axis, and 3 in 4 are layout alone
 
-The table above partitions by **attribution target**. This one partitions the same 524 entries by
+The table above partitions by **attribution target**. This one partitions the same entries by
 **what the two outputs actually disagree about**, which answers a different question: not *who
 owns this* but *how much of the ratchet is the formatter laying the same tokens out differently*.
 
@@ -1426,10 +1426,13 @@ exhaustive:
 | 123 | line breaks only, whitespace-preserving | equal once whitespace runs collapse to one space |
 | 27 | horizontal whitespace only | equal once spaces/tabs collapse and trailing ones are dropped |
 
-**397 of 524 — 75.8% — agree on every token and differ only in layout.** The `247` and the `123`
-are separated on purpose: collapsing runs to one space preserves a text node's single space, so a
-`123` entry is a difference the HTML would render identically, while a `247` entry can move a
-space in or out of rendered text. Only `127` carry a token neither side's layout can explain.
+Partition of `fmt-known-failures.json` by diff shape: `244 + 127 + 122 + 27`
+
+**Three of every four entries agree on every token and differ only in layout** — every row above
+except the token one. The placement and line-break rows are separated on purpose: collapsing runs
+to one space preserves a text node's single space, so a line-break entry is a difference the HTML
+would render identically, while a placement entry can move a space in or out of rendered text.
+Only the token row carries a difference neither side's layout can explain.
 
 The first fingerprints of the `127` are dominated by the same close-tag hug Cluster 1 describes
 (`O: >` against `A: </div>`, 25 entries, the largest single shape), so the shape axis and the

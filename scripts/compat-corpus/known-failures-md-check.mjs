@@ -283,6 +283,7 @@ const PARTITIONS = [
 	},
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'mechanism' },
+	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'diff shape' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'repo' },
