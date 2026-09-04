@@ -3763,6 +3763,7 @@ not a count, and not the `||` guard, which fired and was overwritten. `git ls-tr
 so absent and present are distinguishable without reading an exit code at all. Use it, and
 report *absent at the merge base* as its own state: a file the other side added is not a file
 that moved, and treating it as one hides the whole reason it is there.
+
 ### A third kind of red: the runner vanished, and its fingerprint is that there is no log
 
 This file records that a *cancelled* shard reads as `FAILURE` under a rollup, and that a
