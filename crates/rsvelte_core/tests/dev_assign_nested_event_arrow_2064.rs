@@ -3,6 +3,12 @@
 //! (`path.at(-1) === 'ArrowFunctionExpression' && path.at(-2) === 'RegularElement'`,
 //! `AssignmentExpression.js`). An arrow nested inside a call argument —
 //! `onsubmit={preventDefault(() => (obj.x = v))}` — is not exempt.
+//!
+//! `bump` is load-bearing: it makes `x` written, so `scope.evaluate` cannot
+//! follow its initializer to `1`. Without it the RHS folds to a primitive and
+//! all three cells agree for a reason unrelated to the exemption — including
+//! the one that keeps passing. Expectations verified against the oracle
+//! (`submodules/svelte/.../compiler/index.js`, 5.56.10).
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -34,9 +40,11 @@ fn an_arrow_nested_in_a_call_argument_is_still_wrapped() {
 
 	let scroll = $state({ x: 0 });
 	let x = $state(1);
+	function bump() { x += 1; }
 </script>
 
 <form onsubmit={preventDefault(() => (scroll.x = x))}></form>
+<button onclick={bump}></button>
 "#,
     );
     assert!(
@@ -54,9 +62,11 @@ fn the_attribute_expression_arrow_itself_stays_exempt() {
         r#"<script>
 	let scroll = $state({ x: 0 });
 	let x = $state(1);
+	function bump() { x += 1; }
 </script>
 
 <button onclick={() => (scroll.x = x)}></button>
+<button onclick={bump}></button>
 "#,
     );
     assert!(
@@ -73,11 +83,13 @@ fn a_nested_arrow_that_is_not_under_an_event_attribute_is_wrapped() {
         r#"<script>
 	let scroll = $state({ x: 0 });
 	let x = $state(1);
+	function bump() { x += 1; }
 	const run = (fn) => fn();
 	const go = () => run(() => (scroll.x = x));
 </script>
 
 <button onclick={go}></button>
+<button onclick={bump}></button>
 "#,
     );
     assert!(out.contains("$.assign(scroll, 'x', '='"), "got:\n{out}");
