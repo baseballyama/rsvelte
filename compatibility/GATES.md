@@ -6063,9 +6063,13 @@ from code, the second needs an input. Do not soften an [S] into a [D] because a 
 likely; write `未測定` for the divergence and leave the row at [S]. An unsupported claim here is
 worse than a blank, because the next person reads the row as surveyed.
 
-**No row below is [M], and that is the finding rather than an omission.** Nothing in this tree
-runs two ports of one decision against each other and compares the results — with exactly one
-exception, § *The one place this is already defended*, which is the template for closing a row.
+**Almost no row below is [M], and the shortage is the finding rather than an omission.** Nothing
+in this tree *routinely* runs two ports of one decision against each other and compares the
+results. Two rows are exceptions and they are not the same kind: § *The one place this is already
+defended* is a **test in the tree**, re-run on every change, and it is the template for closing a
+row; row 32 is a **one-off run of an uncommitted instrument**, which meets the grade's bar and is
+not a defence — nothing re-checks it, so the first pass that starts emitting the divergent input
+shape reopens the row in silence. When a row reaches [M], say which of the two it is.
 
 Grading a row [D] from code alone is deliberate and it is weaker than it looks: it says the two
 functions *would* answer differently on that input, not that the input is reachable through the
@@ -6124,6 +6128,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [29](#29-is-a-name-inside-a-named-slots-body-reactive--d) | Is a name inside a named slot's body reactive? | 2 (phase 2 scope fork, phase 3 name lookup) | **[D]** | open |
 | [30](#30-is-this-rule-a-global-block--d) | Is this rule a global block? | 4 predicates, 13 decision sites | **[D]** | 5 defects closed, 1 open |
 | [31](#31-does-this-element-hug-its-content--d) | Does this element hug its content? | 3 | **[D]** | no — ports disagree, output does not |
+| [32](#32-which-of-an-overlapping-pair-of-splices-survives--m-and-the-two-ports-are-never-asked) | Which of an overlapping pair of splices survives? | 3 sites, 2 rules | **[M]** | closed — the two rules differ and no input reaches both |
 
 **Rows 22–27 have bodies below and no line in this table** — measured 2026-09-02 by
 enumerating the `#### <n>.` headings against the table's own `[n]` links. The index is the
@@ -7637,7 +7642,7 @@ lexically nested snippet body, and only `RenderTag` is special-cased. A port tha
 descending intuition upward invents ancestors.
 
 
-### 31. Does this element hug its content? [D]
+#### 31. Does this element hug its content? — [D]
 
 Upstream (prettier-plugin-svelte, `printChildren` / `shouldHugStart` / `shouldHugEnd`) answers
 once, from the **children**: an inline, non-empty element hugs its start unless its first child
@@ -7886,6 +7891,117 @@ before this row's first fix, all cells were byte-identical, so the divergence is
 an argument that "these rejections are raised in analysis and so cannot move with a phase-3 arm"
 is sound for the rejected cells and says nothing about the accepted ones, whose output phase 3
 builds.
+
+---
+
+#### 32. Which of an overlapping pair of splices survives? — [M], and the two ports are never asked
+
+`crates/rsvelte_formatter` decides "apply this set of `(start, end, text)` edits, dropping
+whatever overlaps" in **three** places, spelling **two** rules:
+
+| # | site | rule |
+|---|---|---|
+| 1 | `lib.rs:304-323`, the pre-resolution pass | `overlaps = applied_nonempty && incoming_nonempty && start < la_e && end > la_s`; `last_applied` updated only by a non-zero-length edit |
+| 2 | `lib.rs:415-436`, `apply_edits` | the same expression, the same guard update, the same descending sort |
+| 3 | `collapse/util.rs:67`, `apply_edits` | `if end > last_start { continue }`, with `last_start = start` after **every** applied edit |
+
+Sites 1 and 2 are one rule twice: both sort `Reverse(start)` first, so 2 sees 1's output in 1's
+order and is inert — which `lib.rs:368-370` asserts in a comment, correctly. Site 3 is the second
+rule, and it is not a paraphrase.
+
+**The divergent input class is exactly the zero-length insert, and that is derivable rather than
+sampled.** In descending-start order every incoming `start` is `<= la_s < la_e`, so `start < la_e`
+holds unconditionally and rule 1 collapses to `end > la_s` — which is rule 3 with
+`last_start = la_s`. For non-zero-length edits the two are the *same function*. They part company
+only where a zero-length insert is involved, and in **one** direction: as the *incoming* edit a
+zero-length insert has `end == start <= last_start`, so rule 3's `end > last_start` cannot fire
+either. What is left is an *applied* zero-length insert, which rule 1 refuses a range and rule 3
+lets lower `last_start`. Minimal input, both ports sorted descending:
+
+```
+[ (10, 10, "X"),  (5, 12, "Y") ]
+
+rule 1/2  both survive         -> src[0..5] + "Y" + "X" + src[12..]
+rule 3    (10,10) sets last_start = 10; (5,12) has end = 12 > 10 -> DROPPED
+                               -> src[0..10] + "X" + src[10..]
+```
+
+**No upstream anchor, and — unlike every row above — the two ports are never handed the same
+question.** prettier-plugin-svelte does not splice this way, so there is no upstream function whose
+answers both sides could be checked against. And structurally they cannot be compared even by
+accident: `lib.rs:371` is the pipeline's only production call and applies printer edits to the
+**original source**, while all eleven `collapse` calls apply collapse-pass edits to an
+**already-formatted** string (`mod.rs`'s ten sequential passes on `result`, plus `pre.rs:399` on a
+recursively-formatted `<pre>` body). No input reaches both. So the failure this row is filed
+against is not "the two disagree on some file" — it is that a maintainer who reads either rule, or
+fixes either one, will believe the decision has one implementation. Site 2's existence is what
+makes that likely: the rule *does* appear twice within one file, verified equivalent, which reads
+as the canonical answer.
+
+**Measured, and the zero of a derived class.** Instrumented over the whole collected corpus at
+`b860ab511` — 33,911 `.svelte` sources (the 927 `.svelte.(js|ts)` take a different path and never
+reach `collapse`):
+
+```
+collapse apply_edits calls          5,658   (5,655 of them mod.rs's ten sequential passes)
+edits fed in                       15,507
+survivors                          15,507
+dropped by the overlap guard            0
+zero-length edits (start == end)        0
+edits on which the two rules differ     0
+```
+
+`zero-length = 0` entails exactly one of the other two: with no zero-length edit the two rules are
+the same function, so they drop the **same set** — which is `disagree = 0`. It does **not** entail
+that the set is empty. `dropped = 0` is a separate empirical fact and was separately measured; the
+row claims both because both were run, not because one follows. Two-sided control on the
+comparison: an injection mode adding `(s+1, s+1, "")` beside each range edit reports
+`calls=3 zero_len=3 disagree=3 drops=3` on a file that reads all zeros without it.
+
+One reconciliation is worth recording because its first reading was wrong in a way that looked
+settled. 33,911 files against 33,729 report lines leaves 182, and 223 files took an error path —
+a 41 gap that was guessed, from the sign, to be "errored and still reported", i.e. harmless.
+It is harmless and that is not why: the error path and the no-report set agree **exactly** at 223,
+and the 41 are files that reported **twice**, every one of them carrying a `<pre>` whose recursive
+`crate::format` runs its own attempt. The 182 was a subtraction of two different quantities. A
+guessed sign that happens to reach the right conclusion is still an unmeasured sign.
+
+The 520-entry fmt ratchet was measured first and gave the same three zeros over 555 calls. Keep
+both, because the two populations differ in a way neither number states: the ratchet averages 1.07
+collapse calls per file against the corpus's 0.17, so it is *denser* in the very activity being
+counted while being 1.5% of the files. Density in the measured axis makes a zero there stronger
+per file and says nothing about the 33,391 files it does not contain — a shape correlated with
+whatever makes a file a ratchet entry would sit entirely outside it.
+
+**What would close it structurally rather than by population.** The divergent class is a property
+of the *producers*, not of any input: if no edit-emitting site can construct `start == end`, the
+class is empty for every input there will ever be. That is a statement about 61 push sites and is
+**unmeasured**; the corpus zero is the sampled form of it.
+
+**Why [M], and what the [M] does not buy.** The measurement above is a harness, a denominator and
+a result, so it meets the bar this file sets — but read which of its two numbers carries the claim.
+`disagree = 0` is produced by evaluating rule 1 *as re-implemented inside the instrument*, which is
+a port-vs-port comparison whose oracle is a re-reading of the other port — the failure mode § *The
+one place this is already defended* names. It is not worthless: the injection arm forces the
+re-implementation to report, so a transcription that had died would read 0 there too. But it is
+the weaker of the two. `zero-length = 0` consults neither rule, is a count of the input, and with
+the derivation above entails the agreement on its own. Cite that one; keep `disagree` as the
+independent second route to the same answer.
+
+And an [M] here is a *measurement*, not a defence. The one row this file previously called closed
+is closed by a **test in the tree** that re-runs on every change; this row is closed by an
+uncommitted instrument run once, at `b860ab511`. Nothing re-checks it, so the first pass that
+starts emitting a zero-length edit reopens it silently. The preamble's claim about the file's own
+grades is updated in this commit; the distinction between "measured once" and "defended" is not.
+
+**Both counts of this pair were wrong before either was measured, in opposite halves of the call
+graph and for the same reason.** The producers were first counted with a grep for `edits.push((`,
+the sites that spell the tuple inline: **7 of 61**, and the kept bucket was internally consistent
+(every one had a visible non-empty guard), so it read as complete. The consumers were counted by
+reading `collapse/mod.rs` alone: **10 of 11**, missing `pre.rs:399`. Neither was found by
+re-reading — the first by a peer's census, the second because a runtime splice total did not add
+up. A syntactic filter on how a call is *spelled* is uncorrelated with the question being asked,
+and it fails in the direction that looks finished.
 
 ## AST equivalence — what the gates compare
 
