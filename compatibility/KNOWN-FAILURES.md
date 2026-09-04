@@ -2950,11 +2950,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 2 entries)
+### Client (`known-failures.client.json`, 1 entry)
 
-Partition of `known-failures.client.json` by verdict: `2`
+Partition of `known-failures.client.json` by verdict: `1`
 
-- **2 — the generated JS differs** (`js` / `code-differs`).
+- **1 — the generated JS differs** (`js` / `code-differs`).
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
@@ -3020,16 +3020,26 @@ where official emits `3, 'button'`. Neither axis reproduces it alone (a comment 
 parentheses does not end in `)`, parentheses without a comment have nothing before the matching
 `(`), so `crates/rsvelte_core/tests/prop_default_leading_comment.rs` crosses them.
 
-What remains is comment PLACEMENT, and the oracle's rule is not the one a single-prop grid can
+**It has now left both targets, and the local sweep said it would not.** What remains in the
+output is comment PLACEMENT, and the oracle's rule there is not the one a single-prop grid can
 show. Measured on one, two and three props: official emits the annotation after the value of the
 **first** `$.prop` in the declaration — `let a = $.prop($$props, 'a', 3, '' /** … */)` — however
 many props precede the one that carried it, because esrap flushes a pending comment at the first
 located node past it and the `$.prop` calls are builder-made. A one-prop cell reaches that rule
 and cannot separate it from "place it ahead of the value", since there is nothing before it to
-trail; rsvelte agrees there and drops the comment everywhere else. A two-arm sweep over 134,180
-units moved exactly this entry's two targets and left the verdict `MISMATCH -> MISMATCH`, which
-is why it is still listed: the eager/lazy line is now byte-identical and the comment line is
-untouched.
+trail; rsvelte agrees there and drops the comment everywhere else. That line is still divergent
+and the entry still passes, because the gate hands every byte-different output to
+`ast_equiv_batch`, **which does not represent comment placement** — the same rescue the
+`SettingsPopup` paragraph above describes.
+
+The lesson is the one this repository already records about reconstructions, arriving from its
+other side. A two-arm sweep over 134,180 units moved exactly this entry's two targets and scored
+them `MISMATCH -> MISMATCH`, so the PR was prepared with the entry kept — and the sweep's
+comparison stops at the normalized byte diff, which makes it **stricter** than the gate. A
+non-zero from a stricter reconstruction is a list of candidates, never a verdict; here it
+produced two false keeps, and CI's two-sided ratchet caught them as `already PASS`. When a
+retained entry's own justification is "what remains is comment placement", that is precisely the
+sentence that predicts the gate will rescue it.
 
 The error classes this section used to carry are gone: the run behind this
 baseline reports `error-mismatch: 0` and `js-unparseable: 0` on every target, so
@@ -3347,7 +3357,7 @@ is the cell that separates the aliasing from "an element with a snippet re-expan
 Two arms over the corpus moved 6 of 134,180 units (129,450 live) — the three files on `client`
 and `client-dev` and nothing else — `MISMATCH -> match: 6`, `match -> MISMATCH: 0`.
 
-Every one of the remaining 2 arrived with the wave-2 enrolment (#3176) and is described
+The remaining 1 entry arrived with the wave-2 enrolment (#3176) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
 held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
@@ -3451,11 +3461,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 7 entries)
+### Client dev (`known-failures.client-dev.json`, 5 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `7`
+Partition of `known-failures.client-dev.json` by verdict: `5`
 
-- **7 — the generated JS differs.**
+- **5 — the generated JS differs.**
 
 Unlike `client`, no CSS entry survives on this target.
 
@@ -3482,9 +3492,15 @@ that decides it: a `(` after an operator opens a parenthesised operand, not a ca
 13-shape × 2-mode grid separates the two directions and holds five mode-invariant rows
 (`a < 1`, `a + 1`, a literal, an identifier, and an arrow whose body holds the operator — an
 arrow is simple whatever it contains, which is what fails a text search for the token). Two arms
-over the corpus moved 1 of 134,180 units (129,450 live). The entry stays because its remaining
-line is comment placement: esrap attaches a trailing `//` to the literal inside
-`$.mutable_source(false)` and rsvelte keeps it at end of line.
+over the corpus moved 1 of 134,180 units (129,450 live).
+
+**The entry has left this target.** It was kept on the reading that its remaining line is comment
+placement — esrap attaches a trailing `//` to the literal inside `$.mutable_source(false)` and
+rsvelte keeps it at end of line — and that reading is still correct about the bytes. It is wrong
+about the verdict for the same reason the `Button.svelte` paragraph above gives: comment
+placement is exactly what `ast_equiv_batch` cannot represent, so the gate rescues it once the
+code line matches. Both keeps came from the same stricter-than-the-gate local sweep, and both
+were caught by CI's stale-entry check rather than by any local instrument.
 
 The other moved unit is `svelte-bits/…/MetallicPaint.svelte`, whose verdict did **not** change:
 its location is now right and its remaining line is the other half — upstream declines to wrap
@@ -3492,7 +3508,7 @@ the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)`
 binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
 expression's shape alone. A moved unit is not a retired entry.
 
-All remaining 7 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+All remaining 5 arrived with the wave-2 enrolment (#3176); this target was at 0 before
 it, and it is the largest of the four — 5 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
