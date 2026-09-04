@@ -5982,6 +5982,83 @@ consistent sentences about a 9-row table, and the row's own table named five fam
 agreeing line while its prose said four. **A count restated one line below its own data is not
 checked by having the data there.**
 
+### A catch-all bucket's enumeration goes stale against your OWN output, and the residue is plausible
+
+Counting corrupted lines in an 87 MB stderr, the classifier was "not one of the four marker
+kinds, and shaped like a JSON fragment". It reported **168,149 corrupted lines** — a number
+large enough to invalidate the run, and *supported*, because that run really did contain one
+interleaved line. The four kinds were an enumeration of what I believed I emitted; a fifth,
+`RSVELTE_FMT_ENGINE`, had been added by the same author weeks earlier and was 168,149 lines of
+the file. Real corruption was **1 line in 275,176**, and it was an `ENGINE` line, so no
+measurement depended on it.
+
+The recorded row says a catch-all in place of an enumeration claims you know every shape that
+reaches it. This is that claim made about **your own emissions**, where it feels safest — nobody
+audits a list of markers they wrote. And the residue is not a zero, it is a five-figure count
+that agrees with a worry you already have.
+
+What settled it was not re-reading the classifier: it was
+`command grep -ao '^RSVELTE_FMT_[A-Z_]*' | sort | uniq -c`, which asks the **data** which keys
+exist instead of asking the classifier which keys it knows. Where a bucket is defined as "not in
+my list", derive the list from the artifact before reading the bucket.
+
+### Two instruments disagreeing by five orders of magnitude, both outputs normal on their own
+
+The same count read **1** under `grep` and **168,149** under a Python pass over the same file.
+Neither output looks wrong alone — a `1` is a plausible interleave and a `168,149` is a plausible
+catastrophe — and the reflex the size invites is "why is this so broken", not "which of my two
+instruments is lying". Python's `open()` defaults to universal newlines, so a lone `\r` inside a
+line ends a line there and `grep` does not agree; `newline='\n'` reconciles them.
+
+The recorded rule is that the thing which actually fires these checks is the same quantity
+produced twice by independent derivations. This is the smallest possible instance — one person,
+two commands, two minutes — and it is worth keeping because of what the disagreement was
+*mistaken for*: with one instrument I would have reported the 168,149 and spent the afternoon on
+the wrong defect. **A magnitude gap is evidence about the instruments before it is evidence about
+the world**, and the direction of the reflex runs the other way.
+
+### A uniform perturbation is not a control for a permutation, and it fails everywhere by construction
+
+A splice map was checked by requiring every source-provenance segment's source bytes to equal the
+final bytes at the position it claims, with a control that shifted every claimed offset by one:
+`off 2214/2214 match, on 0/2214`. Two-sided, reproducible, and **non-discriminating for the defect
+it was written to catch** — the map's risk is that stage 2 *permutes* units, and a control in which
+every segment fails says nothing about a defect that moves two of them.
+
+The replacement swaps the provenance of two equal-length segments chosen so their source bytes
+differ, which predicts **exactly two** failures per file. Measured over the same population: 475 of
+559 reports had an eligible pair and **all 475 reported exactly 2**, with the 84 that had none
+reporting 0. Stating the denominator in three steps matters as much as the result — 559 reports,
+527 with any source-provenance segment at all (32 files are fully rewritten), 475 reached — because
+90.1% is a rate over what the control *can* perturb and not a coverage figure.
+
+The general form: a control that fails on 100% of the population is testing that the check runs,
+which is the positive control you already had. To test that a check **discriminates**, perturb an
+amount the defect would perturb and predict the count, not the direction.
+
+### A truncating instrument does not lose the answer here — it MANUFACTURES the top-ranked one
+
+The recorded truncation hazard is a stage that drops the verdict, so the failure is an absence.
+An instrument that truncates its own *input* has the opposite signature: it produces a value, and
+the value wins. Attributing 204,504 divergent bytes to the formatter stage that wrote them, a
+hand-rolled LCS capped its DP at 4,000 lines and, past the cap, marked the whole remaining window
+as changed. One corpus file (`threlte/.../Island.svelte`) exceeded the cap, and the table read
+`markup_open_tag 258,813 B, 64.4%` — **85% of that one writer's mass from that one file, and
+221,319 B of it never diffed at all.** Re-run through the system `diff -u0`, the same writer is
+`66,011 B, 32.3%`, and it is still rank 1 — so the truncation did not invent the winner, it
+inflated it past every possible challenger and made the margin unreadable.
+
+Two defences, and the cheap one is not the diff. **Print files-touched and plurality beside the
+byte column**: a writer whose bytes concentrate in one or two files is a statement about those
+files, and `markup_open_tag` holding rank 1 on all three reductions (39.2% excluding the top three
+files, 312 files, 248 pluralities) is a different claim from holding it on bytes alone —
+`STAGE3_COLLAPSE_p1` ranks 1st on raw bytes and 4th, 6th and 5th on the three reductions, which
+is the heavy-tail artefact the byte column alone would have promoted — two files carry 89% of it.
+And **cross-check against a second diff implementation on the shared population**, because a
+minimum diff is not unique: 519 units common to both runs gave 180,450 B against 180,657 B
+(−0.11%), per-writer deviation ≤0.2%, and 514 of 519 identical changed-line sets — which
+measures the concern rather than arguing it away.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
