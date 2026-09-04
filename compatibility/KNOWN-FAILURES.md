@@ -1158,11 +1158,15 @@ several: in **39** of them the oracle used exactly two lines, so a single break
 sufficed and rsvelte performed none, which is what separates "never reached the break
 decision" from "broke once and stopped" — the other 51 are predicted by both readings
 and settle nothing. A 2×2 over the parent's start tag — does it break, are the
-children long — reproduces the shape with both controls agreeing, and its
-precondition holds for **20 of the 90**; the other 70 sit under a parent whose start
-tag is intact and are not explained by it. Measure a constructed cell's precondition
-against the carriers before naming it their mechanism: the first carriers printed
-here all had a hugged `>`, and a hug turns out to be 12 of 90. Read the distribution and not the cell: a
+children long — reproduces the shape with both controls agreeing, and counting **both
+directions** against the carriers is what sizes it: **8** of the 90 match the cell
+that diverges, **12** are the inline-parent shape whose cell says EQ while the corpus
+says they diverge, and **70** sit under an intact start tag that no cell addresses.
+The middle bucket is the informative one — a cell that predicts agreement where the
+carriers disagree is falsified, not merely absent, so the inline row is missing an
+axis. Counting only the shapes a cell reproduces would have reported 20 by folding
+the hug in with the break, and the first carriers printed here all had a hugged `>`,
+which is 12 of 90 rather than the majority it looked like. Read the distribution and not the cell: a
 mechanism read off constructed cells is a property of the cells, and this one was
 about to be quoted at 171. The first alignment attempt returned 128 unaligned and was
 the instrument — collapsing a newline to a space makes `</span\n>` and `</span>`
