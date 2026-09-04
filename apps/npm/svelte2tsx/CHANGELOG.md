@@ -1,5 +1,290 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.23
+
+### Patch Changes
+
+- b02d7fa: Stop `svelte2tsx` reading code out of a comment or a literal. Upstream answers this with its parser — `findNextVerbatimElement` opens its regex with a `(<!--[^]*?-->)` arm and skips any match that starts with it, `ComponentEvents` walks the TypeScript AST, and `Stores` is fed by the Svelte AST walk — while three scans here answered from bytes. So a `<script>` inside an HTML comment was recovered as an orphan script and its body injected ahead of the imports, a `dispatch('x')` inside a `//` comment became a component event, and a `$name` inside a template expression's comment or template literal became a store subscription. `js_scan::opaque_runs` reports a JS region's comments, strings, regex literals and template-literal text chunks (a `${…}` substitution stays code), and the three scans consult it.
+- 051e359: Give a `bind:` / `class:` shorthand's synthesized `Identifier` no `loc`, as upstream's does, and stop stripping the `loc` off an explicit one. Upstream builds that node by hand in `1-parse/state/element.js` and simply writes no `loc`; rsvelte attached one in the parser and then removed it again wherever `expression.name === directive.name`, which is a different predicate — it also fires on `bind:map={map}`, whose expression _was_ parsed and _does_ carry a position. The strip lived only in the legacy converter, so the two AST modes were wrong in different places: `legacy` dropped a real expression's `loc` while `modern` kept a synthesized one on both shorthands. `parse()` is the only affected output; `compile()` is byte-identical on all four targets across the corpus.
+- b1a65e2: An attribute's host now answers `Attribute.ts`'s two host tests separately, and a
+  valueless CSS custom property is `true`.
+
+  `element instanceof Element` picks the `data-` workaround
+  (`...__sveltets_2_empty({…})`) over the component-only `--` one
+  (`__sveltets_2_cssProp`), while the attribute-case fold needs
+  `parent.type === 'Element'` as well. A `<slot>` is built as an `Element` whose node
+  type is `Slot`, so it takes the first wrapper and not the second — rsvelte had the
+  two the wrong way round. A named-slot element is a real element and now folds its
+  attribute name's case like any other. And `<C --x />` types the property as `true`,
+  not `""`: the `""` fallback in `addProp` is only reached when `addAttribute` is
+  called with no value, which the valueless branch never does.
+
+- 6cad1c3: A `$`-prefixed key of a binding pattern is a store reference everywhere except
+  the pattern's first element, and rsvelte emitted no store subscription for any
+  of them — `let { a, $permissions: permissions } = o` lost its
+  `let $permissions = __sveltets_2_store_get(permissions);` line.
+
+  `processInstanceScriptContent` tracks "am I inside a declaration" with a single
+  boolean whose on-leave callback clears it unconditionally, so leaving a pattern's
+  first element clears a flag the enclosing pattern had set and every element after
+  it is walked as an expression. The rule that produces — a key is a name iff it is
+  the first element of its own pattern — is reproduced here, including the nested
+  cases where entering an inner pattern re-sets the flag. Reported as
+  `upstream_issues/svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md`.
+
+- 167f272: An `export { x as y }` written above `let x` is a value export, as upstream has it.
+
+  Upstream fills `possibleExports` during one in-order walk, so a named export
+  specifier seen before its declaration finds nothing and keeps `isLet: false` —
+  which makes it a value export rather than a prop (`ExportedNames.ts:634`). rsvelte
+  collects the same map in a pre-pass over the whole program body, so it answered the
+  same question the same way in either order.
+
+  The exported name is not the axis: `export { x as class }` and `export { x as b }`
+  behave identically, and a plain `export { x }` above its declaration was wrong too.
+
+- b1a65e2: `$: x = y as T` parenthesises its `__sveltets_2_invalidate` arrow body
+
+  Upstream wraps that body in parentheses under a three-way condition — an object
+  literal, an expression whose text starts with one, or an `as` expression. rsvelte
+  answered the whole condition with `rhs.starts_with('{')`, which covers the first
+  two and cannot express the third, so a reactive declaration whose right-hand side
+  is a TypeScript assertion lost the parentheses.
+
+- b1a65e2: An `is="x-y"` attribute makes an element a custom element, which keeps its attribute-name case
+
+  Upstream's `Element.isCustomElement()` has two conditions — a dash in the tag name,
+  and an `is=` attribute whose first value chunk is text containing a dash — and only
+  a custom element is exempt from the attribute-name lowercasing. rsvelte answered the
+  question with `tag.contains('-')` alone, so `<div is="x-y" defaultValue="1">` emitted
+  `"defaultvalue"` where official emits `"defaultValue"`, on every element host.
+
+  The tag was also being passed as `""` on two of the four hosts, which happened to be
+  harmless only because `title` and `svelte:element` contain no dash. Both now pass the
+  real tag and the caller answers the whole predicate.
+
+- 167f272: A multi-line `/** @type {{ … }} */` on a `$props()` destructure is emitted verbatim.
+
+  Upstream gates the `@type` → `@typedef … $$ComponentProps` rewrite on
+  `/\/\*\*[^@]*?@type\s*{\s*{.*}\s*}\s*\*\//` (`ExportedNames.ts:269`), and that regex
+  has no `s` flag: the inner object must close on the line it opens, and the first `@`
+  in the block must be the `@type`. Everything else falls to an else arm that keeps
+  `$props.comment = comment` and emits the comment itself. rsvelte tested only whether
+  the extracted type text started with `{`, which is true for both shapes, so it
+  rewrote the blocks upstream copies — and rebuilt the comment from the type text,
+  which loses a multi-line block's own layout.
+
+  JS's `.` excludes `\n`, `\r`, U+2028 and U+2029 while Rust's excludes only `\n`, so
+  the transcribed condition spells that exclusion out.
+
+- b1a65e2: A mustache in an attribute value now contributes the text between its braces, not the
+  span of the expression node inside them.
+
+  Official copies the interior verbatim into the template literal it builds, so
+  `class="x {// why⏎a} z"` keeps the comment and `class="x { a } z"` keeps its two
+  spaces; rsvelte emitted `${a}` for both. The interior reaches a template literal
+  through two builders — the string one used by `<slot>` and named-slot-element
+  attributes, and the segment one used by elements, `style` and component props — and
+  both had the expression's span.
+
+- b1a65e2: An element that targets a named slot with a `slot` attribute now lowers its `bind:`
+  directives like any other element.
+
+  That element is handled by a second port of the element transform, which built its own
+  attribute object and its own class/style + transition suffix and never ran the binding
+  pass — so `bind:this` stayed a `"bind:this": element` prop instead of becoming
+  `const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`, a two-way
+  binding lost its `() => v = __sveltets_2_any(null)` setter, and a void or self-closing
+  element closed with a leading space that only an overwritten `</tag>` produces.
+  `<svelte:element>` and the special elements share that attribute builder and emit the
+  suffix themselves, so they lower the same bindings now too.
+
+- b1a65e2: `<svelte:fragment slot="…">` keeps its attribute names and its opener layout.
+
+  It is an `Element` whose node type is not `Element`, so the attribute-case fold and
+  the number-only rewrite do not reach it — `<svelte:fragment slot="s" someProp="0"
+cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
+  position-preserving like any other element's: the columns the stripped `slot=` and
+  `let:` occupy come back as spaces whether or not another attribute survives, where
+  rsvelte emitted them only when nothing did.
+
+- 167f272: Two fixes to the JSDoc a prop carries into the emitted `props:` object.
+
+  `createReturnElements` writes `\n${doc}${name}`: the comment is preceded by a
+  newline and followed by nothing. rsvelte wrote the comment followed by a space,
+  which oxfmt normalizes away — so the corpus gate could not see it, while raw
+  output differed on 738 of 33,901 components.
+
+  `getLastLeadingDoc` also removes every `@typedef` tag from the comment before it
+  reaches the prop, and rsvelte kept them. That removal is offset by `node.pos` in
+  upstream, because `tag.pos` is SourceFile-absolute and is indexed into a
+  node-relative slice, so it only lands when the declaration is the script's first
+  statement. rsvelte reproduces that: `@typedef` tags are stripped when nothing
+  precedes the comment and kept otherwise. The remaining case — a shift that lands
+  inside the comment, where upstream deletes the wrong text — is filed as
+  `upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`
+  and is not reproduced; no corpus component reaches it.
+
+- b1a65e2: The `$$ComponentProps` typedef is inserted before the declaration's leading comments
+
+  Upstream inserts `;type $$ComponentProps = …;` at `node.parent.pos`, and TypeScript's
+  `pos` spans the declaration's leading trivia — so the insertion lands before any
+  comment that precedes the `$props()` declaration. rsvelte walked back from the
+  `let`/`const` keyword, and two of the three branches that compute this offset stopped
+  at whitespace, appending the typedef onto a preceding `// …` line where the line
+  comment swallowed it. The output was not TypeScript.
+
+- 167f272: Three fixes to where `function $$render()` opens relative to a hoisted type
+  declaration. All three decide the same thing — which instance-script types may
+  move above `$$render()` — and each was wrong in a different direction.
+
+  A `type T = $$Generic` alias name was not treated as a generic in scope on
+  `$$render<T>()`, so an `interface Props { a: T }` was hoisted to module scope
+  where `T` does not exist. `Generics.getReferences()` is filled from both the
+  `generics="…"` attribute and every `$$Generic` alias, and that is the set
+  `moveHoistableInterfaces` adds to `disallowed_types`.
+
+  `$$Props`, `$$Slots` and `$$Events` were excluded from the hoist candidates
+  outright. Upstream calls `analyzeInstanceScriptNode` on every top-level node, so
+  those three are ordinary candidates there and hoisting them is what shifts
+  everything after them by a line.
+
+  A shorthand name in an object binding pattern inside a type — the `title` of
+  `textFactory: ({ title }: { title: string }) => string` — was read as a value
+  reference by the lexical dependency scan, so a prop of the same name blocked the
+  hoist. Upstream collects type references from the AST, where such a name is not
+  one.
+
+- 383cc44: A prop widener that would land on the script's last byte is no longer emitted, because
+  upstream discards it there.
+
+  `preprendStr` overwrites the single character at its insertion point rather than appending,
+  so `propTypeAssertToUserDefined`'s `;x = __sveltets_2_any(x);` at `declaration.end` is
+  overwritten by the `</script>` removal when the declaration is the last thing in the script.
+  Any trailing byte — a space, a tab, a comment, a `;`, a newline — moves the insertion point
+  and the widener survives. The same position carries the SvelteKit `./$types.js` annotation
+  when the declaration ends at its name, so that is lost with it. Reported as
+  `upstream_issues/svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md`.
+
+- 167f272: Three svelte2tsx fixes, two of which produced TypeScript no parser accepts.
+
+  An element carrying a `slot=` attribute inside a component went through a second,
+  legacy attribute emitter: a `use:` action was written as an entry _inside_ the
+  props object and a transition as `__sveltets_2_ensureTransition(f)(tag, {})`, both
+  of which are syntax errors. Named-slot elements now use the same
+  `build_directive_prefix_suffix` path as every other element, so an action becomes a
+  preceding `const $$action_N = …` and a transition a call after `createElement`.
+
+  `dispatch(` + backtick + `${name}:trigger` + backtick + `)` registered an event named after the raw
+  template text. Upstream's `checkIfCallExpressionIsDispatch` accepts only a
+  `ts.isStringLiteral` first argument, which a template literal is not — substituting
+  or not.
+
+  A typed `createEventDispatcher<{ change: … }>()` whose member name is also a
+  _forwarded_ `on:change` did not emit the `'change': __sveltets_2_customEvent` entry.
+  Upstream seeds its `events` map from the bubbled events in the `ComponentEvents`
+  constructor, so `addToEvents` sees a collision and the name joins `dispatchedEvents`.
+
+- b1a65e2: `<svelte:body>`, `<svelte:window>`, `<svelte:document>`, `<svelte:head>` and
+  `<svelte:fragment>` no longer fold an attribute name's case or rewrite a
+  number-only value.
+
+  Both rewrites need `element instanceof Element && parent.type === 'Element'`, and
+  every one of those tags is an `Element` whose node type is not `Element` — only
+  `<svelte:element>` carries that type. So `<svelte:window someProp="0" cols="3" />`
+  keeps `someProp` and types `cols` as a string, where rsvelte emitted `someprop`
+  and `3`. The `data-` wrapper needs only the first condition and is unchanged.
+
+- b1a65e2: A component with a module script now emits two store-subscription ignore regions at the
+  render-function start rather than one.
+
+  Upstream builds a second `ImplicitStoreValues` for the module script, seeded with the
+  instance script's accessed stores but with its own import list, and each instance wraps its
+  own names in one `/*Ωignore_startΩ*/ … /*Ωignore_endΩ*/` region. rsvelte collected both
+  scripts' imports into one list, which also dropped a name imported by both scripts — upstream
+  declares it in each region — and would have emitted the module's region first when the module
+  script is written second.
+
+- b1a65e2: A `<slot>` attribute written with no value no longer declares a slot prop.
+
+  `handleSlot` skips any attribute whose `value` has no length, and a valueless
+  attribute's `value` is `true` — so `<slot a b={b} />` types the slot as `{b: …}` and
+  rsvelte typed it as `{a: …, b: …}`, adding a prop consumers never receive.
+
+- Updated dependencies [7a30d48]
+- Updated dependencies [9693010]
+- Updated dependencies [9693010]
+- Updated dependencies [5eb7e10]
+- Updated dependencies [22bec30]
+- Updated dependencies [5b9665b]
+- Updated dependencies [ae472eb]
+- Updated dependencies [b02d7fa]
+- Updated dependencies [9c77127]
+- Updated dependencies [4cdc135]
+- Updated dependencies [4e2ba30]
+- Updated dependencies [7a30d48]
+- Updated dependencies [5b9665b]
+- Updated dependencies [d781aca]
+- Updated dependencies [7a30d48]
+- Updated dependencies [95ba248]
+- Updated dependencies [114c993]
+- Updated dependencies [051e359]
+- Updated dependencies [f30f653]
+- Updated dependencies [5b9665b]
+- Updated dependencies [7a30d48]
+- Updated dependencies [f30f653]
+- Updated dependencies [117dd8a]
+- Updated dependencies [23e0672]
+- Updated dependencies [c1af735]
+- Updated dependencies [c4de14e]
+- Updated dependencies [9c5a6e2]
+- Updated dependencies [9574b23]
+- Updated dependencies [7a30d48]
+- Updated dependencies [dd3258d]
+- Updated dependencies [be70282]
+- Updated dependencies [08e71e2]
+- Updated dependencies [5b9665b]
+- Updated dependencies [f1588a3]
+- Updated dependencies [fd72d98]
+- Updated dependencies [8cf5b72]
+- Updated dependencies [44d3d83]
+- Updated dependencies [68ba92c]
+- Updated dependencies [865392d]
+- Updated dependencies [3841964]
+- Updated dependencies [e13da35]
+- Updated dependencies [7a30d48]
+- Updated dependencies [e812ce8]
+- Updated dependencies [7a30d48]
+- Updated dependencies [af95bc3]
+- Updated dependencies [9c77127]
+- Updated dependencies [f49e162]
+- Updated dependencies [c330966]
+- Updated dependencies [5b9665b]
+- Updated dependencies [9208412]
+- Updated dependencies [7a30d48]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [6cad1c3]
+- Updated dependencies [167f272]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [167f272]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [167f272]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [167f272]
+- Updated dependencies [383cc44]
+- Updated dependencies [167f272]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [b1a65e2]
+- Updated dependencies [7a30d48]
+- Updated dependencies [82df28b]
+- Updated dependencies [44d3d83]
+- Updated dependencies [7a30d48]
+  - @rsvelte/compiler@0.11.2
+
 ## 0.2.22
 
 ### Patch Changes
