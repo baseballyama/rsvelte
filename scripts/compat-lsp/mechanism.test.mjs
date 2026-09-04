@@ -736,9 +736,32 @@ test("documentSymbol: a symbol both sides report with a different kind is not a 
     classify("textDocument/documentSymbol", [sym("style", 8, 0), sym("h1", 5, 1)], [sym("style", 8, 0)], MISSING),
     "document-symbol-set-missing",
   );
+  // Two mechanisms in one response are named by the parts they hold, with the
+  // set difference keeping its direction: a bare `mixed` would suppress the four
+  // combinations the corpus carries.
   assert.equal(
     classify("textDocument/documentSymbol", [sym("style", 8, 0), sym("h1", 5, 1)], [sym("style", 2, 0)], MISSING),
-    "document-symbol-mixed",
+    "document-symbol-mixed-kind-set-missing",
+  );
+  // A node contributes its first differing part only, so three parts need three
+  // nodes: one whose kind moved, one whose range moved, one with no twin.
+  assert.equal(
+    classify(
+      "textDocument/documentSymbol",
+      [sym("style", 8, 0), sym("h1", 5, 1)],
+      [sym("style", 2, 0), sym("h1", 5, 4), sym("body", 1, 5)],
+      EXTRA,
+    ),
+    "document-symbol-mixed-kind-range-set-extra",
+  );
+  assert.equal(
+    classify(
+      "textDocument/documentSymbol",
+      [sym("style", 8, 0), sym("h1", 5, 1)],
+      [sym("style", 8, 3)],
+      MISSING,
+    ),
+    "document-symbol-mixed-range-set-missing",
   );
 });
 
@@ -781,7 +804,16 @@ test("foldingRange: a fold that starts on the same line is not one the other sid
   assert.equal(classify("textDocument/foldingRange", [], [fold(7)], EXTRA), "folding-range-set-extra");
   assert.equal(
     classify("textDocument/foldingRange", [fold(0), fold(7)], [fold(0, { endLine: 5 })], MISSING),
-    "folding-range-mixed",
+    "folding-range-mixed-end-line-set-missing",
+  );
+  assert.equal(
+    classify(
+      "textDocument/foldingRange",
+      [fold(0), fold(3)],
+      [fold(0, { startCharacter: 2 }), fold(3, { kind: "region" })],
+      MISSING,
+    ),
+    "folding-range-mixed-character-kind",
   );
 });
 
@@ -802,6 +834,16 @@ test("inlayHint: the hint kind is in the set-difference label, and a paired hint
   assert.equal(
     classify("textDocument/inlayHint", [hint(0), hint(7)], [hint(0, { label: ": string" })], MISSING),
     "inlay-hint-mixed",
+  );
+  // Hints of two kinds that neither side pairs are one mechanism per direction:
+  // `inlay-hint-mixed` is the case where a paired hint also disagrees.
+  assert.equal(
+    classify("textDocument/inlayHint", [], [hint(0), hint(7, { kind: 2 })], EXTRA),
+    "inlay-hint-set-extra-mixed",
+  );
+  assert.equal(
+    classify("textDocument/inlayHint", [hint(0), hint(7, { kind: 2 })], [], MISSING),
+    "inlay-hint-set-missing-mixed",
   );
 });
 
@@ -898,4 +940,114 @@ test("initialize: each advertised capability is its own decision", () => {
     ),
     "initialize-capability-other",
   );
+});
+
+// A declared label the rules cannot return is vocabulary that only ever throws
+// on the day its input arrives. These four families are hand-written cross
+// products, so each declared member is constructed from its own suffix and the
+// classifier has to return it: a member with no construction fails here.
+test("every declared label in a hand-written cross product is reachable", () => {
+  const declared = (re) => MECHANISMS.map((label) => re.exec(label)).filter(Boolean);
+  const seen = [];
+
+  for (const [label, direction, source] of declared(/^diagnostic-item-set-(missing|extra)-(.+)$/)) {
+    const items =
+      source === "mixed"
+        ? [diag({ source: "ts" }), diag({ source: "svelte", range: { start: at(2, 0), end: at(2, 1) } })]
+        : [diag({ source: source === "other" ? "eslint" : source })];
+    const [left, right] = direction === "missing" ? [report(...items), report()] : [report(), report(...items)];
+    assert.equal(
+      classify("textDocument/diagnostic", left, right, "/items" + (direction === "missing" ? MISSING : EXTRA)),
+      label,
+    );
+    seen.push(label);
+  }
+
+  const HINT_KIND = { type: 1, parameter: 2, other: 7 };
+  for (const [label, direction, kind] of declared(/^inlay-hint-set-(missing|extra)-(.+)$/)) {
+    const hints =
+      kind === "mixed" ? [hint(0, { kind: 1 }), hint(7, { kind: 2 })] : [hint(0, { kind: HINT_KIND[kind] })];
+    const [left, right] = direction === "missing" ? [hints, []] : [[], hints];
+    assert.equal(
+      classify("textDocument/inlayHint", left, right, direction === "missing" ? MISSING : EXTRA),
+      label,
+    );
+    seen.push(label);
+  }
+
+  for (const [label, capability] of declared(/^initialize-capability-(.+)$/)) {
+    const name = capability === "other" ? "inlineCompletionProvider" : capability;
+    assert.equal(
+      classify(
+        "initialize",
+        { capabilities: { [name]: true } },
+        { capabilities: { [name]: false } },
+        `/capabilities/${name}:value-mismatch`,
+      ),
+      label,
+    );
+    seen.push(label);
+  }
+
+  const FIELD_POINTER = {
+    "range-start": "range/start/line",
+    "range-end": "range/end/character",
+    message: "message",
+    severity: "severity",
+    other: "tags",
+  };
+  for (const [label, field] of declared(/^diagnostic-item-((?!set-).+)$/)) {
+    const both = report(diag());
+    assert.equal(
+      classify("textDocument/diagnostic", both, both, `/items/@diagnostic-abc/${FIELD_POINTER[field]}:value-mismatch`),
+      label,
+    );
+    seen.push(label);
+  }
+
+  // The loops must have run: an empty match set would assert nothing at all.
+  assert.equal(seen.length, new Set(seen).size);
+  assert.ok(seen.length >= 16 + 8 + 8 + 5, `only ${seen.length} labels were constructed`);
+});
+
+// A combination label is generated by the same function the classifier calls, so a
+// generator whose domain is wider than the classifier's would declare a label no
+// input can produce. Equality in both directions is what says the two agree.
+test("every declared combination label is produced by some input, and no other is", () => {
+  const PART = {
+    "textDocument/documentSymbol": {
+      order: ["kind", "range"],
+      kind: [sym("dk", 8, 0), sym("dk", 2, 0)],
+      range: [sym("dr", 12, 1), sym("dr", 12, 3)],
+      set: [sym("ds", 12, 5), null],
+    },
+    "textDocument/foldingRange": {
+      order: ["end-line", "character", "kind"],
+      "end-line": [fold(0), fold(0, { endLine: 5 })],
+      character: [fold(10, { startCharacter: 1 }), fold(10, { startCharacter: 2 })],
+      kind: [fold(20, { kind: "comment" }), fold(20, { kind: "region" })],
+      set: [fold(30), null],
+    },
+  };
+  const subsets = (list) => list.reduce((acc, x) => acc.concat(acc.map((s) => [...s, x])), [[]]);
+
+  const produced = new Set();
+  for (const [method, table] of Object.entries(PART)) {
+    for (const fields of subsets(table.order)) {
+      for (const tail of [[], ["set"]]) {
+        const chosen = [...fields, ...tail];
+        if (chosen.length === 0) continue;
+        const mine = chosen.map((part) => table[part][0]);
+        const other = chosen.map((part) => table[part][1]).filter(Boolean);
+        for (const direction of ["missing", "extra"]) {
+          const [left, right] = direction === "missing" ? [mine, other] : [other, mine];
+          produced.add(classify(method, left, right, direction === "missing" ? MISSING : EXTRA));
+        }
+      }
+    }
+  }
+
+  const combinations = (labels) => [...labels].filter((label) => label.includes("-mixed-")).sort();
+  assert.ok(combinations(MECHANISMS).length > 0);
+  assert.deepEqual(combinations(produced), combinations(MECHANISMS));
 });
