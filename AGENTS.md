@@ -5306,6 +5306,94 @@ one line comment with a trailing attachment kills the instrument instantly, and 
 ablating the code finds it, because ablation moves the code and holds the cells. Where an
 instrument excludes by name, write the control that carries each *sibling* of the name.
 
+
+### A stacked PR is CLOSED by its parent's merge, and its stale checks still read green
+
+Merging a PR deletes its head branch, and GitHub **closes** every PR whose base was that
+branch — it does not conflict them, and it does not annotate them. Measured to the second:
+`#4306` merged at `14:07:09Z`; `#4308`, based on `#4306`'s branch, has `closedAt`
+`14:07:13Z`. Twenty minutes later its author reported it open and green from a check census
+reading `total=39 received=39 completed=11 bad=[]` — a correct measurement of check-runs that
+are still attached to a **closed** PR. Every check-shaped predicate passes: the count is
+plausible, nothing is failing, the head SHA matches the local branch. `state` is the only
+field that separates them, and a rollup census is exactly the instrument that does not read it.
+
+Recovery has an order, because `gh pr reopen` refuses while the base is missing: push the
+parent's pre-merge head back to the deleted branch name, `reopen`, `--base main`, then delete
+the branch again (the PR stays open once its base is `main` — verified). Two cautions from
+doing it. The parent's pre-merge head is on **no** local ref after a squash-merge, so read it
+from `gh pr view <parent> --json headRefOid` and `git fetch origin <sha>`. And brace the
+refspec: `"$sha:refs/heads/x"` in zsh applies the `:r` modifier to `$sha` and pushes to
+`…efs/heads/x`, inside double quotes too — the recorded `${MB}:AGENTS.md` hazard, reached
+from the push side by someone who had cited it that morning.
+
+So a settle predicate over a PR needs `state == "OPEN"` beside its denominator floor, and a
+stacked branch needs its base checked after every parent merge, not only when a check goes red.
+
+### Two arms answering `false` is two absences agreeing, not an identity
+
+An arm probe must discriminate, and the recorded failure is a probe whose answer predates the
+change. A quieter one: a probe that returns the **same negative** from both arms. `assign_present`
+read `false` on the base arm and `false` on the head arm, and was reported as "the two arms
+agree" — which is true of the two values and says nothing about the two binaries, because a
+probe that finds nothing in either is satisfied by any pair of arms, including two copies of one
+file and two unrelated trees.
+
+It has the same shape as a filter that discards on both sides reading as agreement, one level
+out: there the comparison drops the carrier symmetrically, here the probe never had one. The
+replacement was stronger and needed no binary at all — `git merge-base --is-ancestor` for each
+fix against each arm, plus the negative control that HEAD is **not** an ancestor of the merge
+base. **Where an arm's identity can be settled from its provenance, prefer that to a probe on
+its output**: provenance answers "which tree built this" directly, while a probe answers it only
+through whatever the probe happens to be able to see.
+
+### A control needle written from memory fails the control, and the needle is the fault
+
+The recorded rule is that a control's *name* is a claim nobody checks. Its needle is a second
+claim, and it fails loudly rather than silently — which is what makes it easy to misattribute.
+A corpus census used `$.template(` as its positive control and got **0**; the generated client
+output spells that call `$.from_html(`. The instrument was correct throughout and the reading
+that presented itself was "the instrument is broken".
+
+This is the mirror of the usual advice. When a positive control fails, the standing habit is to
+suspect the instrument — and here suspecting the instrument produces a rewrite of working code,
+while the one-line fix is to take the needle **from the oracle's actual output** rather than from
+memory of the API. The person who hit it also declined to report the numbers from the run whose
+control had failed, which is the other half: those numbers are a measurement taken while
+something known-broken was in the pipeline, whichever component it turned out to be.
+
+### The strongest carrier is the one most likely to belong to a different mechanism
+
+A mechanism was established by reading code (`fits` reads a build-time first line and has no
+`ind` parameter, so it *cannot* rebuild), and a 33,911-file run measured its input error: 19 of
+1,310 eligible sites, all one direction, 10–64 columns of over-charge. The carrier chosen to
+demonstrate an output consequence was the largest and clearest — and reading it settled that the
+printer had rebuilt correctly and the divergence came from **the rebuild's own budget**
+disagreeing with the oracle. A third quantity, in the same branch of the same function.
+
+The reason to expect this rather than be surprised by it: a carrier is selected for the *size* of
+its divergence, and the mechanism you are studying is one of several that can produce a large one.
+So the selection is biased toward whichever mechanism in that region is loudest, which is not
+necessarily yours. The discipline that survived it is stating the three quantities separately —
+mechanism confirmed, input error measured, **output consequence UNMEASURED** — instead of letting
+the confirmed half license the unmeasured one. A change to `fits` made on that evidence would have
+left the demonstrating carrier untouched.
+
+### A sweep that stores hashes cannot be grepped for code, and the ids answer instead
+
+Asked for the denominator behind a `0`, the prescription given was "grep the stage-1 output" —
+wrong, because stage 1 stores `id` plus a 32-hex digest per unit and no generated text at all.
+Run anyway, `grep -c 'assign' s1.ndjson` returns **124**, every hit a *path*
+(`bits-ui/…/icons/assign-to-me.svelte`). Reported as the denominator, `n=124` is the right shape,
+the right order of magnitude, and about filenames. A fixed-string re-grep returns `0` and the
+positive control (`'"id"'` → 34,828) says the file is readable.
+
+Two things generalize. **A zero is suspected and a plausible number is not** — the recorded
+`grep` hazards mostly produce an empty result, and this one produces a figure that would have
+been published. And the fix is not a better pattern: it is a **second pass** over the population
+with the quantity you actually want, which here cost a quarter of one sweep arm and turned the
+`0` into a real absence (`n=64` carriers, none moved) instead of an uninterpretable one.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
