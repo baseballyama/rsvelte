@@ -478,39 +478,44 @@ indistinguishable in the branch header.**
 
 **That sentence has a scope, and the scope shrank rather than closed — which is the reading that
 sends someone the wrong way in either direction.** Read as history it is exact; read forwards as
-"every workflow", false; read forwards as "fixed", also false. Measured 2026-09-05 on `bbe570e29`,
-over all 21 workflow files and all **23** concurrency blocks, workflow- *and* job-level: **three**
-blocks in **two** files cancel on a key constant for every push to `main` — `deploy-docs.yml`'s
-literal `pages-build`, and `release.yml`'s `version-pr` and `close-version-cycle`, which share one
-`release-version-pr-${{ github.ref }}`. Two more key on a constant and are **not** members, because
-they do not run on a push at all: `changeset.yml` is `pull_request`-only and `site-benchmark.yml`
-`workflow_dispatch`-only. **A key's shape and a workflow's trigger are independent halves, and
-reading only the key over-counts** — on that reading this paragraph said four blocks in three
-files. At any one sha the reachable count is **two**, because the release pair's `if:` are
-complementary on `startsWith(head_commit.message, 'chore(release): version packages')`; they still
-cancel *each other* across two pushes of different kinds, the group string being the same. Both
-survivors are deliberate and say so in a comment, so this is not a defect list — it is why a
-P0-style "every `main` workflow is green" can only be asserted at a sha that is the *last* push for
-long enough, and why an intermediate merge's `cancelled` is expected rather than a regression. A
-second class points the same way without reddening anything: `capi-autotag`, `publish-vscode` and
-`deploy-docs`'s deploy job hold literal groups on `push: main` with `cancel-in-progress: false`, so
-consecutive merges **serialize** rather than cancel — no red, and the intermediate sha's verdict
-simply is not there yet. Those three are not uniform either: the first two carry `paths:` filters,
-so a **docs-only** merge starts neither and only the deploy job serializes. Note which state that
-leaves behind — at an intermediate sha those verdicts are *absent*, and an absent check-run reads
-as "not required here"; `absent` has to be excluded from green in the same breath as `cancelled` is
-excluded from defect.
+"every workflow", false; read forwards as "fixed", also false. The current set is **declared**,
+not something to re-derive: `scripts/ci/workflow-trigger-guard.mjs`'s
+`JOB_CONCURRENCY_ALLOWLIST` names the three converging job groups that may cancel —
+`release.yml`'s `version-pr` and `close-version-cycle`, which deliberately share one group, and
+`deploy-docs.yml`'s `build` — each with its own reason, and `check:workflow-triggers` gates it
+on every PR. Three people hand-derived that set on one day and got 4, 3 and 2→3; **the artifact
+that owns the question had it written down with citations**, which is this file's own rule about
+asking who owns a question, broken three times over on the same question. Two facts the
+allowlist does not carry, because it is a list of groups rather than of runs. At any one sha the
+reachable count is **two**, not three: the release pair's `if:` are complementary on
+`startsWith(head_commit.message, 'chore(release): version packages')` — though they still cancel
+*each other* across two pushes of different kinds, the group string being the same. And a key
+that is constant is not by itself a member: `changeset.yml` (`head_ref || github.ref`, the
+fallback taken off a pull request) and `site-benchmark.yml` (`github.ref`) both key on a
+constant and neither runs on a push at all, so **a key's shape and a workflow's trigger are
+independent halves and reading only the key over-counts** — on that reading this paragraph said
+four blocks in three files. None of this is a defect list — it is why a P0-style "every `main`
+workflow is green" can only be asserted at a sha that is the *last* push for long enough, and
+why an intermediate merge's `cancelled` is expected rather than a regression. A second class
+points the same way without reddening anything: `capi-autotag`, `publish-vscode` and
+`deploy-docs`'s deploy job hold literal groups on `push: main` with `cancel-in-progress: false`,
+so consecutive merges **serialize** rather than cancel — no red, and the intermediate sha's
+verdict simply is not there yet. Those three are not uniform either: the first two carry
+`paths:` filters, so a **docs-only** merge starts neither and only the deploy job serializes.
+Note which state that leaves behind — at an intermediate sha those verdicts are *absent*, and an
+absent check-run reads as "not required here"; `absent` has to be excluded from green in the
+same breath as `cancelled` is excluded from defect.
 
-Method notes from taking that census, each of which produced a plausible wrong number first.
-`grep -A3 '^concurrency:'` reached 9 of 21 files, because one `group:` sits ten lines below its
-header behind a comment — the two halves of the partition summed to 13, not 21, and only the
-denominator said so. And a classifier that tested `head_ref` before `github.ref` put `head_ref ||
-github.ref` in the same bucket as `head_ref || github.sha`, which are opposite answers on a push;
-it took a second person's count disagreeing (4 against 2) to surface it, and the disagreement was
-evidence about the method rather than about the value. A third almost added a member:
-`release.yml:517` is `release-publish-${{ github.ref }}` on a `push: main` workflow, and every
-structural property matches — it is excluded by a **job `if:`** above it. Whether a concurrency
-block is reachable is not decided inside the block.
+Method notes from taking the census that the allowlist made unnecessary, each of which produced
+a plausible wrong number first. `grep -A3 '^concurrency:'` reached 9 of 21 files, because one
+`group:` sits ten lines below its header behind a comment — the two halves of the partition
+summed to 13, not 21, and only the denominator said so. And a classifier that tested `head_ref`
+before `github.ref` put `head_ref || github.ref` in the same bucket as `head_ref || github.sha`,
+which are opposite answers on a push; it took a second person's count disagreeing (4 against 2)
+to surface it, and the disagreement was evidence about the method rather than about the value. A
+third almost added a member: `release.yml:517` is `release-publish-${{ github.ref }}` on a
+`push: main` workflow, and every structural property matches — it is excluded by a **job `if:`**
+above it. Whether a concurrency block is reachable is not decided inside the block.
 
 **And the same is true one step earlier: a ratchet's correctness is relative to the tree it is
 measured on, and a PR's tree is the MERGE REF.** `pull_request` CI checks out
