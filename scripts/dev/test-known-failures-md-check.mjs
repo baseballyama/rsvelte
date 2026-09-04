@@ -344,10 +344,18 @@ withCorpus(
 // other N` lines described and the prose that replaced them states no residue.
 // The two survivors in the tree are mid-line, which the rule's `^` does not
 // match, so mutating either would have measured nothing.
-let seen;
+// Rule (c) opens with `if (partition.sum === 0) continue`, so both cases need a
+// section whose partition is non-zero — a property of the SECTION, not of the
+// sentence, which is why no wording survives its section reaching 0. The anchor
+// is therefore the end of `Server`, whose entries are a pinned deliberate
+// divergence the burndown cannot retire, rather than a burndown target. The
+// injected sentence exists only in the throwaway corpus copy, so it asserts
+// nothing about the tree.
+const ANCHOR = /^### Server dev \(.*$/m;
+
 withCorpus(
 	(d) => {
-		seen = inject(d, 'known-failures.md', /^All remaining [\d,]+ arrived/m, 'The other 999 arrived with the wave-2 enrolment.');
+		inject(d, 'known-failures.md', ANCHOR, 'The other 999 arrived with the wave-2 enrolment.');
 	},
 	(r) =>
 		check(
@@ -357,15 +365,20 @@ withCorpus(
 		),
 );
 
+// The `All N` case injects too, for the same reason. It used to bump the live
+// `All remaining N arrived` sentence, which also confirmed the tree carried one;
+// that observation ends here. The loss is forced rather than chosen — the
+// sentence is deleted when client-dev reaches 0 either way, so the choice was
+// between an injected carrier and no coverage of the rule at all.
 withCorpus(
 	(d) => {
-		seen = bump(d, 'known-failures.md', /All remaining (\d[\d,]*) arrived/, 999, () => 'All 999 arrived');
+		inject(d, 'known-failures.md', ANCHOR, 'All 999 arrived with the wave-2 enrolment.');
 	},
 	(r) =>
 		check(
 			'a stale `All N` fails',
-			[r.code, new RegExp(`"All 999".*partition sums to ${seen.real}`, 's').test(r.out)],
-			[1, true],
+			[r.code, /"All 999".*partition sums to (\d+)/s.test(r.out), /"All 999".*partition sums to 999/s.test(r.out)],
+			[1, true, false],
 		),
 );
 
