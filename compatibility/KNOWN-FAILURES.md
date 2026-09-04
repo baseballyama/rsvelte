@@ -3404,7 +3404,7 @@ Attribution of `known-failures.server.json`:
 
 | n | target | cluster |
 |---|---|---|
-| 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
+| 2 | `deliberate-divergences` | a `$`-prefixed local binding is not a store subscription; upstream's server visitor decides by SPELLING (a nested `let` gives byte-identical output) and lowers a write to `$.store_mutate`, whose module throws at SSR — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
 
 `networking-toolbox/…/SiteMapList.svelte` and `trakt-web/…/SegmentedSelect.svelte` left this
 target, and the other three, when ancestor scoping started following a `{@render}` into the
@@ -3413,10 +3413,11 @@ snippet it renders — see § *Client* for the measurement.
 - **2 — a recorded deliberate divergence, not a burndown target.**
   `pattern/issues/dollar-function-parameter.svelte` and
   `threlte/packages/extras/src/lib/hooks/useViewport.svelte.ts`. A `$`-prefixed
-  **function parameter** is a local binding, not a store subscription; upstream's
-  server visitor decides by name alone and lowers a write to it to
-  `$.store_mutate`, which throws at runtime, while upstream's own *client*
-  agrees with rsvelte. Reported in
+  **local binding** is not a store subscription; upstream's server visitor decides
+  from the name's **spelling** — a nested `let $viewport` produces byte-identical
+  output, so *parameter* is the repro's shape and not the axis — and lowers a write
+  to it to `$.store_mutate`, whose module throws at SSR in both dev and prod, while
+  upstream's own *client* agrees with rsvelte. Reported in
   [`upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`](../upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md),
   recorded in
   [`deliberate-divergences.md`](#deliberate-divergences)
@@ -3459,12 +3460,13 @@ Attribution of `known-failures.server-dev.json`:
 
 | n | target | cluster |
 |---|---|---|
-| 2 | `deliberate-divergences` | a `$`-prefixed function parameter is a local binding; upstream's server visitor decides by name and lowers a write to `$.store_mutate`, which throws — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
+| 2 | `deliberate-divergences` | a `$`-prefixed local binding is not a store subscription; upstream's server visitor decides by SPELLING (a nested `let` gives byte-identical output) and lowers a write to `$.store_mutate`, whose module throws at SSR — reported in `upstream_issues/svelte-server-treats-a-dollar-parameter-as-a-store.md`, pinned by `crates/rsvelte_core/tests/dollar_parameter_is_not_a_store.rs` |
 
 The same two snippet-scoping entries left this target with the other three; see § *Client*.
 
-What remains is the same deliberate divergence as on `server` — the `$`-prefixed function
-parameter — carried on both targets because the server transform runs on both.
+What remains is the same deliberate divergence as on `server` — a `$`-prefixed **local
+binding**, decided by spelling rather than by what the name resolves to — carried on both
+targets because the server transform runs on both.
 
 - **2 — the same recorded deliberate divergence as on `server`.**
 

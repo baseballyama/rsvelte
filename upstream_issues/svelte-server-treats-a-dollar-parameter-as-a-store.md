@@ -1,4 +1,4 @@
-# The server transform treats a `$`-prefixed **function parameter** as a store subscription
+# The server transform treats a `$`-prefixed **local binding** as a store subscription, by spelling
 
 Oracle: `submodules/svelte` @ `5.56.10`.
 
@@ -94,7 +94,102 @@ return null;` before the `is_store_name` branch — the client's behaviour is th
 
 ## What rsvelte does
 
-rsvelte resolves the parameter and emits `$viewport.distance = 42;` on both targets. This is a
+rsvelte resolves the local binding — parameter or nested `let` alike — and emits
+`$viewport.distance = 42;` on both targets. This is a
 deliberate divergence recorded in `compatibility/GATES.md#deliberate-divergences`; the corpus entries
 are listed in `compatibility/known-failures.server.json` and
 `compatibility/known-failures.server-dev.json` pending an upstream fix.
+
+## The axis is the spelling, not "a parameter"
+
+This report originally said *function parameter*, and so did the ratchet prose and the pinning
+test. That is true of the repro and is not the mechanism. `is_store_name` reads
+`object.name[0] === '$'`; nothing in the branch asks what `$viewport` is. A plain `let` in a
+nested block produces **byte-identical** server output:
+
+```svelte
+<script>
+	import { writable } from 'svelte/store';
+	const viewport = writable({ distance: 0 });
+	function update(fn) { fn(); }
+	update(() => { let $viewport = { distance: 1 }; $viewport.distance = 42; });
+</script>
+<p>{$viewport.distance}</p>
+```
+
+```js
+$.store_mutate($$store_subs ??= {}, '$viewport', viewport, $viewport.distance = 42);
+```
+
+The nesting is a precondition rather than an incidental: a top-level `let $viewport` in the
+instance script is rejected by both targets with *The `$` prefix is reserved, and cannot be used
+for variables and imports*, so this shape can only be written inside a callback.
+
+`if (!context.state.scope.get(name)) return null` is the only brake. Four cells, oracle
+`submodules/svelte` @ `5.56.10`, `dev: false`:
+
+| cell | server | client |
+|---|---|---|
+| arrow param `$viewport`, real store `viewport` | `$.store_mutate(…)` | `$viewport.distance = 42;` |
+| nested `let $viewport`, real store `viewport` | `$.store_mutate(…)` — identical | `$viewport.distance = 42;` |
+| arrow param `$viewport`, `const viewport = { … }` (no store) | `$.store_mutate(…)` | `$viewport.distance = 42;` |
+| arrow param `$viewport`, **nothing** named `viewport` | `$viewport.distance = 42;` | `$viewport.distance = 42;` |
+
+## A second failure mode: the emitted variable is never declared
+
+The sub-case with no store at all is worse than a wrong subscription. `var $$store_subs;` is
+emitted only when phase 2 recorded a store subscription — and with no store there is none — while
+the assignment visitor still writes `$$store_subs ??= {}`:
+
+```svelte
+<script>
+	const viewport = { update(fn) { fn({ distance: 1 }); } };
+	viewport.update(($viewport) => { $viewport.distance = 42; });
+</script>
+<p>ok</p>
+```
+
+```js
+export default function C($$renderer) {
+	const viewport = { update(fn) { fn({ distance: 1 }); } };
+	viewport.update(($viewport) => {
+		$.store_mutate($$store_subs ??= {}, '$viewport', viewport, $viewport.distance = 42);
+	});
+	$$renderer.push(`<p>ok</p>`);
+}
+```
+
+`grep -c 'var \$\$store_subs' → 0`.
+
+## Both shapes, rendered
+
+Runtime pinned to the same tree as the compiler, `node --conditions=development` /
+`--conditions=production` set explicitly:
+
+| repro | `store_mutate` | `var $$store_subs` | `svelte/server` `render()` |
+|---|---|---|---|
+| a real store `viewport` exists (param **or** nested `let`) | emitted | emitted | renders — and calls `subscribe`, **`set`**, `unsubscribe` on it |
+| no store: `const viewport = { … }` | emitted | **not emitted** | **throws** `ReferenceError: $$store_subs is not defined`, dev and prod |
+| control: nothing named `viewport` | not emitted | not emitted | renders `<!--[--><p>ok</p><!--]-->` |
+
+The control renders, so the throw is a property of the output and not of the harness; and it moves
+in both directions — under `--conditions=production` that same control throws for a `dev: true`
+build — which is what says the condition flag is doing work.
+
+Row 1's side effect is measured. With a store whose `subscribe`/`set` record their calls, the
+server output produces
+
+```
+["subscribe", "set {\"distance\":0}", "unsubscribe"]
+```
+
+while the client output emits `$viewport.distance = 42;` and contains no `store_mutate`. The server
+target writes to a store the source never writes to. For a plain `writable` the value round-trips
+unchanged, but `set` notifies every subscriber, and `threlte`'s `currentWritable` — the published
+carrier below — is not a plain `writable`.
+
+**What this is not.** Calling `store_mutate` directly with a plain object as the `store` argument
+throws `store_invalid_shape` (dev) / `store.subscribe is not a function` (prod). Neither repro
+reaches that path: where the object is plain the module dies at the `ReferenceError` first, and
+where the call is reached the store is real. A probe that supplies `$$store_subs` itself is
+measuring code the compiler never emits.

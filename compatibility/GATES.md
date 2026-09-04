@@ -7944,7 +7944,7 @@ Three sites lower an update through a non-`this` receiver, one comment each:
 
 ---
 
-### A `$`-prefixed function parameter is not a store subscription (server)
+### A `$`-prefixed local binding is not a store subscription (server)
 
 #### Input
 
@@ -7975,6 +7975,22 @@ Three sites lower an update through a non-`this` receiver, one comment each:
 
 **Upstream's own two targets disagree on this input**, which is what settles which side is wrong.
 
+**The axis is the spelling, not "a parameter."** `is_store_name` reads `object.name[0] === '$'`
+and nothing asks what `$viewport` is, so a plain `let` in a nested block gives byte-identical
+server output. Four cells, same oracle, `dev: false`:
+
+| cell | server | client |
+|---|---|---|
+| arrow param `$viewport`, real store `viewport` | `$.store_mutate(…)` | `$viewport.distance = 42;` |
+| nested `let $viewport`, real store `viewport` | `$.store_mutate(…)` — identical | `$viewport.distance = 42;` |
+| arrow param `$viewport`, `const viewport = { … }` (no store) | `$.store_mutate(…)` | `$viewport.distance = 42;` |
+| arrow param `$viewport`, **nothing** named `viewport` | `$viewport.distance = 42;` | `$viewport.distance = 42;` |
+
+Row 4 pins `if (!context.state.scope.get(name)) return null` as the only brake, and it is the cell
+that is already correct on both sides — the one a widening fix would break. Nesting is a
+precondition rather than an incidental: a top-level `let $viewport` is rejected by both targets
+(*The `$` prefix is reserved…*), so this shape can only be written inside a callback.
+
 #### Why upstream produces it
 
 `3-transform/server/visitors/AssignmentExpression.js:75-79` decides "this is a store" from the
@@ -7995,7 +8011,41 @@ The client resolves through the scope chain and finds the parameter.
 `store_set(store, store_get(store_values, store_name, store))`. Reproducing upstream would
 subscribe to `viewport` and re-set it every time an unrelated **local object** is mutated, and
 register `$viewport` in `$$store_subs` for teardown to unsubscribe — for a store the source never
-subscribed to in that scope. It also contradicts the rule
+subscribed to in that scope.
+
+Measured rather than argued, with the runtime pinned to the same tree as the compiler and
+`node --conditions=development` / `--conditions=production` set explicitly. The two repro shapes
+fail in **different** ways, so which one is written down decides what the next reader sees:
+
+| repro | `store_mutate` | `var $$store_subs` | `svelte/server` `render()` |
+|---|---|---|---|
+| a real store `viewport` exists (param **or** nested `let`) | emitted | emitted | renders — and calls `subscribe`, **`set`**, `unsubscribe` on it |
+| no store: `const viewport = { … }` | emitted | **not emitted** | **throws** `ReferenceError: $$store_subs is not defined`, dev and prod |
+| control: nothing named `viewport` | not emitted | not emitted | renders `<!--[--><p>ok</p><!--]-->` |
+
+The third row is the negative control — the harness renders — and it moves in both directions,
+which is what says `--conditions` is doing work: under `--conditions=production` the same control
+throws for a `dev: true` build and renders for `dev: false`.
+
+Row 1's side effect is measured, not inferred. Substituting a store whose `subscribe`/`set` record
+their calls, the server output produces
+
+```
+["subscribe", "set {\"distance\":0}", "unsubscribe"]
+```
+
+while the client output emits `$viewport.distance = 42;` and contains no `store_mutate` at all — so
+upstream's server writes to a store the source never writes to. For a plain `writable` the value
+round-trips unchanged, but `set` notifies every subscriber, and `threlte`'s `currentWritable` is
+not a plain `writable`.
+
+**What is not the mechanism:** calling `store_mutate` directly with a plain object as the `store`
+argument throws `store_invalid_shape` (dev) / `store.subscribe is not a function` (prod). Neither
+repro reaches that — where the object is plain the module dies at the `ReferenceError` first, and
+where the call is reached the store is real. A probe that supplies `$$store_subs` itself measures a
+path the compiler never emits.
+
+It also contradicts the rule
 `compatibility/pattern-corpus/README.md` states for `dollar-function-parameter.svelte`: a `$name`
 parameter "must neither create a synthetic store subscription nor trigger
 `store_invalid_scoped_subscription`".
