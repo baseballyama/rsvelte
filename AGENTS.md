@@ -1189,6 +1189,17 @@ widens the gap. A run with an idle period is indistinguishable from a finished r
 process-count rule, and the detector was about to launch a six-process release build exactly
 across the three points that decide that experiment's verdict.
 
+**A fourth failed the next day, and it corrects the reading the second one invites.** Row 2
+reads as "`-x` was too strict", so the repair looks like dropping `-x`. Measured on 2026-09-04
+while a peer was mid-commit: `ps -Ao comm=` filtered on `(^|/)(cargo|rustc)$` returned **0** with
+`rustfmt` at 97.2%, and the same sample counted **11** once `rustfmt` and `clippy-driver` joined
+the alternation — 1 of 11 visible, with `-x` already gone. The toolchain's process names are not
+closed by `cargo` and `rustc`: a hook's `cargo fmt` runs as `rustfmt` and `cargo clippy` as
+`clippy-driver`, neither of which contains either word. A pattern's **strictness** and its name
+**set** are two independent ways to read zero, and repairing one leaves the other. What separated
+them was the peer naming a process the detector had not — a detector is calibrated from outside
+itself, which is where the paragraph below arrives from the other three.
+
 Separate **"my instrument is miscalibrated"** from **"my observable cannot answer this
 question"**. The first two were calibration; the third means the only valid signal is the
 peer saying so. All three surfaced because the peer announced a start time — between agents
