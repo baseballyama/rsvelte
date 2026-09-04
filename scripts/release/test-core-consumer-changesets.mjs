@@ -71,6 +71,49 @@ for (const [prefix, pkg] of Object.entries(SOLE_ARTIFACT)) {
 	});
 }
 
+// `rsvelte_formatter` is the one crate whose dependents publish into MORE than
+// one fixed group, so its `requires` is derived from the dependency graph rather
+// than transcribed: a fourth dependent, or a dependent moving group, has to fail
+// here rather than silently leave one artifact shipping a stale formatter.
+const CRATE_ARTIFACT = {
+	rsvelte_fmt: '@rsvelte/fmt',
+	rsvelte_language_server: '@rsvelte/language-server',
+	rsvelte_fmt_wasm: null, // published nowhere — absent from release.yml's matrix
+};
+
+check('crates/rsvelte_formatter/src/ requires one package per publishing dependent', () => {
+	const dependents = readdirSync(join(ROOT, 'crates'))
+		.filter((dir) => dir !== 'rsvelte_formatter')
+		.filter((dir) => {
+			const manifest = join(ROOT, 'crates', dir, 'Cargo.toml');
+			return existsSync(manifest) && readFileSync(manifest, 'utf8').includes('rsvelte_formatter');
+		});
+	assert.ok(dependents.length > 0, 'no dependent found — the scan is broken, not the table');
+	const unmapped = dependents.filter((d) => !(d in CRATE_ARTIFACT));
+	assert.deepEqual(unmapped, [], 'a new rsvelte_formatter dependent: map it, then extend the rule');
+	const expected = [...new Set(dependents.map((d) => CRATE_ARTIFACT[d]).filter(Boolean))].sort();
+	const rule = RULES.find((r) => r.prefix === 'crates/rsvelte_formatter/src/');
+	assert.ok(rule, 'no rule for crates/rsvelte_formatter/src/');
+	assert.deepEqual([...rule.requires].sort(), expected);
+});
+
+// The rule is only load-bearing while its packages sit in different fixed groups:
+// two packages in one group cascade, and naming both would be noise.
+check('the formatter rule names packages in distinct fixed groups', () => {
+	const rule = RULES.find((r) => r.prefix === 'crates/rsvelte_formatter/src/');
+	const groupOf = (pkg) => CONFIG.fixed.findIndex((group) => group.includes(pkg));
+	const groups = rule.requires.map(groupOf);
+	assert.ok(!groups.includes(-1), 'a required package is in no fixed group');
+	assert.equal(new Set(groups).size, groups.length, 'two required packages share a fixed group');
+});
+
+// The wasm dependent is exempt because it has no artifact. That is a fact about
+// release.yml, not a preference, so it is asserted rather than commented.
+check('rsvelte_fmt_wasm publishes nothing', () => {
+	const yml = readFileSync(join(ROOT, '.github/workflows/release.yml'), 'utf8');
+	assert.ok(!yml.includes('rsvelte_fmt_wasm'), 'rsvelte_fmt_wasm is in release.yml now — it needs a rule');
+});
+
 // Every package a rule names must be a real workspace package, or the
 // requirement can never be satisfied. Fixed-group membership is NOT the test:
 // `@rsvelte/svelte2tsx` is in no group and is correct there, because it depends
