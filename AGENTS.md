@@ -2312,6 +2312,27 @@ release test targets were all green. What attributed it was a completed *previou
 same corpus sweep: without a baseline rate, a sweep that stops printing is indistinguishable from
 a sweep competing with a build for CPU.
 
+### A file-level reachability label crosses with anything, and it is not an attribution
+
+"Is this function called while compiling this file" is cheap, and it makes a table that reads like
+a result. Chasing a formatter divergence, 72 carriers were split 51/21 on whether
+`build_element_doc` runs at all, and the 51 was written up as *the majority of carriers go through
+this port*. Then the smallest reaching carrier was minimized: the divergence reproduced exactly,
+and the counter read **`[hug] 0`**. The original file calls that function elsewhere, for some other
+element. So the label answers *does this file contain a call* and was read as *did that call write
+this*.
+
+The recorded neighbour is one direction of this — "A was not called" does not entail "B was". This
+is the other: **"A was called somewhere" does not entail "A wrote this."** It is the more dangerous
+of the two, because the first leaves you with nothing and the second leaves you with a number.
+Crossed against the divergence's sign, the file-level label produced a 3x2 contingency table with
+plausible margins, and every cell of it is a statement about files rather than about hunks.
+
+What repairs it is not more minimizing — 213 hunks is not a minimization budget. Make the
+**writers** emit the output span they produced, run the carriers *unminimized*, and attribute each
+hunk to whichever writer covered it. One instrumented run replaces the whole per-case exercise, and
+it cannot suffer the failure that produced the retraction, because the input never changes.
+
 ### If the mechanism already has a name in the code, measure the name
 
 Asked whether two CSS residuals were one mechanism or two, the instruction given was "flip one
