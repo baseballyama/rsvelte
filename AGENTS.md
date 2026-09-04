@@ -5811,6 +5811,7 @@ Two of the three were caught because a peer published a different number for the
 is this file's recorded condition for these rules firing. The third was caught by a **shape** — a
 method named `phase=edit` cannot exist — while its counts (3630, 2944) were entirely plausible. Where
 a projection can produce an impossible *value*, that beats any threshold on the count.
+
 ### A figure's PROVENANCE can be overwritten by the most recent conversation about its subject
 
 This file records that a citation feels verified because it is offered as the verification, and
