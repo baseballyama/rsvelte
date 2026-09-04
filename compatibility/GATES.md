@@ -8817,23 +8817,28 @@ that comparison would show the divergence is the oracle's inconsistency and not 
 
 ### The formatter declines an input its own parser rejects
 
-**Ratchet** `compatibility/fmt-oracle-excluded.json`, the four `invalid-input` entries and the
+**Ratchet** `compatibility/fmt-oracle-excluded.json`, the three `invalid-input` entries and the
 two `migrate` entries.
 **Pinned by** `compatibility/pattern-corpus/adversarial/css/rejected-global-keyframes-selector.svelte`
 and `crates/rsvelte_formatter/tests/style_block.rs`.
 
 #### Input
 
-Four inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
-snippet rest parameters (`snippet_invalid_rest_parameter`), `h1:nth-of-type(+12)` and
-`:global(@keyframes shared)` (`css_expected_identifier`, #3120) — and two Svelte 4→5 **migrator
-outputs**, which use `let:` directives and `slot=` attributes.
+Three inputs no compiler accepts — a snippet parameter written `c?: number = 5` (TS1015),
+snippet rest parameters (`snippet_invalid_rest_parameter`) and `h1:nth-of-type(+12)` — and two
+Svelte 4→5 **migrator outputs**, which use `let:` directives and `slot=` attributes. A fourth,
+`:global(@keyframes shared)` (`css_expected_identifier`, #3120), takes the same path and is no
+longer excluded: reindentation is the only thing the oracle does to that block, and the fallback
+reindents too, so the two agree byte-for-byte and the id is scored like any other.
 
 #### Both outputs
 
-`prettier-plugin-svelte` formats all six: it validates nothing beyond its own parse. `rsvelte-fmt`
-reports the parse error, or falls back to emitting the block verbatim where the CSS parser is the
-one that refuses.
+`prettier-plugin-svelte` formats all five: it validates nothing beyond its own parse. `rsvelte-fmt`
+reports the parse error, or — where the CSS parser is the one that refuses — reindents the block
+to its nesting depth without reformatting the CSS inside it, which
+`crates/rsvelte_formatter/tests/style_block.rs` pins two-sidedly
+(`a_tab_indented_body_never_mixes_tabs_into_the_block_indent`,
+`tab_and_space_indented_bodies_format_identically`).
 
 #### Why rsvelte's form is the correct one
 
