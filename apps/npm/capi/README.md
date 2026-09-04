@@ -14,5 +14,8 @@ tracks the npm package it ships in), and merging the Version PR lets
 `capi-v<version>` and start the release.
 
 So the release procedure for the C ABI is: **write a changeset**. Do not edit
-`crates/rsvelte_capi/Cargo.toml`'s version by hand — `sync-version.mjs` would
-overwrite it from this file at the next release.
+`crates/rsvelte_capi/Cargo.toml`'s version by hand: a hand edit below this
+version is overwritten at the next release, and one above it makes
+`sync-version.mjs` refuse to run at all rather than walk the C ABI backwards.
+
+The version here starts at the crate's own, which #4274 takes to 0.2.0.
