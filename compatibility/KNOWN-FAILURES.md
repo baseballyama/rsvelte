@@ -1029,10 +1029,10 @@ equal after swapping quote characters → **quote-style**; equal after removing 
 whitespace → **intra-line-ws**; anything else → **other**.
 
 **The table below is the wave-2 enrolment measurement, over a population of 765 —
-it is NOT a partition of the current 549.** Its `n` column sums to **766**, one
+it is NOT a partition of the current ratchet.** Its `n` column sums to **766**, one
 more than the 765 the paragraph above claims, so it was already inconsistent with
 its own stated population before this ratchet shrank. What each of its rows would
-be against the current 549 is **unmeasured**: re-deriving it needs every entry's
+be against the current ratchet is **unmeasured**: re-deriving it needs every entry's
 first differing line, which lives only in the CI report. The live partition is the
 `Partition of …` line above, which `known-failures-md-check.mjs` verifies; this
 table is kept for the per-cluster descriptions, not for its counts.
@@ -1205,10 +1205,11 @@ false: the sweep held the expression at 75 columns and varied only the indent, a
 indent 0 — where an indentation-blind budget and a correct one are the same budget —
 the two sides agree with the content run out to 111 columns, both breaking at the
 `&&`. **The axis the rule turns on is the content width, and it was the sweep's held
-constant.** The corpus says so independently: of the 524 entries, 207 have a first
-differing line wider than `printWidth` and 171 of those have the oracle's line as a
-proper prefix of rsvelte's, but only 103 of the 171 would fit with the indentation
-removed — and three sit at indent 0, where rsvelte emits 87 and 93 columns against an
+constant.** The corpus says so independently: of the 524 entries the
+ratchet then held, 207 have a first differing line wider than `printWidth`
+and 171 of those have the oracle's line as a proper prefix of rsvelte's,
+but only 103 of the 171 would fit with the indentation removed — and three
+sit at indent 0, where rsvelte emits 87 and 93 columns against an
 oracle that breaks. The pre-registered prediction's other half was false too:
 **the oracle overflows `printWidth` on 42,871 lines in 12,134 files**, because a
 construct with no break point in it overflows on any printer, so rsvelte's own 43,366
