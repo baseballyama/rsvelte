@@ -1,26 +1,26 @@
 {
   "schemaVersion": 5,
   "kind": "rsvelte-compatibility-report",
-  "generatedAt": "2026-09-01T14:10:09.216Z",
+  "generatedAt": "2026-09-04T16:51:24.734Z",
   "commit": {
-    "rsvelte": "f55f2ad324f239a29431efb7d72ec848ebbd14ef",
+    "rsvelte": "d4c79bb0402a98f40790cb9facd57ba77f657480",
     "upstreamSvelte": "56a036f4ce873a24ee6631a06d03d372523d7a9b"
   },
   "corpus": {
     "name": "rsvelte real-world compatibility corpus",
-    "configuredFiles": 34822,
-    "componentFiles": 33897,
-    "moduleFiles": 925,
+    "configuredFiles": 34839,
+    "componentFiles": 33912,
+    "moduleFiles": 927,
     "sourceCount": 104,
     "truncated": false
   },
   "summary": {
-    "exact": 34755,
-    "total": 34822,
-    "percentage": 99.80759290103958,
-    "outputMatches": 33402,
+    "exact": 34836,
+    "total": 34839,
+    "percentage": 99.99138896064755,
+    "outputMatches": 33483,
     "errorParity": 1353,
-    "divergences": 67,
+    "divergences": 3,
     "unparseable": 0
   },
   "surfaces": [
@@ -37,10 +37,10 @@
     {
       "id": "client",
       "label": "CSR",
-      "status": "differences",
-      "matched": 34777,
-      "total": 34822,
-      "differences": 45,
+      "status": "pass",
+      "matched": 34839,
+      "total": 34839,
+      "differences": 0,
       "unit": "files",
       "note": "Normalized JS and CSS output"
     },
@@ -48,9 +48,9 @@
       "id": "server",
       "label": "SSR",
       "status": "differences",
-      "matched": 34812,
-      "total": 34822,
-      "differences": 10,
+      "matched": 34837,
+      "total": 34839,
+      "differences": 2,
       "unit": "files",
       "note": "Normalized JS and CSS output"
     },
@@ -58,9 +58,9 @@
       "id": "client-dev",
       "label": "CSR dev",
       "status": "differences",
-      "matched": 34763,
-      "total": 34822,
-      "differences": 59,
+      "matched": 34838,
+      "total": 34839,
+      "differences": 1,
       "unit": "files",
       "note": "Normalized JS and CSS output"
     },
@@ -68,9 +68,9 @@
       "id": "server-dev",
       "label": "SSR dev",
       "status": "differences",
-      "matched": 34812,
-      "total": 34822,
-      "differences": 10,
+      "matched": 34837,
+      "total": 34839,
+      "differences": 2,
       "unit": "files",
       "note": "Normalized JS and CSS output"
     },
@@ -78,19 +78,19 @@
       "id": "fmt",
       "label": "fmt",
       "status": "differences",
-      "matched": 33077,
-      "total": 33626,
-      "differences": 549,
+      "matched": 33092,
+      "total": 33642,
+      "differences": 550,
       "unit": "files",
-      "note": "26 oracle exclusions"
+      "note": "25 oracle exclusions"
     },
     {
       "id": "svelte2tsx",
       "label": "svelte2tsx",
       "status": "differences",
-      "matched": 33767,
-      "total": 33802,
-      "differences": 35,
+      "matched": 33815,
+      "total": 33817,
+      "differences": 2,
       "unit": "files",
       "note": "95 oracle exclusions"
     },
@@ -111,41 +111,41 @@
       "label": "@mrwaip/svelte-rs",
       "version": "0.0.0-canary.13.1",
       "metric": "normalized-output-parity",
-      "measuredAt": "2026-09-01T13:07:37.933Z",
+      "measuredAt": "2026-09-04T20:27:17.814Z",
       "surfaces": [
         {
           "id": "client",
           "label": "CSR",
-          "matched": 29519,
-          "compiled": 32335,
-          "total": 32647,
+          "matched": 29531,
+          "compiled": 32357,
+          "total": 32669,
           "status": "unranked",
           "referenceVersion": "5.56.4"
         },
         {
           "id": "server",
           "label": "SSR",
-          "matched": 30097,
-          "compiled": 32335,
-          "total": 32648,
+          "matched": 30112,
+          "compiled": 32357,
+          "total": 32670,
           "status": "unranked",
           "referenceVersion": "5.56.4"
         },
         {
           "id": "client-dev",
           "label": "CSR dev",
-          "matched": 29477,
-          "compiled": 32335,
-          "total": 32647,
+          "matched": 29488,
+          "compiled": 32357,
+          "total": 32669,
           "status": "unranked",
           "referenceVersion": "5.56.4"
         },
         {
           "id": "server-dev",
           "label": "SSR dev",
-          "matched": 30094,
-          "compiled": 32335,
-          "total": 32648,
+          "matched": 30109,
+          "compiled": 32357,
+          "total": 32670,
           "status": "unranked",
           "referenceVersion": "5.56.4"
         }
@@ -157,14 +157,14 @@
       "label": "@verter/wasm",
       "version": "0.0.1-beta.3",
       "metric": "normalized-output-parity",
-      "measuredAt": "2026-09-01T13:07:37.933Z",
+      "measuredAt": "2026-09-04T20:27:17.814Z",
       "surfaces": [
         {
           "id": "client",
           "label": "CSR",
           "matched": 6297,
-          "compiled": 8043,
-          "total": 32647,
+          "compiled": 8047,
+          "total": 32669,
           "status": "unranked",
           "referenceVersion": "5.56.8"
         },
@@ -173,7 +173,7 @@
           "label": "SSR",
           "matched": 0,
           "compiled": 0,
-          "total": 32648,
+          "total": 32670,
           "status": "unsupported",
           "referenceVersion": "5.56.8"
         },
@@ -181,8 +181,8 @@
           "id": "client-dev",
           "label": "CSR dev",
           "matched": 1197,
-          "compiled": 8043,
-          "total": 32647,
+          "compiled": 8047,
+          "total": 32669,
           "status": "unranked",
           "referenceVersion": "5.56.8"
         },
@@ -191,7 +191,7 @@
           "label": "SSR dev",
           "matched": 0,
           "compiled": 0,
-          "total": 32648,
+          "total": 32670,
           "status": "unsupported",
           "referenceVersion": "5.56.8"
         }
