@@ -37,7 +37,7 @@ concurrency:
   # never produced a verdict. The cost is one run per merge instead of one per
   # burst; a branch with no verdict reads exactly like a green one, which is
   # how a stale ratchet reached `main` unnoticed (#2435/#2593).
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.sha }}
   # CodSpeed compares a PR against `main`'s run for the merge base, so a `main`
   # branch with no run makes it fall back to an older commit and report every
   # PR as a large regression.

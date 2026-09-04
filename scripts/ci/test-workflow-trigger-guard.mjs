@@ -255,6 +255,56 @@ check('a ref-keyed cancelling group without a push trigger is accepted', () => {
 	);
 });
 
+// --- Concurrency: a cancelling group that cannot distinguish two EVENTS. ---
+//
+// The four cases above vary the group KEY against one event. These vary the
+// EVENT against a key that is already per-push, which is the axis that let a
+// nightly `schedule` cancel a `push` run at the same commit: `github.head_ref`
+// is empty for both, so both fall through to `github.sha`.
+
+const SHA_KEY = 'a-${{ github.head_ref || github.sha }}';
+const EVENT_KEY = 'a-${{ github.event_name }}-${{ github.head_ref || github.sha }}';
+const on = (...triggers) => `\non:\n${triggers.map((t) => `  ${t}:\n`).join('')}`;
+const wf = (triggers, group, cancels = 'true') =>
+	`name: a${triggers}\nconcurrency:\n  group: ${group}\n  cancel-in-progress: ${cancels}\n${JOBS}`;
+
+check('a per-push group is still rejected when two events share it', () => {
+	withDir({ 'a.yml': wf(on('push', 'schedule'), SHA_KEY) }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 1, `expected 1 violation, got ${JSON.stringify(violations)}`);
+		assert(/github\.event_name/.test(violations[0].message), 'expected the event wording');
+	});
+});
+
+check('adding github.event_name to that group accepts it', () => {
+	withDir({ 'a.yml': wf(on('push', 'schedule'), EVENT_KEY) }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('one non-pull_request trigger cannot collide, so the key is not required', () => {
+	withDir({ 'a.yml': wf(on('push', 'pull_request'), SHA_KEY) }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('cancel-in-progress: false makes the event key irrelevant too', () => {
+	withDir({ 'a.yml': wf(on('push', 'schedule'), SHA_KEY, 'false') }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations)}`);
+	});
+});
+
+check('two non-push events collide with each other, with no push in sight', () => {
+	withDir({ 'a.yml': wf(on('schedule', 'workflow_dispatch'), SHA_KEY) }, (dir) => {
+		const { violations } = checkWorkflows(dir, {}, {});
+		assert(violations.length === 1, `expected 1 violation, got ${JSON.stringify(violations)}`);
+		assert(/github\.event_name/.test(violations[0].message), 'expected the event wording');
+	});
+});
+
 // --- The same mechanism one level down: a job-level cancelling group. ---
 
 /** A push workflow whose single job `publish` carries `group` and `cancels`. */

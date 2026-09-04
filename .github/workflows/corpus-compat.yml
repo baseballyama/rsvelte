@@ -75,15 +75,24 @@ on:
       - '.github/actions/**'
 
 concurrency:
-  # Keyed by the head branch on a PR (a new push supersedes the old run) and by
-  # the commit otherwise, so a push to `main` shares a group with nothing and
-  # cannot be cancelled. The previous guard — `cancel-in-progress:
-  # ${{ github.ref != 'refs/heads/main' }}` — did not hold: every `main` run
-  # under it was still cancelled the instant the next merge started, so `main`
-  # never produced a verdict. The cost is one run per merge instead of one per
-  # burst; a branch with no verdict reads exactly like a green one, which is
-  # how a stale ratchet reached `main` unnoticed (#2435/#2593).
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  # Keyed by the event, the head branch on a PR (a new push supersedes the old
+  # run) and the commit otherwise. Two runs should supersede each other only
+  # when they answer the same question about the same target, and the event is
+  # part of that: without it a `schedule` and a `push` on `main` both resolve
+  # `github.head_ref || github.sha` to the same commit and land in one group.
+  # Measured 2026-09-04 — the nightly firing at 20:33:28Z killed the merge's own
+  # run at 20:33:47Z with 11 of its 12 jobs already green and `Compiler parity`
+  # 17 minutes in. The comment this replaces asserted that a push to `main`
+  # "shares a group with nothing and cannot be cancelled"; that was the claim,
+  # not the behaviour.
+  #
+  # The earlier guard — `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}`
+  # — did not hold either: every `main` run under it was still cancelled the
+  # instant the next merge started, so `main` never produced a verdict. The cost
+  # is one run per event instead of one per burst; a run with no verdict reads
+  # exactly like a green one, which is how a stale ratchet reached `main`
+  # unnoticed (#2435/#2593).
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.sha }}
   cancel-in-progress: true
 
 permissions:

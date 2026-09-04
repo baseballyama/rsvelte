@@ -40,7 +40,7 @@ concurrency:
   # `github.sha`, not `github.ref`: every push to `main` shares one ref, so a
   # ref-keyed group cancels each merge's run as the next merge starts and `main`
   # carries no verdict — which reads exactly like a green one (#2435/#2593).
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.sha }}
   cancel-in-progress: true
 
 env:

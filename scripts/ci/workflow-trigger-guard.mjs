@@ -46,6 +46,12 @@ const BRANCH_FILTER_KEYS = ['branches', 'branches-ignore'];
 // merge, so a ref-keyed cancelling group makes each merge kill its predecessor.
 const PER_PUSH_CONTEXTS = ['github.sha', 'github.run_id'];
 
+// A cancelling group must also contain this to vary between two EVENTS at one
+// commit. `github.head_ref || github.sha` does not: on `main` a `push` and a
+// `schedule` both fall through to the same `github.sha`, so the nightly kills
+// the merge's own run and the merge commit carries a `cancelled` verdict.
+const EVENT_CONTEXT = 'github.event_name';
+
 /**
  * Workflows permitted to filter their PR trigger by base branch, each with the
  * reason. The reason is the point of the list: without it the intent survives
@@ -180,6 +186,13 @@ export function analyzeWorkflow(source, { name = '<source>' } = {}) {
 		return { triggers: [] };
 	}
 
+	// Every trigger under `on:`, not only the PR ones. The per-push rule below
+	// asks whether one event can collide with itself; this list is what says
+	// whether two DIFFERENT events can, which no amount of per-push keying fixes.
+	const nonPrTriggers = directChildren(lines, onIndex + 1, 0)
+		.map((c) => c.key)
+		.filter((k) => !PR_TRIGGERS.includes(k));
+
 	const triggers = [];
 	for (const trigger of directChildren(lines, onIndex + 1, 0)) {
 		if (!PR_TRIGGERS.includes(trigger.key)) continue;
@@ -212,7 +225,7 @@ export function analyzeWorkflow(source, { name = '<source>' } = {}) {
 		}
 	}
 
-	return { triggers, pushes, concurrency, jobs };
+	return { triggers, nonPrTriggers, pushes, concurrency, jobs };
 }
 
 /** True when two pushes to one branch would share this cancelling group. */
@@ -222,6 +235,27 @@ function collidesAcrossPushes(concurrency) {
 		!PER_PUSH_CONTEXTS.some((ctx) => concurrency.group.includes(ctx))
 	);
 }
+
+/**
+ * True when two DIFFERENT events at one commit would share this cancelling
+ * group. Only a workflow with two or more non-`pull_request` triggers can reach
+ * it: a `pull_request` keys on `github.head_ref`, which no other event sets.
+ */
+function collidesAcrossEvents(concurrency, nonPrTriggers) {
+	return (
+		concurrency?.cancels === true &&
+		(nonPrTriggers ?? []).length > 1 &&
+		!concurrency.group.includes(EVENT_CONTEXT)
+	);
+}
+
+const EVENT_EXPLANATION =
+	'`github.head_ref` is empty for every event but a pull request, so `${{ github.head_ref || ' +
+	'github.sha }}` resolves to the same commit for a `push`, a `schedule` and a ' +
+	'`workflow_dispatch` on one ref — one group, and the later event cancels the earlier run. ' +
+	'Measured 2026-09-04: the nightly `Corpus Compat` firing at 20:33:28Z cancelled the merge\'s ' +
+	'own run at 20:33:47Z, leaving `main` with a `cancelled` verdict that reads exactly like a ' +
+	'red one. Add `${{ github.event_name }}` to the group, or set `cancel-in-progress: false`.';
 
 const VERDICT_EXPLANATION =
 	'Every push to a branch shares one `github.ref`, so each merge cancels its predecessor and the ' +
@@ -250,7 +284,18 @@ export function checkWorkflows(
 
 	for (const file of files) {
 		const source = readFileSync(join(dir, file), 'utf8');
-		const { triggers, pushes, concurrency, jobs } = analyzeWorkflow(source, { name: file });
+		const { triggers, nonPrTriggers, pushes, concurrency, jobs } = analyzeWorkflow(source, {
+			name: file,
+		});
+
+		if (collidesAcrossEvents(concurrency, nonPrTriggers)) {
+			violations.push({
+				file,
+				message:
+					`\`concurrency.group\` is \`${concurrency.group}\` with \`cancel-in-progress: true\`, ` +
+					`but this workflow runs on \`${(nonPrTriggers ?? []).join('`, `')}\`. ${EVENT_EXPLANATION}`,
+			});
+		}
 
 		if (pushes && collidesAcrossPushes(concurrency)) {
 			violations.push({
