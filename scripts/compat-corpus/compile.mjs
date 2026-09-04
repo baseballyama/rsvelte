@@ -85,9 +85,14 @@ if (args.includes('--worker')) {
 	// of the stripper. Falls back to the raw source when esbuild rejects the
 	// file (both compilers then see identical input).
 	//
-	// What that verdict does NOT cover: esbuild removes all comments, so for
-	// `.svelte.ts` entries neither compiler ever sees one. This is the narrower
-	// of two reasons comment parity is ungated — verify.mjs's comparator ignores
+	// What that verdict does NOT cover: the strip erases the TYPES, so every
+	// construct a type-directed parser speculates over is gone before either
+	// compiler sees the file — a comment attached to one has no site left to be
+	// read at twice. It does NOT erase every comment: measured on one probe,
+	// esbuild keeps a comment inside an object literal or a class body and drops
+	// a leading one at statement position, and a substantial minority of the
+	// corpus's `.svelte.ts` outputs still carry one. This is the narrower of two
+	// reasons comment parity is ungated — verify.mjs's comparator ignores
 	// comments for the WHOLE corpus regardless, so a comment-preserving stripper
 	// here would buy no observability on its own. See the "AST equivalence" note
 	// in verify.mjs.
