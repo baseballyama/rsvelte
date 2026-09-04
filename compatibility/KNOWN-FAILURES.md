@@ -1078,10 +1078,16 @@ Nothing here is an oracle bug: the
 `oracle-invalid` classification already carries those and is a pass, not a ratchet
 entry.
 
-**And almost all of them are inside the TEMPLATE, not inside embedded JS or CSS.**
-The cluster table names the *shape* of the first differing line and never says which
-printer produced it, which reads as a line-breaking backlog in the embedded-JS
-formatter. It is not one. Re-measured 2026-09-04 at `7a30d488f`:
+**And almost all of them are inside the TEMPLATE REGION of the source, which is not
+the same claim as "the template printer produced them".** The cluster table names the
+*shape* of the first differing line and never says which printer produced it. What
+follows measures the *region* the line falls in — outside `<script>` and `<style>` —
+and that is all it measures: a mustache sits in the template region and its interior
+is printed by neither side's template printer. Upstream hands `{expr}` to prettier's
+own estree printer through `svelteExpressionParser` (`embed.ts` `node.isJS` branch),
+and rsvelte delegates embedded JS to `oxc_formatter`, so a break *inside* an
+expression is an engine-level difference reached from the template rather than a
+defect in the template printer. Re-measured 2026-09-04 at `7a30d488f`:
 
 | region | n |
 |---|---|
@@ -1110,6 +1116,16 @@ and compares only the **sum** to the JSON's length, so the per-cluster numbers a
 ungated as prose, and its own summary line says the partitions "add up". What the
 region split establishes is the split by region — 489 / 29 / 5 / 1 — which is
 independent of the boundary the two shape rules disagree on.
+
+**How much of the break-point cluster is embedded JS is UNMEASURED, and the one proxy
+taken is weak.** Classifying the divergence region — the text the longer side carries
+past the shorter one — of the 461 break-point entries the reimplementation names, by
+which characters it contains: 224 JS tokens only, 100 tag characters only, 78 both, 59
+neither. That reads the *elided tail* the report stores rather than the whole line, and
+`.` `(` `,` occur in ordinary text, so it bounds nothing. It is recorded because it is
+enough to deny the stronger sentence this section used to carry: the break-point
+cluster is not known to be the template printer's, and a large share of it may be the
+embedded-JS engine boundary. Separating the two needs the printer, not the region.
 
 **The anchoring method changed, and that is most of the difference from the previous
 reading.** The 2026-09-01 measurement located each entry's first differing line back in
