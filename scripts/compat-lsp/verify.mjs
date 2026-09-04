@@ -28,11 +28,7 @@ import {
 } from "./artifacts.mjs";
 import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
 import { diffJson } from "./diff.mjs";
-import {
-  MECHANISMS,
-  UNCLASSIFIED,
-  classifyDivergence,
-} from "./mechanism.mjs";
+import { MECHANISMS, classifyDivergence } from "./mechanism.mjs";
 import {
   aggregateCorpusMechanisms,
   assertNonemptySuites,
@@ -421,6 +417,17 @@ function sourceOf(entry) {
   return sourceTexts.get(entry);
 }
 
+// `initialize` and the ts-backend control are synthesized at their call sites as
+// an id and a suite alone, so they carry no source at all. A predicate rather
+// than a `catch`, which would merge them with a genuine `loadText` failure.
+const isDocumentEntry = (entry) =>
+  typeof entry.text === "string" || typeof entry.loadText === "function";
+
+const contextOf = (entry, request) => ({
+  text: isDocumentEntry(entry) ? sourceOf(entry) : undefined,
+  position: request.params?.position,
+});
+
 function record(
   kind,
   entry,
@@ -438,6 +445,7 @@ function record(
   if (differences.length) {
     counts.divergent++;
     counts.divergentFields += differences.length;
+    const context = contextOf(entry, request);
     if (entry.suite === "corpus") {
       const mechanisms = new Set();
       corpusDivergentFields += differences.length;
@@ -447,7 +455,7 @@ function record(
           left,
           right,
           difference,
-          { text: sourceOf(entry), position: request.params?.position },
+          context,
         );
         countMechanism(request.method, mechanism);
         mechanisms.add(mechanism);
@@ -465,11 +473,8 @@ function record(
         // so it lands with its re-baseline rather than on its own.
         const key = `${requestKey}|${difference.replace(/-rsvelte-(?:element|field)/, "-rsvelte")}`;
         current.push(key);
-        // `classifyDivergence` runs on the corpus branch only, and its context
-        // is that branch's source text. An empty set here would read as "no
-        // mechanism", which under the attribution rule reads as "nothing
-        // rsvelte-side", so the absence is spelled rather than left blank.
-        recordMechanisms(key, [UNCLASSIFIED]);
+        const label = classifyDivergence(request.method, left, right, difference, context);
+        recordMechanisms(key, [label]);
         // Keep the normalized diagnostic values for a newly observed fixture
         // key, so CI says which diagnostic appeared. Corpus responses are
         // intentionally excluded: they can contain project text and are
