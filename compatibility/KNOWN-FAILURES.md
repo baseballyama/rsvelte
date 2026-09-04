@@ -1064,29 +1064,39 @@ separate product bug and was fixed by #3629. These two entries remain because
 gate 9 intentionally compares the shipped native CSS path rather than replacing
 it with `--no-native-css`; #3628 records that decision and the engine boundary.
 
-**472 of 549 (86%) are cluster 20 or 21 — one question, where a line breaks** —
-and that is the burndown target, not the tail. That is the live `Partition of …`
-line above (258 + 214), the one the doc check verifies. The figure this sentence
-carried until #4062, *624 of 765 (82%)*, was the wave-2 table's population, and it
-did not agree with that table either — its own rows give 386 + 239 = 625.
+**Clusters 20 and 21 — one question, where a line breaks — are the first two
+addends of the `Partition of …` line above, and between them they are the large
+majority of this ratchet.** That is the burndown target, not the tail. The count is
+deliberately not restated here: the partition line is what `known-failures-md-check.mjs`
+verifies, so it is the one place that cannot go stale, and this sentence carried
+*472 of 549 (86%)* with a parenthetical `(258 + 214)` after the gated line had
+already moved. The figure it carried before that, until #4062, was
+*624 of 765 (82%)*, which did not agree with the wave-2 table either — its own rows
+give 386 + 239 = 625. Three successive restatements, three different populations,
+one gated line beside them that was right each time.
 Nothing here is an oracle bug: the
 `oracle-invalid` classification already carries those and is a pass, not a ratchet
 entry.
 
-**And 398 of those 472 are inside the TEMPLATE, not inside embedded JS or CSS
-(2026-09-01).** The cluster table names the *shape* of the first differing line and
+**And most of those are inside the TEMPLATE, not inside embedded JS or CSS.**
+The measurement below was taken on 2026-09-01 against a **549-entry** ratchet and
+has **not** been re-taken since; the ratchet is smaller now, by the amount the
+partition line above declares. Read its shares, not its counts.
+
+The cluster table names the *shape* of the first differing line and
 never says which printer produced it, which reads as a line-breaking backlog in the
 embedded-JS formatter. Locating each entry’s first differing line back in its **source**
 — by a token needle, reporting `unlocated` rather than guessing — partitions the 549 as
 `template 438 | unlocated 48 | script 41 | style 22`, and crossed with the shape rule:
 `breaks-later|template 215`, `breaks-earlier|template 183`, `indent-only|template 31`,
 `breaks-later|script 19`, `indent-only|script 14`, `intra-line-ws|style 9`, the rest in
-single digits. So **72.5% of this ratchet is one question about Svelte markup**, and the
-embedded-JS and embedded-CSS engines together carry 63 entries.
+single digits. So **72.5% of that ratchet was one question about Svelte markup**, and
+the embedded-JS and embedded-CSS engines together carried 63 entries.
 
-The positive control is that the same local harness reproduces the CI gate’s own
-partition on **five of its seven buckets exactly** (`breaks-later 258`,
-`breaks-earlier 214`, `intra-line-ws 15`, `extra-line 1`, `missing-line 1`), differing by
+The positive control is that the same local harness reproduced the CI gate’s own
+partition of that 549-entry tree on **five of its seven buckets exactly**
+(`breaks-later 258`, `breaks-earlier 214`, `intra-line-ws 15`, `extra-line 1`,
+`missing-line 1` — the gated line's values at that time), differing by
 two entries that move between `indent-only` and `other`. A region split measured by a
 harness that did not reproduce the shape split would be describing a different
 population.
