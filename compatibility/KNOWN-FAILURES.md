@@ -3947,11 +3947,28 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 1 entry)
+### Client dev (`known-failures.client-dev.json`, 0 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `1`
+Partition of `known-failures.client-dev.json` by verdict: `0`
 
-- **1 — the generated JS differs.**
+**This target is empty.** `svelte/…/snapshot/samples/delegated-locally-declared-shadowed/index.svelte`
+was the last entry, and it left with the binding-record rule below.
+
+A `const` or `let` declared inside a template expression's function body produced **two**
+`Binding` records — the scope builder's, which carries `declaration_start` and the
+initializer, and a throwaway the phase-2 statement walker pushes through
+`ScopeRoot::push_binding`. `scope.evaluate` resolved the metadata-free one and answered
+`has_unknown`, so the dev `console.*` wrap fired where upstream leaves the call plain:
+upstream resolves the local declaration, evaluates `Number(…)` to NUMBER through its globals
+table, and `has_unknown` is set only for `UNKNOWN`. The record has to be reused by the
+declaration's own **position**, never by its name — a name lookup resolves to a shadowed
+outer binding and grafts this initializer onto it. Measured against a third arm built from
+exactly that name-keyed mis-fix, three of the five `pattern-corpus` cells go red on it and
+two stay green, and what separates them is whether the template-local is **written**
+(upstream's `!binding.updated`) — not the declaration keyword and not the nesting depth,
+which were the two axes the cells' own comments had claimed before they were measured. Two
+arms over the corpus moved 1 of 139,312 units (133,902 live), `MISMATCH -> match: 1`,
+`match -> MISMATCH: 0`.
 
 `svelte-tweakpane-ui/…/Point.svelte` left this target with `client`'s, for the same two rules;
 the paragraph under `client` above is the one description.
@@ -4037,9 +4054,9 @@ gate local reconstruction reporting a divergence the gate does not have — and 
 the correction came from CI's stale-entry check rather than from any local instrument. A local
 `MISMATCH` is a candidate; only a local `match` is a verdict.
 
-All remaining 1 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and what it still carries is a JS entry that `client` does not, which is the reason it is
-ratcheted separately. Whether it is the largest of the four is not stated here: a superlative
+The entry that arrived with the wave-2 enrolment (#3176) has now left too; this target was at 0
+before that enrolment and is at 0 again. What it carried was a JS entry that `client` did not,
+which is the reason it is ratcheted separately. Whether it is the largest of the four is not stated here: a superlative
 has to be re-derived every time any of them moves, and nothing gates a superlative in prose.
 
 `immich/…/asset-viewer/ActivityViewer.svelte` left this target and `client` for the other half of
