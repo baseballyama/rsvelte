@@ -5879,7 +5879,9 @@ fn collect_identifier_names_in_node(
             generator: _,
             r#async: _,
             expression: _,
+            declare: _,
             type_parameters: _,
+            return_type: _,
         } => {
             walk_range(*params, out);
             walk_opt(body, out);

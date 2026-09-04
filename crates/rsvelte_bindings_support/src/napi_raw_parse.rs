@@ -71,7 +71,7 @@ pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 9;
+pub const VERSION: u32 = 10;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -1720,7 +1720,9 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             generator,
             r#async,
             expression,
+            declare,
             type_parameters,
+            return_type,
         } => {
             write_preamble(w, JS_FUNCTION_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1728,7 +1730,9 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             write_bool(w, *expression);
             write_bool(w, *generator);
             write_bool(w, *r#async);
+            write_bool(w, *declare);
             write_opt_type_annotation(w, type_parameters.as_deref())?;
+            write_opt_type_annotation(w, return_type.as_deref())?;
             write_id_range(w, *params, arena)?;
             write_opt_node_id(w, *body, arena)?;
         }

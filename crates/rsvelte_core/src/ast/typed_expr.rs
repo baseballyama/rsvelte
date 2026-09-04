@@ -520,10 +520,15 @@ pub enum JsNode {
         // Always `false`: acorn only ever sets `expression: true` on arrow function
         // bodies without a block; declarations always have a block body.
         expression: bool,
+        /// Stamped only where the `declare` keyword is written, so an overload
+        /// signature carries `false` while still having no body.
+        declare: bool,
         /// Opaque, output-only TS `typeParameters` blob (`<T, U>`), serialized
         /// verbatim (acorn-typescript emits it between `async` and `params`).
         /// `None` for the overwhelming majority (non-generic) functions.
         type_parameters: Option<Box<serde_json::Value>>,
+        /// Opaque, output-only TS `returnType` blob, serialized verbatim.
+        return_type: Option<Box<serde_json::Value>>,
     },
     ClassDeclaration {
         start: u32,
@@ -1821,13 +1826,26 @@ impl Serialize for JsNode {
                 generator,
                 r#async,
                 expression,
+                declare,
                 type_parameters,
+                return_type,
             } => {
+                // A function with no body is a `declare function` or an overload
+                // signature, which acorn-typescript spells as `TSDeclareFunction`
+                // with no `body` key at all.
+                let type_name = if body.is_some() {
+                    "FunctionDeclaration"
+                } else {
+                    "TSDeclareFunction"
+                };
                 let mut map = serializer.serialize_map(Some(6))?;
-                map.serialize_entry("type", "FunctionDeclaration")?;
+                map.serialize_entry("type", type_name)?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
+                if *declare {
+                    map.serialize_entry("declare", &true)?;
+                }
                 ser_opt_node!(map, "id", id);
                 map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
@@ -1836,8 +1854,13 @@ impl Serialize for JsNode {
                     map.serialize_entry("typeParameters", tp.as_ref())?;
                 }
                 ser_children!(map, "params", params);
-                ser_opt_node!(map, "body", body);
-                ser_comments!(map, "FunctionDeclaration", *start, *end);
+                if let Some(rt) = return_type {
+                    map.serialize_entry("returnType", rt.as_ref())?;
+                }
+                if body.is_some() {
+                    ser_opt_node!(map, "body", body);
+                }
+                ser_comments!(map, type_name, *start, *end);
                 map.end()
             }
             Self::ClassDeclaration {
@@ -3185,7 +3208,7 @@ impl JsNode {
                         id: convert_child(obj, "id"),
                         init: convert_optional_child(obj, "init"),
                     },
-                    "FunctionDeclaration" => Self::FunctionDeclaration {
+                    "FunctionDeclaration" | "TSDeclareFunction" => Self::FunctionDeclaration {
                         start,
                         end,
                         loc,
@@ -3195,7 +3218,9 @@ impl JsNode {
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
                         expression: get_bool(obj, "expression"),
+                        declare: get_bool(obj, "declare"),
                         type_parameters: obj.field("typeParameters").cloned().map(Box::new),
+                        return_type: obj.field("returnType").cloned().map(Box::new),
                     },
                     "ClassDeclaration" => Self::ClassDeclaration {
                         start,

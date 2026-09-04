@@ -7098,10 +7098,19 @@ fn convert_statement(
                 generator: func_decl.generator,
                 r#async: func_decl.r#async,
                 expression: false,
+                declare: func_decl.declare,
                 type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
                     Box::new(convert_ts_type_parameter_declaration(
                         arena,
                         tp,
+                        offset - 1,
+                        line_offsets,
+                    ))
+                }),
+                return_type: func_decl.return_type.as_ref().map(|rt| {
+                    Box::new(convert_type_annotation_adjusted(
+                        arena,
+                        rt,
                         offset - 1,
                         line_offsets,
                     ))
@@ -9248,6 +9257,15 @@ fn convert_statement_for_program(
                         generator: func_decl.generator,
                         r#async: func_decl.r#async,
                         expression: false,
+                        declare: func_decl.declare,
+                        return_type: func_decl.return_type.as_ref().map(|rt| {
+                            Box::new(convert_type_annotation_adjusted(
+                                arena,
+                                rt,
+                                offset,
+                                line_offsets,
+                            ))
+                        }),
                         type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
                             Box::new(convert_ts_type_parameter_declaration(
                                 arena,
@@ -10489,11 +10507,6 @@ fn convert_function_declaration_as_node(
     offset: usize,
     line_offsets: &[usize],
 ) -> Option<JsNode> {
-    // Filter out TypeScript declare functions and function overload signatures (no body)
-    if func_decl.r#type == oxc_ast::ast::FunctionType::TSDeclareFunction || func_decl.body.is_none()
-    {
-        return None;
-    }
     let start = offset + func_decl.span.start as usize;
     let end = offset + func_decl.span.end as usize;
     let loc = create_typed_loc(start, end, line_offsets);
@@ -10533,10 +10546,19 @@ fn convert_function_declaration_as_node(
         generator: func_decl.generator,
         r#async: func_decl.r#async,
         expression: false,
+        declare: func_decl.declare,
         type_parameters: func_decl.type_parameters.as_ref().map(|tp| {
             Box::new(convert_ts_type_parameter_declaration(
                 arena,
                 tp,
+                offset,
+                line_offsets,
+            ))
+        }),
+        return_type: func_decl.return_type.as_ref().map(|rt| {
+            Box::new(convert_type_annotation_adjusted(
+                arena,
+                rt,
                 offset,
                 line_offsets,
             ))
@@ -10642,11 +10664,7 @@ fn convert_declaration_for_program_as_node(
         }
         // The typed function path emits only `params.items`, so a rest parameter
         // would be dropped relative to the Value form — keep Raw in that case.
-        Declaration::FunctionDeclaration(func_decl)
-            if func_decl.r#type != oxc_ast::ast::FunctionType::TSDeclareFunction
-                && func_decl.body.is_some()
-                && func_decl.params.rest.is_none() =>
-        {
+        Declaration::FunctionDeclaration(func_decl) if func_decl.params.rest.is_none() => {
             convert_function_declaration_as_node(arena, func_decl, offset, line_offsets)
                 .unwrap_or_else(|| {
                     JsNode::from_value(convert_declaration_for_program(

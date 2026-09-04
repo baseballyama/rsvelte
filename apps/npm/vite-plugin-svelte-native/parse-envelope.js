@@ -19,7 +19,7 @@ const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 9;
+const VERSION = 10;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -1211,18 +1211,24 @@ function readJsFunctionDeclaration(ctx, start, end) {
 	const expression = readBool(ctx);
 	const generator = readBool(ctx);
 	const asyncFlag = readBool(ctx);
+	const declare = readBool(ctx);
 	const typeParameters = readOptTypeAnnotation(ctx);
+	const returnType = readOptTypeAnnotation(ctx);
 	const params = readChildArray(ctx);
 	const body = readOptNode(ctx);
-	const node = { type: 'FunctionDeclaration', start, end };
+	// A function with no body is a `declare function` or an overload signature,
+	// which acorn-typescript spells as `TSDeclareFunction` with no `body` key.
+	const node = { type: body === null ? 'TSDeclareFunction' : 'FunctionDeclaration', start, end };
 	if (loc !== null) node.loc = loc;
+	if (declare) node.declare = true;
 	node.id = id;
 	node.expression = expression;
 	node.generator = generator;
 	node.async = asyncFlag;
 	if (typeParameters !== null) node.typeParameters = typeParameters;
 	node.params = params;
-	node.body = body;
+	if (returnType !== null) node.returnType = returnType;
+	if (body !== null) node.body = body;
 	return node;
 }
 

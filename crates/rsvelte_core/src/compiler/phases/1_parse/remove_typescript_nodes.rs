@@ -238,6 +238,12 @@ pub fn remove_typescript_nodes_typed(
         // path emits only `params.items`, so this is effectively defensive — a
         // typed function never actually carries a `this` param.)
         Some("FunctionExpression") | Some("FunctionDeclaration") => {
+            // A bodiless function declaration is a `declare function` or an
+            // overload signature, which upstream erases via `TSDeclareFunction`.
+            if let JsNode::FunctionDeclaration { body: None, .. } = node {
+                *node = typed_empty_statement(node);
+                return Ok(());
+            }
             remove_this_param_typed(node, arena);
         }
 
