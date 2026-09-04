@@ -1,6 +1,6 @@
 {
   "name": "rsvelte",
-  "displayName": "rsvelte",
+  "displayName": "rsvelte Language Tools",
   "version": "0.7.0",
   "private": true,
   "description": "Rust-powered Svelte language support with formatting, linting and TypeScript 7 features",

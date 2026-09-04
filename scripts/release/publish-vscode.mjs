@@ -231,17 +231,22 @@ if (needMp) {
         { cwd: extDir, stdio: 'inherit' },
       );
     } catch (error) {
-      // The gallery query above found NO live version, yet the Marketplace
-      // rejects the name as taken: the two only agree if the extension is
-      // unlisted (removed / unpublished) while its name stays reserved. No
-      // amount of retrying moves that, so say what has to happen instead.
+      // vsce writes its reason to this job's log (stdio is inherited), not to
+      // `error`, so this branch cannot read it — enumerate the causes instead of
+      // asserting one. Measured 2026-09-04: with `mp.latest === null` the real
+      // reason was `displayName`, and the earlier wording named `name`.
       if (mp && mp.latest === null) {
         console.error(
-          `\nThe Marketplace gallery reports NO live version of ${id}, but the\n` +
-            'publish was rejected. That pair means the extension is unlisted while its\n' +
-            'name is still reserved — a publisher-account state, not a build problem.\n' +
-            `Check https://marketplace.visualstudio.com/manage/publishers/${extPkg.publisher}\n` +
-            'and either restore the extension or rename it in apps/npm/vscode/package.json.',
+          `\nThe Marketplace gallery reports NO live version of ${id}, yet the publish\n` +
+            'was rejected. vsce printed the reason directly above this line; it is one of:\n' +
+            `  "extension display name is taken"  -> \`displayName\` collides with another\n` +
+            '     publisher. Change `displayName` in apps/npm/vscode/package.json. The\n' +
+            '     extension id is not the problem.\n' +
+            `  "extension name is taken" / 403     -> \`${id}\` is unlisted while its name\n` +
+            '     stays reserved on this account. Restore it at\n' +
+            `     https://marketplace.visualstudio.com/manage/publishers/${extPkg.publisher}\n` +
+            '     or change `name` in apps/npm/vscode/package.json.\n' +
+            'Neither is a build problem and neither is fixed by retrying.',
         );
       }
       marketplaceError = error;
