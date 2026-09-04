@@ -476,6 +476,30 @@ same string for every push to `main`, so at a high merge rate each merge cancell
 predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
 indistinguishable in the branch header.**
 
+**That sentence has a scope, and the scope shrank rather than closed — which is the reading that
+sends someone the wrong way in either direction.** Read as history it is exact; read forwards as
+"every workflow", false; read forwards as "fixed", also false. Measured 2026-09-05 over all 21
+workflow files and all **23** concurrency blocks, workflow- *and* job-level: four blocks in three
+files still key on something constant for every push to `main` while cancelling — `changeset.yml`
+(`head_ref || github.ref`, and `head_ref` is empty off a pull request, so the fallback is taken),
+`site-benchmark.yml` (`github.ref`), and `release.yml`'s two version-PR jobs
+(`release-version-pr-${{ github.ref }}`), plus `deploy-docs.yml`'s literal `pages-build`. The two
+that matter are the two that run **on push to `main`**: `Deploy Docs` and `Release`. Both are
+deliberate and say so in a comment, so this is not a defect list — it is why a P0-style "every
+`main` workflow is green" can only be asserted at a sha that is the *last* push for long enough,
+and why an intermediate merge's `cancelled` is expected rather than a regression. A second class points the same
+way without reddening anything: `capi-autotag`, `publish-vscode` and `deploy-docs`'s deploy job hold
+literal groups on `push: main` with `cancel-in-progress: false`, so consecutive merges **serialize**
+rather than cancel — no red, and the intermediate sha's verdict simply is not there yet.
+
+Two method notes from taking that census, both of which produced a plausible wrong number first.
+`grep -A3 '^concurrency:'` reached 9 of 21 files, because one `group:` sits ten lines below its
+header behind a comment — the two halves of the partition summed to 13, not 21, and only the
+denominator said so. And a classifier that tested `head_ref` before `github.ref` put
+`head_ref || github.ref` in the same bucket as `head_ref || github.sha`, which are opposite
+answers on a push; it took a second person's count disagreeing (4 against 2) to surface it, and
+the disagreement was evidence about the method rather than about the value.
+
 **And the same is true one step earlier: a ratchet's correctness is relative to the tree it is
 measured on, and a PR's tree is the MERGE REF.** `pull_request` CI checks out
 `refs/pull/N/merge` — the branch merged with `main` — so when `main` moves, a branch that has not
@@ -1342,6 +1366,7 @@ followed on the next:
 | `pgrep -c … \|\| echo 0` | `0` | the `\|\|` arm fabricated a datum that reads exactly like a measurement |
 | `cargo test … \| grep -E '^test \|test result' \| head -20` | `TEST_EXIT=101` from `$pipestatus[1]`, and twenty *passing* lines | the **verdict** was read correctly and the lines explaining it were outside the window |
 | `join before.tsv after.tsv` over paths sorted by Rust's byte order | two non-ASCII paths reported as **changed** that were byte-identical | `join` requires its inputs in the locale's collating order and silently **mispairs** rows when they are not |
+| `while read -r f` over a list a script wrote with `join("\n")` | 4 rows of a 5-row table, each correct | the producer omitted the trailing newline, so `read` returns false on the final line and its body never runs — the loop prints a complete-looking table one element short, and the dropped element is always the last one you appended |
 | `timeout 120 node probe.mjs 2>&1 \| head -20` | nothing at all, twice | `head` closed the pipe and `timeout` killed the process, so node's block-buffered stdout was **never flushed** — the verdict was not outside the window, it was never produced |
 | `cmd \| cat -A` on macOS | the **oracle leg produced no output at all**, so its side of an A/B read as empty | macOS has no `cat -A`; the filter dies, the pipe's exit is the filter's, and a stage that dies on ONE leg does not manufacture a zero — it manufactures a **difference** |
 | a CI job's log read for the scariest-looking line | a `[fmt] rsvelte-fmt reported errors:` line that **`main` prints on every run**, quoted as the cause of an `exit 1` whose real line was 30 lines later | nothing was truncated: the window held the real failure *and* a permanent one, and "looks like a failure" is not a property the reader can check without the other arm |
