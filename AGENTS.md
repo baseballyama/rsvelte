@@ -5489,6 +5489,173 @@ landed on.** The recovery is cheap once you know (`git diff > patch`, `git check
 same insertion point, both wanted, resolved by keeping both. Prefix a branch-sensitive edit with
 `git branch --show-current`, or predict a number the edit must produce and check it.
 
+### A worktree's reflog separates contact from authorship, and only one of the two is discriminating
+
+In a shared `.git`, nothing in the repository separates one agent session from another. Measured
+over 23 open PRs: every human-authored PR carries the same `author` login, the same commit
+`author`/`committer`, and `git branch` lists every session's branches from every worktree. So
+"whose PR is this" looks like it can only be self-declared.
+
+It cannot only be self-declared, and the artifact is the **per-worktree HEAD reflog**
+(`$(git rev-parse --git-common-dir)/worktrees/*/logs/HEAD`). It records `checkout` lines and
+`commit` lines separately, and they answer different questions: **a checkout is contact, a commit
+is authorship.** The distinction is not decoration. An integrator checks out everyone's branches
+to merge-test them, so a branch sitting in an integrator's scratchpad worktree says nothing —
+that signal is maximally non-discriminating **for exactly the session whose role is to touch
+everything**. The positive evidence that it is contact rather than authorship is an unpushed local
+merge commit in that worktree whose head is absent from `origin`.
+
+The mistake to avoid is the one made here: the contact signal was correctly shown to be
+non-discriminating, and the whole reflog was then closed — while the `commit` lines a few rows
+further down the same file named the author. **Rejecting an instrument does not license discarding
+the artifact it read**, only the reading.
+
+Two limits, one of which is empty in this population. `git branch <name>` writes no HEAD-log entry,
+so a branch created in one worktree and first checked out in another is unattributable — measured
+across 21 worktree logs, 0 of the 6 candidate branches had that shape, so it is a real limit and
+not an explanation for anything here. And a worktree is reused across days, so "first checked out
+here" names the session that was sitting in it, not the one sitting in it now. That second limit is
+live: settling it needs the worktree's *creation time* against the session's, or the session's own
+word.
+
+Evidence grade differs across the answer, and it is worth stating per row rather than for the
+table. Of 22 worktrees, **12 carry a session UUID in their path** and 10 do not (`.claude/worktrees/*`,
+hand-written paths, the primary checkout). Only the 12 close mechanically; for the other 10 the
+`commit` line establishes *authorship* and leaves *which session* to that session's declaration.
+
+### Under compaction, a session reports a confident, well-evidenced, wrong count of its own work
+
+Four sessions were asked which open PRs they owned. **Three of the four under-claimed**, and every
+one of them answered with certainty — nobody said "unsure". One had opened a PR **four hours
+earlier** and did not have it; one had authored a PR and judged it not theirs by reading the commit
+subject and the `author` field, both of which are labels; one (the author of this row) claimed one
+PR while a second sat in their own scratchpad worktree with three of their own commits in its
+reflog.
+
+The mechanism is that a compacted session reads its own history from a **summary**, not from
+artifacts, and a summary has no revision stamped on it. That makes "0 PRs" and "I have forgotten a
+PR" the same sentence, and the sentence is delivered with the same confidence as a measurement.
+
+**Collect declarations as a complement, never as a list.** Enumerate the artifact — every open PR —
+and subtract the union of what sessions claim. A list of N declarations cannot show a missing one:
+the dropped PR appears in nobody's output. The residue does show it. And the residue's own
+membership is what closes the census: **the completion condition is that the union reaches the
+artifact's size**, not that some number of sessions replied. A residue counted as "4" while the
+same sentence enumerated 5 members went out twice here, and the danger is directional — after four
+declarations arrive it reads as "everyone answered, residue 0" while one PR is still unnamed.
+
+A non-zero residue has two causes that the census cannot separate: a session that forgot, and a
+session that no longer exists. Count the **live** sessions and compare with the number that
+answered; if every live session replied and the residue is non-empty, the remainder are orphans and
+no one can be asked.
+
+Note the direction of every error observed here: all three were under-claims, which inflate the
+residue and send the integrator looking for an absent owner, rather than stealing another session's
+work. That the errors all pointed the recoverable way is a measured fact about this run, not a
+property of the procedure.
+
+### While a gate is green, no artifact records how much it is watching
+
+`nextest` discards the stdout of a **passing** test. A gate that prints its own coverage — how many
+samples it compared, how large the observed population is — therefore prints it only on the run
+where it fails. Measured: `main`'s shard-3 log is 542 KB and the string `byte-identical generated
+outputs` appears in it **zero** times, while the same line is present in the failing branch's log.
+
+That turns a specific pair of readings into one line. `map-parity` can only observe samples whose
+generated code is byte-identical to the oracle's, so when a PR moves a sample into that population
+the gate reports **new divergences** — and "this PR broke six segments" and "this PR made 52
+segments observable, 46 of them green" are the identical failure text. Measured on the two arms:
+
+```
+main    byte-identical 57/58   official segments 770/770 (100.0%)  0 missing, 0 wrong
+branch  byte-identical 58/58   official segments 816/822 ( 99.3%)  2 missing, 4 wrong
+```
+
+The second reading is the true one, and no amount of re-reading CI produces it — both arms have to
+be run locally. This is the same shape `GATES.md` 39b records for `parse-ast`, where fixing a
+divergence makes its children reachable, met in a gate whose coverage row did not predict it.
+
+The cheap repair is not a bigger log. It is to write the observed-population size into a committed
+artifact, so a **drop** in what a gate watches is visible without waiting for a failure — today a
+gate can quietly stop observing a sample and stay green.
+
+### A shift large enough to cross a line boundary reads as a different defect
+
+Six source-map segments diverged. Four looked like two unrelated problems: two pointed into a
+completely different statement (an `import` line, where the correct answer was a `let` two lines
+below), and two were off by a few columns inside the right line. Computing the **byte distance**
+between each wrong position and its correct one collapses them into one:
+
+```
+rsvelte s1:29  -> official s3:1    delta =  8 bytes     ': number'            len  8
+rsvelte s1:33  -> official s3:5    delta =  8
+rsvelte s3:10  -> official s3:18   delta =  8
+rsvelte s11:13 -> official s11:32  delta = 19           ': ITimeoutDestroyer' len 19
+```
+
+Every one is earlier by exactly the length of a type annotation. The two that look catastrophic are
+the same 8-byte shift crossing two line boundaries, and nothing in the `line:column` rendering says
+so — a constant offset in bytes is a *varying* offset in the coordinate the tool prints.
+
+So when several divergences are being triaged for whether they are one mechanism or several,
+convert both sides to a single scalar and subtract. The reverse of the recorded rule that a uniform
+offset falsifies a line-breaking explanation: here the uniformity is invisible until you leave the
+two-dimensional coordinate.
+
+Say separately what the arithmetic does **not** cover. Two of the six were missing segments that no
+annotation length explains, and they are recorded as a possible second mechanism rather than
+folded into the first.
+
+### A failed `git checkout` does not stop the next line, and the run reports on the wrong arm
+
+`git checkout -q <branch> && echo "now on ..."` followed, on its own line, by the measurement. The
+checkout failed — a shared `.git` allows a branch to be checked out in exactly one worktree, and it
+was already checked out in a scratchpad — so the `&&` suppressed the confirmation and **the next
+line ran anyway**, measuring the tree that was already there. The command exited 0 and printed a
+complete, well-formed summary of the wrong arm.
+
+Two things caught it, and only one of them was designed. `fatal:` was on stderr and stderr was not
+discarded — `2>/dev/null` would have removed the only sentence that named the problem. And the
+numbers came back **identical to the baseline**, which is the shape that cannot occur: an arm that
+really carried the change must report a different value, so equality was impossible rather than
+merely surprising. **An impossible value is a stronger detector than an implausible one**, because
+plausibility is a judgement and impossibility is derived from what the change must do.
+
+The repair is `git checkout --detach <sha>`, which is not subject to the one-worktree rule, plus
+`|| exit` on the checkout and printing HEAD beside the expected sha *before* the measurement rather
+than after it.
+
+### An uninitialized submodule answers with the SUPERPROJECT's HEAD
+
+`git -C submodules/<name> rev-parse HEAD` in a worktree where that submodule was never checked out
+does not fail. Git walks up to the enclosing repository and returns **the superproject's** HEAD — a
+well-formed 40-character sha, of the wrong repository. Any code that derives a path from it
+(`fixtures/<svelte-commit>/`) then looks for something that has never existed, and the error message
+it prints names the value as the submodule's commit:
+
+```
+Fixtures not found for Svelte commit: e84a38b4e9d4      <- the worktree's own HEAD
+```
+
+The tell is that the "submodule commit" equals the superproject's HEAD, which is checkable in one
+comparison and is not checkable at all from the message, since the message states the wrong
+attribution with full confidence. This is the recorded `present` / `usable` split with the
+misreport pointing at a *different repository* rather than at an empty directory — and a linked
+worktree gets it by default, because `git worktree add` initializes no submodules.
+
+### The document fired for the reader and not for the writer
+
+A rule was written into this file, its author walked past it on their next measurement, and a
+different session read the rule out of the file and applied it correctly. That is not two
+independent derivations of the same rule — the derivation is one, with a path running author →
+document → reader — and recording it as independent agreement would loosen the very criterion this
+file names as the thing that actually fires these rules.
+
+What it does record is one-sided, and the existing row (writing a rule down does not arm it) is
+about the author's side only. The document's value is not that it changes its author's next action;
+it is that **someone else can take the form out of it**. Both halves were observed here within an
+hour, on the same rule.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
