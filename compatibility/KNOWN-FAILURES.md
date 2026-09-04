@@ -3007,11 +3007,17 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-### Client (`known-failures.client.json`, 1 entry)
+### Client (`known-failures.client.json`, 0 entries)
 
-Partition of `known-failures.client.json` by verdict: `1`
+Partition of `known-failures.client.json` by verdict: `0`
 
-- **1 — the generated JS differs** (`js` / `code-differs`).
+**This target is empty.** `svelte-tweakpane-ui/…/Point.svelte` was the last entry, and it left
+with the two rules below. Line 187 carries both of them at once —
+`export let expanded: … = $$props.expanded ?? undefined //  $$Props['expanded']; not working here?`
+— which is why neither fix retires it alone: the `$$props` rewrite skipped the whole line
+because a comment was on it, and the trailing `//` with no `;` was misplaced. #4223 recorded
+that entry as the only one of 25 with no candidate target, on the reading that its sibling
+defect was already fixed; it was not, and the line scan was still in the tree.
 
 No CSS entry survives on this target: the one that did left with the ancestor-scoping fix
 below.
@@ -3520,11 +3526,14 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 5 entries)
+### Client dev (`known-failures.client-dev.json`, 4 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `5`
+Partition of `known-failures.client-dev.json` by verdict: `4`
 
-- **5 — the generated JS differs.**
+- **4 — the generated JS differs.**
+
+`svelte-tweakpane-ui/…/Point.svelte` left this target with `client`'s, for the same two rules;
+the paragraph under `client` above is the one description.
 
 Unlike `client`, no CSS entry survives on this target.
 
@@ -3567,9 +3576,9 @@ the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)`
 binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
 expression's shape alone. A moved unit is not a retired entry.
 
-All remaining 5 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and it is the largest of the four — 5 JS entries that `client` does not
-carry, which is the reason it is ratcheted separately.
+All remaining 4 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+it, and it is still the largest of the four — 4 JS entries that `client` does not carry, which
+is the reason it is ratcheted separately.
 
 `immich/…/asset-viewer/ActivityViewer.svelte` left this target and `client` for the other half of
 the same predicate. Upstream's `should_proxy` answers `false` for `undefined` in the **same
