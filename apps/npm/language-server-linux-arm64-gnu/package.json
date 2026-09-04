@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/language-server-linux-arm64-gnu",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Prebuilt rsvelte-language-server binary for linux-arm64 (glibc)",
   "license": "MIT",
   "repository": {

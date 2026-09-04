@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/language-server",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Native Svelte language server with formatting, linting and TypeScript 7 language features",
   "license": "MIT",
   "repository": {
