@@ -1,5 +1,7 @@
 # @rsvelte/language-server-linux-x64-gnu
 
+## 0.7.0
+
 ## 0.6.0
 
 ## 0.5.5
