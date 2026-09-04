@@ -1124,6 +1124,123 @@ whether the severity guard's four conditions agree with upstream's three on any 
 `is_compiler_code` has no upstream counterpart and is tracked separately — and whether the other
 `textDocument/*` methods' manifest params carry further unread fields.
 
+### Blind spot 27u — the oracle calibration is TypeScript-only by construction, so an HTML or CSS plugin degradation is outside its scope [S]
+
+27h added a floor and reports its shortfall as structural: the live official server must reproduce
+70% of the upstream snapshots or the run aborts. That floor is about **sensitivity within its
+scope**. This row is about the scope.
+
+`calibrationPreflight` (`verify.mjs:547-556`) loads its snapshots from `upstream-features` alone
+and roots the second official process at
+`submodules/language-tools/packages/language-server/test/plugins/typescript/features`. The suite
+names it prints are therefore TypeScript by construction, and a live run shows exactly three:
+`typescript-diagnostics`, `typescript-folding-range`, `typescript-inlay-hints`. There is no
+`html-*` or `css-*` calibration suite, and none can appear from that root.
+
+The compared population is not similarly restricted. `upstream-fixture-manifest.json` holds 168
+entries, of which 136 carry a concrete expected snapshot, and those 136 include
+`html/HTMLPlugin.test.ts` (6), `html/getFoldingRange.test.ts` (10), `css/CSSPlugin.test.ts` (17)
+and `css/features/getIdClassCompletion.test.ts` (5). Measured on one artifact
+(`lsp-current-fixtures`, `projectRevision 1e17bf813`), the fixture suite measures **26** ids whose
+name contains `html`, 15 of which carry at least one divergence key.
+
+So the gate compares HTML and CSS responses and calibrates the oracle on neither. An official
+server degraded only in its HTML or CSS plugin — the plugin disabled by a `workspace/configuration`
+reply, its data files unresolved — answers differently, passes the floor on its TypeScript
+snapshots, and its degraded answers enrol into a shrink-only ratchet as legitimate entries. That is
+the mechanism 27h was added to stop, in the region 27h does not cover.
+
+**Nothing here is evidence that such a degradation has occurred.** One was hypothesised on
+2026-09-04 to explain a `count=131` → `count=5` movement and was **falsified** (see 27w); the
+cause was the measuring PR's own comparator. That is the reason this row is **[S]** rather than
+**[D]**: it is a structural argument from the calibration's root path and the manifest's
+composition, not an observed miss. **Not having happened is not evidence of being visible.**
+
+**Unmeasured:** whether an HTML/CSS calibration is available at all — upstream's HTML and CSS
+plugin tests are provider-level, and 27h records that a live server over stdio already reproduces
+its TypeScript snapshots at only 79%, so a second root may add a floor nobody can hold.
+
+### Blind spot 27v — the key carries a magnitude, so a divergence that SHRINKS is reported as a new failure [D]
+
+27k records that a key ends in `[count=…,hash=…]`, so a re-baseline's key-level diff cannot be read
+as a verdict. This row is that fact arriving at the other surface: not a JSON diff a human reads
+afterwards, but the **CI verdict a run prints**.
+
+Because the magnitude is inside the key, a divergence whose size changes is not "the same entry with
+a new value" — it is one key retired and a different key enrolled. The two-sided ratchet then reports
+both halves, and the vocabulary of each is the vocabulary of failure. Measured on the
+2026-09-02 `LSP fixture parity current` run of PR #4154:
+
+```
+[lsp-verify] 2 NEW divergence(s):
+  …fixtures/html-smoke-lang|textDocument/completion|0:4|/items:missing-rsvelte[count=5,hash=e1a230944816]
+[lsp-verify] 2 stale ratchet entry/entries:
+  …fixtures/html-smoke-lang|textDocument/completion|0:4|/items:missing-rsvelte[count=131,hash=1f0ad94d5109]
+```
+
+Same unit, same method, same position, same kind. The only thing that moved is that rsvelte was
+missing **5** items where the ratchet recorded **131** — the divergence got 126 items smaller, and
+the gate reported it as a NEW divergence plus a stale entry, which is the same shape a genuine
+regression produces.
+
+The design is right: a ratchet that cannot see a shrink cannot ratchet. What the row records is that
+**the report's vocabulary points the wrong way**, and that this is not a hypothetical — the first
+reader of that run (the author of this row) began by classifying it as a regression, and needed
+three further measurements to establish that the entry had improved. `NEW` names when a key was
+first compared, never which side is worse; this is the one-directional verdict vocabulary class
+applied to magnitude rather than to direction.
+
+**The cheap defence is to print the paired key.** A NEW and a stale key that are identical up to
+their trailing bracket are one moving entry, and the run already holds both.
+
+### Blind spot 27w — the key holds only the size of a difference, so three different causes print identically [D]
+
+A key records `|official ∖ rsvelte|` and nothing else. A movement in that number has at least three
+causes, and the gate's output cannot separate them.
+
+**What separated them was a sibling run on a different tree** — the same check's verdict on another
+PR — not an artifact, not the hash, and not the mechanism the commit log suggested. That is the
+reusable part of this row: when a gate's own artifacts cannot say *why* a number moved, ask what the
+same check reports on a tree that does not carry the change. It costs one API read and no build.
+
+| | cause | what a re-baseline means |
+|---|---|---|
+| (a) | rsvelte's answer gained items | correct — the implementation advanced |
+| (b) | official's answer lost items | **wrong** — bakes an oracle degradation into the ratchet |
+| (c) | the comparator changed how items are paired | correct, but for a different reason: the ruler moved, not the thing measured |
+
+(b) is the one 27h and 27u are about. (c) is the one that was missing from this file, and it is the
+one that occurred. On 2026-09-04 the `count=131 → count=5` movement above was investigated as an
+(a)/(b) question — that framing was published, acted on, and was wrong.
+
+What settled it was none of the things reached for first:
+
+- **The artifact does not carry values.** `lsp-current-fixtures.json` holds `current` as a list of
+  **key strings** (2,116 on the measured run). The 126 items that stopped being missing are not in
+  it, and no artifact of that run holds them.
+- **The hash has no preimage here.** Per 27r, a `count=`-bearing key digests identity keys that are
+  themselves digests. `[count=5,hash=e1a230944816]` is the doubled form.
+- **A named mechanism was wrong on timing.** Two merged commits (`024e8a539` HTML close-tag
+  completions, `63296385b` vendored CSS data) sit exactly where the fixture does and were offered as
+  the cause; both are dated **after** the run that produced the movement. A third hypothesis, that
+  the vendored HTML element table had grown, was falsified by measurement —
+  `html_data/web.rs` is byte-identical (1,198 `name:` fields, 511,078 bytes) at `origin/main`,
+  `024e8a539^` and `63296385b^`.
+
+The discriminator was **the same check on a different PR**: #4289's `Language server` was SUCCESS on
+2026-09-04 against a tree whose ratchet still records `count=131`. A gate that passes elsewhere with
+the old value localises the movement to the measuring branch, which is (c) — and #4154's diff adds
+the completion-item pairing logic that changes it.
+
+Two things generalise. **Ask which of (a), (b) and (c) a movement is before re-baselining**, because
+(a) and (c) both justify the update and (b) forbids it, while all three print the same two lines. And
+when a gate's own artifacts cannot answer, **the cheapest discriminator is the same check's verdict
+on a tree that does not carry the change** — cheaper than an artifact, and it needs no build.
+
+**Unmeasured:** whether any other entry in the ratchet has moved for cause (c) without being noticed,
+which cannot be recovered retrospectively — the pre-change counts are what the ratchet holds, and the
+comparator that produced them is gone once the PR merges.
+
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
 
 **Unit.** For each of ~14,025 manifest entries × 4 targets (`client`, `server`, `client-dev`, `server-dev`,
