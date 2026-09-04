@@ -210,7 +210,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; whitespace inside a statement; anything about an error both sides raise; how the port decided a token was code; whether an output it scores `match` is TypeScript at all (6j) | [S] [D] |
 | 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
-| 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
+| 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted; it compares **one application per side**, so `format(format(x)) != format(x)` is invisible at any corpus size (9e) | [D] |
 | 10 | Formatter parity (Rust svelte.dev) | whole-file bytes vs generated fixture | exercises `--no-native-css`, not the shipped default | [S] |
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
@@ -2836,6 +2836,14 @@ That is not a hole in this gate (it does compare `css.code`). It is a fact about
 (`fmt-verify.mjs:102`). No normalization — this is the one gate that compares raw bytes.
 Population: manifest entries with `kind === 'component'` (`fmt.mjs:170`).
 
+**Provenance.** `compatibility/fmt/meta.json` identifies the ORACLE arm (svelte and svelte.dev
+SHAs, the pattern-corpus tree hash, `oxfmt --version`, the config hash) and is rewritten only
+when the oracle regenerates. The rsvelte arm is rebuilt on every run and was identified by
+nothing until `compatibility/fmt/actual-meta.json` was added: it records the binary's
+**sha256** — the identity — plus the repository revision, the two binary paths, and a `partial`
+flag set by `--only`. The revision is a label and the hash is not: a dirty tree, a stale
+`target/`, or `RSVELTE_FMT_BIN` pointing elsewhere all leave the revision looking right.
+
 **The two sides deliberately do not share a CSS engine.** The oracle reaches
 prettier-plugin-svelte's PostCSS path for an embedded `<style>`; rsvelte-fmt's default reaches
 in-process `oxc_formatter_css`. **[D] #3628:** `.card >> .a` is accepted and respaced by
@@ -2898,6 +2906,35 @@ here so it is not mistaken for a blind spot. Its staleness check is `console.war
 (`fmt-verify.mjs:110-126`).
 
 **Tracked:** #2447. **Closing 9a:** assert `matched + failures.length + excluded === included.length`. Cost: trivial.
+
+### Blind spot 9e — it compares ONE application per side, so non-idempotency is invisible [D]
+
+`fmt-verify.mjs:106` compares `oracle(src)` against `rsvelte(src)`. Neither side is ever fed
+its own output, so `format(format(x)) != format(x)` is outside the comparison at any corpus
+size — an entry can be listed, retired, or green while the formatter does not converge.
+
+**[D]** Measured 2026-09-04 over the 520 `fmt-known-failures.json` entries, by formatting each
+side's own first-pass output a second time and comparing bytes: **rsvelte 28 non-idempotent,
+the oxfmt oracle 8, 3 of them shared — so 25 are rsvelte-only.** The gate scored every one of
+those 28 exactly as it scores an idempotent entry. `fmt.mjs:215` already records that oxfmt is
+not idempotent for every input, which is why the oracle's own 8 have to be measured before any
+of the 28 can be read as a defect: the rsvelte-only figure is 25, not 28.
+
+The compiler side of the repository has the gate this one lacks —
+`scripts/compat-corpus/idempotency-verify.mjs` asserts the property directly rather than
+sampling inputs (`AGENTS.md`, *Transform idempotency*) — and the formatter has no counterpart.
+Filed as **#4301**, which enumerates the paths and gives the per-file sign; the sign is
+**3-valued** (more lines / fewer lines / same line count, different bytes — 5 of the 28), which
+a prediction recorded in that issue got wrong by assuming two.
+
+**Not a claim about the ratchet's causes.** #4301 asserts *containment* — the non-idempotent
+set overlaps the listed set — and not that non-idempotency causes any listed entry. The 520
+were chosen because they are the population this gate already writes to disk, not because a
+non-idempotent formatter is where a divergence must come from.
+
+**Closing 9e:** a second application per side on the entries already materialized, as its own
+verdict rather than folded into the byte comparison. Cost: one extra format per compared entry,
+not per corpus component.
 
 ---
 
@@ -6043,6 +6080,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [28](#28-how-is-an-elements-attribute-list-rendered--d) | How is an element's attribute list rendered? | 2 emitters (+2 copies of `action_arguments`) | **[D]** | 1 defect open |
 | [29](#29-is-a-name-inside-a-named-slots-body-reactive--d) | Is a name inside a named slot's body reactive? | 2 (phase 2 scope fork, phase 3 name lookup) | **[D]** | open |
 | [30](#30-is-this-rule-a-global-block--d) | Is this rule a global block? | 4 predicates, 13 decision sites | **[D]** | 5 defects closed, 1 open |
+| [31](#31-does-this-element-hug-its-content--d) | Does this element hug its content? | 3 | **[D]** | no — ports disagree, output does not |
 
 **Rows 22–27 have bodies below and no line in this table** — measured 2026-09-02 by
 enumerating the `#### <n>.` headings against the table's own `[n]` links. The index is the
@@ -7555,6 +7593,52 @@ lexically nested snippet body, and only `RenderTag` is special-cased. A port tha
 `break` intuition into the descending walker prunes real descendants; one that carries the
 descending intuition upward invents ancestors.
 
+
+### 31. Does this element hug its content? [D]
+
+Upstream (prettier-plugin-svelte, `printChildren` / `shouldHugStart` / `shouldHugEnd`) answers
+once, from the **children**: an inline, non-empty element hugs its start unless its first child
+is a text node beginning with whitespace. rsvelte answers it in **three** places, and they do
+not take the same input.
+
+| port | file | what it reads |
+|---|---|---|
+| Doc builder | `crates/rsvelte_formatter/src/children.rs` — `should_hug_start` / `should_hug_end` | the child **nodes**: `children.first()`, is it text, does that text start with whitespace |
+| markup text printer | `crates/rsvelte_formatter/src/markup/open_tag.rs` — `open_tag_layout` | the **byte after `>`** in the source, plus a `component` test when that byte is `<` |
+| collapse post-pass | `crates/rsvelte_formatter/src/collapse/{hug,doc_build,collect,children_port}.rs` | string edits over already-printed text; two of these files carry comments saying they "Mirror `build_element_doc`" |
+
+**Demonstrated.** Both ports were instrumented to print their own answer and run on the same
+24 inputs — first-child kind (element / comment / `{expr}` / `{#if}` / text / whitespace-leading
+text) × host (`<span>` / `<Comp>`) × content width (fits / overflows). They disagree on exactly
+one shape:
+
+```svelte
+<span><b>bold</b> tail</span>
+```
+
+`children.rs` answers `hug_start = true` (the first child is not text, so the
+whitespace-leading-text exclusion does not apply — which is upstream's rule). `open_tag.rs`
+answers `hug_open = false`, because the byte after `>` is `<` and its extra `component`
+condition is not met. Upstream has no such condition.
+
+**And the divergence does not reach the output on any of those 24 cells** — every one is
+byte-identical to the `oxfmt(svelte: true)` oracle, at both widths. So this row is a real
+inventory entry and **not** a burndown candidate: "two ports answer differently" and "the
+difference is observable in the output" are separate claims, and only the first is established.
+Whether making `open_tag.rs` agree would *break* the two currently-passing cells is
+**unmeasured** — it needs a build, and none was taken.
+
+**Not [M].** The 24 inputs are constructed, not collected. A measured comparison over real
+files needs the two traces paired by **element identity**, which neither probe emits — they
+print a tag name, and a file with four `<span>`s gives four unpaired lines per port. Over the
+72 `>`-boundary carriers the Doc port fires 1,120 times in 51 files and the markup port 5,616
+times in all 72, so the population exists; the pairing does not.
+
+**A third reader of the same decision, in the same file set.** `collapse/mod.rs`'s pass 8 is
+`collapse`'s own invocation of the children port, so the Doc rule is consulted both inside the
+base render and again after it. That is why the `>`-boundary attribution in
+[`fmt-known-failures.md`](KNOWN-FAILURES.md#fmt-known-failures) reports the children-port pass
+as its own stage (15 hunks) rather than folding it into either neighbour.
 
 ### Adding a row, and closing one
 

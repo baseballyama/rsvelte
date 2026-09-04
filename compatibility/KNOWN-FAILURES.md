@@ -1403,6 +1403,145 @@ buckets per entry from the doc would be transcription, not measurement.
 
 Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 515`
 
+### The `>`-boundary population — which stage first produces each hunk's final form
+
+**Read the double derivation before the table.** Two instruments, built on different arm
+pairs, were asked which `>`-boundary hunks the markup base render produces without any
+`collapse` post-pass. They agree exactly, including the per-sign split:
+
+| derivation | arms compared | base render | breaks-later | breaks-earlier | indent-only |
+|---|---|---|---|---|---|
+| positional ablation | collapse **on** vs collapse **off** | 77 | 65 | 9 | 3 |
+| prefix ladder, `k=0` | prefix-`k` vs the **full** pipeline | 77 | 65 | 9 | 3 |
+
+That agreement is the reason the split below is quotable; the table's tidiness is not. It is
+the shape `AGENTS.md` names as the thing that actually fires these rules — one quantity
+produced twice by derivations that share no stage.
+
+**Population.** The 72 ratchet carriers holding at least one `>`-boundary hunk, and the 213
+such hunks in them. A hunk is a `>`-boundary hunk when the first differing line's two sides
+are in a prefix relation **in either direction** and the remainder, after its leading
+whitespace, starts with `>`; plus an `indent-only` hunk whose trimmed line starts with `>`.
+The sign is recorded and never summed away: `breaks-later` is rsvelte's line being the longer
+one, `breaks-earlier` the oracle's.
+
+**Instrument.** `crates/rsvelte_formatter/src/collapse/mod.rs`'s post-pass was made
+prefix-abortable behind an environment variable (not committed — it is a measurement, and a
+flag the tree does not implement reads as absence rather than as error). Arm `k` applies
+collapse passes 1..k and no more; `k=0` applies none. For each hunk, the smallest `k` whose
+output already agrees with the full pipeline **at that line's position** is the stage at which
+the hunk's final form first appears.
+
+Three things were fixed before the ladder was read, because a mis-scaled ladder returns a
+plausible monotone curve with every arm alive:
+
+| end fix | result |
+|---|---|
+| no variable set == the gate's own `compatibility/fmt/actual/` | 72/72 |
+| `k=10` (all passes) == the same | 72/72 |
+| `k=0` == the independently built collapse-off arm | 72/72 |
+
+The third read **71/72** first, and the cause was not the ladder: a probe run to count which
+passes the collapse-off arm reaches had been pointed at the stored arm itself, and
+`rsvelte-fmt` **rewrites its argument in place**, so the probe overwrote the artifact it was
+verifying. Rebuilding all 72 off-arms located the one file; after restoring it the whole
+attribution was recomputed rather than assumed unaffected, and every number below is unchanged.
+
+**Negative control.** 8.9% of all lines in these files (2,174 of 24,351) sit inside a region
+`collapse` changes at all. The 136 hunks below that need `collapse` are 63.8% of 213 — a 7.2x
+enrichment, so the classification is discriminating rather than an artefact of how much of a
+file `collapse` touches. An earlier version of this instrument asked instead whether the line's
+*text* occurs anywhere in the collapse-off output; its background is **92.5%**, which makes its
+"base render" column an upper bound contaminated by coincidental matching, and it was discarded
+rather than reported.
+
+**The split.**
+
+| stage | hunks | breaks-later | breaks-earlier | indent-only |
+|---|---|---|---|---|
+| `k=0` before any collapse pass — the markup base render | 77 | 65 | 9 | 3 |
+| `k=2` pass 1.6 `try_collapse_only` | 49 | 24 | 25 | 0 |
+| `k=4` pass 1.8 block prefix | 4 | 4 | 0 | 0 |
+| `k=6` pass 1.95 recollapse open tag | 2 | 0 | 2 | 0 |
+| `k=8` the children-port final pass | 15 | 15 | 0 | 0 |
+| `k=9` pass 3 `<pre>` / `<textarea>` | 2 | 2 | 0 | 0 |
+| `k=10` pass 4 trim edge whitespace | 64 | 45 | 2 | 17 |
+
+**These are the stages at which a hunk's final form FIRST appears, not the stages that
+uniquely wrote it.** A later pass rewriting the same text to the same bytes leaves the minimal
+`k` where it is, so the table cannot say a stage is the only writer. What it does support is
+the conclusion below, and that rests on exclusion in both directions rather than on the row
+count.
+
+**No single repair closes this population.** The 77 at `k=0` do not move under any change to
+`collapse` — measured directly, they are the hunks whose line is outside every region the
+collapse-off comparison marks as changed. The 136 at `k≥2` do not move under any change to the
+base render alone — they do not exist in the collapse-off output at their final form. Neither
+direction is an inference from the ladder; each is its own comparison.
+
+**Monotonicity was measured, not assumed: 3 of 213 hunks are non-monotone.** A hunk settled at
+one prefix and unsettled at a larger one means two stages are contending over one line, and
+the "minimal prefix" quantity does not apply to it. All three are `breaks-later`, and in all
+three a later pass restores what an earlier one had already reached:
+
+```
+settled at k=0..10      sign            file
+00111111011             breaks-later    appwrite-console/…/commandCenter/panels/ai.svelte
+11000000011             breaks-later    huly/plugins/lead-resources/…/LeadsPresenter.svelte
+11111111011             breaks-later    appwrite-console/…/commandCenter/panels/template.svelte
+```
+
+Two are un-settled by the children-port pass and one by pass 1.6; pass 3 or pass 4 restores
+each. Read those three as the names of the two contending stages rather than as a minimal
+prefix.
+
+**How much of the base-render half is the children port.** `children.rs::build_element_doc` is
+reached in 51 of the 72 carriers (1,120 calls; the markup port's own probe fires 5,616 times,
+which is the positive control that the counter is live). A file-level reach label is useless in
+the positive direction and decisive in the negative one, so it is used only that way:
+
+| | hunks | |
+|---|---|---|
+| base render, in a carrier the Doc port never reaches | **20** | markup alone — settled |
+| base render, in a carrier the Doc port does reach | **57** | markup or Doc — **unmeasured** |
+| the children-port final pass (`k=8`) | 15 | the children port — settled |
+
+There is no environment switch that disables the Doc port alone, so the 57 stay unmeasured
+rather than being apportioned by inference. The 15 at `k=8` are separated because that pass is
+`collapse`'s own invocation of the children port, which the on/off ablation folds into
+`collapse` and the ladder does not.
+
+**A three-line reproduction of the family, found while probing something else.** An inline
+element whose first child is text beginning with whitespace, with content wider than the print
+width:
+
+```svelte
+<div>
+	<span> plain This is a deliberately long run of prose that will not fit inside the print width at all</span>
+</div>
+```
+
+```
+oracle                                    rsvelte
+  <span>                                    <span> plain This is a … the
+    plain This is a … the                   print width at all</span>
+    print width at all</span
+  >
+```
+
+Trimmed, the two sides are `…at all</span` and `…at all</span>`, so this is a `breaks-later`
+`>`-boundary hunk by the rule above. Walked up the ladder it settles at **`k=2`, pass 1.6**,
+and both hug ports answer `hug_start = false` for it — as does upstream's `shouldHugStart`,
+whose rule is that an element whose first child is whitespace-leading text is not hugged. So
+this cell is not a hug disagreement: it is a layout pass 1.6 does not have, namely breaking
+after the open tag and borrowing the closing tag's `>` onto its own line. How many corpus
+entries carry that shape is **unmeasured**.
+
+**What this population is not.** `fmt-known-failures.json` holds 520 entries; the 72 carriers
+here are the ones whose *first differing line* is a `>` boundary, so this is a sub-population
+chosen by a signature, not a cluster of the partition above. An entry is retired only when
+every one of its differing regions is repaired.
+
 ### Entries by DIFF SHAPE — a second axis, and 3 in 4 are layout alone
 
 The table above partitions by **attribution target**. This one partitions the same entries by
@@ -1416,15 +1555,26 @@ artifact. That objection is right about the report and does not reach this axis:
 trees are regenerable by `pnpm run generate-fmt-corpus` and the classification below is a
 measurement of them, not a transcription of a doc.
 
-Each entry is placed by the first of these tests that passes, so the classes are disjoint and
-exhaustive:
+Each entry is placed by the first of these tests that passes, **in the order printed** — which
+is most-specific first, because each test's normalization is strictly weaker than the one above
+it. Read in any other order the classes are still exhaustive and no longer disjoint: deleting
+every whitespace byte subsumes both of the tests below it, so evaluating that one first puts
+393 entries in it and empties the other two.
 
 | n | class | test |
 |---|---|---|
-| 247 | whitespace **placement** only | equal once every whitespace byte is deleted from both |
-| 127 | a real token difference | none of the below |
-| 123 | line breaks only, whitespace-preserving | equal once whitespace runs collapse to one space |
 | 27 | horizontal whitespace only | equal once spaces/tabs collapse and trailing ones are dropped |
+| 122 | line breaks only, whitespace-preserving | equal once whitespace runs collapse to one space |
+| 244 | whitespace **placement** only | equal once every whitespace byte is deleted from both |
+| 127 | a real token difference | none of the above |
+
+The `n` column above disagreed with the partition line below it by 4 (`247`/`123` against
+`244`/`122`) and listed the tests in an order that cannot produce either set of numbers. It was
+re-derived from `compatibility/fmt/{oracle,actual}` rather than copied from the partition line:
+the four classes come out `27 / 122 / 244 / 127` under the order now printed, and `393 / 0 / 0 /
+127` under the order that was printed. This is the recorded shape where a gated half and an
+ungated half rot separately — `known-failures-md-check` reads the partition line and reads no
+prose, so the line stayed right while the table drifted.
 
 Partition of `fmt-known-failures.json` by diff shape: `244 + 127 + 122 + 27`
 
@@ -1468,6 +1618,50 @@ against a locally regenerated corpus), so recompute them rather than citing them
 confirms what the two-sided ratchet asserts and was taken without running the gate.
 
 
+
+### Entries by REGION — a third axis, and CSS diverges in one direction only
+
+The two axes above ask *who owns this* and *what do the outputs disagree about*. This one asks
+**where in the file the disagreement starts**, which is the axis that separates the three
+formatting engines: markup (rsvelte's own printer), embedded JS (oxc) and embedded CSS.
+
+Each entry is placed by the region of the **oracle** line its first hunk starts on. A `<script>`
+or `<style>` delimiter line is counted as **markup**, because the tag itself is emitted by the
+markup printer whatever formats its interior.
+
+| n | region of the first differing line |
+|---|---|
+| 487 | markup |
+| 28 | embedded CSS |
+| 5 | embedded JS |
+
+**The boundary rule decides exactly 3 entries, and both readings were taken.** A first
+derivation counting a delimiter line as belonging to the block it closes gave `5 / 31 / 484`; the
+rule above gives `5 / 28 / 487`. The difference is a set, not a rounding — `open-webui/…
+/VoiceRecording.svelte` and two `sparrow-app` icons, each of whose first differing line is a
+`</style>` inside an **SVG**. Both totals are 520; neither is more measured than the other, and
+the rule is stated here so the number can be recomputed under either.
+
+**And this is a positional attribution, not an engine attribution.** It says which region of the
+oracle text the hunk begins in. It does not say which engine wrote the line — an SVG `<style>`
+element is markup that happens to contain CSS, and whether its interior reaches the CSS engine at
+all is **UNMEASURED**.
+
+Crossed with the diff-shape labels, CSS is the one region whose divergences run in a single
+direction:
+
+| region | breaks-later | breaks-earlier |
+|---|---|---|
+| markup | 233 | 214 |
+| embedded CSS | **11** | **0** |
+| embedded JS | 0 | 0 |
+
+Markup is near-symmetric, and every CSS entry in the prefix-relation class has rsvelte producing
+the **longer** line. **The zero is a measured zero, not an instrument zero**: `breaks-earlier` is
+representable by the same classifier that emits 214 of them in the markup region, and the CSS
+entries reach the same decision point — they simply come out the other way. The remaining 17 CSS
+entries carry labels for which direction is not defined (`intra-line-ws` 11, `indent-only` 4,
+`other` 2).
 
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 

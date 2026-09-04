@@ -57,6 +57,7 @@ const SOURCES = path.join(CORPUS, 'sources');
 const FMT = path.join(CORPUS, 'fmt');
 const ORACLE = path.join(FMT, 'oracle');
 const ACTUAL = path.join(FMT, 'actual');
+const ACTUAL_META_PATH = path.join(FMT, 'actual-meta.json');
 const META_PATH = path.join(FMT, 'meta.json');
 
 const OXFMT_BIN = process.env.OXFMT_BIN || path.join(ROOT, 'node_modules/.bin/oxfmt');
@@ -323,6 +324,27 @@ async function main() {
 				fs.rmSync(stage, { recursive: true, force: true });
 			}
 		}
+		// meta.json is the ORACLE cache key and is not rewritten when only the
+		// binary changes, so the arm's identity has to live beside it.
+		fs.mkdirSync(FMT, { recursive: true });
+		fs.writeFileSync(
+			ACTUAL_META_PATH,
+			JSON.stringify(
+				{
+					rsvelteRevision: await gitSha(ROOT),
+					rsvelteFmtBin: path.relative(ROOT, RSVELTE_FMT_BIN),
+					rsvelteFmtSha256: createHash('sha256')
+						.update(fs.readFileSync(RSVELTE_FMT_BIN))
+						.digest('hex'),
+					oxfmtBin: path.relative(ROOT, OXFMT_BIN),
+					generatedAt: new Date().toISOString(),
+					targets: targets.length,
+					partial: Boolean(ONLY_FILE),
+				},
+				null,
+				'\t',
+			) + '\n',
+		);
 	}
 }
 
