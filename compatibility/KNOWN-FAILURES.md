@@ -1170,7 +1170,20 @@ which is 12 of 90 rather than the majority it looked like. Four reductions of on
 those 12 — its parent's attribute count and length, its nesting depth, its children —
 all come back EQ while the **unreduced file** diverges through the same harness, with
 a passing corpus file as the negative control. So the trigger is outside what those
-four axes carry, and the reduction is what to distrust rather than the carrier. Read the distribution and not the cell: a
+four axes carry, and the reduction is what to distrust rather than the carrier.
+
+**An automatic reduction of one has to pin the divergence CLASS, and "the two
+outputs differ" does not.** A line-level delta debug on that carrier took it from
+469 lines to 105 in 6,547 probes while preserving a predicate that only asked
+whether the outputs differ — and what survived is a *different* divergence in the
+same file (a closing tag hugged as `</div></Footer` + `>`, the same line count on
+both sides, one line over `printWidth` on each), so the result is outside this
+population entirely and says nothing about the entry it came from. A file that
+carries several divergences reduces toward whichever one is cheapest to keep, and
+the cheapest one is rarely the one being studied. The predicate has to be the
+signature — here, the first differing line overflows, the oracle's fits, and the
+oracle's is a proper prefix of rsvelte's — and it costs nothing extra, because the
+reduction is already computing both outputs on every probe. Read the distribution and not the cell: a
 mechanism read off constructed cells is a property of the cells, and this one was
 about to be quoted at 171. The first alignment attempt returned 128 unaligned and was
 the instrument — collapsing a newline to a space makes `</span\n>` and `</span>`
