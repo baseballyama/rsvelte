@@ -4874,6 +4874,29 @@ run reports only *that* two arrays differ. Six of the cluster's recorded hashes 
 source in `scripts/compat-lsp/capability-hashes.test.mjs`, which needs no build, no servers and no
 corpus.
 
+**Read the composition before reading the size, because the two halves are not the same kind of
+work.** Derived from the JSON alone (no gate run, no artifact) — split each key on `|`, drop
+`phase=edit`, and ask whether any surviving segment carries a `:` class:
+
+| | measured at `8c8772a52` |
+|---|---|
+| entries | 23,742 |
+| distinct bases with `phase=edit` collapsed | 11,876 (a **1.999x** collapse — essentially every entry is present on both phases) |
+| entries whose unit is an `aggregate:` real-world key | 21,630 (**91.1%**) |
+| entries whose key carries a divergence class | 2,112 (**8.9%**) |
+| distinct units | 4,041 |
+
+The 91.1%, phase-collapsed, is three methods in near-equal thirds — `textDocument/completion`
+3,632, `textDocument/definition` 3,630, `textDocument/hover` 3,553 — against ~3,600 corpus files.
+So **almost every corpus file diverges on all three**, which is the signature of a small number of
+systemic causes rather than of ten thousand independent ones; the 8.9% that *does* carry a class
+(`extra-rsvelte`, `missing-rsvelte`, `value-mismatch` on `diagnostic`, `documentSymbol`,
+`foldingRange`, `inlayHint`) is the half where the ratchet says what an entry is.
+
+Neither half is a count of defects, and only one of them can be partitioned from the file on disk.
+The numbers above are stamped with the revision because they are a measurement of a tree; recompute
+them rather than citing them.
+
 The real-world corpus uses one compact entry per `(file, method)`, and its key records the divergent
 request count and nothing else. It carried a raw divergent-field count and a digest over every
 sorted `(position, value-aware diff pointers)` observation until two full sweeps of one revision

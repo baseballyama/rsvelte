@@ -3024,6 +3024,45 @@ answer here** — for a cell that must not change, if the answer is the rule und
 than the rule under test, move the cell (here: put the string on a line with no generated call)
 before measuring the fix, not after.
 
+### A cancelled check's STEP states say whether it ran, and the log says nothing at all
+
+A cancelled run is recorded here as indistinguishable from a real regression, and the remedy given
+is to read the rollup rather than `gh pr checks`'s buckets. That gets you as far as *cancelled*,
+and stops one question short: a job cancelled **before it started** and a job **killed while
+running** are the same conclusion and want opposite responses. `gh run view --log-failed` cannot
+separate them — it returns **0 bytes**, because a cancelled job has no failed step, so the
+instrument that would normally explain a red check is silent by construction.
+
+The step list does separate them, and it costs one API call
+(`gh api repos/O/R/actions/jobs/<id> --jq '[.steps[]|{name,conclusion,status}]'`). Measured on one
+job: `Set up job` success, `checkout` success, `setup-rust` **in_progress**, and the remaining
+twelve `pending`, with 35 minutes between the job's `started_at` and its `completed_at`. That is a
+run that was executing and was killed — a toolchain install that hung — not capacity reclaiming a
+queued slot, which leaves every step `pending`. The first wants `gh run rerun <id> --failed`; the
+second wants the queue looked at. Reading `conclusion: cancelled` alone tells you neither, and the
+empty log invites the conclusion that nothing is knowable.
+
+### A step every cell enters is not the discriminator, and the negative cells are what say so
+
+Chasing a comment dropped from generated output, two causes were named by reading rsvelte's own
+source and both were wrong. The first was a strip whose comment names the defect
+(`// Remove trailing line comment if present`) and which **cannot fire** — a broader strip ninety
+lines above it has already run, so the value reaching it never holds a comment. The second was that
+broader strip, which really does delete the comment and really is on the path.
+
+One `eprintln!` per call site over a 2x2 grid killed it: **all four cells enter the same site and
+all four have the comment removed there**, while two of the four show it in the final output. So
+the framing "the comment is dropped in two cells" was wrong — it is stripped in four and
+**restored** in two, and the defect is in the restorer's condition. That inverts the fix: re-emitting
+at the strip would *duplicate* the comment in the two rows something already handles.
+
+What separated the two candidates was the **negative** cells. Both hypotheses predict that a
+diverging cell strips; only one predicts that an *agreeing* cell strips too. The rule this file
+already carries for grids — the cell that kills an explanation is usually the one that passes —
+applies to instrumentation with the same force, and is easier to skip there, because a probe placed
+on the failing input answers immediately and looks conclusive. Probe the cells you expect to be
+boring.
+
 ### Report a measurement as `mechanism | carrier | population | result`, and the mistakes cannot hide
 
 Three failures of the same family landed in one afternoon, and each one is a different column
