@@ -58,6 +58,10 @@ pub(super) fn transform_instance_dev_assign_tail(
                 &analysis.source,
                 &analysis.filename,
                 &component_bindings,
+                &super::assign_dev_ast::InitialResolver {
+                    bindings: &analysis.root.bindings,
+                    source: &analysis.source,
+                },
             )
         },
     )

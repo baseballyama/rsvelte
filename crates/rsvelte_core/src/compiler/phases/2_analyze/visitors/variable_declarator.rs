@@ -489,6 +489,7 @@ fn visit_runes_mode_typed(
                             b.init_expr_json = Some(arg.to_json_string());
                         }
                         b.initial_is_defined = is_expression_defined_typed(arg, arena);
+                        b.initial_span = arg.start().zip(arg.end());
                         b.initial_node_type = Some(arg.type_str().to_string());
                         if b.initial_node_type.as_deref() == Some("Identifier")
                             && let JsNode::Identifier { name, .. } = arg
@@ -539,6 +540,7 @@ fn visit_runes_mode_typed(
                     binding.init_expr_json = Some(init.to_json_string());
                 }
                 binding.initial_is_defined = is_expression_defined_typed(init, arena);
+                binding.initial_span = init.start().zip(init.end());
                 binding.initial_node_type = Some(init.type_str().to_string());
                 if binding.initial_node_type.as_deref() == Some("Identifier")
                     && let JsNode::Identifier { name, .. } = init
@@ -1043,6 +1045,7 @@ fn visit_non_runes_mode_typed(
                 // cannot confirm it is defined without full evaluation.
                 binding.initial_is_defined =
                     id_is_plain_identifier_typed && is_expression_defined_typed(init, arena);
+                binding.initial_span = init.start().zip(init.end());
                 binding.initial_node_type = Some(init.type_str().to_string());
                 if binding.initial_node_type.as_deref() == Some("Identifier")
                     && let JsNode::Identifier { name, .. } = init

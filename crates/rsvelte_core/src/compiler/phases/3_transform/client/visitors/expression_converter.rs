@@ -13,7 +13,7 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::console_wrap;
 use crate::compiler::phases::phase3_transform::client::destructure_transforms::string_expr_has_toplevel_await;
 use crate::compiler::phases::phase3_transform::client::types::{
-    ComponentContext, IdentifierTransform,
+    ComponentClientTransformState, ComponentContext, IdentifierTransform,
 };
 use crate::compiler::phases::phase3_transform::js_ast::ExprId;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -5660,7 +5660,31 @@ fn get_coercive_assign_callee(operator: &str) -> &'static str {
 
 /// Check if a JSON AST expression evaluates to a known primitive value.
 /// This corresponds to `context.state.scope.evaluate(right).is_primitive` in the official compiler.
-fn is_known_primitive_json(value: Option<&Value>) -> bool {
+/// The identifier arm of upstream's `scope.evaluate` (`scope.js:303`), shared
+/// with the settled-script port so the two cannot drift: the lookup is this
+/// port's (scope-aware), the guard and the value are `InitialResolver`'s.
+pub(crate) fn binding_initial_is_primitive(
+    name: &str,
+    state: &ComponentClientTransformState<'_>,
+    depth: u8,
+) -> bool {
+    let Some(binding) = state.get_binding(name) else {
+        return false;
+    };
+    super::super::assign_dev_ast::InitialResolver {
+        bindings: &state.analysis.root.bindings,
+        source: &state.analysis.source,
+    }
+    .binding_is_primitive(binding, depth)
+}
+
+use super::super::assign_dev_ast::MAX_INITIAL_DEPTH;
+
+fn is_known_primitive_json(
+    value: Option<&Value>,
+    state: &ComponentClientTransformState<'_>,
+    depth: u8,
+) -> bool {
     let value = match value {
         Some(v) => v,
         None => return false, // Unknown, assume not primitive
@@ -5681,10 +5705,11 @@ fn is_known_primitive_json(value: Option<&Value>) -> bool {
         // Template literals are strings (primitive)
         "TemplateLiteral" => true,
         // `undefined` identifier is primitive
-        "Identifier" => {
-            let name = get_identifier_name_from_json(value);
-            name == Some("undefined")
-        }
+        "Identifier" => match get_identifier_name_from_json(value) {
+            Some("undefined") => true,
+            Some(name) => binding_initial_is_primitive(name, state, depth),
+            None => false,
+        },
         // A call to one of the `globals` upstream knows yields NUMBER/STRING,
         // and a function value is not UNKNOWN either.
         "CallExpression" => {
@@ -5744,14 +5769,22 @@ fn jsnode_keypath(node: &JsNode, pa: &ParseArena) -> Option<String> {
 }
 
 /// Typed twin of `is_known_primitive_json`, mirroring `scope.evaluate(right).is_primitive`.
-fn is_known_primitive_jsnode(node: &JsNode, pa: &ParseArena) -> bool {
+fn is_known_primitive_jsnode(
+    node: &JsNode,
+    pa: &ParseArena,
+    state: &ComponentClientTransformState<'_>,
+    depth: u8,
+) -> bool {
     match node {
         JsNode::TSAsExpression { expression, .. }
         | JsNode::TSSatisfiesExpression { expression, .. }
         | JsNode::TSNonNullExpression { expression, .. } => {
-            is_known_primitive_jsnode(pa.get_js_node(*expression), pa)
+            is_known_primitive_jsnode(pa.get_js_node(*expression), pa, state, depth)
         }
-        JsNode::Identifier { name, .. } => name.as_str() == "undefined",
+        JsNode::Identifier { name, .. } => {
+            name.as_str() == "undefined"
+                || binding_initial_is_primitive(name.as_str(), state, depth)
+        }
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
@@ -5810,7 +5843,7 @@ fn try_dev_assign_wrap_typed(
     // SAFETY: same reborrow as the caller — `parse_arena` outlives this borrow.
     let pa: &ParseArena = unsafe { &*pa };
 
-    if is_known_primitive_jsnode(right_node, pa) {
+    if is_known_primitive_jsnode(right_node, pa, &context.state, MAX_INITIAL_DEPTH) {
         return None;
     }
 
@@ -5935,7 +5968,7 @@ fn try_coercive_assignment_transform(
     }
 
     // Right side must not be a known primitive
-    if is_known_primitive_json(obj.field("right")) {
+    if is_known_primitive_json(obj.field("right"), &context.state, MAX_INITIAL_DEPTH) {
         return None;
     }
 
