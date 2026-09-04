@@ -11,8 +11,8 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::assignm
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value used by Phase 2 and both transforms.
 use crate::compiler::phases::phase3_transform::server::evaluate::{

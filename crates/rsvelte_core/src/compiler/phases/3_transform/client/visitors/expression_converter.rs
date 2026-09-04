@@ -17,8 +17,8 @@ use crate::compiler::phases::phase3_transform::client::types::{
 };
 use crate::compiler::phases::phase3_transform::js_ast::ExprId;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use compact_str::CompactString;
 use serde_json::Value;
 use std::fmt::Write as _;

@@ -17,8 +17,8 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::declara
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 
 /// Visit a const tag.
 ///

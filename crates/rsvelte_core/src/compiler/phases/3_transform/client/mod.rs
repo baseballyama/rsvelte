@@ -98,12 +98,12 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
-use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
     after_keyword, after_keywords, code_bytes, contains_identifier, find_code, find_rune_code,
     is_ident_byte, skip_opaque,
 };
 use crate::compiler::phases::phase3_transform::shared::rune_shadow;
+use crate::compiler::phases::phase3_transform::shared::substring::Substring;
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -5445,7 +5445,14 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 /// Node types for which upstream `should_proxy` returns false (→ the value is
 /// NOT wrapped in `$.proxy(...)`). An Identifier whose binding resolves to one
 /// of these initial node types is therefore non-proxyable.
-fn is_non_proxy_node_type(nt: &str) -> bool {
+fn is_non_proxy_node_type(nt: &str, identifier_name: Option<&str>) -> bool {
+    // The name is a parameter rather than a caller-side `||` arm because
+    // upstream's `should_proxy` answers `false` for `undefined` in the same
+    // clause as the literal types, and a caller-side arm has been forgotten
+    // twice now: the omission has to be one the compiler rejects.
+    if nt == "Identifier" && identifier_name == Some("undefined") {
+        return true;
+    }
     matches!(
         nt,
         "Literal"
@@ -5700,10 +5707,8 @@ fn transform_module_script_runes_with_target(
                 && (b.initial_is_function
                     || b.initial_node_type
                         .as_deref()
-                        .map(is_non_proxy_node_type)
-                        .unwrap_or(false)
-                    || (b.initial_node_type.as_deref() == Some("Identifier")
-                        && b.initial_identifier_name.as_deref() == Some("undefined")))
+                        .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
+                        .unwrap_or(false))
         })
         .map(|b| b.name.clone())
         .collect();
@@ -7006,7 +7011,7 @@ fn compute_non_proxy_scope(analysis: &ComponentAnalysis) -> NonProxyScope {
             let ok = b
                 .initial_node_type
                 .as_deref()
-                .map(is_non_proxy_node_type)
+                .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
                 .unwrap_or(false);
             let entry = per_name.entry(b.name.clone()).or_insert((true, 0));
             if !ok {
@@ -7071,10 +7076,8 @@ fn compute_non_proxy_scope(analysis: &ComponentAnalysis) -> NonProxyScope {
                 && (b
                     .initial_node_type
                     .as_deref()
-                    .map(is_non_proxy_node_type)
-                    .unwrap_or(false)
-                    || (b.initial_node_type.as_deref() == Some("Identifier")
-                        && b.initial_identifier_name.as_deref() == Some("undefined")))
+                    .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
+                    .unwrap_or(false))
             {
                 return true;
             }
@@ -7930,7 +7933,7 @@ fn transform_instance_script_for_visitors(
                 && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
                 && b.initial_node_type
                     .as_deref()
-                    .map(is_non_proxy_node_type)
+                    .map(|nt| is_non_proxy_node_type(nt, b.initial_identifier_name.as_deref()))
                     .unwrap_or(false)
             {
                 v.push(b.name.clone());
