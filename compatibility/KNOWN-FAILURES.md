@@ -5632,13 +5632,19 @@ The sets are structure rather than noise, which was predicted before it was meas
 answer cannot have an item-level difference, and of the 66 groups carrying `rsvelte-empty` or
 `rsvelte-empty-import-only`, **0** also carry an item-level label.
 
-**Two absences are spelled rather than left blank.** `classifyDivergence` runs on the corpus
-branch only — its context is that branch's source text — so every `differential:` and `expected:`
-entry carries the explicit label `unclassified`. And a label whose terminal has not been
-established carries `null`, which is **not** `rsvelte`: an unestablished terminal and a defect of
-ours are different facts, and writing one as the other puts a sign on an unmeasured quantity.
-Either one blocks its entry from an attribution table, and the checker reports how many entries
-are blocked rather than folding them into a pass — a blank and a zero render the same.
+**An absence is spelled rather than left blank.** A label whose terminal has not been established
+carries `null`, which is **not** `rsvelte`: an unestablished terminal and a defect of ours are
+different facts, and writing one as the other puts a sign on an unmeasured quantity. It blocks its
+entry from an attribution table, and the checker reports how many entries are blocked rather than
+folding them into a pass — a blank and a zero render the same.
+
+The second absence used to be spelled the same way and no longer exists. `classifyDivergence` ran
+on the corpus branch only, so every `differential:` and `expected:` entry carried the explicit
+label `unclassified`; #4317 wired the other three suites, and on the first nightly to carry it the
+`unclassified` population fell from 2,116 entries to **4**, none of them sole. That regeneration is
+also its own positive control: the ratchet came back **byte-identical**, so the artifacts describe
+the same population, and the hover attribution below re-derives to the same 1218 with the same
+seven per-label counts.
 
 The scope of that table is 151 entries from one of sixteen corpus shards. It is now also measured
 ratchet-wide, from the complete 17-artifact set of the `2026-09-02T20:48Z` `lsp-corpus` run. At
@@ -5649,40 +5655,70 @@ ratchet came back byte-identical. #4221 then retired four entries, and the four 
 the sidecar by set difference against the rebased ratchet — which is why the figures below are
 23,742 rather than the 23,746 that control quotes.
 
-All **23,742** entries carry a set, at a mean of **7.36** labels each — 1 to 28, with 3,606 entries
-(15.2%) carrying exactly one. The structural claim survives the change of population and the
+All **23,742** entries carry a set, at a mean of **7.23** labels each — 1 to 29, with 3,606
+entries (15.2%) carrying exactly one. The structural claim survives the change of population and the
 magnitudes do not:
 
 | label | appears on | sole label on |
 |---|---|---|
-| `rsvelte-empty` | 10602 | 148 |
-| `completion-item-set-extra-ts` | 7262 | **0** |
+| `rsvelte-empty` | 10644 | 190 |
+| `completion-item-set-extra-ts` | 7272 | 10 |
 | `completion-text-edit-range-end` | 7262 | **0** |
 | `completion-command-presence-rsvelte-only` | 7260 | **0** |
-| `completion-item-set-missing-mixed` | 7212 | **0** |
+| `completion-item-set-missing-ts` | 7044 | 4 |
 | `completion-item-set-extra-html` | 7024 | **0** |
-| `completion-item-set-missing-ts` | 7018 | **0** |
+| `completion-item-pairing-key-kind+sort-text-mixed` | 7014 | **0** |
+| `completion-commit-characters-presence-rsvelte-only` | 6908 | **0** |
+| `official-empty` | 6792 | 114 |
 | `rsvelte-empty-import-only` | 6720 | 982 |
-| `official-empty` | 6682 | 4 |
 
-**10 of the 72 labels are ever the sole label of an entry** (the shard read 9 of 62), and the
-largest completion labels are still zero — repairing any one of them removes no entry from the
-ratchet.
+**72 of the 124 carried labels are ever the sole label of an entry** (the shard read 9 of 62), and
+the largest completion labels are still zero — repairing any one of them removes no entry from
+the ratchet.
 
 **Two counts of "labels" answer different questions, and the smaller one is the work.** The sidecar
-declares more labels than the artifacts use: **72** are carried by an entry, and because the merge
+declares more labels than the artifacts use: **124** are carried by an entry, and because the merge
 only ever adds a label, every other declared label is carried by zero entries and has nothing behind
 it to establish a terminal for. Sizing the terminal work by the declared vocabulary counts a
 vocabulary, not a population — `pnpm run check:lsp-mechanisms` prints the declared count, so it is
-not restated here. Going the other way, a greedy union over the used labels touches every one of
-those entries with **12** labels, and two of them (`rsvelte-empty`,
-`completion-item-set-extra-ts`) already reach 75.2% — so neither the declared vocabulary nor 72 is
-the number of decisions that would move the ratchet either.
+not restated here.
 
-`unclassified` is 2,120 entries and is the sole label on 2,116 of them, which is the `differential:`
-and `expected:` half spelled out rather than left blank: the classifier runs on the corpus branch
-only. Those are the entries a terminal cannot be established for without a second classifier, not
-entries awaiting a judgement.
+**And the touching cover moved from 12 to 72 without a single entry moving, which is the sharpest
+warning this section carries about that statistic.** Before #4317, a greedy union touched every
+entry with **12** labels — because one of them, `unclassified`, absorbed 2,116 entries by itself.
+Replacing that one label with the real ones it was standing in for took the cover to **72**, and
+that number is now *forced*: a label that is ever the sole label of an entry must be in any
+touching cover, there are 72 such labels, and measured directly they leave **0** entries untouched.
+So the cover is exactly the ever-sole set, and the 12 was a measurement of how coarse the
+classifier was rather than of how few decisions the ratchet needs.
+
+**72 is not that count either, and saying so is the same correction on a new scale.** The gate is a
+**conjunction** over an entry's whole set, so the touching cover systematically understates the
+finishing one — measured here, the 72 labels that touch every entry **finish 6,021 of 23,738
+(25.4%)**, and finishing the rest needs every one of the **111** carried labels that still lack a
+terminal (12 have one, and `unclassified` cannot be given one). Ranked by carriers instead, the top
+12 finish 16.8%, the top 30 finish 73.0% and the top 80 finish 99.2%. Report the two covers
+together or neither: 12, 72 and 111 are three answers to three different questions, and the two
+cheap ones are the ones that come out of a greedy union.
+
+**And the gap between the two covers is not a constant.** The recorded reading elsewhere in this
+tree is a touching cover reaching 43.9% of what a finishing one does; here the same statistic on
+the same ratchet reaches **25.4%**. The population did not move — the 23,742 ids and their order
+are byte-identical across the regeneration — so the only variable is how finely the classifier
+splits a divergence, and a finer split pushes touching *further* from finishing. Quote the two
+coverages, never the ratio between them: the ratio is a property of a classifier version.
+
+`unclassified` is now **4** entries and the sole label of **none**: four `aggregate:corpus`
+completion responses on two `bits-ui` files, each carrying 21 real labels beside it. Those four are
+the residue the wired classifier still cannot name, not a suite it never reaches.
+
+**They are the same four as before, and they were not untouched — the two facts have to be written
+separately.** The set is identical (equal as sets, checked directly), and none of them became
+attributable, which is what the pre-registered prediction claimed. But each lost one real label
+(`completion-item-set-missing-html-close-tag`), 22 real labels down to 21, so "these four do not
+resolve" is true and "these four did not move" is false. A prediction phrased as *unblocked* is
+confirmed here; the same words read as *unchanged* are refuted by the same measurement, and only
+printing the label sets separates them.
 
 Normalization removes only these non-parity fields and path-specific values:
 
