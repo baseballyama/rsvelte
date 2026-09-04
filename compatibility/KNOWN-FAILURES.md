@@ -1185,7 +1185,12 @@ than incidental, which is what separates this from the ratchet-key rule it other
 mirrors: a key that cannot tell two things apart suppresses both **symmetrically**,
 while a reduction actively minimises, so a predicate wider than its goal walks
 *toward* whichever member of the class shrinks furthest. The 105 lines are not a
-coincidence — they are why the wrong answer was persuasive. The predicate has to be the
+coincidence — they are why the wrong answer was persuasive. And the exposure is not
+one carrier's bad luck: counting divergent regions per failing entry (a resync-window
+alignment, so the counts are approximate), **191 of the 524 carry more than one** —
+63.5% have a single region, 17.2% two, and 6.1% six or more. Better than a third of
+this ratchet cannot be reduced safely under a predicate that only asks whether the
+outputs differ. The predicate has to be the
 signature — here, the first differing line overflows, the oracle's fits, and the
 oracle's is a proper prefix of rsvelte's — and it costs nothing extra, because the
 reduction is already computing both outputs on every probe. Read the distribution and not the cell: a
