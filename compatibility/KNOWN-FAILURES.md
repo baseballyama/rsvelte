@@ -1097,6 +1097,20 @@ single digits. So **the template printer's line breaking is nearly the whole
 ratchet**, and the two embedded engines together carry 34 entries — of which the
 five `Entries by mechanism` names above are the CSS-engine boundary.
 
+**Read that cross-tab against a reimplementation of the shape rule, not against the
+partition line above it.** The regions come from anchoring `detail.line` in the oracle
+output; the shape labels come from re-deriving the cluster rule from `fmt-report.json`,
+and that reimplementation disagrees with the partition line by three entries on the
+`breaks-earlier` / `other` boundary (215 / 10 against 212 / 13). Both spellings sum to
+the ratchet's size, so `breaks-earlier|template 215` sits above a partition line whose
+`breaks-earlier` term is 212 — a sub-cell larger than its own total, which is a
+contradiction in the labels and not in the population. Neither set of terms is checked
+by anything: `known-failures-md-check` reads a partition line through `sumExpression`
+and compares only the **sum** to the JSON's length, so the per-cluster numbers are as
+ungated as prose, and its own summary line says the partitions "add up". What the
+region split establishes is the split by region — 489 / 29 / 5 / 1 — which is
+independent of the boundary the two shape rules disagree on.
+
 **The anchoring method changed, and that is most of the difference from the previous
 reading.** The 2026-09-01 measurement located each entry's first differing line back in
 its **source** by a token needle and reported `template 438 | unlocated 48 | script 41 |
