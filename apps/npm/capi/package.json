@@ -1,0 +1,15 @@
+{
+  "name": "@rsvelte/capi",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Version carrier for the C ABI (crates/rsvelte_capi). Never published to npm — the artifacts are the cdylib archives on GitHub Releases under capi-v*.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baseballyama/rsvelte.git",
+    "directory": "crates/rsvelte_capi"
+  },
+  "bugs": {
+    "url": "https://github.com/baseballyama/rsvelte/issues"
+  }
+}

@@ -239,8 +239,14 @@ own workflow ([`.github/workflows/release-capi.yml`](../../.github/workflows/rel
 intentionally independent from the npm/changeset pipeline that ships
 `@rsvelte/compiler` et al.
 
-1. Bump `crates/rsvelte_capi/Cargo.toml`'s `version`.
-2. Open a PR, get it merged.
+1. Write a changeset naming **`@rsvelte/capi`**
+   (`pnpm changeset`, then tick `@rsvelte/capi`). That package
+   ([`apps/npm/capi`](../../apps/npm/capi)) is private and publishes nothing —
+   it exists so a changeset owns this crate's version, and
+   `scripts/release/sync-version.mjs` mirrors it into `Cargo.toml` when the
+   Release PR is cut. Do not edit the crate's `version` by hand; the sync
+   refuses to move it backwards.
+2. Merge the PR, then merge the Release PR Changesets opens.
 3. That is the whole procedure:
    [`capi-autotag.yml`](../../.github/workflows/capi-autotag.yml) sees the
    manifest change on `main`, creates `capi-v<version>` at the merge commit,

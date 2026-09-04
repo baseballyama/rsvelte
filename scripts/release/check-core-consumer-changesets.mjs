@@ -96,9 +96,19 @@ const RULES = [
     prefix: 'crates/rsvelte_language_server/src/',
     requires: ['@rsvelte/language-server'],
   },
-  // NOTE: `crates/rsvelte_capi/**` and `crates/rsvelte_fmt_wasm/**` are
-  // deliberately absent because they are published NOWHERE — neither appears in
-  // release.yml's build matrix, so there is no artifact to leave stale.
+  {
+    prefix: 'crates/rsvelte_capi/src/',
+    // The C ABI is not on npm, but it is published: `release-capi.yml` attaches
+    // five per-OS/arch archives to a `capi-v*` Release. `@rsvelte/capi` is a
+    // private carrier whose only job is to let a changeset decide that version
+    // (see apps/npm/capi/README.md), so naming it here is what turns "the C ABI
+    // changed" into a release rather than into a stale artifact — capi-v0.1.1
+    // was the newest tag for three months for exactly that reason (#4285).
+    requires: ['@rsvelte/capi'],
+  },
+  // NOTE: `crates/rsvelte_fmt_wasm/**` is deliberately absent because it is
+  // published NOWHERE — it does not appear in release.yml's build matrix, so
+  // there is no artifact to leave stale.
   // NOTE: `crates/rsvelte_lint/**` and `crates/rsvelte_lint_bindings/**` are
   // intentionally NOT listed. Their code ships in two separate artifacts — the
   // `@rsvelte/compiler` wasm (`build:wasm:core`, built from the bindings crate)

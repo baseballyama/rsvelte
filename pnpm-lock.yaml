@@ -42,6 +42,8 @@ importers:
         specifier: ^2.7.3
         version: 2.7.3
 
+  apps/npm/capi: {}
+
   apps/npm/compiler:
     dependencies:
       svelte:

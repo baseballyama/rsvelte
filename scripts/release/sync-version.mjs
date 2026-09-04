@@ -79,6 +79,15 @@ const MAPPINGS = [
 		cargoToml: 'crates/rsvelte_language_server/Cargo.toml',
 		lockName: 'rsvelte_language_server',
 	},
+	{
+		// `@rsvelte/capi` publishes nothing; it exists so a changeset can decide
+		// the C ABI's version. `rsvelte_version()` returns this crate's
+		// `CARGO_PKG_VERSION`, and `capi-autotag.yml` cuts `capi-v<version>` from
+		// the same string, so the carrier is what a consumer ends up reading.
+		npm: 'apps/npm/capi/package.json',
+		cargoToml: 'crates/rsvelte_capi/Cargo.toml',
+		lockName: 'rsvelte_capi',
+	},
 ];
 
 // Exact crates.io edges whose requirement must move with the mapped compiler
@@ -132,6 +141,28 @@ function patchCargoToml(cargoRelPath, targetVersion) {
 	}
 	if (match[2] === targetVersion) return;
 	writeFileSync(cargoTomlPath, original.replace(re, `$1${targetVersion}$3`));
+}
+
+function compareVersions(a, b) {
+	const pa = a.split('.').map(Number);
+	const pb = b.split('.').map(Number);
+	for (let i = 0; i < 3; i += 1) {
+		if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) - (pb[i] ?? 0);
+	}
+	return 0;
+}
+
+// A crate version can be hand-edited ahead of its carrier (the C ABI was, before
+// `@rsvelte/capi` existed), and the sync would then silently walk it back.
+function assertNotBackwards({ npm, cargoToml, targetVersion }) {
+	const current = readCargoVersion(cargoToml);
+	if (compareVersions(current, targetVersion) <= 0) return;
+	console.error(
+		`${cargoToml} is at ${current} but ${npm} says ${targetVersion}: syncing would ` +
+			`move the crate backwards. Bump ${npm} (write a changeset) rather than editing ` +
+			'the crate version by hand.',
+	);
+	process.exit(1);
 }
 
 function readCargoVersion(cargoRelPath) {
@@ -191,6 +222,7 @@ const locks = CARGO_LOCKS.map((rel) => ({
 
 for (const { npm, cargoToml, lockName } of MAPPINGS) {
 	const targetVersion = readTargetVersion(npm);
+	assertNotBackwards({ npm, cargoToml, targetVersion });
 	patchCargoToml(cargoToml, targetVersion);
 	for (const lock of locks) {
 		lock.text = patchCargoLock(lock.text, lockName, targetVersion, {
