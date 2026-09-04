@@ -226,7 +226,7 @@ fn extract_paths_typed_recursive(
 }
 
 /// Extract a literal string representation from a JsNode.
-fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
+pub(crate) fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Literal { raw, value, .. } => {
             // A regex has no representation in the `initial` source-text model,
@@ -271,7 +271,10 @@ fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
 }
 
 /// Check if a JsNode expression is guaranteed to produce a defined value.
-fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseArena) -> bool {
+pub(crate) fn is_expression_defined_typed(
+    node: &JsNode,
+    arena: &crate::ast::arena::ParseArena,
+) -> bool {
     match node {
         JsNode::Literal { value, raw, .. } => match value {
             crate::ast::typed_expr::LiteralValue::Null => false,
@@ -1068,7 +1071,7 @@ fn visit_non_runes_mode_typed(
 /// interpolated template literal and arithmetic/unary/conditional expressions
 /// over other bindings — so we keep the AST to evaluate against final binding
 /// kinds. Mirrors upstream keeping `binding.initial` for `scope.evaluate`.
-fn init_needs_expr_json(init: &JsNode) -> bool {
+pub(crate) fn init_needs_expr_json(init: &JsNode) -> bool {
     match init {
         JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
         // A regex is the one literal `Binding::initial` cannot carry, so its

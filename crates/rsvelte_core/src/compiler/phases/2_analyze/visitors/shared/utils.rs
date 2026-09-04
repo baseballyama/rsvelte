@@ -1927,15 +1927,66 @@ pub fn walk_js_statement_node(
                         &mut names,
                         arena,
                     );
+                    // Keyed on the declaration's own position, not on the name: a
+                    // name lookup resolves to a shadowed outer binding and grafts
+                    // this initializer onto it. A destructure describes no one name.
+                    let declared_here = match arena.get_js_node(id_id) {
+                        JsNode::Identifier { name, start, .. } => context
+                            .analysis
+                            .root
+                            .find_binding_by_declaration_start(name, *start)
+                            .map(|idx| (name.to_string(), idx)),
+                        _ => None,
+                    };
+
                     for name in names {
-                        let temp_binding =
+                        let reused = match &declared_here {
+                            Some((n, idx)) if *n == name => Some(*idx),
+                            _ => None,
+                        };
+                        let temp_binding_idx = match reused {
+                            Some(idx) => idx,
+                            None => {
+                                let temp_binding =
                             crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                                 name.clone(),
                                 crate::compiler::phases::phase2_analyze::BindingKind::Normal,
                                 crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
                                 context.function_depth + 1,
                             );
-                        let temp_binding_idx = context.analysis.root.push_binding(temp_binding);
+                                context.analysis.root.push_binding(temp_binding)
+                            }
+                        };
+
+                        // Only the reused record is the one a reference resolves
+                        // to, so only it needs the initializer metadata.
+                        if reused.is_some()
+                            && let Some(init_id) = decl.init()
+                        {
+                            let init = arena.get_js_node(init_id);
+                            let defined =
+                                super::super::variable_declarator::is_expression_defined_typed(
+                                    init, arena,
+                                );
+                            let binding = &mut context.analysis.root.bindings[temp_binding_idx];
+                            if binding.initial_node_type.is_none() {
+                                binding.initial =
+                                    super::super::variable_declarator::extract_literal_string_typed(
+                                        init,
+                                    );
+                                if super::super::variable_declarator::init_needs_expr_json(init) {
+                                    binding.init_expr_json = Some(init.to_json_string());
+                                }
+                                binding.initial_is_defined = defined;
+                                binding.initial_node_type = Some(init.type_str().to_string());
+                                if let JsNode::Identifier {
+                                    name: init_name, ..
+                                } = init
+                                {
+                                    binding.initial_identifier_name = Some(init_name.to_string());
+                                }
+                            }
+                        }
 
                         if let Some(scope) = context.analysis.root.all_scopes.get_mut(context.scope)
                         {
