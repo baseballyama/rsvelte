@@ -6403,12 +6403,13 @@ missing column, an absent domain.** Measured rather than argued:
   population yields **0 keys from 28,178 self-compared pairs** (recorded above). The comparator
   invents none of these, so each one is a real difference between rsvelte's `parse()` and
   official's.
-* Exactly **one** key of the 301 is answered by an upstream report, and its output is attached
+* Exactly **one** key is answered by an upstream report, and its output is attached
   below rather than inferred.
 * **Zero** are `deliberate-divergences`: nothing in this ratchet is a behaviour rsvelte intends to
   keep, and no test pins one.
 
-So 300 of 301 are rsvelte's own unfixed defects, whose only permitted end state is elimination.
+So every entry but that one is an rsvelte defect of its own, whose only permitted end state is
+elimination.
 Writing a block here would mean inventing a target for each, which is the failure the gate exists
 to prevent — a target that is not true is worse than an absent one, because it reads as an answer.
 This ratchet therefore belongs on the pending list until it is burned down, and the default mode's
