@@ -2962,7 +2962,11 @@ absolute-path modifier, so the argument becomes `<abspath>GENTS.md`, git fails t
 and `wc -l` on the empty stdout reports `0` for every tree. Brace the expansion
 (`"${r}:AGENTS.md"`) — quoting alone does **not** help, because the modifier binds to the bare
 parameter name inside double quotes too. The failure was visible only because nothing discarded
-stderr. The command block above was itself written with `$MB:AGENTS.md` unbraced, four
+stderr. **And the hazard is the modifier SET, not `:A`** — `$sha:refs/heads/x` loses `:r`
+(root) and pushes to `…efs/heads/x`, `$B:scripts/…/mechanism.mjs` loses `:s` (substitute) and
+reads `…suiteshanism.mjs`. Three of them were hit here in one day, on a push refspec, a
+`git show` and a `git diff`, by three people who between them had cited this paragraph. Memorise
+the brace, not the letter. The command block above was itself written with `$MB:AGENTS.md` unbraced, four
 paragraphs above the note describing that exact hazard, and returned an empty set with three
 `fatal:` lines on stderr that a `0 collisions` label was printed over. What caught it was the
 injection control returning `0` where it must return `1` — the result and the broken control
@@ -4010,6 +4014,15 @@ Three quantities, and each was read as the next one by someone: **142** labels d
 (a different job). Before reducing a set-valued key to "which members matter", read the
 consuming predicate for its quantifier — `some` and `every` gave covers differing by 2.3x
 here, and the cheaper one is what you compute by reflex.
+
+**Read the `142` as a reading, not as a fact about the tree.** It is the number of keys in
+`lsp-mechanisms.json`'s `mechanisms`, and that file is primary while every count of it here is
+derived — measured again at `d168231700` it is **141**, with 72 labels carried by an entry of
+which 71 are moved by a terminal (`unclassified` is the one that is not). So of the four
+quantities in the table below, three were re-derived and still hold and one had drifted by one;
+which is which is not visible from the prose, only from the JSON. That figure is spelled twice
+in this section — once in the sentence above and once in the table — and **neither spelling is
+gated**, which is the next row's subject.
 
 ### Before suspecting a function is missing a case, count the population where it is CALLED
 
@@ -5393,6 +5406,88 @@ Two things generalize. **A zero is suspected and a plausible number is not** —
 been published. And the fix is not a better pattern: it is a **second pass** over the population
 with the quantity you actually want, which here cost a quarter of one sweep arm and turned the
 `0` into a real absence (`n=64` carriers, none moved) instead of an uninterpretable one.
+
+### The same number spelled twice, and only one spelling is gated
+
+The recorded case of a gated half and an ungated half is two *sentences* — a JSON the checker
+reads and prose it does not — drifting apart. Measured on `parse-ast`'s section by injecting one
+edit at a time and reading the checker's verdict, the split runs through **one number**:
+
+| the figure | injected | verdict |
+|---|---|---|
+| `currently **211 entries**` | 212 | **GATED** — names the file, the declared value and the JSON's |
+| partition line `62 + 44 + … + 1` | one term +1 | **GATED** — sum 212 against a population of 211 |
+| the cluster table's `keys` column, `\| span \| 62 \|` | 63 | **UNGATED** |
+| the same table's `bases` column, `33` | 99 | **UNGATED** |
+| prose `**118 distinct bases**` | 119 | **UNGATED** |
+| prose `a 1.79x collapse` | 9.99x | **UNGATED** |
+
+The `keys` column and the partition line are the *same quantity in two spellings*, adjacent on
+the page, and exactly one of them is defended. So "read the gated half" is not a rule you can
+apply by looking: which spelling the checker consumes is invisible in the text, and here the
+ungated one is the one laid out as a table, which reads as more authoritative.
+
+What follows is a working rule rather than a warning. When a section's numbers are revised,
+**recompute every one of them from the artifact instead of subtracting from the old prose** — the
+run that produced this table also corrected `child-count 1.33x → 1.20x` and `0 of 97 → 0 of 93`,
+neither of which is reachable by arithmetic on the numbers that were there.
+
+### Move a constant, then grep its value — the ports are a concept and the value is a string
+
+A wire format's version had two homes anyone would name — the Rust writer
+(`napi_raw_parse.rs`) and the JS reader (`parse-envelope.js`) — and a **third** that only a grep
+finds: `scripts/dev/test-parse-envelope-validation.mjs`, which hand-assembles an envelope and
+carries the number so that forgetting it makes *that test alone* fail. The person who found it
+was not looking for a third port; they had just changed a constant and mechanically searched for
+its value.
+
+That is the transferable form. This file says repeatedly that one upstream rule has two or more
+ports here, and every instance was found by counting *sites*, which needs someone to already
+suspect the count. A constant is a **string**, so "I moved this value, where else does it live"
+is a search rather than an inventory.
+
+It also has a half the search cannot reach, and the same file demonstrates it. That third copy
+hand-writes not only the version but a **record layout**, and the layout it happens to spell is
+`JS_IDENTIFIER` while the change was to `RestElement` — so it did not need updating this time.
+Had it needed it, the grep for the version number would have found the file and told you nothing
+about the layout inside it. A value-grep closes the copies of the value; the copies of the
+*shape* are still an inventory.
+
+### An old arm can fail for a reason that is not the arm
+
+Staging a previous binary as the negative control for a new cell, it refused before reaching the
+cell: `EnvelopeError: parse envelope: unsupported version 9 (expected 10)`. A control that fails
+for a second reason is not a control — it cannot distinguish "this build lacks the fix" from
+"this build cannot be spoken to at all". The recorded rule that a control must traverse the stage
+the measurement dies on is the same statement pointed at arms rather than at commands.
+
+The instance is kept for its other half: the broken control was *informative anyway*, because the
+version mismatch is what revealed that the change under test needed a version bump of its own —
+a record had grown a field, so the layout had moved. A control that fails cleanly, with a message
+naming the incompatibility, is a measurement of something; it is just not a measurement of what
+you asked.
+
+
+### A branch checkout is a silent parameter of every edit that follows it
+
+Five rows were committed to `docs/agents-md-batch-18`, then `git checkout main` was run for an
+unrelated census, and the next three edits — a `python3` heredoc asserting single occurrences, a
+patch that named its anchor, a heading count — all landed on **`main`**. Every one succeeded.
+The assertions passed because the anchors really were unique; the file really did grow; the
+`git diff --numstat` shape was exactly right.
+
+What caught it was arithmetic on a **shape**, not a verdict: the heading count read `192` where
+`189 + 5 + 3 = 197` was expected. A count that must equal a computed value is a different
+instrument from a count that must merely be plausible — `192` is a perfectly plausible number for
+this file, and only the prediction made it wrong.
+
+The recorded sibling is an agent's shell cwd resetting to the main checkout so `cargo` compiles
+someone else's tree. This is the same fact with `git checkout` as the mover and no build to leave
+a `Compiling <crate> (<path>)` line behind: **nothing in an edit's output names the branch it
+landed on.** The recovery is cheap once you know (`git diff > patch`, `git checkout -- .`, switch,
+`git apply --3way`), and the resulting add/add conflict is the good case — two versions of the
+same insertion point, both wanted, resolved by keeping both. Prefix a branch-sensitive edit with
+`git branch --show-current`, or predict a number the edit must produce and check it.
 
 ### Working with Subagents
 
