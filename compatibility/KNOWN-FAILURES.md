@@ -903,7 +903,7 @@ Svelte structure, oxc for embedded JS, and PostCSS for embedded CSS) and require
 embedded CSS by default, so the ratchet intentionally includes CSS-engine parity
 as well as Svelte-structure parity. The ratchet may only shrink.
 
-**Current baseline: `fmt-known-failures.json`, 524 entries.** The 789-entry
+**Current baseline: `fmt-known-failures.json`, 520 entries.** The 789-entry
 split this paragraph used to give (22 pre-enrolment + 766 expanded population + 1
 pattern-corpus repro) no longer holds: 239 entries left the ratchet in the
 2026-09-01 re-baseline, and the CI report the baseline is derived from carries a
@@ -928,9 +928,9 @@ An id that carries two clusters' divergences at once is filed under its dominant
 one (see *Multiple clusters per id*), so the per-cluster counts below remain a
 partition of the ratchet rather than an over-count:
 
-Partition of `fmt-known-failures.json` by cluster: `246 + 212 + 15 + 36 + 13 + 1 + 1`
+Partition of `fmt-known-failures.json` by cluster: `242 + 212 + 15 + 36 + 13 + 1 + 1`
 
-**The partition is now the mechanical rule applied to all 524 entries**, where it
+**The partition is now the mechanical rule applied to all 520 entries**, where it
 used to be the hand-diagnosed Clusters 1-12 (23 entries) plus the mechanical
 Clusters 20-27 over the rest. The hand-diagnosed sections below are kept — their
 diagnoses did not stop being true — but their ids are now counted inside the
@@ -1336,7 +1336,7 @@ ratchet with 0 new failures; `SystemDefault.svelte` itself stays listed, on the
 **Attribution status of this ratchet.** *Nothing here is an oracle bug* — that
 classification lives in `fmt-oracle-excluded.json` — so **no entry is attributed to
 an `upstream_issues/` report**, and **none is attributed to a
-`deliberate-divergences` section either**. All 524 have to be burned down to zero.
+`deliberate-divergences` section either**. Every listed entry has to be burned down to zero.
 
 The previous version of this paragraph said `5 + 783`, against a ratchet holding
 547. The partition line above and this paragraph state quantities of the same
@@ -1399,9 +1399,9 @@ buckets per entry from the doc would be transcription, not measurement.
 | 2 | the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; the official compiler carries either spelling through verbatim and scopes both identically | none — candidate, not pinned for this facet |
 | 1 | a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; the official compiler's scoped CSS is byte-identical for the two spellings | none — candidate, not pinned for this facet |
 | 1 | continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path keeps the source's uneven depth; the official compiler's scoped CSS is byte-identical for the two spellings | none — candidate, not pinned for this facet |
-| 519 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
+| 515 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
-Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 519`
+Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 515`
 
 ### Entries by DIFF SHAPE — a second axis, and 3 in 4 are layout alone
 
@@ -1437,7 +1437,7 @@ cluster prose agree where they overlap.
 
 Two things this measurement is not. It is **not** an attribution: a layout difference against an
 oracle whose byte output is the goal is still an entry to eliminate, so the mechanism table's
-`519 unattributed` stands unchanged. And the counts are a measurement of a tree (`ac2908043`,
+`515 unattributed` stands unchanged. And the counts are a measurement of a tree (`ac2908043`,
 against a locally regenerated corpus), so recompute them rather than citing them.
 
 **One control came for free: `0` entries are byte-equal now.** The classifier's first test is

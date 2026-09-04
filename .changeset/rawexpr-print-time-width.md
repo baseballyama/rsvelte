@@ -1,5 +1,6 @@
 ---
 "@rsvelte/fmt": patch
+"@rsvelte/language-server": patch
 ---
 
 A broken interpolation's line breaks are chosen at the column it prints at, not at column 0.
