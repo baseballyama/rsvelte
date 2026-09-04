@@ -2027,6 +2027,24 @@ from **3629 to 8120 calls**. A call count is deterministic; a duration on one ru
 is not. When a profile prints both, the counts are where a hypothesis should start,
 and the timings are what needs the repeated, interleaved measurement.
 
+### A process sample is an instant, and "the box is free" is a claim about an interval
+
+The recorded process-detector failures are about the instrument: a filter that selects nothing, a
+count that ignores what you are not responsible for, an observable that cannot separate a designed
+idle from a finish. This one is about the **tense of the report**. Asked whether a build window was
+open, `ps -Ao %cpu=,comm= | sort -rn` was read correctly — no `rustc`, no `cargo`, the top of the
+list was `node` and `WindowServer` — and reported as "cargo/rustc: 0 processes". A peer sampling
+moments later found `rustc` at 99.9% with a parent whose cwd named a third worktree. Both
+measurements are right. The sample was of one instant and was published in the vocabulary of a
+window.
+
+The direction matters, because it is the opposite of the one already recorded here. That row says a
+process being invisible does not mean the run has **finished**; this one says it does not mean the
+run had **not started**, and it is the reading that grants permission rather than withholding it.
+The remedy is not a better sample — no sample answers a question about the future — it is to report
+only what you know: **"I will not start a build"** is a fact about your own intent and is durable;
+"the box is free" is a claim about everyone else's, and it expires before it is read.
+
 ### A quiet-box check that prints is not a quiet-box check
 
 A thread-scaling sweep ran to completion with `mdworker_shared` at **44.7%** — the
