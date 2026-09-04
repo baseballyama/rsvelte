@@ -5324,6 +5324,37 @@ Attribution of `lsp-known-failures.json`:
 |---|---|---|
 | 5 | `deliberate-divergences` | `initialize` capabilities rsvelte declares differently on purpose, each pinned by a test: the `" "` completion trigger, the two `source.fixAll` code-action kinds, `workspace.workspaceFolders`, `positionEncoding`, `diagnosticProvider.identifier` |
 | 1 | `upstream_issues/svelte-language-server-duplicate-completion-trigger-character.md` | upstream lists `"@"` twice in `completionProvider.triggerCharacters`, so the arrays differ as multisets |
+| 1218 | `upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | `textDocument/hover` on the real-world corpus, where every label in the entry's mechanism set is one of the seven renderings that report measures on a plain `.ts` file: `rsvelte-empty-import-only` 1116, `ts-render-union-order` 104, `ts-render-overload-count` 74, `ts-render-import-line` 40, `ts-render-local-modifier` 38, `ts-render-multiple` 16, `ts-render-declaration-order` 4 |
+
+The 1218 are derived from `lsp-mechanisms.json` rather than read off the ratchet key, which for an
+`aggregate:` entry carries no field at all. Twelve labels were given a terminal; the correspondence
+is between the classifier's RULES and the report's differences, not between their names.
+`mechanism.mjs`'s `TS_RENDER_RULES` implements the report's seven renderings one text rewrite each
+(`sortUnions`, `normalizeImportQuotes`, `dropLocalModifier`, `dropJsdocTags`, `dropImportLine`,
+`dropOverloadCount`, `sortDeclarationLines`), `ts-render-multiple` is two or more of the same seven,
+and `rsvelte-empty-import-only` is the degenerate case of one of them — `classifyHover` returns it
+only when official's whole hover is a fenced block holding exactly `import <Name>` and rsvelte's is
+empty, which is that report's dropped origin line with nothing behind it.
+
+**Two of the twelve terminals unblock nothing today and are still required.** The checker's
+predicate is a conjunction — an entry is attributable only when *every* label in its set has a
+terminal — so `completion-commit-characters-presence-rsvelte-only` (6908 carriers),
+`completion-commit-characters-value-extra-paren` (4522) and `completion-item-pairing-key-kind-ts`
+(6748) contribute 0 entries while their carriers still hold a label that has none. Read a label's
+carrier count as what it unlocks *eventually*, never as what a terminal on it buys now: the twelve
+labels above carry 14,010 entries between them and finish 1218 of them. Every count in this block
+is derived from `lsp-mechanisms.json` at `bf6fe3c63` — the sidecar is primary and this prose is
+not gated, so recompute rather than cite; only the table's `n` column is checked, against the
+ratchet, by `attribution-check`.
+
+Three labels were deliberately left at `null` after being examined, because a terminal is where
+re-reading stops and a wrong one is the misclassification nothing corrects. `ts-render` (2483) is
+the residue of the same seven rewrites and `mechanism.mjs` says in the source that it is *not*
+attributed to tsgo — the probe shows `tsc` and `tsgo` agreeing on the shapes it holds, so which
+side is wrong is unmeasured. `completion-is-incomplete` (3894) reads `/isIncomplete:`, a different
+field from the `isNewIdentifierLocation` the commit-characters report is about, and tsgo does return
+`isIncomplete`; the two are one vocabulary apart, not one mechanism. `completion-commit-characters-value-other`
+(2116) is by construction the values that are *not* the report's `(` branch.
 
 This table is **partial**, and its coverage is the sum of its own `n` column against the entry count declared above -- `attribution-check` prints the two side by side, so neither is repeated here. The remaining entries are unattributed, not
 attributed to nothing — the `aggregate:` half carries no field in its key, so what an entry is

@@ -5,34 +5,34 @@
 			"terminal": null
 		},
 		"ts-render-union-order": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-render-quote-style": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-render-local-modifier": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-render-jsdoc-tag": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-render-import-line": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-render-overload-count": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-render-declaration-order": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"rsvelte-empty-import-only": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"official-empty-target-is-the-request": {
 			"terminal": null
 		},
 		"ts-render-multiple": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md"
 		},
 		"ts-type-any": {
 			"terminal": null
@@ -134,7 +134,7 @@
 			"terminal": null
 		},
 		"completion-item-pairing-key-kind-ts": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-completion-item-omits-the-typescript-kind.md"
 		},
 		"completion-item-pairing-key-kind-html": {
 			"terminal": null
@@ -305,13 +305,13 @@
 			"terminal": null
 		},
 		"completion-commit-characters-value-extra-paren": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-completion-omits-the-commit-character-inputs.md"
 		},
 		"completion-commit-characters-value-other": {
 			"terminal": null
 		},
 		"completion-commit-characters-presence-rsvelte-only": {
-			"terminal": null
+			"terminal": "upstream_issues/tsgo-lsp-completion-omits-the-commit-character-inputs.md"
 		},
 		"completion-commit-characters-presence-official-only": {
 			"terminal": null
