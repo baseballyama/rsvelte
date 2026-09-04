@@ -461,8 +461,14 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
             && let Argument::BooleanLiteral(flag) = &call.arguments[1]
             && flag.value
         {
-            match &call.arguments[0] {
-                Argument::AssignmentExpression(assignment) => {
+            // ParseOptions preserve parens, so a source-level `(p.x = 1)` arrives
+            // wrapped and would otherwise reach the assignment visitor, which wraps
+            // inside this setter call rather than around it.
+            match call.arguments[0]
+                .as_expression()
+                .map(Expression::without_parentheses)
+            {
+                Some(Expression::AssignmentExpression(assignment)) => {
                     self.skip.push(assignment.span);
                     self.note_prop_member_mutation(
                         callee.name.as_str(),
@@ -476,7 +482,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
                     self.root_and_path(&assignment.left)
                         .map(|(name, path)| (name, path, Some(assignment.right.span())))
                 }
-                Argument::UpdateExpression(update) => {
+                Some(Expression::UpdateExpression(update)) => {
                     self.skip.push(update.span);
                     self.note_prop_member_mutation(
                         callee.name.as_str(),
