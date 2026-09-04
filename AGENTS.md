@@ -4997,6 +4997,41 @@ it is bounded by the same imagination that wrote the instrument; the values are 
 four above were found by a control and two by nothing but the values — and the two the values
 found were the two whose tables were internally consistent.
 
+### An exclusion list named by key is an enumeration, and the control set does not test it unless it contains the excluded shape
+
+`AGENTS.md` records that a catch-all in place of an enumeration is a claim that you know every
+shape that reaches it. The mirror image costs the same and looks safer: a **named exclusion**.
+
+Measured 2026-09-04. An instrument counting duplicated comment spans walked the parsed AST and
+skipped the key `leadingComments`, because a comment attached there is the same comment already
+counted in `Root.comments`. Its sibling `trailingComments` was not skipped. So every comment
+with a trailing attachment counted twice, and the instrument reported **1,072 duplicate spans in
+379 files** where the true figures are **225 in 183**. Three quarters of its "duplicates" were
+one comment referenced from two places, and the largest bucket — 72% of the total, sitting
+outside any type construct — was an artefact end to end. It was reported as a finding, and a
+peer pulled a PR from a merge queue partly on it.
+
+Four controls passed at every stage, including two negative ones. They had to: **not one control
+cell produced a trailing attachment**, so the exclusion under test was never exercised. The set
+demonstrated that the instrument was self-consistent on the shapes its author thought of, which
+is exactly what the exclusion list already assumed.
+
+What named it was neither a control nor a re-read: printing the **JSON path** of two occurrences
+of one span, which is a different observable from the count.
+
+```
+span 856..902  x2
+    $.comments[2]
+    $.instance.content.body[17].trailingComments[0]
+```
+
+Two rules. **A `!== 'leadingComments'` is an enumeration of one**, and unlike a missing `match`
+arm it cannot fail loudly — the shape it should have excluded is simply counted, and the count
+stays plausible. And **a control set tests an exclusion only if some cell reaches it**: adding
+one line comment with a trailing attachment kills the instrument instantly, and no amount of
+ablating the code finds it, because ablation moves the code and holds the cells. Where an
+instrument excludes by name, write the control that carries each *sibling* of the name.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
