@@ -2265,6 +2265,24 @@ cell — **the constant it held fixed was the branch condition**. That is the sa
 grid whose bindings all share one name, where a name-keyed test cannot see shadowing: adding an
 axis is not what finds these, moving a held constant is.
 
+### A property claim has no oracle attached, so measure the oracle's rate before filing
+
+An output-equality claim gets its oracle for free, because the gate already runs both sides. A
+claim about a **property** — idempotency, termination, determinism — has no gate, so nothing has
+ever run that property against the oracle, and the step gets skipped precisely because the
+property obviously ought to hold.
+
+Measured on 2026-09-04 over 520 live ratchet entries: rsvelte's formatter is non-idempotent on
+**28**, and the oracle is non-idempotent on **8** — 3 shared, 5 that only the oracle fails. Filed
+from the first number alone the report claims 28 defects; the defensible claim is the **25** where
+the oracle converges on its second pass and rsvelte does not. The gate's own normalizer had said
+so in a comment (`scripts/compat-corpus/fmt.mjs`, "oxfmt rewrites in place and is not idempotent
+on all inputs"), and deciding to measure is what sent anyone to read it.
+
+The same measurement falsified a predicted sign domain: increase / decrease is not a partition,
+because 5 of the 28 keep the line count and differ only in bytes. Report the prediction that
+missed beside the one that held — the next person measuring this needs the domain, not the tally.
+
 ### A changed hash is not a fixed file, and five samples can be one sample
 
 Two independent measurements of a fix's blast radius converged on the same two
@@ -3227,6 +3245,27 @@ The check is one line per file: after staging, `diff -q <staged> <real source>`.
 an intention and the diff is an observation — the same split as an agent's shell cwd silently
 resetting. Re-measured from the real sources the answer was *narrower and better supported*,
 which is the usual shape of a retraction that was measured rather than argued.
+
+### A tool that rewrites in place is not a read, so a probe on a stored arm destroys it
+
+An arm is identified by a discriminating probe on its output. That leaves open what the probe
+itself does to the thing being probed. Measured on 2026-09-04: a stored `collapse-off` arm was
+checked with `RSVELTE_HUG_TRACE=1 rsvelte-fmt <arm>/x.svelte`, to count which passes it reached
+— and `rsvelte-fmt` **formats in place**, so the file became "the off output re-formatted with
+collapse on". The arm was correct when staged and wrong when read.
+
+Every entry in the arm-identity table passes here, mechanically: the binary was right, the path
+was right, the `Compiling` line was right, and the file at that path was not what its name said.
+What separates it from a corrupt staged input is that the corruption was **created by the
+verification**, so it did not exist at any moment anyone would think to check.
+
+It surfaced only because the prefix sweep's `k=0` end had been required to reproduce a
+previously measured arm byte-for-byte and came back **71/72**. That requirement existed to pin
+the ladder's calibration and caught an entirely different failure — which is the argument for
+fixing both ends of a sweep even when only the middle is in question.
+
+The rule outlives the tool: `rsvelte-fmt`, `cargo fmt`, `prettier --write`, `sed -i` and every
+`--fix` mode write. Before pointing a command at a stored measurement, ask whether it writes.
 
 ### Three spellings of "I added the stage that loses the verdict"
 
@@ -4628,6 +4667,27 @@ The failure signature is worth separating from the ordinary one: an incomplete i
 **silent**, and a complete instrument over the wrong population produces a **contradictory
 picture** — every line correct, and no line explaining what you observe. When a value has more
 than one way in, enumerate the field's writers before instrumenting any one of them.
+
+### Counting a field's writers closes the field axis and says nothing about which record
+
+The row above closes "who writes this field". It does not close "which record does this name
+resolve to", and a change that moves the second moves every field on that record **with no
+writer moving at all**.
+
+Measured on 2026-09-04, deciding whether two concurrent changes to `2_analyze` interact. One adds
+three writes of a new `Binding::initial_span`; the other fills five different fields on a record
+it obtains by lookup. The field census closes cleanly — the added writes are `initial_span` only
+(positive control: 7 added lines mention it), and the second change writes none of those five —
+and the all-clear was wrong. The second change alters what
+`scope.declarations.insert(name, idx)` points `idx` at, a throwaway record before and the scope
+builder's record after, so the first change's reader (`get_binding(name).initial_span`) can begin
+seeing a value that was previously absent while neither patch touches the other's fields.
+
+An interaction between two changes therefore has two axes, and the cheap one is not sufficient:
+**which code writes the field**, and **which record the lookup returns**. The second is settled by
+reading the resolution chain — `get_binding` → `lookup_binding` → `scope.declarations[name]` →
+`bindings[idx]` — and asking whether either patch moves an entry in it. A grep over field names
+cannot see it, and an all-clear issued from one axis reads exactly like one issued from both.
 
 ### A key with a valueless element leaves ORDER as the only discriminator
 
