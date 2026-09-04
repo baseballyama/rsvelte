@@ -4713,6 +4713,29 @@ one that survives someone else's run landing in the same path — and note the
 sweep here already wrote `arm` and `sha256` at the top level and nobody read
 them, which is the declared-but-unread-field row wearing a different hat.
 
+### The delete-then-wait fix has a premise: that the writer ever reaches the event loop
+
+Deleting an output before launching and waiting on `[ -f out ]` is recorded above as the safe
+completion check, because a crash that writes nothing leaves `-f` false forever and a false green
+becomes a hang. That prescription has a premise, and a synchronous writer breaks it.
+`fs.createWriteStream` opens its fd **on the event loop**; a run-to-completion loop
+(`readFileSync` + a sync `compile`) never turns it, so nothing is created until the loop ends and
+every write sits in the stream's buffer. Measured both directions in one probe:
+
+```
+existsSync DURING sync loop: false
+existsSync AFTER  stream end: true
+```
+
+Meanwhile `process.stderr.write` to a file **is** synchronous on POSIX, so the progress log
+advances against an absent artifact — a contradiction that reads exactly like a broken job.
+
+The safety direction survives: still no false green. What breaks is that *running* and *died
+having written nothing* become the same observation, so a one-sided reader concludes the job is
+dead and kills a live measurement. Two consequences: a sweep in flight cannot be monitored through
+its own output, only through stderr; and stamping `{arm, sha256}` at the head of the file to read
+back later buys nothing, because a crash leaves no file at all.
+
 ### A control must traverse the stage the measurement died on
 
 The recorded rule is that a control has to bypass at least one stage the
