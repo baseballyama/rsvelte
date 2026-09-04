@@ -1166,7 +1166,11 @@ The middle bucket is the informative one — a cell that predicts agreement wher
 carriers disagree is falsified, not merely absent, so the inline row is missing an
 axis. Counting only the shapes a cell reproduces would have reported 20 by folding
 the hug in with the break, and the first carriers printed here all had a hugged `>`,
-which is 12 of 90 rather than the majority it looked like. Read the distribution and not the cell: a
+which is 12 of 90 rather than the majority it looked like. Four reductions of one of
+those 12 — its parent's attribute count and length, its nesting depth, its children —
+all come back EQ while the **unreduced file** diverges through the same harness, with
+a passing corpus file as the negative control. So the trigger is outside what those
+four axes carry, and the reduction is what to distrust rather than the carrier. Read the distribution and not the cell: a
 mechanism read off constructed cells is a property of the cells, and this one was
 about to be quoted at 171. The first alignment attempt returned 128 unaligned and was
 the instrument — collapsing a newline to a space makes `</span\n>` and `</span>`
