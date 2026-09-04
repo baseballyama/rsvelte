@@ -47,9 +47,10 @@ toolchain's input language, which is the language this formatter is fed.
 
 **Blast radius**: one rejected selector voids formatting for the **whole** `<style>`
 block. In the carrier, `.card > .a` sits in the same block and is left unformatted
-beside `.card >> .a`. rsvelte re-indents the block's outer level and passes the CSS
-body through byte-for-byte, so interior tabs and `color : green` spacing survive —
-a partial pass-through, not a verbatim one. Two visible symptoms, one cause.
+beside `.card >> .a`. rsvelte replaces the first leading whitespace character of each line with one indent
+unit and leaves the rest of that line's indentation alone, so interior tabs and
+`color : green` spacing survive — a partial pass-through, not a verbatim one, and the
+rsvelte-side half of this carrier's divergence. Two visible symptoms, one cause.
 
 Two cells differing only in the combinator isolate it:
 
@@ -127,9 +128,15 @@ measures it again, so what would close each of these **here** is written down ra
 than left implicit. None of it is scheduled; what is recorded is that no entry is
 inert.
 
-- **Symptom 1** — a parse failure currently voids the entire `<style>` block. Voiding
-  only the unparseable **rule** would leave the carrier's other three rules formatted.
-  This is an rsvelte-side scope change and does not need upstream.
+- **Symptom 1** — a parse failure currently voids the entire `<style>` block, and what
+  rsvelte does with the block it has given up on **is an rsvelte defect**, independent of
+  whether oxc ever accepts `>>`. The fallback does not pass the body through verbatim: the
+  measured rule is that **the first leading whitespace character of each line is replaced by
+  one indent unit and the rest of that line's indentation survives**, which is one rule
+  covering both a tab-indented source (the carrier) and a space-indented one. So the carrier
+  shows two divergences from one cause. Voiding only the unparseable **rule** would leave the
+  carrier's other three rules formatted; this is an rsvelte-side scope change and does not
+  need upstream.
 - **Symptoms 2 and 3** — these are rewrites, so the rsvelte-side options are narrower:
   either oxc stops normalizing tokens it did not parse as the construct it is
   normalizing, or rsvelte-fmt declines to accept a CSS result that does not round-trip
