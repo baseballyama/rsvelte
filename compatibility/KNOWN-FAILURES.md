@@ -1139,6 +1139,18 @@ the *inner* group as well (`linkedCollectionList` / `.map(String)` / `.includes(
 Whether one break suffices is what indentation changes, which is why the divergence
 looks indentation-shaped.
 
+**That cell is a real class and a small one — 8 of the 171.** Aligning both sides by
+whitespace-stripped text and counting the lines each spends on it partitions the
+carriers: **90 spend ONE line where the oracle breaks** (rsvelte does not break there
+at all), 26 use the same number of lines with different placement, 8 break into fewer
+lines — the constructed cell's class — 46 do not align at all within 40 lines and so
+are not purely a placement difference, and **1 breaks into MORE lines than the
+oracle**, which is the opposite direction. Read the distribution and not the cell: a
+mechanism read off constructed cells is a property of the cells, and this one was
+about to be quoted at 171. The first alignment attempt returned 128 unaligned and was
+the instrument — collapsing a newline to a space makes `</span\n>` and `</span>`
+unequal, which is the very shape under study.
+
 Two readings died on the way, and the second is the one worth recording. "The budget
 is not reduced by the current indentation" fits every cell of that depth sweep and is
 false: the sweep held the expression at 75 columns and varied only the indent, and at
