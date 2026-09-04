@@ -149,7 +149,7 @@ fn format_nested_style(
         tag_indent.clone()
     };
     let width = css_width(options, &body_indent);
-    let dedented = dedent(body);
+    let dedented = dedent(body, &unit);
     let css_output = formatter(&dedented, "css", width).map_err(FormatError::StyleFormat)?;
     let reindented =
         restore_comment_adjacent_selector_indent(body, reindent(&css_output, &body_indent));
@@ -213,7 +213,7 @@ pub fn collect_style_edit(
         tag_indent.to_string()
     };
     let width = css_width(options, &body_indent);
-    let dedented = dedent(body);
+    let dedented = dedent(body, &indent_unit(options));
     let css_output = formatter(&dedented, &lang, width).map_err(FormatError::StyleFormat)?;
     let reindented =
         restore_comment_adjacent_selector_indent(body, reindent(&css_output, &body_indent));
@@ -264,7 +264,7 @@ fn css_width(options: &FormatOptions, body_indent: &str) -> usize {
         .max(20)
 }
 
-fn dedent(s: &str) -> String {
+fn dedent(s: &str, unit: &str) -> String {
     let cont = comment_continuation_flags(s);
     let lines: Vec<&str> = s.lines().collect();
     let mut min_indent = usize::MAX;
@@ -285,7 +285,10 @@ fn dedent(s: &str) -> String {
         } else if l.trim().is_empty() {
             out.push(String::new());
         } else {
-            out.push(l.get(min_indent..).unwrap_or(l).to_string());
+            out.push(normalize_leading_tabs(
+                l.get(min_indent..).unwrap_or(l),
+                unit,
+            ));
         }
     }
     out.join("\n")
@@ -298,6 +301,29 @@ fn dedent(s: &str) -> String {
 /// byte length that slices mid-character).
 fn leading_ascii_ws(l: &str) -> usize {
     l.bytes().take_while(|&b| b == b' ' || b == b'\t').count()
+}
+
+/// Re-express a line's leading tabs as the configured indent unit. The CSS
+/// engine prints code with that unit, so a leading tab reaching here was passed
+/// through verbatim from the source — a rejected body returned unchanged, or a
+/// comment's own leading whitespace inside a declaration value. Prepending the
+/// block indent to it would emit spaces and tabs on one line, which honours
+/// neither `useTabs` setting.
+fn normalize_leading_tabs(line: &str, unit: &str) -> String {
+    let ws = leading_ascii_ws(line);
+    if !line.as_bytes()[..ws].contains(&b'\t') {
+        return line.to_string();
+    }
+    let mut out = String::with_capacity(line.len());
+    for &b in &line.as_bytes()[..ws] {
+        if b == b'\t' {
+            out.push_str(unit);
+        } else {
+            out.push(' ');
+        }
+    }
+    out.push_str(&line[ws..]);
+    out
 }
 
 /// prettier-plugin-svelte keeps the source indentation from a block comment
@@ -526,8 +552,20 @@ mod tests {
         // three bytes and min_indent as two — and `l[2..]` on line 2 sliced the
         // middle of U+00A0 and panicked. Counting only ASCII space/tab keeps
         // min_indent at one, a valid char boundary on both lines.
-        let out = dedent("  a\n \u{a0}b");
+        let out = dedent("  a\n \u{a0}b", "  ");
         assert_eq!(out, " a\n\u{a0}b");
+    }
+
+    #[test]
+    fn dedent_reexpresses_residual_tabs_as_the_indent_unit() {
+        // `min_indent` is a byte count, so a tab-indented body loses exactly one
+        // tab and the deeper levels keep theirs. Whatever the CSS engine passes
+        // through verbatim then carries a tab into a space-indented block.
+        assert_eq!(dedent("\ta {\n\t\tb: c;\n\t}", "  "), "a {\n  b: c;\n}");
+        // With a tab unit the same input is unchanged.
+        assert_eq!(dedent("\ta {\n\t\tb: c;\n\t}", "\t"), "a {\n\tb: c;\n}");
+        // Space-indented input never reaches the conversion.
+        assert_eq!(dedent("  a {\n    b: c;\n  }", "  "), "a {\n  b: c;\n}");
     }
 
     #[test]

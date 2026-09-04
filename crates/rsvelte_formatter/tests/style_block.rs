@@ -98,3 +98,63 @@ fn multiline_comment_interior_does_not_accumulate_indent() {
         "multi-line comment indentation accumulates across passes:\n{once}"
     );
 }
+
+/// Format `src` with a style callback that returns its input unchanged — the
+/// shape of the real fallback for a body the CSS engine rejects, and the only
+/// double that exercises what `dedent` hands the callback.
+fn fmt_verbatim_css(src: &str) -> String {
+    let opts = FormatOptions::default().with_style_formatter(Arc::new(
+        |body: &str, _lang: &str, _width: usize| Ok(body.to_string()),
+    ));
+    format(src, &opts).expect("format ok")
+}
+
+fn mixed_indent_lines(s: &str) -> Vec<&str> {
+    s.lines()
+        .filter(|l| {
+            let ws = &l[..l.len() - l.trim_start_matches([' ', '\t']).len()];
+            ws.contains(' ') && ws.contains('\t')
+        })
+        .collect()
+}
+
+#[test]
+fn a_tab_indented_body_never_mixes_tabs_into_the_block_indent() {
+    // The block indent is spaces under the default `useTabs: false`, and the
+    // body's own levels are tabs. Prepending one to the other left `  \tcolor`.
+    let src = "<div></div>\n\n<style>\n\t.a >> .b {\n\t\tcolor: green;\n\t}\n</style>\n";
+    let out = fmt_verbatim_css(src);
+    assert_eq!(
+        mixed_indent_lines(&out),
+        Vec::<&str>::new(),
+        "tabs survived into a space-indented block:\n{out}"
+    );
+    // Every level is the configured unit, and the body sits one level under the
+    // tag. (The double returns the body verbatim, leading newline included, so
+    // the block opens with a blank line — an artefact of the double, not of the
+    // indentation under test.)
+    assert!(
+        out.contains("\n  .a >> .b {\n    color: green;\n  }\n"),
+        "body not re-indented with the configured unit:\n{out}"
+    );
+}
+
+#[test]
+fn tab_and_space_indented_bodies_format_identically() {
+    // The property, not a transcribed expectation: the indent character a source
+    // happens to use is not an input to the formatted result.
+    let with = |unit: &str| {
+        format!(
+            "<div></div>\n\n<style>\n{u}.a >> .b {{\n{u}{u}color: green;\n{u}}}\n</style>\n",
+            u = unit
+        )
+    };
+    let tabs = fmt_verbatim_css(&with("\t"));
+    let spaces = fmt_verbatim_css(&with("  "));
+    assert_eq!(tabs, spaces, "tab-indented source formatted differently");
+    // A formatter that emitted nothing would satisfy the equality above.
+    assert!(
+        tabs.contains("color: green;"),
+        "no CSS in the output:\n{tabs}"
+    );
+}
