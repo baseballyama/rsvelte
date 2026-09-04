@@ -10,6 +10,20 @@ import { identity } from "./diff.mjs";
 const PAIRING_KEY_FIELDS = ["kind", "sortText", "filterText"];
 const PAIRING_KEY_SLUG = { kind: "kind", sortText: "sort-text", filterText: "filter-text" };
 const COMPLETION_PROVIDERS = ["ts", "html", "html-close-tag", "css", "svg", "emmet", "other", "mixed"];
+// Measured off the payloads: the two sides do not agree on the spelling, so both
+// vocabularies are present and `other` catches a producer neither run carried.
+const DIAGNOSTIC_SOURCES = ["ts", "js", "svelte", "css", "rsvelte", "rsvelte-css", "other", "mixed"];
+const INLAY_HINT_KINDS = ["type", "parameter", "other", "mixed"];
+const INITIALIZE_CAPABILITIES = [
+  "codeActionProvider",
+  "completionProvider",
+  "diagnosticProvider",
+  "executeCommandProvider",
+  "positionEncoding",
+  "semanticTokensProvider",
+  "workspace",
+  "other",
+];
 // `mixed` is `providerOf`'s answer for a SET of items, so a label read off ONE
 // item cannot carry it: `completionProvider` has no such return.
 const SINGLE_ITEM_PROVIDERS = COMPLETION_PROVIDERS.filter((provider) => provider !== "mixed");
@@ -142,6 +156,58 @@ export const MECHANISMS = [
       (suffix) => `completion-item-${field}-${suffix}`,
     ),
   ),
+  // A diagnostic's identity is `(code, source, range.start)`, so the SAME problem
+  // reported under a different spelling is unpaired in both directions: measured,
+  // official says `ts` / `css` / `parse-error` where rsvelte says `js` /
+  // `rsvelte-css` / `js_parse_error`. That is a naming difference and not a
+  // diagnostic one side fails to report, and one label hid both.
+  ...["source", "code", "source-and-code"].map((field) => `diagnostic-identity-${field}`),
+  // A diagnostic with no counterpart at its own position IS a set difference, and
+  // the producer is the axis: a missing `ts` error and a missing `svelte` warning
+  // are two backlogs.
+  ...["missing", "extra"].flatMap((direction) =>
+    DIAGNOSTIC_SOURCES.map((source) => `diagnostic-item-set-${direction}-${source}`),
+  ),
+  // Measured: `style` is reported by both sides with a different `kind`, next to a
+  // symbol only one side reports. Keyed on the NAME, because `kind` is part of the
+  // identity and a kind disagreement would otherwise read as two set differences.
+  "document-symbol-kind",
+  "document-symbol-range",
+  ...["missing", "extra"].map((direction) => `document-symbol-set-${direction}`),
+  "document-symbol-mixed",
+  // A fold that starts on the same line and ends elsewhere is a different
+  // mechanism from a fold one side does not produce at all.
+  ...["end-line", "character", "kind"].map((field) => `folding-range-${field}`),
+  ...["missing", "extra"].map((direction) => `folding-range-set-${direction}`),
+  "folding-range-mixed",
+  // Split by `kind`, because a Type hint and a Parameter hint come from two
+  // different tsgo requests.
+  ...["missing", "extra"].flatMap((direction) =>
+    INLAY_HINT_KINDS.map((kind) => `inlay-hint-set-${direction}-${kind}`),
+  ),
+  "inlay-hint-label",
+  "inlay-hint-kind",
+  "inlay-hint-mixed",
+  // Both sides say "nothing here" and spell it differently -- `null` against `[]`.
+  // Neither side is wrong, so it must not sit inside `rsvelte-empty`.
+  "empty-result-spelling",
+  // A renaming and a genuine set difference in one response: two mechanisms, and
+  // the label has to say so rather than inherit whichever the first item carried.
+  "diagnostic-mixed",
+  // A diagnostic both sides report, differing in one field. `end` is apart from
+  // `start` for the reason the compiler-error gates already split them.
+  ...["range-start", "range-end", "message", "severity", "other"].map(
+    (field) => `diagnostic-item-${field}`,
+  ),
+  // Measured: where the innermost range agrees the chain length differs, and where
+  // it does not the chain length difference is a consequence -- two mechanisms, and
+  // the depth's sign runs both ways across the population.
+  ...["rsvelte-deeper", "rsvelte-shallower"].map((sign) => `selection-range-chain-${sign}`),
+  "selection-range-innermost",
+  "linked-editing-word-pattern",
+  // One label per advertised capability: the ten entries under `initialize` need a
+  // decision each, and a single label would force one terminal onto all of them.
+  ...INITIALIZE_CAPABILITIES.map((name) => `initialize-capability-${name}`),
   UNCLASSIFIED,
 ];
 
@@ -674,6 +740,216 @@ function classifyCompletion(official, rsvelte, difference, region) {
   return UNCLASSIFIED;
 }
 
+// The items `diff.mjs` could not pair, recomputed with its own `identity` so the
+// classifier reasons about exactly the elements the difference reports.
+function unpairedItems(method, pointer, official, rsvelte, difference) {
+  const direction = difference.includes(":missing-rsvelte") ? "missing" : "extra";
+  const left = asList(official);
+  const right = asList(rsvelte);
+  const bucket = (list) => {
+    const map = new Map();
+    for (const value of list) {
+      const key = identity(method, pointer, value);
+      map.set(key, [...(map.get(key) ?? []), value]);
+    }
+    return map;
+  };
+  const mine = bucket(direction === "missing" ? left : right);
+  const other = bucket(direction === "missing" ? right : left);
+  const items = [];
+  for (const [key, values] of mine)
+    items.push(...values.slice((other.get(key) ?? []).length));
+  return { direction, items, otherSide: direction === "missing" ? right : left };
+}
+
+// One label per differing item, then one answer: uniform, or `mixed`. `mixed` is
+// its own answer rather than the first item's, because a run that hides a second
+// mechanism behind the first cannot be told from one that has only the first.
+const uniform = (labels, mixedLabel) => {
+  const set = new Set(labels);
+  return set.size === 1 ? [...set][0] : mixedLabel;
+};
+
+const diagnosticSource = (item) => {
+  const source = String(item?.source ?? "");
+  return DIAGNOSTIC_SOURCES.includes(source) && source !== "mixed" && source !== "other"
+    ? source
+    : "other";
+};
+
+const DIAGNOSTIC_ITEM_FIELDS = [
+  ["range/start", "range-start"],
+  ["range/end", "range-end"],
+  ["message", "message"],
+  ["severity", "severity"],
+];
+
+function classifyDiagnostic(official, rsvelte, difference) {
+  const perItem = /^\/items\/@[^/]+\/(.+?):/.exec(difference);
+  if (perItem) {
+    const path = perItem[1];
+    const hit = DIAGNOSTIC_ITEM_FIELDS.find(([prefix]) => path.startsWith(prefix));
+    return `diagnostic-item-${hit ? hit[1] : "other"}`;
+  }
+  if (!/^\/items:(missing|extra)-rsvelte/.test(difference)) return UNCLASSIFIED;
+  const { direction, items, otherSide } = unpairedItems(
+    "textDocument/diagnostic",
+    "/items",
+    official?.items ?? official,
+    rsvelte?.items ?? rsvelte,
+    difference,
+  );
+  if (items.length === 0) return UNCLASSIFIED;
+  const at = new Map(
+    otherSide.map((item) => [JSON.stringify([item.range?.start, item.severity]), item]),
+  );
+  const labels = items.map((item) => {
+    const twin = at.get(JSON.stringify([item.range?.start, item.severity]));
+    if (!twin) return `diagnostic-item-set-${direction}-${diagnosticSource(item)}`;
+    const source = String(item.source) !== String(twin.source);
+    const code = String(item.code) !== String(twin.code);
+    return source && code
+      ? "diagnostic-identity-source-and-code"
+      : source
+        ? "diagnostic-identity-source"
+        : "diagnostic-identity-code";
+  });
+  const set = new Set(labels);
+  if (set.size === 1) return [...set][0];
+  // Every differing item is a set difference, but from more than one producer.
+  if ([...set].every((label) => label.startsWith("diagnostic-item-set-")))
+    return `diagnostic-item-set-${direction}-mixed`;
+  return "diagnostic-mixed";
+}
+
+const flattenSymbols = (nodes, out = []) => {
+  for (const node of asList(nodes)) {
+    out.push(node);
+    if (node?.children) flattenSymbols(node.children, out);
+  }
+  return out;
+};
+
+function classifyDocumentSymbol(official, rsvelte, difference) {
+  if (!/:(missing|extra)-rsvelte/.test(difference)) return UNCLASSIFIED;
+  const { direction, items } = unpairedItems(
+    "textDocument/documentSymbol",
+    "",
+    official,
+    rsvelte,
+    difference,
+  );
+  if (items.length === 0) return UNCLASSIFIED;
+  const byName = new Map(
+    flattenSymbols(direction === "missing" ? rsvelte : official).map((node) => [node?.name, node]),
+  );
+  // A symbol's identity is its whole value, so a parent is unpaired whenever any
+  // descendant is: compare each flattened node on its own fields, or the wrapper
+  // reports a difference that belongs to its child.
+  const own = ({ children, ...rest }) => JSON.stringify(rest);
+  const labels = [];
+  for (const node of flattenSymbols(items)) {
+    const twin = byName.get(node?.name);
+    if (!twin) labels.push(`document-symbol-set-${direction}`);
+    else if (node.kind !== twin.kind) labels.push("document-symbol-kind");
+    else if (own(node) !== own(twin)) labels.push("document-symbol-range");
+  }
+  if (labels.length === 0) return UNCLASSIFIED;
+  return uniform(labels, "document-symbol-mixed");
+}
+
+function classifyFoldingRange(official, rsvelte, difference) {
+  if (!/:(missing|extra)-rsvelte/.test(difference)) return UNCLASSIFIED;
+  const { direction, items, otherSide } = unpairedItems(
+    "textDocument/foldingRange",
+    "",
+    official,
+    rsvelte,
+    difference,
+  );
+  if (items.length === 0) return UNCLASSIFIED;
+  const at = new Map(otherSide.map((fold) => [fold.startLine, fold]));
+  return uniform(
+    items.map((fold) => {
+      const twin = at.get(fold.startLine);
+      if (!twin) return `folding-range-set-${direction}`;
+      if (fold.endLine !== twin.endLine) return "folding-range-end-line";
+      if (String(fold.kind) !== String(twin.kind)) return "folding-range-kind";
+      return "folding-range-character";
+    }),
+    "folding-range-mixed",
+  );
+}
+
+const inlayHintKind = (hint) =>
+  hint?.kind === 1 ? "type" : hint?.kind === 2 ? "parameter" : "other";
+
+function classifyInlayHint(official, rsvelte, difference) {
+  // `null` on one side and `[]` on the other is both sides answering "no hints".
+  if (/value-mismatch/.test(difference))
+    return classifyEmptySpelling(official, rsvelte) ?? UNCLASSIFIED;
+  if (!/:(missing|extra)-rsvelte/.test(difference)) return UNCLASSIFIED;
+  const { direction, items, otherSide } = unpairedItems(
+    "textDocument/inlayHint",
+    "",
+    official,
+    rsvelte,
+    difference,
+  );
+  if (items.length === 0) return UNCLASSIFIED;
+  const at = new Map(otherSide.map((hint) => [JSON.stringify(hint.position), hint]));
+  return uniform(
+    items.map((hint) => {
+      const twin = at.get(JSON.stringify(hint.position));
+      if (!twin) return `inlay-hint-set-${direction}-${inlayHintKind(hint)}`;
+      if (String(hint.kind) !== String(twin.kind)) return "inlay-hint-kind";
+      return "inlay-hint-label";
+    }),
+    "inlay-hint-mixed",
+  );
+}
+
+// Both sides answering "nothing" in two spellings is not specific to inlay hints,
+// so it is asked of every list-valued method before that method's own rules. An
+// empty side reaches the differ as an element difference, not only as a mismatch.
+function classifyEmptySpelling(official, rsvelte) {
+  if (isEmptyResult(official) && isEmptyResult(rsvelte)) return "empty-result-spelling";
+  if (isEmptyResult(official)) return "official-empty";
+  if (isEmptyResult(rsvelte)) return "rsvelte-empty";
+  return null;
+}
+
+const selectionChainDepth = (range) => {
+  let depth = 0;
+  for (let node = range; node; node = node.parent) depth += 1;
+  return depth;
+};
+
+function classifySelectionRange(official, rsvelte) {
+  const left = asList(official);
+  const right = asList(rsvelte);
+  if (left.length !== 1 || right.length !== 1) return null;
+  if (JSON.stringify(left[0]?.range) !== JSON.stringify(right[0]?.range))
+    return "selection-range-innermost";
+  const delta = selectionChainDepth(right[0]) - selectionChainDepth(left[0]);
+  if (delta === 0) return null;
+  return `selection-range-chain-${delta > 0 ? "rsvelte-deeper" : "rsvelte-shallower"}`;
+}
+
+function classifyGeneric(method, official, rsvelte, difference) {
+  const empty = classifyEmptySpelling(official, rsvelte);
+  if (empty) return empty;
+  if (method === "initialize") {
+    const capability = /^\/capabilities\/([^/:]+)/.exec(difference)?.[1];
+    if (capability)
+      return `initialize-capability-${INITIALIZE_CAPABILITIES.includes(capability) ? capability : "other"}`;
+  }
+  if (method === "textDocument/selectionRange") return classifySelectionRange(official, rsvelte);
+  if (method === "textDocument/linkedEditingRange" && difference.startsWith("/wordPattern:"))
+    return "linked-editing-word-pattern";
+  return null;
+}
+
 export function classifyDivergence(method, official, rsvelte, difference, context) {
   let label;
   if (method === "textDocument/hover") label = classifyHover(official, rsvelte);
@@ -681,7 +957,15 @@ export function classifyDivergence(method, official, rsvelte, difference, contex
     label = classifyDefinition(official, rsvelte, difference, context?.position);
   else if (method === "textDocument/completion")
     label = classifyCompletion(official, rsvelte, difference, requestRegion(context));
-  else label = "unclassified";
+  else if (method === "textDocument/diagnostic")
+    label = classifyDiagnostic(official, rsvelte, difference);
+  else if (method === "textDocument/documentSymbol")
+    label = classifyDocumentSymbol(official, rsvelte, difference);
+  else if (method === "textDocument/foldingRange")
+    label = classifyFoldingRange(official, rsvelte, difference);
+  else if (method === "textDocument/inlayHint")
+    label = classifyInlayHint(official, rsvelte, difference);
+  else label = classifyGeneric(method, official, rsvelte, difference) ?? "unclassified";
   // A label outside the vocabulary would silently create ratchet keys nobody
   // can enumerate, so it is a defect in this module rather than a new class.
   if (!MECHANISM_SET.has(label))

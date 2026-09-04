@@ -608,3 +608,294 @@ test("completion item set: an HTML attribute whose prose links to CSS is still h
     "completion-item-set-extra-html",
   );
 });
+
+const at = (line, character) => ({ line, character });
+const diag = (over) => ({
+  code: 2304,
+  source: "ts",
+  severity: 1,
+  message: "Cannot find name 'a'.",
+  range: { start: at(1, 4), end: at(1, 5) },
+  ...over,
+});
+const report = (...items) => ({ kind: "full", items });
+const MISSING = ":missing-rsvelte-element[count=1,hash=x]";
+const EXTRA = ":extra-rsvelte-element[count=1,hash=x]";
+
+test("diagnostic: one problem under two spellings is a renaming, not a set difference", () => {
+  assert.equal(
+    classify(
+      "textDocument/diagnostic",
+      report(diag({ source: "ts" })),
+      report(diag({ source: "js" })),
+      "/items" + MISSING,
+    ),
+    "diagnostic-identity-source",
+  );
+  assert.equal(
+    classify(
+      "textDocument/diagnostic",
+      report(diag({ code: "parse-error" })),
+      report(diag({ code: "js_parse_error" })),
+      "/items" + MISSING,
+    ),
+    "diagnostic-identity-code",
+  );
+  assert.equal(
+    classify(
+      "textDocument/diagnostic",
+      report(diag({ source: "css", code: "unknownProperties" })),
+      report(diag({ source: "rsvelte-css", code: "css_unknown_property" })),
+      "/items" + MISSING,
+    ),
+    "diagnostic-identity-source-and-code",
+  );
+});
+
+test("diagnostic: a problem with no twin at its own position is a set difference", () => {
+  // The negative side of the renaming rule: same payload, moved so that nothing
+  // on the other side shares its position, and the label has to change.
+  assert.equal(
+    classify(
+      "textDocument/diagnostic",
+      report(diag({ source: "ts", range: { start: at(9, 0), end: at(9, 1) } })),
+      report(diag({ source: "js" })),
+      "/items" + MISSING,
+    ),
+    "diagnostic-item-set-missing-ts",
+  );
+  assert.equal(
+    classify("textDocument/diagnostic", report(), report(diag({ source: "svelte" })), "/items" + EXTRA),
+    "diagnostic-item-set-extra-svelte",
+  );
+});
+
+test("diagnostic: two producers in one response do not inherit the first one's label", () => {
+  assert.equal(
+    classify(
+      "textDocument/diagnostic",
+      report(
+        diag({ source: "ts", range: { start: at(9, 0), end: at(9, 1) } }),
+        diag({ source: "svelte", range: { start: at(8, 0), end: at(8, 1) } }),
+      ),
+      report(),
+      "/items" + MISSING,
+    ),
+    "diagnostic-item-set-missing-mixed",
+  );
+  // A renaming beside a set difference is neither of them.
+  assert.equal(
+    classify(
+      "textDocument/diagnostic",
+      report(diag({ source: "ts" }), diag({ source: "ts", range: { start: at(9, 0), end: at(9, 1) } })),
+      report(diag({ source: "js" })),
+      "/items" + MISSING,
+    ),
+    "diagnostic-mixed",
+  );
+});
+
+test("diagnostic: a paired problem differing in one field names the field", () => {
+  const both = report(diag());
+  assert.equal(
+    classify("textDocument/diagnostic", both, both, "/items/@diagnostic-abc/range/end/character:value-mismatch"),
+    "diagnostic-item-range-end",
+  );
+  assert.equal(
+    classify("textDocument/diagnostic", both, both, "/items/@diagnostic-abc/range/start/line:value-mismatch"),
+    "diagnostic-item-range-start",
+  );
+  assert.equal(
+    classify("textDocument/diagnostic", both, both, "/items/@diagnostic-abc/message:value-mismatch"),
+    "diagnostic-item-message",
+  );
+  assert.equal(
+    classify("textDocument/diagnostic", both, both, "/items/@diagnostic-abc/tags:value-mismatch"),
+    "diagnostic-item-other",
+  );
+});
+
+const sym = (name, kind, line, children) => ({
+  name,
+  kind,
+  range: { start: at(line, 0), end: at(line, 9) },
+  selectionRange: { start: at(line, 0), end: at(line, 1) },
+  ...(children ? { children } : {}),
+});
+
+test("documentSymbol: a symbol both sides report with a different kind is not a set difference", () => {
+  assert.equal(
+    classify("textDocument/documentSymbol", [sym("style", 8, 0)], [sym("style", 2, 0)], MISSING),
+    "document-symbol-kind",
+  );
+  assert.equal(
+    classify("textDocument/documentSymbol", [sym("style", 8, 0)], [sym("style", 8, 3)], MISSING),
+    "document-symbol-range",
+  );
+  assert.equal(
+    classify("textDocument/documentSymbol", [sym("style", 8, 0), sym("h1", 5, 1)], [sym("style", 8, 0)], MISSING),
+    "document-symbol-set-missing",
+  );
+  assert.equal(
+    classify("textDocument/documentSymbol", [sym("style", 8, 0), sym("h1", 5, 1)], [sym("style", 2, 0)], MISSING),
+    "document-symbol-mixed",
+  );
+});
+
+test("documentSymbol: a nested symbol is matched by name, not by its depth", () => {
+  // Without flattening, `h1` is invisible on the right and reads as a set
+  // difference; the two sides disagree only about its kind.
+  assert.equal(
+    classify(
+      "textDocument/documentSymbol",
+      [sym("body", 8, 0, [sym("h1", 5, 1)])],
+      [sym("body", 8, 0, [sym("h1", 12, 1)])],
+      MISSING,
+    ),
+    "document-symbol-kind",
+  );
+});
+
+const fold = (startLine, over) => ({
+  startLine,
+  startCharacter: 0,
+  endLine: startLine + 2,
+  endCharacter: 4,
+  ...over,
+});
+
+test("foldingRange: a fold that starts on the same line is not one the other side lacks", () => {
+  assert.equal(
+    classify("textDocument/foldingRange", [fold(0)], [fold(0, { endLine: 5 })], MISSING),
+    "folding-range-end-line",
+  );
+  assert.equal(
+    classify("textDocument/foldingRange", [fold(0)], [fold(0, { startCharacter: 2 })], MISSING),
+    "folding-range-character",
+  );
+  assert.equal(
+    classify("textDocument/foldingRange", [fold(0)], [fold(0, { kind: "region" })], MISSING),
+    "folding-range-kind",
+  );
+  assert.equal(classify("textDocument/foldingRange", [fold(0)], [fold(7)], MISSING), "folding-range-set-missing");
+  assert.equal(classify("textDocument/foldingRange", [], [fold(7)], EXTRA), "folding-range-set-extra");
+  assert.equal(
+    classify("textDocument/foldingRange", [fold(0), fold(7)], [fold(0, { endLine: 5 })], MISSING),
+    "folding-range-mixed",
+  );
+});
+
+const hint = (line, over) => ({ position: at(line, 4), kind: 1, label: ": number", ...over });
+
+test("inlayHint: the hint kind is in the set-difference label, and a paired hint is not one", () => {
+  assert.equal(classify("textDocument/inlayHint", [], [hint(0)], EXTRA), "inlay-hint-set-extra-type");
+  assert.equal(
+    classify("textDocument/inlayHint", [], [hint(0, { kind: 2 })], EXTRA),
+    "inlay-hint-set-extra-parameter",
+  );
+  assert.equal(classify("textDocument/inlayHint", [hint(0)], [], MISSING), "inlay-hint-set-missing-type");
+  assert.equal(
+    classify("textDocument/inlayHint", [hint(0)], [hint(0, { label: ": string" })], MISSING),
+    "inlay-hint-label",
+  );
+  assert.equal(classify("textDocument/inlayHint", [hint(0)], [hint(0, { kind: 2 })], MISSING), "inlay-hint-kind");
+  assert.equal(
+    classify("textDocument/inlayHint", [hint(0), hint(7)], [hint(0, { label: ": string" })], MISSING),
+    "inlay-hint-mixed",
+  );
+});
+
+test("an empty side is the same answer however it is spelled", () => {
+  assert.equal(classify("textDocument/inlayHint", null, [], "/:value-mismatch"), "empty-result-spelling");
+  assert.equal(classify("textDocument/inlayHint", null, [hint(0)], "/:value-mismatch"), "official-empty");
+  assert.equal(classify("textDocument/inlayHint", [hint(0)], null, "/:value-mismatch"), "rsvelte-empty");
+  // A method with no rules of its own reaches the same test through an element
+  // difference rather than a value mismatch.
+  assert.equal(
+    classify(
+      "textDocument/formatting",
+      [{ newText: "unformatted\n", range: { start: at(0, 0), end: at(0, 11) } }],
+      [],
+      MISSING,
+    ),
+    "rsvelte-empty",
+  );
+  assert.equal(classify("textDocument/codeAction", [], [{ kind: "quickfix", title: "x" }], EXTRA), "official-empty");
+});
+
+const chain = (...ranges) =>
+  ranges.reduce((parent, range) => (parent ? { range, parent } : { range }), undefined);
+const span = (a, b) => ({ start: at(0, a), end: at(0, b) });
+
+test("selectionRange: the chain's depth and its innermost range are two mechanisms", () => {
+  const officialChain = chain(span(0, 21), span(4, 15), span(11, 14));
+  const deeper = chain(span(0, 21), span(0, 16), span(4, 15), span(11, 14));
+  assert.equal(
+    classify("textDocument/selectionRange", [officialChain], [deeper], EXTRA),
+    "selection-range-chain-rsvelte-deeper",
+  );
+  assert.equal(
+    classify("textDocument/selectionRange", [deeper], [officialChain], MISSING),
+    "selection-range-chain-rsvelte-shallower",
+  );
+  assert.equal(
+    classify("textDocument/selectionRange", [officialChain], [chain(span(0, 21), span(4, 15), span(11, 13))], MISSING),
+    "selection-range-innermost",
+  );
+  // The negative side: an identical chain has no depth difference to report.
+  assert.equal(classify("textDocument/selectionRange", [officialChain], [officialChain], MISSING), "unclassified");
+});
+
+test("linkedEditingRange: the word pattern is its own mechanism", () => {
+  const ranges = [{ start: at(0, 1), end: at(0, 4) }];
+  assert.equal(
+    classify(
+      "textDocument/linkedEditingRange",
+      { ranges, wordPattern: "(-?\\d*\\.\\d\\w*)|([^\\s]+)" },
+      { ranges, wordPattern: "[-_:A-Za-z0-9$]+" },
+      "/wordPattern:value-mismatch",
+    ),
+    "linked-editing-word-pattern",
+  );
+  assert.equal(
+    classify(
+      "textDocument/linkedEditingRange",
+      { ranges, wordPattern: "x" },
+      { ranges: [{ start: at(0, 2), end: at(0, 4) }], wordPattern: "x" },
+      "/ranges:missing-rsvelte-element[count=1,hash=x]",
+    ),
+    "unclassified",
+  );
+});
+
+test("initialize: each advertised capability is its own decision", () => {
+  const caps = (over) => ({ capabilities: { ...over } });
+  assert.equal(
+    classify(
+      "initialize",
+      caps({ completionProvider: { triggerCharacters: [".", " "] } }),
+      caps({ completionProvider: { triggerCharacters: ["."] } }),
+      "/capabilities/completionProvider/triggerCharacters:missing-rsvelte-element[count=1,hash=x]",
+    ),
+    "initialize-capability-completionProvider",
+  );
+  assert.equal(
+    classify(
+      "initialize",
+      caps({ semanticTokensProvider: { legend: { tokenTypes: ["class"] } } }),
+      caps({ semanticTokensProvider: { legend: { tokenTypes: [] } } }),
+      "/capabilities/semanticTokensProvider/legend/tokenTypes:missing-rsvelte-element[count=1,hash=x]",
+    ),
+    "initialize-capability-semanticTokensProvider",
+  );
+  // A capability nobody has enumerated must not be filed under one that is.
+  assert.equal(
+    classify(
+      "initialize",
+      caps({ inlineCompletionProvider: true }),
+      caps({ inlineCompletionProvider: false }),
+      "/capabilities/inlineCompletionProvider:value-mismatch",
+    ),
+    "initialize-capability-other",
+  );
+});
