@@ -128,7 +128,6 @@ const shouldPublish = needMp || needOvsx;
 
 const MP_STATE = {
   'query-failed': '(query failed)',
-  'name-reserved': '(none, but the name is reserved)',
   superseded: '(newer release is live)',
 };
 
@@ -256,13 +255,6 @@ if (needMp) {
   }
 } else if (mpReason === 'query-failed') {
   console.log('Marketplace state unknown (query failed) — skipping.');
-} else if (mpReason === 'name-reserved') {
-  console.log(
-    `::warning::${id} is unlisted on the Marketplace while its name stays ` +
-      'reserved, so no publish can succeed. Restore it at ' +
-      `https://marketplace.visualstudio.com/manage/publishers/${extPkg.publisher} ` +
-      'or rename it in apps/npm/vscode/package.json.',
-  );
 } else {
   console.log('Marketplace already up to date — skipping.');
 }

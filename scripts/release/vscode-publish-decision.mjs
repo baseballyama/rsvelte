@@ -27,26 +27,20 @@ export function cmp(a, b) {
  * @param {boolean} input.force            VSCODE_PUBLISH_FORCE
  * @param {string[]} input.platforms       every (version, targetPlatform) pair
  * @returns {{ missingMp: string[], needMp: boolean, needOvsx: boolean,
- *             mpReason: 'query-failed' | 'name-reserved' | 'superseded' | 'publish' | 'up-to-date' }}
+ *             mpReason: 'query-failed' | 'superseded' | 'publish' | 'up-to-date' }}
  */
 export function decide({ target, mp, ovsx, hasOvsx, force, platforms }) {
-  const mpAbsent = mp !== null && mp.latest === null && mp.live.size === 0;
-  const ovsxAtOrAhead =
-    ovsx !== null && ovsx.latest !== null && cmp(ovsx.latest, target) >= 0;
-  // The gallery holding no record of an extension whose target version is
-  // already on Open VSX is a contradiction only one state produces: the
-  // Marketplace copy is unlisted (removed, or failed validation) while its name
-  // stays reserved. `vsce publish` answers that with "already exists", which no
-  // retry moves — so publishing here fails every push until a human restores or
-  // renames the extension. A new version still gets a real attempt, because
-  // Open VSX is then behind and this guard does not fire.
-  const nameReserved = mpAbsent && ovsxAtOrAhead;
+  // An empty gallery beside an Open VSX copy at or ahead of the target was read
+  // as "the name is reserved" and skipped. Measured on run 33888597354, that
+  // pair has at least two producers: one publish put 0.7.0 on Open VSX and was
+  // rejected by the Marketplace for its DISPLAY name, leaving exactly this
+  // state. Skipping on it locks the retry out at that version forever — and a
+  // skip is neither success nor failure, so it hides the problem rather than
+  // reporting it. An empty gallery is published into; vsce gives the verdict.
   const superseded = mp !== null && Boolean(mp.latest) && cmp(target, mp.latest) < 0;
 
   const missingMp =
-    mp === null || nameReserved || superseded
-      ? []
-      : platforms.filter((p) => !mp.live.has(p));
+    mp === null || superseded ? [] : platforms.filter((p) => !mp.live.has(p));
   const needMp = force || missingMp.length > 0;
 
   const needOvsx =
@@ -58,7 +52,6 @@ export function decide({ target, mp, ovsx, hasOvsx, force, platforms }) {
   let mpReason = 'up-to-date';
   if (needMp) mpReason = 'publish';
   else if (mp === null) mpReason = 'query-failed';
-  else if (nameReserved) mpReason = 'name-reserved';
   else if (superseded) mpReason = 'superseded';
 
   return { missingMp, needMp, needOvsx, mpReason };

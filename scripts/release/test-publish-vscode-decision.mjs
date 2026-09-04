@@ -4,8 +4,9 @@
 // Every case below pairs a state the guard must publish from with the
 // near-miss it must skip, so a guard that always answered one way fails here.
 // The negative controls are the two that have actually shipped a red `main`:
-// a failed query read as "not published", and an unlisted-but-name-reserved
-// Marketplace read as "not published".
+// a failed query read as "not published", and an empty gallery read as a
+// reserved name — an inference with more than one producer, so it skipped a
+// publish that had to be attempted.
 
 import { cmp, decide } from './vscode-publish-decision.mjs';
 
@@ -94,16 +95,22 @@ check('a newer live release supersedes ours → skip', () => {
   assert(d.mpReason === 'superseded', `reason was ${d.mpReason}`);
 });
 
-check('gallery empty while Open VSX already has the target → name reserved, skip', () => {
+check('gallery empty while Open VSX already has the target → still attempt', () => {
+  // This pair used to be read as "the name is reserved" and skipped. Measured
+  // on run 33888597354 it has a second producer: one publish put the target on
+  // Open VSX and the Marketplace rejected it for its DISPLAY name. Skipping
+  // here locked the retry out of that version permanently, and a skip is
+  // neither success nor failure, so it reported nothing.
   const d = run({ mp: { latest: null, live: live() }, ovsx: { latest: '0.5.2' } });
-  assert(d.needMp === false, 'publishing here is rejected as "already exists"');
-  assert(d.missingMp.length === 0, 'nothing may be packaged for the Marketplace');
-  assert(d.mpReason === 'name-reserved', `reason was ${d.mpReason}`);
+  assert(d.needMp === true, 'an empty gallery is published into');
+  assert(d.missingMp.length === PLATFORMS.length, 'every platform is missing');
+  assert(d.mpReason === 'publish', `reason was ${d.mpReason}`);
 });
 
-check('name-reserved does NOT swallow the next version', () => {
-  // Open VSX behind the target is the discriminating half: the same empty
-  // gallery must still produce a real publish attempt for a new version.
+check('an empty gallery with Open VSX BEHIND is the same answer', () => {
+  // The discriminating half of the pair above: whichever way Open VSX sits, the
+  // Marketplace decision is now a function of the Marketplace state alone. If a
+  // future guard reintroduces an Open VSX term, exactly one of these two moves.
   const d = run({
     target: '0.5.3',
     mp: { latest: null, live: live() },
