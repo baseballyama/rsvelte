@@ -731,24 +731,28 @@ pub(crate) fn transform_client(
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
-        // A comment copied out of a TypeScript-only declaration is first
-        // flushed when upstream enters the located component block. Its
-        // printer then revisits the first generated location and flushes that
-        // first comment once more; later erased comments have already advanced
-        // the cursor and are printed only once. Preserve the exact copied
-        // comment here so the text fallback can reproduce that two-step cursor
-        // behaviour without guessing from comment contents or script mode.
-        let repeated_projection_comment = instance_script
+        // A comment inside a `TSTypeLiteral`'s braces, before its first member,
+        // is printed TWICE by upstream: acorn-typescript's `tsLookAhead` leaves
+        // `isLookahead` unset, so the comment fires `onComment` during the
+        // speculative parse and again after the rewind. Phase 2 marks exactly
+        // those, so the text fallback reproduces the count without guessing
+        // from comment contents or script mode.
+        let repeated_projection_comments: Vec<String> = instance_script
             .source_projection
             .as_ref()
-            .filter(|projection| !projection.reemitted_comment_outputs.is_empty())
-            .and_then(|projection| projection.reemitted_comment_outputs.first())
-            .and_then(|range| {
-                instance_script
-                    .raw
-                    .get(range.start as usize..range.end as usize)
+            .map(|projection| {
+                projection
+                    .repeated_comment_outputs
+                    .iter()
+                    .filter_map(|range| {
+                        instance_script
+                            .raw
+                            .get(range.start as usize..range.end as usize)
+                    })
+                    .map(str::to_owned)
+                    .collect()
             })
-            .map(str::to_owned);
+            .unwrap_or_default();
         let can_borrow_projection = needs_projection
             && memmem::find(instance_raw.as_bytes(), b"import").is_none()
             && !instance_raw.as_bytes().contains(&b'\r');
@@ -804,10 +808,17 @@ pub(crate) fn transform_client(
             body_projection,
             &mut saw_prop_member_mutation,
         );
-        if let Some(comment) = repeated_projection_comment
-            && let Some(start) = transformed.find(&comment)
-        {
-            transformed.insert_str(start + comment.len(), &format!("\n{comment}"));
+        // Search forward from the previous insertion so two identical comment
+        // texts are matched to two different occurrences rather than both to
+        // the first one.
+        let mut from = 0usize;
+        for comment in &repeated_projection_comments {
+            let Some(rel) = transformed[from..].find(comment.as_str()) else {
+                continue;
+            };
+            let at = from + rel + comment.len();
+            transformed.insert_str(at, &format!("\n{comment}"));
+            from = at + comment.len() + 1;
         }
         rest_excludes_hoists = extract_rest_excludes_hoists(&mut transformed);
         super::profile::record_script_text(super::profile::timer_elapsed(_script_start));
@@ -4515,6 +4526,7 @@ fn compose_script_projection(
         // projection. Erased-comment attachment remains source-relative and is
         // still needed when the retained body contains the following prop.
         reemitted_comment_outputs: Vec::new(),
+        repeated_comment_outputs: Vec::new(),
         erased_leading_comments_before_export_props: source_projection
             .erased_leading_comments_before_export_props
             .clone(),
