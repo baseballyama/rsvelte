@@ -98,6 +98,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `grass-slash-list-divided-inside-a-nested-rule.md` | connorskees/grass | — | unrecorded |
 | `grass-tailwind-important-apply.md` | connorskees/grass | — | unrecorded |
 | `lsp-render-tag-kills-every-template-definition.md` | sveltejs/language-tools | — | unrecorded |
+| `oxc-formatter-css-rejects-a-repeated-combinator-svelte-accepts.md` | oxc-project/oxc (`oxc_formatter_css`) | — | unrecorded |
 | `oxfmt-const-tag-ending-in-a-line-comment.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-each-pattern-default-unknown-node-type.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
 | `oxfmt-single-quoted-attribute-containing-a-double-quote.md` | oxc-project/oxc (`oxfmt`) | #3567 | unrecorded |
@@ -129,16 +130,17 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `tsgo-lsp-completion-omits-the-commit-character-inputs.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 | `tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 
-**26** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
+**27** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
 against `eslint-plugin-svelte`, one against `svelte-eslint-parser`), two out of the
 `two-ports-inventory.md` row 21 shadow probes, seven out of the SCSS-backend burndown — five
 covering every unit `scss-known-failures.json` lists as `grass-rejects-accepted`, plus the two
 classes in that ratchet whose output is not render-neutral (a hoisted declaration, and a slash list
-divided inside a nested rule) — and three out of the LSP differential campaign. The remaining eight
+divided inside a nested rule) — and three out of the LSP differential campaign. The remaining nine
 are later: two `oxfmt` CSS reports from the formatter-parity corpus, one against `esrap`, one
 against `language-tools`, and one against `prettier-plugin-svelte` from the formatter-parity
 burndown (an inline element in a text run overflows `printWidth`, and re-formatting the output is
-not a fixed point), and three against `svelte2tsx` from the svelte2tsx-ratchet burndown.
+not a fixed point), one against `oxc_formatter_css` from the same burndown (a repeated combinator
+the Svelte compiler accepts), and three against `svelte2tsx` from the svelte2tsx-ratchet burndown.
 None of them names an issue internally — `—` records that, rather than
 inventing a number, and `check-upstream-issues.mjs` holds the count above to the table so this
 paragraph cannot go stale the way it already had (it read "Fifteen" against 19 rows).
