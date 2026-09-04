@@ -1248,6 +1248,49 @@ buckets per entry from the doc would be transcription, not measurement.
 
 Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 519`
 
+### Entries by DIFF SHAPE — a second axis, and 3 in 4 are layout alone
+
+The table above partitions by **attribution target**. This one partitions the same 524 entries by
+**what the two outputs actually disagree about**, which answers a different question: not *who
+owns this* but *how much of the ratchet is the formatter laying the same tokens out differently*.
+
+It is derived from `compatibility/fmt/{oracle,actual}` alone — both trees materialise in full
+locally (33,644 files each) and **`fmt-report.json` is not needed for it**, which matters because
+the paragraph above declines the seven-bucket split on the grounds that the report is a build
+artifact. That objection is right about the report and does not reach this axis: the two output
+trees are regenerable by `pnpm run generate-fmt-corpus` and the classification below is a
+measurement of them, not a transcription of a doc.
+
+Each entry is placed by the first of these tests that passes, so the classes are disjoint and
+exhaustive:
+
+| n | class | test |
+|---|---|---|
+| 247 | whitespace **placement** only | equal once every whitespace byte is deleted from both |
+| 127 | a real token difference | none of the below |
+| 123 | line breaks only, whitespace-preserving | equal once whitespace runs collapse to one space |
+| 27 | horizontal whitespace only | equal once spaces/tabs collapse and trailing ones are dropped |
+
+**397 of 524 — 75.8% — agree on every token and differ only in layout.** The `247` and the `123`
+are separated on purpose: collapsing runs to one space preserves a text node's single space, so a
+`123` entry is a difference the HTML would render identically, while a `247` entry can move a
+space in or out of rendered text. Only `127` carry a token neither side's layout can explain.
+
+The first fingerprints of the `127` are dominated by the same close-tag hug Cluster 1 describes
+(`O: >` against `A: </div>`, 25 entries, the largest single shape), so the shape axis and the
+cluster prose agree where they overlap.
+
+Two things this measurement is not. It is **not** an attribution: a layout difference against an
+oracle whose byte output is the goal is still an entry to eliminate, so the mechanism table's
+`519 unattributed` stands unchanged. And the counts are a measurement of a tree (`ac2908043`,
+against a locally regenerated corpus), so recompute them rather than citing them.
+
+**One control came for free: `0` entries are byte-equal now.** The classifier's first test is
+`O === A`, which no entry passed, so nothing in this ratchet is stale, which independently
+confirms what the two-sided ratchet asserts and was taken without running the gate.
+
+
+
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
 The most common failure. Prettier prints whitespace-sensitive inline elements
