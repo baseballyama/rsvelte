@@ -4213,6 +4213,32 @@ fn convert_this_param(
     Value::Object(obj)
 }
 
+/// TSESTree models a rest parameter as a `RestElement` in `params`, carrying the
+/// parameter's own type annotation.
+fn convert_rest_parameter(
+    arena: &ParseArena,
+    rest: &oxc_ast::ast::FormalParameterRest,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + rest.span.start as usize;
+    let end = offset + rest.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("RestElement".to_string()));
+    push_span_fields(&mut obj, start, end, line_offsets);
+    obj.set_field(
+        "argument",
+        convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets),
+    );
+    if let Some(type_ann) = &rest.type_annotation {
+        obj.set_field(
+            "typeAnnotation",
+            convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+        );
+    }
+    Value::Object(obj)
+}
+
 fn convert_ts_function_like_params(
     arena: &ParseArena,
     this_param: Option<&oxc_ast::ast::TSThisParameter>,
@@ -4237,21 +4263,7 @@ fn convert_ts_function_like_params(
     }
 
     if let Some(rest) = &params.rest {
-        let start = offset + rest.span.start as usize;
-        let end = offset + rest.span.end as usize;
-        let argument =
-            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets);
-        let mut obj = Map::new();
-        obj.set_field("type", Value::String("RestElement".to_string()));
-        push_span_fields(&mut obj, start, end, line_offsets);
-        obj.set_field("argument", argument);
-        if let Some(type_ann) = &rest.type_annotation {
-            obj.set_field(
-                "typeAnnotation",
-                convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
-            );
-        }
-        out.push(Value::Object(obj));
+        out.push(convert_rest_parameter(arena, rest, offset, line_offsets));
     }
 
     out
@@ -10534,9 +10546,7 @@ fn convert_ts_module_declaration_as_node(
 /// Convert a `FunctionDeclaration` to a typed `JsNode` (program context, no -1
 /// offset adjustment). Returns `None` for TypeScript `declare function` and
 /// overload signatures (no body) so the caller can drop them, mirroring the
-/// `remove_typescript_nodes` filter. Note: rest parameters are not emitted (only
-/// `params.items`); callers that need rest-param fidelity must route through the
-/// `JsNode::Raw` Value form (`convert_declaration_for_program`).
+/// `remove_typescript_nodes` filter.
 fn convert_function_declaration_as_node(
     arena: &ParseArena,
     func_decl: &oxc_ast::ast::Function,
@@ -10554,13 +10564,33 @@ fn convert_function_declaration_as_node(
         arena.alloc_js_node(expr_to_node(id_expr))
     });
 
-    // Convert params
-    let params: Vec<JsNode> = func_decl
-        .params
-        .items
-        .iter()
-        .map(|param| expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets)))
+    // TSESTree models a `this` parameter as an ordinary leading `params[0]`.
+    let mut params: Vec<JsNode> = func_decl
+        .this_param
+        .as_deref()
+        .map(|p| {
+            expr_to_node(Expression::from_json(convert_this_param(
+                arena,
+                p,
+                offset,
+                line_offsets,
+            )))
+        })
+        .into_iter()
         .collect();
+    params.extend(
+        func_decl.params.items.iter().map(|param| {
+            expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
+        }),
+    );
+    if let Some(rest) = &func_decl.params.rest {
+        params.push(expr_to_node(Expression::from_json(convert_rest_parameter(
+            arena,
+            rest,
+            offset,
+            line_offsets,
+        ))));
+    }
 
     // Convert body
     let body_node = func_decl.body.as_ref().map(|body| {
@@ -10683,9 +10713,9 @@ fn convert_class_declaration_as_node(
 /// for the plain-JS `VariableDeclaration` / `FunctionDeclaration` /
 /// `ClassDeclaration` cases (so an `export <decl>` declaration routes through the
 /// typed analyze walker instead of `JsNode::Raw`). Cases whose byte-identical
-/// serialization needs the Value form — TS `declare`/overload functions, rest
-/// parameters (the typed function path drops `params.rest`), abstract / declare
-/// / implements / decorated classes, and all TS-only declarations — fall back to
+/// serialization needs the Value form — TS `declare`/overload functions,
+/// abstract / declare / implements / decorated classes, and all TS-only
+/// declarations — fall back to
 /// `JsNode::from_value(convert_declaration_for_program(...))`.
 fn convert_declaration_for_program_as_node(
     arena: &ParseArena,
@@ -10698,9 +10728,7 @@ fn convert_declaration_for_program_as_node(
         Declaration::VariableDeclaration(var_decl) => {
             convert_variable_declaration_as_node(arena, var_decl, offset, line_offsets)
         }
-        // The typed function path emits only `params.items`, so a rest parameter
-        // would be dropped relative to the Value form — keep Raw in that case.
-        Declaration::FunctionDeclaration(func_decl) if func_decl.params.rest.is_none() => {
+        Declaration::FunctionDeclaration(func_decl) => {
             convert_function_declaration_as_node(arena, func_decl, offset, line_offsets)
                 .unwrap_or_else(|| {
                     JsNode::from_value(convert_declaration_for_program(
@@ -10866,29 +10894,7 @@ fn convert_declaration_for_program(
                     .clone()
             }));
             if let Some(rest) = &func_decl.params.rest {
-                let rest_start = offset + rest.span.start as usize;
-                let rest_end = offset + rest.span.end as usize;
-                let argument = convert_binding_pattern_for_param(
-                    arena,
-                    &rest.rest.argument,
-                    offset,
-                    line_offsets,
-                );
-                let mut rest_obj = Map::new();
-                rest_obj.set_field("type", Value::String("RestElement".to_string()));
-                rest_obj.set_field("start", Value::Number((rest_start as i64).into()));
-                rest_obj.set_field("end", Value::Number((rest_end as i64).into()));
-                if let Some(loc) = create_loc(rest_start, rest_end, line_offsets) {
-                    rest_obj.set_field("loc", loc);
-                }
-                rest_obj.set_field("argument", argument);
-                if let Some(type_ann) = &rest.type_annotation {
-                    rest_obj.set_field(
-                        "typeAnnotation",
-                        convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
-                    );
-                }
-                params.push(Value::Object(rest_obj));
+                params.push(convert_rest_parameter(arena, rest, offset, line_offsets));
             }
             obj.set_field("params", Value::Array(params));
 

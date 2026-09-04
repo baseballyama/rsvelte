@@ -293,6 +293,41 @@ for (const [surface, ast] of [
 	);
 }
 
+// A rest parameter's type annotation belongs to the `RestElement`, not to its
+// `argument`, so it is the one field a port can only lose here. The untyped cell
+// is the negative control: asserting presence alone passes for a decoder that
+// invents the key. Values printed from `submodules/svelte/.../compiler/index.js`.
+const restTyped = '<script lang="ts">function f(...a: any[]) {}</script>';
+const restPlain = '<script>function g(...b) {}</script>';
+for (const [surface, of] of [
+	['parse()', (src) => JSON.parse(r.parse(src, { modern: true }))],
+	['decodeParseEnvelope()', (src) => r.decodeParseEnvelope(r.parseEnvelope(src, { modern: true }))],
+]) {
+	const typed = of(restTyped)?.instance?.content?.body?.[0]?.params;
+	assert(
+		`${surface} gives a typed rest parameter one RestElement`,
+		typed?.length === 1 && typed[0]?.type === 'RestElement',
+		`${typed?.length} ${typed?.[0]?.type}`,
+	);
+	assert(
+		`${surface} spans the rest parameter 29..40 with argument a`,
+		typed?.[0]?.start === 29 && typed[0].end === 40 && typed[0].argument?.name === 'a',
+		`${typed?.[0]?.start}..${typed?.[0]?.end} ${typed?.[0]?.argument?.name}`,
+	);
+	assert(
+		`${surface} puts the annotation on the RestElement, not on its argument`,
+		typed?.[0]?.typeAnnotation?.typeAnnotation?.type === 'TSArrayType' &&
+			typed[0].argument?.typeAnnotation === undefined,
+		`${typed?.[0]?.typeAnnotation?.typeAnnotation?.type} arg=${JSON.stringify(typed?.[0]?.argument?.typeAnnotation)}`,
+	);
+	const plain = of(restPlain)?.instance?.content?.body?.[0]?.params;
+	assert(
+		`${surface} gives an untyped rest parameter no annotation`,
+		plain?.[0]?.type === 'RestElement' && plain[0].typeAnnotation === undefined,
+		`${plain?.[0]?.type} ${JSON.stringify(plain?.[0]?.typeAnnotation)}`,
+	);
+}
+
 // 8. Lenient compiler options — `runes` accepts any JS value (mirroring the
 //    upstream `parametric` validator, so tooling passing `null`/`undefined`/a
 //    number never crashes the compile), and a wrong-typed option is rejected
