@@ -1,5 +1,44 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.11
+
+### Patch Changes
+
+- 865392d: A namespace reaches the public `parse()` AST with its name, its modifiers and a real `TSModuleBlock`.
+
+  `TSModuleDeclaration` carried only a span and a body: no `id`, no `declare`, no `global`, and the body was a `BlockStatement` spanning the whole declaration where acorn-typescript emits a `TSModuleBlock` spanning the braces. A dotted `namespace A.B { … }` — which acorn-typescript parses as `A` whose body is `B` — was flattened into a block holding one statement.
+
+  The binary `parseEnvelope` format carries the same three fields and a new `TSModuleBlock` tag, so the Rust writer and the JS decoder that ship together in `@rsvelte/vite-plugin-svelte-native` stay in step.
+
+  The strip is unchanged in behaviour: it now walks through a nested declaration to the innermost block, so a non-type node is still rejected in the dotted form, which upstream cannot even reach (it reads `node.body.body` and throws a raw `TypeError`).
+
+- 3841964: `parse()` emits `TSDeclareFunction` instead of dropping the statement.
+
+  A function with no body — a `declare function`, or an overload signature — was filtered out
+  of the AST entirely. Upstream keeps it: acorn-typescript spells it `TSDeclareFunction`, with
+  no `body` key at all, `declare` stamped only where the keyword is written, and `returnType`
+  where one is annotated. `compile()` still erases it, the way upstream's
+  `TSDeclareFunction() { return b.empty; }` visitor does.
+
+  Dropping a statement is not one missing node. The AST comparison walks a body array index by
+  index, so every sibling after the hole pairs against the wrong node and reports divergences
+  that belong to neither.
+
+  `returnType` was never emitted on an ordinary `FunctionDeclaration` either; it is the same
+  field, so both are carried now. The binary parse envelope grew two fields, and its writer and
+  its decoder ship in one fixed group because a decoder that ships ahead of its writer reads the
+  wrong offsets.
+
+- 9c77127: `skip_opaque` is now guarded on its opener byte before being called. It answers
+  `None` for every byte outside `` ` ``, `'`, `"` and `/`, and is too large to
+  inline, so without the guard every ordinary byte of a script paid a call to be
+  told no. Client compile is 0.65% faster and server 1.91%, with output
+  byte-identical on the corpus.
+
+  The guard is four immediate compares rather than a 256-entry lookup table: the
+  table form measured 1.62% _slower_ on the client, where the per-byte load costs
+  more than the branch saves, while being 2.41% faster on the server.
+
 ## 0.3.10
 
 ### Patch Changes

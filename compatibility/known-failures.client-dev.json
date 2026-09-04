@@ -1,4 +1,3 @@
 [
-	"svelte-bits/src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte"
 ]

@@ -1,5 +1,15 @@
 # @rsvelte/fmt
 
+## 0.7.16
+
+### Patch Changes
+
+- 30b3e3e: A block header wider than 320 columns is rejoined onto one line. `format_inline_expression` prints at oxc's `LineWidth::MAX`, so an expression past that breaks whatever width the caller asks for, and the rejoin that follows had no arm for an operator chain — a `{:else if}` of 338 columns came out across five lines where the oracle keeps one.
+- 2585909: Hug an element whose first child is a comment, so a following child that breaks no longer overwrites the comment's `-->`.
+- 3a31d93: Embed a `<script>` body the way the oracle does — as a Doc under `indent([hardline, body])` — instead of formatting it to text at a narrowed width and re-indenting the text.
+
+  The narrowing was an approximation of the indent: the body was formatted one indent level narrower so a line exactly `printWidth` wide would not overflow once re-indented. That gets the budget right and the _measurement_ wrong, because prettier does not reduce `printWidth` for embedded content at all — it keeps the body as a Doc, wraps it in `indent(...)`, and prints it as part of the outer document, so every line is measured at the column it will actually occupy.
+
 ## 0.7.15
 
 ### Patch Changes

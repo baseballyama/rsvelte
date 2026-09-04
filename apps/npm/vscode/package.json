@@ -1,7 +1,7 @@
 {
   "name": "rsvelte-vscode",
   "displayName": "rsvelte",
-  "version": "0.4.1",
+  "version": "0.6.0",
   "private": true,
   "description": "Rust-powered Svelte language support with formatting, linting and TypeScript 7 features",
   "categories": [

@@ -3681,11 +3681,11 @@ that became unparseable only with `dev: true`; #3877 corrected the component
 callback tail-comment insertion point, so both its parse and output entries have
 been retired.
 
-### Client dev (`known-failures.client-dev.json`, 2 entries)
+### Client dev (`known-failures.client-dev.json`, 1 entry)
 
-Partition of `known-failures.client-dev.json` by verdict: `2`
+Partition of `known-failures.client-dev.json` by verdict: `1`
 
-- **2 — the generated JS differs.**
+- **1 — the generated JS differs.**
 
 `svelte-tweakpane-ui/…/Point.svelte` left this target with `client`'s, for the same two rules;
 the paragraph under `client` above is the one description.
@@ -3725,11 +3725,30 @@ placement is exactly what `ast_equiv_batch` cannot represent, so the gate rescue
 code line matches. Both keeps came from the same stricter-than-the-gate local sweep, and both
 were caught by CI's stale-entry check rather than by any local instrument.
 
-The other moved unit is `svelte-bits/…/MetallicPaint.svelte`, whose verdict did **not** change:
-its location is now right and its remaining line is the other half — upstream declines to wrap
-the innermost link of `a[i] = a[j] = a[k] = gray` because `scope.evaluate(gray)` follows the
-binding's initializer to `Math.round(…)` and calls it primitive, which rsvelte answers from the
-expression's shape alone. A moved unit is not a retired entry.
+`svelte-bits/…/MetallicPaint.svelte` left this target when the dev `$.assign` predicate started
+resolving an identifier through its binding's initializer. **The paragraph this replaces had
+already named the mechanism and declined to retire the entry on it** — upstream's
+`scope.evaluate` follows `gray`'s initializer to `Math.round(…)` and calls it primitive, so it
+does not wrap the innermost link of `a[i] = a[j] = a[k] = gray`, and rsvelte answered from the
+expression's shape alone. Three things the port needed that the mechanism does not say. The
+guard is `!binding.updated`, and `updated` is a **getter** over `mutated || reassigned`
+(`scope.js:174`) which phase 2 keeps as two fields, so a port reading one of them folds a mutated
+binding and stops wrapping where upstream wraps — the opposite direction from the defect under
+repair. The value cannot come from `binding.initial`, which carries a payload for a **literal
+alone**: measured by dumping the whole record for five declaration shapes rather than by reading
+its doc comment, and the field that does carry it (`initial_span`) had three writers on the merge
+base, **all three inside the prop block**. And the axis is the **host**, not the binding: an
+assignment in a `<script>` function reaches `assign_dev_ast.rs` while one in a template-inline
+arrow reaches `expression_converter.rs`, two ports of the one upstream arm — a 24-row grid that
+held the host at `<script>` scored the second port's fix as moving nothing, and adding the host
+as an axis is what showed it moving one cell. A `SequenceExpression` arm added along the way was
+deleted: `scope.evaluate` is a case per node type (`scope.js:269-562`) and a sequence is not
+among them, so `o.a = o.b = (1, 2)` is UNKNOWN upstream and keeps the wrap — the arm made rsvelte
+fold it, and that shape was **already** diverging on `main`. 19 cells × 2 hosts against the
+oracle, with the shadowing rows recorded as discriminating the first version of this fix (a flat
+first-match lookup) from the corrected one rather than as identity probes: both pass before the
+fix too. Two arms over the corpus moved 1 of 134,180 units (129,450 live),
+`MISMATCH -> match: 1`, `match -> MISMATCH: 0`.
 
 `immich/…/Timeline.svelte` and `svelte-lexical/…/NestedComposer.svelte` left this target
 together when a parenthesised prop mutation stopped being wrapped inside its own setter call.
@@ -3752,11 +3771,10 @@ gate local reconstruction reporting a divergence the gate does not have — and 
 the correction came from CI's stale-entry check rather than from any local instrument. A local
 `MISMATCH` is a candidate; only a local `match` is a verdict.
 
-All remaining 2 arrived with the wave-2 enrolment (#3176); this target was at 0 before
-it, and what it still carries are JS entries that `client` does not, which is the
-reason it is ratcheted separately. It is no longer the largest of the four: at two
-it is tied with `server` and `server-dev`, and a superlative here has to be
-re-derived every time any of them moves, so this sentence does not carry one.
+All remaining 1 arrived with the wave-2 enrolment (#3176); this target was at 0 before
+it, and what it still carries is a JS entry that `client` does not, which is the reason it is
+ratcheted separately. Whether it is the largest of the four is not stated here: a superlative
+has to be re-derived every time any of them moves, and nothing gates a superlative in prose.
 
 `immich/…/asset-viewer/ActivityViewer.svelte` left this target and `client` for the other half of
 the same predicate. Upstream's `should_proxy` answers `false` for `undefined` in the **same

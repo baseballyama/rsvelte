@@ -22,6 +22,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::ast_rewrite::Edit;
 use super::visitors::shared::utils::{is_global_constant, is_known_defined_global_call};
+use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind};
 
 /// Cheap byte probe: no `=` means no assignment to instrument.
 pub(super) fn source_has_assignment(source: &str) -> bool {
@@ -54,7 +55,11 @@ fn oxc_keypath(expr: &Expression<'_>) -> Option<String> {
 /// `scope.evaluate(right).is_primitive`, approximated by shape exactly as the
 /// template path's `is_known_primitive_json` does — the two must agree or the
 /// same source would be wrapped on one path and not the other.
-fn is_known_primitive(expr: &Expression<'_>) -> bool {
+pub(super) fn is_known_primitive(
+    expr: &Expression<'_>,
+    initial: &InitialResolver<'_>,
+    depth: u8,
+) -> bool {
     match expr.without_parentheses() {
         Expression::StringLiteral(_)
         | Expression::NumericLiteral(_)
@@ -65,7 +70,9 @@ fn is_known_primitive(expr: &Expression<'_>) -> bool {
         | Expression::TemplateLiteral(_)
         | Expression::UnaryExpression(_)
         | Expression::BinaryExpression(_) => true,
-        Expression::Identifier(id) => id.name == "undefined",
+        Expression::Identifier(id) => {
+            id.name == "undefined" || initial.name_is_primitive(&id.name, depth)
+        }
         // A call to one of the `globals` upstream knows yields NUMBER/STRING,
         // and a function value is not UNKNOWN either.
         Expression::CallExpression(call) => oxc_keypath(&call.callee).is_some_and(|k| {
@@ -86,16 +93,18 @@ fn is_known_primitive(expr: &Expression<'_>) -> bool {
             oxc_keypath(expr.without_parentheses()).is_some_and(|k| is_global_constant(&k))
         }
         Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => true,
+        // No `SequenceExpression` arm: upstream's `scope.evaluate` is a case per
+        // node type (`scope.js:269-562`) and a sequence is not among them, so
+        // `o.a = (1, 2)` is UNKNOWN there and keeps the wrap.
         // `Evaluation` unions the branch value sets, so a branching expression
         // is primitive exactly when every branch it can yield is.
         Expression::ConditionalExpression(cond) => {
-            is_known_primitive(&cond.consequent) && is_known_primitive(&cond.alternate)
+            is_known_primitive(&cond.consequent, initial, depth)
+                && is_known_primitive(&cond.alternate, initial, depth)
         }
         Expression::LogicalExpression(logical) => {
-            is_known_primitive(&logical.left) && is_known_primitive(&logical.right)
-        }
-        Expression::SequenceExpression(seq) => {
-            seq.expressions.last().is_some_and(is_known_primitive)
+            is_known_primitive(&logical.left, initial, depth)
+                && is_known_primitive(&logical.right, initial, depth)
         }
         _ => false,
     }
@@ -268,6 +277,77 @@ impl<'ast> Visit<'ast> for ResolvedRefs<'_> {
     }
 }
 
+/// Upstream's `Identifier` arm of `scope.evaluate` resolves the name through
+/// `binding.initial` when the binding is neither a prop nor ever updated
+/// (`scope.js:303`); `updated` is a getter over `mutated || reassigned`
+/// (`scope.js:174`), which phase 2 keeps as two fields.
+///
+/// Both halves have to come from phase 2's view of the ORIGINAL script. The
+/// guard, because the settled text has turned every write into a call
+/// (`$.set` / `$.update` / `$.update_pre`) and oxc therefore scores the name's
+/// only occurrence a read. The value, because `binding.initial` carries a
+/// payload for a literal alone — `initial_span` is the original node's range.
+pub(super) struct InitialResolver<'a> {
+    pub bindings: &'a [Binding],
+    pub source: &'a str,
+}
+
+/// Cycle guard: `const a = b; const b = a;` is not a scope any compiler accepts,
+/// but a bound recursion costs nothing and a chain this deep is not real code.
+pub(super) const MAX_INITIAL_DEPTH: u8 = 10;
+
+impl InitialResolver<'_> {
+    /// Name lookup where no scope chain survives — the settled fragment this
+    /// port runs over has none, and a chain's inner hops have none either.
+    /// Upstream asks `scope.get(name)`, so a shadowed name would resolve to a
+    /// different declaration than the first match: refuse rather than guess,
+    /// which leaves the wrap in place and is the direction that only costs
+    /// output equality.
+    pub(super) fn name_is_primitive(&self, name: &str, depth: u8) -> bool {
+        let mut found = self.bindings.iter().filter(|binding| binding.name == name);
+        let Some(binding) = found.next() else {
+            return false;
+        };
+        found.next().is_none() && self.binding_is_primitive(binding, depth)
+    }
+
+    pub(super) fn binding_is_primitive(&self, binding: &Binding, depth: u8) -> bool {
+        let Some(depth) = depth.checked_sub(1) else {
+            return false;
+        };
+        if binding.reassigned
+            || binding.mutated
+            || matches!(
+                binding.kind,
+                BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+            )
+        {
+            return false;
+        }
+        let Some(text) = binding
+            .initial_span
+            .and_then(|(s, e)| self.source.get(s as usize..e as usize))
+        else {
+            return false;
+        };
+        let allocator = oxc_allocator::Allocator::default();
+        let wrapped = format!("({text});");
+        let parsed = oxc_parser::Parser::new(
+            &allocator,
+            &wrapped,
+            oxc_span::SourceType::ts().with_module(true),
+        )
+        .parse();
+        if parsed.panicked || !parsed.diagnostics.is_empty() {
+            return false;
+        }
+        let Some(Statement::ExpressionStatement(stmt)) = parsed.program.body.first() else {
+            return false;
+        };
+        is_known_primitive(&stmt.expression, self, depth)
+    }
+}
+
 /// Collect the `$.assign` rewrites for one settled script.
 pub(super) fn collect_assign_edits(
     program: &Program<'_>,
@@ -275,6 +355,7 @@ pub(super) fn collect_assign_edits(
     original: &str,
     filename: &str,
     component_bindings: &FxHashSet<&str>,
+    initial: &InitialResolver<'_>,
 ) -> Vec<Edit> {
     let mut collector = AssignCollector {
         source,
@@ -288,6 +369,7 @@ pub(super) fn collect_assign_edits(
         // here is not a component binding and only the fragment resolves it.
         resolved: resolved_reference_spans(program),
         component_bindings,
+        initial,
         reserved: FxHashMap::default(),
         edits: Vec::new(),
     };
@@ -312,6 +394,8 @@ struct AssignCollector<'src> {
     /// Every name the component declares anywhere, which is what carries the
     /// hoisted imports this fragment no longer contains.
     component_bindings: &'src FxHashSet<&'src str>,
+    /// Upstream's `scope.evaluate` identifier resolution, read off phase 2.
+    initial: &'src InitialResolver<'src>,
     /// Assignment span start -> the site reserved for it on the way down.
     reserved: FxHashMap<u32, (usize, usize)>,
     edits: Vec<Edit>,
@@ -368,7 +452,7 @@ impl<'a> Visit<'a> for AssignCollector<'_> {
         if !self.resolved.contains(&root_span) && !self.component_bindings.contains(root.as_str()) {
             return;
         }
-        if is_known_primitive(&assign.right)
+        if is_known_primitive(&assign.right, self.initial, MAX_INITIAL_DEPTH)
             || (self.statement_expressions.contains(&assign.span.start)
                 && !self.concise_arrow_bodies.contains(&assign.span.start))
         {

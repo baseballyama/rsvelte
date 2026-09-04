@@ -4658,6 +4658,380 @@ whether they share a cost. Price each member, or split the bundle — and note
 that the cheap member is the one that looks unnecessary to measure, because the
 expensive member's number is already in hand and reads like the batch's.
 
+### A grid that holds an axis fixed can hide a WORKING fix, and then the fix looks unreachable
+
+The recorded failure of a held constant is a green grid over a live defect. The opposite sign
+costs more, because it makes you abandon correct work. A binding-initializer fold was
+implemented in `expression_converter.rs`, and the 24-row grid came back **byte-identical to
+`main`** — read as "this port is not on the carrier's path", and the port was nearly reverted.
+The grid put every cell's assignment in a `<script>` function; that host reaches
+`assign_dev_ast.rs`. Adding a template-inline arrow as a second host moved exactly one cell,
+which is what the change could move given the data it had.
+
+Two things generalize. **An unchanged grid and an unreached port are the same observation**, so
+"the fix moved nothing" is a statement about the grid until the grid's held constants are
+listed. And what separated them was not a wider grid but one `eprintln!` at each candidate
+port's entry: the script host printed `[ada-ident]`, the inline host printed `[bip]`. A probe
+placed at the *port* answers "which code runs", where a probe placed at the *output* answers
+only "did anything change".
+
+### Count the writers of the field your predicate READS, before writing the predicate
+
+`AGENTS.md` says to count a field's writers before instrumenting one of them. The same count
+belongs one step earlier, when a predicate is being written against a field someone else fills.
+Upstream resolves an identifier through `binding.initial`; rsvelte's `Binding` has `initial`,
+`initial_span`, `initial_node_type`, `initial_identifier_name`, `init_rune` and
+`init_expr_json`, and the useful one turned out to be `initial_span` — which had **three writers
+of the six that fill the others, and all three sat inside the prop block**, 130 lines from the
+branches that needed it. Two implementations were built and measured before that was read: the
+first parsed `binding.initial`, which holds a literal's raw text and **`None` for every other
+shape**.
+
+The measurement that settled it was six lines of `eprintln!` printing the whole binding record
+for five declaration shapes — a table, not a predicate. Where a predicate is about to consult a
+record someone else populates, print the record for the inputs you care about first: the columns
+that are empty are the design, and they are not visible from the struct definition, whose doc
+comments describe what each field is *for*.
+
+### Quoting a rule and walking into it, with a one-move gap
+
+Two instances in one exchange, and the second is the stronger one. Told that a census should be
+written as a *complement* — enumerate the whole change set, so "everything not in this list is
+unchanged" follows by definition — I agreed in writing that the complement form was better than
+my own, and then wrote the very next census as a `grep` against **my own hand-written list of
+the paths I believed were the `parse()` path**. That list was my memory of a list a peer had
+sent two messages earlier, and it had lost two of its five entries. Rewritten as a complement,
+it surfaced two files my pattern could not match — and they were the only two that needed
+checking.
+
+The peer's own instance is three-layered and worse. They **proposed** the complement form,
+filtered by `^crates/` two messages later, and their output had **printed the shortfall as a
+number** (`files=6 crates=3`) — three files visibly unread — before they wrote the conclusion.
+This repository already records that a consuming stage should print the cardinality of what it
+was handed, because its author is the only person positioned to notice the number is wrong. The
+missing half is that **printing it is necessary and not sufficient**: the author printed it and
+read past it.
+
+Both answers happened to be unchanged, which is luck in both cases and doubly so in the peer's:
+two of the three files their filter dropped were the corpus harness, the one class that could
+have been an input to the measurement.
+
+The reusable part is the interval. The usual form of this hazard is a rule read long ago and not
+recalled under pressure. Here the rule was **stated by the person who then broke it, one action
+later, in the same conversation**. Recall was not the failing part; the rule was fully in view.
+What would have caught it is not attention but form — writing the census as a complement leaves
+no place for a hand list to enter.
+
+### A derived label can be wrong while the set it derived is right
+
+A classifier assigns a label and, as a side effect, selects a set. The two fail separately, and
+fixing the label does not tell you the set moved. A formatter ratchet's `chain-more` fingerprint
+was keyed on a region **maximum** line length; corrected to a **count** of over-long lines, one
+whole bucket went 144 → 203 and two entries changed label. The sharpened 12-entry set that had
+been derived under the broken key was then recomputed under both keys: `before 12, after 12,
+intersection 12, only-before 0, only-after 0`. The label mechanism moved and the set did not.
+
+The reusable half is that "the fix is outside this selection's path, so the selection cannot
+have moved" is a **mechanism argument**, and the set comparison is one command. Run the
+comparison; a mechanism argument about your own instrument is the weakest evidence you can offer
+about it.
+
+A companion from the same instrument, because it was luck rather than design: a probe that read
+`compatibility/fmt/sources` printed an **empty table**, because that path does not exist (the
+collected sources are at `compatibility/sources`). It printed a blank rather than a fabricated
+`0%` only because every row fell into a `catch` that appended nothing. Had the loop initialised
+a counter and printed it, the same defect would have produced `0%` in a well-formed table. **A
+blank is recoverable and a zero is not**, and which one you get is decided by where the error
+lands, not by how carefully the probe was written.
+
+### A two-host comparison's negative control has to reach the branch that separates the hosts
+
+A grid comparing a construct in two hosts is only measuring the host once some cell can answer
+differently per host. A `bare-chain` cell was added as the control for a chain-breaking rule and
+scored EQ on every run — because the expression it carried **never had to wrap**, so both hosts
+printed it on one line and the branch under study was never entered. The cell was reaching the
+code and could not discriminate, which is the recorded distinction, arriving here inside a
+control rather than inside a grid.
+
+What makes it worth its own row is the date: the rule "reaching an entry point is not being able
+to tell two rules for it apart" had been drafted by the same author that day, and the control
+was written after it. Forcing a wrap in every host took the same cell set to 5 EQ / 3 DIFF on
+both. **Ask of a control not whether it passes but whether it could have failed**, and answer it
+by constructing the input that must make it fail.
+
+### Pin a control to the property you care about, not to the answer the instrument currently gives
+
+A classifier shipped with a negative control naming one corpus file that must not be classified
+`chain-*`. Fixing the classifier's budget key later moved that file from `not-chain` to
+`rsvelte-over-budget` — a different label, and the control **still passed**, because its
+condition was "not `chain-*`", which is the property the control exists to defend, rather than
+`== "not-chain"`, which is what the instrument happened to answer on the day it was written.
+
+Both spellings pass before the fix, so nothing distinguishes them until the instrument changes.
+Then they differ in the worst possible way: an answer-pinned control **fails at the moment the
+instrument is repaired**, and a control failing in the same commit as a fix reads as "the fix
+broke something". That is more expensive than a control that never fires, because it argues
+against a correct change with the authority of a passing test suite reversed. The existing rule
+here — a control's NAME is a claim, and the control passing does not check it — covers what a
+control asserts; this covers **what a control is allowed to observe**. Write the condition so
+that every answer the instrument may correctly give in future still satisfies it.
+
+### Two kinds of zero can sit in one table, adjacent, in the same format
+
+The recorded rule is that a measured zero has two kinds — "I looked and found none" and "my
+instrument cannot represent that shape". They are not always in different reports. A one-bit
+re-projection over 203 ratchet entries printed three zeros:
+
+- `undecidable: no over-long line located = 0` — **forced**. The class is defined as "rsvelte has
+  more over-long lines than the oracle", so at least one follows from the definition; the
+  instrument could not have printed anything else.
+- `overflow sits in a <script>/<style> region = 0` — **real**. The classifier reports non-markup
+  regions for 36 other entries, and the 5 JS-region ones reached the same decision point and came
+  out with a different label, so this value could have been non-zero and was not.
+- the CSS half of that same row — **forced for a third reason**: a CSS-region entry is claimed by
+  an earlier branch, so it structurally cannot carry this class's name at all.
+
+Same pixel, adjacent rows, identical formatting, three different statuses. And the third is why
+a partial disclosure is worse than none: reporting only the JS half as "real" would have been a
+true sentence that implies a false one about the row it sits in. **When a table's zeros do not
+share a status, the status belongs in the table, not in the paragraph under it.**
+
+### Verify a control against the artifact the measurement reads, not the one you wrote
+
+A comparison of one expression in two hosts was column-matched by construction: the input put
+`EXPR` at column 13 in both. The finding — the two hosts break the same chain at different links
+— followed, and it was wrong. `oxfmt` breaks after the `=` when a right-hand side does not fit,
+so in the **output** the `<script>` host's expression sat at column 4 and the mustache host's at
+13. The control was a true statement about the input and the measurement read the output.
+
+Re-built with the reference column **measured in the formatted text** — and with the comparison
+refusing to print unless requested equals measured on all 13 reference files — the finding
+inverted: the oracle matches the plain-`.js` oxc rendering at its own column 9/9, and rsvelte
+matches at 5/9, its shape frozen at what oxc produces for columns 4–8 however deep the real
+indentation goes. The first version had the responsible side backwards.
+
+A formatter is the clean case because it *moves the thing you pinned*, but the class is any
+pipeline whose stage rewrites the coordinate your control names. **Print the controlled quantity
+out of the artifact under comparison and assert it there**; a control derived from the input
+measures your intention.
+
+### An unmerged branch's DELETIONS are invisible in the same way its additions are, and that half reads as correct
+
+`AGENTS.md` records that a flag an unmerged PR adds reads on `main` as absence, never as error.
+The deletion direction is worse and is not recorded. Measured 2026-09-04: `is_known_primitive`
+exists in two files (`expression_converter.rs`, `assign_dev_ast.rs`) and was reported as a new
+`two-ports-inventory` candidate on that static reading. An open PR (#4293) unifies them, so the
+correct row is a CLOSED one ("two ports, since merged"), not an open work item.
+
+The asymmetry: an addition you cannot see makes `main` look like it LACKS something, which
+eventually surprises someone. A deletion you cannot see makes `main` look like it HAS something
+— and that is the true state of `main` today, so nothing about the observation is wrong and
+nobody re-checks it. The check is one question before filing any static census as work: which
+open PRs touch these files? A census is a measurement of a tree, and the tree it should be
+measured against is the one the entry will live in.
+
+### The number of options is not evidence of exhaustiveness; the number of AXES is
+
+`AGENTS.md` records that a two-option question hands over its shared premise unexamined. Reading
+that as being about "two" is what let this recur at three. A pre-registered falsification
+offered three outcomes for a fix — (a) both cells flip, (b) one flips and the other does not,
+(c) neither flips. The measured answer was none of them, because all three lay on ONE axis ("did
+initializer resolution take effect", treated as one bit) while the real branch was a second
+axis: whether the binding was created by a `VariableDeclarator` or a `FunctionDeclaration`
+(phase 2 writes `initial_span` only in `variable_declarator.rs`).
+
+Writing three options feels like enumerating, and it is enumerating — along one dimension. The
+count of options says how finely you subdivided the axis you thought of; it says nothing about
+how many axes there are. Both parties to that pre-registration assumed the same single bit, so a
+second reader did not catch it either.
+
+The prescription is one sentence added to any pre-registration: name the axis the options vary
+along, and state what is being held fixed across all of them. An option set whose members differ
+only in the value of one variable cannot discriminate a second variable, however many members it
+has.
+
+### `rebase` does not run the pre-commit hooks, and its symptom is not the ABSENCE of output
+
+The hooks run on `commit`. A conflict resolved by hand during a rebase is code you authored that
+`cargo fmt` and `cargo clippy` have never seen — and nothing says so. `--no-verify` at least
+stays in memory because you typed it; a truncating stage can at least be noticed afterwards. A
+rebase prints `Successfully rebased`, the diff is correct, `git log` is normal. The trace is not
+missing: a trace of SUCCESS is printed.
+
+Measured 2026-09-04: a rebase onto a perf PR conflicted in `ast/typed_expr.rs` (one side adding
+two fields, the other renaming `obj.get` to `obj.field`). The resolution was hand-written and
+was one command away from being pushed unchecked. It passed once run — which is not the point:
+it was reached by remembering, and the author only remembered because the resolution was recent.
+
+The prescription is not "remember". It is a step: after resolving any conflict by hand, run fmt
+and clippy explicitly before pushing — and set the denominator from what the resolution touched,
+not from the crate you edited. Here `typed_expr.rs` carries `JsNode`, which
+`rsvelte_bindings_support` matches exhaustively, so the denominator is `--workspace`.
+
+### Printing the cardinality is necessary and not sufficient — the author reads past it
+
+`AGENTS.md` says a stage consuming another stage's output should print that input's cardinality,
+because its own author is the only person positioned to notice the number is wrong. Measured
+2026-09-04, one step further: the number was printed, by the person who needed it, and read
+past.
+
+A per-PR census printed `PR#4291 files=6 crates=3` and then listed only the three `crates/`
+files. That three files were unexamined was on the screen, as a number, in the author's own
+output. The conclusion was written from the three. The two unlisted non-doc files were corpus
+harness files — the only class that could have been an input to the gate in question. They
+turned out to be comment-only, so the answer did not change; that is luck, twice over.
+
+Worse, the same author had, two messages earlier, argued for answering by COMPLEMENT rather than
+by a pattern ("enumerate the whole change set; anything not in it is identical, by definition"),
+and had that argument accepted — then filtered by `^crates/` on the next measurement. A peer
+made the same substitution within two minutes of agreeing to it.
+
+So: print the cardinality, and then make the next line consume it — assert that the number you
+listed equals the number you counted, or print the residue's names. A number you print for
+yourself is a number you can skip.
+
+### A prescription that is a CONJUNCTION is satisfied by its first half, and the feeling of compliance is complete
+
+`AGENTS.md` answers a fabricated CI census (`in_progress: 4` against a 20-job ceiling) by naming
+the mechanism — a client-side filter over a paging window — and prescribing the server-side
+form: "Server-side (`?status=in_progress`, `?status=queued`) with paging gives 20 and 208."
+
+Measured 2026-09-04, that same prescription was followed and produced **the same wrong 4**.
+`?status=in_progress` returns runs whose *run-level* status is in_progress, and every run still
+at run-level `queued` — where the great majority of queued jobs live — is absent from it. The
+correct census across both statuses gave `runs 33, jobs in_progress 19, jobs queued 173`,
+corroborating a peer's independently-derived 21/175.
+
+The mechanism the row names was avoided. What was not noticed is that the prescription is two
+server-side queries and only one was issued — and **issuing one of them fully satisfies the
+sentence "I asked server-side"**, which is how the row is remembered. A positive control passed
+(a single-job run reported `total=1 in_progress=1`), because it was a control on whether the
+query works and not on whether the population is complete.
+
+So a recorded row that closes one route to a wrong answer does not close the answer. Write the
+prescription as the operation, not as the property: not "ask server-side" but **"ask each status
+separately and sum"**. And where a rule is a conjunction, the failure mode is that its first
+conjunct feels like the whole of it.
+
+### `received == total_count` says the page is complete, not that the population is final
+
+The recorded row about a job waiting on `needs:` is about a false green: such a job is not a
+check-run at all, so it is absent from `pending` and from `total_count`, and a poller reading
+`pending == 0` calls the run finished. The same mechanism has a second consequence that is not a
+false green, and it corrupts the reported denominator instead.
+
+Measured 2026-09-04 on one PR, one hour apart, no push in between:
+
+```js
+total_count=35  received=35  completed=4
+total_count=46  received=46  completed=11
+```
+
+Eleven check-runs appeared as their `needs:` cleared. Both readings are internally consistent
+and `received == total_count` holds in both — that predicate is a check on the *page*, and the
+page was complete each time. The first reading was nevertheless reported as "this PR's total
+check count", which it was not, and a peer read it the same way.
+
+Stating the denominator is therefore not enough: **whether the denominator can still grow is a
+separate quantity**, and it is not visible in any single reading. The watcher used here survives
+it, and the reason is worth stating so nobody "simplifies" it: its predicate is `total > 25 &&
+received == total && completed == total`. `completed == total` re-arms whenever the denominator
+grows, because the new rows are not completed. `pending == 0` — which reads as equivalent — goes
+green the moment a batch finishes, in the window before the next batch registers. The form is
+closed under a moving denominator; the equivalent-looking form is not.
+
+### A DIRECTION written as a string literal cannot be recomputed, which is worse than a number
+
+`AGENTS.md` records that a number written as a literal is a claim, and that the repair is to
+leave no literal to check. A *direction* has the same failure and no recovery: a wrong count can
+be re-derived from the artifact beside it, and a wrong direction has no artifact at all.
+
+Measured 2026-09-04. A corpus classifier reported three buckets of `$props()` type annotations
+with per-row signs:
+
+```js
+console.log(`  named-type annotation      official 1x / rsvelte 2x  ${c.named}`);
+console.log(`  inline object type + JSDoc official 1x / rsvelte 0x  ${c.inlineJsdoc}   <-- INVERTED`);
+```
+
+Only `${c.named}` is measured. The script never runs either compiler — it pattern-matches source
+text. `official 1x / rsvelte 2x` and `<-- INVERTED` are literals carried over from a peer's
+hand-written cells, and the report built on them was about to set a PR's merge order.
+
+Probed against the oracle with two-sided controls (a bare `/** doc */` reads 2 = one Block plus
+one `leadingComments`, so 2 is *not* duplicated and 4 is; no-JSDoc reads 0), the labels do not
+survive: `interface P { /** d */ a }` reads 2 and `type P = { /** d */ a }` reads 4. The
+4,284-file bucket keys on `: P = $props()` without asking how `P` was declared, so it holds
+**1,596 interface (does not duplicate), 812 type-alias (does), 1,876 imported (unmeasurable
+here)** — three answers under one sign.
+
+Two things generalize. **Disclosing a sign's provenance is not verifying it**: the report opened
+by saying the signs were the peer's and only the counts were mine, which is honest, correctly
+read, and left a wrong direction load-bearing. And a sign printed beside a real count inherits
+the count's authority — the recorded fix for numbers ("write the rule against the artifact") has
+no analogue, so the only defence is that a direction must be *probed against the oracle* before
+it is printed at all, or printed as `UNMEASURED`.
+
+### A reduction passes an instrument's bug; the raw values do not
+
+Four instruments broke in one afternoon and **three of them printed a well-formed table**. None
+was caught by re-reading the code, by the exit status, or by a control; all three were caught by
+printing the underlying values instead of the summary that had been computed from them.
+
+| what the reduction said | what the values said |
+|---|---|
+| a carrier's mustache interior, extracted by brace matching | the span ran from a `{` **string literal** to an unrelated `}`, so three of five "expressions" were not expressions |
+| `requested col == measured col` for 13 reference files | every cell was `undefined` — the loop destructured `[nm, col]` when building the map and `[col]` when printing it, so the column control never executed |
+| `k intersection: 9..44 -> a SINGLE constant k explains every row` | 8 of the 9 rows were `NO MATCH`; the intersection was computed over the one row that matched |
+| two hosts differ at the same column | one host's expression had been moved to a different column by the formatter itself |
+
+The shared property is that a reduction — a rate, a count, an `EQ`/`DIFF`, an intersection —
+**has a well-formed value for an input the instrument mangled**, while the raw value does not: a
+span that is not an expression looks wrong the moment it is printed, and `undefined` cannot be
+mistaken for a column. The recorded rules cover the *stage* that drops a verdict and the
+*control* that certifies nothing; this one is about the last step before you read, and it is
+cheap: **print one row of the underlying values beside every summary**, and read that row first.
+
+Note the ordering that makes it work. A control fires only where you predicted the failure, so
+it is bounded by the same imagination that wrote the instrument; the values are not. Two of the
+four above were found by a control and two by nothing but the values — and the two the values
+found were the two whose tables were internally consistent.
+
+### An exclusion list named by key is an enumeration, and the control set does not test it unless it contains the excluded shape
+
+`AGENTS.md` records that a catch-all in place of an enumeration is a claim that you know every
+shape that reaches it. The mirror image costs the same and looks safer: a **named exclusion**.
+
+Measured 2026-09-04. An instrument counting duplicated comment spans walked the parsed AST and
+skipped the key `leadingComments`, because a comment attached there is the same comment already
+counted in `Root.comments`. Its sibling `trailingComments` was not skipped. So every comment
+with a trailing attachment counted twice, and the instrument reported **1,072 duplicate spans in
+379 files** where the true figures are **225 in 183**. Three quarters of its "duplicates" were
+one comment referenced from two places, and the largest bucket — 72% of the total, sitting
+outside any type construct — was an artefact end to end. It was reported as a finding, and a
+peer pulled a PR from a merge queue partly on it.
+
+Four controls passed at every stage, including two negative ones. They had to: **not one control
+cell produced a trailing attachment**, so the exclusion under test was never exercised. The set
+demonstrated that the instrument was self-consistent on the shapes its author thought of, which
+is exactly what the exclusion list already assumed.
+
+What named it was neither a control nor a re-read: printing the **JSON path** of two occurrences
+of one span, which is a different observable from the count.
+
+```
+span 856..902  x2
+    $.comments[2]
+    $.instance.content.body[17].trailingComments[0]
+```
+
+Two rules. **A `!== 'leadingComments'` is an enumeration of one**, and unlike a missing `match`
+arm it cannot fail loudly — the shape it should have excluded is simply counted, and the count
+stays plausible. And **a control set tests an exclusion only if some cell reaches it**: adding
+one line comment with a trailing attachment kills the instrument instantly, and no amount of
+ablating the code finds it, because ablation moves the code and holds the cells. Where an
+instrument excludes by name, write the control that carries each *sibling* of the name.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.

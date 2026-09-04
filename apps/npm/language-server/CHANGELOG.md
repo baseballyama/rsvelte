@@ -1,5 +1,42 @@
 # @rsvelte/language-server
 
+## 0.6.0
+
+### Minor Changes
+
+- 024e8a5: `textDocument/completion` offers HTML close tags.
+
+  `tag_prefix` excluded a `/` prefix outright, so every `</` position answered with nothing
+  while the official server answers with `collectCloseTagSuggestions`
+  (`vscode-html-languageservice`). Measured on 29 documents against both servers, rsvelte
+  emitted zero `/`-prefixed items in all of them.
+
+  The rule has two branches whose `filterText` disagree about the `>`, so each is the other's
+  negative control: with a still-open ancestor whose line indent differs from the cursor's,
+  the edit replaces the whole line prefix and filters on `<indent></tag`; otherwise it
+  replaces from the `/` and filters on `/tag`. With no ancestor the whole tag table is
+  offered and the filter carries the `>`.
+
+  The ancestor's name comes from the document, not the tag data, because a component and a
+  `svelte:` element are ancestors the provider does not list — only the no-ancestor fallback
+  reads it. An ancestor stops being one when its end tag begins before the cursor, so a fully
+  typed `</div>` falls back to the tag table rather than offering `/div`.
+
+### Patch Changes
+
+- 6329638: Vendor the CSS data the official language server reads, with the provenance discipline `html_data/` already uses: the version comes out of language-tools' `pnpm-lock.yaml`, the resolved package has to agree with it, and the SHA-256 of every file read is recorded in the generated header. `getEntryDescription` is ported rather than wrapped and compared to the function itself on all 3,194 entries in both markup kinds.
+- 49465da: `textDocument/linkedEditingRange` returns a `wordPattern` that accepts its own ranges.
+
+  The protocol says the pattern describes valid contents for the ranges returned beside it, and a
+  client uses it to decide whether an in-flight edit still applies. rsvelte sent a pattern that
+  rejected the contents of the very ranges it accompanied — a tag name containing a `.`, such as
+  `Foo.Bar`, failed to match — so a client validating an edit against it would stop applying the
+  linked rename partway.
+
+  The pattern is now byte-identical to the official server's, which is VS Code's default word
+  pattern. The ranges themselves already agreed with official on every measured case; only the
+  pattern diverged.
+
 ## 0.5.5
 
 ### Patch Changes

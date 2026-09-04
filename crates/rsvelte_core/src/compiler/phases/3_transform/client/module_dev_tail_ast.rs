@@ -207,6 +207,10 @@ pub(super) fn transform_module_dev_tail_ast(
                     &analysis.source,
                     &analysis.filename,
                     &rustc_hash::FxHashSet::default(),
+                    &super::assign_dev_ast::InitialResolver {
+                        bindings: &analysis.root.bindings,
+                        source: &analysis.source,
+                    },
                 ));
             }
             edits

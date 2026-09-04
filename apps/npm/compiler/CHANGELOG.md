@@ -1,5 +1,592 @@
 # @rsvelte/compiler
 
+## 0.11.2
+
+### Patch Changes
+
+- 7a30d48: In dev mode, each link of a chained assignment to a computed member now reports its own source position instead of the outermost link's.
+
+  `$.assign(…, '<file>:<line>:<column>')` locates the assignment's left-hand side. rsvelte matches
+  the lowered target back against a source-order site list keyed `(root, path, operator)`, and a
+  computed member contributes a valueless `Computed` element — so `o.p[2]` and `o.p[3]` share a key
+  and only the order the sites are consumed in separates them. The visitor claimed its site after
+  descending, so the inner link of a chain took the outer's site.
+
+- 9693010: Dev-mode `$.assign` is not emitted for a member chain rooted at a global.
+
+  Upstream's `build_assignment` walks the assignment target down to its root identifier and
+  stops at `if (!binding) return null`, so `document.body.onfocus = handler` is left alone.
+  rsvelte's settled-script pass had no binding test and wrapped every member assignment.
+
+  The guard reads two things, because neither half is sufficient on its own: the pass walks
+  the instance body, whose imports have been hoisted out of it, so an imported root resolves
+  nowhere in the fragment and is known only to the component's binding set — while a name
+  declared inside a function here is not a component binding and is known only to the
+  fragment. `shadowed global` and `import` are the two rows that separate them.
+
+- 9693010: dev `$.assign` is not emitted for a member chain rooted at a global in a template expression
+
+  `build_assignment` is ported twice; the settled-script port already stopped at an
+  unresolvable root, and the template-expression converter did not — so an assignment
+  written in a legacy `on:` handler was still instrumented.
+
+- 5eb7e10: `bind:this` decides which identifiers become callback parameters from the DECLARATION's scope, not from the loop variable's name
+
+  Upstream's `build_bind_this` compares each reference's binding scope against every
+  `EachBlock` owner's scope, so a `{@const}` written directly in an each block becomes a
+  parameter while the same name one `{#if}` deeper does not. rsvelte matched on the loop
+  variable's name, so a `{@const}` never qualified however it was declared. Upstream's two
+  exclusions — `is_state_source` and `binding.kind === 'derived'` — are ported with the
+  scope test, because the test alone over-collects declaration tags.
+
+  Two further divergences were in the same walk. It was a hand-written match over `JsExpr`
+  with a `_ => {}` arm, so a reference inside a `||`, a template literal, an object, a
+  `new`, an optional chain or a unary/update operator was silently not looked at. And
+  upstream marks a name seen _before_ asking whether the occurrence is a reference, so an
+  identifier in a non-reference position burns the name for every later one: `els[{ k: k }.k]`
+  collects nothing while `els[{ kk: k }.kk]` collects `k`.
+
+- 22bec30: A class field's `$state` initializer resolves an identifier through its binding, as upstream's
+  `should_proxy` does, instead of wrapping every one in `$.proxy`
+- 5b9665b: A class body's brace is not the first one after the header: a heritage clause can open its own
+- ae472eb: Two client-side scope defects. A `style:` directive's value now reaches
+  `build_expression` with the metadata phase 2 filled in for the ExpressionTag rather
+  than for the directive, so a call in a style directive keeps its legacy
+  `($.deep_read_state(dep), $.untrack(() => value))` wrapper instead of being emitted
+  bare. And a `const` declared in a `try` or `finally` body inside a template
+  expression now shadows an outer reactive `let`: those two bodies were walked with
+  the outer scope, so every read was lowered as a signal read and the generated code
+  passed the component's state where the source passes the local.
+- b02d7fa: Stop `svelte2tsx` reading code out of a comment or a literal. Upstream answers this with its parser — `findNextVerbatimElement` opens its regex with a `(<!--[^]*?-->)` arm and skips any match that starts with it, `ComponentEvents` walks the TypeScript AST, and `Stores` is fed by the Svelte AST walk — while three scans here answered from bytes. So a `<script>` inside an HTML comment was recovered as an orphan script and its body injected ahead of the imports, a `dispatch('x')` inside a `//` comment became a component event, and a `$name` inside a template expression's comment or template literal became a store subscription. `js_scan::opaque_runs` reports a JS region's comments, strings, regex literals and template-literal text chunks (a `${…}` substitution stays code), and the three scans consult it.
+- 9c77127: `compile()`'s `ast` no longer carries TypeScript type annotations. Upstream's
+  `remove_typescript_nodes` deletes `typeAnnotation` and the TS `optional` marker
+  from every node it visits, and `result.ast` is serialized from that stripped
+  tree; rsvelte kept both on `Identifier`, `ObjectPattern` and `ArrayPattern`,
+  where nothing but the serializer reads them. The public `parse()` AST is
+  unaffected — it never runs the strip, and upstream keeps the annotations there.
+- 4cdc135: Keep the parentheses around a compound assignment's binary right-hand side. `s += 'a' + x + 'b'` expanded to `$.set(s, $.get(s) + 'a' + x + 'b')`, which evaluates differently from `$.get(s) + ('a' + x + 'b')` whenever the operands mix types.
+- 4e2ba30: Dev-mode `console.*` no longer wraps an argument whose value is known. A `$state` / `$derived` declaration is resolved through the rune's argument the way upstream's `scope.evaluate` does, in the lowered spellings the script passes see, and a declarator's verdict is keyed by the symbol it declares rather than by its name — so two declarations sharing a name no longer silence each other.
+- 7a30d48: An enclosing `{@const}` is re-expanded into an element's snippet wrapper
+
+  `RegularElement.js:333` hands the children the parent's `consts` array itself when the element
+  declares none of its own, and `:443` splices that same array into the `{ … }` wrapper a
+  `{#snippet}` in its fragment creates.
+
+- 5b9665b: A class field whose constructor rune call spans lines is no longer dropped
+- d781aca: A `{const}` / `{let}` tag now reads every template-scope binding through that binding's own read, not through a hand-written list of two kinds. Snippet parameters, `let:` bindings and `{@const}` bindings were read bare, so a value produced by one of them was frozen at its first-render value.
+- 7a30d48: A destructuring assignment caches its right-hand side from the visited read
+
+  `shared/assignments.js:20-22` decides `should_cache` with `value.type !== 'Identifier'` on the
+  **visited** node, so a runes prop that is never written — which reads as `$$props.data` — is
+  cached in `$$value`. rsvelte answered that from the list of props eligible as assignment
+  targets, which excludes exactly those.
+
+- 95ba248: Read a destructured `export let` property through its key, and build a rest element as `$.exclude_from_object`.
+- 114c993: Vectorise the two whole-source scans dev-mode prop-mutation validation runs, and stop allocating a name for every identifier the assign-tail scanner rejects
+- 051e359: Give a `bind:` / `class:` shorthand's synthesized `Identifier` no `loc`, as upstream's does, and stop stripping the `loc` off an explicit one. Upstream builds that node by hand in `1-parse/state/element.js` and simply writes no `loc`; rsvelte attached one in the parser and then removed it again wherever `expression.name === directive.name`, which is a different predicate — it also fires on `bind:map={map}`, whose expression _was_ parsed and _does_ carry a position. The strip lived only in the legacy converter, so the two AST modes were wrong in different places: `legacy` dropped a real expression's `loc` while `modern` kept a synthesized one on both shorthands. `parse()` is the only affected output; `compile()` is byte-identical on all four targets across the corpus.
+- f30f653: The legacy `$$props` → `$$sanitized_props` rename is decided per occurrence rather
+  than per line, so a `$$props` written in a comment, a string or a template's text
+  keeps its spelling, and a genuine read inside a `$.prop(…)` default is no longer
+  skipped because the generated call shares its line.
+- 5b9665b: A legacy reactive import is invalidated through its `$$_import_` alias, not through its own name
+- 7a30d48: An each item that is reassigned now reads as `collection[$index]` inside an inner `bind:`'s invalidation dependency list, as it already did everywhere else.
+
+  Upstream reads a reassigned each item as `collection[$index]` and never as `$.get(item)`
+  (`EachBlock.js:216-227`). rsvelte ports that rule as `build_reassigned_item_read` and applies it
+  at eight sites; the dependency list an inner `bind:` hands to `$.invalidate_inner_signals` is a
+  ninth, built by a string loop that consults `state.transform` directly, so the rule never reached
+  it. Every other read of the item in the same output was already correct.
+
+- f30f653: A comment trailing a semicolon-free `export let` is no longer dropped from the generated `$.prop` call.
+
+  esrap flushes a same-line comment after a source declaration onto the initializer node, so once
+  that initializer becomes `$.prop(…)`'s last argument the comment prints inside the call. rsvelte's
+  port restored the comment only when the text before it ended in a `;` — and a declaration is
+  delimited by ASI as readily as by a semicolon, so `export let v = 1 // c` lost it.
+
+- 117dd8a: Search phase-3's generated-code probes with `memmem` through a shared `Substring` trait
+- 23e0672: A rule nested under `:global(.foo) { … }` no longer counts an unused child toward
+  its parent's non-emptiness. Upstream reads "am I inside a global block" off
+  `metadata.is_global_block`, and `is_global_block_selector` sets that only for a
+  bare `:global` — `args === null` — so `:global(.foo)` is an ordinary rule there
+  and `is_empty`'s `(is_used(child) || is_in_global_block)` test does not fire.
+  rsvelte carries that single upstream concept as two separate flags, one of which
+  never looks at `args`, and the empty check read that one: a parent whose only
+  child is an unused rule survived with the child commented out, where official
+  comments the whole parent as `(empty)`.
+- c1af735: A `:global { … }` block's body now goes through the same `Rule` / `Atrule` visitors as
+  any other block, as upstream's transform does; only the scoping is skipped. The
+  non-minify path used to copy each child verbatim and apply deletion ranges, which can
+  express `remove_global_pseudo_class` but not the `/* (empty) … */` comment, so a nested
+  empty rule inside a lone `:global { … }` was emitted instead of being commented out.
+- c4de14e: Three decisions inside a bare `:global { … }` block now answer the way upstream's
+  single `metadata.is_global_block` does. Under a descendant-position block
+  (`.x :global { … }`) an `animation` reference was hashed while its `@keyframes`
+  was not, so the emitted CSS named a keyframe nothing defines and the animation
+  silently did not run; a nested `:global(...)` kept its wrapper, because the
+  selector was returned as source text and so skipped `remove_global_pseudo_class`
+  along with the scoping modifier upstream really does skip; and `is_rule_empty`
+  had no counterpart for `is_empty`'s opening `children.length === 0`
+  short-circuit, so a global block whose only child is an empty rule was commented
+  out whole instead of having the verdict land on that child.
+- 9c5a6e2: Read CSS AST fields by linear scan instead of hashing the key, 3.0-4.3% on every surface
+- 9574b23: Read every compiler-side JSON AST field by linear scan, a further 1.2-1.5% on each surface
+- 7a30d48: A legacy `export let` default holding an equality operator is lazy in dev only
+
+  Upstream runs `is_simple_expression` on the visited default, and dev rewrites `===` / `!==` /
+  `==` / `!=` into `$.strict_equals` / `$.equals` calls — so the same default is eager in
+  production and thunked in dev. The scan deciding it also read a `(` after an operator as a
+  call, which made `a || (b === 'x')` lazy in production where official is eager.
+
+- dd3258d: Scan the source-map resync windows with `memchr` instead of a scalar `position`
+- be70282: Search the three hottest generated-code scans with `memmem` instead of rebuilding a two-way searcher per call
+- 08e71e2: A module script's member assignment in value position is now wrapped in dev's
+  `$.assign(...)`, as upstream's one `AssignmentExpression` visitor does for every
+  script. rsvelte ran that collector only over a settled instance script, so a
+  `.svelte.js`, a `.svelte.ts` and a component's `<script module>` all emitted the
+  bare assignment and lost the proxy warning it exists to give
+  (`(object.items ??= []).push(x)`).
+- 5b9665b: A method call in an assignment target's chain is not a mutation, and a mutation nested in a `$:` right-hand side is one
+- f1588a3: Treat a component's `let:` variable as out of scope inside that component's named slots, the way upstream's scope chain does.
+- fd72d98: The namespace scan now stops at the first **html** element, as upstream does, rather than at the first element of any kind. An `<svg>` in an `{#if}` branch stopped the walk before the sibling branch was reached, so a branch whose content is html was templated with `$.from_svg`.
+- 8cf5b72: `$$ownership_validator` is declared for a prop mutation that was SEEN, not only for one that could be wrapped
+
+  Upstream latches `analysis.needs_mutation_validation` before it builds the mutation's
+  property path (`shared/utils.js:406`), so a computed key it cannot spell — anything but an
+  identifier or a literal — leaves the mutation unwrapped and still emits the preamble.
+  rsvelte derived the flag from a text scan for `$$ownership_validator.mutation`, which by
+  construction can only find a mutation that _was_ wrapped, so
+  `object[objectKey ?? key] = v` emitted neither.
+
+  A second divergence sat one level further out: `scan_member_chain_names` bailed on a root
+  wrapped in plain parentheses, because the helper that steps over a parenthesised root only
+  accepted an `as` / `satisfies` assertion inside them and acorn erases an empty pair. The
+  two are not orthogonal — the scan builds `PropMutationSites`, which `source_has_member_write`
+  reads, which gates the latch — so a fix for the index alone is dead on a parenthesised root.
+  Ablating each half separately measures it: the latch alone falls on 15 of the grid's 24
+  cells, the root arm alone on all 8 parenthesised ones including the three whose wrap the
+  latch never touches.
+
+  The latch itself then had to learn the other half of upstream's condition. Upstream reaches
+  the validator through `scope.get(name)` (`shared/utils.js:396`), so a name that is a prop
+  but resolves to something else declares nothing; this pass asked only whether the name
+  matched a prop, so `list.forEach((p) => { p.x = 1 })` latched on the parameter. The
+  generated instance body parses as a top-level statement list, which makes the props the
+  root scope's bindings and a shadow any other scope — the test `state_pipeline_ast` already
+  makes. Deriving the answer from the binder rather than from a list of shadowing syntaxes is
+  what closes it: `for (const p of …)`, `catch (p)` and a block-scoped `let p` are not
+  parameters, and `is_shadowed_by_function_param` declines all three.
+
+- 44d3d83: A parenthesized `$state` assignment right-hand side keeps its proxy in `compileModule`.
+
+  acorn builds no `ParenthesizedExpression`, so upstream's `should_proxy` decides on what the
+  parens hold. rsvelte ports that predicate twice: the AST port recurses through the pair, and
+  the text port used by the module path had no paren step at all — `is_top_level_function_call`
+  reads only an identifier callee and bailed on a leading `(` with a comment saying so. The two
+  predicates have opposite defaults (`should_proxy` returns false only for the shapes it
+  enumerates, the sniff returns true only for the shapes it enumerates), so every shape neither
+  recognised fell out unproxied.
+
+  Measured one cell per shape against `submodules/svelte` 5.56.10 in both hosts: 25 of 40 module
+  cells diverged and 0 of 40 component cells did, so the class is `compileModule`-only. Every
+  divergence ran one way, and the six agreeing paren cells — `(1)`, `('s')`, ``(`t`)``,
+  `((x) => x)`, `(!a)`, `(a + b)` — are exactly the inner shapes `should_proxy` refuses, which is
+  what a "a leading `(` proxies" rule would have broken.
+
+  The ratchet carrier is `svelte-lexical/demos/qalam/src/lib/notesStore.svelte.ts`, and it
+  diverged only under `dev` because the await instrumentation rewrites the right-hand side into
+  `(await $.track_reactivity_loss(…))()` before the proxy decision reads it — one line of 166,
+  with the same source byte-equal in production.
+
+- 68ba92c: Four node kinds reach the public `parse()` AST instead of being dropped by a catch-all.
+
+  `TSImportEqualsDeclaration`, `TSExportAssignment` and `TSNamespaceExportDeclaration` fell
+  through `convert_statement_for_program`'s `_ => None`, and a class-body `TSIndexSignature`
+  fell through the two class-element converters' — so every consumer that reads rsvelte's AST
+  without compiling (`rsvelte_lint`, svelte2tsx, the language server, the playground) saw a
+  statement or a class member that is not there. Official's AST carries all four.
+
+  Each is carried as its complete ESTree object, the same representation the neighbouring TS
+  declarations already use, and the class-element converter that now names every `ClassElement`
+  variant has lost its catch-all: a new oxc variant is a build error rather than a silently
+  dropped node.
+
+  The stand-in a namespace body used for an `import x = require(…)` — a `DebuggerStatement`
+  with the right span, there only to keep the namespace non-type — is gone with it, so
+  `parse()` no longer reports a node the source does not contain.
+
+- 865392d: A namespace reaches the public `parse()` AST with its name, its modifiers and a real `TSModuleBlock`.
+
+  `TSModuleDeclaration` carried only a span and a body: no `id`, no `declare`, no `global`, and the body was a `BlockStatement` spanning the whole declaration where acorn-typescript emits a `TSModuleBlock` spanning the braces. A dotted `namespace A.B { … }` — which acorn-typescript parses as `A` whose body is `B` — was flattened into a block holding one statement.
+
+  The binary `parseEnvelope` format carries the same three fields and a new `TSModuleBlock` tag, so the Rust writer and the JS decoder that ship together in `@rsvelte/vite-plugin-svelte-native` stay in step.
+
+  The strip is unchanged in behaviour: it now walks through a nested declaration to the innermost block, so a non-type node is still rejected in the dotted form, which upstream cannot even reach (it reads `node.body.body` and throws a raw `TypeError`).
+
+- 3841964: `parse()` emits `TSDeclareFunction` instead of dropping the statement.
+
+  A function with no body — a `declare function`, or an overload signature — was filtered out
+  of the AST entirely. Upstream keeps it: acorn-typescript spells it `TSDeclareFunction`, with
+  no `body` key at all, `declare` stamped only where the keyword is written, and `returnType`
+  where one is annotated. `compile()` still erases it, the way upstream's
+  `TSDeclareFunction() { return b.empty; }` visitor does.
+
+  Dropping a statement is not one missing node. The AST comparison walks a body array index by
+  index, so every sibling after the hole pairs against the wrong node and reports divergences
+  that belong to neither.
+
+  `returnType` was never emitted on an ordinary `FunctionDeclaration` either; it is the same
+  field, so both are carried now. The binary parse envelope grew two fields, and its writer and
+  its decoder ship in one fixed group because a decoder that ships ahead of its writer reads the
+  wrong offsets.
+
+- e13da35: The published compiler is built with a checked-in PGO profile.
+
+  Held out from its own training set — training selects `--skip 0` and evaluation
+  `--skip 1` at the same stride, so the two file sets share no file — and measured
+  over ten ABBA passes with both arms rebuilt from one tree, it is worth 1.100x on
+  client, 1.111x on server, 1.139x on client-dev and 1.110x on server-dev in the
+  parallel shape the performance report publishes, with every arm producing a
+  byte-identical output.
+
+  The profile's training set is exactly the set of workloads the flag is applied
+  to, which is why `parse` and `svelte2tsx` are in it and the formatter, linter and
+  checker are not: `-Cprofile-use` treats a function with no counters as never
+  executed, so a profile handed to code it never trained on makes that code colder
+  rather than merely un-improved.
+
+- 7a30d48: A JSDoc comment before a parenthesised prop default no longer makes it a lazy thunk.
+
+  `is_simple_expression_str` decides whether a prop default is emitted as a value or as
+  `() => value`, and its call test — "ends in `)` and something precedes the matching `(`" — read a
+  leading comment as the callee. Neither axis reproduces it alone: the comment without parentheses
+  does not end in `)`, and the parentheses without a comment have nothing before the `(`.
+
+- e812ce8: A write inside a prop's default value now reaches the passes an instance body
+  already gets. Upstream visits a default with the same `AssignmentExpression` and
+  `UpdateExpression` visitors as any other expression; rsvelte reaches it through
+  passes that skip a line containing `$.prop(`, and only the read halves had a
+  default-scoped counterpart — so `export let f = () => ($store = 1)` emitted
+  `() => ($store() = 1)`, which no JS parser accepts, and `() => (prop = 1)`
+  dropped its invalidation.
+- 7a30d48: Legacy `$.reactive_import` declarations follow the hoisted module snippets
+
+  `transform-client.js:201` unshifts them onto the module program's body and `:513` assembles
+  `[...imports, ...module_level_snippets, ...body]`, so a hoisted `{#snippet}` comes first.
+
+- af95bc3: A TypeScript-only statement form no longer fails the server compile with a code-less error.
+
+  `import x = require(…)`, `export = a` and `export as namespace N` are TypeScript module
+  syntax, not type annotations, so upstream's eraser leaves them alone and copies each one
+  verbatim into the generated JavaScript. rsvelte's server ran its classification parse in
+  plain-JS mode, rejected the erased text, and returned `TransformError::CodeGen` — an error
+  whose `code` is `null`, which is the one shape the error ratchets cannot classify, since
+  `error-message` / `error-position` / `error-end` / `error-frame` are all chained behind it.
+
+  The classification parse and the statement re-home now retry in TypeScript mode, so those
+  three statements are classified and emitted rather than failing the compile. Measured
+  against `submodules/svelte`, the server output is byte-identical to upstream's on all three
+  — including the fact that neither output parses, which is upstream's half and is filed
+  separately. A rejection by both parsers is still a compile failure, so the retry widens the
+  accepted set by exactly the population that used to throw.
+
+- 9c77127: `skip_opaque` is now guarded on its opener byte before being called. It answers
+  `None` for every byte outside `` ` ``, `'`, `"` and `/`, and is too large to
+  inline, so without the guard every ordinary byte of a script paid a call to be
+  told no. Client compile is 0.65% faster and server 1.91%, with output
+  byte-identical on the corpus.
+
+  The guard is four immediate compares rather than a 256-entry lookup table: the
+  table form measured 1.62% _slower_ on the client, where the per-byte load costs
+  more than the branch saves, while being 2.41% faster on the server.
+
+- f49e162: Ancestor scoping follows a `{@render}` into the snippet it renders
+
+  `2_analyze/css_scoping.rs` is the second port of "where is a `{#snippet}` body rendered", and
+  its subject is the template — which elements carry the scope class — not the CSS text. Its
+  `{@render}` arm computed a snippet name, looked it up in a name-keyed map and then did
+  nothing with the answer, so an element whose only matching descendant lives inside a rendered
+  snippet was left unscoped while the CSS rule that matches it was kept: two halves of one
+  answer disagreeing inside a single output. It now ports `get_descendant_elements`' `RenderTag`
+  case, keyed by the snippet's node rather than by its name, and reaches a snippet passed to a
+  component as an attribute through the component's own position.
+
+  A snippet body is walked once per render site, and `metadata.scoped` is the union over those
+  sites, so the direct-match write is `|=`: with `=`, a second site that matches nothing erased
+  the first site's answer. It is the only field this walk writes.
+
+  Ancestor chains are resolved transitively — a `{@render}` written inside another snippet
+  inherits that snippet's own sites — and a snippet may render itself, so the walk needs a guard.
+  Upstream's `get_ancestor_elements` adds to its `seen` set and never deletes, so a snippet is
+  expanded at most once per resolution; that is both the termination bound and the reason the
+  answer is a function of where the walk started rather than of the snippet, which is why it
+  cannot be memoised. Unwinding the guard on the way out instead — the readable spelling —
+  enumerates every acyclic path and does not finish on a real `svelte.dev` component.
+
+- c330966: A `{#snippet}`'s render sites are keyed by the snippet it renders, not by that snippet's name
+
+  Upstream fills `SnippetBlock.metadata.sites` in one pass over `analysis.snippet_renderers`
+  (`2-analyze/index.js:847`): a renderer whose callee resolves to a local snippet is a site of
+  that block NODE, one that resolves to nothing gets `node.metadata.snippets =
+analysis.snippets` and so is a site of every snippet in the component, and one that resolves
+  outside it — a prop, an import — is a site of none. rsvelte keyed that map by the snippet's
+  name, so two `{#snippet row()}` in different scopes merged and each was given the other's
+  ancestors; and it had no notion of an unresolved renderer, so `{@render f()}` with `f` an
+  ordinary local, `<Comp {...spread}>` and `<Comp foo={row} />` contributed nothing. A
+  component is now kept `resolved` when an expression attribute is an identifier naming a
+  snippet, as upstream does, rather than being unresolved for any non-literal.
+
+  The registration for a snippet declared directly inside a component tested
+  `context.path.last()`, but `visit_node` pushes the node before dispatching, so inside the
+  SnippetBlock visitor that is the snippet itself and the branch had never run. Nothing
+  noticed while a missing site meant "unknown, stay conservative"; a real `svelte.dev`
+  component starts losing a CSS rule the moment an empty site set becomes an answer.
+
+  The same upstream rule is ported a second time in `2_analyze/css_scoping.rs`, which still
+  keys by name and whose `{@render}` arm does not follow the tag into the snippet at all;
+  that half is unfixed and is `compatibility/GATES.md#two-ports-inventory` row 27.
+
+- 5b9665b: `$state(p?.x)` keeps its `$.proxy`. Upstream's `should_proxy` proxies everything
+  it does not recognise as primitive; rsvelte's sniff proxied only what it did
+  recognise, and an optional chain matched no member or call predicate because
+  `p?.x` splits into `p?` and `x`. The chain is now read in its plain form, with
+  `?.` followed by a digit left alone — there it opens a ternary, not a chain.
+- 9208412: Ask whether an attribute can be set statically of the raw name, not the normalized one, so a case variant of `autofocus` / `muted` / `defaultValue` / `defaultChecked` stays in the template
+- 7a30d48: A `<select bind:value={$store.x}>`'s indirect bindings now attach to the `$store`
+  binding, so a store member write emits the `$.invalidate_inner_signals` tail
+  upstream emits — while `$store.x++` still does not, because `UpdateExpression.js`
+  never imports `build_assignment`.
+- b1a65e2: An attribute's host now answers `Attribute.ts`'s two host tests separately, and a
+  valueless CSS custom property is `true`.
+
+  `element instanceof Element` picks the `data-` workaround
+  (`...__sveltets_2_empty({…})`) over the component-only `--` one
+  (`__sveltets_2_cssProp`), while the attribute-case fold needs
+  `parent.type === 'Element'` as well. A `<slot>` is built as an `Element` whose node
+  type is `Slot`, so it takes the first wrapper and not the second — rsvelte had the
+  two the wrong way round. A named-slot element is a real element and now folds its
+  attribute name's case like any other. And `<C --x />` types the property as `true`,
+  not `""`: the `""` fallback in `addProp` is only reached when `addAttribute` is
+  called with no value, which the valueless branch never does.
+
+- 6cad1c3: A `$`-prefixed key of a binding pattern is a store reference everywhere except
+  the pattern's first element, and rsvelte emitted no store subscription for any
+  of them — `let { a, $permissions: permissions } = o` lost its
+  `let $permissions = __sveltets_2_store_get(permissions);` line.
+
+  `processInstanceScriptContent` tracks "am I inside a declaration" with a single
+  boolean whose on-leave callback clears it unconditionally, so leaving a pattern's
+  first element clears a flag the enclosing pattern had set and every element after
+  it is walked as an expression. The rule that produces — a key is a name iff it is
+  the first element of its own pattern — is reproduced here, including the nested
+  cases where entering an inner pattern re-sets the flag. Reported as
+  `upstream_issues/svelte2tsx-isdeclaration-is-a-boolean-not-a-stack.md`.
+
+- 167f272: An `export { x as y }` written above `let x` is a value export, as upstream has it.
+
+  Upstream fills `possibleExports` during one in-order walk, so a named export
+  specifier seen before its declaration finds nothing and keeps `isLet: false` —
+  which makes it a value export rather than a prop (`ExportedNames.ts:634`). rsvelte
+  collects the same map in a pre-pass over the whole program body, so it answered the
+  same question the same way in either order.
+
+  The exported name is not the axis: `export { x as class }` and `export { x as b }`
+  behave identically, and a plain `export { x }` above its declaration was wrong too.
+
+- b1a65e2: `$: x = y as T` parenthesises its `__sveltets_2_invalidate` arrow body
+
+  Upstream wraps that body in parentheses under a three-way condition — an object
+  literal, an expression whose text starts with one, or an `as` expression. rsvelte
+  answered the whole condition with `rhs.starts_with('{')`, which covers the first
+  two and cannot express the third, so a reactive declaration whose right-hand side
+  is a TypeScript assertion lost the parentheses.
+
+- b1a65e2: An `is="x-y"` attribute makes an element a custom element, which keeps its attribute-name case
+
+  Upstream's `Element.isCustomElement()` has two conditions — a dash in the tag name,
+  and an `is=` attribute whose first value chunk is text containing a dash — and only
+  a custom element is exempt from the attribute-name lowercasing. rsvelte answered the
+  question with `tag.contains('-')` alone, so `<div is="x-y" defaultValue="1">` emitted
+  `"defaultvalue"` where official emits `"defaultValue"`, on every element host.
+
+  The tag was also being passed as `""` on two of the four hosts, which happened to be
+  harmless only because `title` and `svelte:element` contain no dash. Both now pass the
+  real tag and the caller answers the whole predicate.
+
+- 167f272: A multi-line `/** @type {{ … }} */` on a `$props()` destructure is emitted verbatim.
+
+  Upstream gates the `@type` → `@typedef … $$ComponentProps` rewrite on
+  `/\/\*\*[^@]*?@type\s*{\s*{.*}\s*}\s*\*\//` (`ExportedNames.ts:269`), and that regex
+  has no `s` flag: the inner object must close on the line it opens, and the first `@`
+  in the block must be the `@type`. Everything else falls to an else arm that keeps
+  `$props.comment = comment` and emits the comment itself. rsvelte tested only whether
+  the extracted type text started with `{`, which is true for both shapes, so it
+  rewrote the blocks upstream copies — and rebuilt the comment from the type text,
+  which loses a multi-line block's own layout.
+
+  JS's `.` excludes `\n`, `\r`, U+2028 and U+2029 while Rust's excludes only `\n`, so
+  the transcribed condition spells that exclusion out.
+
+- b1a65e2: A mustache in an attribute value now contributes the text between its braces, not the
+  span of the expression node inside them.
+
+  Official copies the interior verbatim into the template literal it builds, so
+  `class="x {// why⏎a} z"` keeps the comment and `class="x { a } z"` keeps its two
+  spaces; rsvelte emitted `${a}` for both. The interior reaches a template literal
+  through two builders — the string one used by `<slot>` and named-slot-element
+  attributes, and the segment one used by elements, `style` and component props — and
+  both had the expression's span.
+
+- b1a65e2: An element that targets a named slot with a `slot` attribute now lowers its `bind:`
+  directives like any other element.
+
+  That element is handled by a second port of the element transform, which built its own
+  attribute object and its own class/style + transition suffix and never ran the binding
+  pass — so `bind:this` stayed a `"bind:this": element` prop instead of becoming
+  `const $$_button1 = svelteHTML.createElement(…); … element = $$_button1;`, a two-way
+  binding lost its `() => v = __sveltets_2_any(null)` setter, and a void or self-closing
+  element closed with a leading space that only an overwritten `</tag>` produces.
+  `<svelte:element>` and the special elements share that attribute builder and emit the
+  suffix themselves, so they lower the same bindings now too.
+
+- b1a65e2: `<svelte:fragment slot="…">` keeps its attribute names and its opener layout.
+
+  It is an `Element` whose node type is not `Element`, so the attribute-case fold and
+  the number-only rewrite do not reach it — `<svelte:fragment slot="s" someProp="0"
+cols="3" />` keeps `someProp` and types `cols` as a string. And its opener is
+  position-preserving like any other element's: the columns the stripped `slot=` and
+  `let:` occupy come back as spaces whether or not another attribute survives, where
+  rsvelte emitted them only when nothing did.
+
+- 167f272: Two fixes to the JSDoc a prop carries into the emitted `props:` object.
+
+  `createReturnElements` writes `\n${doc}${name}`: the comment is preceded by a
+  newline and followed by nothing. rsvelte wrote the comment followed by a space,
+  which oxfmt normalizes away — so the corpus gate could not see it, while raw
+  output differed on 738 of 33,901 components.
+
+  `getLastLeadingDoc` also removes every `@typedef` tag from the comment before it
+  reaches the prop, and rsvelte kept them. That removal is offset by `node.pos` in
+  upstream, because `tag.pos` is SourceFile-absolute and is indexed into a
+  node-relative slice, so it only lands when the declaration is the script's first
+  statement. rsvelte reproduces that: `@typedef` tags are stripped when nothing
+  precedes the comment and kept otherwise. The remaining case — a shift that lands
+  inside the comment, where upstream deletes the wrong text — is filed as
+  `upstream_issues/svelte2tsx-getlastleadingdoc-mixes-absolute-and-relative-offsets.md`
+  and is not reproduced; no corpus component reaches it.
+
+- b1a65e2: The `$$ComponentProps` typedef is inserted before the declaration's leading comments
+
+  Upstream inserts `;type $$ComponentProps = …;` at `node.parent.pos`, and TypeScript's
+  `pos` spans the declaration's leading trivia — so the insertion lands before any
+  comment that precedes the `$props()` declaration. rsvelte walked back from the
+  `let`/`const` keyword, and two of the three branches that compute this offset stopped
+  at whitespace, appending the typedef onto a preceding `// …` line where the line
+  comment swallowed it. The output was not TypeScript.
+
+- 167f272: Three fixes to where `function $$render()` opens relative to a hoisted type
+  declaration. All three decide the same thing — which instance-script types may
+  move above `$$render()` — and each was wrong in a different direction.
+
+  A `type T = $$Generic` alias name was not treated as a generic in scope on
+  `$$render<T>()`, so an `interface Props { a: T }` was hoisted to module scope
+  where `T` does not exist. `Generics.getReferences()` is filled from both the
+  `generics="…"` attribute and every `$$Generic` alias, and that is the set
+  `moveHoistableInterfaces` adds to `disallowed_types`.
+
+  `$$Props`, `$$Slots` and `$$Events` were excluded from the hoist candidates
+  outright. Upstream calls `analyzeInstanceScriptNode` on every top-level node, so
+  those three are ordinary candidates there and hoisting them is what shifts
+  everything after them by a line.
+
+  A shorthand name in an object binding pattern inside a type — the `title` of
+  `textFactory: ({ title }: { title: string }) => string` — was read as a value
+  reference by the lexical dependency scan, so a prop of the same name blocked the
+  hoist. Upstream collects type references from the AST, where such a name is not
+  one.
+
+- 383cc44: A prop widener that would land on the script's last byte is no longer emitted, because
+  upstream discards it there.
+
+  `preprendStr` overwrites the single character at its insertion point rather than appending,
+  so `propTypeAssertToUserDefined`'s `;x = __sveltets_2_any(x);` at `declaration.end` is
+  overwritten by the `</script>` removal when the declaration is the last thing in the script.
+  Any trailing byte — a space, a tab, a comment, a `;`, a newline — moves the insertion point
+  and the widener survives. The same position carries the SvelteKit `./$types.js` annotation
+  when the declaration ends at its name, so that is lost with it. Reported as
+  `upstream_issues/svelte2tsx-preprendstr-insertion-at-the-script-end-is-overwritten.md`.
+
+- 167f272: Three svelte2tsx fixes, two of which produced TypeScript no parser accepts.
+
+  An element carrying a `slot=` attribute inside a component went through a second,
+  legacy attribute emitter: a `use:` action was written as an entry _inside_ the
+  props object and a transition as `__sveltets_2_ensureTransition(f)(tag, {})`, both
+  of which are syntax errors. Named-slot elements now use the same
+  `build_directive_prefix_suffix` path as every other element, so an action becomes a
+  preceding `const $$action_N = …` and a transition a call after `createElement`.
+
+  `dispatch(` + backtick + `${name}:trigger` + backtick + `)` registered an event named after the raw
+  template text. Upstream's `checkIfCallExpressionIsDispatch` accepts only a
+  `ts.isStringLiteral` first argument, which a template literal is not — substituting
+  or not.
+
+  A typed `createEventDispatcher<{ change: … }>()` whose member name is also a
+  _forwarded_ `on:change` did not emit the `'change': __sveltets_2_customEvent` entry.
+  Upstream seeds its `events` map from the bubbled events in the `ComponentEvents`
+  constructor, so `addToEvents` sees a collision and the name joins `dispatchedEvents`.
+
+- b1a65e2: `<svelte:body>`, `<svelte:window>`, `<svelte:document>`, `<svelte:head>` and
+  `<svelte:fragment>` no longer fold an attribute name's case or rewrite a
+  number-only value.
+
+  Both rewrites need `element instanceof Element && parent.type === 'Element'`, and
+  every one of those tags is an `Element` whose node type is not `Element` — only
+  `<svelte:element>` carries that type. So `<svelte:window someProp="0" cols="3" />`
+  keeps `someProp` and types `cols` as a string, where rsvelte emitted `someprop`
+  and `3`. The `data-` wrapper needs only the first condition and is unchanged.
+
+- b1a65e2: A component with a module script now emits two store-subscription ignore regions at the
+  render-function start rather than one.
+
+  Upstream builds a second `ImplicitStoreValues` for the module script, seeded with the
+  instance script's accessed stores but with its own import list, and each instance wraps its
+  own names in one `/*Ωignore_startΩ*/ … /*Ωignore_endΩ*/` region. rsvelte collected both
+  scripts' imports into one list, which also dropped a name imported by both scripts — upstream
+  declares it in each region — and would have emitted the module's region first when the module
+  script is written second.
+
+- b1a65e2: A `<slot>` attribute written with no value no longer declares a slot prop.
+
+  `handleSlot` skips any attribute whose `value` has no length, and a valueless
+  attribute's `value` is `true` — so `<slot a b={b} />` types the slot as `{b: …}` and
+  rsvelte typed it as `{a: …, b: …}`, adding a prop consumers never receive.
+
+- 7a30d48: A tagged template with a pure tag no longer forces a `$.template_effect`
+
+  `TaggedTemplateExpression.js` sets `has_state` from the tag's purity alone, so
+  `pattern={String.raw`…`}` is written once at init. rsvelte's `has_reactive_state_json` had no
+  arm for the node type and fell into its conservative `_ => true`.
+
+- 82df28b: Seven `TSType` variants fell through `convert_ts_type`'s catch-all and serialized as a span-bearing `TSUnknownKeyword` stub, so `parse()` reported a conditional, infer, mapped, query, import, predicate or template-literal type as `unknown` and dropped the whole subtree under it
+- 44d3d83: A `$state` write whose value is a prop with an `undefined` destructure default is no longer
+  wrapped in `$.proxy`. Upstream's `should_proxy` answers `false` for `undefined` in the same
+  clause as the literal types and resolves a bare identifier by recursing on `binding.initial`;
+  rsvelte ports that node-type list twice, and `is_non_proxy_node_type` was the correct port's
+  negation without the `undefined` arm. Two of its four call sites had bolted the arm back on at
+  the call site and two had not, so the answer depended on which list a binding reached. The
+  identifier name is now a parameter of the predicate rather than a caller-side `||`.
+
+  Measured one cell per shape against the official compiler: 8 of 24 diverged before and 2 after,
+  the remaining 2 being a `<script module>` local that reaches a different port (0 carriers over
+  33,545 corpus files). A 134,180-unit four-target sweep moves 2 units, both `MISMATCH -> match`.
+
+- 7a30d48: An `++` / `--` on a state or prop member no longer grows the
+  `$.invalidate_inner_signals` tail. `UpdateExpression.js` does not import
+  `build_assignment`, so upstream attaches that tail only to an assignment; the
+  same binding's `=` and `+=` keep it. The wrapper was applied in four places —
+  the AST and in-place ports of both the legacy-state and the prop member
+  mutation transforms.
+
 ## 0.11.1
 
 ### Patch Changes
