@@ -3063,6 +3063,63 @@ applies to instrumentation with the same force, and is easier to skip there, bec
 on the failing input answers immediately and looks conclusive. Probe the cells you expect to be
 boring.
 
+### A staged input can be corrupt, and no output-side control fires on it
+
+The arm-identity table collects the ways a measurement lies about *which binary* it ran, and the
+truncating-stage table the ways it lies about *what came back*. There is a third place, upstream
+of both: **the input can carry the right name and the wrong bytes.**
+
+Measured on 2026-09-04. Five `fmt-known-failures.json` entries were staged out of the corpus,
+both gate arms were run over them, and an A/B table was published from the result. Diffed
+afterwards against the real sources: **five of five corrupt**, by 28 / 44 / 52 / 81 / 681 lines —
+they had been re-typed rather than copied, so the real sources indent with tabs and write
+`.card >> .a` where the staged ones indent with spaces and write `.card>>.a`. The whole table
+described files the corpus does not contain.
+
+**Every control in the arm-identity table passes here**, mechanically rather than by oversight:
+both binaries were the right binaries and both processed the files they were given correctly.
+`Compiling <crate> (<path>)`, the artifacts' `sha256`, a discriminating probe on the output — all
+green. Nothing on the output side can catch an input that was never the input.
+
+What surfaced it was an **implausible result**, which is luck and not method: under the corrupt
+inputs one file returned a zero-line diff while being a listed ratchet entry, a shape that reads
+as a stale entry and so prompted a second look. A slightly different corruption returns five
+plausible divergences and the table ships.
+
+The check is one line per file: after staging, `diff -q <staged> <real source>`. "I copied it" is
+an intention and the diff is an observation — the same split as an agent's shell cwd silently
+resetting. Re-measured from the real sources the answer was *narrower and better supported*,
+which is the usual shape of a retraction that was measured rather than argued.
+
+### Three spellings of "I added the stage that loses the verdict"
+
+`| tail` truncates it and `|| echo` fabricates it. The third is
+`cmd > log 2>&1; echo "EXIT=$?" >> log`: a compound command's status is the last component's, so
+the `echo` succeeds and **the wrapper honestly reports 0** for a `cargo check` that exited 101.
+Measured on one run — an exhaustive `match` missing two new fields, `E0027`, reported by the
+background-task display as `[exited with code 0]`, with the true value surviving only in the
+`CHECK_EXIT=101` line the same command had written into the log.
+
+Two things generalize. The wrapper is not the liar here, and neither is any filter: **the stage
+was added by the person reading the result**, which is why re-reading the command finds nothing —
+it does exactly what it says. And the habit this file already prescribes for a different reason
+(write to a file, then read the file) is what recovered it, by routing around the path its own
+author had just broken. The fix is to redirect only and let the wrapper carry the status.
+
+### A byte you believe is a space can be a NUL, and every reader renders it as one
+
+Already recorded as a hazard in a `grep` pattern. It has a second, quieter home: **a key's
+separator**. A two-arm sweep wrote `${id}\0${target}` and the comparison stage split on
+`lastIndexOf(' ')`. `console.log`, a JSON round-trip and a terminal all render the NUL as
+nothing, so the printed keys looked exactly right at stage 1; stage 2 then returned
+`SOURCE-MISSING` for **26 of 26** units, and only the error text
+(`Received '…/Separator.svelte\x00clien'`) named it. The author of the row warning about this
+was the one who walked into it, three hours after quoting it.
+
+The cheap defence is not vigilance: print `JSON.stringify(key)` once when a key-joined stage is
+first wired, and prefer a separator that **cannot occur in the data** over one that reads well —
+a corpus id can contain a space, so the readable choice was also the wrong one.
+
 ### Report a measurement as `mechanism | carrier | population | result`, and the mistakes cannot hide
 
 Three failures of the same family landed in one afternoon, and each one is a different column
