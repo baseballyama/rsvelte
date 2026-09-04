@@ -1,0 +1,113 @@
+name: Tag C ABI release
+
+# The C ABI releases off a `capi-v<version>` tag, so a version bump merging to
+# main publishes nothing by itself — and a merged-but-untagged bump is
+# indistinguishable from a released one when you read main. `capi-v0.1.1` was
+# the newest tag for three months while `rsvelte_core` moved to 0.11.1, and an
+# external report is what surfaced it (#4274 / #4285).
+#
+# This job turns the merge into the tag `release-capi.yml` already builds from.
+# It then *dispatches* that workflow rather than relying on the tag push to
+# trigger it: a push made with GITHUB_TOKEN starts no workflow run
+# (workflow_dispatch and repository_dispatch are the documented exceptions), so
+# a tag pushed here would otherwise sit unbuilt — the same silence one step
+# further along. Dispatching against the tag ref keeps `release-capi.yml`'s own
+# `refs/tags/capi-v` conditions true, so the Release is created exactly as it is
+# for a hand-pushed tag.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/rsvelte_capi/Cargo.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create the tag ref
+  actions: write    # dispatch release-capi.yml
+
+# Never cancelling: two bumps landing close together are two releases, and the
+# newer run does not subsume the older one's tag.
+concurrency:
+  group: capi-autotag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Cut the capi tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # The tag list comes from the API rather than from a deep fetch: it is the
+      # same set the Release page shows, and it costs one request instead of the
+      # repository's history.
+      - name: Read the released tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/capi-v" \
+            --jq '.[].ref' | sed 's|^refs/tags/||' > capi-tags.txt
+          echo "existing capi tags: $(wc -l < capi-tags.txt)"
+          cat capi-tags.txt
+
+      - name: Decide whether a tag is needed
+        id: decide
+        run: node scripts/release/capi-release-decision.mjs --tags-file capi-tags.txt
+
+      - name: Create the tag
+        if: steps.decide.outputs.action == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/${{ steps.decide.outputs.tag }}" \
+            -f sha="${GITHUB_SHA}"
+
+      # A created tag with no build behind it is the failure this workflow
+      # exists to remove, so the dispatch is verified rather than assumed: `gh
+      # workflow run` exits 0 on acceptance, which is not the same as a run.
+      - name: Build and publish the release
+        if: steps.decide.outputs.action == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.decide.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh workflow run release-capi.yml --ref "${TAG}"
+          for _ in $(seq 1 12); do
+            sleep 10
+            # `head_branch` is the ref the dispatch resolved to, and it has to be
+            # the TAG: `release-capi.yml` publishes on `refs/tags/capi-v*` and
+            # would otherwise build the matrix and create no Release at all.
+            ref=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/release-capi.yml/runs?event=workflow_dispatch&per_page=20" \
+              --jq "[.workflow_runs[] | select(.head_sha == \"${GITHUB_SHA}\")] | .[0].head_branch // empty")
+            [[ -n "${ref}" ]] || continue
+            if [[ "${ref}" == "${TAG}" ]]; then
+              echo "release-capi.yml is running against ${ref}"
+              exit 0
+            fi
+            echo "::error::release-capi.yml started against \`${ref}\`, not \`${TAG}\` — it will build the matrix and publish nothing. Re-run it against the tag: gh workflow run release-capi.yml --ref ${TAG}"
+            exit 1
+          done
+          echo "::error::${TAG} was created but no release-capi.yml run appeared for ${GITHUB_SHA}. Start it by hand: gh workflow run release-capi.yml --ref ${TAG}"
+          exit 1
+
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "### C ABI tag"
+            echo
+            echo "- decision: \`${{ steps.decide.outputs.action || 'not reached' }}\`"
+            echo "- version: \`${{ steps.decide.outputs.version || 'unknown' }}\`"
+            echo "- tag: \`${{ steps.decide.outputs.tag || '—' }}\`"
+            echo
+            echo "A \`tag\` decision only starts the release build; the GitHub Release appears when [Release C ABI](../../actions/workflows/release-capi.yml) finishes its five-triple matrix."
+          } >> "$GITHUB_STEP_SUMMARY"

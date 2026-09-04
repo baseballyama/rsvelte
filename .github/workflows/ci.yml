@@ -1310,6 +1310,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: node scripts/release/test-wait-for-release-verdicts.mjs
 
+      # The capi auto-tag's "already released" and "version goes backwards"
+      # arms only ever run on a tree where they must not fire, so nothing else
+      # can show they are still able to.
+      - name: Run capi release decision tests
+        if: ${{ !cancelled() }}
+        run: node scripts/release/test-capi-release-decision.mjs
+
       - name: Run differential corpus workflow tests
         if: ${{ !cancelled() }}
         run: node scripts/ci/test-differential-corpus-workflow.mjs

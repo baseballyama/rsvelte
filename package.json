@@ -91,6 +91,7 @@
 		"test:bot-branch-guard": "node scripts/ci/test-bot-branch-guard.mjs",
 		"check:workflow-triggers": "node scripts/ci/workflow-trigger-guard.mjs",
 		"test:workflow-trigger-guard": "node scripts/ci/test-workflow-trigger-guard.mjs",
+		"test:capi-release-decision": "node scripts/release/test-capi-release-decision.mjs",
 		"test:differential-corpus-workflow": "node scripts/ci/test-differential-corpus-workflow.mjs",
 		"check:prereq-coverage": "node scripts/ci/prereq-coverage-guard.mjs",
 		"test:prereq-coverage-guard": "node scripts/ci/test-prereq-coverage-guard.mjs",

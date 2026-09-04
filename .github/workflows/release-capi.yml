@@ -5,10 +5,14 @@ name: Release C ABI
 #  - Tag the worktree as `capi-v<MAJOR.MINOR.PATCH>` (must match the
 #    `version` in `crates/rsvelte_capi/Cargo.toml`) and push the tag.
 #    The push event triggers this workflow; on success it creates a
-#    GitHub Release with the per-OS/arch archives attached.
-#  - `workflow_dispatch` lets you do a dry-run end-to-end without
-#    actually publishing — pick a "version" input (defaults to "test")
-#    and run; the build matrix produces artifacts you can inspect.
+#    GitHub Release with the per-OS/arch archives attached. Normally
+#    `capi-autotag.yml` does that for you when the bump merges.
+#  - `workflow_dispatch` publishes or not according to the REF, not the
+#    event: dispatched against a branch it is a dry run (pick a "version"
+#    input, defaults to "test") that leaves inspectable artifacts, while
+#    dispatched against a `capi-v*` tag it publishes exactly as a tag push
+#    does. `capi-autotag.yml` relies on the second form, because a tag
+#    pushed with GITHUB_TOKEN starts no workflow run of its own.
 #
 # The matrix mirrors the existing svelte-check / vps-native release
 # pipelines (.github/workflows/release.yml) so the toolchain quirks
@@ -204,9 +208,10 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Only publish on a real tag push. workflow_dispatch leaves the
-    # artifacts attached to the workflow run for inspection without
-    # creating a Release.
+    # The ref decides, not the event: a `capi-v*` ref publishes (a tag push,
+    # or `capi-autotag.yml` dispatching against the tag it just created),
+    # and any other ref leaves the artifacts attached to the run for
+    # inspection without creating a Release.
     if: startsWith(github.ref, 'refs/tags/capi-v')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

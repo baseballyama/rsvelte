@@ -241,18 +241,25 @@ intentionally independent from the npm/changeset pipeline that ships
 
 1. Bump `crates/rsvelte_capi/Cargo.toml`'s `version`.
 2. Open a PR, get it merged.
-3. From `main`, tag and push:
-
-   ```bash
-   git tag capi-v0.2.0
-   git push origin capi-v0.2.0
-   ```
-
+3. That is the whole procedure:
+   [`capi-autotag.yml`](../../.github/workflows/capi-autotag.yml) sees the
+   manifest change on `main`, creates `capi-v<version>` at the merge commit,
+   and starts the release build. It does nothing when the tag already exists,
+   and refuses — rather than tagging — when the version is not
+   `MAJOR.MINOR.PATCH` or is behind a released one.
 4. The release workflow builds the five-triple matrix, packages each
    into `rsvelte_capi-<ver>-<triple>.tar.gz` (or `.zip` for Windows),
    computes per-archive + combined SHA-256 sums, and creates the
    GitHub Release with all archives attached. The workflow refuses to
    build if the tag and `Cargo.toml` version disagree.
+
+To cut one by hand instead — a prerelease version, or a re-release of a tag
+that was deleted — push the tag yourself and the same workflow runs:
+
+```bash
+git tag capi-v0.2.0
+git push origin capi-v0.2.0
+```
 
 `workflow_dispatch` (in the Actions tab) lets you run the matrix
 against any branch with a synthetic version label, producing
