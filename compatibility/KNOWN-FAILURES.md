@@ -1157,7 +1157,12 @@ question, not a longer one. And the 90 split on whether the oracle needed one br
 several: in **39** of them the oracle used exactly two lines, so a single break
 sufficed and rsvelte performed none, which is what separates "never reached the break
 decision" from "broke once and stopped" — the other 51 are predicted by both readings
-and settle nothing. Read the distribution and not the cell: a
+and settle nothing. A 2×2 over the parent's start tag — does it break, are the
+children long — reproduces the shape with both controls agreeing, and its
+precondition holds for **20 of the 90**; the other 70 sit under a parent whose start
+tag is intact and are not explained by it. Measure a constructed cell's precondition
+against the carriers before naming it their mechanism: the first carriers printed
+here all had a hugged `>`, and a hug turns out to be 12 of 90. Read the distribution and not the cell: a
 mechanism read off constructed cells is a property of the cells, and this one was
 about to be quoted at 171. The first alignment attempt returned 128 unaligned and was
 the instrument — collapsing a newline to a space makes `</span\n>` and `</span>`
