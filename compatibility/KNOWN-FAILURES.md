@@ -1143,9 +1143,21 @@ looks indentation-shaped.
 whitespace-stripped text and counting the lines each spends on it partitions the
 carriers: **90 spend ONE line where the oracle breaks** (rsvelte does not break there
 at all), 26 use the same number of lines with different placement, 8 break into fewer
-lines — the constructed cell's class — 46 do not align at all within 40 lines and so
-are not purely a placement difference, and **1 breaks into MORE lines than the
-oracle**, which is the opposite direction. Read the distribution and not the cell: a
+lines — the constructed cell's class — 46 never align and so are not a placement
+difference at all, and **1 breaks into MORE lines than the oracle**, which is the
+opposite direction
+(`appwrite-console/…/database-[database]/settings/+page.svelte:127`, oracle 2 lines
+against rsvelte's 3; it is one entry and its sign is recorded rather than rounded,
+because a fix for the other 170 either moves it or does not, and that is independent
+evidence). Two of those buckets are load-bearing. The 46 were first reported under a
+40-line search cap, which makes "unaligned" a statement about the instrument; removing
+the cap entirely leaves **46**, every one of them because the whitespace-stripped text
+diverges and none because the search ran out of file — so they are a different
+question, not a longer one. And the 90 split on whether the oracle needed one break or
+several: in **39** of them the oracle used exactly two lines, so a single break
+sufficed and rsvelte performed none, which is what separates "never reached the break
+decision" from "broke once and stopped" — the other 51 are predicted by both readings
+and settle nothing. Read the distribution and not the cell: a
 mechanism read off constructed cells is a property of the cells, and this one was
 about to be quoted at 171. The first alignment attempt returned 128 unaligned and was
 the instrument — collapsing a newline to a space makes `</span\n>` and `</span>`
