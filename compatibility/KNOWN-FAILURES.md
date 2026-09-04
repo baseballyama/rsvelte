@@ -1127,21 +1127,33 @@ enough to deny the stronger sentence this section used to carry: the break-point
 cluster is not known to be the template printer's. Separating the two needs the
 printer, not the region.
 
-**And the engine reading, measured on one carrier, is the wrong one.** Holding a
-member chain fixed and varying only nesting depth, the two sides agree at indents
-2-10 and diverge at 12-16; the same expression as a `<script>` statement at the
-*matched* indent of 14 agrees, as it does at 16 and 18. So `oxc_formatter` and the
+**And the engine reading is the wrong one: measured, both sides break the same
+expression the same way, and they part company over whether ONE break is enough.**
+Holding a member chain fixed and varying only nesting depth, the two agree at indents
+2-10 and diverge at 12-16, while the same expression as a `<script>` statement at the
+*matched* indent of 14 agrees, as it does at 16 and 18 — so `oxc_formatter` and the
 estree printer the oracle reaches through `svelteExpressionParser` do not disagree
-about this expression — only the template embedding moves, which is the shape the
-retracted `fmt-oracle-excluded` entry above already has. Reading the two sides at the
-threshold names the quantity: at indent 10 the oracle's line is 79 columns and both
-agree, at indent 12 the same construction is 81 and the oracle breaks the chain early
-while rsvelte emits the 81-column line. The budget is not being reduced by the current
-indentation. That predicts something this ratchet can check directly and without the
-first-differing-line classification — **rsvelte's formatted output should contain lines
-wider than `printWidth`, and the oracle's cannot** — so count them on the next
-regeneration rather than inferring reach from the proxy above. One expression shape on
-one carrier family is what this rests on; it is a mechanism, not a share.
+about it. At indent 12 **both** sides break at the `&&`; rsvelte stops there and emits
+an 81-column first line, and the oracle, finding that line still over budget, breaks
+the *inner* group as well (`linkedCollectionList` / `.map(String)` / `.includes(…)`).
+Whether one break suffices is what indentation changes, which is why the divergence
+looks indentation-shaped.
+
+Two readings died on the way, and the second is the one worth recording. "The budget
+is not reduced by the current indentation" fits every cell of that depth sweep and is
+false: the sweep held the expression at 75 columns and varied only the indent, and at
+indent 0 — where an indentation-blind budget and a correct one are the same budget —
+the two sides agree with the content run out to 111 columns, both breaking at the
+`&&`. **The axis the rule turns on is the content width, and it was the sweep's held
+constant.** The corpus says so independently: of the 524 entries, 207 have a first
+differing line wider than `printWidth` and 171 of those have the oracle's line as a
+proper prefix of rsvelte's, but only 103 of the 171 would fit with the indentation
+removed — and three sit at indent 0, where rsvelte emits 87 and 93 columns against an
+oracle that breaks. The pre-registered prediction's other half was false too:
+**the oracle overflows `printWidth` on 42,871 lines in 12,134 files**, because a
+construct with no break point in it overflows on any printer, so rsvelte's own 43,366
+bounds nothing. The measurement that carries the mechanism is the 171, and the number
+to read beside it is the 68 it does not explain.
 
 **The anchoring method changed, and that is most of the difference from the previous
 reading.** The 2026-09-01 measurement located each entry's first differing line back in
