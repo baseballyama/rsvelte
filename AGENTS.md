@@ -416,6 +416,23 @@ was right and its instance unchecked. **The stronger claim was also the true one
 a refactor". Checking the example did not weaken the paragraph, it sharpened it — which is
 the argument for checking it even when the conclusion is not in doubt.
 
+**And the examples in THIS file are the same claim, with nothing that re-derives them.** A
+number here can at least be checked against an artifact; a carrier example is checked only by
+running it. Measured on one day, twice, both in the `parse()` material and both with the
+conclusion intact: `CallExpression.optional#value` is recorded as carried by `f?.(…)`, and
+`f?.()`, `o?.m()` and `f()?.()` are all byte-equal — the carrier is a call whose *callee* is
+itself an optional call, which the recorded spelling does not describe. And
+`FunctionDeclaration.params[]#length` is recorded as a `function` statement losing `params.rest`
+"while the *exported* form already guards it", which is true of `export function` and false of
+`export default function`; crossed over twelve hosts it is 7 DIFF / 5 EQ, and the guard covers
+one of the seven. In both, `optional` really is dropped and `params.rest` really is dropped —
+only the shape named as the carrier is narrower than the mechanism. The cause is visible in
+where the examples came from: they were written from the shape a bug report brought, which this
+file already calls a work log rather than a partition — the difference being that here the
+enumeration under audit is its own. So when a row here is about to be cited as a *carrier* —
+to build a grid, to size a fix, to decide a ratchet key is understood — run the named shape
+through the oracle first. Two of two did not reproduce.
+
 **The reconciliation was nearly skipped on exactly that reasoning, and skipping it would
 have cost the finding.** The first recount was 231, and the argument for not chasing the
 gap was that the value decides nothing — which is true of the *value* and false of the
@@ -3010,6 +3027,17 @@ there two clean-merging PRs turn `main` **red**, and the redness is the alarm. H
 **longer**, and a document that says the same thing twice is the exact defect this file spends
 its length warning about — two ports of one rule, with colocation hiding them.
 
+**Heading disjointness is necessary and not sufficient, and the sufficient half is the
+insertion POINT.** Measured on two AGENTS.md PRs the day after this row was written: the
+merge-base-subtracted added sets were 4 and 5 headings with an empty intersection — the check
+above, passing, with both sides' added sets non-empty as live controls — and GitHub still
+reported `CONFLICTING`. Both branches had appended at the *same* anchor mid-file rather than at
+different offsets, so it is an add/add whose resolution is to keep both. So this row's own
+claim ("git would have merged them without a conflict") holds for the case it was written from
+and not for the neighbouring one, and the check it prescribes answers *will these duplicate*
+while saying nothing about *will these merge*. The two questions want two different commands,
+and only the first one is written here.
+
 One incidental, because it printed three plausible zeros while I was measuring the above:
 `for r in …; do git show $r:AGENTS.md; done` is not that command in zsh — `:A` is the
 absolute-path modifier, so the argument becomes `<abspath>GENTS.md`, git fails to **stderr**,
@@ -3025,6 +3053,14 @@ paragraphs above the note describing that exact hazard, and returned an empty se
 `fatal:` lines on stderr that a `0 collisions` label was printed over. What caught it was the
 injection control returning `0` where it must return `1` — the result and the broken control
 agreed, and only the control was checkable.
+
+A second instance the next day put three of those zeros in one screen, all pointing the
+flattering way: `git show "$MAIN:AGENTS.md" | grep -c '^### '` and two sibling checks reported
+`headings 0`, `duplicates 0`, `missing blank line 0` — a file with no headings, no duplicates
+and no defects, for a tree whose real answer is `214 / 0 / 1`. **The three read as one clean
+verdict rather than as one broken instrument**, which is what a shared broken stage buys. It
+was caught only because nothing discarded stderr, and by the author of the paragraph you are
+reading, on the same day they had cited it.
 
 ### An enumerated concern gets one item crossed off and reads as answered
 
