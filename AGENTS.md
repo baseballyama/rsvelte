@@ -676,29 +676,41 @@ is why that suite reads 100% while the class exists. **A gate's first baseline m
 the surface was ungated, not how much someone let rot.**
 
 **Those three numbers are the FIRST baseline (2721 entries) and none of them is a current work
-item.** The ratchet stands at 301 over ten clusters — `span` 78, `node-type` 62,
-`comment-attachment` 50, `estree-fields` 38, `unclustered` 36, `child-count` 14, `css-shape` 14,
-`loc-presence` 6, `ast-mode` 2, `accepts-what-official-rejects` 1 — and there is no
-`character` cluster at all. Grepping the keys for `character` returns 0 and **means nothing**,
-because `verify.mjs` folds `start`/`end`/`loc` into one key per node type, so a
+item.** For what the ratchet holds *today* — its size, its cluster partition, its base count and
+its per-cluster collapse — read
+[`compatibility/KNOWN-FAILURES.md#parse-ast-known-failures`](compatibility/KNOWN-FAILURES.md#parse-ast-known-failures):
+its declared count and its partition line are gated by `known-failures-md-check.mjs`, and every
+number this paragraph used to carry was not. What survives here is only what does not go stale.
+
+There is no `character` cluster at all, and grepping the keys for `character` returns 0 and
+**means nothing**, because `verify.mjs` folds `start`/`end`/`loc` into one key per node type, so a
 `loc.start.character` divergence sits inside `span`. Measured directly on one input, both
 compilers emit zero `character`-bearing `loc`s and `phases/1-parse` does not import
 `locate-character` at all (only `preprocess/index.js`, `state.js` and
 `utils/compile_diagnostic.js` do) — which suggests the paragraph above describes the
-*diagnostic* path rather than `parse()` output, but one input is not a population. Count the
-JSON, not this paragraph — this paragraph has already been wrong twice, and the second time
-named the mechanism. It once read 459 over a cluster split that summed to 459 while the file
-held 321. Then it read 304 / `loc-presence` 9 while the file held 301 / 6 — and the history says
-those were **correct one commit earlier**: `051e359dc` moved the JSON and the doc's partition
-line together and left this file untouched, because `known-failures-md-check.mjs` gates the
-partition line and gates no prose. That is the same mechanism `fmt`'s attribution paragraph
-carried for 241 entries. So it is not that a count and a split go stale together — **one half is
-gated and the other rots alone**, and the gated half is where to read the number. And read `301`
-as `163 bases × axis`: 138 of those bases carry a key on both axes and 25 on one
-(`138×2 + 25 = 301`), so the defect ceiling is 163, not 301. The collapse is not uniform across
-clusters — measured, 1.00x to 2.00x against a whole-file 1.847x, so scaling the total gives
-`css-shape` 7.6 where it actually has 9 — which is why a per-cluster estimate cannot be had by
-scaling the total.
+*diagnostic* path rather than `parse()` output, but one input is not a population.
+
+Count the JSON, not this paragraph — **this paragraph has been wrong three times, and each time
+it was carrying the rule that forbids it.** It once read 459 over a cluster split that summed to
+459 while the file held 321. Then it read 304 / `loc-presence` 9 while the file held 301 / 6 — and
+the history says those were **correct one commit earlier**: `051e359dc` moved the JSON and the
+doc's partition line together and left this file untouched, because `known-failures-md-check.mjs`
+gates the partition line and gates no prose. Then it read 301 over a ten-cluster split summing to
+301, with `163 bases`, `138×2 + 25`, a `1.847x` collapse and a worked `css-shape 7.6 vs 9`, while
+the gated declaration two files away read a different number and its own partition line summed to
+that one — measured by injecting one edit at a time and reading the checker's verdict, the
+declaration and the partition line are **GATED** and the cluster table's `keys` and `bases`
+columns, the base count and the collapse ratio are **UNGATED**, adjacent on the same page. So it
+is not that a count and a split go stale together — **one half is gated and the other rots
+alone**, and which spelling is which is invisible in the text.
+
+The third instance is why this paragraph no longer states any of them. A count that cannot be
+written cannot go stale, and that beats a count someone promises to re-derive — including when the
+someone is the paragraph that says so. Two structural facts do survive, because neither is a
+number: the ratchet is keyed `base × axis`, so a base carrying a key on both axes counts twice and
+**the defect ceiling is the base count, never the entry count**; and the collapse is *not* uniform
+across clusters, so a per-cluster estimate cannot be had by scaling the total — take each
+cluster's own ratio from the gated table.
 
 **And the clusters partition KEY SHAPES, not causes, so a mechanism can span three rows while
 each row reads as its own backlog.** `lang="ts"` does not merely enable extra syntax — it selects
@@ -5762,6 +5774,170 @@ Two of the three were caught because a peer published a different number for the
 is this file's recorded condition for these rules firing. The third was caught by a **shape** — a
 method named `phase=edit` cannot exist — while its counts (3630, 2944) were entirely plausible. Where
 a projection can produce an impossible *value*, that beats any threshold on the count.
+### A figure's PROVENANCE can be overwritten by the most recent conversation about its subject
+
+This file records that a citation feels verified because it is offered as the verification, and
+that an attribution to "upstream" is the one whose consequence is that nobody measures it again.
+Both are about a claim's *content*. There is a third failure in which the content is a real,
+correctly recorded fact and only its **source** is wrong — and that one leaves nothing in the
+sentence to check.
+
+Measured 2026-09-05. Reviewing a stale site-report PR, a paragraph was published reading
+"from rsvelte-72's independent measurement on this same pair of trees: of the 520 fmt ratchet
+entries, **4 are already byte-equal**". The peer had reported `staged=520 / byte-differing=0 /
+MISSING=0` — a control showing their staged copies match the corpus sources, which says nothing
+about any entry matching the oracle. The `4 already byte-equal` is **this file's**, from the
+region-granularity row, where it reads `524 listed, 520 live, 4 already byte-equal` and is a
+measurement of a tree whose ratchet held 524. Today's holds 520, so the live count is neither 520
+nor 516 but unmeasured.
+
+Two properties make it worse than an ordinary bad citation. The number is **real** — it was
+measured, it is written down, and grepping this file finds it — so every check that fires on an
+invented figure stays silent. And the swap is driven by *recency of subject*, not by carelessness
+about the sentence: the peer was discussing the fmt ratchet in the same hour, so their name was
+the nearest available source for a fact about the fmt ratchet. The mechanism will therefore fire
+hardest exactly where two people are working the same artifact, which is where a shared number is
+most load-bearing.
+
+The cheap defence is not "cite carefully". It is that **a number recalled rather than read is a
+different kind of evidence and has to be spelled as one**: write "AGENTS.md records N (measured on
+a tree where the ratchet held M)" and the staleness comes with it, or re-read the artifact and
+write today's value. Attaching a recalled figure to a live conversation converts it into a fresh
+measurement in the reader's hands, and the reader is the one person who cannot tell.
+
+### `git ls-remote origin main` is a PATTERN, and the branch that breaks it is created by success
+
+`git ls-remote <remote> <name>` matches every ref whose path **ends** in `<name>`, so `main`
+matches `refs/heads/main` and `refs/heads/changeset-release/main` alike. A P0 monitor resolving
+`main` as `H=$(git ls-remote origin main | cut -f1)` therefore returned a **two-line** string the
+moment the release automation opened its version-packages branch — and the first line, by ref-name
+order, is the release branch, not `main`.
+
+The trigger is what makes it worth a row: nothing failed. `changeset-release/main` exists because a
+changeset merged and the `Release` workflow succeeded, so the monitor breaks at the exact moment the
+release pipeline is working. Before that branch exists the command is correct, and every test of it
+passes. `git ls-remote origin refs/heads/main` is the exact form; assert one matching line beside it,
+because a second ref of the same shape can appear at any time.
+
+What caught it was a guard written for a different failure. `p0.mjs` refuses a sha that is not 40 hex
+characters — added because `?head_sha=<abbreviated>` returns a well-formed `total_count: 0` — and a
+two-line string is not 40 hex characters either, so it exited 2 instead of reporting a verdict about
+a release branch. **A guard that validates the value's SHAPE generalizes to input classes its author
+never considered; one that validates its PROVENANCE does not.** "I got this sha from `main`" would
+have passed here; "this is one 40-character hex string" did not.
+
+The monitor's own reporting still leaked, and that half is not fixed by the guard. It printed
+`P0 eeda78e80 rc=2` — the first nine characters of the two-line string, which reads exactly like a
+commit and sent the reader to the git history of a sha `origin/main` has never held. `git reflog show
+origin/main` is what settled it in one command. When a wrapper formats a value it did not validate,
+truncating it for display manufactures a plausible identifier out of a malformed one.
+
+### `FETCH_HEAD` is in the COMMON git dir, so on a shared clone it is not a handle at all
+
+Twenty-three worktrees and four agent sessions share one `.git`, and `FETCH_HEAD` lives in the
+common directory rather than per worktree. A peer's `git fetch` between two of your reads therefore
+repoints it, and the second read is of a different commit.
+
+Measured 2026-09-05. A release branch was fetched and classified — 30 files, of which
+`Cargo.lock` and two `Cargo.toml` — and a follow-up `git show FETCH_HEAD -- '*Cargo.toml'
+Cargo.lock` returned **nothing**, which reads as "there are no Cargo changes". `FETCH_HEAD` had by
+then been repointed at `main`, whose own diff genuinely contains no Cargo file. Nothing errored;
+`git show` printed a real commit's real diff, and the two readings of "the same ref" disagreed
+because the ref had moved under a command that never mentions a remote.
+
+It is the moving-endpoint hazard with the endpoint one level less visible: `origin/main` at least
+*looks* like a name that something else could advance, while `FETCH_HEAD` reads as the output of
+the fetch you just ran. It is not — it is the output of the **last** fetch anyone ran. Fetch into a
+ref you own (`git fetch origin 'refs/heads/X:refs/<yourname>/X' --force`) and assert what it
+resolves to, or take the sha from `git ls-remote` and use the sha.
+
+The same session's neighbouring failure is the other half of the pair and is worth stating
+together: `git ls-remote origin main` is a **pattern**, so it also matches
+`refs/heads/changeset-release/main` and returns two lines. One command gives you a shared
+mutable ref that looks private; the other gives you a private-looking query that silently returns
+a set. Between them they cover both ways of asking "what is `main` right now", and the correct
+forms are `refs/heads/main` spelled in full, plus an assertion on the number of lines.
+
+### A truncated READ under-reports; a truncated WRITE TARGET destroys someone else's object
+
+Every paging-window entry in this file is about a measurement coming back short — a client-side
+filter over `?per_page=100`, a `runs?status=` census, a check-run listing whose `total_count` can
+still grow. All of them under-report, and under-reporting eventually announces itself. The same
+window on a **mutating** command does not.
+
+Measured 2026-09-05. `gh issue comment <n> --edit-last --body …`, run to fix one sentence in a
+comment posted seconds earlier, edited a **different comment created three days before** and exited
+0. It reads one page of comments and takes the last viewer-authored one *on that page*:
+
+```
+comments on the issue                        157
+index of the comment --edit-last picked      100   (created 3 days earlier)
+index of the comment just posted             157
+```
+
+Past 100 comments the command always edits number 100. On a shared account, number 100 can be a
+colleague's.
+
+Three things generalize. **The only signal was an identifier**: the command printed a URL, and it
+differed from the URL of the comment created moments before — so when a mutating command prints an
+id, compare it against the id you expected before moving on, the way an arm is identified by a
+discriminating probe rather than by its label. **Recovery exists but not through the obvious API**:
+GitHub's REST endpoint exposes no comment history, while GraphQL's `userContentEdits` carries the
+creation-time body, so the original was restored and verified byte-identical (normalising the
+trailing newline on both sides, so the comparison is not decided by one). And **the fix is not a
+wider page** — it is never using a "last" selector on a mutating call at all. Address the object by
+its id (`PATCH /issues/comments/<id>`), anchor the replacement on an exact string, and refuse when
+the anchor is absent; a `--edit-last`, a `--latest`, a `HEAD~1` and a `[-1]` are the same hazard,
+and every one of them resolves against a window somebody else can move.
+
+The mirror case landed the same hour, from a peer, on the reading side: a CLI's own
+`No files found matching the given patterns.` interleaved into their instrument's `eprintln!`
+stream and corrupted one record of 559. They counted the corrupt lines and reported `CORRUPT=0` on
+the next run; had a `try`/`catch` swallowed it, a 520-file table would have quietly become 519.
+Same window, same silence, and only the write side takes something away.
+
+### A table that is half right under the other population reads as nearly right, and the agreeing half agrees by construction
+
+`Report a measurement as mechanism | carrier | population | result` is written for a number. A
+**table** fails it differently, because its rows are not independent: some of them take the same
+value under either population, and those are the rows that make the wrong ones look like noise.
+
+Measured 2026-09-05. A per-family census of the LSP ratchet's terminal-less labels was published
+without saying which population it was over. Recomputed by a second reader over all 72 carried
+labels rather than the 59 lacking a terminal:
+
+```
+                 all 72 labels    the 59    published
+completion             112927      94749      94749
+rsvelte                 17322      10602      10602
+ts                      15106       7972       7972
+other                    2370        254        254
+projection / official / html / provider / css   identical under both
+```
+
+Nine rows, **five of them identical either way** — those families hold no label outside the 59 at
+all, so their agreement is structural and carries no information about which population was used.
+A reader checking the table against their own run sees 5 hits and 4 misses and reads "close, with
+small discrepancies", which is the reading that does not prompt a question. Had every row moved,
+the table would have been rejected on sight.
+
+**Which rows could have moved is measurable, and it settles the reading.** Counting, per family,
+the labels outside the 59: `ts` 8, `completion` 3, `rsvelte` 1, `other` 1, and **0 for the other
+five**. So exactly four rows were free to differ — and those are exactly the four that did. The
+mechanism is pinned one step further by `other`, whose 254 → 2,370 delta is **2,116**, the carrier
+count of the single label it holds outside the 59 (`unclassified`): a family's increment equal to
+one label's carriers is a population difference, not classifier noise.
+
+Two things follow. **State the population in the table, not in the paragraph** — the paragraph is
+what gets dropped when a row is quoted. And when a derived table is checked against a second
+derivation, **count the rows that COULD have differed** before reading the agreement rate: the
+honest score here is 0 of 4, not 5 of 9.
+
+The first write-up of this row had the two halves swapped — "four identical, 0 of 5" — and was
+corrected by the same reader whose measurement it records. Both spellings are internally
+consistent sentences about a 9-row table, and the row's own table named five families on the
+agreeing line while its prose said four. **A count restated one line below its own data is not
+checked by having the data there.**
 
 ### Working with Subagents
 
