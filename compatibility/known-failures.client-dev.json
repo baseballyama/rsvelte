@@ -1,6 +1,5 @@
 [
 	"immich/web/src/lib/components/timeline/Timeline.svelte",
-	"svelte-bits/src/lib/components/library/Animations/MetallicPaint/MetallicPaint.svelte",
 	"svelte-lexical/packages/svelte-lexical/src/lib/core/NestedComposer.svelte",
 	"svelte/packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte"
 ]
