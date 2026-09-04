@@ -5952,6 +5952,49 @@ pending ratchet is neither required nor validated.
 
 ---
 
+## 44. LSP mechanism sidecar — `scripts/ci/lsp-mechanisms-check.mjs`
+
+**Unit.** One label. `compatibility/lsp-mechanisms.json` rides beside `lsp-known-failures.json`
+with two maps: `entries` gives each ratchet id the SET of mechanisms measured on it, and
+`mechanisms` gives each label a terminal — an `upstream_issues/` path that exists on disk, the
+literal `deliberate-divergences`, or `null` for one not yet established. The check asserts that
+the two id sets agree, that every label an entry uses is declared, that every declared label is
+one `scripts/compat-lsp/mechanism.mjs` can emit, and that every non-null terminal resolves. `null`
+is legal and is not a pass: it bars the id from an attribution table, which is what couples this
+gate to 43. Hard gate, no ratchet of its own; `pnpm run check:lsp-mechanisms`, with controls
+under `pnpm run test:lsp-mechanisms-check` that drive the whole checker against a synthetic
+tree through `LSP_MECHANISMS_DIR`.
+
+**[D] A label the classifier can emit that no entry yet carries is in neither comparison.** The two
+set differences are `used ∖ declared` (`:73`) and `declared ∖ vocabulary` (`:76`), and `used` is
+built from `entries` alone — so a vocabulary label absent from `entries` and from `mechanisms` is in
+neither. Measured 2026-09-05 on `lsp/classify-non-corpus-suites`, three arms, the sidecar restored
+byte-identically (`sha256`) between each:
+
+| arm | in the classifier's vocabulary | declared | an entry carries it | exit |
+|---|---|---|---|---|
+| A | the 83 labels that branch adds | none of them | no | **0**, `141 labels declared` |
+| B | the same 83 | none of them | yes, one injected | 1 — `undeclared mechanism label(s): selection-range-innermost` |
+| C | the same 83 | all 83, `terminal: null` | yes, one injected | 0 |
+
+The gap is a scheduling one rather than a hole in the assertion. `entries` is regenerated only from
+the complete 17-artifact `lsp-corpus` run (`merge-current.mjs --update-baseline`), so a PR that adds
+classifier rules ships a vocabulary its entries do not yet exercise, and arm B is what the **next**
+regenerating PR sees — the failure lands on whoever regenerated, not on whoever added the rules.
+That is the cross-PR ordering hazard between a derived file and its source, with the derived half
+regenerated on a nightly schedule rather than in the PR. Declaring the new labels `terminal: null`
+in the same PR that adds them is arm C, and it suppresses nothing: `null` asserts that the terminal
+is unestablished, which is the true state of a label nothing has been measured against yet.
+
+**[S] It gates a terminal's existence, not its truth.** A declared `upstream_issues/` path is
+checked with `existsSync` and never read, so a label citing a report about a different mechanism
+passes — gate 43 has the same shape one level up. Nothing here can improve on that: the prose that
+would let the two be compared lives in `mechanism.mjs` beside the assigning rule, deliberately not
+in the sidecar (`$schema-note`), so there is no second field for this gate to diff a citation
+against.
+
+---
+
 ## Adding a gate, or a row here
 
 When you add a gate, add its row **before** the ratchet is first baselined, and answer the

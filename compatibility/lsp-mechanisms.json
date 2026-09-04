@@ -421,6 +421,255 @@
 		"completion-item-label-details-value": {
 			"terminal": null
 		},
+		"diagnostic-identity-source": {
+			"terminal": null
+		},
+		"diagnostic-identity-code": {
+			"terminal": null
+		},
+		"diagnostic-identity-source-and-code": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-ts": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-js": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-svelte": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-css": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-rsvelte": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-rsvelte-css": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-other": {
+			"terminal": null
+		},
+		"diagnostic-item-set-missing-mixed": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-ts": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-js": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-svelte": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-css": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-rsvelte": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-rsvelte-css": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-other": {
+			"terminal": null
+		},
+		"diagnostic-item-set-extra-mixed": {
+			"terminal": null
+		},
+		"document-symbol-kind": {
+			"terminal": null
+		},
+		"document-symbol-range": {
+			"terminal": null
+		},
+		"document-symbol-set-missing": {
+			"terminal": null
+		},
+		"document-symbol-set-extra": {
+			"terminal": null
+		},
+		"document-symbol-mixed-kind-set-missing": {
+			"terminal": null
+		},
+		"document-symbol-mixed-kind-set-extra": {
+			"terminal": null
+		},
+		"document-symbol-mixed-range-set-missing": {
+			"terminal": null
+		},
+		"document-symbol-mixed-range-set-extra": {
+			"terminal": null
+		},
+		"document-symbol-mixed-kind-range": {
+			"terminal": null
+		},
+		"document-symbol-mixed-kind-range-set-missing": {
+			"terminal": null
+		},
+		"document-symbol-mixed-kind-range-set-extra": {
+			"terminal": null
+		},
+		"folding-range-end-line": {
+			"terminal": null
+		},
+		"folding-range-character": {
+			"terminal": null
+		},
+		"folding-range-kind": {
+			"terminal": null
+		},
+		"folding-range-set-missing": {
+			"terminal": null
+		},
+		"folding-range-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-character-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-character-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-character": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-character-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-character-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-kind-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-kind-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-kind": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-kind-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-kind-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-character-kind": {
+			"terminal": null
+		},
+		"folding-range-mixed-character-kind-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-character-kind-set-extra": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-character-kind": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-character-kind-set-missing": {
+			"terminal": null
+		},
+		"folding-range-mixed-end-line-character-kind-set-extra": {
+			"terminal": null
+		},
+		"inlay-hint-set-missing-type": {
+			"terminal": null
+		},
+		"inlay-hint-set-missing-parameter": {
+			"terminal": null
+		},
+		"inlay-hint-set-missing-other": {
+			"terminal": null
+		},
+		"inlay-hint-set-missing-mixed": {
+			"terminal": null
+		},
+		"inlay-hint-set-extra-type": {
+			"terminal": null
+		},
+		"inlay-hint-set-extra-parameter": {
+			"terminal": null
+		},
+		"inlay-hint-set-extra-other": {
+			"terminal": null
+		},
+		"inlay-hint-set-extra-mixed": {
+			"terminal": null
+		},
+		"inlay-hint-label": {
+			"terminal": null
+		},
+		"inlay-hint-kind": {
+			"terminal": null
+		},
+		"inlay-hint-mixed": {
+			"terminal": null
+		},
+		"empty-result-spelling": {
+			"terminal": null
+		},
+		"diagnostic-mixed": {
+			"terminal": null
+		},
+		"diagnostic-item-range-start": {
+			"terminal": null
+		},
+		"diagnostic-item-range-end": {
+			"terminal": null
+		},
+		"diagnostic-item-message": {
+			"terminal": null
+		},
+		"diagnostic-item-severity": {
+			"terminal": null
+		},
+		"diagnostic-item-other": {
+			"terminal": null
+		},
+		"selection-range-chain-rsvelte-deeper": {
+			"terminal": null
+		},
+		"selection-range-chain-rsvelte-shallower": {
+			"terminal": null
+		},
+		"selection-range-innermost": {
+			"terminal": null
+		},
+		"linked-editing-word-pattern": {
+			"terminal": null
+		},
+		"initialize-capability-codeActionProvider": {
+			"terminal": null
+		},
+		"initialize-capability-completionProvider": {
+			"terminal": null
+		},
+		"initialize-capability-diagnosticProvider": {
+			"terminal": null
+		},
+		"initialize-capability-executeCommandProvider": {
+			"terminal": null
+		},
+		"initialize-capability-positionEncoding": {
+			"terminal": null
+		},
+		"initialize-capability-semanticTokensProvider": {
+			"terminal": null
+		},
+		"initialize-capability-workspace": {
+			"terminal": null
+		},
+		"initialize-capability-other": {
+			"terminal": null
+		},
 		"unclassified": {
 			"terminal": null
 		}
