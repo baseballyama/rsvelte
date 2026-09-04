@@ -1133,12 +1133,12 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
     // initializer node. Once that initializer becomes the final `$.prop`
     // argument, the comment therefore belongs inside the generated call. Keep
     // it separately while the comment-free declaration is split below.
+    // `rest_raw` is the whole declaration, so a `//` after its last code byte is
+    // trailing whatever ends there — and a declaration is delimited by ASI as
+    // readily as by a `;`, which is what an `ends_with(';')` test cannot see.
     let trailing_line_comment = rest_raw.rsplit('\n').next().and_then(|last_line| {
         let comment_at = find_line_comment_position(last_line)?;
-        last_line[..comment_at]
-            .trim_end()
-            .ends_with(';')
-            .then(|| last_line[comment_at..].trim_end())
+        (!last_line[..comment_at].trim().is_empty()).then(|| last_line[comment_at..].trim_end())
     });
 
     // Strip trailing `// line comment` and `/* block comment */` from the declaration
@@ -1161,6 +1161,10 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
         .is_some_and(|declarator| declarator.contains('='));
 
     let mut results = Vec::new();
+    // esrap prints a comment inside the call only while the last argument is the
+    // SOURCE initializer; a thunk this pass synthesizes carries no `loc`, so the
+    // comment flushes after the statement instead.
+    let mut last_arg_is_synthesized_thunk = false;
 
     // The `$.prop($$props, '<key>', …)` KEY is the prop's PUBLIC name, which is
     // the `prop_alias` for a renamed export (`export let fore; export { fore as
@@ -1180,6 +1184,7 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
         if decl.is_empty() {
             continue;
         }
+        last_arg_is_synthesized_thunk = false;
 
         // Parse: name = value or just name
         if let Some(eq_pos) = decl.find('=') {
@@ -1327,6 +1332,10 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
                     let lazy_arg = initializer_comment
                         .map(|comment| restore_lazy_initializer_comment(&lazy_arg, comment))
                         .unwrap_or(lazy_arg);
+                    // `make_lazy_prop_arg` UNWRAPS a no-arg call to its callee, so
+                    // reaching this branch is not the same as emitting a wrapper.
+                    last_arg_is_synthesized_thunk = lazy_arg.trim_start().starts_with("() =>")
+                        && !value.trim_start().starts_with("() =>");
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
                         leading_ws,
@@ -1357,11 +1366,15 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
     if last_declarator_has_initializer
         && let Some(comment) = trailing_line_comment
         && let Some(last) = results.last_mut()
-        && let Some(close) = last.rfind(')')
     {
-        // A line comment must terminate before the call's closing paren. The
-        // program printer supplies the final indentation and multiline layout.
-        last.insert_str(close, &format!(" {}\n", comment));
+        if last_arg_is_synthesized_thunk {
+            last.push(' ');
+            last.push_str(comment);
+        } else if let Some(close) = last.rfind(')') {
+            // A line comment must terminate before the call's closing paren. The
+            // program printer supplies the final indentation and multiline layout.
+            last.insert_str(close, &format!(" {}\n", comment));
+        }
     }
 
     reprint_declaration_comments(&mut results, &declaration_comments, leading_ws, kw);
