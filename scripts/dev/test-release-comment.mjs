@@ -117,6 +117,17 @@ check(
 );
 check('packageUrl for a non-npm package', packageUrl('some-private-thing', '1.0.0', true), null);
 
+// The extension is the ONE private package with a URL, and the branch that
+// builds it was untested: the two cells above pass whether it returns the
+// Marketplace link or null. Its name is also the name the Marketplace publish
+// is keyed on, so a rename that misses `packageUrl` reports a dead link.
+check(
+	'packageUrl for the VS Code extension',
+	packageUrl('rsvelte', '0.6.0', true),
+	'https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte',
+);
+check('packageUrl still refuses the extension\'s old name', packageUrl('rsvelte-vscode', '0.6.0', true), null);
+
 {
 	const body = commentBody([{ name: '@rsvelte/compiler', version: '0.10.9', private: false }], 2666);
 	check('commentBody carries the marker', body.includes(MARKER), true);

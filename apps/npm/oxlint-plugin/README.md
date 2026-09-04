@@ -136,7 +136,7 @@ will lift as it matures:
 
 For pixel-accurate markup positions and full scriptless coverage today, use
 [`rsvelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check) or the
-[rsvelte VS Code extension](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte-vscode)
+[rsvelte VS Code extension](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte)
 directly; this plugin is about folding Svelte diagnostics into an existing oxlint
 pass.
 

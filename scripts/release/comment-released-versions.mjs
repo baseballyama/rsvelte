@@ -69,7 +69,7 @@ export function prNumberFromSubject(subject) {
 /** Where a released package can be read about. */
 export function packageUrl(name, version, isPrivate) {
 	if (isPrivate) {
-		return name === 'rsvelte-vscode'
+		return name === 'rsvelte'
 			? `https://marketplace.visualstudio.com/items?itemName=baseballyama.${name}`
 			: null;
 	}

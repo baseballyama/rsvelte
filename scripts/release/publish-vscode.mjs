@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Publish the `rsvelte-vscode` extension to the VS Code Marketplace and Open VSX.
+// Publish the `rsvelte` extension to the VS Code Marketplace and Open VSX.
 // The extension version follows `@rsvelte/language-server` (kept in lockstep by
 // the changesets `fixed` group).
 //

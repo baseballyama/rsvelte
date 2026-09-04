@@ -822,9 +822,9 @@ jobs:
 
       - name: Typecheck + bundle VS Code extension
         run: |
-          pnpm --filter rsvelte-vscode run test
-          pnpm --filter rsvelte-vscode run typecheck
-          pnpm --filter rsvelte-vscode run build
+          pnpm --filter rsvelte run test
+          pnpm --filter rsvelte run typecheck
+          pnpm --filter rsvelte run build
 
   # Single required status check that fans the sharded `Test` matrix and the
   # dedicated heavy-test jobs back into one signal: branch protection can require

@@ -1,6 +1,6 @@
 name: Publish VS Code Extension
 
-# Publishes `rsvelte-vscode` to the VS Code Marketplace (+ Open VSX). The
+# Publishes `rsvelte` to the VS Code Marketplace (+ Open VSX). The
 # extension version follows `@rsvelte/language-server` (kept in lockstep by the
 # changesets `fixed` group), so a normal release — merging the "Version
 # Packages" PR — bumps both and pushes to main, which triggers this workflow.

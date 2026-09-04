@@ -91,7 +91,7 @@ const RULES = [
   {
     prefix: 'crates/rsvelte_formatter/src/',
     // Two dependents publish artifacts, and they sit in separate `fixed` groups
-    // (`@rsvelte/fmt`, and `@rsvelte/language-server` + `rsvelte-vscode`), so
+    // (`@rsvelte/fmt`, and `@rsvelte/language-server` + `rsvelte`), so
     // naming one leaves the other shipping a stale formatter. `rsvelte_fmt_wasm`
     // is the third dependent and needs no naming for the reason recorded below.
     requires: ['@rsvelte/fmt', '@rsvelte/language-server'],

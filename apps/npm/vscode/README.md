@@ -86,7 +86,7 @@ doesn't conflict with the official Svelte extension):
 // .vscode/settings.json
 {
   "[svelte]": {
-    "editor.defaultFormatter": "rsvelte.rsvelte-vscode",
+    "editor.defaultFormatter": "baseballyama.rsvelte",
   },
 }
 ```

@@ -1,4 +1,4 @@
-// The publish decision for `rsvelte-vscode`, as a pure function of the two
+// The publish decision for `rsvelte`, as a pure function of the two
 // registry states, so it can be tested without a network or a token.
 //
 // Three answers have to stay distinguishable per registry, because two of them

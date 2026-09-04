@@ -132,7 +132,7 @@ and whether it's autofixable; rules with an options schema are marked
 `(options)`.
 
 The same file drives editor diagnostics: `@rsvelte/language-server` and the
-[rsvelte VS Code extension](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte-vscode)
+[rsvelte VS Code extension](https://marketplace.visualstudio.com/items?itemName=baseballyama.rsvelte)
 discover it by walking up from the file being linted, so the editor and CI agree
 on the rule set. `files` / `ignores` stay CLI-only — an editor lints the
 document it is handed.
