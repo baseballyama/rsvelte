@@ -1,10 +1,10 @@
 use super::{
-    FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, attribute_span,
-    block_branch_bounds, did_self_close, element_hug_parts, element_source_empty,
-    ends_with_space_no_break, is_block_display, is_html_void_element, is_html_ws, is_inline_block,
-    is_inline_regular_element, is_whitespace_preserving, leading_linebreaks, node_end, node_start,
-    node_to_child, omit_softline_allowed, split_html_ws, starts_with_space_no_break, tab_width,
-    trailing_linebreaks, trim_html_ws_end, trim_html_ws_start,
+    FormatOptions, Fragment, IndentUnit, TemplateNode, attribute_span, block_branch_bounds,
+    did_self_close, element_hug_parts, element_source_empty, ends_with_space_no_break,
+    is_block_display, is_html_void_element, is_html_ws, is_inline_block, is_inline_regular_element,
+    is_whitespace_preserving, leading_linebreaks, node_end, node_start, node_to_child,
+    omit_softline_allowed, split_html_ws, starts_with_space_no_break, trailing_linebreaks,
+    trim_html_ws_end, trim_html_ws_start,
 };
 
 /// prettier-plugin-svelte's `printSvelteBlockChildren`:
@@ -279,26 +279,18 @@ pub(super) fn content_tag_breakable_doc(
     } else {
         span.to_string()
     };
-    // Broken shape: force just the outermost break (one column under the flat
-    // inner width, mirroring `try_break_inline_content_tag`); continuation lines
-    // carry oxc's own relative indent measured from column 0, which the `RawExpr`
-    // printer offsets by the current indent level.
-    let width = flat_inner
-        .visual_width(tab_width(options))
-        .saturating_sub(1)
-        .max(1);
-    let broken_inner =
-        crate::expression::reformat_content_at_width(expr_src, options, width, 0).ok()?;
-    if !broken_inner.contains('\n') {
-        return None;
-    }
-    let mut lines: Vec<String> = broken_inner.split('\n').map(str::to_string).collect();
-    let last = lines.len() - 1;
-    lines[0] = format!("{{{prefix}{}", lines[0]);
-    lines[last] = format!("{}}}", lines[last]);
+    let src = crate::doc::RawExprSource {
+        expr: expr_src.to_string(),
+        prefix: prefix.to_string(),
+        options: std::sync::Arc::new(options.clone()),
+    };
+    // The column-unaware shape: all a doc builder can know, and the fallback for
+    // a print-time rebuild that fails.
+    let lines = crate::expression::raw_expr::broken_lines(&src, usize::MAX)?;
     Some(Doc::Group(vec![Doc::RawExpr {
         flat,
         broken: lines,
+        src: Some(Box::new(src)),
     }]))
 }
 

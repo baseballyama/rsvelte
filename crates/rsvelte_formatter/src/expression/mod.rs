@@ -6,6 +6,7 @@ mod collect;
 mod declaration;
 mod directive;
 mod format_core;
+pub(crate) mod raw_expr;
 mod splice;
 mod text;
 mod width;

@@ -156,7 +156,11 @@ fn render_value_sequence_doc(
                 } else {
                     vec![flat.clone()]
                 };
-                docs.push(Doc::Group(vec![Doc::RawExpr { flat, broken }]));
+                docs.push(Doc::Group(vec![Doc::RawExpr {
+                    flat,
+                    broken,
+                    src: None,
+                }]));
                 col += flat_w;
             }
         }

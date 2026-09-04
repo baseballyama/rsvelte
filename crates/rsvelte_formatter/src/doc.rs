@@ -14,6 +14,16 @@ fn signed_width(width: usize) -> isize {
     isize::try_from(width).expect("document width exceeds isize range")
 }
 
+/// What a [`Doc::RawExpr`] was built from. The broken form's break points
+/// depend on the columns left after the printed line's indent, which no
+/// doc-build caller knows, so the printer rebuilds them from this.
+#[derive(Clone)]
+pub struct RawExprSource {
+    pub expr: String,
+    pub prefix: String,
+    pub options: std::sync::Arc<crate::FormatOptions>,
+}
+
 // Several variants below (`Literalline`, `ForcedGroup`, `Dedent`, `BreakParent`)
 // and `propagate_breaks` are the IR scaffolding for the prettier-plugin-svelte
 // child-layout port; they are exercised by unit tests here and consumed by the
@@ -55,6 +65,9 @@ pub enum Doc {
     RawExpr {
         flat: String,
         broken: Vec<String>,
+        /// Set when the broken form can be rebuilt once the indent is known;
+        /// `broken` is then only the fallback for a rebuild that fails.
+        src: Option<Box<RawExprSource>>,
     },
     /// Sentinel: forces the nearest enclosing group to break. Consumed by
     /// [`propagate_breaks`]; prints as nothing.
@@ -164,12 +177,18 @@ fn print_inner(
                 out.push('\n');
                 pos = 0;
             }
-            Doc::RawExpr { flat, broken } => {
+            Doc::RawExpr { flat, broken, src } => {
                 if mode == Mode::Flat || broken.len() <= 1 {
                     pos += flat.visual_width(unit.tab_width());
                     out.push_str(flat);
                 } else {
-                    let mut lines = broken.iter();
+                    let rebuilt = src.as_deref().and_then(|s| {
+                        crate::expression::raw_expr::broken_lines(
+                            s,
+                            width.saturating_sub(unit.columns() * ind),
+                        )
+                    });
+                    let mut lines = rebuilt.as_ref().unwrap_or(broken).iter();
                     if let Some(first) = lines.next() {
                         pos += first.visual_width(unit.tab_width());
                         out.push_str(first);
@@ -311,7 +330,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
             // overflow. (`fits` measures the rest with the modes the commands
             // were pushed in; the value's interpolation groups sit in `Break`
             // mode when the attribute's open tag has wrapped.)
-            Doc::RawExpr { flat, broken } => {
+            Doc::RawExpr { flat, broken, .. } => {
                 if mode == Mode::Break && broken.len() > 1 {
                     let head = &broken[0];
                     if !head.is_empty() {
@@ -474,6 +493,7 @@ mod tests {
             Doc::RawExpr {
                 flat: "{a + b}".into(),
                 broken: vec!["{a +".into(), "  b}".into()],
+                src: None,
             },
         ]);
         assert_eq!(p(doc, 80), "x: {a + b}");
@@ -492,6 +512,7 @@ mod tests {
                     "{averylongidentifier +".into(),
                     "  anotherlongidentifier}".into(),
                 ],
+                src: None,
             },
         ]));
         // width 20 forces the fill's Line to break before the wide RawExpr, then
@@ -513,6 +534,7 @@ mod tests {
         let l = Doc::Group(vec![Doc::RawExpr {
             flat: "{a1}".into(),
             broken: vec!["{a1".into(), "z}".into()],
+            src: None,
         }]);
         let t = Doc::Group(vec![Doc::RawExpr {
             flat: "{bbbbbb}".into(),
@@ -521,6 +543,7 @@ mod tests {
             } else {
                 vec!["{bbbbbb}".into()]
             },
+            src: None,
         }]);
         Doc::Concat(vec![l, Doc::Text(" ".into()), t])
     }
