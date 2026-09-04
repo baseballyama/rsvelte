@@ -2410,6 +2410,33 @@ outputs. It is comparing a *projection* of outputs. Before widening a family, as
 throw away — and prefer the widest key the assertion can carry, because rows are expensive and a
 key change is free.
 
+### A key that conflates two causes does not retire, and the survival is the only signal
+
+Four `parse()` fixes retired 7 of 219 ratchet keys. The one that did NOT retire is the finding.
+`FunctionDeclaration.params[]#length` counts a function's parameter array coming out short, and
+rsvelte drops parameters two independent ways: `params.rest` was never walked by the typed path,
+and a TypeScript `this` parameter — which TSESTree models as an ordinary `params[0]` — is never
+consulted at all. Fixing the first leaves the key listed on both axes, and measured over ten
+function shapes it moves 10 diverging cells to 6, with a `this + rest` cell showing the two
+compose rather than mask each other.
+
+This file already says a ratchet entry suppresses everything its key cannot tell apart, and treats
+that as a hazard. Here the coarse key was the **detector**: a key fine enough to separate
+`params.rest` from `this_param` would have gone green on the first fix and the second cause would
+have shipped as closed. So the rule has a second half — when a fix you believe is complete leaves
+its key listed, that is a measurement, not a re-baselining chore, and the question to ask is which
+*other* cause the key is also counting.
+
+The mirror case landed in the same batch and is why this is one row rather than two. A key can
+retire for a reason that is not its own name: `legacy::Text.type#value` went green from an
+unrelated `<svelte:options>` whitespace fix, because the comparison pairs array children strictly
+by index, so restoring one dropped node re-pairs every sibling after it. Measured by deleting that
+same `Text` from official's own AST across the corpus's `<svelte:options>` files — 5 carriers
+produce `Text.type#value` on the legacy axis, each alongside the `Fragment.children[]#length` key.
+`GATES.md` 39b records the adding direction, where fixing a divergence makes its children
+reachable; this is its complement, and neither is readable from the key's name. **A listed key can
+be two defects and a retired key can be zero.**
+
 ### A filter's error lives in the bucket it discarded, so sample the REJECTED side
 
 This file already says a population of only-invalid inputs is blind to one direction of a
@@ -2754,6 +2781,15 @@ the control's name as a prediction about the cell's *input text* and grep the in
 A control named `KNOWN-global:Number` whose source contains no `Number` is caught in one
 command; no amount of ablation finds it, because ablation moves the code and holds the cells.
 
+**The same misnaming runs the other way, and that direction understates a fix rather than a
+control set.** The one moving cell of a 16-cell grid was named `N1_negctl_unused`, so "the fix
+moves only a negative control" was about to be written — which reads as *the fix does nothing*.
+The cell's arrow body is `const q = 1; console.log(q)`, the defect's own shape; the `unused` in
+its name refers to an unrelated `const` in the instance script. Measured, the fix moved that
+cell `DIFF -> EQ` and moved zero cells the other way. The remedy is the same grep — the name is
+a prediction about the input text — but the failure it prevents is the opposite one: there a
+green control certifies coverage it does not have, here a green name retires a fix that works.
+
 ### A run's status is not the aggregate of its jobs', and the two can disagree forever
 
 The concurrency ceiling this account is scheduled against is a **job** ceiling, and
@@ -2980,6 +3016,41 @@ different spaces", it would read as a result about the compiler. Before writing 
 whether the instrument could have produced a non-zero on that input at all; if the answer comes
 from reading the classifier's branches rather than from the data, the zero belongs in a sentence
 about the instrument.
+
+### A second unit that disagrees 9x can be an instrument that cannot express the mechanism
+
+Region granularity moved one statistic ninefold. Over the fmt ratchet's 520 live entries (524
+listed, 4 already byte-equal), labelling each divergence per *hunk* gives 448 single-label entries
+and per *line* gives 47. The reading published off that was that the statistic is unit-dependent,
+so every conclusion resting on it is too.
+
+But *"the two units genuinely differ"* and *"my second instrument cannot express this mechanism"*
+produce the identical observation. What separated them was the sub-population where the two must
+agree — the clusters that do not change a hunk's line count:
+
+| hunk-solo cluster | n | still solo per line | rate |
+|---|---|---|---|
+| breaks-later | 215 | 0 | 0% |
+| breaks-earlier | 181 | 0 | 0% |
+| indent-only | 29 | 27 | 93% |
+| intra-line-ws | 14 | 13 | 93% |
+| other | 7 | 5 | 71% |
+| missing-line | 1 | 1 | 100% |
+| extra-line | 1 | 1 | 100% |
+
+A moved break point necessarily makes a hunk's two sides unequal in length, so the surplus lines
+are labelled `missing-line` / `extra-line` **by construction**, and a line where both sides broke
+differently is a prefix of neither, so it is `other`. Six such lines read directly:
+
+```
+oracle : '                measurementSystem,'
+rsvelte: '              "imperial"'
+```
+
+— one break rendered across several lines, not a second mechanism. Had every row read 0%, the two
+readings would have been indistinguishable. This is the large-difference sibling of *a measured
+zero has two kinds that print identically*: **carve out the sub-population where no difference can
+arise, and let it be the control.**
 
 ### A dead instrument does not have to return a zero — it can return one plausible red
 
@@ -3610,7 +3681,22 @@ The direction to be careful in is the other one — equal blobs for the inputs y
 says nothing about an input you did not enumerate, so list what the regeneration actually
 reads (here: the ratchet it rewrites, the classifier, and the merger) before concluding.
 
+**And the command that row prescribes fabricates the revision when the path is absent.**
+`git rev-parse <rev>:<path>` writes its **argument** to *stdout* when it fails — so a census
+written as `a=$(git rev-parse "$MB:$p" 2>/dev/null || echo MISSING)` does not substitute
+`MISSING`, it **appends** it after the echoed argument, and any prefix truncation of the
+result (`${a:0:9}`) yields the first nine characters of `$MB`. Measured on git 2.33.0, with a
+full 40-character rev: a present path returns its blob, an absent one returns a hash-shaped
+value that is the *revision* — in the column the row exists to keep revisions out of. Two of
+five inputs read that way, and both had in fact been **added on `main` after the merge base**,
+which is the one answer the census could not report.
 
+What exposed it was a shape that cannot occur — two different files carrying the same hash —
+not a count, and not the `||` guard, which fired and was overwritten. `git ls-tree <rev> --
+<path>` prints **nothing** on stdout for an absent path and a full blob line for a present one,
+so absent and present are distinguishable without reading an exit code at all. Use it, and
+report *absent at the merge base* as its own state: a file the other side added is not a file
+that moved, and treating it as one hides the whole reason it is there.
 ### A third kind of red: the runner vanished, and its fingerprint is that there is no log
 
 This file records that a *cancelled* shard reads as `FAILURE` under a rollup, and that a
@@ -4515,6 +4601,33 @@ family, list what every one of its cells has in common and ask which of those th
 on — and when the answer looks like "this family never reaches that code", check it, because
 "reaches it and cannot tell two answers apart" is the commoner case and the two prescribe
 different fixes.
+
+### A product isolates an axis inside itself, and generalising it swaps necessity for sufficiency
+
+Three candidate axes were proposed and falsified in one afternoon on one defect, and all three
+died the same way: a conclusion was carried outside the product that separated it. The first two
+were ordinary — "the initializer's kind" and "the arrow has a parameter" each came from two cells
+differing in more than one respect, and each died on a grid built for it (8 cells and 6 cells, 0
+movement).
+
+The third is the one worth recording, because it **survived its own grid**. A 2x2 over `<script>`
+presence × arrow-body layout separated cleanly — with a script both cells moved, without one
+neither did — and was written up as "the axis is instance `<script>` presence". Cross-tabulated
+against the 17 cells already in hand:
+
+```
+cell                  script?  base  fix        cell                script?  base  fix
+N1_negctl_unused      yes      DIFF  EQ         P4_fn               yes      DIFF  DIFF
+FIXTURE_delegated     yes      DIFF  EQ         R3_shadow_instance  yes      DIFF  DIFF
+A_template_arrow      NO       DIFF  DIFF       R4_shadow_module    yes      DIFF  DIFF
+Q / R1 / R2           NO       DIFF  DIFF
+```
+
+Every cell the fix moves has a script — 0 counterexamples — and three script-bearing cells do not
+move. The 2x2 had established a **necessary** condition and it was read as **the** condition. A
+product separates an axis among its own cells; the claim it licenses is about those cells. Before
+generalising, cross-tabulate the proposed axis against every cell you already have — no build, and
+it is what distinguishes "necessary" from "sufficient".
 
 ### A catch-all whose default is the SAFE answer is invisible to every gate but byte equality
 
@@ -5437,14 +5550,22 @@ both sides and rewritten differently. Every gate keyed on `(ruleId, line, column
 blind to that split by construction — the same "two ports of one function, and no gate compares
 the ports" shape recorded for the client/server constant fold, one level down.
 
-**rsvelte's `parse()` accepts a document official's `parse()` rejects**, and the linter is only
-where it was noticed. `svelte_meta_invalid_placement` — `<svelte:head>` inside an element — is
-raised by upstream from `phases/1-parse/state/element.js:161` and by rsvelte from
-`phases/2_analyze/visitors/svelte_head.rs:31-32`. Anything that parses without analyzing
-(svelte2tsx, the language server, `rsvelte-lint`) therefore sees a valid tree where the official
-toolchain sees a fatal error. It surfaced as an autofix divergence: ESLint's `verifyAndFix` stops
-when a pass produces text its parser rejects, so upstream fixed one nesting level and stopped
-while rsvelte relinted cleanly and fixed the next. Zero of 6,788 real-world sources reach it.
+**This paragraph used to say that rsvelte's `parse()` accepts a document official's rejects, and
+it was falsified by someone SPENDING it rather than reading it.**
+`svelte_meta_invalid_placement` — `<svelte:head>` inside an element — is raised by upstream from
+`phases/1-parse/state/element.js:161`, and rsvelte raised it only from phase 2, so anything that
+parses without analyzing (svelte2tsx, the language server, `rsvelte-lint`) saw a valid tree where
+the official toolchain saw a fatal error. The phase-2 citation is still accurate — seven sites
+carry the code (`svelte_head`, `svelte_body`, `svelte_window`, `svelte_document`, `svelte_options`,
+`shared/special_element`, `errors`) — and the **conclusion** stopped being true when the check was
+added to `1_parse/state/element.rs:184` as well, with nothing updating the prose. What found it
+was picking the diagnostic as the discriminating case for "does `parse()` run phase 2?" on the
+strength of "this one is phase-2 only": the probe threw where it was predicted to pass, and
+printing the error *code* is what separated a stale paragraph from an input rejected for some
+unrelated reason. Reading it, including reading it in order to cite it, could not have found that.
+The class it was noticed through is still real: ESLint's `verifyAndFix` stops when a pass produces
+text its parser rejects, so upstream fixed one nesting level and stopped while rsvelte relinted
+cleanly and fixed the next. Zero of 6,788 real-world sources reach it.
 
 **Rule OPTIONS are the axis this corpus is now saturated on, and the measurement is worth keeping
 because "each rule has an option pattern" is the non-discriminating version of it.** 29 of the 76
