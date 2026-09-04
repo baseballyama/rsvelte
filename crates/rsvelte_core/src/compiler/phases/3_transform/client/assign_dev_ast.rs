@@ -93,6 +93,9 @@ pub(super) fn is_known_primitive(
             oxc_keypath(expr.without_parentheses()).is_some_and(|k| is_global_constant(&k))
         }
         Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => true,
+        // No `SequenceExpression` arm: upstream's `scope.evaluate` is a case per
+        // node type (`scope.js:269-562`) and a sequence is not among them, so
+        // `o.a = (1, 2)` is UNKNOWN there and keeps the wrap.
         // `Evaluation` unions the branch value sets, so a branching expression
         // is primitive exactly when every branch it can yield is.
         Expression::ConditionalExpression(cond) => {
@@ -103,10 +106,6 @@ pub(super) fn is_known_primitive(
             is_known_primitive(&logical.left, initial, depth)
                 && is_known_primitive(&logical.right, initial, depth)
         }
-        Expression::SequenceExpression(seq) => seq
-            .expressions
-            .last()
-            .is_some_and(|e| is_known_primitive(e, initial, depth)),
         _ => false,
     }
 }

@@ -183,6 +183,21 @@ fn a_shadowed_name_is_refused_rather_than_guessed() {
     );
 }
 
+/// Upstream's `scope.evaluate` is a case per node type (`scope.js:269-562`) and a
+/// sequence is not among them, so both of these keep the wrap. The first was
+/// already wrong before the identifier resolution existed; the second is what
+/// making the predicate reachable from an initializer would have added.
+#[test]
+fn a_sequence_expression_is_not_a_known_primitive() {
+    let direct = "<script>\n\tlet o = $state({});\n\tfunction f() { o.a = o.b = (1, 2); }\n</script>\n<button onclick={f}>x</button>\n";
+    let via_initializer = "<script>\n\tlet o = $state({});\n\tconst g = (1, 2);\n\tfunction f() { o.a = o.b = g; }\n</script>\n<button onclick={f}>x</button>\n";
+    assert!(wraps(direct), "a sequence right-hand side keeps the wrap");
+    assert!(
+        wraps(via_initializer),
+        "and so does one reached through a binding"
+    );
+}
+
 /// The initializer is re-parsed out of its original source range, so a TypeScript
 /// annotation is inside the slice. Both spellings must still fold.
 #[test]
