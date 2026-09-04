@@ -817,3 +817,61 @@ impl Reference {
         }
     }
 }
+
+#[cfg(test)]
+mod binding_at_reference_tests {
+    use super::*;
+
+    fn root_with(bindings: Vec<Binding>) -> ScopeRoot {
+        let mut root = ScopeRoot::new();
+        for binding in bindings {
+            root.push_binding(binding);
+        }
+        root
+    }
+
+    fn bound(name: &str, start: u32) -> Binding {
+        let mut binding = Binding::new(name.to_string(), BindingKind::Normal, 0);
+        binding.add_reference(start, start + name.len() as u32, false, false, false);
+        binding
+    }
+
+    #[test]
+    fn a_binding_with_no_references_resolves_to_none() {
+        let root = root_with(vec![Binding::new("q".into(), BindingKind::Normal, 0)]);
+        assert!(root.binding_at_reference("q", 0).is_none());
+        assert!(root.binding_at_reference("q", 42).is_none());
+    }
+
+    #[test]
+    fn a_referenced_binding_resolves_at_its_reference_start() {
+        let root = root_with(vec![bound("q", 42)]);
+        assert_eq!(
+            root.binding_at_reference("q", 42).map(|b| b.name.as_str()),
+            Some("q")
+        );
+    }
+
+    #[test]
+    fn a_reference_start_that_no_binding_claims_resolves_to_none() {
+        let root = root_with(vec![bound("q", 42)]);
+        assert!(root.binding_at_reference("q", 41).is_none());
+    }
+
+    #[test]
+    fn a_name_mismatch_at_a_claimed_start_resolves_to_none() {
+        let root = root_with(vec![bound("q", 42)]);
+        assert!(root.binding_at_reference("other", 42).is_none());
+    }
+
+    #[test]
+    fn the_map_is_frozen_at_the_first_call_so_later_references_are_invisible() {
+        let mut root = root_with(vec![Binding::new("q".into(), BindingKind::Normal, 0)]);
+        assert!(root.binding_at_reference("q", 42).is_none());
+        root.bindings[0].add_reference(42, 43, false, false, false);
+        assert!(root.binding_at_reference("q", 42).is_none());
+
+        let fresh = root_with(vec![bound("q", 42)]);
+        assert!(fresh.binding_at_reference("q", 42).is_some());
+    }
+}
