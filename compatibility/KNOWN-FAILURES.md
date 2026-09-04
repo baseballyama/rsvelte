@@ -1210,29 +1210,43 @@ boundary in its *line-breaking* facet (e.g.
 does not), but that facet has no pin either, so it is recorded here as a
 hypothesis rather than as a mechanism.
 
-### Entries by mechanism (2026-09-02)
+### Entries by mechanism (2026-09-04)
 
 **This table is generated from a one-to-one id → mechanism assignment**
 (`compatibility/fmt-mechanisms.json`), **and the `n` column is derived from it** —
 `known-failures-md-check.mjs` fails if a row disagrees with the sidecar, if an
-entry carries no mechanism, or if a mechanism carries no entry. Both are
+entry carries no mechanism, or if a mechanism carries no entry. Every row is
 `pinned: none`, which is the whole finding: this ratchet's end state is
 elimination for every entry it holds.
 
-The five candidates are `layerchart/docs/src/routes/+page.svelte` (Cluster 8),
-the two Cluster 11 fixtures (`css-nth-of-minified`, `css-escape-sequences`) and
-`pattern/issues/3404-{repeated-combinators,unhandled-combinator-scope}.svelte`.
-The remaining 519 are one bucket rather than seven because the mechanical
+The embedded-CSS engine split was a single label until 2026-09-04, and a key that
+cannot tell its members apart suppresses all of them. Re-measured by running the
+gate's own two production stages — `oxfmt -c … <paths>` for the oracle and
+`rsvelte-fmt . -c … --oxfmt-bin …` for the actual, over the five sources staged at
+their corpus paths — it is the set of rows below rather than one row. Only the
+first is a *reject* path, and its fingerprint is in the output rather than in the
+diff: tabs survive in rsvelte's text while the config says `useTabs: false`, with
+the other three CSS candidates at 0 tab-bearing lines in the same run, so the body
+was copied rather than printed. None of the five changes the compiled CSS —
+`#\31\32\33` / `.a\5c` and the gradient indent are byte-identical through the
+official compiler after scope-hash normalization, and the other three carry their
+spelling through verbatim with identical scoping — so what a pin here would record
+is the engine choice, not a claim about which side is correct.
+
+The remaining entries are one bucket rather than seven because the mechanical
 `20`-`26` split above is recomputed from `compatibility/fmt-report.json`, which is
 a build artifact of a full oracle run and is not in the tree — assigning those
 buckets per entry from the doc would be transcription, not measurement.
 
 | n | mechanism | pinned |
 |---|---|---|
-| 5 | the embedded-CSS engine split — rsvelte-fmt prints through `oxc_formatter_css` and the oracle's Svelte path through PostCSS; a candidate for `deliberate-divergences`, but the pin there covers value spelling and none of these entries | none — candidate, not pinned for this facet |
+| 1 | `oxc_formatter_css` rejects the `<style>` body, so `native_style_formatter` returns it verbatim and the source's own indentation survives — measured as 6 tab-bearing lines in rsvelte's output under `useTabs: false`, against 0 in the oracle's own output for the same file and 0 on both sides for three of the four sibling candidates (the fourth reads 1 on both sides, inside a declaration value); the oracle's PostCSS path accepts the same body and reformats it | none — candidate, not pinned for this facet |
+| 2 | the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; the official compiler carries either spelling through verbatim and scopes both identically | none — candidate, not pinned for this facet |
+| 1 | a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; the official compiler's scoped CSS is byte-identical for the two spellings | none — candidate, not pinned for this facet |
+| 1 | continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path keeps the source's uneven depth; the official compiler's scoped CSS is byte-identical for the two spellings | none — candidate, not pinned for this facet |
 | 519 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
-Partition of `fmt-known-failures.json` by mechanism: `5 + 519`
+Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 519`
 
 ### Cluster 1 — close-tag-dangle / open-tag hugging for inline & void children (3)
 
