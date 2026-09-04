@@ -1382,11 +1382,30 @@ their corpus paths — it is the set of rows below rather than one row. Only the
 first is a *reject* path, and its fingerprint is in the output rather than in the
 diff: tabs survive in rsvelte's text while the config says `useTabs: false`, with
 the other three CSS candidates at 0 tab-bearing lines in the same run, so the body
-was copied rather than printed. None of the five changes the compiled CSS —
-`#\31\32\33` / `.a\5c` and the gradient indent are byte-identical through the
-official compiler after scope-hash normalization, and the other three carry their
-spelling through verbatim with identical scoping — so what a pin here would record
-is the engine choice, not a claim about which side is correct.
+was copied rather than printed.
+
+**The sentence that stood here was false, and it was false by construction rather
+than by drift.** It read "none of the five changes the compiled CSS", with
+`#\31\32\33` / `.a\5c` and the gradient indent called *byte-identical through the
+official compiler after scope-hash normalization*. Measured on 2026-09-04 against
+`submodules/svelte/packages/svelte/src/compiler/index.js` (`VERSION=5.56.10`), on
+the minimal construct and again on the five ratchet files, **`css.code` DIFFERS for
+every one of them** — and no normalization rescues it, because the two sides'
+scope hashes are equal (they are non-whitespace characters, and the non-whitespace
+halves are identical). Svelte carries selectors and declarations through scoping
+close to verbatim, so a moved space inside `<style>` always moves `css.code`:
+**"byte-identical `css.code`" is not a claim that can be true of any CSS
+whitespace divergence**, which is why the mechanism rather than a re-measurement
+is what condemns it.
+
+What survives is weaker and is what the four rows below now say: `js.code` is
+byte-identical for the two spellings, and `css.code` differs **only in
+whitespace** — the non-whitespace character sequences are identical. Two negative
+controls separate that from a fact about the instrument: `color: red` against
+`color: blue`, and `#\31\32\33` against `#\31\32\33\34`, both report
+non-whitespace DIFFER. So a pin here records the engine choice and not a claim
+about which side is correct — the original conclusion, on a premise that had to be
+replaced to reach it.
 
 The remaining entries are one bucket rather than seven because the mechanical
 `20`-`26` split above is recomputed from `compatibility/fmt-report.json`, which is
@@ -1395,13 +1414,43 @@ buckets per entry from the doc would be transcription, not measurement.
 
 | n | mechanism | pinned |
 |---|---|---|
-| 1 | `oxc_formatter_css` rejects the `<style>` body, so `native_style_formatter` returns it verbatim and the source's own indentation survives — measured as 6 tab-bearing lines in rsvelte's output under `useTabs: false`, against 0 in the oracle's own output for the same file and 0 on both sides for three of the four sibling candidates (the fourth reads 1 on both sides, inside a declaration value); the oracle's PostCSS path accepts the same body and reformats it | none — candidate, not pinned for this facet |
-| 2 | the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; the official compiler carries either spelling through verbatim and scopes both identically | none — candidate, not pinned for this facet |
-| 1 | a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; the official compiler's scoped CSS is byte-identical for the two spellings | none — candidate, not pinned for this facet |
-| 1 | continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path keeps the source's uneven depth; the official compiler's scoped CSS is byte-identical for the two spellings | none — candidate, not pinned for this facet |
+| 1 | `oxc_formatter_css` rejects the `<style>` body, so `native_style_formatter` returns it verbatim and the source's own indentation survives — measured as 6 tab-bearing lines in rsvelte's output under `useTabs: false`, against 0 in the oracle's own output for the same file and 0 on both sides for three of the four sibling candidates (the fourth reads 1 on both sides, inside a declaration value); the oracle's PostCSS path accepts the same body and reformats it. Whitespace-only in `css.code` and byte-identical in `js.code` like its three siblings, but not pinned as deliberate: rsvelte's behaviour here is the fallback for input the engine rejects, not a formatting rule it implements | none — not a formatting choice, so `deliberate-divergences` does not apply |
+| 2 | the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `a_column_combinator_keeps_its_spaces`, `an_nth_child_of_clause_keeps_the_space_after_of` |
+| 1 | a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `a_hex_escape_ending_a_selector_keeps_its_own_separator` |
+| 1 | continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path indents the ones following an interleaved comment one level deeper than the first; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace | `crates/rsvelte_formatter/tests/css_native.rs` — `every_continuation_of_a_multi_value_declaration_sits_at_one_depth` |
 | 515 | no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries | none |
 
 Partition of `fmt-known-failures.json` by mechanism: `1 + 2 + 1 + 1 + 515`
+
+Attribution of `fmt-known-failures.json`:
+
+| n | target | cluster |
+|---|---|---|
+| 4 | `deliberate-divergences` | the CSS engine rsvelte ships is `oxc_formatter_css` and the oracle's embedded-`<style>` path is prettier's PostCSS printer, so three facets of that choice are recorded rather than closed: whitespace around the column combinator and around `nth-child(… of …)` (2 entries), a hex escape's own terminating space before `{` (1), and the continuation depth of a comma-separated multi-value declaration (1). Pinned two-sidedly in `crates/rsvelte_formatter/tests/css_native.rs` — each test asserts rsvelte's spelling is produced **and** the oracle's is absent, so a build that stops printing the construct cannot pass |
+
+This table is **partial**, and its coverage is the sum of its own `n` column against the entry
+count declared above — `attribution-check` prints the two side by side, so neither is repeated
+here. Every entry it does not reach is unattributed rather than attributed to nothing.
+
+**`css-engine-rejects-block` is deliberately not in it, and separating the two questions is what
+that cost.** It satisfies the same output test as its three siblings — measured, `js.code`
+byte-identical and `css.code` whitespace-only — which is the question *does this change runtime
+meaning*. The other question is *is there code implementing the behaviour being chosen*, and
+there is not: rsvelte returns the block verbatim because `oxc_formatter_css` **rejected** it, so
+the behaviour is a fallback for unsupported input rather than a formatting rule. Writing
+`deliberate` for it would spell "we have not implemented this" as "we chose this", which is the
+one misclassification that stops anyone measuring it again. It stays listed.
+
+**One entry carries a shape its single label does not name.** The sidecar's own note says "the
+assignment is one-to-one, so a double count is unwritable" — true of the table's arithmetic, and
+not of the entries: `fmt-region-shapes.snapshot.json` records a **set** of shapes per entry for
+exactly this reason. `layerchart/docs/src/routes/+page.svelte` is labelled
+`css-engine-multi-value-indent` and also diverges on a comment line the oracle leaves
+**tab-indented** under `useTabs: false` while rsvelte reindents it. Both hunks reproduce from one
+minimal input (two comma-separated gradients with a comment between them), so they are one
+PostCSS behaviour seen twice rather than two independent defects — but the entry does not retire
+when the labelled facet is closed, and nothing in the one-to-one sidecar says so. The two files
+describe the same population and disagree about whether an entry has one mechanism or several.
 
 ### The `>`-boundary population — which stage first produces each hunk's final form
 

@@ -101,3 +101,82 @@ fn a_nested_calc_group_stays_inline_like_the_oxc_engine() {
         "inner group was broken out:\n{out}"
     );
 }
+
+// ── Deliberate divergences from the `oxfmt(svelte: true)` oracle ─────────────
+// These four carry `fmt-known-failures.json` entries. Each asserts BOTH that
+// rsvelte's spelling is produced and that the oracle's is absent, so a build
+// that stops printing the construct entirely cannot pass.
+//
+// Measured, not asserted: the official compiler's `js.code` is byte-identical
+// for the two spellings and its `css.code` differs only in whitespace (the
+// non-whitespace characters are identical). `css.code` byte-identity is not
+// available for any CSS whitespace divergence — Svelte carries selectors and
+// declarations through scoping close to verbatim, so a moved space in `<style>`
+// always moves `css.code`.
+
+#[test]
+fn a_column_combinator_keeps_its_spaces() {
+    let out = fmt(".a||.b { color: red; }\n", CssDialect::Css);
+    assert!(
+        out.contains(".a || .b {"),
+        "column combinator respacing changed:\n{out}"
+    );
+    assert!(
+        !out.contains(".a||.b"),
+        "closed the combinator up like the oracle:\n{out}"
+    );
+}
+
+#[test]
+fn an_nth_child_of_clause_keeps_the_space_after_of() {
+    let out = fmt(
+        "li:nth-child(2n of.important) { color: red; }\n",
+        CssDialect::Css,
+    );
+    assert!(
+        out.contains("(2n of .important)"),
+        "`of` respacing changed:\n{out}"
+    );
+    assert!(
+        !out.contains("of.important"),
+        "closed `of` up like the oracle:\n{out}"
+    );
+}
+
+#[test]
+fn a_hex_escape_ending_a_selector_keeps_its_own_separator() {
+    // The first space terminates the escape; the second separates it from `{`.
+    // The oracle emits one, which is the terminator doing both jobs.
+    let out = fmt("#\\31\\32\\33 { color: red; }\n", CssDialect::Css);
+    assert!(
+        out.contains("#\\31\\32\\33  {"),
+        "escape separator changed:\n{out}"
+    );
+    assert!(
+        !out.contains("#\\31\\32\\33 {"),
+        "merged the two spaces like the oracle:\n{out}"
+    );
+}
+
+#[test]
+fn every_continuation_of_a_multi_value_declaration_sits_at_one_depth() {
+    // The oracle's PostCSS path indents the continuations that follow an
+    // interleaved comment one level deeper than the first, so its own output is
+    // uneven within one declaration.
+    let src = ".g {\n\tbackground-image:\n\t\t/* A */\n\t\trepeating-linear-gradient(to right, var(--a) 0, var(--a) 2px, transparent 2px, transparent var(--size)),\n\t\t/* B */\n\t\trepeating-linear-gradient(to right, var(--b) 0, var(--b) 0.5px, transparent 0.5px, transparent calc(var(--size) / 5));\n}\n";
+    let out = fmt(src, CssDialect::Css);
+    let depths: Vec<usize> = out
+        .lines()
+        .filter(|l| l.trim_start().starts_with("to right,"))
+        .map(|l| l.len() - l.trim_start().len())
+        .collect();
+    assert_eq!(
+        depths.len(),
+        2,
+        "both continuations must be present:\n{out}"
+    );
+    assert_eq!(
+        depths[0], depths[1],
+        "the two continuations sit at different depths:\n{out}"
+    );
+}

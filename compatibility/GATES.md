@@ -8746,6 +8746,48 @@ measurement above had to be written for this row.
 `pattern/adversarial/css/css-custom-property-values`.
 **Pinned by** `crates/rsvelte_formatter/tests/css_native.rs`.
 
+**Ratchet** `compatibility/fmt-known-failures.json`, four entries over three facets of the same
+choice: whitespace around the column combinator and around a `nth-child(… of <selector>)` clause
+(2), a hex escape's own terminating space before `{` (1), and the continuation depth of a
+comma-separated multi-value declaration (1). **Pinned by** the four tests named below, in the
+same file — each asserts rsvelte's spelling is produced **and** the oracle's is absent, so a
+build that stops printing the construct entirely cannot pass.
+
+#### The four `fmt-known-failures.json` facets, measured on the same bytes
+
+| construct | `oxfmt(svelte: true)` | `rsvelte-fmt` | pin |
+|---|---|---|---|
+| column combinator | `.a\|\|.b {` | `.a \|\| .b {` | `a_column_combinator_keeps_its_spaces` |
+| `nth-child(2n of …)` | `of.important)` | `of .important)` | `an_nth_child_of_clause_keeps_the_space_after_of` |
+| hex escape ending a selector | `#\31\32\33 {` | `#\31\32\33  {` | `a_hex_escape_ending_a_selector_keeps_its_own_separator` |
+| multi-value continuation depth | first at 8, the rest at 10 | every continuation at one depth | `every_continuation_of_a_multi_value_declaration_sits_at_one_depth` |
+
+#### What the official compiler says, and the claim that had to be withdrawn
+
+`fmt-mechanisms.json` justified three of these with *"the official compiler's scoped CSS is
+byte-identical for the two spellings"*. Measured against
+`submodules/svelte/packages/svelte/src/compiler/index.js` (`VERSION=5.56.10`) on the minimal
+construct and again on the five ratchet files, **`css.code` DIFFERS for every one of them**.
+Svelte carries selectors and declarations through scoping close to verbatim, so a moved space
+inside `<style>` always moves `css.code` — the sentence is one **no CSS whitespace divergence can
+satisfy**, which is a stronger statement than "it was measured and was wrong": it is a claim whose
+falsity follows from the mechanism, so it cannot have been measured before it was written.
+
+What holds instead, and what these rows now assert: `js.code` is byte-identical for the two
+spellings, and `css.code` differs **only in whitespace** — the non-whitespace character sequences
+are identical, with the scope hash equal on both sides. Two negative controls separate that from
+an instrument artifact (`color: red` against `color: blue`, and `#\31\32\33` against
+`#\31\32\33\34`, both reporting non-whitespace DIFFER). That still meets this registry's
+criterion — valid CSS, and no change to which elements match or which declarations apply — on a
+premise that had to be replaced to reach it.
+
+**A fifth `fmt-known-failures.json` entry is deliberately not here.** `oxc_formatter_css`
+*rejects* one `<style>` body and `native_style_formatter` returns it verbatim. It passes the same
+output test (`js.code` identical, `css.code` whitespace-only), and it fails the other one: there
+is no code implementing a chosen behaviour, only a fallback for input the engine could not parse.
+Recording it as deliberate would spell an unimplemented case as a decision, so it stays listed in
+the ratchet and is described there as a limitation.
+
 #### Input
 
 One declaration block carrying an empty custom-property value (`--bar:   !important`), a bracket

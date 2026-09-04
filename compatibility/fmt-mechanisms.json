@@ -2,20 +2,20 @@
 	"$schema-note": "id -> mechanism slug for every entry of fmt-known-failures.json. The `Entries by mechanism` table in KNOWN-FAILURES.md is derived from this file: one row per `mechanisms` key, `n` = how many `entries` name it, and `known-failures-md-check.mjs` compares the table to it. The assignment is one-to-one, so a double count is unwritable.",
 	"mechanisms": {
 		"css-engine-rejects-block": {
-			"description": "`oxc_formatter_css` rejects the `<style>` body, so `native_style_formatter` returns it verbatim and the source's own indentation survives — measured as 6 tab-bearing lines in rsvelte's output under `useTabs: false`, against 0 in the oracle's own output for the same file and 0 on both sides for three of the four sibling candidates (the fourth reads 1 on both sides, inside a declaration value); the oracle's PostCSS path accepts the same body and reformats it",
-			"pinned": "none — candidate, not pinned for this facet"
+			"description": "`oxc_formatter_css` rejects the `<style>` body, so `native_style_formatter` returns it verbatim and the source's own indentation survives — measured as 6 tab-bearing lines in rsvelte's output under `useTabs: false`, against 0 in the oracle's own output for the same file and 0 on both sides for three of the four sibling candidates (the fourth reads 1 on both sides, inside a declaration value); the oracle's PostCSS path accepts the same body and reformats it. Whitespace-only in `css.code` and byte-identical in `js.code` like its three siblings, but not pinned as deliberate: rsvelte's behaviour here is the fallback for input the engine rejects, not a formatting rule it implements",
+			"pinned": "none — not a formatting choice, so `deliberate-divergences` does not apply"
 		},
 		"css-engine-selector-token-spacing": {
-			"description": "the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; the official compiler carries either spelling through verbatim and scopes both identically",
-			"pinned": "none — candidate, not pinned for this facet"
+			"description": "the two engines disagree about whitespace around a selector token neither models — the column combinator and a `nth-child(… of <selector>)` clause: rsvelte's `oxc_formatter_css` prints the space, the oracle's PostCSS path closes it up; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace",
+			"pinned": "`crates/rsvelte_formatter/tests/css_native.rs` — `a_column_combinator_keeps_its_spaces`, `an_nth_child_of_clause_keeps_the_space_after_of`"
 		},
 		"css-engine-trailing-escape-space": {
-			"description": "a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; the official compiler's scoped CSS is byte-identical for the two spellings",
-			"pinned": "none — candidate, not pinned for this facet"
+			"description": "a hex escape ending a selector: rsvelte emits the escape's terminating space and the separator before `{` as two spaces where the oracle emits one — the same file's 18 other selectors, including every hex escape followed by more text, agree; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace",
+			"pinned": "`crates/rsvelte_formatter/tests/css_native.rs` — `a_hex_escape_ending_a_selector_keeps_its_own_separator`"
 		},
 		"css-engine-multi-value-indent": {
-			"description": "continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path keeps the source's uneven depth; the official compiler's scoped CSS is byte-identical for the two spellings",
-			"pinned": "none — candidate, not pinned for this facet"
+			"description": "continuation indent of a comma-separated multi-value declaration: rsvelte's engine prints every continuation at one depth where the oracle's PostCSS path indents the ones following an interleaved comment one level deeper than the first; measured through the official compiler, `js.code` is byte-identical for the two spellings and `css.code` differs only in that whitespace",
+			"pinned": "`crates/rsvelte_formatter/tests/css_native.rs` — `every_continuation_of_a_multi_value_declaration_sits_at_one_depth`"
 		},
 		"unattributed": {
 			"description": "no upstream report and no pinned deliberate divergence; elimination is the only end state open to these entries",
