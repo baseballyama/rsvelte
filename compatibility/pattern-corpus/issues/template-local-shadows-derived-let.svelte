@@ -1,8 +1,7 @@
-<!-- The same graft with `let`, which does not hoist: shadowing an outer name is what
-     the mis-fix keys on, not the declaration keyword. -->
+<!-- Same write through `let`, which does not hoist: the keyword is not the axis. -->
 <script>
 	let base = $state(1);
 	let v = $derived(base);
 </script>
-<button onclick={() => { let v = 0; base = (typeof v).length; }}></button>
+<button onclick={() => { { let v = 0; v--; } base = (typeof v).length; }}></button>
 {v}

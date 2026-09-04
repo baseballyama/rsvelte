@@ -1,8 +1,8 @@
-<!-- Shadowing where the outer binding is `$state`, which the server does not inline:
-     separates "a shadow exists" from "the outer value reaches a template string". -->
+<!-- Negative half of the axis: an outer `$state` is not folded, so the same written
+     local must stay inert. Measured green on all three arms, all four targets. -->
 <script>
-	let s = $state(1);
-	let n = $state(0);
+	let base = $state(1);
+	let v = $state(2);
 </script>
-<button onclick={() => { var s = 0; n = (typeof s).length; }}></button>
-{s}{n}
+<button onclick={() => { var v = 0; v--; base = (typeof v).length; }}></button>
+{v}
