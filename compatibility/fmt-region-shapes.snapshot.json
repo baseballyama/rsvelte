@@ -1,0 +1,2480 @@
+{
+ "note": [
+  "A SNAPSHOT, not a live index: it is keyed by ratchet id and goes stale the moment an entry retires.",
+  "It is deliberately not gated. A gate would force `pnpm run generate-fmt-corpus` plus a full verify on every PR that retires an fmt entry, which costs more than the drift it would catch.",
+  "`regions` holds one cluster label per differing region, in file order, under the rule stated in KNOWN-FAILURES.md.",
+  "Derived from the diff-ALIGNED hunks of compatibility/fmt/{oracle,actual}. The doc rule is applied POSITIONALLY to the report line pair; the two agree on the first label for 517 of 520 entries."
+ ],
+ "measuredAt": "2026-09-04T10:35:08.534Z",
+ "projectRevision": "598e35e2ab188b231a2ec93acafaf64ad60d01ec",
+ "ratchet": "fmt-known-failures.json",
+ "ratchetSize": 520,
+ "source": [
+  "compatibility/fmt/oracle",
+  "compatibility/fmt/actual"
+ ],
+ "regions": {
+  "adventurelog/frontend/src/lib/components/CategoryDropdown.svelte": [
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/lib/components/ImageManagement.svelte": [
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/lib/components/cards/ActivityCard.svelte": [
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/lib/components/cards/CollectionCard.svelte": [
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/lib/components/collections/CollectionAllItems.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/lib/components/collections/CollectionItineraryPlanner.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/lib/components/collections/CollectionMap.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/lib/components/locations/LocationMedia.svelte": [
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/lib/components/locations/LocationModal.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/lib/components/lodging/LodgingModal.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/lib/components/search/CommandPalette.svelte": [
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/lib/components/transportation/TransportationModal.svelte": [
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/routes/locations/[id]/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "adventurelog/frontend/src/routes/profile/[uuid]/+page.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/routes/settings/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "adventurelog/frontend/src/routes/worldtravel/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/lib/commandCenter/panels/ai.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/lib/commandCenter/panels/template.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/lib/components/billing/alerts/projectsAtRisk.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/lib/components/bottomModalAlert.svelte": [
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/lib/components/navbar.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/lib/components/sidebar.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/onboarding/create-project/loading.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/organization-[organization]/billing/+page.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/organization-[organization]/billing/budgetCap.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/organization-[organization]/billing/planSummary.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/organization-[organization]/change-plan/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/routes/(console)/organization-[organization]/usage/[[invoice]]/ProjectBreakdown.svelte": [
+   "intra-line-ws"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/auth/security/updateMockNumbers.svelte": [
+   "breaks-later",
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/permissions.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/createPolicy.svelte": [
+   "breaks-earlier",
+   "other"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/settings/+page.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/relationship.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/+page.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/executions/execute-function/aside.svelte": [
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updatePermissions.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateResourceLimits.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateSchedule.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/message-[message]/delete.svelte": [
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/wizard/provider.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/wizard/settings.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/wizard/pushFormList.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "other"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createReactNative.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/settings/migrations/+page.svelte": [
+   "indent-only",
+   "indent-only",
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/settings/webhooks/create/step3.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/sites/site-[site]/settings/updateResourceLimits.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/settings/+page.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/settings/updateMaxFileSize.svelte": [
+   "breaks-later"
+  ],
+  "appwrite-console/src/routes/(console)/project-[region]-[project]/updateVariables.svelte": [
+   "indent-only"
+  ],
+  "appwrite-console/src/routes/(public)/functions/deploy/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "appwrite-console/src/routes/(public)/sites/deploy/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "carbon-components-svelte/docs/src/components/ComponentApi.svelte": [
+   "indent-only",
+   "indent-only",
+   "other"
+  ],
+  "carbon-components-svelte/docs/src/pages/component-index.svelte": [
+   "breaks-later"
+  ],
+  "carbon-components-svelte/docs/src/pages/framed/TagSet/TagSetCustomOverflowTooltip.svelte": [
+   "breaks-later"
+  ],
+  "carbon-components-svelte/src/DataTable/DataTable.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "carbon-components-svelte/src/SkeletonText/SkeletonText.svelte": [
+   "indent-only",
+   "indent-only"
+  ],
+  "carbon-components-svelte/src/Tile/ExpandableTile.svelte": [
+   "breaks-later"
+  ],
+  "carbon-components-svelte/src/Toggletip/Toggletip.svelte": [
+   "breaks-earlier"
+  ],
+  "carbon-components-svelte/src/UIShell/HeaderNavMenu.svelte": [
+   "breaks-later"
+  ],
+  "chatgpt-web/src/lib/Chat.svelte": [
+   "breaks-later"
+  ],
+  "chatgpt-web/src/lib/Sidebar.svelte": [
+   "breaks-later"
+  ],
+  "cmsaasstarter/src/routes/(admin)/account/(menu)/settings/delete_account/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "cmsaasstarter/src/routes/(marketing)/+page.svelte": [
+   "breaks-later"
+  ],
+  "cnblocks/src/lib/components/blocks/faq/faq-two.svelte": [
+   "breaks-earlier"
+  ],
+  "cpi-ide/src/lib/components/OutputStatusBar.svelte": [
+   "breaks-later"
+  ],
+  "cpi-ide/src/routes/[id]/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "flowbite-svelte/src/lib/clipboard-manager/ClipboardManager.svelte": [
+   "breaks-earlier"
+  ],
+  "ha-fusion/src/lib/Main/Index.svelte": [
+   "breaks-earlier"
+  ],
+  "ha-fusion/src/lib/Main/Intro.svelte": [
+   "breaks-earlier"
+  ],
+  "ha-fusion/src/lib/Modal/CalendarEventModal.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/lib/Modal/GraphConfig.svelte": [
+   "breaks-earlier"
+  ],
+  "ha-fusion/src/lib/Modal/PictureElements/TransformAttributes.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/lib/Modal/TodoModal.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/lib/Modal/Unknown.svelte": [
+   "indent-only"
+  ],
+  "ha-fusion/src/lib/Modal/YoutubeModal.svelte": [
+   "indent-only"
+  ],
+  "ha-fusion/src/lib/Sidebar/Notifications.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/lib/Sidebar/Sensor.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "ha-fusion/src/lib/Sidebar/Timer.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/lib/Sidebar/Toast.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/lib/Sidebar/Weather.svelte": [
+   "breaks-later"
+  ],
+  "ha-fusion/src/routes/+page.svelte": [
+   "breaks-later"
+  ],
+  "haptic/apps/desktop/src/lib/components/notes/layout.svelte": [
+   "indent-only"
+  ],
+  "haptic/apps/desktop/src/lib/components/shared/editor/toolbar.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "haptic/apps/desktop/src/routes/notes/entries.svelte": [
+   "breaks-earlier"
+  ],
+  "haptic/apps/homepage/src/routes/download/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "haptic/apps/web/src/lib/components/notes/layout.svelte": [
+   "indent-only"
+  ],
+  "haptic/apps/web/src/lib/components/shared/editor/toolbar.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "haptic/apps/web/src/routes/notes/entries.svelte": [
+   "breaks-earlier"
+  ],
+  "headscale-ui/src/lib/devices/DeviceCard/DeviceTags.svelte": [
+   "indent-only",
+   "breaks-later"
+  ],
+  "headscale-ui/src/lib/devices/SearchDevices.svelte": [
+   "breaks-later"
+  ],
+  "headscale-ui/src/lib/settings/DevSettings.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "headscale-ui/src/lib/users/SearchUsers.svelte": [
+   "breaks-later"
+  ],
+  "headscale-ui/src/lib/users/UserCard/PreAuthKeys.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "headscale-ui/src/routes/devices.html/+page.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "headscale-ui/src/routes/users.html/+page.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "huly/packages/presentation/src/components/SpacesMultiPopup.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/packages/presentation/src/components/markup/CodeBlockNode.svelte": [
+   "breaks-later"
+  ],
+  "huly/packages/ui/src/components/MultiProgress.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/packages/ui/src/components/Scroller.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "huly/packages/ui/src/components/SearchInput.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "huly/packages/ui/src/components/internal/Clock.svelte": [
+   "breaks-later"
+  ],
+  "huly/packages/ui/src/components/internal/Root.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/activity-resources/src/components/BasePreview.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/attachment-resources/src/components/AttachmentPresenter.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/bitrix-resources/src/components/mappings/CreateHRApplicationPresenter.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/board-resources/src/components/ListHeader.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/communication-resources/src/components/poll/UserVoteActivityPresenter.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/controlled-documents-resources/src/components/document/DocumentDiffViewer.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/emoji-resources/src/components/EmojiPopup.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/gmail-resources/src/components/Chats.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/lead-resources/src/components/LeadsPresenter.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/login-resources/src/components/AdminWorkspaces.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/login-resources/src/components/SelectWorkspace.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/products-resources/src/components/product-version/ProductVersionsPresenter.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/setting-resources/src/components/Backup.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/setting-resources/src/components/Configure.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/setting-resources/src/components/GuestPermissionsSettings.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "huly/plugins/survey-resources/src/components/EditQuestion.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/task-resources/src/components/icons/IconStarted.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/test-management-resources/src/components/project/CreateProject.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/test-management-resources/src/components/test-run/TestRunStats.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/tracker-resources/src/components/EditRelatedTargets.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/tracker-resources/src/components/components/ComponentTitlePresenter.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/view-resources/src/components/ObjectMention.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/workbench-resources/src/components/ComponentNavigator.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/workbench-resources/src/components/Navigator.svelte": [
+   "breaks-later"
+  ],
+  "huly/plugins/workbench-resources/src/components/SelectWorkspaceMenu.svelte": [
+   "breaks-earlier"
+  ],
+  "huly/plugins/workbench-resources/src/components/ServerManagerUsers.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/lib/components/asset-viewer/DetailPanel.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/lib/components/asset-viewer/PhotoSphereViewerAdapter.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/lib/components/asset-viewer/PhotoViewer.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/lib/components/asset-viewer/actions/RatingAction.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/lib/components/shared-components/search-bar/SearchBar.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/lib/components/shared-components/side-bar/ServerStatus.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/lib/components/timeline/Month.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/lib/modals/PersonMergeSuggestionModal.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/lib/modals/PluginMethodPicker.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/routes/(user)/people/[personId]/[[photos=photos]]/[[assetId=id]]/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/routes/(user)/utilities/duplicates/[[photos=photos]]/[[assetId=id]]/+page.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/routes/admin/maintenance/+page.svelte": [
+   "breaks-later"
+  ],
+  "immich/web/src/routes/admin/system-settings/AuthSettings.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/routes/admin/system-settings/IntegrityChecksSettings.svelte": [
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "immich/web/src/routes/admin/system-settings/MachineLearningSettings.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "immich/web/src/routes/admin/system-settings/MapSettings.svelte": [
+   "breaks-earlier"
+  ],
+  "immich/web/src/routes/admin/system-settings/NotificationSettings.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/docs/ui/aside.svelte": [
+   "breaks-earlier"
+  ],
+  "kampsy-ui/src/lib/calendar/calendar.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/lib/code/codeSnip.svelte": [
+   "breaks-earlier"
+  ],
+  "kampsy-ui/src/lib/collapse/collapseCode.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "kampsy-ui/src/lib/menu/content.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/lib/modal/content.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/lib/select/content.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/lib/splitButton/content.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/avatar/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/badge/+page.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/button/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/checkbox/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/choicebox/+page.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/collapse/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/installation/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/note/+page.svelte": [
+   "breaks-later"
+  ],
+  "kampsy-ui/src/routes/project-banner/+page.svelte": [
+   "breaks-later"
+  ],
+  "kener/src/routes/(manage)/manage/app/alerts/+page.svelte": [
+   "breaks-later"
+  ],
+  "kener/src/routes/(manage)/manage/app/alerts/[alert_config_id]/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "kener/src/routes/(manage)/manage/app/customizations/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "kener/src/routes/(manage)/manage/app/embed/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "kener/src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-group.svelte": [
+   "breaks-earlier"
+  ],
+  "kener/src/routes/(manage)/manage/app/site-configurations/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kite-public/src/lib/components/Header.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "kite-public/src/lib/components/contribute/ContributeFeedStep.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "kite-public/src/lib/components/contribute/ContributeHistory.svelte": [
+   "breaks-earlier"
+  ],
+  "kite-public/src/lib/components/crypto/CryptoGrid.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "kite-public/src/lib/components/nfl/NFLStandings.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kite-public/src/lib/components/nhl/NHLStandings.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "kite-public/src/lib/components/settings/ContributeCategoryModal.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "kite-public/src/lib/components/settings/SettingsExperimental.svelte": [
+   "breaks-later"
+  ],
+  "kite-public/src/lib/components/settings/SettingsLanguage.svelte": [
+   "breaks-later"
+  ],
+  "kite-public/src/lib/components/story/CitationText.svelte": [
+   "breaks-earlier"
+  ],
+  "kite-public/src/lib/components/story/StoryQuote.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "layercake/src/_components/AxisY.percent-range.html.svelte": [
+   "breaks-earlier"
+  ],
+  "layercake/src/_components/AxisYRight.percent-range.html.svelte": [
+   "breaks-earlier"
+  ],
+  "layerchart/docs/src/examples/components/Chart/facet-wrap.svelte": [
+   "breaks-earlier"
+  ],
+  "layerchart/docs/src/routes/+page.svelte": [
+   "indent-only",
+   "indent-only",
+   "indent-only",
+   "indent-only"
+  ],
+  "layerchart/packages/layerchart/src/lib/components/Labels/Labels.base.svelte": [
+   "breaks-later"
+  ],
+  "mathesar/mathesar_ui/src/component-library/select/Select.svelte": [
+   "breaks-later"
+  ],
+  "mathesar/mathesar_ui/src/systems/table-view/TableView.svelte": [
+   "breaks-later"
+  ],
+  "mathesar/mathesar_ui/src/systems/table-view/row/CellErrors.svelte": [
+   "breaks-later"
+  ],
+  "musicat/src/lib/info/MetadataSection.svelte": [
+   "intra-line-ws"
+  ],
+  "musicat/src/lib/library/CassetteLoading.svelte": [
+   "other"
+  ],
+  "musicat/src/lib/library/LyricsView.svelte": [
+   "breaks-later"
+  ],
+  "musicat/src/lib/library/SongHighlighter.svelte": [
+   "intra-line-ws"
+  ],
+  "musicat/src/lib/library/ToDeleteHeader.svelte": [
+   "breaks-later"
+  ],
+  "musicat/src/lib/settings/InfoPopup.svelte": [
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "musicat/src/lib/sidebar/Sidebar.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "musicat/src/lib/smart-query/SmartQueryPart.svelte": [
+   "breaks-later"
+  ],
+  "musicat/src/lib/ui/ShadowGradient.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "musicat/src/lib/views/MapView.svelte": [
+   "breaks-later"
+  ],
+  "musicat/src/lib/views/WikiView.svelte": [
+   "breaks-later"
+  ],
+  "musicat/src/lib/your-music/MusicTab.svelte": [
+   "breaks-earlier"
+  ],
+  "musicat/src/lib/your-music/SongDetails.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/furniture/Footer.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/furniture/SettingsPanel.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/CIDRDeaggregate.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/ClientIDOption61.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/tools/DHCPOption119Builder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/DHCPOption121Builder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/DHCPOption150Builder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/DHCPOption82Builder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/DHCPv6DNSBuilder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/DNSKEYKeyTag.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/tools/DNSOptions6And15.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/DSGenerator.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/EUI64.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/GatewayOption3.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/IDNPunycodeConverter.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/tools/IPv6NotationConverter.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/IPv6Teredo.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/tools/LeaseTimeOption51.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/NameLengthChecker.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/tools/NetworkVisualizer.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/NthIP.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/PTRSweepPlanner.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/lib/components/tools/ReverseZonesCalculator.svelte": [
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/SupernetCalculator.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/lib/components/tools/TLSAGenerator.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/dns/axfr-tester/+page.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/dns/blacklist-checker/+page.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/dns/ns-soa-check/+page.svelte": [
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/routes/diagnostics/dns/query-performance/+page.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/email/dmarc-check/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/routes/diagnostics/email/greylist-tester/+page.svelte": [
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/email/mail-tls-check/+page.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/email/mx-health/+page.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/routes/diagnostics/http/compression/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/routes/diagnostics/http/perf/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/http/security/+page.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/diagnostics/tls/banner/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "networking-toolbox/src/routes/diagnostics/tls/ocsp-stapling/+page.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/ip-address-convertor/mac-address/+page.svelte": [
+   "breaks-later"
+  ],
+  "networking-toolbox/src/routes/reference/reverse-zones/+page.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/AddFilesPlaceholder.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/AddTerminalServerModal.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/AddToolServerModal.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/ChangelogModal.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/admin/Analytics/ChartLine.svelte": [
+   "indent-only"
+  ],
+  "open-webui/src/lib/components/admin/Analytics/Dashboard.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/admin/Evaluations/Leaderboard.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/admin/Settings/Connections/OpenAIConnection.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/admin/Settings/Documents.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/admin/Settings/Images.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/admin/Settings/Models.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/calendar/CalendarEventChip.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/calendar/CalendarSidebar.svelte": [
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/calendar/CalendarView.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/calendar/CreateCalendarModal.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/channel/Messages/Message.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/Artifacts.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Chat.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/ChatPlaceholder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Controls/Valves.svelte": [
+   "intra-line-ws"
+  ],
+  "open-webui/src/lib/components/chat/FileNav/FilePreview.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/FileNav/JsonTreeView.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/MessageInput.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/MessageInput/CallOverlay.svelte": [
+   "indent-only",
+   "other",
+   "other",
+   "indent-only",
+   "other",
+   "other",
+   "other"
+  ],
+  "open-webui/src/lib/components/chat/MessageInput/InputVariablesModal.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/MessageInput/VoiceRecording.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/Messages/Citations.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Messages/CodeBlock.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Messages/Markdown/HTMLToken.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Messages/Markdown/MarkdownInlineTokens.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/Messages/Markdown/MarkdownTokens.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Messages/Message.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Messages/MultiResponseMessages.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only"
+  ],
+  "open-webui/src/lib/components/chat/Messages/OutputEditView.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/Messages/ResponseMessage.svelte": [
+   "breaks-later",
+   "indent-only",
+   "other",
+   "indent-only",
+   "other",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/Messages/UserMessage.svelte": [
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/ModelSelector/ModelItem.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Placeholder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Settings/Connections/Connection.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Settings/Tools/Connection.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/Settings/Usage.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/chat/ShareChatModal.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/chat/ToolServersModal.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/common/Banner.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/common/Collapsible.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/common/EmojiPicker.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/common/MultiSelect.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/common/Sidebar.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/common/Valves.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/icons/LineSpaceSmaller.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/lib/components/layout/SearchModal.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/layout/Sidebar.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/layout/Sidebar/ChannelItem.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/layout/Sidebar/ChatItem.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/workspace/Models.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/workspace/Models/ModelEditor.svelte": [
+   "breaks-earlier"
+  ],
+  "open-webui/src/lib/components/workspace/Prompts/PromptEditor.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/routes/(app)/playground/+layout.svelte": [
+   "breaks-later"
+  ],
+  "open-webui/src/routes/auth/+page.svelte": [
+   "breaks-later"
+  ],
+  "originui-svelte/src/lib/components/tooltips/tooltip-06.svelte": [
+   "other"
+  ],
+  "originui-svelte/src/routes/+page.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "paaster/paaster/src/routes/+layout.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "paaster/paaster/src/routes/[pasteId]/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "paaster/paaster/src/routes/login/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "paaster/paaster/src/routes/settings/+page.svelte": [
+   "breaks-later"
+  ],
+  "pattern/issues/3195-nth-of-selector-list.svelte": [
+   "intra-line-ws"
+  ],
+  "pattern/issues/3195-style-printed-from-ast.svelte": [
+   "intra-line-ws"
+  ],
+  "pattern/issues/3404-repeated-combinators.svelte": [
+   "intra-line-ws",
+   "indent-only",
+   "intra-line-ws",
+   "indent-only"
+  ],
+  "pattern/issues/3404-unhandled-combinator-scope.svelte": [
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws"
+  ],
+  "pattern/issues/3498-class-rune-linebreak-separators.svelte": [
+   "missing-line",
+   "missing-line",
+   "missing-line",
+   "missing-line",
+   "missing-line"
+  ],
+  "pattern/issues/3714-template-quoted-property-key.svelte": [
+   "other"
+  ],
+  "pattern/issues/4046-each-const-parameter-comment.svelte": [
+   "breaks-earlier"
+  ],
+  "photon/src/lib/app/render/VirtualList.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "photon/src/lib/feature/comment/Comment.svelte": [
+   "breaks-earlier"
+  ],
+  "photon/src/lib/feature/comment/CommentVote.svelte": [
+   "breaks-earlier"
+  ],
+  "photon/src/lib/feature/community/CommunityHeader.svelte": [
+   "breaks-later"
+  ],
+  "photon/src/lib/feature/post/PostLink.svelte": [
+   "breaks-later"
+  ],
+  "photon/src/lib/feature/post/PostMeta.svelte": [
+   "indent-only"
+  ],
+  "photon/src/lib/feature/post/media/PostImage.svelte": [
+   "breaks-later"
+  ],
+  "photon/src/lib/feature/post/media/PostMediaCompact.svelte": [
+   "breaks-later",
+   "missing-line",
+   "breaks-earlier"
+  ],
+  "photon/src/routes/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "photon/src/routes/admin/applications/Application.svelte": [
+   "breaks-earlier"
+  ],
+  "photon/src/routes/post/[instance]/[id=integer]/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "powertable/app/src/lib/components/PowerTable.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "powertable/app/src/routes/examples/+layout.svelte": [
+   "indent-only",
+   "breaks-earlier"
+  ],
+  "primo/src/lib/builder/views/editor/Layout/BlockToolbar.svelte": [
+   "other"
+  ],
+  "primo/src/lib/builder/views/editor/Layout/ComponentNode.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "primo/src/lib/builder/views/modal/SitePages/Item.svelte": [
+   "breaks-later"
+  ],
+  "primo/src/lib/components/CreateSite.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "primo/src/lib/components/app-sidebar.svelte": [
+   "breaks-later"
+  ],
+  "shadcn-svelte/docs/src/lib/components/theme-customizer-code.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "skeleton/sites/skeleton.dev/src/components/ui/preview.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsColors.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "skeleton/sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsTypography.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sparrow-app/apps/@sparrow-desktop/src/pages/workspace-page/CollectionsPage.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sparrow-app/apps/@sparrow-desktop/src/pages/workspace-page/sub-pages/WorkspaceExplorerPage/WorkspaceExplorerPage.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/apps/@sparrow-web/src/pages/workspace-page/CollectionsPage.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sparrow-app/apps/@sparrow-web/src/pages/workspace-page/sub-pages/WorkspaceExplorerPage/WorkspaceExplorerPage.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-common/src/components/workspace-grid/WorkspaceGrid.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-common/src/features/app-updater/layout/AppUpdater.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-common/src/features/create-team/components/icon-uploader/IconUploader.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-common/src/features/create-team/components/team-icon/TeamIcon.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-library/src/forms/select/Select.svelte": [
+   "indent-only",
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-library/src/forms/select/menu-items/MenuItemsv2.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-library/src/forms/text-editor/TextEditor.svelte": [
+   "intra-line-ws"
+  ],
+  "sparrow-app/packages/@sparrow-library/src/icons/ShareMultipleRegular.svelte": [
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-library/src/icons/ThumbDislikeFilled.svelte": [
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-library/src/ui/carousel/Carousel.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-support/src/components/Drop/Drop.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-support/src/features/community/layout/Community.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-support/src/features/feedback-toast/layout/FeedbackToast.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-support/src/features/roadmap/layout/Roadmap.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-teams/src/features/team-explorer/components/workspace-list-view/WorkspaceListView.svelte": [
+   "breaks-earlier",
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-teams/src/features/team-invite/layout/TeamInvite.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-teams/src/features/team-list/components/team-row/TeamRow.svelte": [
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-teams/src/features/team-members/components/member/Member.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-teams/src/features/team-members/components/profile/Profile.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-teams/src/features/team-sidepanel/layout/TeamSidePanel.svelte": [
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/components/environment-picker/EnvironmentPicker.svelte": [
+   "indent-only",
+   "indent-only",
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/components/tabular-input-v2/TabularInputV2.svelte": [
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/components/tabular-input/LazyElement.svelte": [
+   "intra-line-ws",
+   "intra-line-ws"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/components/tabular-input/LazyElementFormData.svelte": [
+   "intra-line-ws",
+   "intra-line-ws"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/components/tabular-input/TabularInput.svelte": [
+   "intra-line-ws",
+   "intra-line-ws"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/ai-request-explorer/components/ai-request-chatbot/components/ai-chat-interface/AIChatInterface.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/ai-request-explorer/components/generate-prompt/GeneratePrompt.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/ai-request-explorer/layout/AiRequestExplorer.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/chat-bot/components/ai-chat-interface/AIChatInterface.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-explorer/components/collection-auth-profiles/CollectionAuthProfiles.svelte": [
+   "indent-only"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/ai-request/AiRequest.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/collection/Collection.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/folder/Folder.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/graphql/Graphql.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/mock-request/MockRequest.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/request/Request.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/saved-request/SavedRequest.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/search-tree/Request.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/search-tree/SearchTree.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/socket-io/SocketIo.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/components/web-socket/WebSocket.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/collection-list/layout/CollectionList.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/environment-explorer/layout/EnvironmentExplorer.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/environment-list/components/list-item/ListItem.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/generate-variables/layout/GenerateVariable.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/graphql-explorer/layout/GraphqlExplorer.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer-mock/components/mock-responses-ratio/MockResponsesRatio.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer-mock/components/multiple-mock-response/MultipleMockResponse.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer-mock/components/rest-extension-panel/RestExtensionPanel.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer-mock/layout/RestExplorerMock.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer-saved/components/rest-extension-panel/RestExtensionPanel.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer-saved/layout/RestExplorerSaved.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer/components/request-tests/sub-components/no-code/NoCode.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer/components/request-tests/sub-components/no-code/sub-components/test-list-item/TestListItem.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer/components/rest-extension-panel/RestExtensionPanel.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/rest-explorer/layout/RestExplorer.svelte": [
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/save-as-request/layout/SaveAsRequest.svelte": [
+   "intra-line-ws"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/socket-explorer/layout/SocketExplorer.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/socketio-explorer/layout/SocketIoExplorer.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/tab-bar/components/tab/Tab.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-dynamic-expressions/components/dynamic-content/DynamicContent.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-explorer/components/request-tests/sub-components/no-code/NoCode.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-explorer/components/request-tests/sub-components/no-code/sub-components/test-list-item/TestListItem.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-explorer/components/schedule-row/ScheduleRow.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-explorer/components/test-data-row/TestDataRow.svelte": [
+   "breaks-later"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-list/components/testflow-list-item/TestflowListItem.svelte": [
+   "breaks-earlier"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-schedule-explorer/components/test-results/sub-components/EmptyTestResult.svelte": [
+   "indent-only",
+   "indent-only",
+   "indent-only",
+   "indent-only",
+   "indent-only",
+   "other"
+  ],
+  "sparrow-app/packages/@sparrow-workspaces/src/features/testflow-schedule-run-view-explorer/layout/TetsflowScheduleRunViewExplorer.svelte": [
+   "breaks-later"
+  ],
+  "svar-grid/svelte/demos/common/ListRoutes.svelte": [
+   "breaks-later",
+   "indent-only"
+  ],
+  "svar-grid/svelte/tests/common/ListRoutes.svelte": [
+   "indent-only"
+  ],
+  "svelte-awesome-color-picker/src/lib/components/Picker.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-bits/src/lib/components/docs/pages/DecayCardDemo.svelte": [
+   "breaks-later"
+  ],
+  "svelte-bits/src/lib/components/docs/pages/TiltedCardDemo.svelte": [
+   "breaks-later"
+  ],
+  "svelte-bits/src/lib/components/landing/Hero/Hero.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-bits/src/lib/components/landing/Hero/InteractiveCode.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-bits/src/lib/components/library/Animations/BlobCursor/BlobCursor.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-bits/src/lib/components/library/Components/BubbleMenu/BubbleMenu.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-bits/src/lib/components/library/Components/Folder/Folder.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-bits/src/lib/components/library/Components/ModelViewer/ModelViewer.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-bits/src/lib/components/library/TextAnimations/RotatingText/RotatingText.svelte": [
+   "breaks-later"
+  ],
+  "svelte-bits/src/lib/components/library/TextAnimations/ScrollReveal/ScrollReveal.svelte": [
+   "breaks-later"
+  ],
+  "svelte-command-palette/src/routes/+layout.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/lib/components/coupon/coupons-drawer.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/nav/bottom-nav.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-commerce/src/lib/components/nav/mega-menu.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/lib/components/page-blocks/blocks.svelte": [
+   "breaks-earlier",
+   "other",
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/page-blocks/blocks/collection-carousel.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/page-blocks/blocks/collection-grid.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/page-blocks/blocks/featured-categories.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/page-blocks/blocks/featured-products.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/page-blocks/blocks/image-block.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/components/ui/breadcrumb.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/lib/theme/lime/LimeFooter.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/lib/theme/wine/WineHomepage.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(my)/my/addresses/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(my)/my/orders/[id]/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/checkout/address/+page.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/checkout/failed/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/checkout/payment/payment.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/checkout/payment/review.svelte": [
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/checkout/success/+page.svelte": [
+   "breaks-earlier",
+   "breaks-later"
+  ],
+  "svelte-commerce/src/routes/(www)/messages/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/routes/(www)/order-tracking/+page.svelte": [
+   "breaks-later",
+   "indent-only",
+   "indent-only"
+  ],
+  "svelte-commerce/src/routes/(www)/products/[slug]/components/product-aggregation.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/routes/(www)/products/[slug]/components/product-cart-and-wishlist-buttons.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-commerce/src/routes/(www)/products/[slug]/components/product-reviews-section.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-confetti/src/lib/Confetti.svelte": [
+   "breaks-later",
+   "other"
+  ],
+  "svelte-confetti/src/routes/+page.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "intra-line-ws",
+   "breaks-later",
+   "intra-line-ws",
+   "breaks-later",
+   "other",
+   "breaks-later",
+   "intra-line-ws",
+   "intra-line-ws",
+   "breaks-later"
+  ],
+  "svelte-form-builder/src/lib/FormBuilder.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-french-toast/src/lib/components/ToastBar.svelte": [
+   "breaks-later"
+  ],
+  "svelte-french-toast/src/www/Examples.svelte": [
+   "breaks-later"
+  ],
+  "svelte-inspect-value/apps/docs/src/components/theming/DefineTheme.svelte": [
+   "indent-only",
+   "indent-only",
+   "indent-only",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-inspect-value/packages/svelte/src/doclib/examples/BasicEditable.svelte": [
+   "breaks-later"
+  ],
+  "svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "svelte-inspect-value/packages/svelte/src/lib/components/StringView.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-inspect-value/packages/svelte/src/routes/(app)/theming/define/+page.svelte": [
+   "indent-only",
+   "indent-only",
+   "indent-only",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte": [
+   "breaks-later",
+   "breaks-earlier"
+  ],
+  "svelte-maplibre-gl/src/routes/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelte-maplibre-gl/src/routes/examples/[slug]/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelte-maplibre-gl/svelte-maplibre-gl/src/lib/utilities/QueryRenderedFeatures.svelte": [
+   "breaks-later"
+  ],
+  "svelte-maplibre-gl/svelte-maplibre-gl/src/lib/utilities/QuerySourceFeatures.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/autocomplete/src/Autocomplete.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/button/src/Button.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/chips/src/Text.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/fab/src/Fab.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/icon-button/src/IconButton.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/list/src/Item.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/list/src/List.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/segmented-button/src/Segment.svelte": [
+   "breaks-later"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/autocomplete/_CustomDisplay.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/common/_Dispatch.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/data-table/_RowSelection.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/list/_Check.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/list/_TwoLineSelection.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/segmented-button/_IconsKeys.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/select/_Forms.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/select/_Keys.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-material-ui/packages/site/src/routes/demo/switch/_Events.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-put/sites/docs/src/packages/intersect/docs.md.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-put/sites/docs/src/routes/(site)/docs/+page.md.svelte": [
+   "extra-line"
+  ],
+  "svelte-tiny-virtual-list/src/routes/demos/hacker-news/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-ux/packages/svelte-ux/src/lib/components/ApiDocs.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte-ux/packages/svelte-ux/src/lib/components/Collapse.svelte": [
+   "breaks-later"
+  ],
+  "svelte-ux/packages/svelte-ux/src/routes/+error.svelte": [
+   "breaks-later"
+  ],
+  "svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte": [
+   "other"
+  ],
+  "svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte": [
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws",
+   "intra-line-ws"
+  ],
+  "svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte": [
+   "intra-line-ws",
+   "intra-line-ws"
+  ],
+  "sveltekit/packages/enhanced-img/test/Output.svelte": [
+   "breaks-later",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sveltekit/packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte": [
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "sveltekit/packages/kit/test/apps/basics/src/routes/actions/enhance/+page.svelte": [
+   "breaks-earlier"
+  ],
+  "sveltekit/packages/package/test/fixtures/typescript-esnext/expected/Plain.svelte": [
+   "indent-only"
+  ],
+  "sveltekit/packages/package/test/fixtures/typescript-esnext/src/lib/Plain.svelte": [
+   "indent-only"
+  ],
+  "sveltepress/packages/theme-blog/src/components/ThemeToggle.svelte": [
+   "breaks-later"
+  ],
+  "sveltepress/packages/theme-default/src/components/home/HeroCode.svelte": [
+   "breaks-earlier"
+  ],
+  "sveltepress/packages/theme-default/src/components/icons/SystemDefault.svelte": [
+   "breaks-later",
+   "indent-only",
+   "indent-only",
+   "other",
+   "breaks-later"
+  ],
+  "sveltepress/packages/theme-default/src/components/icons/logos/BunWithColor.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "sveltepress/packages/twoslash/__tests__/test-result.svelte": [
+   "other",
+   "other",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only",
+   "other",
+   "other",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "other",
+   "other",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "indent-only",
+   "other",
+   "breaks-later",
+   "other",
+   "breaks-later",
+   "other",
+   "other",
+   "breaks-later",
+   "other",
+   "breaks-later",
+   "other",
+   "other",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only",
+   "other",
+   "breaks-earlier",
+   "indent-only",
+   "indent-only",
+   "indent-only"
+  ],
+  "sveltepress/packages/twoslash/__tests__/test-ts.svelte": [
+   "missing-line",
+   "other",
+   "other",
+   "missing-line"
+  ],
+  "sveltepress/packages/vite/__tests__/real-world.svelte": [
+   "breaks-later",
+   "other",
+   "missing-line",
+   "other",
+   "breaks-later",
+   "indent-only",
+   "breaks-later",
+   "other",
+   "extra-line",
+   "breaks-later",
+   "other",
+   "extra-line",
+   "breaks-earlier",
+   "other",
+   "breaks-later",
+   "other",
+   "other",
+   "indent-only",
+   "breaks-later",
+   "indent-only",
+   "other",
+   "other",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "indent-only",
+   "other",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "other",
+   "breaks-later",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "other",
+   "breaks-later",
+   "intra-line-ws",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "breaks-earlier",
+   "breaks-later",
+   "breaks-later",
+   "extra-line",
+   "breaks-later",
+   "breaks-later",
+   "other",
+   "other",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only",
+   "other",
+   "other",
+   "breaks-later",
+   "other",
+   "indent-only",
+   "other",
+   "other",
+   "breaks-later",
+   "other",
+   "indent-only",
+   "other",
+   "breaks-later",
+   "other",
+   "breaks-later",
+   "other",
+   "indent-only",
+   "other",
+   "breaks-later",
+   "other",
+   "breaks-later",
+   "other",
+   "other",
+   "other",
+   "breaks-earlier",
+   "breaks-earlier",
+   "indent-only",
+   "indent-only",
+   "indent-only"
+  ],
+  "svelteui/apps/docs/src/routes/+page.svelte": [
+   "breaks-later"
+  ],
+  "svelteui/packages/svelteui-core/src/components/Code/Code.svelte": [
+   "indent-only",
+   "indent-only"
+  ],
+  "svelteui/packages/svelteui-prism/src/Prism/Prism.svelte": [
+   "breaks-later"
+  ],
+  "svelty-picker/src/lib/components/SveltyPicker.svelte": [
+   "breaks-later"
+  ],
+  "svelty-picker/src/routes/+layout.svelte": [
+   "breaks-later",
+   "intra-line-ws"
+  ],
+  "svelvet/src/lib/components/Node/InternalNode.svelte": [
+   "breaks-earlier"
+  ],
+  "syntaxfm-website/src/routes/(site)/admin/shows/+page.svelte": [
+   "other",
+   "breaks-later",
+   "breaks-later"
+  ],
+  "syntaxfm-website/src/routes/(site)/admin/videos/+page.svelte": [
+   "other"
+  ],
+  "syntaxfm-website/src/routes/(site)/admin/videos/import/+page.svelte": [
+   "other"
+  ],
+  "threlte/apps/docs/src/components/Hero/Intro/Intro.svelte": [
+   "breaks-later"
+  ],
+  "threlte/apps/docs/src/examples/shaders/useFboScope/world/Island.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier",
+   "breaks-earlier"
+  ],
+  "threlte/apps/docs/src/examples/studio/getting-started/Tour/Tour.svelte": [
+   "breaks-later",
+   "breaks-later"
+  ],
+  "tipex/src/item/SlotPropsTable.svelte": [
+   "breaks-later"
+  ],
+  "trakt-web/projects/client/src/lib/components/slider/Slider.svelte": [
+   "other"
+  ],
+  "trakt-web/projects/client/src/lib/components/toggles/Switch.svelte": [
+   "breaks-later"
+  ],
+  "trakt-web/projects/client/src/lib/sections/lists/components/MediaSummaryCard.svelte": [
+   "breaks-later"
+  ],
+  "vert/src/lib/components/layout/Navbar/Base.svelte": [
+   "breaks-earlier"
+  ],
+  "vert/src/lib/components/visual/effects/ProgressiveBlur.svelte": [
+   "breaks-earlier"
+  ],
+  "vert/src/lib/sections/settings/Appearance.svelte": [
+   "breaks-earlier"
+  ],
+  "vert/src/lib/sections/settings/Conversion.svelte": [
+   "breaks-earlier",
+   "breaks-earlier",
+   "extra-line",
+   "breaks-earlier",
+   "breaks-later"
+  ]
+ }
+}

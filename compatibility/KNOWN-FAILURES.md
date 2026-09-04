@@ -1434,6 +1434,26 @@ to one space preserves a text node's single space, so a line-break entry is a di
 would render identically, while a placement entry can move a space in or out of rendered text.
 Only the token row carries a difference neither side's layout can explain.
 
+**An entry has a SET of shapes, not one, and that is what decides retirement.** The table above
+labels each entry by its *first* differing region; an entry retires only when **every** one of its
+differing regions is repaired, so the entry-to-mechanism relation is a conjunction, exactly as the
+LSP mechanism sidecar's is. `compatibility/fmt-region-shapes.snapshot.json` records one label per
+region per entry, so the set, the region count and a greedy *finishing* cover are all derivable
+from it — recompute them from that file rather than citing a number here.
+
+Two things it already answers, and the second is a negative result worth not re-deriving. Most
+entries carry exactly one label, so for most of the ratchet reach and retirement coincide and the
+conjunction costs nothing; the mean region count is not a useful summary, because its distribution
+is dominated by a handful of files and its median is 1. And unlike the LSP ratchet — where the
+label with the most carriers is nowhere near the label that finishes the most entries — the two
+orderings here differ at only one adjacent pair, and **no label finishes zero entries on its own**.
+The structure that makes an LSP-style cover analysis pay is largely absent here.
+
+That file is a **snapshot**, not an index: it is keyed by ratchet id, so it goes stale as entries
+retire, and it is deliberately not gated — a gate would put a full `generate-fmt-corpus` run plus a
+verify on every PR that retires an entry, which costs more than the drift it would catch. Its own
+`projectRevision` says which tree it measured.
+
 The first fingerprints of the `127` are dominated by the same close-tag hug Cluster 1 describes
 (`O: >` against `A: </div>`, 25 entries, the largest single shape), so the shape axis and the
 cluster prose agree where they overlap.
