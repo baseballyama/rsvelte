@@ -1078,28 +1078,55 @@ Nothing here is an oracle bug: the
 `oracle-invalid` classification already carries those and is a pass, not a ratchet
 entry.
 
-**And most of those are inside the TEMPLATE, not inside embedded JS or CSS.**
-The measurement below was taken on 2026-09-01 against a **549-entry** ratchet and
-has **not** been re-taken since; the ratchet is smaller now, by the amount the
-partition line above declares. Read its shares, not its counts.
+**And almost all of them are inside the TEMPLATE, not inside embedded JS or CSS.**
+The cluster table names the *shape* of the first differing line and never says which
+printer produced it, which reads as a line-breaking backlog in the embedded-JS
+formatter. It is not one. Re-measured 2026-09-04 at `7a30d488f`:
 
-The cluster table names the *shape* of the first differing line and
-never says which printer produced it, which reads as a line-breaking backlog in the
-embedded-JS formatter. Locating each entry’s first differing line back in its **source**
-— by a token needle, reporting `unlocated` rather than guessing — partitions the 549 as
-`template 438 | unlocated 48 | script 41 | style 22`, and crossed with the shape rule:
-`breaks-later|template 215`, `breaks-earlier|template 183`, `indent-only|template 31`,
-`breaks-later|script 19`, `indent-only|script 14`, `intra-line-ws|style 9`, the rest in
-single digits. So **72.5% of that ratchet was one question about Svelte markup**, and
-the embedded-JS and embedded-CSS engines together carried 63 entries.
+| region | n |
+|---|---|
+| template | 489 |
+| style | 29 |
+| script | 5 |
+| unlocated | 1 |
 
-The positive control is that the same local harness reproduced the CI gate’s own
-partition of that 549-entry tree on **five of its seven buckets exactly**
-(`breaks-later 258`, `breaks-earlier 214`, `intra-line-ws 15`, `extra-line 1`,
-`missing-line 1` — the gated line's values at that time), differing by
-two entries that move between `indent-only` and `other`. A region split measured by a
+and crossed with the shape rule: `breaks-later|template 234`,
+`breaks-earlier|template 215`, `indent-only|template 30`, `breaks-later|style 12`,
+`intra-line-ws|style 11`, `other|template 7`, `indent-only|style 4`, the rest in low
+single digits. So **the template printer's line breaking is nearly the whole
+ratchet**, and the two embedded engines together carry 34 entries — of which the
+five `Entries by mechanism` names above are the CSS-engine boundary.
+
+**The anchoring method changed, and that is most of the difference from the previous
+reading.** The 2026-09-01 measurement located each entry's first differing line back in
+its **source** by a token needle and reported `template 438 | unlocated 48 | script 41 |
+style 22` over a 549-entry ratchet. A needle matches the first occurrence of a token,
+and a JS-looking fragment occurs in a template expression as readily as in a `<script>`,
+so that method can place a template line inside a script and has 48 it cannot place at
+all. This one uses the report's own line number against the oracle's output, which is
+exact: **523 of 524 anchored** (the one that is not is recorded as `unlocated`). The
+two are different measurements of the same quantity and they disagree; the disagreement
+is not attributed here, and the anchoring rates are stated so a reader can weigh them.
+
+Two controls. The five entries `Entries by mechanism` identifies as CSS-engine
+divergences — established independently, by running both arms over those sources and
+reading the diffs — all classify as `style`, 5 of 5. And six `template` classifications
+sampled across the set are, on inspection of the oracle output around the named line,
+mustache expressions inside attribute values and markup, with no `<script>` or
+`<style>` in scope.
+
+The shape half has its own control: the same local harness reproduces the gated
+`Partition of …` line on **six of its seven buckets exactly**, differing by three
+entries that move between `breaks-earlier` and `other`. A region split measured by a
 harness that did not reproduce the shape split would be describing a different
 population.
+
+**This run is macOS, and the committed baseline is the Linux CI failure set** — see
+*Cross-platform baseline rule* below, which governs shrinking and is not being invoked
+here. It reproduced the ratchet exactly: same size, **0 new failures and 0 baseline
+entries already passing**, so on this tree the two platforms agree about which entries
+fail. That 0-stale figure is also the answer to whether any of these entries can be
+retired by re-baselining alone: none can.
 
 ### Three axes the cluster table does not carry (2026-08-31)
 
