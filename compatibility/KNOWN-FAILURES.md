@@ -3341,7 +3341,7 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
 - **`--svelte` CSS path defects.** Double-spaces an empty custom-property value
   (`css-vars`); emits a single space before `{` after an escaped-unicode selector
   (`unicode-identifier`); wraps a deeply-nested `calc(...)` differently
-  (`svelte.dev .../docs/[topic]/[...path]/+layout.svelte`).
+  (`svelte.dev .../docs/[topic]/[...path=documentation]/+layout.svelte`).
 - **oxfmt formats embedded CSS differently from standalone CSS.** For
   `--arr: [1, 2]` / `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` /
   `a > b ~ c` while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` — the same tool
