@@ -531,10 +531,35 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
     let pos_conv = Utf8ToUtf16::for_legacy(source, ast.skip_expression_loc);
     let mut result = Map::new();
 
-    // Calculate html fragment start/end
-    let (start, end) = if !ast.fragment.nodes.is_empty() {
-        let first_start = get_node_start(&ast.fragment.nodes[0]);
-        let last_end = get_node_end(ast.fragment.nodes.last().unwrap());
+    // Convert fragment nodes, inserting svelte:options back if needed
+    let mut fragment_nodes = ast.fragment.nodes.clone();
+    if let Some(ref options) = ast.options {
+        // Find the correct position to insert options
+        let idx = fragment_nodes
+            .iter()
+            .position(|node| options.end <= get_node_start(node))
+            .unwrap_or(fragment_nodes.len());
+
+        // Create a SvelteOptions node to insert
+        let options_node = TemplateNode::SvelteOptions(SvelteElement {
+            start: options.start,
+            end: options.end,
+            name: "svelte:options".into(),
+            name_loc: None,
+            attributes: options
+                .attributes
+                .iter()
+                .map(|a| Attribute::Attribute(a.clone()))
+                .collect(),
+            fragment: Fragment::default(),
+        });
+        fragment_nodes.insert(idx, options_node);
+    }
+
+    // Upstream splices `svelte:options` back in before reading first/last, so the span must follow it.
+    let (start, end) = if !fragment_nodes.is_empty() {
+        let first_start = get_node_start(&fragment_nodes[0]);
+        let last_end = get_node_end(fragment_nodes.last().unwrap());
 
         // Trim whitespace from start and end
         let mut start = first_start as usize;
@@ -560,31 +585,6 @@ fn convert_to_legacy_inner(source: &str, ast: &Root) -> Value {
     } else {
         (None, None)
     };
-
-    // Convert fragment nodes, inserting svelte:options back if needed
-    let mut fragment_nodes = ast.fragment.nodes.clone();
-    if let Some(ref options) = ast.options {
-        // Find the correct position to insert options
-        let idx = fragment_nodes
-            .iter()
-            .position(|node| options.end <= get_node_start(node))
-            .unwrap_or(fragment_nodes.len());
-
-        // Create a SvelteOptions node to insert
-        let options_node = TemplateNode::SvelteOptions(SvelteElement {
-            start: options.start,
-            end: options.end,
-            name: "svelte:options".into(),
-            name_loc: None,
-            attributes: options
-                .attributes
-                .iter()
-                .map(|a| Attribute::Attribute(a.clone()))
-                .collect(),
-            fragment: Fragment::default(),
-        });
-        fragment_nodes.insert(idx, options_node);
-    }
 
     // Build html fragment
     let html = estree_obj! {
