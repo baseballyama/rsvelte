@@ -97,6 +97,7 @@ impl<'a> Assembler<'a> {
             end: base + source_offset(text.len()),
             source: maps_to,
             linear: false,
+            source_end_override: None,
         });
         self.body.extend(program.body);
     }
@@ -118,6 +119,7 @@ impl<'a> Assembler<'a> {
             end: base + source_offset(text.len()),
             source: Some(maps_to),
             linear: true,
+            source_end_override: None,
         });
         self.body.extend(program.body);
     }
@@ -409,12 +411,14 @@ fn linear_range_maps_a_token_end_before_a_generated_suffix() {
         end: base + source_offset(expression.len()),
         source: Some(anchor),
         linear: true,
+        source_end_override: None,
     });
     a.loc_map.push(LocMapEntry {
         start: base + source_offset(expression.len()),
         end: base + source_offset(generated.len()),
         source: None,
         linear: false,
+        source_end_override: None,
     });
     a.body.extend(program.body);
 

@@ -223,3 +223,125 @@ fn cell_parameter_with_default() {
         )
     );
 }
+
+/// The `generated line:column -> source line:column` pairs the client map
+/// carries. A position SET cannot see this defect: the annotation end is still
+/// emitted somewhere, just against the wrong generated column.
+fn source_pairs(source: &str) -> BTreeSet<((i64, i64), (i64, i64))> {
+    let map = compile(
+        source,
+        CompileOptions {
+            filename: Some("M.svelte".to_string()),
+            generate: GenerateMode::Client,
+            dev: false,
+            ..Default::default()
+        },
+    )
+    .expect("compile")
+    .js
+    .map
+    .expect("the client map is on by default");
+
+    let mappings = map
+        .split("\"mappings\":")
+        .nth(1)
+        .and_then(|rest| rest.split('"').nth(1))
+        .expect("mappings field")
+        .to_string();
+
+    let mut out = BTreeSet::new();
+    let mut state = [0i64; 4];
+    for (generated_line, line) in mappings.split(';').enumerate() {
+        state[0] = 0;
+        for segment in line.split(',') {
+            if segment.is_empty() {
+                continue;
+            }
+            let mut fields = Vec::new();
+            let mut value = 0i64;
+            let mut shift = 0u32;
+            for byte in segment.bytes() {
+                let digit = match byte {
+                    b'A'..=b'Z' => i64::from(byte - b'A'),
+                    b'a'..=b'z' => i64::from(byte - b'a') + 26,
+                    b'0'..=b'9' => i64::from(byte - b'0') + 52,
+                    b'+' => 62,
+                    b'/' => 63,
+                    _ => panic!("not a base64 VLQ digit: {byte}"),
+                };
+                value += (digit & 31) << shift;
+                shift += 5;
+                if digit & 32 == 0 {
+                    let negative = value & 1 == 1;
+                    value >>= 1;
+                    fields.push(if negative { -value } else { value });
+                    value = 0;
+                    shift = 0;
+                }
+            }
+            for (index, field) in fields.iter().take(4).enumerate() {
+                state[index] += field;
+            }
+            if fields.len() >= 4 {
+                out.insert(((generated_line as i64, state[0]), (state[2], state[3])));
+            }
+        }
+    }
+    out
+}
+
+fn pairs(spelled: &str) -> BTreeSet<((i64, i64), (i64, i64))> {
+    spelled
+        .split_whitespace()
+        .map(|entry| {
+            let (generated, source) = entry.split_once("->").expect("generated->source");
+            let parse = |text: &str| {
+                let (line, column) = text.split_once(':').expect("line:column");
+                (line.parse().expect("line"), column.parse().expect("column"))
+            };
+            (parse(generated), parse(source))
+        })
+        .collect()
+}
+
+/// Every pair the oracle emits has to be present. rsvelte emits extra pairs of
+/// its own on these inputs, which is a separate divergence and is not pinned
+/// here.
+fn assert_covers_oracle(source: &str, oracle: &str) {
+    let got = source_pairs(source);
+    let missing: Vec<_> = pairs(oracle).difference(&got).copied().collect();
+    assert_eq!(
+        missing,
+        Vec::new(),
+        "pairs the oracle emits and rsvelte does not"
+    );
+}
+
+/// A comment anywhere in the script moves the printer onto split coordinates,
+/// where the end position is resolved through `loc_map` rather than through the
+/// re-parsed span. The annotation end has to survive that route too.
+#[test]
+fn cell_comment_then_annotated_declarator() {
+    assert_covers_oracle(
+        "<script lang=\"ts\">\n\tlet count: number = 0;\n\n\t// c\n\n\tfunction inc() { count++; }\n</script>\n<div>{count}</div>\n",
+        "6:36->0:0 6:37->0:1 7:1->1:1 7:5->1:5 7:10->1:18 7:30->1:21 7:31->1:22
+         10:1->5:1 10:9->5:9 10:10->5:10 10:13->5:13 10:16->5:16 10:17->5:17
+         11:11->5:18 11:16->5:23 12:1->5:27 12:2->5:28
+         14:5->7:1 14:8->7:4 15:20->7:1 15:23->7:4 17:9->7:1 17:12->7:4
+         18:48->7:6 18:53->7:11 19:20->7:1 19:23->7:4 20:0->6:8 20:1->6:9",
+    );
+}
+
+/// The same source with no annotation - a negative control the fix must not
+/// move. `7:10` is the binding's own end on both sides here.
+#[test]
+fn cell_comment_then_plain_declarator() {
+    assert_covers_oracle(
+        "<script lang=\"ts\">\n\tlet count = 0;\n\n\t// c\n\n\tfunction inc() { count++; }\n</script>\n<div>{count}</div>\n",
+        "6:36->0:0 6:37->0:1 7:1->1:1 7:5->1:5 7:10->1:10 7:30->1:13 7:31->1:14
+         10:1->5:1 10:9->5:9 10:10->5:10 10:13->5:13 10:16->5:16 10:17->5:17
+         11:11->5:18 11:16->5:23 12:1->5:27 12:2->5:28
+         14:5->7:1 14:8->7:4 15:20->7:1 15:23->7:4 17:9->7:1 17:12->7:4
+         18:48->7:6 18:53->7:11 19:20->7:1 19:23->7:4 20:0->6:8 20:1->6:9",
+    );
+}
