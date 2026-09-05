@@ -105,11 +105,6 @@
 		"reason": "oxfmt formats the SAME custom-property value two ways depending on the host file: given `--arr: [1, 2]` and `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` / `a > b ~ c` (the oxc CSS engine, which is what rsvelte-fmt uses in-process and reproduces byte-for-byte), while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` (prettier's CSS printer, which also drops the space after `~` and so changes the token stream the value substitutes). The two oxfmt paths disagree with each other, so parity with the svelte path is undefined for these values."
 	},
 	{
-		"id": "pattern/adversarial/css/rejected-global-keyframes-selector.svelte",
-		"class": "invalid-input",
-		"reason": "`:global(@keyframes shared)` is rejected by both compilers (css_expected_identifier, #3120); rsvelte-fmt falls back to raw passthrough for a stylesheet its CSS parser rejects, so the block keeps its source indentation while the oracle formats it anyway without validating"
-	},
-	{
 		"id": "pattern/issues/3515-props-default-line-comment.svelte",
 		"class": "engine-divergence",
 		"reason": "prettier preserves a line comment between a destructuring assignment and its `$props()` initializer as a leading separator (and inserts a blank line), while oxc attaches the same valid comment after the initializer expression; compiler parity needs the original separator slot to distinguish #3515"

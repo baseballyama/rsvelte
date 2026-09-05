@@ -3180,7 +3180,7 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 25 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 24 entries.**
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -3196,14 +3196,14 @@ Attribution of `fmt-oracle-excluded.json`:
 |---|---|---|
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | the `$props()` comment slot the #3515 repros depend on |
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | `engine-divergence` — oxc's line-breaking, not prettier's |
-| 5 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
+| 4 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
 | 5 | [`deliberate-divergences`](#deliberate-divergences) | both texts compile to byte-identical client and server `js` **and** `css` |
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | rsvelte reproduces `oxfmt <file>.css` byte-for-byte; the oracle's Svelte path disagrees with oxfmt itself |
 | 2 | [`upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md`](../upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md) | `oracle-bug` — the `{#each}` head drops a nested pattern's property key |
 | 1 | [`upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md`](../upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md) | `oracle-bug` — a CSS escape's terminator space is eaten, and a live rule becomes dead |
 | 3 | [`upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md`](../upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md) | `oracle-bug` — source tabs survive on a comment-bearing selector under `useTabs: false` |
 
-**Every one of the 25 entries now carries a target.** The last one that did not —
+**Every one of the 24 entries now carries a target.** The last one that did not —
 `shadcn-svelte/.../theme-customizer-code.svelte` — was not an oracle bug at all, and it left
 this file for `fmt-known-failures.json`; the measurement is under *A second stated reason was
 falsified* below. The control that decides it is one character wide: replace the `<pre>` with a
@@ -3369,9 +3369,6 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   `snippet-rest-args`.
 - **Genuinely-invalid Svelte-specific CSS** — a parser-modern edge `<style>` block
   with invalid `:nth` syntax. — `css-nth-syntax`.
-- **At-rule inside `:global()`** — `:global(@keyframes shared)` is rejected by both
-  compilers (`css_expected_identifier`, #3120); rsvelte-fmt leaves a stylesheet its
-  parser rejects untouched. — `rejected-global-keyframes-selector`.
 
 ### migrate — Svelte 4→5 migrator output (out of scope per AGENTS.md)
 
