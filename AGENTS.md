@@ -6355,6 +6355,62 @@ one API census settles it and costs one call. And when writing one, print the **
 the verdict line even though every other line is a delta; the last line is the only one anyone
 reads twice.
 
+### A type-mismatched predicate answers UNIFORMLY, and a uniform answer is what "finished" looks like
+
+`AGENTS.md` prescribes printing the record before writing a predicate against a field someone
+else fills — that row is about choosing among *several* fields. This is one level lower: the
+field was right and the **type** was not. `lsp-mechanisms.json` maps a label to
+`{"terminal": <path|null>}`, and the predicate asked `value === null`. No object is `null`, so
+all **224** labels read as "has a terminal" and the derived census came back `4 blocked` where
+the owning checker says **22,520** — three orders of magnitude, in the flattering direction.
+
+The reason no shape check fires is the interesting half. A partially-wrong predicate produces a
+*mixed* answer, and this file already collects the signatures that catches — an impossible
+repeated path, two files carrying one hash, a method named `phase=edit`. A predicate whose type
+cannot match the record is wrong for **every** member identically, so its output is perfectly
+uniform — and uniformity over a population is exactly what a finished backlog looks like. There
+is no anomalous row to notice, because there is no row the predicate treated differently.
+
+So the defence is not a control on the values and not a re-read: nothing inside a self-consistent
+census can name it. It is that **a question with an owner in the tree must be answered by running
+the owner**, and a derivation is at best a second measurement to set beside it. That rule was
+already in this file and loaded in the session that broke it; what actually fired was the two
+numbers disagreeing, which is this file's own recorded condition. The cheap form is one line:
+print the owning checker's figure beside your own in the same output, so a derivation that cannot
+be reconciled is visible before it is quoted.
+
+One corollary worth its own sentence, because it survives the fix. Two checkers read this ratchet
+with two predicates — `attribution-check` counts entries with an attribution **target** (1,224)
+and `lsp-mechanisms-check` counts entries whose every label has a **terminal** (1,222). Neither is
+"the remaining count", and the gap is small enough to read as a restatement. Write the predicate's
+name beside the number, never the word `remaining`.
+
+### A set that is mostly derived reads as derived, and the member you typed is the one that carried the information
+
+Comparing a published platform set against what the release is supposed to produce, the expected
+side was built as `["universal", ...VSCODE_TARGETS.map(t => t.target)]` and reported as *derived
+from `vscode-targets.mjs`*. That file exports **five** members; `universal` was typed by the
+person writing the check. So five sixths of the set came from the artifact and the sixth came
+from memory — and the sixth is exactly the one carrying the fact worth verifying, that the
+publisher ships a binary-free universal VSIX **in addition to** the native targets
+(`publish-vscode.mjs:54-56`, one file over from the one cited).
+
+The failure is not that a literal was used; it is that **the derived majority lends its authority
+to the typed minority**, and nothing in the output separates them. A wholly hand-written expected
+set invites the question "where did this come from"; a set whose provenance is a real `import`
+does not, and the reader — including its author — checks the import rather than the spread beside
+it. Reported as "expected 6, observed 6", it was also a comparison of *counts*, which cannot see
+a swap.
+
+Two cheap repairs, and the second is the one that generalises. Read the typed member out of the
+artifact too (`const UNIVERSAL = '…'` is one regex away), so the expected set contains no name
+anyone typed. And compare **sets, not sizes**: `missing` and `extra` printed separately, with a
+negative control that drops one expected member and must report exactly one difference. Re-run
+that way the answer held — but it now says *these six*, where before it said *six*.
+
+Ask of any expected value assembled from an import: which members of this did I supply? If the
+answer is "one, the interesting one", the derivation has not happened yet.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
