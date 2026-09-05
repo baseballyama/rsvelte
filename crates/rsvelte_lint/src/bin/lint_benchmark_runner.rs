@@ -18,6 +18,11 @@
 //!
 //! Output (stdout): `{"times": [<ms>, ...]}`.
 
+// rsvelte's production allocator: a corpus lint run spends 22% of its self time
+// in the system allocator, which the compiler CLI and NAPI addon already avoid.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::env;
 use std::fs;
 use std::io::{self, BufRead};

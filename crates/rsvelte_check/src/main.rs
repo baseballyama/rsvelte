@@ -3,6 +3,11 @@
 //! TypeScript type errors. Type-checking runs by default via `tsc`
 //! (or `tsgo` with `--tsgo`); pass `--no-type-check` for Svelte-only.
 
+// rsvelte's production allocator, for the same allocation-bound reason the
+// compiler CLI and the NAPI addon use it.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 

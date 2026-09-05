@@ -6,6 +6,11 @@
 //! prints diagnostics through the shared `svelte_check` writers (plus a local
 //! SARIF writer) so the output matches `rsvelte check`.
 
+// rsvelte's production allocator: a corpus lint run spends 22% of its self time
+// in the system allocator, which the compiler CLI and NAPI addon already avoid.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 

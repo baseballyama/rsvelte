@@ -2530,6 +2530,7 @@ name = "rsvelte_check"
 version = "0.5.25"
 dependencies = [
  "clap",
+ "mimalloc",
  "notify",
  "oxc_allocator",
  "oxc_ast",
@@ -2742,6 +2743,7 @@ dependencies = [
  "fancy-regex",
  "javascript-globals",
  "memchr",
+ "mimalloc",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",

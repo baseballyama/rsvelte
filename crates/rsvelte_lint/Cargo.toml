@@ -31,7 +31,7 @@ required-features = ["cli"]
 default = ["cli"]
 # The CLI: native compiler backend + ESLint-config import + the bin's runtime
 # deps (clap/walkdir/rayon).
-cli = ["native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
+cli = ["dep:mimalloc", "native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
 # Native product surface (CLI diagnostics, validation, and source-scan rules).
 # Compiler parallelism is an independent opt-in owned by binary callers.
 native = ["dep:rsvelte_preprocess"]
@@ -59,6 +59,10 @@ serde_json = "1.0"
 
 # CLI-only runtime deps (off in the wasm build).
 clap = { version = "4.5", features = ["derive"], optional = true }
+# rsvelte's production allocator. 22% of a corpus lint run's self time was in the
+# system allocator (`nanov2_*`/`tiny_*`), which is what the compiler CLI and the
+# NAPI addon already avoid.
+mimalloc = { version = "0.1", optional = true, features = ["local_dynamic_tls"] }
 walkdir = { version = "2.5", optional = true }
 rayon = { version = "1.10", optional = true }
 
