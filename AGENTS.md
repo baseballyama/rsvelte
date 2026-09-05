@@ -6184,6 +6184,177 @@ can establish.
 Prefer a command form that cannot express the mistake — `( cd <dir> && <tool> . )` in a subshell,
 never a bare `.` resolved against wherever the shell happens to be.
 
+<!-- STAGED: append to AGENTS.md after PR #4334 (AGENTS.md-only) merges. -->
+<!-- Do NOT apply while #4334 is open: two branches appending sections to one -->
+<!-- document merge cleanly and duplicate in silence. -->
+
+### A greedy cover's marginal gain is not the row's standalone gain, and the table reads as if it were
+
+`AGENTS.md` records that under a conjunction a label's *carrier count* is not its value, and
+computes a greedy **finishing** cover to replace it. The cover is correct and its rows are still
+not work items, because each row's number is the gain **given every row above it**. Measured on
+the LSP ratchet the same afternoon the cover was published:
+
+| label | greedy marginal (in that order) | **standalone** |
+|---|---:|---:|
+| `rsvelte-empty` | 1410 | 1410 |
+| `official-empty` | 1504 | **154** |
+| `projection-origin-range` | 880 | **216** |
+| `projection-target-position-workspace` | 558 | **0** |
+| `ts-lib-copy` | 1798 | **0** |
+
+`ts-lib-copy` was picked as "the biggest single row" and finishes **nothing**: all 1,944 of its
+carriers are non-sole-label and every co-occurring label is open, so closing it alone moves zero
+entries. Of 109 open labels, **70 finish at least one entry alone and 39 finish none**.
+
+Two things generalize. A cover answers *"how few decisions reach N"* and a reader takes it as
+*"which decision buys the most"* — two questions whose answers differ by a factor of ∞ on the
+row that looked best. And what killed it was not a re-run but a **shape contradiction inside the
+table's own inputs**: `sole-label = 0` beside `standalone = 1798` cannot both be true. Print each
+row's sole-label count next to its gain, and the impossible row names itself.
+
+### A `#span` key can be a `loc` key, so a probe that skips `loc` measures a different cluster
+
+`parse-ast`'s `verify.mjs` folds `start`, `end` and `loc` into **one** key per node type, which
+this file already records as the reason grepping the keys for `character` returns 0 and means
+nothing. The consequence for a *probe* is sharper: a walker written as
+`for (const k of keys) if (k !== 'loc') walk(n[k])` — excluded to avoid recursion noise — is blind
+to most of what `#span` names, and returns a clean, plausible **0 divergences over 34 node types**.
+Re-run with `loc` in the compared signature and the answer here was still 0, so the zero survived —
+but it was not a measurement of the cluster until the second run, and nothing in the first run's
+output said so.
+
+The rule is the one already written for exclusion lists, arriving at a key's *definition*: when a
+ratchet key folds several fields into one name, the probe's signature must be the fold, not the
+name. Read the comparator, not the key.
+
+### Reachability is a property of the GATE's entry point, not of the corpus
+
+This file says of two `import`/`export` parser shapes that they are "unreachable from any
+collected corpus at any size, because `export default` is illegal in every script a component can
+hold — `parse()` accepts it and `compile()` does not, so the only gate that can hold them is a
+unit test." The premise is right and the conclusion is wrong, and the two halves are one sentence
+apart.
+
+Measured, with controls:
+
+```
+corpus manifest (34,813 entries)
+  svelte/packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte
+  = <script>\n\texport default function () {};\n</script>          1 match
+  positive control: 336 `validator/samples` entries are collected
+
+official parse(modern)      OK type=Root
+rsvelte  parse(modern)      OK type=Root
+official compile(client)    THREW module_illegal_default_export
+rsvelte  compile(client)    THREW module_illegal_default_export
+negative control: an ordinary <script> compiles (len=189)
+```
+
+So the corpus **already holds a carrier**, and `parse-ast-verify.mjs` — which parses every corpus
+component with `parse()` on three axes — reaches it. What is unreachable is the *output-equality*
+population, because `compile()` rejects the file into the error population instead. The sentence
+reasons from `compile()`'s population to a claim about every gate, and the corpus is shared by
+both.
+
+The reusable form: **a construct's reachability has to be asked per entry point.** One corpus
+feeds gates that call `parse()`, `compile()`, `compileModule()`, svelte2tsx and the linter, and a
+file that one of them rejects is still fully compared by another. "No collected corpus can hold
+this" is a claim about the *collector*; "no gate can see this" is a claim about every consumer,
+and only the second licenses writing a unit test instead of a corpus entry.
+
+### One release is two publish events, and reading either one's state predicts nothing about the other
+
+`Publish VS Code Extension` and `Release` are separate workflows with separate triggers, and they
+ship the same version number to different registries. Measured 2026-09-05 on one commit:
+
+```
+Marketplace  0.7.2 live, 6/6 platforms      Publish VS Code Extension: completed/success
+Open VSX     0.7.2 live
+npm          @rsvelte/language-server 0.7.1  Release: in_progress, 72 min into a 90-min job,
+                                             blocked in "Wait for main CI verdicts"
+```
+
+A status line was written from the first path's *workflow state* saying "0.7.2 is unpublished",
+in the same message that asked someone else to measure publication **from the registries rather
+than from a green workflow**. Both halves of that are the recorded rule; the sentence still
+collapsed two independent events into one.
+
+The durable part is not "read the registry" — that was already written down and cited. It is that
+**publish is two events, not one**, so no reading of either path's state, registry or workflow,
+constrains the other. A version can be live on two registries and absent from a third at the same
+commit, indefinitely. Say which path a publication claim is about, and read that path's own
+registry; a single "0.7.2 is/is not published" has no referent.
+
+The same shape explains why the blocked half was not a defect: `Release`'s verify job waits on the
+*main CI verdicts at its own sha*, so a capacity backlog stalls it while every other job in the
+same run has already succeeded — and its wait script's 85-minute deadline is deliberately under
+the job's `timeout-minutes: 90`, so it fails with a log rather than being killed without one. A
+`gh run rerun <id> --failed` after the CI drains is the designed recovery, not a workaround.
+
+### An EQ cell says the two sides agree; it does not say WHAT they agreed on, and that can invert an attribution
+
+A grid cell comparing a construct in a plain `.js` file read `EQ` for
+`const y = a = b;`, and the reading taken from it was "the engines do not add parentheses here".
+Printed rather than compared, both engines add them:
+
+```
+oxfmt    : const y = (a = b);   const z = (h = 0);   const w = (o.k = 1);
+prettier : const y = (a = b);   const z = (h = 0);   const w = (o.k = 1);
+```
+
+They agree *on the parenthesised form*, which is correct JS formatting for a declarator
+initializer. The divergence under study was therefore never an engine difference: rsvelte wraps a
+`{@const}` body in `const <body>;` before handing it to the engine, which creates the declarator
+context and fires that rule, while `prettier-plugin-svelte` formats the same body **as an
+expression** and never reaches it. The accurate attribution is neither "the engine is wrong" nor
+"rsvelte adds parentheses" but **rsvelte asks the engine a different question**.
+
+This is one level below the recorded case of a cell that is EQ for a reason unrelated to its name:
+there the verdict is right and the *name* misleads; here the verdict is right and the *shared
+value* is unprinted, so the cell silently supports whichever mechanism the reader already has in
+mind. When an EQ cell is load-bearing for an attribution, print both sides' actual output — the
+agreement's *content* is the evidence, and a boolean cannot carry it.
+
+### A control's needle taken from a sibling command's vocabulary fails as the thing it was checking for
+
+`AGENTS.md` prescribes reading the build's own `Compiling <crate> (<path>)` line as the one
+signal `cd`, `CARGO_TARGET_DIR`, the file name and the artifact path cannot between them fake.
+That is true of `cargo build` and false of `cargo check`, which prints **`Checking`**. Measured
+both directions in one session: `cargo build` gave `Compiling rsvelte_napi` and 0 `Checking`
+lines; `cargo check` gave `Checking rsvelte_core` and 0 `Compiling` lines.
+
+So a control written as `grep -c 'Compiling rsvelte_core'` against a `cargo check` log returns
+**0** — and 0 is exactly what that control returns when the build genuinely never reached your
+crate. The instrument's failure is spelled as the defect it exists to detect, which is the one
+direction that does not prompt a second look: the reading it invites is "the check stopped
+before my code", and the repair it invites is to the code.
+
+The general form is that a prescription naming a **literal string** carries an unstated
+population — here "runs of `cargo build`" — and the string survives being carried into a
+neighbouring command while its meaning does not. Where a rule's needle is a word the tool
+prints, take the needle from the tool you are about to run, not from the rule.
+
+### An emit-on-change monitor's verdict and the state it is about are never on the same line
+
+A background monitor that prints only what changed since its last sample ends with a line
+carrying its verdict and **one field**. Measured: `P0@<sha> ALL-TERMINAL Corpus Compat=completed/success`,
+one line below a full census in the same stream reading `... CI=queued/ ...`. A direct API
+census at the full sha confirmed `CI: queued/-`, so the natural reading of that verdict was
+false while every line above it was true.
+
+This is not a summary contradicting its data — the rows already here cover that, and there the
+contradiction is *visible* because both are printed together. Here the design guarantees they
+are apart: the verdict is computed over all fields and rendered beside the single field that
+moved, so **the line that carries the conclusion structurally cannot carry the evidence**, and
+a reader who scrolls to the end of a monitor's output sees exactly the half that cannot be
+checked. Nothing is truncated and nothing is fabricated.
+
+Two consequences. A monitor's terminal verdict is a claim to re-derive, not a result to act on —
+one API census settles it and costs one call. And when writing one, print the **full** state on
+the verdict line even though every other line is a delta; the last line is the only one anyone
+reads twice.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
