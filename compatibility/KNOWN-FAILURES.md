@@ -6521,6 +6521,7 @@ Attribution of `parse-ast-known-failures.json`:
 | n | target | cluster |
 |---|---|---|
 | 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
+| 17 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 8 keys on each axis plus `legacy::(root)._comments[]#length` — official emits a comment twice and the comparison pairs arrays by index, so both sides' values are individually correct and the key is the misalignment |
 
 Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
 loose: true}`:
@@ -6535,16 +6536,74 @@ The error carries no code, no position and no frame, which is what separates it 
 behaviour the mode is for.
 
 This table is **partial**; `attribution-check` prints its `n` sum against the ratchet's own length,
-so neither number is repeated here. Every other key is a rsvelte-side defect whose only terminal is
-the entry going away — `upstream_issues/` would be false, and `deliberate-divergences` asserts a
-choice plus a test pinning the behaviour, which for a wrong span or a wrong node type would pin the
-defect.
+so neither number is repeated here. It used to add that every other key is a rsvelte-side defect
+whose only terminal is the entry going away, on the reasoning that `upstream_issues/` would be false
+and `deliberate-divergences` asserts a choice plus a test, which for a wrong span or a wrong node
+type would pin the defect. **That reasoning is sound and its premise is measured false for at least
+one component of the `span` cluster**, so the sentence is withdrawn rather than narrowed — which
+component of which key it is false for is not yet known per key, and a rule stated at the cluster
+level is what stopped anyone measuring it.
+
+**`#span` folds three fields into one key, and re-projecting them separates at least three
+mechanisms.** `parse-ast-verify.mjs:282-284` compares `start`, `end` and `loc` in three iterations
+and `add`s the same `#span` key from each, so which field differed is computed and discarded. A
+copy of the harness with that one line emitting `#span:${key}` reports, over 33,890 entries × 2
+axes, that of the diverging bases 14 differ on all three fields, 7 on `loc` alone, 6 on `end`
+alone, and the remaining 6 on mixed pairs — and the `loc` group is not one defect:
+
+| mechanism | direction | evidence |
+|---|---|---|
+| each-block destructuring pattern column | **official is wrong**, rsvelte is right | [`upstream_issues/svelte-each-pattern-column-is-off-by-one.md`](../upstream_issues/svelte-each-pattern-column-is-off-by-one.md); over the 548 of 562 corpus files with an each destructuring pattern that both compilers parse, 3,437 nodes have a differing `loc` and rsvelte matches the source-derived `line:column` on **3,437**, official on **0** |
+| U+2028 / U+2029 as a line terminator | **rsvelte is wrong**, official is right | ECMAScript counts `LS`/`PS` as `LineTerminator`s and official does; rsvelte does not. On `pattern/adversarial/text-and-entities/unicode-line-separators.svelte`, `official.line − rsvelte.line == the number of LS/PS before the offset` on 36 of 36 endpoints (the 37th node is `Program`, whose `loc` is offset by the script's own coordinate base), with the one node whose whole span precedes every separator agreeing. 3 corpus files carry an LS/PS at all |
+| comment nodes | **neither side's `loc` is wrong** | `Block` (154 carriers) and `Line` (76) are an artefact of the upstream comment duplication, not a `loc` defect at all — see below |
+
+The third row was `UNMEASURED` when the first two were filed, and measuring it removed it as a
+mechanism. `diffKeys` pairs array children strictly by index (`parse-ast-verify.mjs:250-251`), and
+`@sveltejs/acorn-typescript` makes official emit a comment twice, so `$.comments` is `[X, X, Y, …]`
+against `[X, Y, …]` and index 1 compares official's `X` with rsvelte's `Y`. **Both sides' `loc`
+values are individually correct; the key is the misalignment.** That is what a second, independent
+instrument saw from the other side — a collector that deduplicates comments by `(type, start, end)`
+is structurally blind to the duplication and reported `0` violations of "an occurrence present on
+both sides has a matching `loc`" over 97 checks.
+
+Measured by ablation over the whole corpus, with the harness's own `diffKeys` extracted verbatim
+and nothing changed but the removal, from official's AST, of a `Block`/`Line` element whose
+`(type, start, end)` already appeared earlier in the same array:
+
+| | modern | legacy |
+|---|---|---|
+| files compared | 33,429 | 33,429 |
+| files carrying a duplicate | 183 | 183 |
+| duplicate nodes removed | 493 | 493 |
+| divergence keys before → after | 108 → 100 | 109 → 100 |
+| keys that **disappear** | 8 | 9 |
+| keys that **appear** | 0 | 0 |
+
+The nine are `Block#span` (154 carriers), `Line#span` (76), `Block.type#value` (98),
+`Line.value#value` (73), `TSPropertySignature.leadingComments[]#length` (171),
+`ImportDeclaration.leadingComments[]#length` (36), `VariableDeclaration.leadingComments[]#length`
+(2), `TSTypeParameter.leadingComments[]#length` (1), and — legacy only —
+`(root)._comments[]#length` (183). The `Block#span` and `Line#span` carrier counts are the
+harness's own, which is what closes the population: there is no residue.
+
+A key disappears here only when the duplication explains it in **every** carrier, so the list is
+not a lower bound on the duplication's reach — it is exactly the set of keys the duplication is the
+sole cause of. `(root).comments[]#length` disappears on a two-file run and survives corpus-wide,
+because other files produce it for other reasons; that is the test working, not a limit of it.
+
+What stays open is the `loc` group's own closure. A carrier census over the two `loc` populations
+reproduces none of the harness's per-key carrier counts (`Identifier` 453 against 742,
+`ArrayPattern` 199 against 245), so a `loc`-bearing key still cannot be assigned to one report. The
+closure test is what says so — not a judgement that the list looks short.
 
 **The two `ast-mode` keys are not covered by that row, and what separates them is a number
 collision.** The cluster table above cites `#3385` for them, and `upstream_issues/` reports are
 named after the rsvelte issue that tracks them — so one number reaches two different things:
 official's `loose` crash, which is the row above, and a rsvelte-side legacy-root shape difference,
-which is those two keys. They stay unattributed. This is the second instalment of the collision
+which is those two keys. **One of the two has since been attributed** — `(root)._comments[]#length` is
+an artefact of the upstream comment duplication, measured below — and `(root)._comments#missing` is
+the one that stays. The collision the paragraph describes is unaffected by that: it is about a
+number reaching two things, not about how many keys sit behind it. This is the second instalment of the collision
 recorded above for `unclosed-element`: that one was a shared *name* between an issue and a gate
 source, this one is a shared *number*, and it points the worse way, because one of the two things
 is ours and the other is upstream's.
