@@ -2658,6 +2658,14 @@ pub fn parse_typescript_params<'a>(
                     end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
                     argument: arena.alloc_js_node(argument),
+                    type_annotation: rest.type_annotation.as_ref().map(|ta| {
+                        Box::new(convert_type_annotation_adjusted(
+                            arena,
+                            ta,
+                            offset - 1,
+                            line_offsets,
+                        ))
+                    }),
                 }));
             }
             ParseOutcome::Ok(p)
@@ -3110,6 +3118,7 @@ fn convert_object_pattern_to_expr<'a>(
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
+            type_annotation: None,
         });
     }
 
@@ -3161,6 +3170,7 @@ fn convert_array_pattern_to_expr<'a>(
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
+            type_annotation: None,
         }));
     }
 
@@ -5606,6 +5616,14 @@ fn create_function_expression<'a>(
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
+            type_annotation: rest.type_annotation.as_ref().map(|ta| {
+                Box::new(convert_type_annotation_adjusted(
+                    arena,
+                    ta,
+                    offset - 1,
+                    line_offsets,
+                ))
+            }),
         });
     }
 
@@ -6166,6 +6184,7 @@ fn convert_object_assignment_target(
                 offset,
                 line_offsets,
             )),
+            type_annotation: None,
         });
     }
 
@@ -6214,6 +6233,7 @@ fn convert_array_assignment_target(
                 offset,
                 line_offsets,
             )),
+            type_annotation: None,
         }));
     }
 
@@ -6679,6 +6699,14 @@ fn create_arrow_function<'a>(
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
+            type_annotation: rest.type_annotation.as_ref().map(|ta| {
+                Box::new(convert_type_annotation_adjusted(
+                    arena,
+                    ta,
+                    offset - 1,
+                    line_offsets,
+                ))
+            }),
         });
     }
 
@@ -7081,6 +7109,14 @@ fn convert_statement(
                     end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
                     argument: arena.alloc_js_node(argument),
+                    type_annotation: rest.type_annotation.as_ref().map(|ta| {
+                        Box::new(convert_type_annotation_adjusted(
+                            arena,
+                            ta,
+                            offset - 1,
+                            line_offsets,
+                        ))
+                    }),
                 });
             }
 
@@ -10846,6 +10882,12 @@ fn convert_declaration_for_program(
                     rest_obj.set_field("loc", loc);
                 }
                 rest_obj.set_field("argument", argument);
+                if let Some(type_ann) = &rest.type_annotation {
+                    rest_obj.set_field(
+                        "typeAnnotation",
+                        convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+                    );
+                }
                 params.push(Value::Object(rest_obj));
             }
             obj.set_field("params", Value::Array(params));
@@ -11419,6 +11461,14 @@ fn convert_expression_for_program<'a>(
                     end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
                     argument: arena.alloc_js_node(argument),
+                    type_annotation: rest.type_annotation.as_ref().map(|ta| {
+                        Box::new(convert_type_annotation_adjusted(
+                            arena,
+                            ta,
+                            offset,
+                            line_offsets,
+                        ))
+                    }),
                 });
             }
 
@@ -12651,6 +12701,12 @@ fn convert_function_expression_for_program(
             rest_obj.set_field("loc", loc);
         }
         rest_obj.set_field("argument", argument);
+        if let Some(type_ann) = &rest.type_annotation {
+            rest_obj.set_field(
+                "typeAnnotation",
+                convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+            );
+        }
         params.push(Value::Object(rest_obj));
     }
     obj.set_field("params", Value::Array(params));
@@ -12721,6 +12777,14 @@ fn convert_function_expression_for_program_as_node(
             end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
+            type_annotation: rest.type_annotation.as_ref().map(|ta| {
+                Box::new(convert_type_annotation_adjusted(
+                    arena,
+                    ta,
+                    offset,
+                    line_offsets,
+                ))
+            }),
         });
     }
 
@@ -12897,6 +12961,7 @@ fn convert_object_pattern(
                 offset,
                 line_offsets,
             )),
+            type_annotation: None,
         });
     }
 
@@ -12942,6 +13007,7 @@ fn convert_array_pattern(
                 offset,
                 line_offsets,
             )),
+            type_annotation: None,
         }));
     }
 
@@ -13204,6 +13270,7 @@ fn convert_object_assignment_target_for_program(
                 offset,
                 line_offsets,
             )),
+            type_annotation: None,
         });
     }
 
@@ -13256,6 +13323,7 @@ fn convert_array_assignment_target_for_program(
                 offset,
                 line_offsets,
             )),
+            type_annotation: None,
         }));
     }
 
@@ -13838,6 +13906,7 @@ fn rest_element_with_adjustment(
             prefix_len,
             line_offsets,
         )),
+        type_annotation: None,
     }
 }
 
@@ -14598,6 +14667,12 @@ fn create_arrow_function_with_adjustment(
             rest_obj.set_field("loc", loc);
         }
         rest_obj.set_field("argument", argument);
+        if let Some(type_ann) = &rest.type_annotation {
+            rest_obj.set_field(
+                "typeAnnotation",
+                convert_type_annotation_adjusted(arena, type_ann, adjusted_offset, line_offsets),
+            );
+        }
         params.push(Value::Object(rest_obj));
     }
     obj.set_field("params", Value::Array(params));

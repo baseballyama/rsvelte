@@ -19,7 +19,7 @@ const MAGIC = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `napi_raw_parse.rs`'s `VERSION`.
-const VERSION = 10;
+const VERSION = 11;
 const HEADER_LEN = 24;
 
 // Tags — must mirror napi_raw_parse.rs.
@@ -1126,6 +1126,8 @@ function readJsRestElement(ctx, start, end) {
 	const node = { type: 'RestElement', start, end };
 	if (loc !== null) node.loc = loc;
 	node.argument = argument;
+	const typeAnnotation = readOptTypeAnnotation(ctx);
+	if (typeAnnotation !== null) node.typeAnnotation = typeAnnotation;
 	return node;
 }
 

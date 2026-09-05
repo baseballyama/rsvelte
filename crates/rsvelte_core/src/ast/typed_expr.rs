@@ -460,6 +460,9 @@ pub enum JsNode {
         end: u32,
         loc: Option<Box<Loc>>,
         argument: JsNodeId,
+        /// See `ObjectPattern::type_annotation`. Opaque output-only TS annotation
+        /// for an annotated rest parameter (`function f(...a: T[]) {}`).
+        type_annotation: Option<Box<serde_json::Value>>,
     },
     Property {
         start: u32,
@@ -1690,6 +1693,7 @@ impl Serialize for JsNode {
                 end,
                 loc,
                 argument,
+                type_annotation,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "RestElement")?;
@@ -1697,6 +1701,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "argument", argument);
+                if let Some(ta) = type_annotation {
+                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                }
                 ser_comments!(map, "RestElement", *start, *end);
                 map.end()
             }
@@ -3150,6 +3157,7 @@ impl JsNode {
                         end,
                         loc,
                         argument: convert_child(obj, "argument"),
+                        type_annotation: obj.field("typeAnnotation").cloned().map(Box::new),
                     },
                     "Property" => Self::Property {
                         start,
