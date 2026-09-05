@@ -55,13 +55,18 @@ pub enum Doc {
     Concat(Vec<Self>),
     /// A pre-formatted embedded expression (`{expr}`) whose JS was formatted by
     /// the external engine (oxc) into a string, not a Doc. In `Flat` mode it
-    /// prints `flat`; in `Break` mode it prints `broken` — the multi-line form,
-    /// one entry per line, the first line bare and each continuation carrying its
-    /// own relative indent (as produced at column 0) plus the current indent
-    /// level. This lets an oxc-formatted interpolation participate in a `Fill`:
-    /// the fill keeps it on one line when its `flat` form fits at the current
-    /// column, else places it broken with continuation lines indented under the
-    /// attribute. `fits` measures it by `flat` width (it never forces a break).
+    /// prints `flat`; in `Break` mode it prints the multi-line form, one entry
+    /// per line, the first line bare and each continuation carrying its own
+    /// relative indent (as produced at column 0) plus the current indent level —
+    /// rebuilt from `src` at the indent being printed, with `broken` as the
+    /// fallback when there is no `src` or the rebuild fails. This lets an
+    /// oxc-formatted interpolation participate in a `Fill`: the fill keeps it on
+    /// one line when its `flat` form fits at the current column, else places it
+    /// broken with continuation lines indented under the attribute. `fits`
+    /// measures it by `flat` width in `Flat` mode; in `Break` mode a breakable
+    /// one charges `broken[0]` and ends the measurement there, so it does force
+    /// a break. `broken` is column-unaware, so that charge can exceed the line
+    /// `print` rebuilds — no corpus input reaches the two apart.
     RawExpr {
         flat: String,
         broken: Vec<String>,
