@@ -67,6 +67,38 @@ const cases = [
     /the ratchet does not list/,
   ],
   [
+    "a method-carrying label that names a method its key does not fails",
+    {
+      ratchet: ["differential:fixtures/a|textDocument/inlayHint|0:0|/:value-mismatch"],
+      sidecar: {
+        mechanisms: { "empty-result-spelling-document-highlight": { terminal: null } },
+        entries: {
+          "differential:fixtures/a|textDocument/inlayHint|0:0|/:value-mismatch": [
+            "empty-result-spelling-document-highlight",
+          ],
+        },
+      },
+    },
+    1,
+    /name a method their key does not/,
+  ],
+  [
+    "the same label on the key its method matches passes",
+    {
+      ratchet: ["differential:fixtures/a|textDocument/inlayHint|0:0|/:value-mismatch"],
+      sidecar: {
+        mechanisms: { "empty-result-spelling-inlay-hint": { terminal: null } },
+        entries: {
+          "differential:fixtures/a|textDocument/inlayHint|0:0|/:value-mismatch": [
+            "empty-result-spelling-inlay-hint",
+          ],
+        },
+      },
+    },
+    0,
+    /1 ratchet entries/,
+  ],
+  [
     "an empty mechanism set fails",
     {
       ...wellFormed,

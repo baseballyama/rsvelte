@@ -88,6 +88,31 @@ function pairingKeyLabelSpace() {
 // Spelled once so a caller outside this file cannot drift from it.
 export const UNCLASSIFIED = "unclassified";
 
+// `textDocument/inlayHint` -> `inlay-hint`. A label is read by people and keyed
+// on by the sidecar, so the method is spelled the way every other label is.
+const methodSlug = (method) =>
+  method
+    .replace(/^textDocument\//, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase();
+
+// The methods whose dispatch in `classifyDivergence` actually reaches
+// `classifyEmptySpelling` -- measured, not the two that carry the label today
+// and not every method the ratchet holds: `hover`, `definition`, `completion`,
+// `diagnostic`, `documentSymbol` and `foldingRange` have classifiers of their
+// own that never fall through to `classifyGeneric`, so declaring them would put
+// labels in the vocabulary no input can produce. The cross-product test drives
+// every member, so adding one that cannot be reached fails there rather than
+// sitting in the vocabulary unreachable.
+const EMPTY_SPELLING_METHODS = [
+  "initialize",
+  "textDocument/codeAction",
+  "textDocument/documentHighlight",
+  "textDocument/formatting",
+  "textDocument/inlayHint",
+  "textDocument/selectionRange",
+];
+
 export const MECHANISMS = [
   // Architectural: rsvelte proxies tsgo, official bundles `typescript`.
   "ts-lib-copy",
@@ -234,8 +259,14 @@ export const MECHANISMS = [
   "inlay-hint-kind",
   "inlay-hint-mixed",
   // Both sides say "nothing here" and spell it differently -- `null` against `[]`.
-  // Neither side is wrong, so it must not sit inside `rsvelte-empty`.
-  "empty-result-spelling",
+  // Neither side is wrong, so it must not sit inside `rsvelte-empty`. The method
+  // is in the label because the two sides' spellings come from different places
+  // per method -- a forwarded response carries its backend's spelling and a
+  // native one carries ours -- so one terminal over every method would attribute
+  // whichever half is larger. `EMPTY_SPELLING_METHODS` is the closed list; a
+  // method outside it throws in `classifyDivergence` rather than widening a
+  // label nobody enumerated.
+  ...EMPTY_SPELLING_METHODS.map((method) => `empty-result-spelling-${methodSlug(method)}`),
   // A renaming and a genuine set difference in one response: two mechanisms, and
   // the label has to say so rather than inherit whichever the first item carried.
   "diagnostic-mixed",
@@ -928,7 +959,7 @@ const inlayHintKind = (hint) => INLAY_HINT_KIND_BY_CODE[hint?.kind] ?? "other";
 function classifyInlayHint(official, rsvelte, difference) {
   // `null` on one side and `[]` on the other is both sides answering "no hints".
   if (/value-mismatch/.test(difference))
-    return classifyEmptySpelling(official, rsvelte) ?? UNCLASSIFIED;
+    return classifyEmptySpelling("textDocument/inlayHint", official, rsvelte) ?? UNCLASSIFIED;
   if (!/:(missing|extra)-rsvelte/.test(difference)) return UNCLASSIFIED;
   const { direction, items, otherSide } = unpairedItems(
     "textDocument/inlayHint",
@@ -957,8 +988,9 @@ function classifyInlayHint(official, rsvelte, difference) {
 // Both sides answering "nothing" in two spellings is not specific to inlay hints,
 // so it is asked of every list-valued method before that method's own rules. An
 // empty side reaches the differ as an element difference, not only as a mismatch.
-function classifyEmptySpelling(official, rsvelte) {
-  if (isEmptyResult(official) && isEmptyResult(rsvelte)) return "empty-result-spelling";
+function classifyEmptySpelling(method, official, rsvelte) {
+  if (isEmptyResult(official) && isEmptyResult(rsvelte))
+    return `empty-result-spelling-${methodSlug(method)}`;
   if (isEmptyResult(official)) return "official-empty";
   if (isEmptyResult(rsvelte)) return "rsvelte-empty";
   return null;
@@ -982,7 +1014,7 @@ function classifySelectionRange(official, rsvelte) {
 }
 
 function classifyGeneric(method, official, rsvelte, difference) {
-  const empty = classifyEmptySpelling(official, rsvelte);
+  const empty = classifyEmptySpelling(method, official, rsvelte);
   if (empty) return empty;
   if (method === "initialize") {
     const capability = /^\/capabilities\/([^/:]+)/.exec(difference)?.[1];

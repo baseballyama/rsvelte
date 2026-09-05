@@ -96,6 +96,33 @@ for (const [label, value] of Object.entries(declared)) {
     fail(`${label} names ${terminal}, which does not exist`);
 }
 
+// A label that carries a method has to carry the one in its own key. The sidecar
+// is generated, so this normally holds by construction — it is checked because
+// the split that introduced these labels was applied to the generated file by
+// hand, and a hand edit the generator would not reproduce reverts on the next
+// regeneration with nothing to say it did.
+const EMPTY_SPELLING = /^empty-result-spelling-(.+)$/;
+const slugOf = (method) =>
+  method
+    .replace(/^textDocument\//, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase();
+const mismatched = [];
+for (const [id, labels] of Object.entries(entries)) {
+  if (!Array.isArray(labels)) continue;
+  for (const label of labels) {
+    const suffix = EMPTY_SPELLING.exec(label)?.[1];
+    if (suffix === undefined) continue;
+    const method = id.split("|")[1];
+    if (!method || slugOf(method) !== suffix)
+      mismatched.push(`${id} carries ${label}`);
+  }
+}
+if (mismatched.length)
+  fail(
+    `${mismatched.length} empty-result-spelling label(s) name a method their key does not: ${cap(mismatched)}`,
+  );
+
 // The count the attribution table can actually reach today. Reported whether or
 // not it is zero: a table that cannot be written yet must say so with a number,
 // because a missing row and a zero row render the same.

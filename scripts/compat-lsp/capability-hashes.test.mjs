@@ -109,6 +109,47 @@ const OFFICIAL_TOKEN_MODIFIERS = [
   "declaration", "static", "async", "readonly", "defaultLibrary", "local",
 ];
 
+// Three scalar fields rsvelte advertises and upstream omits. The differ spells a
+// scalar as `extra-rsvelte-field[hash=digest(right[key])]`, so unlike the array
+// pointers above the digest is of the VALUE and has a preimage: reproducing it
+// from each declaration ties the ratchet entry to the source, which is what a
+// `deliberate-divergences` pin needs and a path-existence check cannot give.
+const recordedField = (pointer) => {
+  const prefix = `differential:fixtures/capabilities|initialize|${pointer}:extra-rsvelte[hash=`;
+  const hit = baseline.filter((key) => key.startsWith(prefix));
+  assert.equal(hit.length, 1, `expected exactly one baseline entry for ${pointer}`);
+  return hit[0].slice(prefix.length, -1);
+};
+
+test("the three advertised scalars reproduce their recorded digests from source", () => {
+  // crates/rsvelte_language_server/src/server.rs:192
+  assert.equal(digest("utf-16"), recordedField("/capabilities/positionEncoding"));
+  // src/server.rs:80 SERVER_NAME, set at :284
+  assert.equal(
+    digest("rsvelte-language-server"),
+    recordedField("/capabilities/diagnosticProvider/identifier"),
+  );
+  // src/server.rs:292-298, serialised in `lsp_types` field order.
+  assert.equal(
+    digest({ workspaceFolders: { changeNotifications: true, supported: true } }),
+    recordedField("/capabilities/workspace"),
+  );
+});
+
+test("the scalar digests are of the value, not of some neighbouring shape", () => {
+  // Negative controls: each is a plausible reading of the same declaration and
+  // none of them reproduces the entry, so the equalities above identify a value
+  // rather than merely finding something that hashes to twelve hex characters.
+  const encoding = recordedField("/capabilities/positionEncoding");
+  assert.notEqual(digest("utf16"), encoding);
+  assert.notEqual(digest("UTF-16"), encoding);
+  const workspace = recordedField("/capabilities/workspace");
+  assert.notEqual(digest({ workspaceFolders: { supported: true, changeNotifications: true } }), workspace);
+  assert.notEqual(digest({ workspaceFolders: { supported: true } }), workspace);
+  assert.notEqual(digest({ supported: true, changeNotifications: true }), workspace);
+  assert.notEqual(digest("rsvelte"), recordedField("/capabilities/diagnosticProvider/identifier"));
+});
+
 test("the duplicate `@` and the extra space reproduce the recorded trigger-character digests", () => {
   const { missing, extra } = arrayDiff(
     "initialize",
