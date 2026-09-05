@@ -1541,6 +1541,9 @@ impl<'a> CssParser<'a> {
                 while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                     j += 1;
                 }
+                // upstream's `allow_whitespace()` stops at a comment, so the descendant
+                // combinator ends here and not after the comment look-ahead below
+                let ws_end = j;
                 // Also skip comments in look-ahead
                 while j + 1 < bytes.len() && bytes[j] == b'/' && bytes[j + 1] == b'*' {
                     record_selector_comment_error(&self.error, base_offset + j);
@@ -1583,7 +1586,7 @@ impl<'a> CssParser<'a> {
 
                             // Set up space combinator for next selector
                             let combinator_start = base_offset + i;
-                            let combinator_end = combinator_start + 1;
+                            let combinator_end = base_offset + ws_end;
                             last_combinator = Some((" ", combinator_start, combinator_end));
 
                             // Skip whitespace and continue from next selector
@@ -3133,6 +3136,9 @@ impl<'a> SelectorParser<'a> {
                 while j < bytes.len() && bytes[j].is_ascii_whitespace() {
                     j += 1;
                 }
+                // upstream's `allow_whitespace()` stops at a comment, so the descendant
+                // combinator ends here and not after the comment look-ahead below
+                let ws_end = j;
                 if j < bytes.len()
                     && !matches!(bytes[j], b'+' | b'>' | b'~' | b'|' | b')')
                     && bytes[j] != b'('
@@ -3159,7 +3165,7 @@ impl<'a> SelectorParser<'a> {
 
                             // Set up space combinator for next selector
                             let combinator_start = base_offset + i;
-                            let combinator_end = combinator_start + 1;
+                            let combinator_end = base_offset + ws_end;
                             last_combinator = Some((" ", combinator_start, combinator_end));
 
                             // Skip whitespace and continue from next selector
