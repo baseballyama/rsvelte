@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.7.17"
+version = "0.7.18"
 dependencies = [
  "anyhow",
  "clap",
@@ -2708,7 +2708,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_language_server"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "anyhow",
  "crossbeam-channel",

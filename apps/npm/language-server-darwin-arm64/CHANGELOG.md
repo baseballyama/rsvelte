@@ -1,5 +1,7 @@
 # @rsvelte/language-server-darwin-arm64
 
+## 0.7.2
+
 ## 0.7.1
 
 ## 0.7.0
