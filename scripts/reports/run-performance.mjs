@@ -56,6 +56,18 @@ const referenceModule = await import(
 const referenceCompile = (referenceModule.default ?? referenceModule).compile;
 const { createVerterCompiler } = await import(pathToFileURL(join(oracleDir, "verter-adapter.mjs")));
 
+// Every one of these was a string literal until a competitor bump left four of
+// the six naming a version nothing in the run was using. An arm's label has to
+// be read off the arm: the two Svelte compilers report their own `VERSION`
+// (the built `compiler/index.js` and the source tree can disagree), and the two
+// competitors have no such export, so their installed manifest answers.
+const officialVersion = (currentModule.default ?? currentModule).VERSION;
+const referenceVersion = (referenceModule.default ?? referenceModule).VERSION;
+const oracleVersion = (name) =>
+  JSON.parse(readFileSync(join(oracleDir, "node_modules", name, "package.json"), "utf8")).version;
+const mrwaipVersion = oracleVersion("@mrwaip/svelte-rs");
+const verterVersion = oracleVersion("@verter/wasm");
+
 const allTargets = [
   { id: "client", generate: "client", dev: false },
   { id: "server", generate: "server", dev: false },
@@ -451,7 +463,7 @@ for (const target of targets) {
           {
             id: "official",
             label: "svelte/compiler",
-            version: "5.56.8",
+            version: officialVersion,
             status: "reference",
             correctFiles: files.length,
             attemptFiles: files.length,
@@ -496,7 +508,7 @@ for (const target of targets) {
           {
             id: "official",
             label: "svelte/compiler",
-            version: "5.56.4",
+            version: referenceVersion,
             status: "reference",
             correctFiles: files.length,
             attemptFiles: files.length,
@@ -506,7 +518,7 @@ for (const target of targets) {
           {
             id: "mrwaip",
             label: "@mrwaip/svelte-rs",
-            version: "0.0.0-canary.13.1",
+            version: mrwaipVersion,
             status: mrwaipCorrect === files.length ? "ok" : "unranked",
             compiledFiles: mrwaipCoverage.compiled,
             correctFiles: mrwaipCorrect,
@@ -535,7 +547,7 @@ for (const target of targets) {
           {
             id: "official",
             label: "svelte/compiler",
-            version: "5.56.8",
+            version: officialVersion,
             status: "reference",
             correctFiles: files.length,
             attemptFiles: files.length,
@@ -544,7 +556,7 @@ for (const target of targets) {
           {
             id: "verter",
             label: "@verter/wasm",
-            version: "0.0.1-beta.3",
+            version: verterVersion,
             status:
               target.generate !== "client"
                 ? "unsupported"
@@ -708,7 +720,7 @@ const toolTasks = [
     id: "parser",
     label: "Parser",
     reference: "svelte/compiler.parse",
-    version: "5.56.8",
+    version: officialVersion,
     result: toolResults.parse,
     files: fixtureFiles,
     excludedFiles: fixtureExcluded,

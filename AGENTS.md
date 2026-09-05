@@ -2316,6 +2316,45 @@ diagnosed as a defect and nearly deleted from three ports, because the npm build
 No gate compares generated code against the npm build (`test-wasm-compile-options.mjs` imports
 it only to ask whether an option *throws*), so the hazard is probes, not gates.
 
+### "Is this competitor on its latest version" is a question about the BACKEND, not the package name
+
+`npm view <pkg> version` answers whether a *package* moved. It does not answer whether the
+program that package delivers is current, and for a competitor whose work is done by a
+subprocess the two come apart completely. Measured 2026-09-05 while bumping the report's
+competitor pins: `@typescript/native-preview` really is at its newest published version
+(`7.0.0-dev.20260707.2`) and the package is **abandoned** — TypeScript 7 stable ships the same
+Go compiler as its own `tsc`, which the report already installs under the
+`@typescript/native@npm:typescript@7` alias its own comment describes. So one survey
+question ("is every competitor pinned to its latest?") returned yes for a row that was two
+months behind: rsvelte's and svelte-check's `--tsgo` rows type-check with **7.0.2** and
+`svelte-check-rs` with **7.0.0-dev.20260707.2**, two different builds of one program
+(`sha256` differs; `--version` is the discriminating probe).
+
+The equalization is available and it measures **null**. `svelte-check-rs` resolves `tsgo` by
+PATH (`node_modules/.bin/tsgo`, confirmed by its own `--debug-paths`), not by package name, so
+repointing that symlink at `typescript@7`'s launcher makes its `--tsgo-version` report 7.0.2 —
+both directions pinned. Over 12 ABBA pairs on the 5,000-component workspace: preview
+3,553.2 ms against ts7 3,530.7 ms, ts7 faster in 5/12 (p=0.81), pairwise median 0.986. The
+declared configuration is therefore what the report keeps — `svelte-check-rs`'s own manifest
+requires `@typescript/native-preview`, and configuring a competitor in a way its docs do not
+describe buys nothing here. **The output half of that comparison is a weak control and is
+recorded as one**: the synthetic workspace yields zero diagnostics, so "identical output"
+compares two empty sets.
+
+Two further things came out of the same bump. **Every competitor and oracle version in
+`run-performance.mjs` was a string literal**, and four of six had gone stale — `official`
+read `5.56.8` where the built compiler reports 5.56.10, the mrwaip reference read `5.56.4`
+against a 5.56.10 pin, and mrwaip read `0.0.0-canary.13.1` after 15.1 was installed. A label
+has to be read off the arm: the two Svelte compilers report their own `VERSION` (the built
+`compiler/index.js` and the source tree can disagree — the row above), and the two competitors
+have no such export, so their installed manifest answers. And **a bump that moves no number is
+not evidence the bump did not land**: mrwaip 13.1 → 15.1 left all four surfaces' parity counts
+byte-identical, which is the shape of an arm-identity failure, so it needs the same treatment
+as a `MOVED 0` sweep — the two `.node` binaries hash differently, each resolves from its own
+tree, and a direct output comparison over 4,800 units (1,200 files x 4 targets) is
+4,608 identical, 192 rejected by both, **0 differing**. Loading both addons in one process
+segfaults, so the comparison has to be one process per arm.
+
 ### Generate an expected value from the oracle; do not back it out of the oracle's output
 
 A test's expected strings are a second implementation of the rule, written by hand, and the

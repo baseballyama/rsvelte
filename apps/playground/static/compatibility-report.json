@@ -3,7 +3,7 @@
   "kind": "rsvelte-compatibility-report",
   "generatedAt": "2026-09-04T16:51:24.734Z",
   "commit": {
-    "rsvelte": "d4c79bb0402a98f40790cb9facd57ba77f657480",
+    "rsvelte": "332b053725d90228c841759c1f236deb16b32f82",
     "upstreamSvelte": "56a036f4ce873a24ee6631a06d03d372523d7a9b"
   },
   "corpus": {
@@ -109,9 +109,9 @@
     {
       "id": "mrwaip",
       "label": "@mrwaip/svelte-rs",
-      "version": "0.0.0-canary.13.1",
+      "version": "0.0.0-canary.15.1",
       "metric": "normalized-output-parity",
-      "measuredAt": "2026-09-04T20:27:17.814Z",
+      "measuredAt": "2026-09-05T13:31:07.601Z",
       "surfaces": [
         {
           "id": "client",
@@ -120,7 +120,7 @@
           "compiled": 32357,
           "total": 32669,
           "status": "unranked",
-          "referenceVersion": "5.56.4"
+          "referenceVersion": "5.56.10"
         },
         {
           "id": "server",
@@ -129,7 +129,7 @@
           "compiled": 32357,
           "total": 32670,
           "status": "unranked",
-          "referenceVersion": "5.56.4"
+          "referenceVersion": "5.56.10"
         },
         {
           "id": "client-dev",
@@ -138,7 +138,7 @@
           "compiled": 32357,
           "total": 32669,
           "status": "unranked",
-          "referenceVersion": "5.56.4"
+          "referenceVersion": "5.56.10"
         },
         {
           "id": "server-dev",
@@ -147,7 +147,7 @@
           "compiled": 32357,
           "total": 32670,
           "status": "unranked",
-          "referenceVersion": "5.56.4"
+          "referenceVersion": "5.56.10"
         }
       ],
       "note": "JavaScript AST equivalence and CSS output parity against the matching Svelte version."
@@ -157,7 +157,7 @@
       "label": "@verter/wasm",
       "version": "0.0.1-beta.3",
       "metric": "normalized-output-parity",
-      "measuredAt": "2026-09-04T20:27:17.814Z",
+      "measuredAt": "2026-09-05T13:31:07.601Z",
       "surfaces": [
         {
           "id": "client",
@@ -166,7 +166,7 @@
           "compiled": 8047,
           "total": 32669,
           "status": "unranked",
-          "referenceVersion": "5.56.8"
+          "referenceVersion": "5.56.10"
         },
         {
           "id": "server",
@@ -175,7 +175,7 @@
           "compiled": 0,
           "total": 32670,
           "status": "unsupported",
-          "referenceVersion": "5.56.8"
+          "referenceVersion": "5.56.10"
         },
         {
           "id": "client-dev",
@@ -184,7 +184,7 @@
           "compiled": 8047,
           "total": 32669,
           "status": "unranked",
-          "referenceVersion": "5.56.8"
+          "referenceVersion": "5.56.10"
         },
         {
           "id": "server-dev",
@@ -193,7 +193,7 @@
           "compiled": 0,
           "total": 32670,
           "status": "unsupported",
-          "referenceVersion": "5.56.8"
+          "referenceVersion": "5.56.10"
         }
       ],
       "note": "JavaScript AST equivalence and CSS output parity against the matching Svelte version."
