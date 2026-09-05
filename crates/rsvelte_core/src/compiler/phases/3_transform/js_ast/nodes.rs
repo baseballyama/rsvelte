@@ -139,6 +139,11 @@ pub struct RawMappedSpan {
     /// This copied run ends with a comment that upstream keeps attached to an
     /// erased TS declaration before an exported prop.
     pub erased_comment_before_export_prop: bool,
+    /// `(binding end, annotation end)`: upstream's parser puts a type annotation
+    /// inside its binding's range, so a node ending at the first source position
+    /// is located at the second. At most one per run, because the annotation is
+    /// itself erased and therefore ends the run that precedes it.
+    pub source_end_override: Option<(u32, u32)>,
 }
 
 /// Import declaration.

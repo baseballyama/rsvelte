@@ -281,7 +281,7 @@ struct RestoreRawMappedSpans<'s> {
 }
 
 impl RestoreRawMappedSpans<'_> {
-    fn source_offset(&self, offset: u32) -> Option<u32> {
+    fn source_offset_in(&self, offset: u32) -> Option<(usize, u32)> {
         let index = self
             .spans
             .partition_point(|span| span.code.start <= offset)
@@ -297,7 +297,11 @@ impl RestoreRawMappedSpans<'_> {
         if offset > span.code.end {
             return None;
         }
-        Some(span.source.start + offset - span.code.start)
+        Some((index, span.source.start + offset - span.code.start))
+    }
+
+    fn source_offset(&self, offset: u32) -> Option<u32> {
+        self.source_offset_in(offset).map(|(_, offset)| offset)
     }
 
     fn source_start_offset(&self, offset: u32) -> Option<u32> {
@@ -319,7 +323,15 @@ impl RestoreRawMappedSpans<'_> {
     }
 
     fn source_end_offset(&self, offset: u32) -> Option<u32> {
-        if let Some(end) = self.source_offset(offset) {
+        if let Some((index, end)) = self.source_offset_in(offset) {
+            // A binding's own type annotation is erased from the script text, so
+            // the binding ends at its own last byte here where upstream's parser
+            // ends it after the annotation.
+            if let Some((binding_end, annotation_end)) = self.spans[index].source_end_override
+                && binding_end == end
+            {
+                return Some(annotation_end);
+            }
             return Some(end);
         }
         // A sentinel end (`u32::MAX`, a kept `;` for a removed `$inspect`) is a
@@ -3206,11 +3218,13 @@ mod tests {
                 code: 0..4,
                 source: 100..104,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
             RawMappedSpan {
                 code: 4..8,
                 source: 300..304,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
         ];
         let restorer = RestoreRawMappedSpans {
@@ -3229,11 +3243,13 @@ mod tests {
                 code: 0..4,
                 source: 100..104,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
             RawMappedSpan {
                 code: 4..8,
                 source: 300..304,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
         ];
         let restorer = RestoreRawMappedSpans {
@@ -3252,16 +3268,19 @@ mod tests {
                 code: 0..4,
                 source: 100..104,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
             RawMappedSpan {
                 code: 4..4,
                 source: 200..200,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
             RawMappedSpan {
                 code: 4..8,
                 source: 300..304,
                 erased_comment_before_export_prop: false,
+                source_end_override: None,
             },
         ];
         let restorer = RestoreRawMappedSpans {

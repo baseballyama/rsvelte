@@ -62,6 +62,10 @@ pub(crate) struct ScriptProjection {
     /// identifier and flushing the comment. A text projection would otherwise
     /// reattach the comment to the following `let` declaration.
     pub(crate) erased_leading_comments_before_export_props: Vec<Range<u32>>,
+    /// `(binding end, annotation end)` for every binding whose own type
+    /// annotation was erased. Upstream's parser puts the annotation inside the
+    /// binding's range, so a node ending at the first is located at the second.
+    pub(crate) binding_annotation_ends: Vec<(u32, u32)>,
     /// Original script-content length in bytes.
     pub(crate) source_len: u32,
     /// Stripped script-content length in bytes.
@@ -860,6 +864,7 @@ fn strip_typescript_from_program_impl(
         copied_chunks,
         reemitted_comment_outputs: reemitted_comment_outputs.unwrap_or_default(),
         erased_leading_comments_before_export_props,
+        binding_annotation_ends: collect_binding_annotation_ends(program),
         source_len: source.len() as u32,
         output_len: output.len() as u32,
     });
@@ -952,6 +957,52 @@ pub(crate) fn blank_typescript_from_program(
     }
 
     String::from_utf8(out).unwrap_or_else(|_| source.to_string())
+}
+
+/// Where a binding's own type annotation sits, as `(binding end, annotation end)`.
+///
+/// Upstream parses with acorn-typescript, whose `Identifier` range covers the
+/// annotation, so esrap stamps the annotation's end. rsvelte erases the
+/// annotation from the script text before re-parsing, so the binding ends at its
+/// own last byte and the position has to be carried separately.
+fn collect_binding_annotation_ends(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::{Visit, walk};
+    use oxc_span::GetSpan;
+
+    struct Collector {
+        ends: Vec<(u32, u32)>,
+    }
+
+    // Not collected: a class property keeps its annotation on the
+    // `PropertyDefinition`, and a rest parameter keeps it on the `RestElement`
+    // — in both, the node esrap stamps ends before the annotation upstream too.
+    impl<'a> Visit<'a> for Collector {
+        fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
+            if let Some(annotation) = &it.type_annotation {
+                self.ends.push((it.id.span().end, annotation.span.end));
+            }
+            walk::walk_variable_declarator(self, it);
+        }
+
+        fn visit_formal_parameter(&mut self, it: &oxc_ast::ast::FormalParameter<'a>) {
+            if let Some(annotation) = &it.type_annotation {
+                self.ends.push((it.pattern.span().end, annotation.span.end));
+            }
+            walk::walk_formal_parameter(self, it);
+        }
+
+        fn visit_catch_parameter(&mut self, it: &oxc_ast::ast::CatchParameter<'a>) {
+            if let Some(annotation) = &it.type_annotation {
+                self.ends.push((it.pattern.span().end, annotation.span.end));
+            }
+            walk::walk_catch_parameter(self, it);
+        }
+    }
+
+    let mut collector = Collector { ends: Vec::new() };
+    collector.visit_program(program);
+    collector.ends.sort_unstable();
+    collector.ends
 }
 
 /// Collect TypeScript-specific source spans to remove from a program.
