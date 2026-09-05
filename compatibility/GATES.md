@@ -3336,9 +3336,6 @@ deleted with no official segment attributed to it. This is **[D]** for the diagn
 incomparability and an independent-oracle result for the deletion, not a claim derived from the
 aggregate segment count.
 
- There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
- code, and the svelte2tsx map gate (§ 12) covers a different artifact.
-
 The component-bind pass illustrates why the discriminating test must survive a partial
 deletion too: its generated-text search formerly supplied both `get`/`set` property-key
 segments and a template-interpolation segment. The accessor keys now carry the complete raw
@@ -3358,8 +3355,16 @@ this gate could not, because a correct segment pointing at wrong code is indisti
 from a correct segment pointing at right code. Any IR change that both moves positions and
 changes lowering must be run against `tests/runtime.rs`, not this gate alone.
 
-There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
- code, and the svelte2tsx map gate (§ 12) covers a different artifact.
+There is no corpus-wide source-map gate to fall back on, and the reason sits one stage earlier
+than "`verify.mjs` compares generated code": `compile.mjs:128-130` keeps `result.js?.code` and
+`result.css?.code` and never reads `result.js.map`, so the map is discarded before
+`expected/<id>/client.js` is written and there is no artifact for `verify.mjs` to compare. The
+svelte2tsx map gate (§ 12) covers a different artifact. **Both directions are unobserved, which is
+what makes an `identical` verdict here uninformative about a map change**: widening
+`NEAR_RESYNC_WINDOW` moves **37,210** client map units across the corpus and **−33,990** bad
+segments on a 1-in-9 sample, while the corpus output gate scores **0** and this gate reports
+identical to base (57/58 byte-identical, 770/770 official segments, 0 missing, 0 wrong). Read an
+`identical` as "the 29 samples did not move", never as "the map did not move".
 
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 
