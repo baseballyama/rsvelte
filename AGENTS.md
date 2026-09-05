@@ -6095,6 +6095,95 @@ minimum diff is not unique: 519 units common to both runs gave 180,450 B against
 (−0.11%), per-writer deviation ≤0.2%, and 514 of 519 identical changed-line sets — which
 measures the concern rather than arguing it away.
 
+### "Did the mechanism fire" is a stage below "what moved", and folding them makes a zero ambiguous
+
+A change is measured in two stages here: hash every unit under both arms to get the **moved
+set**, then compare only that set to the oracle to get the **direction**. There is a stage below
+both, and it is the one that decides whether the work was even aimed correctly:
+
+```
+stage 0  the mechanism fires at all  ⊇ the measured decision changes
+                                     ⊇ stage 1 the output moves
+                                     ⊇ stage 2 the verdict moves
+```
+
+Measured on a formatter change built from a mechanism story — `fits` charges a breakable
+interpolation's *column-unaware* first line while `print` rebuilds that line at the real indent,
+so `fits` over-charges and breaks eagerly. Stage 1 came back `moved 0 / 33,666` and stage 2
+`flips 0`, and on their own those two zeros are read as "the patch is inert". A counter on the
+mechanism itself said something different and more useful: of 432 break-mode measurements over
+the whole corpus, **269 have no rebuild source at all** — so `fits` and `print` agree *by
+construction* there — and the other 163 rebuild successfully to a **byte-identical** head. Stage
+0 = 0, which is not "correct but inactive" (keep the patch, it will pay elsewhere) but "the
+mechanism is not what is happening" (drop it). The two conclusions differ, and no pair of output
+zeros separates them.
+
+Two things make the stage-0 counter worth its line of code. It is **free** — it rides the same
+run as the hash sweep — and it supplies the containment as a control: stage 1 must not exceed
+stage 0, so a sweep reporting more movement than the mechanism can produce indicts the sweep.
+And the counter has to be **split at the point where a fallback merges cases**: written as
+`rebuilt.unwrap_or(built)`, "no source", "rebuild failed" and "rebuilt and identical" are one
+number, and only the last of the three is evidence about the mechanism.
+
+**A stage-0 zero then has its own two kinds, and the separating observation is a second counter
+rather than a second input.** "The mechanism fired and agreed" and "the mechanism could not fire"
+are different findings, and the first version of this row could not tell them apart: a synthetic
+input built to force disagreement never even reached the arm, which says something about the
+probe and nothing about the corpus. What separates them is the *boundary condition* written out —
+the rebuild uses `min(flat_width - 1, budget)`, so it can only differ where `budget <
+flat_width - 1` — and one counter for that predicate. Measured: **0 of 163**, with the rows
+printed rather than summarised (`ind` spanning 14 distinct values from 1 to 15, `budget` 50-78,
+`flat_width - 1` 4-45, closest margin **11 columns**, none within 10 of flipping). So the zero is
+an identity on this corpus, the instrument is live, and the margin says how far the population
+sits from the regime the patch was written for. Printing the summary alone would have left all
+three unanswered.
+
+### An assertion's liveness and its detection power are two different controls
+
+A ported property was pinned with a test that sweeps a budget downwards and asserts a width never
+grows. It passed, `points=960 nonmonotone=0`. Reading the per-input spread first showed the zero
+was **forced**: all 8 inputs held one distinct width across all 120 budgets, so the assertion had
+been comparing a constant to itself. Adding inputs whose first line contains a nested breakable
+group — the only shape a narrower budget can shorten — took it to 4 of 13 inputs actually moving,
+and the zero became a measurement.
+
+A liveness assertion then went into the test (`varying >= 4`, "no budget moved a first line, so
+the assertion above measured nothing") and was ablated to `>= 5`, which failed with its own
+message and restored clean. That was reported as the control, and it is **only half of one**. It
+proves the inputs move; it says nothing about whether a violation would be *detected*. The
+detection control is a different edit in a different file — inject a widening into the function
+under test (`if budget < 40 { first_line.push_str("INJECTED") }`), require red, revert, require
+`git diff` empty. Measured: it fires, naming the exact transition (`budget 40->39 widened 8->25`).
+
+Both controls are cheap, neither substitutes for the other, and the one that gets written is the
+one that ablates the *test* rather than the *subject* — because that is the edit already in front
+of you. Ask separately: can this input make the quantity move, and can this assertion see a
+violation when one exists.
+
+### A command lifted from a script inherits the script's environment, and `cwd` is the invisible half
+
+`fmt.mjs` invokes the formatter as `rsvelte-fmt . -c <config>` with `{ cwd: stage }`. Copying
+that invocation into a shell to reproduce one file keeps the `.` and drops the `cwd`, so `.` is
+the repository. Measured: **2,809 tracked files plus 3,866 across three submodules rewritten in
+place**, unnoticed for forty minutes, found only because an unrelated `git status --porcelain`
+printed 214 KB. The recorded neighbour — a tool that rewrites in place is not a read, so probing
+a stored arm destroys it — is the same fact aimed at a saved measurement; this is it aimed at the
+working tree.
+
+Three details generalize. The tool **reported what it did** (`formatted 2809 files`) and the
+command carried `2>/dev/null >/dev/null`, so the one sentence naming the damage was discarded by
+the same line that caused it — a redirect added to keep a probe quiet also silences its
+confession. Recovery was complete and is worth writing down because the obvious command is not
+enough: `git checkout -- .` in the superproject leaves every submodule dirty, and each needs its
+own `git checkout -- .`; a linked worktree's submodule git dirs live under
+`.git/worktrees/<name>/modules/`, which is what confines the blast radius to one worktree on a
+shared clone. And the cheapest identity check afterwards is a **rebuild**: the restored tree
+produced a binary whose `sha256` matched the pre-incident build bit for bit, which no file count
+can establish.
+
+Prefer a command form that cannot express the mistake — `( cd <dir> && <tool> . )` in a subshell,
+never a bare `.` resolved against wherever the shell happens to be.
+
 ### Working with Subagents
 
 Use the `Agent` tool for substantial work — feature implementation, multi-file refactors, broad code exploration, or anything likely to consume meaningful context.
