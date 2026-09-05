@@ -5402,6 +5402,21 @@ and `rsvelte-empty-import-only` is the degenerate case of one of them — `class
 only when official's whole hover is a fenced block holding exactly `import <Name>` and rsvelte's is
 empty, which is that report's dropped origin line with nothing behind it.
 
+**The table and the sidecar do not agree, and the residual is a state to record rather than a
+gap to fill.** The entries whose whole label set resolves to a terminal partition as
+`hover 1218 + completion-item-kind 4 + deliberate 3` = 1225; the table reads
+`hover 1218 + completion-item-kind 4 + deliberate 5 + duplicate-@ 1` = 1228. The three the table
+attributes by hand and the sidecar does not are carried by two labels that **cannot be given a
+terminal at the current granularity**, because one label carries entries whose correct terminals
+differ: `initialize-capability-completionProvider` covers `triggerCharacters:extra` (deliberate —
+rsvelte's `" "` trigger) and `triggerCharacters:missing` (upstream's duplicated `"@"`), and
+`initialize-capability-codeActionProvider` covers `codeActionKinds:extra` (deliberate) and
+`resolveProvider:missing`, which is **unimplemented**. Giving either label a terminal would pin a
+behaviour nothing implements as a deliberate choice, which is the misclassification that stops
+anyone looking again rather than merely sending them the wrong way. Closing this needs the labels
+split per resolution, which is a sidecar schema change; the counts must not be reconciled by
+attributing what is not implemented.
+
 **Two of the twelve terminals unblock nothing today and are still required.** The checker's
 predicate is a conjunction — an entry is attributable only when *every* label in its set has a
 terminal — so `completion-commit-characters-presence-rsvelte-only` (6908 carriers),
