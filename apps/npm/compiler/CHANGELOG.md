@@ -1,5 +1,32 @@
 # @rsvelte/compiler
 
+## 0.11.6
+
+### Patch Changes
+
+- 4efd2b2: A descendant combinator's span covers its whole whitespace run, matching `read_combinator`
+- dc78e8c: fix(parse): the legacy `html` fragment's span is read after `svelte:options` is spliced back
+
+  Upstream's `convert_to_legacy` splices the extracted `<svelte:options>` node back
+  into `fragment.nodes` and only then reads `first.start` / `last.end`. rsvelte
+  computed the span from the pre-splice vector while building `children` from the
+  post-splice one, so a component whose first or last node is `<svelte:options>`
+  reported a fragment starting after it — and a component holding nothing else
+  reported `start`/`end` of `null` beside a `children` array of length 1.
+
+- 2dae1ae: fix(sourcemap): a binding's type annotation belongs to the binding's range
+
+  Upstream parses with acorn-typescript, whose `Identifier` range covers its own
+  type annotation, so esrap stamps the map at the annotation's end. rsvelte erases
+  the annotation from the script text before re-parsing with oxc, which puts the
+  annotation on the _owner_ node, so the binding ended at its own last byte and
+  every map segment for an annotated binding pointed short.
+
+  `ScriptProjection` now carries `(binding end, annotation end)` for each erased
+  annotation and the printer's end lookup consumes it. Measured over the whole
+  corpus on both arms: 0 generated-code units moved, 3,199 client map units
+  improved, 0 worse, and 7,986 fewer wrong segments.
+
 ## 0.11.5
 
 ### Patch Changes
