@@ -848,7 +848,29 @@ test("inlayHint: the hint kind is in the set-difference label, and a paired hint
 });
 
 test("an empty side is the same answer however it is spelled", () => {
-  assert.equal(classify("textDocument/inlayHint", null, [], "/:value-mismatch"), "empty-result-spelling");
+  // The method is in the label: a forwarded response carries its TypeScript
+  // backend's spelling and a native one carries ours, so one terminal over both
+  // would attribute whichever half is larger.
+  assert.equal(
+    classify("textDocument/inlayHint", null, [], "/:value-mismatch"),
+    "empty-result-spelling-inlay-hint",
+  );
+  assert.equal(
+    classify("textDocument/documentHighlight", null, [], "/:value-mismatch"),
+    "empty-result-spelling-document-highlight",
+  );
+  // Both directions are one label: which side spells it `null` is a property of
+  // the request, not of a rule either side holds.
+  assert.equal(
+    classify("textDocument/inlayHint", [], null, "/:value-mismatch"),
+    "empty-result-spelling-inlay-hint",
+  );
+  // A method the classifier has never seen is a defect in this module, not a
+  // new class -- the vocabulary check is what says so.
+  assert.throws(
+    () => classify("textDocument/rename", null, [], "/:value-mismatch"),
+    /not in the declared vocabulary/,
+  );
   assert.equal(classify("textDocument/inlayHint", null, [hint(0)], "/:value-mismatch"), "official-empty");
   assert.equal(classify("textDocument/inlayHint", [hint(0)], null, "/:value-mismatch"), "rsvelte-empty");
   // A method with no rules of its own reaches the same test through an element
@@ -960,6 +982,25 @@ test("every declared label in a hand-written cross product is reachable", () => 
       classify("textDocument/diagnostic", left, right, "/items" + (direction === "missing" ? MISSING : EXTRA)),
       label,
     );
+    seen.push(label);
+  }
+
+  // The label carries a method, so the cross product is over the methods whose
+  // dispatch reaches the both-empty test. A member that cannot be reached fails
+  // here rather than sitting in the vocabulary as a label no input produces.
+  const EMPTY_METHOD_BY_SLUG = {
+    initialize: "initialize",
+    "code-action": "textDocument/codeAction",
+    "document-highlight": "textDocument/documentHighlight",
+    formatting: "textDocument/formatting",
+    "inlay-hint": "textDocument/inlayHint",
+    "selection-range": "textDocument/selectionRange",
+  };
+  for (const [label, slug] of declared(/^empty-result-spelling-(.+)$/)) {
+    const method = EMPTY_METHOD_BY_SLUG[slug];
+    assert.ok(method, `no input is declared for ${label}`);
+    assert.equal(classify(method, null, [], "/:value-mismatch"), label);
+    assert.equal(classify(method, [], null, "/:value-mismatch"), label);
     seen.push(label);
   }
 
