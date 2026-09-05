@@ -767,6 +767,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 end: region.1,
                 source: source_offset,
                 linear: false,
+                source_end_override: None,
             });
         } else {
             // The parser's chunk coordinates are retained in comment space, and
@@ -788,6 +789,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                         end: region.0 + start,
                         source: None,
                         linear: false,
+                        source_end_override: None,
                     });
                 }
                 synth.loc_map.push(LocRange {
@@ -795,6 +797,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     end: region.0 + end,
                     source: Some(span.source.start + (start - span.code.start)),
                     linear: true,
+                    source_end_override: span.source_end_override,
                 });
                 cursor = end;
             }
@@ -804,6 +807,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                     end: region.1,
                     source: None,
                     linear: false,
+                    source_end_override: None,
                 });
             }
         }
