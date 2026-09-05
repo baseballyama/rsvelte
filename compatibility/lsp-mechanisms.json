@@ -656,19 +656,19 @@
 			"terminal": null
 		},
 		"initialize-capability-diagnosticProvider": {
-			"terminal": null
+			"terminal": "deliberate-divergences"
 		},
 		"initialize-capability-executeCommandProvider": {
 			"terminal": null
 		},
 		"initialize-capability-positionEncoding": {
-			"terminal": null
+			"terminal": "deliberate-divergences"
 		},
 		"initialize-capability-semanticTokensProvider": {
 			"terminal": null
 		},
 		"initialize-capability-workspace": {
-			"terminal": null
+			"terminal": "deliberate-divergences"
 		},
 		"initialize-capability-other": {
 			"terminal": null
