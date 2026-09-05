@@ -6055,6 +6055,7 @@ fn collect_identifier_names_in_node(
             end: _,
             loc: _,
             argument,
+            type_annotation: _,
         } => walk(*argument, out),
 
         JsNode::YieldExpression {
