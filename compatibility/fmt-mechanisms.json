@@ -508,7 +508,6 @@
 		"svelte-ux/packages/svelte-ux/src/lib/components/Collapse.svelte": "unattributed",
 		"svelte-ux/packages/svelte-ux/src/routes/+error.svelte": "unattributed",
 		"svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte": "unattributed",
-		"svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte": "unattributed",
 		"svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte": "css-engine-selector-token-spacing",
 		"svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte": "css-engine-trailing-escape-space",
 		"sveltekit/packages/enhanced-img/test/Output.svelte": "unattributed",
