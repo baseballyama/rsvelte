@@ -6567,11 +6567,27 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
 `skipLibCheck`, idle machine, 3 runs each): **typecheck is 66-89% of the run**, overlay
 materialization 8-29%, walk + post under 2% together.
 
-**The overlay is not the lever, and a diskless overlay is not available anyway.** A batch
-`tsc -p` reads its program from disk, so the LSP's in-memory projection has no counterpart
-here — and even a free overlay caps the whole run at 1.1-1.4x. It does have a shape worth
-knowing: 500 components materialize **2,005 files** (`.svelte.tsx`, `.svelte.tsx.map`, and two
-byte-identical `.d.ts` bridges each), ~310 ms to rewrite.
+**That split is a property of the PROJECT SIZE, and the sentence that used to stand here —
+"the overlay is not the lever" — was read off the small end of it.** Re-measured on the
+5,000-component workspace the site's own report benchmarks, the order inverts: **overlay 62%,
+typecheck 34%**, walk + compile under 4% together. Typecheck grows sublinearly under
+`skipLibCheck` while the overlay writes three files per component, so the ranking those two
+numbers produce depends entirely on which `n` you picked. The claim that a diskless overlay is
+unavailable still stands — a batch `tsc -p` reads its program from disk — but "even a free
+overlay caps the run at 1.1-1.4x" is a statement about 100-500 components and is 2.9x at 5,000.
+
+**And the overlay is syscall-bound, not compute-bound**, which is what makes the file count the
+lever rather than svelte2tsx. Profiled with `samply` (5,000 components, cold cache): **95% of
+samples are in `libsystem_kernel`** — `open` 38%, `rename` 23%, `write` 14%, `close` 11%,
+`stat`/`lstat`/`unlink` 7% together — against 4.5% in rsvelte's own binary. So the arithmetic
+that predicts a change here is "how many syscalls per component does it remove", and #4342 is
+that arithmetic applied once: a `.svelte.tsx.map` written on every non-incremental run can only
+be read back through a manifest entry, and the manifest is persisted under `incremental` alone.
+Deleting one of the three files per component measured **1.73x on the overlay and 1.38x on the
+whole `--tsgo` run**. What is left after it is below the noise floor — memoizing the per-parent
+`create_dir_all` + `reject_symlink_components` (8 `lstat` per file over 100 distinct parents)
+prices at ~4.7% of the overlay, and dropping `write_atomic`'s `rename` prices at 14% of the
+overlay while giving up the one guard against a concurrent run reading a torn shadow.
 
 **`--incremental` is the largest measured lever and it is off by default.** On the
 500-component project a warm run drops from 1693-2147 ms to 254-319 ms — **5.4-6.7x** — because

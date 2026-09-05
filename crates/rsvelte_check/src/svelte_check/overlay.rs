@@ -745,12 +745,15 @@ pub fn materialize_overlay_with(
                     if emit_dts_twin {
                         write_atomic(&dts_path, shadow_reexport(&tsx_path).as_bytes())?;
                     }
-                    // Persist the source map so the next incremental run can
-                    // recover it without re-running svelte2tsx.
-                    if let Some(map) = &result.map {
-                        write_atomic(&map_path, map.as_bytes())?;
-                    } else {
-                        remove_if_exists(&map_path)?;
+                    // Only an incremental run can read this back: a cache hit
+                    // needs a manifest entry, and the manifest is persisted
+                    // under `incremental` alone.
+                    if incremental {
+                        if let Some(map) = &result.map {
+                            write_atomic(&map_path, map.as_bytes())?;
+                        } else {
+                            remove_if_exists(&map_path)?;
+                        }
                     }
                     Ok(())
                 };

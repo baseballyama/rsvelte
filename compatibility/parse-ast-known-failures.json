@@ -37,7 +37,6 @@
 	"legacy::Decorator.expression#missing": "unclustered",
 	"legacy::Decorator.loc#missing": "loc-presence",
 	"legacy::ExpressionStatement.directive#missing": "unclustered",
-	"legacy::Fragment#span": "span",
 	"legacy::Fragment.children[]#length": "child-count",
 	"legacy::FunctionExpression#span": "span",
 	"legacy::FunctionExpression.returnType#missing": "estree-fields",

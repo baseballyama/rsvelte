@@ -23,6 +23,9 @@ rsvelte_core = { path = "../rsvelte_core", default-features = false, features = 
 rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 rsvelte_projection = { path = "../rsvelte_projection" }
 clap = { version = "4.5", features = ["derive"] }
+# rsvelte's production allocator, for the same allocation-bound reason the
+# compiler CLI and the NAPI addon use it.
+mimalloc = { version = "0.1", features = ["local_dynamic_tls"] }
 notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
 oxc_allocator = "0.146"
 oxc_ast = "0.146"
