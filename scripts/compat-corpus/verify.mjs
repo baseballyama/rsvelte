@@ -624,8 +624,10 @@ const failures = [];
 // would diverge on those 80.
 //
 // A second, narrower cause compounds this for modules: `.svelte.ts` entries
-// reach both compilers TS-stripped, and esbuild drops all comments on the way
-// (see compile.mjs's `prepareSource`).
+// reach both compilers TS-stripped, so a comment whose observability depends on
+// a TYPE construct has no site left. esbuild does not drop every comment — it
+// keeps one inside an object literal or a class body (see compile.mjs's
+// `prepareSource`).
 
 const AST_EQUIV_BIN = path.join(ROOT, "target/release/ast_equiv_batch");
 const jsKey = (id, target) => `${id}\0${target}`;
