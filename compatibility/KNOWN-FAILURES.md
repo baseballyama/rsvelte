@@ -5390,6 +5390,7 @@ Attribution of `lsp-known-failures.json`:
 | 5 | `deliberate-divergences` | `initialize` capabilities rsvelte declares differently on purpose, each pinned by a test: the `" "` completion trigger, the two `source.fixAll` code-action kinds, `workspace.workspaceFolders`, `positionEncoding`, `diagnosticProvider.identifier` |
 | 1 | `upstream_issues/svelte-language-server-duplicate-completion-trigger-character.md` | upstream lists `"@"` twice in `completionProvider.triggerCharacters`, so the arrays differ as multisets |
 | 1218 | `upstream_issues/tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | `textDocument/hover` on the real-world corpus, where every label in the entry's mechanism set is one of the seven renderings that report measures on a plain `.ts` file: `rsvelte-empty-import-only` 1116, `ts-render-union-order` 104, `ts-render-overload-count` 74, `ts-render-import-line` 40, `ts-render-local-modifier` 38, `ts-render-multiple` 16, `ts-render-declaration-order` 4 |
+| 4 | `upstream_issues/tsgo-lsp-completion-item-omits-the-typescript-kind.md` | `textDocument/completion` on the `completion-script-null` fixture at `0:10`, both phases: tsgo maps every variable-like entry to `CompletionItemKind.Variable`, so pairing on `(kind, label)` matches nothing and the same 11 items are reported once as `extra-rsvelte` and once as `missing-rsvelte`. The four entries are that pair times the opened and post-`didChange` phases. Attributed here because the label `completion-item-pairing-key-kind-ts` already carries this terminal in `lsp-mechanisms.json` and these are the only entries whose whole label set resolves to it |
 
 The 1218 are derived from `lsp-mechanisms.json` rather than read off the ratchet key, which for an
 `aggregate:` entry carries no field at all. Twelve labels were given a terminal; the correspondence
@@ -5400,6 +5401,21 @@ is between the classifier's RULES and the report's differences, not between thei
 and `rsvelte-empty-import-only` is the degenerate case of one of them — `classifyHover` returns it
 only when official's whole hover is a fenced block holding exactly `import <Name>` and rsvelte's is
 empty, which is that report's dropped origin line with nothing behind it.
+
+**The table and the sidecar do not agree, and the residual is a state to record rather than a
+gap to fill.** The entries whose whole label set resolves to a terminal partition as
+`hover 1218 + completion-item-kind 4 + deliberate 3` = 1225; the table reads
+`hover 1218 + completion-item-kind 4 + deliberate 5 + duplicate-@ 1` = 1228. The three the table
+attributes by hand and the sidecar does not are carried by two labels that **cannot be given a
+terminal at the current granularity**, because one label carries entries whose correct terminals
+differ: `initialize-capability-completionProvider` covers `triggerCharacters:extra` (deliberate —
+rsvelte's `" "` trigger) and `triggerCharacters:missing` (upstream's duplicated `"@"`), and
+`initialize-capability-codeActionProvider` covers `codeActionKinds:extra` (deliberate) and
+`resolveProvider:missing`, which is **unimplemented**. Giving either label a terminal would pin a
+behaviour nothing implements as a deliberate choice, which is the misclassification that stops
+anyone looking again rather than merely sending them the wrong way. Closing this needs the labels
+split per resolution, which is a sidecar schema change; the counts must not be reconciled by
+attributing what is not implemented.
 
 **Two of the twelve terminals unblock nothing today and are still required.** The checker's
 predicate is a conjunction — an entry is attributable only when *every* label in its set has a
