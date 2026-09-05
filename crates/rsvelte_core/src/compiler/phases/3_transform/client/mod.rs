@@ -3630,23 +3630,72 @@ fn copied_spans_for_normalized_code(
         // agreement, take the nearest candidate that does.
         if common_run(&code_tail[skip_output..], &input_tail[skip_input..]) < MIN_RESYNC_RUN {
             let mut best: Option<(usize, usize, usize)> = None;
-            let mut consider = |run: usize, skip_input: usize, skip_output: usize| {
+            let consider = |best: &mut Option<(usize, usize, usize)>,
+                            run: usize,
+                            skip_input: usize,
+                            skip_output: usize| {
                 if run >= MIN_RESYNC_RUN
                     && best.is_none_or(|(best_run, input, output)| {
                         let skipped = skip_input + skip_output;
                         skipped < input + output || (skipped == input + output && run > best_run)
                     })
                 {
-                    best = Some((run, skip_input, skip_output));
+                    *best = Some((run, skip_input, skip_output));
                 }
             };
-            let near_input = &input_tail[..input_tail.len().min(NEAR_RESYNC_WINDOW)];
-            for skip in memchr::memchr_iter(output_byte, near_input) {
-                consider(common_run(code_tail, &input_tail[skip..]), skip, 0);
+            // Widen only when the near window yields nothing: the first byte of a
+            // fragment can sit further from `input` than a token's worth of skew,
+            // and accepting the weak anchor instead binds it to an unrelated
+            // occurrence of the same byte.
+            let windows: &[usize] = if spans.is_empty() && output == 0 {
+                &[NEAR_RESYNC_WINDOW, RESYNC_WINDOW]
+            } else {
+                &[NEAR_RESYNC_WINDOW]
+            };
+            for &window in windows {
+                let near_input = &input_tail[..input_tail.len().min(window)];
+                for skip in memchr::memchr_iter(output_byte, near_input) {
+                    consider(
+                        &mut best,
+                        common_run(code_tail, &input_tail[skip..]),
+                        skip,
+                        0,
+                    );
+                }
+                let near_output = &code_tail[..code_tail.len().min(window)];
+                for skip in memchr::memchr_iter(input_byte, near_output) {
+                    consider(
+                        &mut best,
+                        common_run(&code_tail[skip..], input_tail),
+                        0,
+                        skip,
+                    );
+                }
+                if best.is_some() {
+                    break;
+                }
             }
-            let near_output = &code_tail[..code_tail.len().min(NEAR_RESYNC_WINDOW)];
-            for skip in memchr::memchr_iter(input_byte, near_output) {
-                consider(common_run(&code_tail[skip..], input_tail), 0, skip);
+            if best.is_none() {
+                // A replacement that both deletes and inserts resyncs on
+                // neither side alone: `count++` -> `$.update(count)` leaves the
+                // source's `++` against the generated `)`, and the run after it
+                // begins one byte along on the right and two on the left.
+                const PAIR_WINDOW: usize = 16;
+                let near_input = &input_tail[..input_tail.len().min(PAIR_WINDOW)];
+                let near_output = &code_tail[..code_tail.len().min(PAIR_WINDOW)];
+                for (skip_input, &byte) in near_input.iter().enumerate().skip(1) {
+                    for skip_output in memchr::memchr_iter(byte, near_output) {
+                        if skip_output == 0 {
+                            continue;
+                        }
+                        consider(
+                            &mut best,
+                            common_run(&code_tail[skip_output..], &input_tail[skip_input..]),
+                            skip_input,
+                            skip_output,
+                        );
+                    }
+                }
             }
             if let Some((_, skip_input, skip_output)) = best {
                 input += skip_input;
