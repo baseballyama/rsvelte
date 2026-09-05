@@ -100,3 +100,35 @@ fn declaration_tag_let_normalises_quotes() {
         "single quotes should become double: {out}"
     );
 }
+
+#[test]
+fn an_assignment_used_as_a_const_body_loses_the_declarator_parens() {
+    // The JS printer parenthesizes an assignment used as a declarator
+    // initializer; the oracle formats a const tag's body as an expression and so
+    // does not, and strips the source's.
+    for src in [
+        "{#if x}{@const y = h = 0}{/if}\n",
+        "{#if x}{@const y = (h = 0)}{/if}\n",
+    ] {
+        let out = fmt(src);
+        assert!(out.contains("{@const y = h = 0}"), "{src:?} -> {out}");
+        assert!(!out.contains("(h = 0)"), "{src:?} -> {out}");
+    }
+}
+
+#[test]
+fn a_nested_assignment_in_a_const_body_keeps_the_parens_it_needs() {
+    // Only a top-level assignment initializer is affected: these parens are the
+    // JS printer's and are load-bearing.
+    for (src, want) in [
+        ("{#if x}{@const y = (h = 0) + 1}{/if}\n", "(h = 0) + 1"),
+        (
+            "{#if x}{@const y = c ? (h = 0) : 2}{/if}\n",
+            "c ? (h = 0) : 2",
+        ),
+        ("{#if x}{@const f = () => (h = 0)}{/if}\n", "() => (h = 0)"),
+    ] {
+        let out = fmt(src);
+        assert!(out.contains(want), "{src:?} -> {out}");
+    }
+}

@@ -16,6 +16,93 @@ use crate::width::{VisualWidth, tab_width};
 /// mirrors [`format_content_expression`]: the body is formatted at indent 0 and
 /// the wrap width narrowed by the markup `depth`, then continuation lines are
 /// re-indented to that depth.
+/// Drop the parens the JS printer puts around a declarator initializer that is
+/// an assignment. Only a single-line body is touched: once the declaration has
+/// broken, the parens are the break anchor and removing them would move the wrap.
+fn strip_initializer_parens(s: &str) -> String {
+    if s.contains('\n') || !s.ends_with(')') {
+        return s.to_string();
+    }
+    let Some(eq) = top_level_declarator_eq(s) else {
+        return s.to_string();
+    };
+    let (head, tail) = s.split_at(eq + 1);
+    let init = tail.trim_start();
+    if !init.starts_with('(') {
+        return s.to_string();
+    }
+    let mut depth = 0usize;
+    for (i, c) in init.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                // A pair closing before the end wraps only a prefix of the init.
+                if depth == 0 && i + 1 != init.len() {
+                    return s.to_string();
+                }
+            }
+            _ => {}
+        }
+    }
+    format!("{head} {}", &init[1..init.len() - 1])
+}
+
+/// Byte offset of the `=` separating a declarator's binding from its
+/// initializer: the first one outside a string, template or bracket that is not
+/// part of `==`, `=>`, or a compound assignment.
+fn top_level_declarator_eq(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let mut depth = 0usize;
+    let mut quote: Option<u8> = None;
+    let mut i = 0usize;
+    while i < b.len() {
+        let c = b[i];
+        if let Some(q) = quote {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                quote = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' | b'`' => quote = Some(c),
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
+            b'=' if depth == 0 => {
+                let next = b.get(i + 1).copied();
+                let prev = if i == 0 { None } else { Some(b[i - 1]) };
+                let compound = matches!(
+                    prev,
+                    Some(
+                        b'=' | b'!'
+                            | b'<'
+                            | b'>'
+                            | b'+'
+                            | b'-'
+                            | b'*'
+                            | b'/'
+                            | b'%'
+                            | b'&'
+                            | b'|'
+                            | b'^'
+                    )
+                );
+                if next != Some(b'=') && next != Some(b'>') && !compound {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 pub(super) fn format_const_declaration(
     decl_source: &str,
     options: &FormatOptions,
@@ -40,6 +127,20 @@ pub(super) fn format_const_declaration(
         )));
     }
 
+    // The JS printer parenthesizes an assignment used as a declarator
+    // initializer; the oracle formats a const tag's body as an expression, so it
+    // never adds them and strips the source's.
+    let init_is_assignment = parser_ret
+        .program
+        .body
+        .first()
+        .and_then(|st| match st {
+            oxc_ast::ast::Statement::VariableDeclaration(d) => d.declarations.first(),
+            _ => None,
+        })
+        .and_then(|d| d.init.as_ref())
+        .is_some_and(|e| matches!(e, oxc_ast::ast::Expression::AssignmentExpression(_)));
+
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
     let full_width = options.js.line_width.value() as usize;
@@ -62,7 +163,12 @@ pub(super) fn format_const_declaration(
         let s = formatted.trim_end();
         let s = s.strip_prefix("const ").unwrap_or(s);
         let s = s.strip_suffix(';').unwrap_or(s);
-        Ok(s.trim_end().to_string())
+        let s = s.trim_end();
+        Ok(if init_is_assignment {
+            strip_initializer_parens(s)
+        } else {
+            s.to_string()
+        })
     };
 
     // The JS formatter measures the body as `const <body>;` at indent 0. Two

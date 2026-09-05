@@ -25,16 +25,6 @@ fn an_array_elision_carries_no_space() {
 }
 
 #[test]
-fn an_assignment_used_as_a_const_body_keeps_its_parentheses() {
-    // The oracle drops them; both forms are the same expression.
-    let out = fmt("{#if x}{@const y = h = 0}{/if}\n");
-    assert!(
-        out.contains("{@const y = (h = 0)}"),
-        "parentheses around the assignment were dropped:\n{out}"
-    );
-}
-
-#[test]
 fn a_script_close_tag_keeps_its_internal_whitespace() {
     // The oracle rewrites `</script   \n\n>` to `</script>`. Svelte accepts both
     // and the compiled output is identical, so the source form is preserved.
