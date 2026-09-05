@@ -6535,10 +6535,32 @@ The error carries no code, no position and no frame, which is what separates it 
 behaviour the mode is for.
 
 This table is **partial**; `attribution-check` prints its `n` sum against the ratchet's own length,
-so neither number is repeated here. Every other key is a rsvelte-side defect whose only terminal is
-the entry going away — `upstream_issues/` would be false, and `deliberate-divergences` asserts a
-choice plus a test pinning the behaviour, which for a wrong span or a wrong node type would pin the
-defect.
+so neither number is repeated here. It used to add that every other key is a rsvelte-side defect
+whose only terminal is the entry going away, on the reasoning that `upstream_issues/` would be false
+and `deliberate-divergences` asserts a choice plus a test, which for a wrong span or a wrong node
+type would pin the defect. **That reasoning is sound and its premise is measured false for at least
+one component of the `span` cluster**, so the sentence is withdrawn rather than narrowed — which
+component of which key it is false for is not yet known per key, and a rule stated at the cluster
+level is what stopped anyone measuring it.
+
+**`#span` folds three fields into one key, and re-projecting them separates at least three
+mechanisms.** `parse-ast-verify.mjs:282-284` compares `start`, `end` and `loc` in three iterations
+and `add`s the same `#span` key from each, so which field differed is computed and discarded. A
+copy of the harness with that one line emitting `#span:${key}` reports, over 33,890 entries × 2
+axes, that of the diverging bases 14 differ on all three fields, 7 on `loc` alone, 6 on `end`
+alone, and the remaining 6 on mixed pairs — and the `loc` group is not one defect:
+
+| mechanism | direction | evidence |
+|---|---|---|
+| each-block destructuring pattern column | **official is wrong**, rsvelte is right | [`upstream_issues/svelte-each-pattern-column-is-off-by-one.md`](../upstream_issues/svelte-each-pattern-column-is-off-by-one.md); over the 548 of 562 corpus files with an each destructuring pattern that both compilers parse, 3,437 nodes have a differing `loc` and rsvelte matches the source-derived `line:column` on **3,437**, official on **0** |
+| U+2028 / U+2029 as a line terminator | **rsvelte is wrong**, official is right | ECMAScript counts `LS`/`PS` as `LineTerminator`s and official does; rsvelte does not. On `pattern/adversarial/text-and-entities/unicode-line-separators.svelte`, `official.line − rsvelte.line == the number of LS/PS before the offset` on 36 of 36 endpoints (the 37th node is `Program`, whose `loc` is offset by the script's own coordinate base), with the one node whose whole span precedes every separator agreeing. 3 corpus files carry an LS/PS at all |
+| comment nodes | UNMEASURED | `Block` (154 carriers) and `Line` (76) diverge on `loc` and are reached by neither population above |
+
+Read the third row as the reason no key is attributed here yet: a carrier census over the union of
+the two measured populations reproduces **none** of the harness's per-key carrier counts
+(`Identifier` 453 against 742, `ArrayPattern` 199 against 245, `Block` and `Line` absent entirely),
+so the mechanism list is open and a key cannot be assigned to one report. The closure test is what
+says so — not a judgement that the list looks short.
 
 **The two `ast-mode` keys are not covered by that row, and what separates them is a number
 collision.** The cluster table above cites `#3385` for them, and `upstream_issues/` reports are

@@ -110,6 +110,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `svelte-class-index-signature-crash.md` | sveltejs/svelte | #3422 | unrecorded |
 | `svelte-class-static-block-shares-the-instance-scope.md` | sveltejs/svelte | — | unrecorded |
 | `svelte-declaration-tag-dollar-identifier.md` | sveltejs/svelte | #3614 | unrecorded |
+| `svelte-each-pattern-column-is-off-by-one.md` | sveltejs/svelte | — | unrecorded |
 | `svelte-eslint-parser-self-closing-style-lookalike-component.md` | sveltejs/svelte-eslint-parser | — | unrecorded |
 | `svelte-fromcodepoint-rangeerror.md` | sveltejs/svelte | #3617 | unrecorded |
 | `svelte-inspect-with-in-a-declarator.md` | sveltejs/svelte | #3614, #3627 | unrecorded |
@@ -130,7 +131,7 @@ deletion, and is deliberately left to its own change rather than folded into the
 | `tsgo-lsp-completion-omits-the-commit-character-inputs.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 | `tsgo-lsp-hover-renders-declarations-differently-from-tsc.md` | microsoft/typescript-go (`tsgo --lsp`) | #4154 | unrecorded |
 
-**27** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
+**28** reports carry no rsvelte issue number. Six came out of the lint-parity campaign (five
 against `eslint-plugin-svelte`, one against `svelte-eslint-parser`), two out of the
 `two-ports-inventory.md` row 21 shadow probes, seven out of the SCSS-backend burndown — five
 covering every unit `scss-known-failures.json` lists as `grass-rejects-accepted`, plus the two
