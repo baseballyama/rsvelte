@@ -8,19 +8,51 @@ Long-form findings belong in `docs/`, `compatibility/GATES.md` and `compatibilit
 The pre-2026-09-06 version of this file (~500 KB of case histories) is archived at
 [docs/archive/agents-md-2026-09-06.md](docs/archive/agents-md-2026-09-06.md); it is not loaded.
 
+## What this project is
+
+rsvelte is a Rust port of the **Svelte 5 toolchain**: the compiler and every developer tool
+that sits on it. The compiler was the first port and is still the foundation, but the project's
+scope is the whole ecosystem — each upstream JavaScript package has a Rust crate and a drop-in
+npm package (or editor integration) that replaces it.
+
+| Upstream | Rust crates | Ships as |
+|---|---|---|
+| `svelte/compiler` | `rsvelte_core` (phases), `rsvelte` (stable facade), `rsvelte_esrap` (printer), `rsvelte_napi`, `rsvelte_capi` | `@rsvelte/compiler`, `@rsvelte/capi`, wasm playground |
+| `svelte2tsx` | `rsvelte_projection` | `@rsvelte/svelte2tsx` |
+| `svelte-check` | `rsvelte_check` | `@rsvelte/svelte-check` (+ native platform packages) |
+| — (new: TypeScript content-mapper protocol) | `rsvelte_content_mapper` — a process tsc/tsgo spawn to read `.svelte` directly, instead of `.tsx` shadows | standalone binary |
+| `@sveltejs/vite-plugin-svelte` | `rsvelte_bindings_support` + `apps/npm/vite-plugin-svelte` (vendored fork) | `@rsvelte/vite-plugin-svelte`, `@rsvelte/vite-plugin-svelte-native` |
+| `svelte-language-server`, `svelte-vscode` | `rsvelte_language_server` | `@rsvelte/language-server`, `apps/npm/vscode`, `apps/zed`, `editors/` (Neovim, Helix, Sublime, Emacs) |
+| `eslint-plugin-svelte` (+ `svelte-eslint-parser`) | `rsvelte_lint`, `rsvelte_lint_types` (type-aware, own workspace), `rsvelte_lint_bindings` | `@rsvelte/lint`, `@rsvelte/oxlint-plugin` |
+| `prettier-plugin-svelte` / `oxfmt` | `rsvelte_formatter`, `rsvelte_fmt` (CLI: `.svelte` here, other files to oxfmt), `rsvelte_fmt_wasm`, `tailwind_class_order` | `@rsvelte/fmt` (+ native platform packages) |
+| `svelte-preprocess` family | `rsvelte_preprocess` (sass via `grass`, less, switch-case, …) | consumed by `rsvelte_lint`; `@rsvelte/vite-plugin-svelte`'s `preprocess` binding |
+| — | `rsvelte_diagnostics` (shared records/renderers), `rsvelte_ast_equiv` (semantic JS comparison), `rsvelte_devtools`, `rsvelte_bench` | repository tooling |
+
+Every non-compiler tool consumes `rsvelte_core` directly (its AST, scope analysis and
+diagnostics) rather than shelling out to a compiler, which is what makes them fast — and is why
+a change to a shared type in `rsvelte_core` is a change to every tool in the table.
+
 ## Project Goals
 
-This project is a complete port of the official Svelte compiler in Rust.
-
-1. **100% Test Compatibility** - Pass all tests from the `svelte/compiler` test suite
-2. **100x Performance** - Achieve 100x speed via Rust optimizations and parallelism
-3. **Drop-in Replacement** - Provide N-API bindings compatible with existing tools (Vite, etc.)
-4. **OXC Integration** - Design for integration into the [oxc](https://oxc.rs/) ecosystem
+1. **Parity with upstream, tool by tool** — compiler output, `parse()` AST, svelte2tsx text and
+   maps, svelte-check diagnostics, lint findings and fixes, formatted text and LSP responses
+   are all compared byte-for-byte or field-for-field against the pinned upstream
+   implementation (see *Compatibility gates*). Fixture suites are the floor; the real-world
+   corpus and the generated corpora are the bar.
+2. **Native performance** — the compiler targets 100x over the JS compiler via Rust and
+   parallelism, and every other tool is expected to beat its upstream by a comparable margin;
+   current numbers and targets are in [docs/perf-baseline.md](docs/perf-baseline.md).
+3. **Drop-in replacement** — same package roles, CLI flags, `svelte.config.*` / `svelte.*`
+   settings and editor protocols as the upstream tools, so a user swaps one dependency
+   (Vite, svelte-check, ESLint, Prettier, the VS Code extension) and nothing else changes.
+4. **OXC integration** — built on `oxc_parser` / `oxc_formatter` / oxlint so that native JS
+   tooling ([oxc](https://oxc.rs/), Rolldown, tsgo) gains Svelte support without starting a
+   JavaScript compiler.
 
 ## Architecture
 
-Directory structure mirrors the official Svelte compiler at
-`submodules/svelte/packages/svelte/src/compiler/`.
+The compiler core mirrors the official implementation at
+`submodules/svelte/packages/svelte/src/compiler/`:
 
 ```
 crates/rsvelte_core/src/compiler/phases/
@@ -29,31 +61,33 @@ crates/rsvelte_core/src/compiler/phases/
 └── 3_transform/ # Code generation (AST → JS/CSS)
 ```
 
-Upstream reference repos live under `submodules/`:
+Upstream reference implementations are pinned as submodules; each port mirrors its
+reference's structure, naming and algorithms:
 
-```
-submodules/
-├── svelte/                  # Svelte 5 compiler (mirror target)
-├── language-tools/          # svelte2tsx, language-server, svelte-check, typescript-plugin, svelte-vscode
-└── typescript-go/           # tsgo — type-check backend for svelte-check (CLI) and the LSP (server mode)
-```
+| Port | Reference |
+|---|---|
+| compiler | `submodules/svelte/packages/svelte/src/compiler/` |
+| svelte2tsx, svelte-check, language server, VS Code extension | `submodules/language-tools/packages/{svelte2tsx,svelte-check,language-server,svelte-vscode}/` |
+| type checking backend (svelte-check CLI, LSP server mode) | `submodules/typescript-go/` (tsgo) |
+| linter | `submodules/eslint-plugin-svelte/`, `submodules/svelte-eslint-parser/` |
+| preprocessors | `submodules/svelte-preprocess*`, `submodules/svelte-switch-case/` |
+| formatter | `oxfmt` with `prettier-plugin-svelte` semantics (oracle installed by `pnpm run generate-fmt-corpus`) |
 
-The `@rsvelte/vite-plugin-svelte` Vite plugin (a fork of `@sveltejs/vite-plugin-svelte`) is
-vendored as a workspace package at `apps/npm/vite-plugin-svelte`, not a submodule.
-
-Other crates: `rsvelte_esrap` (printer), `rsvelte_formatter` / `rsvelte_fmt` (formatter + CLI),
-`rsvelte_lint` (native `eslint-plugin-svelte` port), `rsvelte_projection` (svelte2tsx),
-`rsvelte_language_server`, `rsvelte_napi`, `rsvelte_devtools` (profiling / sweep binaries),
-`rsvelte_lint_types` (type-aware lint, its **own** Cargo workspace — see below).
+The other ~100 submodules are corpus sources (`scripts/compat-corpus/corpus-sources.json`),
+not references.
 
 **Key design decisions**
 
 - Memory-efficient layout (u32 positions, compact_str); thread-safe parser with rayon
-- Direct AST passing between phases; retained Phase-1 programs are immutable
-- No backward compatibility for internal APIs (refactor freely)
+- Direct AST passing between phases; retained Phase-1 programs are immutable; every tool
+  reads the same AST and scope analysis
+- No backward compatibility for internal APIs (refactor freely); the public surfaces are the
+  npm packages, the C ABI and `rsvelte`'s facade
 - Phase-3 output is AST-based: server SSR is pure AST; client CSR goes `js_ast::to_oxc` →
   `rsvelte_esrap`, with the text printer kept only as a fallback for comment-bearing or
   unsupported programs
+- TypeScript features (svelte-check, the language server) run a child tsgo over an in-memory
+  `.svelte` → `.tsx` overlay; HTML/CSS language features are native (vendored MDN data)
 
 **The client instance-script pipeline still decides where statements end by scanning
 characters, and that is a correctness hazard, not a cleanup.** Every unparseable-output defect
@@ -77,20 +111,23 @@ arrow body on the next line, a backtick inside a JSDoc comment, `'\\'`). Rules t
 
 ## Implementation Principles
 
-**CRITICAL**: All implementations must follow the official Svelte compiler implementation.
+**CRITICAL**: every port follows the upstream implementation of the tool it replaces.
 
-1. **Reference Implementation** - Always check `submodules/svelte/packages/svelte/src/compiler/` before implementing
-2. **Structural Consistency** - Mirror directory structure, module organization, and naming
-3. **Exact Output** - Output must match the official compiler exactly (verified by tests)
-4. **Test-Driven** - Verify all changes against the official Svelte test suite
+1. **Reference Implementation** - Read the reference in the table above before implementing;
+   use the same algorithm, structure and naming
+2. **Exact Output** - Output must match the upstream tool exactly, verified by its fixture
+   suite and its corpus gate
+3. **Test-Driven** - Verify against the upstream test suite first, then the gates
+4. **One core** - Tools consume `rsvelte_core`'s AST and analysis; do not re-parse or
+   re-scan source text in a tool when the core already answers the question
 
 Port a guard **with its conditions, their order and their arguments** — upstream's
 `build_bind_this` pushes to `seen` before testing `is_reference`, and that order is the
 semantics. Enumerate cases from the oracle's own list (its `switch`, its `raise` sites, its
 grammar), never from the shapes a bug report happened to bring.
 
-**One upstream function often has two or more ports here (client/server, typed/JSON, text/AST),
-and no gate compares the ports to each other.** The inventory is
+**One upstream function often has two or more ports here (client/server, typed/JSON, text/AST,
+CLI/LSP), and no gate compares the ports to each other.** The inventory is
 [`compatibility/GATES.md#two-ports-inventory`](compatibility/GATES.md#two-ports-inventory).
 A comment saying "mirrors `X` in upstream" is where this class hides. A port-vs-port test whose
 expected value is read off the other port passes when both are wrong; generate the expected
@@ -368,7 +405,7 @@ intentionally out of scope; do not start migrate work without an explicit scope 
   Hard gate, no tolerance. `rsvelte-fmt` formats CSS in-process via `oxc_formatter_css`, which
   is not the oracle's PostCSS path; `--no-native-css` restores the `oxfmt` subprocess.
 
-## Ecosystem Port
+## Ecosystem Status
 
 | Wave | Scope | Status |
 |---|---|---|
@@ -377,11 +414,6 @@ intentionally out of scope; do not start migrate work without an explicit scope 
 | 3 | vite-plugin-svelte | 🟢 v1.0 — Rust NAPI bindings (`hmr_diff` / `resolve_id` / `preprocess`) + `@rsvelte/vite-plugin-svelte` shim at `apps/npm/vite-plugin-svelte`; supports Vite 6/7/8 |
 | 4 | svelte-language-server | ✅ M5 — native Svelte/HTML/CSS/TypeScript features, preprocess-aware projections, upstream-compatible VS Code distribution, five native platform packages, plus Neovim, Zed, Sublime, Helix and Emacs setup |
 
-- The language server is a Rust binary (`crates/rsvelte_language_server`) calling
-  `rsvelte_core` directly; TypeScript features proxy a child tsgo LSP over an in-memory
-  `.svelte` → `.tsx` overlay (`svelte_check/{overlay,mapper,kit_file}.rs`); HTML/CSS features
-  are native (vendored MDN data). It ships its own grammar and accepts upstream `svelte.*`
-  settings, so users replace the official extension.
 - `rsvelte-check` timing (`RSVELTE_CHECK_TIMING=1`): the walk/compile/overlay/typecheck split
   depends on project size — typecheck dominates at 100–500 components, the syscall-bound
   overlay dominates at 5,000. `--incremental` is the largest lever (5–7x warm) and stays off
@@ -400,8 +432,8 @@ intentionally out of scope; do not start migrate work without an explicit scope 
 
 ## Quick Reference
 
-1. Check `submodules/svelte/packages/svelte/src/compiler/phases/{phase}/` for the reference implementation
-2. Implement in the corresponding Rust module under `crates/rsvelte_core/src/compiler/phases/`
+1. Find the tool's reference in the *Architecture* table (compiler: `submodules/svelte/packages/svelte/src/compiler/phases/{phase}/`)
+2. Implement in the mirroring Rust module (compiler: `crates/rsvelte_core/src/compiler/phases/`)
 3. Run tests: `cargo test --release` (or a scoped debug run with `RUST_MIN_STACK`)
 4. Land a repro under `compatibility/pattern-corpus/` for any corpus-found defect
 5. `pnpm run test-and-update` refreshes README.md and the compatibility report
