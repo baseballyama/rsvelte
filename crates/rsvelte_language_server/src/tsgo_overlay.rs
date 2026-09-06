@@ -960,6 +960,46 @@ impl TsgoOverlay {
         self.write_tsconfig()
     }
 
+    /// tsgo resolves `paths` against the config that declares them, so an
+    /// inherited alias points into the source tree — where a component's
+    /// `.svelte.tsx` shadow does not exist, because it is served from memory
+    /// under `shadow_dir`. `rootDirs` covers relative resolution only, so every
+    /// mapping needs its shadow-tree twin spelled out beside the original.
+    fn overlay_paths(&self) -> Option<serde_json::Value> {
+        let source = self.source_tsconfig.as_deref()?;
+        let config_dir = source.parent().unwrap_or_else(|| Path::new("."));
+        let (value, base) = resolve_config_value_with_base(source, "paths")?;
+        let mut mappings = serde_json::Map::new();
+        for (pattern, targets) in value.as_object()? {
+            let mut candidates = Vec::new();
+            for target in targets
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(serde_json::Value::as_str)
+            {
+                let absolute = rebase_config_spec(target, &base, config_dir);
+                // The source target stays first, so nothing that resolves today
+                // can start resolving somewhere else.
+                candidates.push(json!(absolute));
+                if let Ok(relative) = Path::new(&absolute).strip_prefix(&self.workspace) {
+                    candidates.push(json!(path_for_tsconfig(&self.shadow_dir.join(relative))));
+                }
+            }
+            // The override is total, so a pattern this loop cannot rewrite is a
+            // pattern the project would lose; pass an unrecognised shape through.
+            mappings.insert(
+                pattern.clone(),
+                if candidates.is_empty() {
+                    targets.clone()
+                } else {
+                    serde_json::Value::Array(candidates)
+                },
+            );
+        }
+        (!mappings.is_empty()).then(|| serde_json::Value::Object(mappings))
+    }
+
     fn write_tsconfig(&self) -> Result<(), TsgoOverlayError> {
         let specs = self
             .source_tsconfig
@@ -1001,6 +1041,9 @@ impl TsgoOverlay {
         });
         if let Some(target) = overlay_target(self.source_tsconfig.as_deref()) {
             config["compilerOptions"]["target"] = json!(target);
+        }
+        if let Some(paths) = self.overlay_paths() {
+            config["compilerOptions"]["paths"] = paths;
         }
         if let Some(source) = &self.source_tsconfig {
             config["extends"] = json!(path_for_tsconfig(source));
@@ -1254,6 +1297,16 @@ fn resolve_config_specs(tsconfig: &Path, key: &str) -> Option<(Vec<String>, Path
 }
 
 fn resolve_config_value(tsconfig: &Path, key: &str) -> Option<serde_json::Value> {
+    resolve_config_value_with_base(tsconfig, key).map(|(value, _)| value)
+}
+
+/// The declaring config's directory comes back too: a relative `paths` target
+/// is resolved against the config that spelled it, not against the one that
+/// inherits it.
+fn resolve_config_value_with_base(
+    tsconfig: &Path,
+    key: &str,
+) -> Option<(serde_json::Value, PathBuf)> {
     let mut pending = vec![absolute_normalized(tsconfig)];
     let mut seen = BTreeSet::new();
     let mut visited = 0usize;
@@ -1268,16 +1321,16 @@ fn resolve_config_value(tsconfig: &Path, key: &str) -> Option<serde_json::Value>
         let Some(parsed) = parse_jsonc(&raw) else {
             continue;
         };
-        if let Some(value) = parsed
-            .get("compilerOptions")
-            .and_then(|options| options.get(key))
-        {
-            return Some(value.clone());
-        }
         let base = path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
+        if let Some(value) = parsed
+            .get("compilerOptions")
+            .and_then(|options| options.get(key))
+        {
+            return Some((value.clone(), base));
+        }
         let parents = match parsed.get("extends") {
             Some(serde_json::Value::String(parent)) => vec![parent.as_str()],
             Some(serde_json::Value::Array(parents)) => parents
@@ -2285,6 +2338,114 @@ mod tests {
                 &overlay.workspace().join("src/generated/**")
             )])
         );
+    }
+
+    #[test]
+    fn a_paths_alias_gains_a_shadow_tree_candidate() {
+        // SvelteKit's real layout: the generated config declares the alias and
+        // the root config extends it, so the targets are relative to
+        // `.svelte-kit/` and not to the config the overlay is handed.
+        let workspace = TestWorkspace::new("paths-shadow");
+        write(
+            &workspace.0.join(".svelte-kit/tsconfig.json"),
+            r#"{ "compilerOptions": { "paths": { "$lib": ["../src/lib"], "$lib/*": ["../src/lib/*"] } } }"#,
+        );
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+        );
+        write(&workspace.0.join("src/lib/Widget.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
+        let source = path_for_tsconfig(&overlay.workspace().join("src/lib/*"));
+        let shadow = path_for_tsconfig(&overlay.shadow_dir.join("src/lib/*"));
+        // The source target stays first: anything resolving today keeps resolving
+        // to the same file, and the shadow is only reached as a fallback.
+        assert_eq!(
+            config["compilerOptions"]["paths"]["$lib/*"],
+            json!([source, shadow])
+        );
+        assert_eq!(
+            config["compilerOptions"]["paths"]["$lib"],
+            json!([
+                path_for_tsconfig(&overlay.workspace().join("src/lib")),
+                path_for_tsconfig(&overlay.shadow_dir.join("src/lib"))
+            ])
+        );
+    }
+
+    #[test]
+    fn a_project_without_paths_declares_none() {
+        let workspace = TestWorkspace::new("paths-absent");
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "strict": true } }"#,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let config = overlay_config_of(&workspace.0);
+        assert!(config["compilerOptions"].get("paths").is_none());
+    }
+
+    #[test]
+    fn a_paths_target_outside_the_workspace_gets_no_shadow_twin() {
+        // `strip_prefix` is what decides this, so a target that escapes the
+        // workspace must carry one candidate rather than a shadow path that
+        // could never hold a component.
+        let workspace = TestWorkspace::new("paths-outside");
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "paths": { "@out/*": ["../outside/*"], "@in/*": ["./src/*"] } } }"#,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
+        assert_eq!(
+            config["compilerOptions"]["paths"]["@out/*"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            config["compilerOptions"]["paths"]["@in/*"],
+            json!([
+                path_for_tsconfig(&overlay.workspace().join("src/*")),
+                path_for_tsconfig(&overlay.shadow_dir.join("src/*"))
+            ])
+        );
+    }
+
+    #[test]
+    fn a_paths_pattern_that_cannot_be_rewritten_is_preserved_verbatim() {
+        // Overriding `paths` replaces the inherited map wholesale, so a shape
+        // this rewrite does not understand has to survive rather than vanish.
+        let workspace = TestWorkspace::new("paths-verbatim");
+        write(
+            &workspace.0.join("tsconfig.json"),
+            r#"{ "compilerOptions": { "paths": { "@ok/*": ["./src/*"], "@weird/*": "not-an-array", "@empty/*": [] } } }"#,
+        );
+        write(&workspace.0.join("src/App.svelte"), "<p />");
+
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let config: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(overlay.tsconfig_path()).unwrap()).unwrap();
+        let paths = &config["compilerOptions"]["paths"];
+        // Live control: the rewritable pattern still gains its shadow twin, so a
+        // rule that preserved everything verbatim would fail here.
+        assert_eq!(
+            paths["@ok/*"],
+            json!([
+                path_for_tsconfig(&overlay.workspace().join("src/*")),
+                path_for_tsconfig(&overlay.shadow_dir.join("src/*"))
+            ])
+        );
+        assert_eq!(paths["@weird/*"], json!("not-an-array"));
+        assert_eq!(paths["@empty/*"], json!([]));
     }
 
     fn overlay_config_of(workspace: &Path) -> serde_json::Value {
