@@ -3156,6 +3156,15 @@ pub(super) fn strip_top_level_await_from_expr(expr: &str) -> String {
     }
 }
 
+/// `async () => <body>`, exiting through `$.unsave()` when the body restored the
+/// reaction context, so it cannot leak into a foreign microtask.
+pub(crate) fn async_thunk_text(body: &str) -> String {
+    if memmem::find(body.as_bytes(), b"$.save(").is_none() {
+        return format!("async () => {body}");
+    }
+    format!("async () => {{ try {{ return {body}; }} finally {{ $.unsave(); }} }}")
+}
+
 /// Wrap non-final `await expr` in async derived expressions with `$.save()`.
 ///
 /// In the official Svelte compiler, `await` expressions that precede other reactive
@@ -3173,6 +3182,9 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
     let len = chars.len();
     let mut result = String::with_capacity(len + 20);
     let mut i = 0;
+    // Once an expression pickles one await, every later await pickles too, so the
+    // restored context ends at the next suspension.
+    let mut pickled = false;
 
     while i < len {
         // Skip strings
@@ -3334,7 +3346,8 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                     && remaining_after_tracking != ";"
                     && !remaining_after_tracking.starts_with(':');
 
-                if has_more_after {
+                if has_more_after || pickled {
+                    pickled = true;
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
                     if tracked_argument.is_some() && remaining_trimmed.starts_with(")()") {
                         result.pop();

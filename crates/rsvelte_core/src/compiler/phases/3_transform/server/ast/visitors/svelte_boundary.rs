@@ -224,19 +224,15 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
     //   (`TemplateEntry::Stmt`) right before the boundary call, which placed it
     //   AFTER preceding sibling template pushes — diverging from upstream, whose
     //   `state.init` always precedes the fragment's rendered template.
+    // Two sibling boundaries each declare a function named `failed`, so a
+    // non-hoisted one needs its own lexical block or the second redeclares the
+    // first (upstream's `init` vec, emitted as `{ ...init, boundary }`).
+    let mut init: Vec<Statement<'a>> = Vec::new();
     if let Some(fn_decls) = failed_fn {
         if failed_fn_hoist {
             state.body.extend(fn_decls);
         } else {
-            // Emit inline in the current template stream (visit order), exactly like
-            // the regular SnippetBlock visitor (snippet_block.rs). `build_template`
-            // lifts every `HoistableDecl` to the front of the block PRESERVING
-            // source order, so a nested boundary's `failed` lands AFTER preceding
-            // `{@const}` / sibling snippets, not prepended ahead of them (which
-            // `state.snippet_inits` did).
-            state
-                .template
-                .extend(fn_decls.into_iter().map(TemplateEntry::HoistableDecl));
+            init = fn_decls;
         }
     }
 
@@ -250,7 +246,13 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
         false,
     );
     let call = b.call("$$renderer.boundary", vec![props_obj, arrow]);
-    state.template.push(TemplateEntry::Stmt(b.stmt(call)));
+    let boundary = b.stmt(call);
+    if init.is_empty() {
+        state.template.push(TemplateEntry::Stmt(boundary));
+    } else {
+        init.push(boundary);
+        state.template.push(TemplateEntry::Stmt(b.block(init)));
+    }
 }
 
 /// A hydration marker (`<!--[-->` / `<!--]-->`) as a single-quasi template

@@ -57,7 +57,8 @@ use oxc_ast::ast::Statement;
 
 use super::shared::{
     BLOCK_CLOSE, TemplateEntry, build_fragment_body, create_child_block_combined,
-    expr_local_const_blockers, expr_text_blockers, save_wrap_expr_text, text_has_await,
+    expr_local_const_blockers, expr_text_blockers, prepend_block_marker, save_wrap_expr_text,
+    text_has_await,
 };
 
 /// Visit a `{#if test}...{:else if}...{:else}...{/if}` block.
@@ -283,8 +284,7 @@ fn build_branch_block<'a>(
 ) -> Statement<'a> {
     // IfBlock consequent/alternate is NOT an `is_text_first` parent.
     let mut body = build_fragment_body(&frag.nodes, false, false, state);
-    let marker = marker_push(state.b, marker_index);
-    body.insert(0, marker);
+    prepend_block_marker(&mut body, &format!("<!--[{marker_index}-->"), state.b);
     state.b.block(body)
 }
 

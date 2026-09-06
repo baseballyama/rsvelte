@@ -78,7 +78,8 @@ pub static BINDING_PROPERTIES_LIST: &[(&str, BindingProperty)] = &[
             .with_event("durationchange")
             .omit_in_ssr(),
     ),
-    ("focused", BindingProperty::new()),
+    // no corresponding HTML attribute
+    ("focused", BindingProperty::new().omit_in_ssr()),
     (
         "paused",
         BindingProperty::new()

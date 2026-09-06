@@ -373,6 +373,8 @@ pub struct VisitorContext<'a> {
     pub function_depth: usize,
     /// Depth inside $derived(...) expressions (but not $derived.by(...)) or @const
     pub derived_function_depth: usize,
+    /// Whether an `await` in the current reactive expression already pickled.
+    pub pickled_await_seen: bool,
     /// Whether we have a $props() rune.
     pub has_props_rune: bool,
     /// Current component slots.
@@ -614,6 +616,7 @@ impl<'a> VisitorContext<'a> {
             parent_element: None,
             function_depth: 0,
             derived_function_depth: 0,
+            pickled_await_seen: false,
             has_props_rune: false,
             component_slots: rustc_hash::FxHashSet::default(),
             ast_type: AstType::Template,

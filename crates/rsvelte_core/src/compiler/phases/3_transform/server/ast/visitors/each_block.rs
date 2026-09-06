@@ -73,7 +73,7 @@ use oxc_ast::ast::{BindingPattern, Statement, VariableDeclarationKind};
 use super::shared::{
     BLOCK_CLOSE, BLOCK_OPEN, BLOCK_OPEN_ELSE, TemplateEntry, build_fragment_body,
     create_child_block_combined, expr_local_const_blockers, expr_text_blockers,
-    save_wrap_expr_text, text_has_await,
+    prepend_block_marker, save_wrap_expr_text, text_has_await,
 };
 
 /// Visit a `{#each expr as ctx, i (key)}...{/each}` block (sync; keyed or
@@ -247,8 +247,7 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
         }
         state.restore_scope(saved_scope);
         let b = state.b;
-        let open_else_push = b.stmt(b.call("$$renderer.push", vec![b.string(BLOCK_OPEN_ELSE)]));
-        fallback_body.insert(0, open_else_push);
+        prepend_block_marker(&mut fallback_body, BLOCK_OPEN_ELSE, b);
         let alternate = b.block(fallback_body);
 
         let test = b.binary(

@@ -117,10 +117,9 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
         };
 
         let async_values = if has_await {
-            // Strip the top-level await since $.async handles the awaiting
-            b::array(vec![b::thunk(
+            b::array(vec![b::async_arrow_unsaving(
                 &context.arena,
-                b::strip_await(&context.arena, transformed_expression),
+                transformed_expression,
             )])
         } else {
             b::undefined(&context.arena)

@@ -43,6 +43,59 @@ pub const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
 pub const BLOCK_CLOSE: &str = "<!--]-->";
 pub const EMPTY_COMMENT: &str = "<!---->";
 
+/// Prepend a hydration marker (`<!--[0-->`, `<!--[!-->`, …) to a branch body.
+/// `build_template` has already turned the branch into statements, so when it
+/// starts with a static `$$renderer.push(`…`)` the marker folds into that call
+/// rather than adding a second push (upstream `prepend_block_marker`).
+pub fn prepend_block_marker<'a>(
+    body: &mut Vec<Statement<'a>>,
+    marker: &str,
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+) {
+    if fold_marker_into_first_push(body, marker, b) {
+        return;
+    }
+    body.insert(0, b.stmt(b.call("$$renderer.push", vec![b.string(marker)])));
+}
+
+/// Whether `body`'s first statement was a single-argument
+/// `$$renderer.push(`…`)` that swallowed `marker`.
+fn fold_marker_into_first_push<'a>(
+    body: &mut [Statement<'a>],
+    marker: &str,
+    b: crate::compiler::phases::phase3_transform::builders::B<'a>,
+) -> bool {
+    let Some(Statement::ExpressionStatement(stmt)) = body.first_mut() else {
+        return false;
+    };
+    let OxcExpression::CallExpression(call) = &mut stmt.expression else {
+        return false;
+    };
+    if !matches!(&call.callee, OxcExpression::Identifier(id) if id.name == "$$renderer.push") {
+        return false;
+    }
+    if call.arguments.len() != 1 {
+        return false;
+    }
+    let Some(OxcExpression::TemplateLiteral(tpl)) = call.arguments[0].as_expression_mut() else {
+        return false;
+    };
+    let Some(quasi) = tpl.quasis.first_mut() else {
+        return false;
+    };
+
+    // A marker never contains a character a template literal escapes, so the
+    // raw and cooked spellings take the same prefix.
+    let raw = format!("{marker}{}", quasi.value.raw);
+    quasi.value.raw = b.str(&raw).into();
+    if let Some(cooked) = quasi.value.cooked {
+        let cooked = format!("{marker}{cooked}");
+        quasi.value.cooked = Some(b.str(&cooked).into());
+    }
+
+    true
+}
+
 /// A single accumulated SSR template entry (see module docs).
 pub enum TemplateEntry<'a> {
     /// A static HTML run (cooked string).

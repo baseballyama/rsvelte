@@ -11,9 +11,8 @@ use super::ast_rewrite::{self, Edit};
 use super::async_derived_dev::{
     AsyncDerivedLocations, destructured_label, dev_args, first_bound_name,
 };
-use super::destructure_transforms::unthunk_string;
 use super::expression_utils::{
-    contains_direct_await_in_expression, strip_top_level_await_from_expr,
+    async_thunk_text, contains_direct_await_in_expression, strip_top_level_await_from_expr,
     wrap_await_with_save_in_async_derived, wrap_state_vars_in_expr,
 };
 use super::rune_transforms::process_derived_destructuring_pattern;
@@ -140,23 +139,21 @@ impl<'a> ModuleDerivedCollector<'a> {
         let tail = dev_args(self.locations, label, &lookup);
         let mut declarations = Vec::new();
         if nested {
-            if saved.trim().starts_with('{') {
-                declarations.push(format!(
-                    "{d_name} = await $.async_derived(async () => ({saved}){tail})"
-                ));
+            let trimmed = saved.trim();
+            let thunk = if trimmed.starts_with('{') {
+                async_thunk_text(&format!("({trimmed})"))
             } else {
-                declarations.push(format!(
-                    "{d_name} = await $.async_derived(async () => {saved}{tail})"
-                ));
-            }
+                async_thunk_text(trimmed)
+            };
+            declarations.push(format!("{d_name} = await $.async_derived({thunk}{tail})"));
         } else if inner.trim().starts_with('{') {
             declarations.push(format!(
                 "{d_name} = await $.async_derived(() => ({inner}){tail})"
             ));
         } else {
             declarations.push(format!(
-                "{d_name} = await $.async_derived({}{tail})",
-                unthunk_string(&inner)
+                "{d_name} = await $.async_derived(() => {}{tail})",
+                inner.trim()
             ));
         }
         let mut array_counter = 0;

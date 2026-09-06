@@ -28,9 +28,10 @@ const NUL: u32 = 0;
 ///
 /// # Returns
 /// The validated/normalized code point
-pub fn validate_code(code: u32) -> u32 {
-    // Line feed becomes generic whitespace
-    if code == 10 {
+pub fn validate_code(code: u32, is_attribute_value: bool) -> u32 {
+    // A line feed collapses with the surrounding whitespace anyway, so it becomes
+    // generic whitespace — except in an attribute value, where it is significant.
+    if code == 10 && !is_attribute_value {
         return 32;
     }
 
@@ -109,48 +110,48 @@ mod tests {
 
     #[test]
     fn test_validate_code_line_feed() {
-        assert_eq!(validate_code(10), 32); // Line feed becomes space
+        assert_eq!(validate_code(10, false), 32); // Line feed becomes space
     }
 
     #[test]
     fn test_validate_code_ascii() {
-        assert_eq!(validate_code(65), 65); // 'A'
-        assert_eq!(validate_code(97), 97); // 'a'
-        assert_eq!(validate_code(32), 32); // space
+        assert_eq!(validate_code(65, false), 65); // 'A'
+        assert_eq!(validate_code(97, false), 97); // 'a'
+        assert_eq!(validate_code(32, false), 32); // space
     }
 
     #[test]
     fn test_validate_code_windows_1252() {
-        assert_eq!(validate_code(128), 8364); // Euro sign
-        assert_eq!(validate_code(130), 8218); // Single low-9 quotation mark
-        assert_eq!(validate_code(153), 8482); // Trademark
-        assert_eq!(validate_code(159), 376); // Y with diaeresis
+        assert_eq!(validate_code(128, false), 8364); // Euro sign
+        assert_eq!(validate_code(130, false), 8218); // Single low-9 quotation mark
+        assert_eq!(validate_code(153, false), 8482); // Trademark
+        assert_eq!(validate_code(159, false), 376); // Y with diaeresis
     }
 
     #[test]
     fn test_validate_code_surrogate_halves() {
-        assert_eq!(validate_code(55296), NUL); // Start of surrogate range
-        assert_eq!(validate_code(57343), NUL); // End of surrogate range
+        assert_eq!(validate_code(55296, false), NUL); // Start of surrogate range
+        assert_eq!(validate_code(57343, false), NUL); // End of surrogate range
     }
 
     #[test]
     fn test_validate_code_valid_ranges() {
-        assert_eq!(validate_code(200), 200); // Basic multilingual plane
-        assert_eq!(validate_code(65535), 65535); // End of BMP
-        assert_eq!(validate_code(65536), 65536); // Supplementary multilingual plane
-        assert_eq!(validate_code(131071), 131071); // End of SMP
-        assert_eq!(validate_code(131072), 131072); // Supplementary ideographic plane
-        assert_eq!(validate_code(196607), 196607); // End of SIP
-        assert_eq!(validate_code(917504), 917504); // Supplementary special-purpose plane
-        assert_eq!(validate_code(917999), 917999); // End of SSP range
+        assert_eq!(validate_code(200, false), 200); // Basic multilingual plane
+        assert_eq!(validate_code(65535, false), 65535); // End of BMP
+        assert_eq!(validate_code(65536, false), 65536); // Supplementary multilingual plane
+        assert_eq!(validate_code(131071, false), 131071); // End of SMP
+        assert_eq!(validate_code(131072, false), 131072); // Supplementary ideographic plane
+        assert_eq!(validate_code(196607, false), 196607); // End of SIP
+        assert_eq!(validate_code(917504, false), 917504); // Supplementary special-purpose plane
+        assert_eq!(validate_code(917999, false), 917999); // End of SSP range
     }
 
     #[test]
     fn test_validate_code_invalid() {
-        assert_eq!(validate_code(196608), NUL); // Beyond SIP
-        assert_eq!(validate_code(917503), NUL); // Before SSP
-        assert_eq!(validate_code(918000), NUL); // After SSP
-        assert_eq!(validate_code(1000000), NUL); // Way beyond
+        assert_eq!(validate_code(196608, false), NUL); // Beyond SIP
+        assert_eq!(validate_code(917503, false), NUL); // Before SSP
+        assert_eq!(validate_code(918000, false), NUL); // After SSP
+        assert_eq!(validate_code(1000000, false), NUL); // Way beyond
     }
 
     #[test]

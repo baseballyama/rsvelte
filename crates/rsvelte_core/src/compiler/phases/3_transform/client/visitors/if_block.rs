@@ -350,7 +350,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // Async values: only present when has_await
         let async_values = if has_await {
-            b::array(vec![b::async_thunk(&context.arena, expression)])
+            b::array(vec![b::async_arrow_unsaving(&context.arena, expression)])
         } else {
             b::undefined(&context.arena)
         };

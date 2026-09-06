@@ -1684,6 +1684,61 @@ pub fn mark_elements_scoped(
         &snippet_ancestors,
         analysis,
     );
+    // `<svelte:head>` renders into `document.head`, where a scoping class on a
+    // `<meta>` / `<link>` / `<script>` means nothing, so upstream skips those
+    // elements entirely (`is_inside_svelte_head` in `css-prune.js`).
+    unscope_svelte_head(fragment, false);
+}
+
+/// Clear `scoped` on every element rendered through a `<svelte:head>`.
+fn unscope_svelte_head(fragment: &mut Fragment, in_head: bool) {
+    for node in &mut fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                if in_head {
+                    el.metadata.scoped = false;
+                }
+                unscope_svelte_head(&mut el.fragment, in_head);
+            }
+            TemplateNode::SvelteElement(el) => {
+                if in_head {
+                    el.metadata.scoped = false;
+                }
+                unscope_svelte_head(&mut el.fragment, in_head);
+            }
+            TemplateNode::SvelteHead(head) => unscope_svelte_head(&mut head.fragment, true),
+            TemplateNode::Component(c) => unscope_svelte_head(&mut c.fragment, in_head),
+            TemplateNode::SvelteComponent(c) => unscope_svelte_head(&mut c.fragment, in_head),
+            TemplateNode::SvelteSelf(c) => unscope_svelte_head(&mut c.fragment, in_head),
+            TemplateNode::SvelteFragment(f) => unscope_svelte_head(&mut f.fragment, in_head),
+            TemplateNode::SvelteBoundary(b) => unscope_svelte_head(&mut b.fragment, in_head),
+            TemplateNode::SlotElement(s) => unscope_svelte_head(&mut s.fragment, in_head),
+            TemplateNode::TitleElement(t) => unscope_svelte_head(&mut t.fragment, in_head),
+            TemplateNode::KeyBlock(k) => unscope_svelte_head(&mut k.fragment, in_head),
+            TemplateNode::SnippetBlock(s) => unscope_svelte_head(&mut s.body, in_head),
+            TemplateNode::IfBlock(b) => {
+                unscope_svelte_head(&mut b.consequent, in_head);
+                if let Some(alt) = &mut b.alternate {
+                    unscope_svelte_head(alt, in_head);
+                }
+            }
+            TemplateNode::EachBlock(b) => {
+                unscope_svelte_head(&mut b.body, in_head);
+                if let Some(fallback) = &mut b.fallback {
+                    unscope_svelte_head(fallback, in_head);
+                }
+            }
+            TemplateNode::AwaitBlock(b) => {
+                for f in [&mut b.pending, &mut b.then, &mut b.catch]
+                    .into_iter()
+                    .flatten()
+                {
+                    unscope_svelte_head(f, in_head);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Walk a fragment and mark elements as scoped.

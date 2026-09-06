@@ -334,14 +334,12 @@ pub fn build_class_directives_object(
 pub fn build_class_directives_object_with_memoizer(
     class_directives: &[&ClassDirective],
     context: &mut ComponentContext,
-    external_memoizer: Option<&mut Memoizer>,
+    mut external_memoizer: Option<&mut Memoizer>,
 ) -> (JsExpr, bool) {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
     let mut properties = Vec::with_capacity(class_directives.len());
     let mut has_state = false;
-    let mut has_call_or_state = false;
-    let mut has_await = false;
 
     for directive in class_directives {
         // Check if this directive has reactive state
@@ -353,14 +351,9 @@ pub fn build_class_directives_object_with_memoizer(
         // value rather than re-walking the expression.
         let directive_has_call = directive.metadata.expression.has_call();
 
-        // Check if directive has await
-        has_await = has_await || directive.metadata.expression.has_await();
-
         if directive_has_state || directive_has_call {
             has_state = true;
         }
-
-        has_call_or_state = has_call_or_state || directive_has_call;
 
         // Convert the expression using the expression converter
         let expression = convert_expression(&directive.expression, context);
@@ -369,6 +362,30 @@ pub fn build_class_directives_object_with_memoizer(
         // This ensures props are called as functions: { foo: foo() } instead of { foo }
         let expression = super::utils::apply_transforms_to_expression(&expression, context);
 
+        // One memoizer entry per directive: memoizing the whole object makes every
+        // directive on the element rerun when any one of them changes.
+        let directive_has_await = directive.metadata.expression.has_await();
+        let expression = if directive_has_call || directive_has_await {
+            match external_memoizer.as_deref_mut() {
+                Some(memoizer) => memoizer.add(
+                    expression,
+                    directive_has_call,
+                    directive_has_await,
+                    false,
+                    directive_has_state,
+                ),
+                None => context.state.memoizer.add_memoized(
+                    expression,
+                    directive_has_call,
+                    directive_has_await,
+                    false,
+                    directive_has_state,
+                ),
+            }
+        } else {
+            expression
+        };
+
         properties.push(b::prop(
             &context.arena,
             directive.name.to_string(),
@@ -376,31 +393,7 @@ pub fn build_class_directives_object_with_memoizer(
         ));
     }
 
-    let directives_obj = b::object(properties);
-
-    // Memoize the object if it has calls or await, matching the official Svelte compiler:
-    // `const should_memoize = metadata.has_call || metadata.has_await || (memoize_if_state && metadata.has_state);`
-    // Note: `memoize_if_state = false` by default in `build_class_directives_object`, so we only
-    // memoize based on has_call or has_await. Props without calls (e.g., `class:foo` shorthand)
-    // have has_state=true but has_call=false and should NOT be memoized.
-    let has_call = has_call_or_state; // has_call_or_state only includes directive_has_call now
-    let result_expr = if has_call || has_await {
-        if let Some(memoizer) = external_memoizer {
-            memoizer.add(directives_obj, has_call, has_await, false, has_state)
-        } else {
-            context.state.memoizer.add_memoized(
-                directives_obj,
-                has_call,
-                has_await,
-                false,
-                has_state,
-            )
-        }
-    } else {
-        directives_obj
-    };
-
-    (result_expr, has_state)
+    (b::object(properties), has_state)
 }
 
 /// Build an object from style directives.
@@ -424,18 +417,15 @@ pub fn build_style_directives_object(
 pub fn build_style_directives_object_with_memoizer(
     style_directives: &[&StyleDirective],
     context: &mut ComponentContext,
-    external_memoizer: Option<&mut Memoizer>,
+    mut external_memoizer: Option<&mut Memoizer>,
 ) -> JsExpr {
     let mut normal_properties = Vec::with_capacity(style_directives.len());
     let mut important_properties = Vec::new();
-    let mut has_call = false;
-    let mut has_state = false;
-    let mut has_await = false;
 
     for directive in style_directives {
         let metadata = &directive.metadata.expression;
-        has_call |= metadata.has_call();
-        has_state |= if matches!(&directive.value, AttributeValue::True(_)) {
+        let has_call = metadata.has_call();
+        let mut has_state = if matches!(&directive.value, AttributeValue::True(_)) {
             style_shorthand_has_state(directive, context)
         } else {
             get_directive_expressions(directive)
@@ -444,8 +434,8 @@ pub fn build_style_directives_object_with_memoizer(
         };
         // Upstream treats a call as stateful for style memoization even when
         // its callee is otherwise pure.
-        has_state |= metadata.has_call();
-        has_await |= metadata.has_await();
+        has_state |= has_call;
+        let has_await = metadata.has_await();
 
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
@@ -456,6 +446,16 @@ pub fn build_style_directives_object_with_memoizer(
             // style:color={value} or style:color="value"
             let result = build_attribute_value(&directive.value, context, |expr, _| expr);
             result.value
+        };
+
+        // One memoizer entry per directive: memoizing the whole object makes every
+        // directive on the element rerun when any one of them changes.
+        let expression = match external_memoizer.as_deref_mut() {
+            Some(memoizer) => memoizer.add(expression, has_call, has_await, false, has_state),
+            None => context
+                .state
+                .memoizer
+                .add_memoized(expression, has_call, has_await, false, has_state),
         };
 
         // Check if this has the !important modifier
@@ -481,23 +481,11 @@ pub fn build_style_directives_object_with_memoizer(
 
     let normal_obj = b::object(normal_properties);
 
-    let directives = if important_properties.is_empty() {
+    if important_properties.is_empty() {
         normal_obj
     } else {
         // Return [normal, important] array
         b::array(vec![normal_obj, b::object(important_properties)])
-    };
-
-    // Memoize through the memoizer, matching the official compiler's behavior:
-    // return memoizer.add(directives, metadata)
-    // This ensures style directive objects with function calls get $N parameter references
-    if let Some(memoizer) = external_memoizer {
-        memoizer.add(directives, has_call, has_await, false, has_state)
-    } else {
-        context
-            .state
-            .memoizer
-            .add_memoized(directives, has_call, has_await, false, has_state)
     }
 }
 
@@ -1094,6 +1082,7 @@ pub fn build_attribute_effect(
     css_hash: &str,
     should_remove_defaults: bool,
     ignore_hydration: bool,
+    is_select: bool,
 ) {
     use crate::ast::template::Attribute;
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
@@ -1145,11 +1134,15 @@ pub fn build_attribute_effect(
                         ));
                     }
                 } else {
-                    properties.push(b::prop(
-                        &context.arena,
-                        attr.name.to_string(),
-                        transformed_value,
-                    ));
+                    // `<select>` is the one element where the runtime reads
+                    // `defaultValue` off the spread object, so its casing survives
+                    // the usual lowercasing.
+                    let name = if is_select && attr.name.eq_ignore_ascii_case("defaultvalue") {
+                        "defaultValue".to_string()
+                    } else {
+                        attr.name.to_string()
+                    };
+                    properties.push(b::prop(&context.arena, name, transformed_value));
                 }
             }
             Attribute::SpreadAttribute(spread) => {

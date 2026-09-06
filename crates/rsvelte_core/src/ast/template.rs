@@ -1376,6 +1376,7 @@ const FLAG_HAS_CALL: u8 = 1 << 1;
 const FLAG_HAS_AWAIT: u8 = 1 << 2;
 const FLAG_HAS_MEMBER_EXPRESSION: u8 = 1 << 3;
 const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
+const FLAG_HAS_PICKLED_AWAIT: u8 = 1 << 5;
 
 /// Metadata for JavaScript expressions, tracking dependencies and state.
 /// Uses bit-packing for boolean flags to reduce memory footprint.
@@ -1483,6 +1484,24 @@ impl ExpressionMetadata {
             self.flags |= FLAG_HAS_ASSIGNMENT;
         } else {
             self.flags &= !FLAG_HAS_ASSIGNMENT;
+        }
+    }
+
+    /// Whether an `await` in the expression restores the reaction context, so the
+    /// thunk built around it must end that context on the way out.
+    #[inline]
+    #[must_use]
+    pub const fn has_pickled_await(&self) -> bool {
+        self.flags & FLAG_HAS_PICKLED_AWAIT != 0
+    }
+
+    /// Set whether an `await` in the expression restores the reaction context
+    #[inline]
+    pub const fn set_has_pickled_await(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_PICKLED_AWAIT;
+        } else {
+            self.flags &= !FLAG_HAS_PICKLED_AWAIT;
         }
     }
 

@@ -203,8 +203,8 @@ pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformS
                             return false;
                         }
 
-                        // Special handling for input/textarea value and checked
-                        if (elem.name == "input" || elem.name == "textarea")
+                        // Special handling for input/textarea/select value and checked
+                        if matches!(elem.name.as_ref(), "input" | "textarea" | "select")
                             && (attr.name == "value" || attr.name == "checked")
                         {
                             return false;
@@ -212,11 +212,6 @@ pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformS
 
                         // option value needs runtime handling
                         if elem.name == "option" && attr.name == "value" {
-                            return false;
-                        }
-
-                        // img loading needs to be applied after appending to DOM
-                        if elem.name == "img" && attr.name == "loading" {
                             return false;
                         }
 

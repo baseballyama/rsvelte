@@ -945,14 +945,17 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         context.function_depth += 1;
     }
     let saved_derived_function_depth = context.derived_function_depth;
+    let saved_pickled_await_seen = context.pickled_await_seen;
     if is_derived_rune {
         context.derived_function_depth = context.function_depth;
+        context.pickled_await_seen = false;
     }
     for arg in args {
         super::script::walk_js_node_typed(arg, context)?;
     }
     if is_derived_rune {
         context.derived_function_depth = saved_derived_function_depth;
+        context.pickled_await_seen = saved_pickled_await_seen;
     }
     if increment_depth {
         context.function_depth -= 1;

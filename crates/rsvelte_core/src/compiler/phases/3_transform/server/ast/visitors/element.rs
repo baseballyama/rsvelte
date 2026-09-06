@@ -760,6 +760,8 @@ fn bind_omit_in_ssr(name: &str) -> bool {
             | "indeterminate"
             // file list
             | "files"
+            // focus: no corresponding HTML attribute
+            | "focused"
     )
 }
 
@@ -1504,13 +1506,16 @@ fn build_element_spread_attributes<'a>(
 }
 
 /// Whether `<select>` needs the special `$$renderer.select(...)` wrapper — it has
-/// a `value` plain-attribute, a `value` bind, OR any spread attribute. Mirrors
-/// upstream `RegularElement.js` `is_select_special` (lines 44-51).
+/// a `value` or `defaultValue` plain-attribute, a `value` bind, OR any spread
+/// attribute. Mirrors upstream `RegularElement.js` `is_select_special`.
 fn is_select_special(node: &RegularElement) -> bool {
+    fn is_value_name(name: &str) -> bool {
+        name == "value" || name.eq_ignore_ascii_case("defaultvalue")
+    }
     node.name.as_str() == "select"
         && node.attributes.iter().any(|attr| match attr {
-            Attribute::Attribute(a) => a.name.as_str() == "value",
-            Attribute::BindDirective(b) => b.name.as_str() == "value",
+            Attribute::Attribute(a) => is_value_name(a.name.as_str()),
+            Attribute::BindDirective(b) => is_value_name(b.name.as_str()),
             Attribute::SpreadAttribute(_) => true,
             _ => false,
         })
@@ -1826,7 +1831,12 @@ fn prepare_element_spread_object<'a>(
                 props.push(state.b.spread(expr));
             }
             Attribute::Attribute(a) => {
-                let name = get_attribute_name(node, a);
+                let mut name = get_attribute_name(node, a);
+                // `<select>` is the one element whose runtime reads `defaultValue`
+                // off the spread object, so its casing survives the lowercasing.
+                if node.name.as_str() == "select" && name == "defaultvalue" {
+                    name = "defaultValue".to_string();
+                }
                 if name.eq_ignore_ascii_case("class") {
                     has_class = true;
                 } else if name.eq_ignore_ascii_case("style") {
@@ -1850,12 +1860,15 @@ fn prepare_element_spread_object<'a>(
                 // generic-element spread path). A `{get, set}` sequence collapses
                 // to `(getter)()` (upstream `b.call(expression.expressions[0])`).
                 let name = get_bind_attribute_name(node, bind.name.as_str());
-                let value = if bind_expr_is_sequence(bind) {
-                    let seq = state.visit_expr(&bind.expression);
-                    let getter = sequence_first(seq, state);
+                // The sequence test is on the VISITED expression: a writeable
+                // derived's `bind:value={x}` only becomes a `{get, set}` pair
+                // during the visit.
+                let visited = state.visit_expr(&bind.expression);
+                let value = if matches!(visited, OxcExpression::SequenceExpression(_)) {
+                    let getter = sequence_first(visited, state);
                     state.b.call(getter, vec![])
                 } else {
-                    state.visit_expr(&bind.expression)
+                    visited
                 };
                 props.push(state.b.init(&name, value));
             }

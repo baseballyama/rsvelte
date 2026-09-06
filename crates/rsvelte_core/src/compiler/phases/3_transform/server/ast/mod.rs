@@ -1378,8 +1378,9 @@ fn should_inject_props_full(
     analysis: &ComponentAnalysis,
     options: &CompileOptions,
     has_bind_props: bool,
+    defer_store_teardown: bool,
 ) -> bool {
-    let should_inject_context = options.dev || analysis.needs_context;
+    let should_inject_context = options.dev || analysis.needs_context || defer_store_teardown;
     should_inject_context
         || has_bind_props
         || analysis.needs_props
@@ -1473,6 +1474,16 @@ pub fn server_component_ast<'a>(
         .bindings
         .iter()
         .any(|binding| matches!(binding.kind, BindingKind::StoreSub));
+
+    // A blocked subscription is only created once its promise resolves, so its
+    // teardown has to wait until the render is done.
+    let defer_store_teardown = analysis.root.bindings.iter().any(|binding| {
+        matches!(binding.kind, BindingKind::StoreSub)
+            && state
+                .eval_inputs
+                .top_level_blocker_map
+                .contains_key(binding.name.as_str())
+    });
 
     // -- instance-script body -----------------------------------------------
     // Upstream's component block is `[...instance.body, ...template.body]`. The
@@ -1588,7 +1599,14 @@ pub fn server_component_ast<'a>(
             b.stmt(b.call("$.unsubscribe_stores", vec![b.id("$$store_subs")])),
             None,
         );
-        state.body.push(cleanup);
+        if defer_store_teardown {
+            let arrow = b.arrow(b.params(vec![], None), b.body(vec![cleanup]), false, false);
+            state
+                .body
+                .push(b.stmt(b.call("$$renderer.on_destroy", vec![arrow])));
+        } else {
+            state.body.push(cleanup);
+        }
     }
 
     // esrap re-syncs its comment cursor at every body it prints, and every body
@@ -1668,7 +1686,7 @@ pub fn server_component_ast<'a>(
     // The sanitized/rest/slots prologue is unshifted AFTER the wrapper, so it
     // lives OUTSIDE the `$$renderer.component(...)` callback.
     let component_name = analysis.name.as_str();
-    let should_inject_context = options.dev || analysis.needs_context;
+    let should_inject_context = options.dev || analysis.needs_context || defer_store_teardown;
     let mut block_body = std::mem::take(&mut state.body);
 
     // -- props_id (upstream lines 253-258) ----------------------------------
@@ -1814,11 +1832,12 @@ pub fn server_component_ast<'a>(
     let final_body = prologue;
 
     // -- component function declaration -------------------------------------
-    let params = if should_inject_props_full(analysis, options, has_bind_props) {
-        b.params(vec![b.id_pat("$$renderer"), b.id_pat("$$props")], None)
-    } else {
-        b.params(vec![b.id_pat("$$renderer")], None)
-    };
+    let params =
+        if should_inject_props_full(analysis, options, has_bind_props, defer_store_teardown) {
+            b.params(vec![b.id_pat("$$renderer"), b.id_pat("$$props")], None)
+        } else {
+            b.params(vec![b.id_pat("$$renderer")], None)
+        };
     let mut fn_body = b.body(final_body);
     if !should_inject_context && state.has_instance_script {
         comments::mark_component_body(&mut fn_body);

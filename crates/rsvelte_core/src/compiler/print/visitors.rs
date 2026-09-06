@@ -156,9 +156,12 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
         return;
     }
 
-    // Group nodes into sequences separated by whitespace and block elements
-    let mut items: Vec<Vec<ProcessedNode>> = Vec::new();
+    // Group nodes into sequences separated by whitespace and block elements.
+    // A sequence remembers whether whitespace was trimmed off its front, so a
+    // fragment that stays on one line can put the space back.
+    let mut items: Vec<(Vec<ProcessedNode>, bool)> = Vec::new();
     let mut sequence: Vec<ProcessedNode> = Vec::new();
+    let mut leading_whitespace = false;
 
     let nodes = &fragment.nodes;
     let num_nodes = nodes.len();
@@ -202,8 +205,9 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
             // If data starts with space and prev is not ExpressionTag, flush
             if data.starts_with(' ') && prev.is_some() && !is_expression_tag(prev) {
                 if !sequence.is_empty() {
-                    items.push(std::mem::take(&mut sequence));
+                    items.push((std::mem::take(&mut sequence), leading_whitespace));
                 }
+                leading_whitespace = true;
                 data = data.trim_start().to_string();
             }
 
@@ -212,7 +216,8 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
 
                 // If data ends with space and next is not ExpressionTag, flush
                 if data.ends_with(' ') && next.is_some() && !is_expression_tag(next) {
-                    items.push(std::mem::take(&mut sequence));
+                    items.push((std::mem::take(&mut sequence), leading_whitespace));
+                    leading_whitespace = false;
                 }
             }
         } else {
@@ -220,27 +225,31 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
             let is_block = is_block_element(child_node);
 
             if is_block && !sequence.is_empty() {
-                items.push(std::mem::take(&mut sequence));
+                items.push((std::mem::take(&mut sequence), leading_whitespace));
+                leading_whitespace = false;
             }
 
             sequence.push(ProcessedNode::Node(child_node));
 
             if is_block {
-                items.push(std::mem::take(&mut sequence));
+                items.push((std::mem::take(&mut sequence), leading_whitespace));
+                leading_whitespace = false;
             }
         }
     }
 
-    items.push(sequence);
+    if !sequence.is_empty() {
+        items.push((sequence, leading_whitespace));
+    }
 
     // Filter out empty sequences and measure
     let mut multiline = source_multiline;
     let mut width = 0;
 
-    let child_contexts: Vec<Context> = items
+    let child_contexts: Vec<(Context, bool)> = items
         .iter()
-        .filter(|seq| !seq.is_empty())
-        .map(|seq| {
+        .filter(|(seq, _)| !seq.is_empty())
+        .map(|(seq, leading)| {
             let mut child_context = context.child();
 
             for node in seq {
@@ -255,8 +264,8 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
                 multiline = multiline || child_context.multiline;
             }
 
-            width += child_context.measure();
-            child_context
+            width += child_context.measure() + usize::from(*leading);
+            (child_context, *leading)
         })
         .collect();
 
@@ -271,14 +280,16 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
             None
         };
 
-        context.append(prev);
+        context.append(&prev.0);
 
         if let Some(next_ctx) = next {
-            if prev.multiline || next_ctx.multiline {
+            if prev.0.multiline || next_ctx.0.multiline {
                 context.margin();
                 context.newline();
             } else if multiline {
                 context.newline();
+            } else if next_ctx.1 {
+                context.write(" ");
             }
         }
     }
