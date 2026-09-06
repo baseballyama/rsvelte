@@ -6,8 +6,7 @@
 #   build-rsvelte.sh [target-path]
 #
 # When target-path is supplied, the .node binary is also copied to
-# <target-path>/.rsvelte/<NODE_NAME>. Always copies to svelte/<NODE_NAME>
-# (used by scripts/test-real-world*.mjs).
+# <target-path>/.rsvelte/<NODE_NAME>.
 
 set -euo pipefail
 
@@ -33,10 +32,6 @@ if [ ! -f "$SRC" ]; then
   echo "[build-rsvelte] ERROR: build output not found: $SRC" >&2
   exit 1
 fi
-
-# Always copy under svelte/ for legacy script compatibility
-cp "$SRC" "svelte/${NODE_NAME}"
-echo "[build-rsvelte] -> svelte/${NODE_NAME}"
 
 if [ -n "$TARGET_PATH" ] && [ -d "$TARGET_PATH" ]; then
   mkdir -p "${TARGET_PATH}/.rsvelte"

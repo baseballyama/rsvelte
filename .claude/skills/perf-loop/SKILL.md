@@ -6,412 +6,145 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, Write, Agent, WebSearch, WebFetch
 effort: max
 ---
 
-# Rust Performance Loop — Measure → Hypothesize → Change → Measure
+# Rust Performance Loop
 
-## 0. 大原則（このスキルの背骨）
+## 0. 規律
 
-性能改善は **推測ではなく観測** で進める。以下のルールを毎ループ守る。
+1. 計測なき最適化は禁止。着手前にベースラインを取る。
+2. 1 変更 = 1 計測。同時に複数を混ぜない。
+3. 効かなければ revert。±5% はノイズ。
+4. プロファイル上位 5 関数に入らないコードは触らない。
+5. 毎周 `cargo test --release`。正しさ > 速さ。
+6. 最適化後に読みにくくなったらアプローチを疑う。
 
-1. **計測なき最適化は禁止。** 着手前に必ずベースラインを取る。「速くなったはず」を許さない。
-2. **1 変更 = 1 計測。** 複数の最適化を同時にコミットしない（効いたかどうかが分からなくなる）。
-3. **効かなかったら revert。** 「ちょっと速くなったかも」を残さない。ノイズと改善を混同しない。
-4. **ホットでない場所は触らない。** プロファイルで上位 5 関数に入らないコードは原則対象外。
-5. **正しさは速さに優先する。** 各イテレーションの後に `cargo test --release` を必ず通す。
-6. **シンプルに保つ。** 複雑性を上塗りせず、データ構造・アルゴリズム自体をシンプルにする方向で攻める。最適化後のコードが前より読みにくくなったらアプローチを疑う。高速なプログラムは、シンプルなデータ構造に対してシンプルなコードが書かれている。
+## 1. ループ
 
-## 1. 計測レイヤーの選び方
+```
+baseline → profile → 仮説（N% 効くはず、を明文化）→ 1 変更 → test → 同条件で再計測
+  → 改善: commit / 改善なし: revert + perf log に 1 行
+```
 
-「どのツールで測るか」を間違えると、何時間も無駄になる。**目的に応じて使い分ける**。
+止めどき: 上位 5 関数を触り目標の 80% 達成 / 残るホット関数が <5% / 次案が可読性を壊して期待 <5% / 3 周で 1% も動かない。
 
-| 目的 | 推奨ツール | 用途 |
-|------|------------|------|
-| エンドツーエンドの実時間 | `hyperfine` | バイナリ全体の比較。ノイズに対し統計処理してくれる |
-| 関数単位の統計的マイクロベンチ | `criterion`（または `divan`） | 「この関数だけ X% 速くなった」を信頼区間つきで判定 |
-| CPU サンプリングプロファイル | `samply`（推奨）／`cargo flamegraph`／`perf`（Linux）／Instruments（macOS） | ホットな関数・行を炎グラフで把握 |
-| アロケーション量 | `dhat`（`dhat-rs`） | どこで何回 alloc しているか、ピークメモリ |
-| キャッシュ・分岐ミス | `perf stat`／`cachegrind` | LLC ミス・branch miss 率の計測 |
-| 生成コード（最後の手段） | `cargo asm`／`rustc --emit=llvm-ir` | LLVM が本当に最適化したかの確認 |
+## 2. 計測ツール
 
-**デフォルトの一手目は `samply`**。`perf` よりセットアップが軽く、Firefox Profiler の UI で読みやすく、macOS / Linux 両対応。
+| 目的 | ツール |
+|---|---|
+| E2E 実時間 | `hyperfine --warmup 3`（10 回以上） |
+| 関数単位 | `criterion`（`crates/rsvelte_bench/benches/ci.rs`、CodSpeed） |
+| CPU サンプリング | `samply`（第一選択）/ Instruments / `/usr/bin/sample` |
+| アロケーション | `dhat` / `crates/rsvelte_devtools/src/bin/alloc_sites.rs` |
+| キャッシュ・分岐 | `perf stat` / `cachegrind` |
+| 生成コード | `cargo asm` / `--emit=llvm-ir`（最後の手段） |
+
+## 3. ビルド設定（`Cargo.toml` に定義済み）
+
+| profile | 用途 |
+|---|---|
+| `release` | `lto="fat"`, `codegen-units=1`, `panic="abort"`, `strip=false`, `debug=false` — 計測の基準 |
+| `profiling` | `release` 継承、`lto="thin"`, `codegen-units=16`, `debug="line-tables-only"` — samply 用 |
+| `bench` | criterion 用（常に unwind） |
+| `dist` | 配布用（`strip="symbols"`） |
 
 ```bash
-cargo install samply hyperfine cargo-flamegraph dhat
-# criterion は dev-dependencies に追加
+RUSTFLAGS="-C force-frame-pointers=yes" cargo build --profile profiling -p rsvelte_devtools --bin profiler
 ```
 
-### 計測精度を下げる地雷
+PGO: `scripts/perf/pgo.sh` が `pgo/rsvelte.profdata` を再生成、`scripts/perf/assert-pgo-profile.sh` が magic を検査（壊れた profile は **warning のみでビルドが通る**）。`scripts/bench/pgo-env.mjs` が cargo spawn に適用。
 
-- **debug ビルドで測る** → 桁違いに遅い。常に `--release`。
-- **ウォームアップなしの初回実行** → I/O・JIT・ページキャッシュで歪む。`hyperfine --warmup 3` を基本にする。
-- **電源管理（省電力モード、サーマルスロットリング）** → ノートで長時間測ると周波数が落ちる。電源接続・温度確認。
-- **他のプロセスのノイズ** → ブラウザや Slack を閉じる。CI 上で比較するなら同じランナーで連続実行。
-- **テストデータが小さい** → ボトルネックが現れない。本番相当のサイズで測る。
-- **シングルランの差分で判断** → ±5〜10% は常にノイズ。`hyperfine` で 10 回以上回して有意差を見る。
+## 4. プレイブック（効く順）
 
-## 2. リリースビルドの土台を作る
+| 段 | 手 | 典型 |
+|---|---|---|
+| A 構造 | ビッグオー / 中間表現削除 / 計算そのものの削除 / fast path | 桁 |
+| B alloc | arena, `&str`/`Cow`, `SmallVec`, `compact_str`, `Box<[T]>`, `.clone()` 駆除, `with_capacity`, `format!`→`write!` | 2〜10x |
+| C レイアウト | enum サイズを `size_of` assert で固定・大バリアント `Box`、`u32` 位置、フィールド順、SoA | 1.1〜1.5x |
+| D ハッシュ | `FxHashMap`/`ahash`、小さければ線形探索、`phf` | 1.2〜2x |
+| E ミクロ | `#[inline]`/`#[cold]`、branchless、`memchr`/SIMD、`from_utf8_unchecked`（要根拠） | 1.05〜1.3x |
+| F 並列 | 単スレッドを絞ってから `rayon`。グローバル `Mutex` 禁止 | — |
 
-まず、プロファイルが読めるリリースビルドにする。これを忘れるとフレームグラフが空っぽになる。
+アンチパターン: LLVM 既済みの手最適化 / マイクロ勝ちマクロ負け / コールド最適化 / 数値なしコミット。
 
-`Cargo.toml`:
+## 5. 計測ハザード（この箱・このリポ固有）
 
-```toml
-[profile.release]
-debug = "line-tables-only"   # シンボルだけ残す（小さく、プロファイルは読める）
-# 計測用プロファイルを別に切ると本番ビルドを汚さずに済む
-[profile.profiling]
-inherits = "release"
-debug = "full"
-strip = false
-```
+- **静かな箱**: `ps -Ao %cpu=,comm= | sort -rn | head` の先頭を読む。`cargo==0` でも `mds_stores`/`mediaanalysisd` がビルド直後に 90% 超。陽性対照 `yes > /dev/null` が最上位に出ること。
+- **比は時間で対にする**: official/rsvelte を同一ラウンド内で back-to-back、ABBA で順序交互。別々に測った比は drift。
+- **壁時計でなく CPU 時間**: `perf_bench` の CPU median を読む。壁時計は負荷で 2 倍動く。
+- **アームの同一性**: ファイル名・パス・ブランチは信用しない。`Compiling <crate> (<path>)` 行、2 成果物の `sha256`、出力での判別プローブ（含むべきもの／欠くべきもの両方）を読む。
+- **worktree**: 毎回 `cd <worktree> && CARGO_TARGET_DIR=<worktree>/target cargo …`。cwd は黙ってリセットされる。
+- **ディスク**: `df -g /System/Volumes/Data` が 20 GiB 未満なら cargo を起動しない。debug の `target/debug/deps` は 83 GB。
+- **分母**: 共有型（`JsNode` 等）を触ったら `--workspace`。`| tail`/`2>/dev/null` 越しに verdict を読まない。
+- **call count を先に読む**: 決定的。時間は 1 回ではノイズ。
+- **同居エージェント**: 計測窓の開始／終了は宣言で伝える。他人の窓の中で cargo を叩かない。
+- **未測定は未測定と書く**: 未確定のまま入れた変更は全て戻された。
 
-シンボル可読化とフレームポインタ:
+## 6. `$ARGUMENTS`
+
+1. `continue` → 直近 perf log を読み次ループ。
+2. 関数名／モジュール名 → そこに絞る。
+3. 空 → samply で全体を測り上位 5 を提示（§7.1 の `--profile` 内訳は使わない）。
+4. 順序厳守: baseline → profile → 仮説（ユーザー確認）→ 変更 → test → 再計測 → keep/revert。
+5. 1 イテレーション 1 報告、3 周ごとに要約。
+
+## 7. rsvelte 固有
+
+### 7.1 計測コマンド
 
 ```bash
-RUSTFLAGS="-C force-frame-pointers=yes -C symbol-mangling-version=v0" \
-  cargo build --profile profiling
-```
-
-ベンチ専用プロファイル（ベースラインを正確に取るため）:
-
-```toml
-[profile.bench]
-inherits = "release"
-debug = "line-tables-only"
-```
-
-## 3. The Loop（毎周こう回す）
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│ 1. Baseline 計測（hyperfine / criterion で数値を記録）        │
-│ 2. Profile（samply 等でホットスポット特定）                   │
-│ 3. Hypothesize（「ここをこう変えれば N% 効くはず」を言語化）  │
-│ 4. Change（1 つだけ変える）                                   │
-│ 5. Test（cargo test --release で回帰がないか）                │
-│ 6. Re-measure（同条件で再計測）                               │
-│ 7. Decide:                                                   │
-│      改善あり → コミット → 次のホットスポットへ              │
-│      改善なし／劣化 → revert、仮説を記録、別の手を試す       │
-└──────────────────────────────────────────────────────────────┘
-```
-
-各ループの所要時間は **30 分〜2 時間** が目安。1 日 1 ループしか回せないなら、計測コストが高すぎる（自動化を検討する）。
-
-### ループの記録（毎周残すと判断が速くなる）
-
-短い perf log を書き残すと、後で「もう試したか」「なぜ効かなかったか」を辿れる。1 周 1 行で十分:
-
-```
-2026-05-13  parse  baseline 142ms → hot: lex_identifier 31%
-2026-05-13  parse  try: FxHashMap for keyword lookup           +0.3%  (noise) revert
-2026-05-13  parse  try: byte-level whitespace skip             -8%    keep
-2026-05-13  parse  try: SIMD memchr for `<`                    -3%    keep (small but consistent)
-```
-
-## 4. 最適化プレイブック（効く順）
-
-**上から順に試す。** 下に行くほどリターン逓減、複雑性増加。
-
-### A. アルゴリズム・データ構造（桁が変わる）
-
-- O(n²) → O(n log n) の置き換えはマイクロ最適化 100 個に勝る。まずビッグオーを疑う。
-- 不要な中間表現を削除する。「AST → IR → 文字列」を「AST → 文字列」にできないか。
-- そもそも **そのコードは要るか？** 削除できる計算は最強の最適化。lazy 化・キャッシュも検討。
-- ホットケース最適化: 「99% は空 / 1 要素 / 短い文字列」なら fast path を分岐させる。
-
-### B. アロケーション削減（典型 2〜10x）
-
-ヒープアロケーションは現代 CPU では非常に高価。プロファイルで `malloc`/`__rust_alloc`/`drop_in_place` が上位に来ていたら本セクション。
-
-- **Arena allocator (`bumpalo`)**: AST など寿命を揃えられるノード群に。OXC で約 +20%。
-- **Borrow over own**: `String` → `&str`／`Vec<T>` → `&[T]`／引数は `&str`、戻り値は `Cow<'a, str>`。
-- **`SmallVec`／`ArrayVec`**: 「ほぼ常に小さい」コレクションをスタックに乗せる。
-- **`compact_str`／`smartstring`**: 短い文字列のヒープ確保を回避。
-- **`Box<[T]>` over `Vec<T>`**: 伸長しない場合は容量を持つ必要がない。
-- **`.clone()` の駆除**: visitor を `&` で受ける。`Rc<T>`／`Arc<T>` で共有。
-- **書き込みバッファの事前確保**: `String::with_capacity(estimate)` で再アロックを防ぐ。
-- **`format!()` を `write!()` に**: ホットパスでは `format!` が temporary を作るので避ける。
-
-```rust
-// Before
-let s = format!("{}-{}", a, b);
-out.push_str(&s);
-
-// After
-use std::fmt::Write;
-write!(out, "{}-{}", a, b).unwrap();
-```
-
-### C. メモリレイアウト（典型 1.1〜1.5x、塵も積もる）
-
-- **Enum サイズを切る**: `size_of::<Expression>()` を assert で固定。大きいバリアントは `Box` 化。
-  ```rust
-  #[test]
-  fn ast_size_is_bounded() { assert_eq!(std::mem::size_of::<Expr>(), 16); }
-  ```
-- **`u32` over `usize`**: ソース位置・ID などは 32bit で十分。半分のサイズで cache 効率倍。
-- **構造体のフィールド順**: padding を減らす。`#[repr(C)]` で確認、`cargo-show-asm` で layout 見る。
-- **インライン化**: 短い String、固定長 ID は `[u8; N]` に inline。TLB ミスが減る。
-- **ホットフィールドの分離**: 巨大構造体のうちホットに触る部分だけ別配列に（SoA 化）。
-
-### D. ハッシュ（典型 1.2〜2x、ホットなマップで顕著）
-
-- 標準 `HashMap` は **SipHash（暗号強度）** で遅い。非暗号用途は `FxHashMap`（`rustc-hash`）または `ahash`。
-- キーが小さく数が少ない場合は **線形探索 (`Vec<(K,V)>`) のほうが速い** こともある。要計測。
-- 完全ハッシュ（キーワードテーブル等）は `phf` クレートでビルド時生成。
-
-### E. ホットループのミクロ最適化（典型 1.05〜1.3x）
-
-プロファイルで本当にホットな関数だけに適用。**読みやすさを犠牲にする価値があるか毎回問う。**
-
-- `#[inline]` を small で hot な関数に。デカい関数に付けると逆効果。
-- `#[cold]` をエラーパス・初期化に。命令キャッシュを汚さない。
-- **branchless**: 分岐予測ミスが上位に来ていたら算術で書き換える。
-  ```rust
-  // 例：マイナス符号判定（記事 1BRC より）
-  let neg = (b == b'-') as i16;
-  let val = (val ^ -neg) + neg;  // neg なら -val、そうでなければ val
-  ```
-- **SIMD**: `memchr`（区切り文字検索）、`std::simd`（nightly）、`wide` クレート（stable）。
-- **UTF-8 検証の省略**: 既に検証済みなら `from_utf8_unchecked`（unsafe、要根拠コメント）。
-- **ループアンロール**: 通常 LLVM がやる。手動アンロールは asm 確認後のみ。
-
-### F. ビルド設定（リターン中、コスト極小）
-
-`Cargo.toml`:
-
-```toml
-[profile.release]
-lto = "thin"          # まず thin。+10〜20%。fat は更に効くがビルド倍長
-codegen-units = 1     # 単一ユニットで LLVM 最適化を最大化
-panic = "abort"       # unwind テーブル不要、サイズ小・若干速い
-debug = "line-tables-only"
-```
-
-CPU 固有命令（配布バイナリ以外）:
-
-```bash
-RUSTFLAGS="-C target-cpu=native" cargo build --release
-```
-
-アロケータ差し替え（malloc が profile 上位なら効く）:
-
-```rust
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-// あるいは tikv_jemallocator::Jemalloc
-```
-
-リンカ (`mold`/`lld`) はビルド時間短縮であり実行速度には効かない。ただしループの回転速度が上がる＝間接的に効く。
-
-最後の数 % が欲しいなら **PGO (Profile-Guided Optimization)** と **BOLT**。`cargo-pgo` で自動化、典型 +5〜15%。
-
-### G. 並列化（シングルスレッドを絞ってから）
-
-- 1 スレッドのプロファイルで「もう絞れない」と判断してから `rayon` 等を入れる。
-- 並列化は **アロケータ競合**・**false sharing**・**ロック争奪** を生むため、シングルスレッド最適化を済ませる前にやると測定がぐちゃぐちゃになる。
-- グローバル `Mutex` は並列化を殺す（OXC が `string-cache` を削除して +30% 出した教訓）。スレッドローカル → 最後にマージ、を基本に。
-
-## 5. アンチパターン（過去のハマりどころ）
-
-- **LLVM が既にやっていることを手でやる**: 数日かけて 1% — 引き合わない。`cargo asm` で確認してから。
-- **マイクロベンチで勝ってマクロで負ける**: criterion で +20% でも、ホットでなければ全体は無変化。エンドツーエンドも必ず測る。
-- **キャッシュやワークアラウンドで複雑性を盛る**: 根本のデータ構造を直すほうが速いし読みやすい。
-- **ノイズを改善と誤認**: ±5% は計測ノイズ。`hyperfine` の信頼区間で有意差を確認。
-- **「速くなったはず」のコミット**: 数値なしで残さない。後で誰も判断できない。
-- **コールド領域の最適化**: 起動時 1 回しか走らないコードを 10x しても誰も気付かない。
-- **ベンチが本番と乖離**: 小さい入力・人工データでは現実のボトルネックが出ない。
-- **回帰テスト省略**: 速くて壊れているコードはバグ。`cargo test --release` を毎周。
-
-## 6. 止めどき
-
-以下のいずれかに該当したら、そのループは閉じて別ホットスポットへ移る:
-
-- プロファイル上位 5 関数を全て触ったが、目標数値の 80% 以上を達成
-- 残るホット関数が `<5%` の比重しかない（伸びしろが少ない）
-- 次の改善案が「コードを著しく読みにくくする」かつ期待 < 5%
-- ループを 3 周回しても 1% も動かない（仮説の質を疑う、別フェーズへ）
-
-## 7. rsvelte 固有のロードマップ
-
-### 7.1 計測コマンド（即実行）
-
-```bash
-# ベースライン（必須）
-./scripts/bench/bench.sh --quick      # JS vs Rust 単線比較
-./scripts/bench/bench.sh --criterion  # 統計的マイクロベンチ
-
-# プロファイル（samply 推奨）
+./scripts/bench/bench.sh --quick        # JS vs Rust 単線比較
+./scripts/bench/bench.sh --criterion    # criterion
+cargo build --release -p rsvelte_devtools --bin perf_bench
+target/release/perf_bench --target client --runs 9 [--threads N] [--skip S --limit L]   # A/B の主計器
 cargo build --profile profiling -p rsvelte_devtools --bin profiler
-samply record ./target/profiling/profiler --file path/to/large.svelte --iterations 100
-# macOS なら Instruments も可
-instruments -t "Time Profiler" ./target/profiling/profiler -- --file path/to/large.svelte --iterations 100
-
-# フェーズ別の内訳（用途限定 — 直下の警告を読むこと）
-./scripts/bench/bench.sh --profile
-
-# 回帰確認（速さより正しさ）
-cargo test --release
+samply record target/profiling/profiler --file big.svelte --iterations 100
+cargo build --profile profiling -p rsvelte_devtools --bin corpus_share_profile --features mimalloc-alloc
+samply record --save-only -o prof.json.gz -r 1000 -- target/profiling/corpus_share_profile --iters 4
+node scripts/bench/profile-shares.mjs prof.json.gz 30   # self/inclusive share 表
+cargo run --release -p rsvelte_devtools --bin compile_profile -- --target server [--dev]  # フェーズ内訳
+pnpm benchmark:reproduce                # サイト報告（scripts/reports/run-performance.mjs）
 ```
 
-> **`--profile` と `profiler` バイナリの数字を、フェーズ配分の根拠に使わないこと。**
->
-> `profiler.rs` は `analyze_component` / `transform_component` を**手組みで直接呼びます**。本番の入口（`Toolchain::prepare` + `PreparedComponent::compile`）とは経路が違い、少なくとも次が食い違います:
->
-> - 本番が渡す retained script を通さないため、本番には無い再パースが計測に入る
-> - 本番が呼ぶ TypeScript 除去と `<svelte:options>` のマージを実行しない（**その分が分母から欠ける**）
-> - `include_sourcemap_content` などの引数が本番と別の値で固定される
->
-> **「parse : analyze : transform = X : Y : Z」の形の主張には使えません。** シェアが本番と違います。
->
-> **samply / Instruments での使用は問題ありません。** あちらが見るのは同一バイナリ内の相対的なホットスポットで、本番との経路一致を前提にしていないからです。**用途で切り分けてください。**
+`profiler` / `bench.sh --profile` のフェーズ配分は本番経路と違う（retained script なし、TS 除去なし）。「parse:analyze:transform = X:Y:Z」の根拠に使わない。samply の相対ホットスポットには使える。
 
-### 7.2 既知の大物ボトルネック（rsvelte 固有）
+### 7.2 既知ボトルネック
 
-`perf-loop` の §4 プレイブックを rsvelte の実コードに当てると、以下が「まだ手付かずの大物」になる。プロファイルで該当領域が上位に出たらここに戻る。
+| 項目 | 現状 | 手順 | grep |
+|---|---|---|---|
+| A `serde_json::Value` 駆逐 | 62 ファイルが依存。`JsNode`/`TypedExpr`（`crates/rsvelte_core/src/ast/typed_expr.rs`）へ寄せる | `Expression::Value` 生成箇所を `JsNode` に置換 → 不足バリアント追加 → ホットパスから外す | `rg 'serde_json::Value' crates/rsvelte_core/src -l` |
+| B arena | `bumpalo` は依存に入り、`ast/arena.rs` は `JsNodeId` 索引アリーナ。lifetime 付き `Box<'a,T>`/`Vec<'a,T>` 化は未着手 | AST に `'a` 導入 → `Parser<'a>{alloc}` 貫通 → パーサ層から段階的に | `rg bumpalo crates/rsvelte_core/src` |
+| C `Atom<'a>` | `CompactString`。重複はコピー | ソース直結の識別子を `&'a str` に → 生成文字列は arena → 頻出はインターン | — |
+| D codegen 直書き | `JsNode` → 文字列の 2 段 | `String` バッファに `write!` 直書き、`with_capacity` | — |
+| E `.clone()` | transform に多い | `&`/`Rc`/`Cow` | `rg '\.clone\(\)' crates/rsvelte_core/src/compiler/phases/3_transform -c` |
+| F パーサ | Svelte テンプレートのみ自前 | `&[u8]` 走査、正規表現禁止、借用徹底 | — |
 
-#### A. `serde_json::Value` の駆逐 → typed AST
+現状の数値と alloc 分析は `docs/phase3-ast-refactor-plan.md` を読む。
 
-- **現状**: JS 式を `serde_json::Value` で持っており、毎回ヒープ確保・シリアライズ往復・実行時フィールド検索が発生
-- **既にある経路**: `src/ast/typed_expr.rs` に `JsNode` enum（100+ バリアント）と `TypedExpr` がある。`Expression::Typed(TypedExpr)` 側に寄せる
-- **手順**:
-  1. `Expression::Value(serde_json::Value)` を作っている場所を全て洗い出し、対応する `JsNode` バリアントに置換
-  2. 不足バリアントがあれば `typed_expr.rs` に追加
-  3. ホットパスから `serde_json::Value` を完全に外す
-- **着手の grep**:
-  ```bash
-  rg "Expression::Value" src/ --type rust
-  rg "serde_json::Value" src/ --type rust -l
-  rg "json!\(" src/ --type rust -l
-  ```
+### 7.3 OXC 対応
 
-#### B. `bumpalo` アリーナの導入
+| OXC | 役割 | 参照場面 |
+|---|---|---|
+| `oxc_allocator` | arena | 7.2 B |
+| `oxc_ast` | typed AST | 7.2 A/B |
+| `oxc_parser` | JS/TS parser | 7.2 F |
+| `oxc_codegen` | codegen | 7.2 D |
+| `oxc_span` | `Atom<'a>`/`Span` | 7.2 C |
+| `oxc_syntax` | 演算子表 | キーワード判定 |
 
-- **現状**: `bumpalo` は Cargo.toml に入っているが**未使用**。AST ノードは個別に `Box<T>` / `Vec<T>` でヒープ確保されている
-- **OXC の流儀**: `oxc_allocator::Box<'a, T>` / `Vec<'a, T>` で単一の Bump からまとめて確保 → ポインタ加算で alloc、アリーナ一括解放
-- **手順**:
-  1. AST に lifetime を導入: `Root<'a>`, `Fragment<'a>`, `TemplateNode<'a>`, ...
-  2. `Box<T>` → `bumpalo::boxed::Box<'a, T>`、`Vec<T>` → `bumpalo::collections::Vec<'a, T>`
-  3. パーサに allocator を貫通: `Parser<'a> { alloc: &'a Bump }`
-  4. **大規模リファクタなので段階的に**。まずパーサ層から
-- **参考**: `~/.cargo/registry/src/*/oxc_allocator-*/src/`
+ソース: `ls ~/.cargo/registry/src/*/oxc_<crate>-*/src/`
 
-```rust
-// Before:
-struct Element {
-    name: String,
-    children: Vec<TemplateNode>,
-}
-
-// After (OXC スタイル):
-struct Element<'a> {
-    name: &'a str,                        // ソースまたはアリーナから借用
-    children: Vec<'a, TemplateNode<'a>>,
-}
-```
-
-#### C. `Atom<'a>` での文字列インターン
-
-- **現状**: `CompactString`（短い文字列はインラインだが長いものはヒープ）。重複文字列はその都度コピー
-- **OXC の流儀**: `Atom<'a>` でソース or アリーナから借用、頻出文字列（`"div"`, `"class"` 等）はポインタ比較
-- **手順**:
-  1. ソース直結の識別子・タグ名は `&'a str`（元ソースへの参照）に変える
-  2. 生成側の文字列はアリーナから確保
-  3. 頻出文字列は簡易インターナを検討
-- **参考**: `oxc_span::Atom`
-
-#### D. codegen の直接書き出し化
-
-- **現状**: 中間 `JsNode` ツリーを組み、それを文字列にシリアライズする 2 段構え
-- **OXC の流儀**: AST → `String` バッファに直接 `write!()`、インデントはカウンタで管理。中間表現なし
-- **手順**:
-  1. transform フェーズの出力を `String` バッファに直書き
-  2. `String::with_capacity(estimate)` で再 alloc 抑制
-  3. ホットループでは `format!` を避け `write!()` に
-- **参考**: `oxc_codegen`
-
-```rust
-struct CodeWriter {
-    buf: String,
-    indent: u32,
-}
-
-impl CodeWriter {
-    fn write_expression(&mut self, expr: &Expression) {
-        // self.buf に直接書く。中間ノードは作らない
-    }
-}
-```
-
-#### E. `.clone()` 駆除
-
-- **現状**: AST 型を渡すために `.clone()` が多用されている箇所がある（特に transform フェーズ）
-- **着手の grep**:
-  ```bash
-  rg "\.clone\(\)" src/compiler/phases/3_transform/ --type rust -c
-  ```
-- 共有所有が必要なら `Rc<T>` / `Arc<T>`、読み専有が多ければ `Cow<'a, T>`。Visitor は基本 `&mut` で受ける
-
-#### F. パーサ層
-
-- **方針**: 既に JS は OXC 任せ。Svelte テンプレートパーサだけが自前
-- バイトレベル走査（`&[u8]`）／UTF-8 再検証回避（`from_utf8_unchecked` は要根拠コメント）／文字種テーブルの事前計算／正規表現禁止（OXC も使っていない）
-- ソースからの借用を徹底し、パース中の `String` alloc を最小化
-
-### 7.3 OXC クレート → rsvelte の対応
-
-| OXC クレート | 役割 | rsvelte で参照すべき場面 |
-|------------|------|------------------------|
-| `oxc_allocator` | アリーナ確保 | §7.2 B の実装時 |
-| `oxc_ast` | typed AST | §7.2 A・B の AST 設計 |
-| `oxc_parser` | JS/TS パーサ | §7.2 F のパーサ最適化 |
-| `oxc_codegen` | コード生成 | §7.2 D の直書き codegen |
-| `oxc_span` | `Atom<'a>`・`Span` | §7.2 C の文字列インターン |
-| `oxc_syntax` | 演算子テーブル等 | キーワード／演算子の高速判定 |
-
-ローカルキャッシュからソースを読む:
-
-```bash
-ls ~/.cargo/registry/src/*/oxc_allocator-*/src/
-ls ~/.cargo/registry/src/*/oxc_parser-*/src/
-ls ~/.cargo/registry/src/*/oxc_codegen-*/src/
-ls ~/.cargo/registry/src/*/oxc_ast-*/src/
-```
-
-### 7.4 NAPI 経由のエンドツーエンド検証
+### 7.4 NAPI 経由 E2E
 
 ```bash
 cargo build --release -p rsvelte_napi --lib
-cp target/release/librsvelte_napi.dylib svelte/rsvelte.darwin-arm64.node
-cd svelte && USE_RSVELTE=true npx vitest run \
-  packages/svelte/tests/runtime-runes/test.ts \
-  packages/svelte/tests/runtime-legacy/test.ts
+node scripts/compat-corpus/binding.mjs --stage      # .corpus-cache/rsvelte.node
+pnpm corpus:verify && pnpm corpus:matrix           # 出力バイト同一ゲート
+cargo test --release                                # runtime/ssr/hydration
 ```
 
-性能改善で「rsvelte 単体は速いが Vite から呼ぶと遅い」「テストは通るが NAPI 経由で壊れる」を防ぐため、最終確認は NAPI 経由で行う。
+Vite 経路は `apps/npm/vite-plugin-svelte`。最終確認は必ず NAPI 経由。
 
-## 8. ワークフロー（`$ARGUMENTS` 指定時の挙動）
+## 8. References
 
-ユーザーが `/perf-loop $ARGUMENTS` を呼んだら:
-
-1. `$ARGUMENTS` が `continue` → 直近の perf log を読み、次のループを開始
-2. `$ARGUMENTS` が関数名・モジュール名 → そこに焦点を絞ってループ
-3. `$ARGUMENTS` が空 → 全体を samply で計測し、上位 5 ホットスポットを提示（§7.1 の警告により、`--profile` のフェーズ内訳はここで使わない）
-4. **必ず順序を守る**: baseline → profile → 仮説提示（ユーザー確認）→ 変更 → test → 再計測 → keep/revert 判定
-5. 各イテレーション後に **数値と判定をユーザーに報告**。1 イテレーション 1 メッセージを目安に
-6. 3 周ごとに、達成した数値と次の候補ホットスポットを要約する
-
-## 9. References
-
-- The Rust Performance Book — https://nnethercote.github.io/perf-book/
-  - とくに `profiling.html`, `general-tips.html`, `build-configuration.html`, `benchmarking.html`
-- OXC Performance Notes — https://oxc.rs/docs/learn/performance
-  - enum サイズ削減、bumpalo、string-cache の罠、string インライン化など実例多数
-- 「1BRC を Rust で解いた話」（モドク × ユウスクタン）— https://findy-code.io/media/articles/modoku-yusuktan-202605
-  - 90s → 1.08s の段階的最適化記録。mmap + madvise、`memchr`、独自ハッシュ、branchless 化、`std::simd` の実戦例
-- `samply`: https://github.com/mstange/samply
-- `cargo-flamegraph`: https://github.com/flamegraph-rs/flamegraph
-- `criterion`: https://bheisler.github.io/criterion.rs/book/
-- `hyperfine`: https://github.com/sharkdp/hyperfine
-- `dhat-rs`: https://docs.rs/dhat
-- `cargo-pgo`: https://github.com/Kobzol/cargo-pgo
+- https://nnethercote.github.io/perf-book/
+- https://oxc.rs/docs/learn/performance
+- `docs/perf-baseline.md`（20x 目標の現状と計測記録）
