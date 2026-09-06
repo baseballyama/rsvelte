@@ -31,15 +31,21 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
    message or position belongs here too; say so in its row.
 3. **One behaviour per file, minimal.** Delete everything the shape does not
    need.
-4. **Never write provenance in an HTML comment.** Removed comments are
-   themselves a whitespace-sensitive compiler input (see #1975) — a `<!-- from
-   issue N -->` line silently changes what the file tests. Provenance belongs in
-   the table below and nowhere else. (The comments in
-   `matrix/whitespace-comments/` are the *payload*, not provenance.)
+4. **Never write provenance in a comment — HTML or JavaScript.** Removed
+   comments are themselves a whitespace-sensitive compiler input (see #1975), and
+   a comment inside `<script>` is the same input one level down: #4279's first
+   repro carried a `//` line explaining each cell and was green on *both* arms,
+   because a real leading comment ahead of an `export let` changes the very
+   attachment the file exists to pin. Provenance belongs in the table below and
+   nowhere else. (The comments in `matrix/whitespace-comments/` are the
+   *payload*, not provenance.)
 5. **Commit formatted files.** They flow through the fmt gate, so keep them in
    the shape prettier-plugin-svelte would produce; an unformatted file is a
    needless new formatter case, not a compiler case.
-6. **A repro lands with its fix, not before.** Adding a file for a still-open
+6. **Measure a repro on both arms.** A file that matches on the fixed tree is
+   only a repro if it *diverges* on the tree without the fix; a cell that is green
+   either way pins nothing and cannot regress.
+7. **A repro lands with its fix, not before.** Adding a file for a still-open
    divergence would mean seeding a `known-failures` entry, and the seed then has
    to be tracked and burned down separately from the fix. Add the repro in the
    fix PR (or immediately after it merges) so it lands green.
@@ -699,6 +705,7 @@ Ids are `pattern/issues/<file>`, `pattern/matrix/<axis>/<file>` and
 | `template-local-no-outer-name.svelte` | corpus residue | Negative half: no outer binding of the name exists, so nothing may be grafted. Green on all three arms and all four targets; it rejects a resolver that would attach an initializer to whatever record it finds. |
 | `4280-trailing-comment-hosts.svelte` | [#4278](https://github.com/baseballyama/rsvelte/issues/4278), [#4280](https://github.com/baseballyama/rsvelte/issues/4280) | A trailing comment on a legacy prop declaration, on the **client**. The comment was located by scanning the declaration's last source line for `//`, which finds neither a block comment nor a comment on a wrapped line; and `transform_let_with_reexported_props` — the port a `let d = {}; export { d }` reaches — had no trailing-comment handling at all, so the second host was a second defect rather than a second cell. Where the comment goes depends on whether the call the declaration lowers to holds a node esrap can attach to: `a` and `b` have no default and none, `c` has a synthesized thunk, `d` and `e` reach the other port. A line comment inserted before a `)` must carry its own newline or it swallows the rest of the call, which is why the two spellings are crossed with the hosts rather than assumed equivalent. |
 | `block-local-binding-leaks-past-its-block.svelte` | [#4135](https://github.com/baseballyama/rsvelte/issues/4135) | `ScopeRoot` scope 0 is deliberately polluted with every child scope's declarations, so a name-keyed `get_binding` answers with an `{#await}` value or an `{#each}` item/index for a reference nowhere near its block — upstream's scope chain has no such name there at all. Phase 2 wrote that binding into `binding.references`, so the position-keyed `binding_at_reference` inherited the same answer and the outer `{code}` came out inside a `$.template_effect` reading the block-local. One enumeration (`BindingKind::is_block_local`) and one decision (`ScopeRoot::is_block_local_out_of_scope`) are consulted by both phase-2 writers and the phase-3 name fallback; each half was ablated on its own and neither fixes the file alone. The in-block `{code}` / `{idx}` reads are the controls — they must keep resolving to their block binding while the sibling reads outside must not resolve at all. |
+| `4279-erased-ts-comment-declarator-count.svelte` | [#4279](https://github.com/baseballyama/rsvelte/issues/4279) | A comment left inside an erased `interface` body ahead of an `export let`. Where upstream flushes it is decided by the source declaration's **declarator count**, not by the erased host or by where in it the comment sits: one declarator keeps the declaration located and prints the comment ahead of `let`, two or more split into a statement per prop and print it after. rsvelte forced the second shape in both cases. `two, three` is the multi-declarator half, which is what the real corpus carriers are and which must not move; the `client` and `client-dev` targets are the only ones that diverge, because the server does not lower a prop through this path. The corpus output gate cannot see this file move: `ast_equiv_batch` runs under `CommentPolicy::Ignore` (`GATES.md` blind spot 1a), and the two shapes are one `let use = …` declaration either way, so both arms score `match` — measured on `svelte-tweakpane-ui/src/lib/extra/AutoValue.svelte`, which carries the identical splice while `known-failures.client.json` is empty. What pins the placement is `erased_typescript_interface_comment_follows_the_declarator_count` in `3_transform/client/tests.rs`; this file is the reproduction, not the guard. |
 
 ## `matrix/` — the axes around those repros
 

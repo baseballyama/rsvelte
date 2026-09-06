@@ -3474,7 +3474,6 @@ fn overlay_lowered_callee_spans(
                     kept.push(RawMappedSpan {
                         code: span.code.start..span.code.start + shared_len,
                         source: span.source.start..span.source.start + shared_len,
-                        erased_comment_before_export_prop: span.erased_comment_before_export_prop,
                         source_end_override: None,
                     });
                 }
@@ -3486,7 +3485,6 @@ fn overlay_lowered_callee_spans(
                     kept.push(RawMappedSpan {
                         code: span.code.end - shared_len..span.code.end,
                         source: span.source.end - shared_len..span.source.end,
-                        erased_comment_before_export_prop: span.erased_comment_before_export_prop,
                         source_end_override: None,
                     });
                 }
@@ -3501,19 +3499,16 @@ fn overlay_lowered_callee_spans(
         kept.push(RawMappedSpan {
             code: start..end,
             source: source_start..source_start + generated_len,
-            erased_comment_before_export_prop: false,
             source_end_override: None,
         });
         kept.push(RawMappedSpan {
             code: end..end,
             source: source_end..source_end,
-            erased_comment_before_export_prop: false,
             source_end_override: None,
         });
         kept.push(RawMappedSpan {
             code: end..delimiter_end,
             source: source_end..source_end + 1,
-            erased_comment_before_export_prop: false,
             source_end_override: None,
         });
         *spans = kept;
@@ -3570,7 +3565,6 @@ fn copied_spans_for_normalized_code(
                     code: start_output as u32..output as u32,
                     source: (original_offset + start_input as u32)
                         ..(original_offset + input as u32),
-                    erased_comment_before_export_prop: false,
                     source_end_override: None,
                 });
                 continue;
@@ -3601,7 +3595,6 @@ fn copied_spans_for_normalized_code(
                         spans.push(RawMappedSpan {
                             code: run_start as u32..code_offset as u32,
                             source: source_start..source_end,
-                            erased_comment_before_export_prop: false,
                             source_end_override: None,
                         });
                     }
@@ -3745,7 +3738,6 @@ fn copied_spans_for_normalized_code(
             spans.push(RawMappedSpan {
                 code: output as u32..output as u32,
                 source: source..source,
-                erased_comment_before_export_prop: false,
                 source_end_override: None,
             });
         }
@@ -3753,15 +3745,6 @@ fn copied_spans_for_normalized_code(
         output += skip_output;
     }
     if let Some(projection) = projection {
-        for comment in &projection.erased_leading_comments_before_export_props {
-            let comment = (original_offset + comment.start)..(original_offset + comment.end);
-            if let Some(span) = spans
-                .iter_mut()
-                .find(|span| span.source.start <= comment.start && comment.end <= span.source.end)
-            {
-                span.erased_comment_before_export_prop = true;
-            }
-        }
         for &(binding_end, annotation_end) in &projection.binding_annotation_ends {
             let binding_end = original_offset + binding_end;
             let annotation_end = original_offset + annotation_end;
@@ -4591,9 +4574,6 @@ fn compose_script_projection(
         // still needed when the retained body contains the following prop.
         reemitted_comment_outputs: Vec::new(),
         repeated_comment_outputs: Vec::new(),
-        erased_leading_comments_before_export_props: source_projection
-            .erased_leading_comments_before_export_props
-            .clone(),
         binding_annotation_ends: source_projection.binding_annotation_ends.clone(),
         source_len: source_projection.source_len,
         output_len: body_len as u32,
