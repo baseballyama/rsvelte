@@ -1275,7 +1275,14 @@ fn reparse_expression<'a>(src: &str, allocator: &'a Allocator) -> Option<OxcExpr
         oxc_span::SourceType::mjs().with_typescript(true),
     )
     .parse();
-    if !ret.diagnostics.is_empty() {
+    // A rule acorn-typescript does not implement is not a parse error anywhere
+    // else in the pipeline, and bailing here spells it as the `undefined`
+    // fallback this function exists to avoid.
+    if crate::compiler::phases::phase1_parse::read::expression::first_reportable_diagnostic(
+        &ret.diagnostics,
+    )
+    .is_some()
+    {
         return None;
     }
     // Type-only syntax that is not an expression wrapper — parameter annotations
