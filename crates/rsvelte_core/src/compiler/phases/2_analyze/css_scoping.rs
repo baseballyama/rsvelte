@@ -503,6 +503,21 @@ fn prelude_opens_a_global_block(selectors: &[CssComplexSelector]) -> bool {
         .any(|cs| cs.children.iter().any(is_bare_global_relative))
 }
 
+/// Upstream's `metadata.is_global_block`: any relative selector in the prelude
+/// whose FIRST simple selector is a bare `:global` opens the block, so
+/// `.p :global` and `:global.x` both count where `is_bare_global_relative`
+/// (exactly `:global`, nothing else) does not.
+fn prelude_opens_a_global_block_upstream(selectors: &[CssComplexSelector]) -> bool {
+    selectors.iter().any(|cs| {
+        cs.children.iter().any(|rel| {
+            matches!(
+                rel.selectors.first(),
+                Some(CssSimpleSelector::PseudoClass(name, args)) if name == "global" && args.is_none()
+            )
+        })
+    })
+}
+
 /// Whether the SUBJECT (last) relative selector carries a `&`.
 fn subject_has_nesting(sel: &CssComplexSelector) -> bool {
     sel.children
@@ -570,14 +585,6 @@ fn extract_selectors_from_rule(
     };
     match node_type {
         "Rule" => {
-            if let Some(metadata) = node.field("metadata")
-                && metadata
-                    .field("is_global_block")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false)
-            {
-                return;
-            }
             // Parse this rule's own prelude selectors
             let mut own_selectors: Vec<CssComplexSelector> = Vec::new();
             if let Some(prelude) = node.field("prelude")
@@ -635,6 +642,14 @@ fn extract_selectors_from_rule(
 
             for sel in effective.iter().cloned() {
                 selectors.push(sel);
+            }
+
+            // Upstream's prune visits a global block's PRELUDE and not its body
+            // (`css-prune.js:133`), so a prefix still scopes and nothing the
+            // block contains does. Walking the body instead lets a `&` subject
+            // reach `nesting_matches_anything` and scope every element.
+            if prelude_opens_a_global_block_upstream(&own_selectors) {
+                return;
             }
 
             // Recurse into nested rules with the effective selectors as the new
