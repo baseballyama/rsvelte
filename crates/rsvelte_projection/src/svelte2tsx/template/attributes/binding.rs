@@ -182,14 +182,38 @@ pub fn build_bind_directive_suffix(
     parent_tag: &str,
     use_ts_syntax: bool,
 ) -> String {
-    let mut out = String::new();
+    segs_to_string(
+        &build_bind_directive_suffix_segs(
+            attributes,
+            source,
+            element_var,
+            parent_tag,
+            use_ts_syntax,
+        ),
+        source,
+    )
+}
+
+/// Segment form of [`build_bind_directive_suffix`], for callers that apply the
+/// opener through `emit_segmented_overwrite` rather than baking it.
+pub fn build_bind_directive_suffix_segs(
+    attributes: &[Attribute],
+    source: &str,
+    element_var: Option<&str>,
+    parent_tag: &str,
+    use_ts_syntax: bool,
+) -> Vec<Seg> {
+    let mut out: Vec<Seg> = Vec::new();
     for attr in attributes {
         let Attribute::BindDirective(bind) = attr else {
             continue;
         };
-        out.push_str(&segs_to_string(
-            &bind_directive_suffix_segs(bind, source, element_var, parent_tag, use_ts_syntax),
+        out.extend(bind_directive_suffix_segs(
+            bind,
             source,
+            element_var,
+            parent_tag,
+            use_ts_syntax,
         ));
     }
     out

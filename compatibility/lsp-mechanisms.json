@@ -215043,16 +215043,16 @@
 		"differential:upstream-features/svelte-element-error/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=76f37368bcf6]": [
 			"diagnostic-mixed"
 		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=2,hash=3e6577bce37a]": [
+		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=5bc24f17e225]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=226761c6bedc]": [
+		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=2,hash=3e6577bce37a]": [
+		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=1,hash=5bc24f17e225]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=226761c6bedc]": [
+		"differential:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items/@diagnostic-40d9ef56b9ec/range/end/character:value-mismatch[official=4fc82b26aecb,rsvelte=6b51d431df5d]": [
@@ -219729,16 +219729,16 @@
 		"expected:upstream-features/svelte-element-error/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=bfa92efe289c]": [
 			"diagnostic-identity-source-and-code"
 		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=1f9d0d028ea0]": [
+		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=3,hash=7d119f7e27df]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=226761c6bedc]": [
+		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=4,hash=1f9d0d028ea0]": [
+		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=3,hash=7d119f7e27df]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=226761c6bedc]": [
+		"expected:upstream-features/svelte-element/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=fe6c78bb04c5]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/svelte-native/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=21ec30293085]": [
