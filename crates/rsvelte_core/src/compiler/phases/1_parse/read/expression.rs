@@ -1610,6 +1610,29 @@ fn wrap_for_parse(prefix: &str, content: &str, suffix: &str) -> String {
     wrapped
 }
 
+/// The `(` of the expression wrapper can open an arrow parameter list, and OXC
+/// then aborts on a body acorn reads as an expression. A newline is the same one
+/// byte, so this retry keeps every caller's `-1` adjustment correct.
+fn wrap_for_retry(content: &str) -> String {
+    let mut retry = String::with_capacity(content.len() + 2);
+    retry.push('\n');
+    retry.push_str(content);
+    retry.push('\n');
+    retry
+}
+
+/// Whether the program is the single expression `parseExpressionAt` consumes.
+/// A trailing `;` is code, so `a;` is a statement and not a tag body.
+fn is_lone_expression_statement(program: &OxcProgram) -> bool {
+    program.directives.is_empty()
+        && program.body.len() == 1
+        && matches!(
+            program.body.first(),
+            Some(oxc_ast::ast::Statement::ExpressionStatement(stmt))
+                if stmt.span.end == stmt.expression.span().end
+        )
+}
+
 /// Parse a destructuring pattern (for `{@const}` tags).
 ///
 /// Destructuring patterns like `{x = 1, y}` or `[a, b, ...rest]` cannot be parsed
@@ -2326,9 +2349,21 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let wrapped = wrap_for_parse("(", content, ")");
-        let parser = OxcParser::new(allocator, &wrapped, source_type);
-        let result = parser.parse();
+        let paren = wrap_for_parse("(", content, ")");
+        let retry_src = wrap_for_retry(content);
+        let first = OxcParser::new(allocator, &paren, source_type).parse();
+        let (wrapped, result) = if first_reportable_diagnostic(&first.diagnostics).is_some() {
+            let retry = OxcParser::new(allocator, &retry_src, source_type).parse();
+            if first_reportable_diagnostic(&retry.diagnostics).is_none()
+                && is_lone_expression_statement(&retry.program)
+            {
+                (&retry_src, retry)
+            } else {
+                (&paren, first)
+            }
+        } else {
+            (&paren, first)
+        };
 
         if first_reportable_diagnostic(&result.diagnostics).is_none()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
@@ -2345,7 +2380,7 @@ fn parse_expression_with_typescript<'a>(
             // not — a template expression is strict too. Failing here routes the
             // caller to `check_js_parse_error_with_pos`, which reports acorn's
             // message and position.
-            if acorn_only_violation(&result.program, &wrapped, use_typescript).is_some() {
+            if acorn_only_violation(&result.program, wrapped, use_typescript).is_some() {
                 return None;
             }
 
