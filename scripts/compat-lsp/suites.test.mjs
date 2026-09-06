@@ -3,8 +3,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   corpusCases,
+  fixtureCases,
   findServerCaches,
   removeNewServerCaches,
   walkFiles,
@@ -53,4 +55,50 @@ test("cleanup removes only caches created by the current run", (context) => {
   assert.deepEqual(removed, [created]);
   assert.equal(fs.existsSync(existing), true);
   assert.equal(fs.existsSync(created), false);
+});
+
+// A required member the harness omits is not a smaller request: the server
+// fails to deserialize and answers a spelling of "nothing", identically for
+// every source, so the ratchet records the harness. Three methods lost 30
+// entries to that (#4331, #4209) before this test existed.
+const REQUIRED_PARAMS = {
+  "textDocument/hover": ["position"],
+  "textDocument/completion": ["position"],
+  "textDocument/linkedEditingRange": ["position"],
+  "textDocument/documentHighlight": ["position"],
+  "textDocument/prepareRename": ["position"],
+  "textDocument/selectionRange": ["positions"],
+  "textDocument/formatting": ["options"],
+  "textDocument/codeAction": ["range", "context"],
+};
+
+test("every fixture request carries the members its method's params declare", () => {
+  const root = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../..",
+  );
+  const cases = fixtureCases(root);
+  assert.ok(cases.length > 100, `only ${cases.length} fixture cases discovered`);
+  const seen = new Set();
+  for (const entry of cases) {
+    for (const request of entry.requests) {
+      seen.add(request.method);
+      for (const member of REQUIRED_PARAMS[request.method] ?? []) {
+        assert.ok(
+          request.params[member] !== undefined,
+          `${entry.id}: ${request.method} params lack \`${member}\``,
+        );
+      }
+    }
+  }
+  // Negative control: the table is only evidence for the methods the manifest
+  // actually issues, so an entry that stops being reached must be visible.
+  for (const method of Object.keys(REQUIRED_PARAMS))
+    assert.ok(seen.has(method), `no fixture issues ${method}`);
+  // Spelled rather than absent: `colorPresentation` also declares `color` and
+  // `range`, and the manifest carries neither, so its three cases are still
+  // driven malformed. Both servers answer identically there, so it enrols no
+  // ratchet entry — which is why it is recorded here and not fixed blind.
+  assert.ok(seen.has("textDocument/colorPresentation"));
+  assert.ok(!("textDocument/colorPresentation" in REQUIRED_PARAMS));
 });
