@@ -187,10 +187,15 @@ pub fn run_oxfmt(
         .output()
         .with_context(|| format!("failed to run `{}` — is oxfmt installed?", oxfmt.display()))?;
 
-    // Forward oxfmt's captured stdout (its own summary / check listing).
     let stdout = String::from_utf8_lossy(&out.stdout);
-    print!("{stdout}");
-    let _ = io::stdout().flush();
+    // Check mode's listing names the files that would be reformatted, so it is
+    // the answer; write mode's is a summary of a run whose scope the caller
+    // never chose — on a Svelte-only tree it reads `No files found matching the
+    // given patterns.` / `on 0 files`, contradicting our own summary line.
+    if matches!(mode, Mode::Check) {
+        print!("{stdout}");
+        let _ = io::stdout().flush();
+    }
 
     let (files_total, issues) = parse_oxfmt_counts(&stdout);
     let code = out.status.code();

@@ -11,6 +11,7 @@ mod daemon;
 mod deep_nesting;
 mod delegation;
 mod native;
+mod oxfmt_stdout;
 mod stdin;
 mod style;
 mod tailwind;
