@@ -136,9 +136,6 @@ pub enum JsStatement {
 pub struct RawMappedSpan {
     pub code: Range<u32>,
     pub source: Range<u32>,
-    /// This copied run ends with a comment that upstream keeps attached to an
-    /// erased TS declaration before an exported prop.
-    pub erased_comment_before_export_prop: bool,
     /// `(binding end, annotation end)`: upstream's parser puts a type annotation
     /// inside its binding's range, so a node ending at the first source position
     /// is located at the second. At most one per run, because the annotation is

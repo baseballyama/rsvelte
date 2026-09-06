@@ -158,33 +158,49 @@ fn first_comment_reemitted_from_a_typescript_declaration_repeats_in_client_outpu
 }
 
 #[test]
-fn erased_typescript_interface_comment_keeps_exported_prop_cursor_position() {
-    let source = r#"<script lang="ts">
+fn erased_typescript_interface_comment_follows_the_declarator_count() {
+    // Where upstream flushes the comment is decided by how many declarators the
+    // source `export let` has, not by where the comment sits in the erased
+    // region: one declarator keeps the declaration located and prints the
+    // comment ahead of `let`, two split into a statement per prop and print it
+    // after. Both expectations are the oracle's own output.
+    let head = r#"<script lang="ts">
         interface $$Props {}
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         interface $$Events {}
-        export let use: string[] = [];
-    </script>"#;
+"#;
+    let cells: &[(&str, &str, &str)] = &[
+        (
+            "one declarator",
+            "        export let use: string[] = [];\n    </script>",
+            "\t// eslint-disable-next-line @typescript-eslint/no-unused-vars\n\tlet use = $.prop",
+        ),
+        (
+            "two declarators",
+            "        export let use: string[] = [],\n            elem: string[] = [];\n    </script>",
+            "\tlet // eslint-disable-next-line @typescript-eslint/no-unused-vars\n\tuse = $.prop",
+        ),
+    ];
 
-    for dev in [false, true] {
-        let output = crate::compiler::compile(
-            source,
-            crate::compiler::CompileOptions {
-                filename: Some("erased-interface-comment-exported-prop.svelte".to_string()),
-                dev,
-                ..Default::default()
-            },
-        )
-        .expect("compiles")
-        .js
-        .code;
+    for (name, tail, expected) in cells {
+        for dev in [false, true] {
+            let output = crate::compiler::compile(
+                &format!("{head}{tail}"),
+                crate::compiler::CompileOptions {
+                    filename: Some("erased-interface-comment-exported-prop.svelte".to_string()),
+                    dev,
+                    ..Default::default()
+                },
+            )
+            .expect("compiles")
+            .js
+            .code;
 
-        assert!(
-            output.contains(
-                "let // eslint-disable-next-line @typescript-eslint/no-unused-vars\n\tuse = $.prop"
-            ),
-            "the erased interface keeps ownership of its leading comment in dev={dev}:\n{output}"
-        );
+            assert!(
+                output.contains(expected),
+                "{name} in dev={dev} must place the comment as upstream does:\n{output}"
+            );
+        }
     }
 }
 
