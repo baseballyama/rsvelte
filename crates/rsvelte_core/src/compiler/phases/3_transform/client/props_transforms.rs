@@ -7,7 +7,8 @@ use std::fmt::Write as _;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{
-    after_keywords, code_bytes, ends_inside_line_comment, find_code, skip_opaque,
+    after_keywords, code_bytes, comment_ranges, ends_inside_line_comment, find_code, skip_opaque,
+    skip_ws_and_comments_back,
 };
 use crate::compiler::phases::phase3_transform::shared::offsets::{
     ByteOffset, CharOffset, CharToByte,
@@ -541,6 +542,7 @@ pub(super) fn transform_let_with_reexported_props(
     // declaration carried between the keyword and the declarator, and this
     // function rebuilds the declaration from its own text.
     let (declaration_comments, rest_raw) = split_own_line_leading_comments(rest_raw);
+    let (rest_raw, trailing_comment) = split_trailing_comment(rest_raw);
     // Strip trailing JS comments (// and /* */) before splitting declarators so that
     //   `let name; // comment`
     // does not produce `name; // comment` as the declarator name.
@@ -582,12 +584,17 @@ pub(super) fn transform_let_with_reexported_props(
     }
 
     let mut results = Vec::new();
+    // Same question `transform_export_let` asks: is the last generated argument
+    // still the source initializer? Only then does esrap have a located node
+    // inside the call to flush the trailing comment onto.
+    let mut last_arg_is_source_initializer = false;
 
     for decl in declarators {
         let decl = decl.trim();
         if decl.is_empty() {
             continue;
         }
+        last_arg_is_source_initializer = false;
 
         // Handle destructured patterns: let { a, b, c } = { ... }
         if decl.starts_with('{') || decl.starts_with('[') {
@@ -718,6 +725,7 @@ pub(super) fn transform_let_with_reexported_props(
                 }
                 let flags = calculate_prop_flags(name, analysis, !is_simple);
                 if is_simple {
+                    last_arg_is_source_initializer = true;
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
                         leading_ws, kw, name, prop_name, flags, val
@@ -726,12 +734,18 @@ pub(super) fn transform_let_with_reexported_props(
                     // Prop/state identifier: after transform it becomes val() (no-arg call).
                     // The official compiler unwraps no-arg calls to just the callee,
                     // so we pass the identifier directly.
+                    last_arg_is_source_initializer = true;
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
                         leading_ws, kw, name, prop_name, flags, val
                     ));
                 } else {
                     let lazy_arg = make_lazy_prop_arg(val);
+                    // `make_lazy_prop_arg` UNWRAPS a no-arg call to its callee, so
+                    // reaching this branch is not the same as emitting a wrapper.
+                    let synthesized_thunk = lazy_arg.trim_start().starts_with("() =>")
+                        && !val.trim_start().starts_with("() =>");
+                    last_arg_is_source_initializer = !synthesized_thunk;
                     results.push(format!(
                         "{}{} {} = $.prop($$props, '{}', {}, {});",
                         leading_ws, kw, name, prop_name, flags, lazy_arg
@@ -754,9 +768,51 @@ pub(super) fn transform_let_with_reexported_props(
         }
     }
 
+    if let Some(comment) = trailing_comment {
+        restore_trailing_comment(&mut results, comment, last_arg_is_source_initializer);
+    }
+
     reprint_declaration_comments(&mut results, &declaration_comments, leading_ws, kw);
 
     Some(results.join("\n"))
+}
+
+/// Split the comment run trailing a declaration's last code byte off its text.
+///
+/// esrap attaches such a run to the last LOCATED node of the statement, so where
+/// it prints is decided by which node that becomes — not by the comment's
+/// spelling, and not by whether a `;` precedes it, which is what a rule written
+/// over the last source line reaches for instead.
+fn split_trailing_comment(text: &str) -> (&str, Option<&str>) {
+    let bytes = text.as_bytes();
+    let at = skip_ws_and_comments_back(bytes, &comment_ranges(bytes), bytes.len());
+    // A declaration that is nothing but comments has no node to attach to; those
+    // are the leading comments the caller peeled off above.
+    if at == bytes.len() || text[..at].trim().is_empty() {
+        return (text, None);
+    }
+    (&text[..at], Some(text[at..].trim()))
+}
+
+/// Print a declaration's trailing comment run back. `inside` says the last
+/// generated argument is still the source initializer, which is the only case
+/// where upstream has a located node inside the call to flush it onto.
+fn restore_trailing_comment(results: &mut [String], comment: &str, inside: bool) {
+    let Some(last) = results.last_mut() else {
+        return;
+    };
+    match inside.then(|| last.rfind(')')).flatten() {
+        // A run ending in a line comment has to break before the paren or the
+        // `//` swallows it. The program printer supplies the indentation.
+        Some(close) if ends_inside_line_comment(comment) => {
+            last.insert_str(close, &format!(" {comment}\n"));
+        }
+        Some(close) => last.insert_str(close, &format!(" {comment}")),
+        None => {
+            last.push(' ');
+            last.push_str(comment);
+        }
+    }
 }
 
 /// Print the comments a rebuilt declaration carried back between its keyword and
@@ -1131,15 +1187,9 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
 
     // esrap flushes a same-line comment after the source declaration on the
     // initializer node. Once that initializer becomes the final `$.prop`
-    // argument, the comment therefore belongs inside the generated call. Keep
-    // it separately while the comment-free declaration is split below.
-    // `rest_raw` is the whole declaration, so a `//` after its last code byte is
-    // trailing whatever ends there — and a declaration is delimited by ASI as
-    // readily as by a `;`, which is what an `ends_with(';')` test cannot see.
-    let trailing_line_comment = rest_raw.rsplit('\n').next().and_then(|last_line| {
-        let comment_at = find_line_comment_position(last_line)?;
-        (!last_line[..comment_at].trim().is_empty()).then(|| last_line[comment_at..].trim_end())
-    });
+    // argument, the comment therefore belongs inside the generated call. Peel it
+    // off before the declarators are split, so no later pass handles it twice.
+    let (rest_raw, trailing_comment) = split_trailing_comment(rest_raw);
 
     // Strip trailing `// line comment` and `/* block comment */` from the declaration
     // text BEFORE splitting declarators.  Without this, a declaration like:
@@ -1363,18 +1413,12 @@ pub(super) fn transform_export_let(line: &str, analysis: &ComponentAnalysis, dev
         }
     }
 
-    if last_declarator_has_initializer
-        && let Some(comment) = trailing_line_comment
-        && let Some(last) = results.last_mut()
-    {
-        if last_arg_is_synthesized_thunk {
-            last.push(' ');
-            last.push_str(comment);
-        } else if let Some(close) = last.rfind(')') {
-            // A line comment must terminate before the call's closing paren. The
-            // program printer supplies the final indentation and multiline layout.
-            last.insert_str(close, &format!(" {}\n", comment));
-        }
+    if let Some(comment) = trailing_comment {
+        restore_trailing_comment(
+            &mut results,
+            comment,
+            last_declarator_has_initializer && !last_arg_is_synthesized_thunk,
+        );
     }
 
     reprint_declaration_comments(&mut results, &declaration_comments, leading_ws, kw);
