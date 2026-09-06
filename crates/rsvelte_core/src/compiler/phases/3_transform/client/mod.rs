@@ -6170,12 +6170,17 @@ fn transform_module_script_runes_with_target(
             .cloned()
             .collect();
 
+        // Upstream's `AssignmentExpression` proxy decision resolves an Identifier
+        // through `binding.initial` exactly as the `$state(x)` initializer does, so
+        // the reassignment site takes the same list. A module script has no props,
+        // which is the one thing the instance path's `reassign_non_proxy_vars` adds
+        // to its own `non_proxy_vars`.
         result = state_pipeline_ast::transform_state_pipeline_ast(
             &result,
             &pipeline_state_vars,
             &derived_vars,
             analysis.runes,
-            &[],
+            &module_non_proxy_vars,
             &pipeline_non_reactive_vars,
         )
         .unwrap_or(result);
