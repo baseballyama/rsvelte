@@ -90,44 +90,36 @@ const files = raw
 // - docs       : *.md, docs/ 配下
 // - other      : 上記いずれにも該当しないもの
 function categoryOf(path) {
-  if (path.startsWith('src/ast/')) return 'ast';
+  const core = 'crates/rsvelte_core/src/';
+  if (path.startsWith(core + 'ast/')) return 'ast';
+  if (path.startsWith('submodules/') || path.startsWith('fixtures/')) return 'submodule';
+  if (path.startsWith(core + 'compiler/phases/1_parse/')) return 'parse';
+  if (path.startsWith(core + 'compiler/phases/2_analyze/')) return 'analyze';
+  if (path.startsWith(core + 'compiler/phases/3_transform/')) return 'transform';
+  if (path.startsWith(core + 'error/')) return 'error';
   if (
-    path.startsWith('svelte/') ||
-    path.startsWith('vite-plugin-svelte/') ||
-    path.startsWith('language-tools/') ||
-    path.startsWith('fixtures/')
-  )
-    return 'submodule';
-  if (path.startsWith('src/compiler/phases/1_parse/')) return 'parse';
-  if (path.startsWith('src/compiler/phases/2_analyze/')) return 'analyze';
-  if (path.startsWith('src/compiler/phases/3_transform/')) return 'transform';
-  if (path.startsWith('src/error/')) return 'error';
-  if (
-    path === 'src/lib.rs' ||
-    path.startsWith('src/napi') ||
-    path.startsWith('src/bin/') ||
-    path.startsWith('npm/')
+    path.startsWith('crates/rsvelte_napi/') ||
+    path.startsWith('crates/rsvelte_bindings_support/') ||
+    path.startsWith('apps/npm/')
   )
     return 'napi';
-  if (path.startsWith('tests/') || path.startsWith('benches/') || path.startsWith('examples/'))
-    return 'tests';
+  if (/^crates\/[^/]+\/(tests|benches|examples)\//.test(path)) return 'tests';
   if (
     path.startsWith('.github/') ||
     path.startsWith('scripts/') ||
-    path === 'build.rs' ||
-    path === 'Cargo.toml' ||
+    path.startsWith('compatibility/') ||
+    path.endsWith('Cargo.toml') ||
     path === 'Cargo.lock' ||
-    path === 'package.json' ||
+    path.endsWith('package.json') ||
     path === 'pnpm-lock.yaml' ||
     path === 'Dockerfile' ||
     path.startsWith('docker') ||
-    path === '.devcontainer' ||
-    path.startsWith('.devcontainer/') ||
+    path.startsWith('.devcontainer') ||
     path.startsWith('.githooks/')
   )
     return 'infra';
   if (path.endsWith('.md') || path.startsWith('docs/')) return 'docs';
-  if (path.startsWith('src/')) return 'other_src';
+  if (path.startsWith('crates/')) return 'other_src';
   return 'other';
 }
 

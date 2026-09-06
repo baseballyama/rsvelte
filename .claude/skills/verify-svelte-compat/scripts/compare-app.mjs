@@ -33,7 +33,7 @@ const targetAbs = path.resolve(target);
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 
 // Load compilers
-const svelte = await import(path.join(ROOT, 'svelte/packages/svelte/src/compiler/index.js'));
+const svelte = await import(path.join(ROOT, 'submodules/svelte/packages/svelte/src/compiler/index.js'));
 const rsvelte = require(path.resolve(bindingPath));
 
 function findSvelteFiles(dir, depth = 0) {
