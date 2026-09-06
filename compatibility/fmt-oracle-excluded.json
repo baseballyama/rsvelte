@@ -118,5 +118,10 @@
 		"id": "pattern/issues/3515-props-rest-line-comment.svelte",
 		"class": "engine-divergence",
 		"reason": "prettier preserves a line comment between a destructuring assignment and its `$props()` initializer as a leading separator (and inserts a blank line), while oxc attaches the same valid comment after the initializer expression; compiler parity needs the original separator slot to distinguish #3515"
+	},
+	{
+		"id": "pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte",
+		"class": "invalid-input",
+		"reason": "`<string>() => a` names a type parameter `string`, which is illegal TypeScript (TS2368: type parameter name cannot be 'string'); oxc rejects it, so rsvelte-fmt returns a script parse error and leaves the file unformatted. The Svelte compiler accepts it only because acorn-typescript does not implement the rule \u2014 which is exactly what this repro pins \u2014 and the formatter's oxc boundary is not that compiler. Same shape as `snippet-typescript` (TS1015), one rule over."
 	}
 ]

@@ -1738,7 +1738,7 @@ fn expression_source_type(ts: bool) -> SourceType {
 fn bare_parse_error(content: &str, source_type: SourceType) -> Option<(String, usize)> {
     with_oxc_allocator(|allocator| {
         let result = OxcParser::new(allocator, content, source_type).parse();
-        let first_error = result.diagnostics.first()?;
+        let first_error = first_reportable_diagnostic(&result.diagnostics)?;
         let pos = first_error
             .labels
             .first()
@@ -1829,7 +1829,7 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
         let (message, pos, retry_bare) = with_oxc_allocator(|allocator| {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
-            if let Some(first_error) = result.diagnostics.first() {
+            if let Some(first_error) = first_reportable_diagnostic(&result.diagnostics) {
                 // Acorn raises the shorthand-assignment error at the `=` token,
                 // while OXC labels the whole `a = 1` property.
                 if first_error.message.as_ref() == "Invalid assignment in object literal"
@@ -1990,7 +1990,7 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-        if let Some(first_error) = result.diagnostics.first() {
+        if let Some(first_error) = first_reportable_diagnostic(&result.diagnostics) {
             let pos = first_error
                 .labels
                 .first()
@@ -2035,7 +2035,7 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, content, source_type).parse();
-        if let Some(first_error) = result.diagnostics.first() {
+        if let Some(first_error) = first_reportable_diagnostic(&result.diagnostics) {
             let pos = first_error
                 .labels
                 .first()
@@ -2330,7 +2330,7 @@ fn parse_expression_with_typescript<'a>(
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
-        if result.diagnostics.is_empty()
+        if first_reportable_diagnostic(&result.diagnostics).is_none()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
         {
@@ -2635,7 +2635,7 @@ pub fn parse_typescript_params<'a>(
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
-        if result.diagnostics.is_empty()
+        if first_reportable_diagnostic(&result.diagnostics).is_none()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
             && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
@@ -2687,7 +2687,7 @@ pub fn parse_typescript_params<'a>(
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
         let cleaned_result = cleaned_parser.parse();
 
-        if cleaned_result.diagnostics.is_empty()
+        if first_reportable_diagnostic(&cleaned_result.diagnostics).is_none()
             && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 cleaned_result.program.body.first()
             && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
@@ -2736,7 +2736,7 @@ pub fn parse_typescript_params<'a>(
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();
-                if single_result.diagnostics.is_empty()
+                if first_reportable_diagnostic(&single_result.diagnostics).is_none()
                     && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                         single_result.program.body.first()
                     && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
@@ -7743,7 +7743,7 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 /// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
 /// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
 /// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
-const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 18] = [
     "1015", // A parameter cannot have a question mark and an initializer
     "1016", // A required parameter cannot follow an optional parameter
     "1021", // An index signature must have a type annotation
@@ -7759,6 +7759,7 @@ const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
     "1222", // An overload signature cannot be declared as a generator
     "1263", // Declarations with initializers cannot also have definite assignment assertions
     "1264", // Declarations with definite assignment assertions must also have type annotations
+    "2368", // Type parameter name cannot be 'X'
     "2681", // A constructor cannot have a `this` parameter
     "5085", // A tuple member cannot be both optional and rest
 ];
@@ -7770,6 +7771,16 @@ fn is_acorn_unchecked_ts_grammar_rule(diagnostic: &OxcDiagnostic) -> bool {
             .number
             .as_deref()
             .is_some_and(|n| ACORN_UNCHECKED_TS_GRAMMAR_RULES.contains(&n))
+}
+
+/// The first diagnostic acorn would also have raised. Every OXC boundary in the
+/// pipeline has to agree on this, or one host rejects what another compiles.
+pub(crate) fn first_reportable_diagnostic<'d>(
+    diagnostics: impl IntoIterator<Item = &'d OxcDiagnostic>,
+) -> Option<&'d OxcDiagnostic> {
+    diagnostics
+        .into_iter()
+        .find(|diagnostic| !is_acorn_unchecked_ts_grammar_rule(diagnostic))
 }
 
 /// `await` / `yield` inside a function's formal parameters — acorn's
@@ -8269,11 +8280,7 @@ pub(crate) fn repair_ts_newline_import_assert(
     loop {
         let allocator = Allocator::default();
         let parsed = OxcParser::new(&allocator, &repaired, SourceType::ts()).parse();
-        let Some(diagnostic) = parsed
-            .diagnostics
-            .iter()
-            .find(|diagnostic| !is_acorn_unchecked_ts_grammar_rule(diagnostic))
-        else {
+        let Some(diagnostic) = first_reportable_diagnostic(&parsed.diagnostics) else {
             return changed.then_some(repaired);
         };
         let Some(label) = diagnostic.labels.first() else {
@@ -8550,29 +8557,24 @@ fn convert_parsed_program<'ast>(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let reported_at = diagnostics
-            .iter()
-            .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
-            .map(|first_error| {
-                let label = first_error.labels.first();
-                let at = label
-                    .map(|label| (label.offset() as usize).min(content.len()))
-                    .unwrap_or(0);
-                let label_end = label
-                    .map(|label| at.saturating_add(label.len() as usize).min(content.len()))
-                    .unwrap_or(at);
-                let aligned = realign_missing_semicolon(content, at, &first_error.message);
-                if is_typescript {
-                    aligned
-                } else {
-                    // A TS declaration can first look like a missing semicolon
-                    // to OXC. Acorn still stops at the declaration keyword, so
-                    // the plain-JS pass must also see that intermediate result.
-                    realign_plain_js_typescript_diagnostic(
-                        content, aligned.0, label_end, &aligned.1,
-                    )
-                }
-            });
+        let reported_at = first_reportable_diagnostic(diagnostics).map(|first_error| {
+            let label = first_error.labels.first();
+            let at = label
+                .map(|label| (label.offset() as usize).min(content.len()))
+                .unwrap_or(0);
+            let label_end = label
+                .map(|label| at.saturating_add(label.len() as usize).min(content.len()))
+                .unwrap_or(at);
+            let aligned = realign_missing_semicolon(content, at, &first_error.message);
+            if is_typescript {
+                aligned
+            } else {
+                // A TS declaration can first look like a missing semicolon
+                // to OXC. Acorn still stops at the declaration keyword, so
+                // the plain-JS pass must also see that intermediate result.
+                realign_plain_js_typescript_diagnostic(content, aligned.0, label_end, &aligned.1)
+            }
+        });
         // A dummy program is what OXC leaves behind when it aborts, and the
         // acorn-only checks below all need nodes.
         let no_ast = program.body.is_empty() && program.directives.is_empty();

@@ -3181,7 +3181,7 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 24 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 25 entries.**
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -3197,14 +3197,14 @@ Attribution of `fmt-oracle-excluded.json`:
 |---|---|---|
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | the `$props()` comment slot the #3515 repros depend on |
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | `engine-divergence` — oxc's line-breaking, not prettier's |
-| 4 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
+| 5 | [`deliberate-divergences`](#deliberate-divergences) | `invalid-input` and `migrate` — inputs no compiler accepts, and Svelte 4 migrator output |
 | 5 | [`deliberate-divergences`](#deliberate-divergences) | both texts compile to byte-identical client and server `js` **and** `css` |
 | 3 | [`deliberate-divergences`](#deliberate-divergences) | rsvelte reproduces `oxfmt <file>.css` byte-for-byte; the oracle's Svelte path disagrees with oxfmt itself |
 | 2 | [`upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md`](../upstream_issues/3035-prettier-plugin-svelte-drops-a-nested-pattern-key-in-each.md) | `oracle-bug` — the `{#each}` head drops a nested pattern's property key |
 | 1 | [`upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md`](../upstream_issues/oxfmt-svelte-css-eats-a-css-escape-terminator-space.md) | `oracle-bug` — a CSS escape's terminator space is eaten, and a live rule becomes dead |
 | 3 | [`upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md`](../upstream_issues/oxfmt-svelte-css-keeps-source-tabs-around-a-selector-comment.md) | `oracle-bug` — source tabs survive on a comment-bearing selector under `useTabs: false` |
 
-**Every one of the 24 entries now carries a target.** The last one that did not —
+**Every one of the 25 entries now carries a target.** The last one that did not —
 `shadcn-svelte/.../theme-customizer-code.svelte` — was not an oracle bug at all, and it left
 this file for `fmt-known-failures.json`; the measurement is under *A second stated reason was
 falsified* below. The control that decides it is one character wide: replace the `<pre>` with a
@@ -3370,6 +3370,11 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   `snippet-rest-args`.
 - **Genuinely-invalid Svelte-specific CSS** — a parser-modern edge `<style>` block
   with invalid `:nth` syntax. — `css-nth-syntax`.
+- **Type parameter named `string`** — `<string>() => a` is illegal TypeScript
+  (TS2368); oxc rejects it, so rsvelte-fmt leaves the file unformatted. The Svelte
+  compiler accepts it because acorn-typescript does not implement the rule, which is
+  what the repro pins; the formatter's oxc boundary is not that compiler. —
+  `acorn-unchecked-ts-grammar-rule-in-a-template`.
 
 ### migrate — Svelte 4→5 migrator output (out of scope per AGENTS.md)
 
@@ -6419,7 +6424,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **206 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **200 entries**.
 
 ### The question it asks
 
@@ -6535,13 +6540,13 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `59 + 44 + 30 + 30 + 14 + 14 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `55 + 44 + 30 + 28 + 14 + 14 + 6 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 59 | 31 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `span` | 55 | 29 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 14 | 8 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 30 | 15 | ESTree fields rsvelte's serializer omits or adds: `typeAnnotation`, `returnType`, `optional`, `readonly`. The lint gates found some of these from the other side. |
+| `estree-fields` | 28 | 14 | ESTree fields rsvelte's serializer omits or adds: `typeAnnotation`, `returnType`, `optional`, `readonly`. The lint gates found some of these from the other side. |
 | `unclustered` | 30 | 19 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 44 | 22 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
@@ -6552,13 +6557,13 @@ Partition of `parse-ast-known-failures.json` by cluster: `59 + 44 + 30 + 30 + 14
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 206 keys are **115 distinct bases**: 91 appear on both axes and 24 on one
-(91x2 + 24 = 206, a 1.79x collapse). The defect ceiling is 115. The per-cluster collapse is not
+`legacy`, so 200 keys are **112 distinct bases**: 88 appear on both axes and 24 on one
+(88x2 + 24 = 200, a 1.79x collapse). The defect ceiling is 112. The per-cluster collapse is not
 uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x (every base is on
 both axes), `css-shape` 1.56x and `child-count` 1.20x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
-**No base's two axes sit in different clusters** (0 of 91), so a cluster can be worked end to end
+**No base's two axes sit in different clusters** (0 of 88), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
