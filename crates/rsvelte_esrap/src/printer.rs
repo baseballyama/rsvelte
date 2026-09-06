@@ -143,6 +143,11 @@ pub struct LocRange {
     pub source: Option<u32>,
     /// Whether the range advances through the source byte for byte.
     pub linear: bool,
+    /// `(binding_end, annotation_end)` for a binding whose type annotation was
+    /// erased from the copied text: upstream's parser ends the binding after the
+    /// annotation, so an end position landing on `binding_end` reports
+    /// `annotation_end` instead.
+    pub source_end_override: Option<(u32, u32)>,
 }
 
 /// A block body whose braces map somewhere other than its comment-placement
@@ -900,18 +905,35 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if !self.loc_map.is_empty() {
             let index = self.loc_map.partition_point(|range| range.end < offset);
             if let Some(range) = self.loc_map.get(index)
-                && range.end == offset
+                && range.start <= offset
                 && range.linear
                 && let Some(source) = range.source
             {
                 let mapped = source + (offset - range.start);
-                let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
-                let line = usize_to_u32(line_starts.partition_point(|&s| s <= mapped));
-                let line_start = line_starts[(line - 1) as usize];
-                return Some((line, mapped.saturating_sub(line_start)));
+                // The annotation is erased from the copied text, so the same
+                // token ends one run earlier here than it does upstream.
+                if let Some((binding_end, annotation_end)) = range.source_end_override
+                    && mapped == binding_end
+                {
+                    return self.source_line_col(annotation_end);
+                }
+                if range.end == offset {
+                    return self.source_line_col(mapped);
+                }
             }
         }
         self.map_position(offset)
+    }
+
+    /// Source-map line and column of a source-space `offset`.
+    fn source_line_col(&self, offset: u32) -> Option<(u32, u32)> {
+        let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
+        if line_starts.is_empty() {
+            return None;
+        }
+        let line = usize_to_u32(line_starts.partition_point(|&s| s <= offset));
+        let line_start = line_starts[(line - 1) as usize];
+        Some((line, offset.saturating_sub(line_start)))
     }
 
     /// esrap's `write_source_keyword`: bracket the literal `keyword` with

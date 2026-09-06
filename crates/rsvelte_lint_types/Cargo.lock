@@ -259,7 +259,6 @@ name = "corsa_core"
 version = "1.12.4"
 dependencies = [
  "base64",
- "bumpalo",
  "compact_str",
  "memchr",
  "rustc-hash",
@@ -1373,7 +1372,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.10.37"
+version = "0.10.38"
 dependencies = [
  "compact_str",
  "memchr",
