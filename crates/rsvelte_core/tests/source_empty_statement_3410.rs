@@ -76,7 +76,7 @@ fn source_semicolons_after_a_reactive_block_is_dropped_prod() {
             "<script>\n\tlet q;\n\t$: q = 1;\n\t;;\n</script>\n<p>{q}</p>\n",
             false
         ),
-        "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<p> </p>`);\n\nexport default function C($$anchor, $$props) {\n\t$.push($$props, false);\n\n\tlet q = $.mutable_source();\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(q, 1);\n\t});\n\n\t$.legacy_pre_effect_reset();\n\n\tvar p = root();\n\tvar text = $.child(p, true);\n\n\t$.reset(p);\n\t$.template_effect(() => $.set_text(text, $.get(q)));\n\t$.append($$anchor, p);\n\t$.pop();\n}"
+        "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.from_html(`<p> </p>`);\n\nexport default function C($$anchor, $$props) {\n\t$.push($$props, false);\n\n\tlet q = $.mutable_source();\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(q, 1);\n\t});\n\n\t$.legacy_pre_effect_reset();\n\n\tvar p = root();\n\tvar text = $.only_child(p, true);\n\n\t$.template_effect(() => $.set_text(text, $.get(q)));\n\t$.append($$anchor, p);\n\t$.pop();\n}"
     );
 }
 
@@ -87,7 +87,7 @@ fn source_semicolons_after_a_reactive_block_is_dropped_dev() {
             "<script>\n\tlet q;\n\t$: q = 1;\n\t;;\n</script>\n<p>{q}</p>\n",
             true
         ),
-        "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\n\nC[$.FILENAME] = 'C.svelte';\n\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.add_locations($.from_html(`<p> </p>`), C[$.FILENAME], [[6, 0]]);\n\nexport default function C($$anchor, $$props) {\n\t$.check_target(new.target);\n\t$.push($$props, false, C);\n\n\tlet q = $.tag($.mutable_source(), 'q');\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(q, 1);\n\t});\n\n\t$.legacy_pre_effect_reset();\n\n\tvar $$exports = { ...$.legacy_api() };\n\tvar p = root();\n\tvar text = $.child(p, true);\n\n\t$.reset(p);\n\t$.template_effect(() => $.set_text(text, $.get(q)));\n\t$.append($$anchor, p);\n\n\treturn $.pop($$exports);\n}"
+        "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\n\nC[$.FILENAME] = 'C.svelte';\n\nimport * as $ from 'svelte/internal/client';\n\nvar root = $.add_locations($.from_html(`<p> </p>`), C[$.FILENAME], [[6, 0]]);\n\nexport default function C($$anchor, $$props) {\n\t$.check_target(new.target);\n\t$.push($$props, false, C);\n\n\tlet q = $.tag($.mutable_source(), 'q');\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(q, 1);\n\t});\n\n\t$.legacy_pre_effect_reset();\n\n\tvar $$exports = { ...$.legacy_api() };\n\tvar p = root();\n\tvar text = $.only_child(p, true);\n\n\t$.template_effect(() => $.set_text(text, $.get(q)));\n\t$.append($$anchor, p);\n\n\treturn $.pop($$exports);\n}"
     );
 }
 

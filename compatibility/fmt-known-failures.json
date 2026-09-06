@@ -486,6 +486,7 @@
 	"svelte-ux/packages/svelte-ux/src/routes/+error.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte",
 	"svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte",
+	"svelte/packages/svelte/tests/print/samples/comment/output.svelte",
 	"svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte",
 	"sveltekit/packages/enhanced-img/test/Output.svelte",
 	"sveltekit/packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte",

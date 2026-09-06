@@ -3156,6 +3156,18 @@ pub(super) fn strip_top_level_await_from_expr(expr: &str) -> String {
     }
 }
 
+/// `async () => <body>`, exiting through `$.unsave()` when the body restored the
+/// reaction context, so it cannot leak into a foreign microtask. Upstream's
+/// `async_thunk` lives in `3-transform/client/utils.js` and has no server
+/// counterpart, so the server target keeps the concise arrow whatever the body
+/// does.
+pub(crate) fn async_thunk_text(body: &str, server: bool) -> String {
+    if server || memmem::find(body.as_bytes(), b"$.save(").is_none() {
+        return format!("async () => {body}");
+    }
+    format!("async () => {{ try {{ return {body}; }} finally {{ $.unsave(); }} }}")
+}
+
 /// Wrap non-final `await expr` in async derived expressions with `$.save()`.
 ///
 /// In the official Svelte compiler, `await` expressions that precede other reactive
@@ -3173,6 +3185,9 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
     let len = chars.len();
     let mut result = String::with_capacity(len + 20);
     let mut i = 0;
+    // Once an expression pickles one await, every later await pickles too, so the
+    // restored context ends at the next suspension.
+    let mut pickled = false;
 
     while i < len {
         // Skip strings
@@ -3334,7 +3349,8 @@ pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                     && remaining_after_tracking != ";"
                     && !remaining_after_tracking.starts_with(':');
 
-                if has_more_after {
+                if has_more_after || pickled {
+                    pickled = true;
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
                     if tracked_argument.is_some() && remaining_trimmed.starts_with(")()") {
                         result.pop();
@@ -3380,12 +3396,12 @@ mod proxy_detection_tests {
     }
 
     #[test]
-    fn save_wrapping_replaces_non_final_dev_await_tracking() {
+    fn save_wrapping_replaces_every_dev_await_tracking_once_one_pickles() {
         assert_eq!(
             wrap_await_with_save_in_async_derived(
                 "(await $.track_reactivity_loss(p))() + (await $.track_reactivity_loss(q))()"
             ),
-            "(await $.save(p))() + (await $.track_reactivity_loss(q))()"
+            "(await $.save(p))() + (await $.save(q))()"
         );
     }
 

@@ -245,6 +245,30 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             JsStatement::Raw(format!("const {} = {};", pattern_str, init_str).into())
         };
 
+        // `{@const { x } = y}` destructures only to rebuild the same object, so the
+        // derived can return `y` directly (upstream `ConstTag.js`).
+        let is_simple_object_pattern = pattern_json.get("type").and_then(|t| t.as_str())
+            == Some("ObjectPattern")
+            && pattern_json
+                .get("properties")
+                .and_then(|p| p.as_array())
+                .is_some_and(|props| {
+                    props.iter().all(|p| {
+                        p.get("type").and_then(|t| t.as_str()) == Some("Property")
+                            && p.get("computed").and_then(|c| c.as_bool()) != Some(true)
+                            && p.get("key")
+                                .and_then(|k| k.get("type"))
+                                .and_then(|t| t.as_str())
+                                == Some("Identifier")
+                            && p.get("value")
+                                .and_then(|v| v.get("type"))
+                                .and_then(|t| t.as_str())
+                                == Some("Identifier")
+                            && p.get("key").and_then(|k| k.get("name"))
+                                == p.get("value").and_then(|v| v.get("name"))
+                    })
+                });
+
         // Create the return object: { x, y }
         // Using shorthand properties: prop("x", id("x")) which auto-detects shorthand
         let return_props: Vec<JsObjectMember> = identifiers
@@ -257,12 +281,17 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Create the block expression as a thunk with block body: () => { const {...} = init; return {...}; }
         // We use thunk_block directly instead of create_derived + arrow_block to avoid
         // double wrapping (create_derived already wraps in thunk)
+        let body = if is_simple_object_pattern {
+            vec![b::return_stmt(&context.arena, Some(init_for_const))]
+        } else {
+            vec![const_stmt, return_stmt]
+        };
         let block_thunk = if is_async {
             // When the body contains await expressions, the thunk must be async:
             // async () => { const { x, y } = (await $.save(...))(); return { x, y }; }
-            b::async_arrow_block(vec![], vec![const_stmt, return_stmt])
+            b::async_thunk_block_unsaving(&context.arena, body)
         } else {
-            b::thunk_block(vec![const_stmt, return_stmt])
+            b::thunk_block(body)
         };
 
         // Create derived expression wrapping the block thunk
@@ -493,6 +522,10 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
 /// This walks the JSON AST of the init expression to find all Identifier nodes.
 /// Used to determine which variables are referenced by a `{@const}` init expression,
 /// which is needed for blocker detection (checking const_blocker_map).
+///
+/// Closure bodies are walked too: upstream collects blockers from
+/// `metadata.expression.references`, not `dependencies`, so a `$derived` reading
+/// an async declaration inside a closure blocks on it.
 fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String> {
     let value = expr.as_json();
     let mut refs = Vec::new();
@@ -503,19 +536,15 @@ fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String>
 fn collect_json_identifiers(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::Object(obj) => {
-            if let Some(typ) = obj.field("type").and_then(|t| t.as_str()) {
-                if typ == "Identifier" {
-                    if let Some(name) = obj.field("name").and_then(|n| n.as_str())
-                        && !out.contains(&name.to_string())
-                    {
-                        out.push(name.to_string());
-                    }
-                    return;
+            if let Some(typ) = obj.field("type").and_then(|t| t.as_str())
+                && typ == "Identifier"
+            {
+                if let Some(name) = obj.field("name").and_then(|n| n.as_str())
+                    && !out.contains(&name.to_string())
+                {
+                    out.push(name.to_string());
                 }
-                // Don't recurse into function/arrow bodies
-                if typ == "ArrowFunctionExpression" || typ == "FunctionExpression" {
-                    return;
-                }
+                return;
             }
             for (key, val) in obj {
                 // Skip position/metadata fields
@@ -546,7 +575,7 @@ fn create_derived(context: &ComponentContext, expression: JsExpr, is_async: bool
         let saved_expr = b::apply_save_wrapping_non_tail(&context.arena, expression);
         b::unthunk(
             &context.arena,
-            b::async_arrow(&context.arena, vec![], saved_expr),
+            b::async_arrow_unsaving(&context.arena, saved_expr),
         )
     } else {
         b::thunk(&context.arena, expression)
@@ -720,7 +749,7 @@ pub(crate) fn add_const_declaration(
         if has_await {
             async_consts
                 .thunks
-                .push(b::async_arrow(&context.arena, vec![], assignment));
+                .push(b::async_arrow_unsaving(&context.arena, assignment));
         } else {
             async_consts
                 .thunks
@@ -890,7 +919,7 @@ pub(crate) fn add_async_declaration_multi(
     if has_await {
         async_consts
             .thunks
-            .push(b::async_arrow(&context.arena, vec![], assignment));
+            .push(b::async_arrow_unsaving(&context.arena, assignment));
     } else {
         async_consts
             .thunks

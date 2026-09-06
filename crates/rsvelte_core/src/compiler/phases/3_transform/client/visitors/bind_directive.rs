@@ -407,6 +407,15 @@ fn bind_directive_inner(
 ) -> TransformResult {
     let binding_name = node.name.as_str();
 
+    // `BindDirective` copies the directive's ignores onto the assignment it
+    // synthesizes for the setter, so `validate_mutation` bails on it
+    // (`BindDirective.js`, upstream `c7d8233`). `build_bind_this` builds its own
+    // assignment and inherits nothing, which is why `bind:this` below passes
+    // `false` rather than this flag.
+    let ownership_ignored = ignored_codes
+        .iter()
+        .any(|code| code == "ownership_invalid_mutation");
+
     // Visit the expression to transform it using the full expression converter
     // (supports ArrowFunctionExpression, MemberExpression, etc.)
     let expression = match convert_expression(&node.expression, context) {
@@ -508,6 +517,7 @@ fn bind_directive_inner(
             &expression,
             context,
             is_regular_element(&parent),
+            ownership_ignored,
         )
     };
 
@@ -1901,7 +1911,7 @@ fn build_getter_setter(
     expr: &JsExpr,
     context: &mut ComponentContext,
 ) -> (JsExpr, Option<JsExpr>) {
-    build_getter_setter_with_primitive(original_expr, expr, context, false)
+    build_getter_setter_with_primitive(original_expr, expr, context, false, false)
 }
 
 fn build_getter_setter_with_primitive(
@@ -1909,6 +1919,7 @@ fn build_getter_setter_with_primitive(
     expr: &JsExpr,
     context: &mut ComponentContext,
     is_primitive: bool,
+    ownership_ignored: bool,
 ) -> (JsExpr, Option<JsExpr>) {
     // Check if this is a simple identifier that's a state variable
     // If so, we need to wrap with $.get() and $.set()
@@ -2078,7 +2089,7 @@ fn build_getter_setter_with_primitive(
         // Reference: validate_mutation() in shared/utils.js, which is called by AssignmentExpression
         // visitor. The bind directive builds its setter via apply_transforms_to_expression
         // rather than the AssignmentExpression visitor, so we need to apply this manually.
-        let transformed_set = if dev && original_expr.is_member_expression() {
+        let transformed_set = if dev && !ownership_ignored && original_expr.is_member_expression() {
             let root_name = get_ast_root_identifier(original_expr);
             if let Some(ref root_name) = root_name {
                 let binding = context.state.get_binding(root_name);

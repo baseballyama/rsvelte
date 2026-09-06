@@ -492,6 +492,111 @@ fn unspanned<'a>(arena: &'a JsArena, mut expr: &'a JsExpr) -> &'a JsExpr {
     expr
 }
 
+/// Whether the expression contains a `$.save(...)` call outside any nested
+/// function — the generated shape of an `await` whose reaction context is
+/// restored, which is what obliges the enclosing async thunk to end that context.
+fn contains_save_call(arena: &JsArena, expr: &JsExpr) -> bool {
+    match expr {
+        JsExpr::Call(call)
+            if matches!(
+                arena.get_expr(call.callee),
+                JsExpr::Member(m)
+                    if !m.computed
+                        && matches!(&m.property, super::nodes::JsMemberProperty::Identifier(p) if p == "save")
+                        && matches!(arena.get_expr(m.object), JsExpr::Identifier(o) if o == "$")
+            ) =>
+        {
+            true
+        }
+        JsExpr::Await(inner) => contains_save_call(arena, arena.get_expr(*inner)),
+        // Don't traverse into function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => false,
+        // Recursively check sub-expressions
+        JsExpr::Call(call) => {
+            contains_save_call(arena, arena.get_expr(call.callee))
+                || call.arguments.iter().any(|a| contains_save_call(arena, a))
+        }
+        JsExpr::Member(member) => {
+            contains_save_call(arena, arena.get_expr(member.object))
+                || matches!(&member.property, super::nodes::JsMemberProperty::Expression(e) if contains_save_call(arena, arena.get_expr(*e)))
+        }
+        JsExpr::Binary(bin) => {
+            contains_save_call(arena, arena.get_expr(bin.left))
+                || contains_save_call(arena, arena.get_expr(bin.right))
+        }
+        JsExpr::Logical(log) => {
+            contains_save_call(arena, arena.get_expr(log.left))
+                || contains_save_call(arena, arena.get_expr(log.right))
+        }
+        JsExpr::Unary(un) => contains_save_call(arena, arena.get_expr(un.argument)),
+        JsExpr::Update(up) => contains_save_call(arena, arena.get_expr(up.argument)),
+        JsExpr::Conditional(cond) => {
+            contains_save_call(arena, arena.get_expr(cond.test))
+                || contains_save_call(arena, arena.get_expr(cond.consequent))
+                || contains_save_call(arena, arena.get_expr(cond.alternate))
+        }
+        JsExpr::Sequence(seq) => seq.expressions.iter().any(|e| contains_save_call(arena, e)),
+        JsExpr::Assignment(assign) => contains_save_call(arena, arena.get_expr(assign.right)),
+        JsExpr::Array(arr) => arr
+            .elements
+            .iter()
+            .any(|e| e.as_ref().is_some_and(|ex| contains_save_call(arena, ex))),
+        JsExpr::Object(obj) => obj.properties.iter().any(|p| match p {
+            super::nodes::JsObjectMember::Property(prop) => {
+                contains_save_call(arena, arena.get_expr(prop.value))
+            }
+            super::nodes::JsObjectMember::SpreadElement(e) => {
+                contains_save_call(arena, arena.get_expr(*e))
+            }
+        }),
+        JsExpr::TemplateLiteral(tmpl) => tmpl
+            .expressions
+            .iter()
+            .any(|e| contains_save_call(arena, e)),
+        JsExpr::TaggedTemplate(tt) => {
+            contains_save_call(arena, arena.get_expr(tt.tag))
+                || tt
+                    .quasi
+                    .expressions
+                    .iter()
+                    .any(|e| contains_save_call(arena, e))
+        }
+        JsExpr::New(new_expr) => {
+            contains_save_call(arena, arena.get_expr(new_expr.callee))
+                || new_expr
+                    .arguments
+                    .iter()
+                    .any(|a| contains_save_call(arena, a))
+        }
+        JsExpr::Yield(y) => y
+            .argument
+            .as_ref()
+            .is_some_and(|a| contains_save_call(arena, arena.get_expr(*a))),
+        JsExpr::Spread(e) => contains_save_call(arena, arena.get_expr(*e)),
+        JsExpr::Void(e) => contains_save_call(arena, arena.get_expr(*e)),
+        // Optional-chaining wrapper — recurse into the chained expression so
+        // `a?.b(await x)` / `a?.[await x]` are detected. H-069.
+        JsExpr::Chain(chain) => contains_save_call(arena, arena.get_expr(chain.expression)),
+        // Span wrapper carries an inner expression for source maps — recurse so
+        // wrapping an awaiting expression doesn't hide the await. H-069.
+        JsExpr::Spanned(inner, _, _) => contains_save_call(arena, arena.get_expr(*inner)),
+        JsExpr::SourceAnchored(a) => contains_save_call(arena, arena.get_expr(a.inner)),
+        // Genuine leaves with no sub-expression to traverse. Class bodies are
+        // function-boundary / non-async scopes, so they can't surface a
+        // top-level await. The match is exhaustive (no `_`) so a future
+        // `JsExpr` variant fails to compile until it is handled here.
+        JsExpr::Identifier(_)
+        | JsExpr::Literal(_)
+        | JsExpr::This
+        | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
+        | JsExpr::ImportExpression { .. }
+        | JsExpr::Raw(_)
+        | JsExpr::OpaqueIdentifier(_)
+        | JsExpr::Class(_) => false,
+    }
+}
+
 /// Check if a JsExpr contains any AwaitExpression (not crossing function boundaries).
 /// Arena-aware version.
 fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
@@ -978,8 +1083,74 @@ pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
 /// at the expression level (in the AwaitExpression visitor / expression converter),
 /// NOT here. This matches the reference Svelte compiler behavior.
 pub fn async_thunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
+    // An `await` whose reaction context was restored (`$.save`) must have that
+    // context ended when the synchronous segment does, or it leaks into whatever
+    // microtask runs next (upstream `async_thunk`).
+    if contains_save_call(arena, &expr) {
+        return async_arrow_block(
+            vec![],
+            vec![unsave_try(arena, vec![return_stmt(arena, Some(expr))])],
+        );
+    }
     let async_arrow_expr = async_arrow(arena, vec![], expr);
     unthunk(arena, async_arrow_expr)
+}
+
+/// `async () => <expr>` that ends through `$.unsave()` when the expression
+/// restored the reaction context. Unlike [`async_thunk`] this never unthunks, so
+/// a deferred read still sees the live binding.
+pub fn async_arrow_unsaving(arena: &JsArena, expr: JsExpr) -> JsExpr {
+    if !contains_save_call(arena, &expr) {
+        return async_arrow(arena, vec![], expr);
+    }
+    async_arrow_block(
+        vec![],
+        vec![unsave_try(arena, vec![return_stmt(arena, Some(expr))])],
+    )
+}
+
+/// The block-bodied form of [`async_thunk`]: the body ends through
+/// `$.unsave()` when any statement in it restored the reaction context.
+pub fn async_thunk_block_unsaving(arena: &JsArena, body: Vec<JsStatement>) -> JsExpr {
+    let pickled = body.iter().any(|s| statement_contains_save_call(arena, s));
+    if !pickled {
+        return async_arrow_block(vec![], body);
+    }
+    async_arrow_block(vec![], vec![unsave_try(arena, body)])
+}
+
+/// [`contains_save_call`] over the expressions a statement evaluates directly.
+fn statement_contains_save_call(arena: &JsArena, stmt: &JsStatement) -> bool {
+    match stmt {
+        JsStatement::Expression(e) => contains_save_call(arena, arena.get_expr(e.expression)),
+        JsStatement::Return(r) => r
+            .argument
+            .is_some_and(|id| contains_save_call(arena, arena.get_expr(id))),
+        JsStatement::VariableDeclaration(decl) => decl
+            .declarations
+            .iter()
+            .filter_map(|d| d.init)
+            .any(|id| contains_save_call(arena, arena.get_expr(id))),
+        _ => false,
+    }
+}
+
+/// `try { <body> } finally { $.unsave(); }`
+fn unsave_try(arena: &JsArena, body: Vec<JsStatement>) -> JsStatement {
+    JsStatement::Try(crate::compiler::phases::phase3_transform::js_ast::nodes::JsTryStatement {
+        block: crate::compiler::phases::phase3_transform::js_ast::nodes::JsBlockStatement::with_body(
+            body,
+        ),
+        handler: None,
+        finalizer: Some(
+            crate::compiler::phases::phase3_transform::js_ast::nodes::JsBlockStatement::with_body(
+                vec![stmt(
+                    arena,
+                    call(arena, member_path(arena, "$.unsave"), vec![]),
+                )],
+            ),
+        ),
+    })
 }
 
 /// Create a function expression.

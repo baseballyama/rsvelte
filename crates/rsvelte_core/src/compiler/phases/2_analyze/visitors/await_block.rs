@@ -370,7 +370,7 @@ pub fn collect_pickled_awaits_node(
     pickled: &mut rustc_hash::FxHashSet<u32>,
     arena: &crate::ast::arena::ParseArena,
 ) {
-    collect_pickled_awaits_inner_node(expr, pickled, true, arena);
+    collect_pickled_awaits_inner_node(expr, pickled, true, arena, &mut false);
 }
 
 fn collect_pickled_awaits_inner_node(
@@ -378,24 +378,46 @@ fn collect_pickled_awaits_inner_node(
     pickled: &mut rustc_hash::FxHashSet<u32>,
     is_last: bool,
     arena: &crate::ast::arena::ParseArena,
+    seen: &mut bool,
 ) {
     match expr {
         JsNode::AwaitExpression {
             start, argument, ..
         } => {
-            if !is_last {
+            // Once an expression pickles one await, every later await pickles
+            // too, so the restored context ends at the next suspension.
+            if !is_last || *seen {
                 pickled.insert(*start);
+                *seen = true;
             }
             // Also recurse into argument
-            collect_pickled_awaits_inner_node(arena.get_js_node(*argument), pickled, true, arena);
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*argument),
+                pickled,
+                true,
+                arena,
+                seen,
+            );
         }
         JsNode::BinaryExpression { left, right, .. }
         | JsNode::LogicalExpression { left, right, .. }
         | JsNode::AssignmentExpression { left, right, .. } => {
             // Left side is NOT last (right side evaluates after it)
-            collect_pickled_awaits_inner_node(arena.get_js_node(*left), pickled, false, arena);
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*left),
+                pickled,
+                false,
+                arena,
+                seen,
+            );
             // Right side inherits parent's is_last
-            collect_pickled_awaits_inner_node(arena.get_js_node(*right), pickled, is_last, arena);
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*right),
+                pickled,
+                is_last,
+                arena,
+                seen,
+            );
         }
         JsNode::CallExpression {
             callee, arguments, ..
@@ -403,18 +425,18 @@ fn collect_pickled_awaits_inner_node(
         | JsNode::NewExpression {
             callee, arguments, ..
         } => {
-            // Callee is not last if there are arguments
+            // A callee is never `arguments.at(-1)`, so upstream never treats it as last.
             let args = arena.get_js_children(*arguments);
-            let has_args = !args.is_empty();
             collect_pickled_awaits_inner_node(
                 arena.get_js_node(*callee),
                 pickled,
-                if has_args { false } else { is_last },
+                false,
                 arena,
+                seen,
             );
             for (i, arg) in args.iter().enumerate() {
                 let arg_is_last = i == args.len() - 1 && is_last;
-                collect_pickled_awaits_inner_node(arg, pickled, arg_is_last, arena);
+                collect_pickled_awaits_inner_node(arg, pickled, arg_is_last, arena, seen);
             }
         }
         JsNode::ConditionalExpression {
@@ -423,32 +445,40 @@ fn collect_pickled_awaits_inner_node(
             alternate,
             ..
         } => {
-            collect_pickled_awaits_inner_node(arena.get_js_node(*test), pickled, false, arena);
+            collect_pickled_awaits_inner_node(
+                arena.get_js_node(*test),
+                pickled,
+                false,
+                arena,
+                seen,
+            );
             collect_pickled_awaits_inner_node(
                 arena.get_js_node(*consequent),
                 pickled,
                 is_last,
                 arena,
+                seen,
             );
             collect_pickled_awaits_inner_node(
                 arena.get_js_node(*alternate),
                 pickled,
                 is_last,
                 arena,
+                seen,
             );
         }
         JsNode::SequenceExpression { expressions, .. } => {
             let exprs = arena.get_js_children(*expressions);
             for (i, e) in exprs.iter().enumerate() {
                 let e_is_last = i == exprs.len() - 1 && is_last;
-                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena);
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena, seen);
             }
         }
         JsNode::ArrayExpression { elements, .. } => {
             for (i, e) in elements.iter().enumerate() {
                 let e_is_last = i == elements.len() - 1 && is_last;
                 if let Some(elem) = e {
-                    collect_pickled_awaits_inner_node(elem, pickled, e_is_last, arena);
+                    collect_pickled_awaits_inner_node(elem, pickled, e_is_last, arena, seen);
                 }
             }
         }
@@ -458,18 +488,21 @@ fn collect_pickled_awaits_inner_node(
             computed,
             ..
         } => {
+            // Upstream returns false for either half of a member expression.
             collect_pickled_awaits_inner_node(
                 arena.get_js_node(*object),
                 pickled,
-                if *computed { false } else { is_last },
+                false,
                 arena,
+                seen,
             );
             if *computed {
                 collect_pickled_awaits_inner_node(
                     arena.get_js_node(*property),
                     pickled,
-                    is_last,
+                    false,
                     arena,
+                    seen,
                 );
             }
         }
@@ -477,7 +510,7 @@ fn collect_pickled_awaits_inner_node(
             let exprs = arena.get_js_children(*expressions);
             for (i, e) in exprs.iter().enumerate() {
                 let e_is_last = i == exprs.len() - 1 && is_last;
-                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena);
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena, seen);
             }
         }
         JsNode::ObjectExpression { properties, .. } => {
@@ -490,6 +523,7 @@ fn collect_pickled_awaits_inner_node(
                         pickled,
                         p_is_last,
                         arena,
+                        seen,
                     );
                 }
             }
@@ -500,6 +534,7 @@ fn collect_pickled_awaits_inner_node(
                 pickled,
                 is_last,
                 arena,
+                seen,
             );
         }
         JsNode::ArrowFunctionExpression { .. }

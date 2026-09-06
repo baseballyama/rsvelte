@@ -580,7 +580,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Build the collection thunk
     let get_collection = if has_await {
-        b::async_thunk(&context.arena, collection.clone())
+        b::async_arrow_unsaving(&context.arena, collection.clone())
     } else {
         b::thunk(&context.arena, collection.clone())
     };

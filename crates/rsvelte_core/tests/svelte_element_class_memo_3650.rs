@@ -14,7 +14,8 @@
 //! memoizer from a shared one, because a shared one numbers the second slot `$1`.
 //!
 //! Every expectation is the byte-exact output of the official compiler
-//! (Svelte v5.56.9).
+//! (Svelte v5.57.0), which memoizes each directive's VALUE and builds the
+//! object inline, so a two-directive element takes two slots.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -41,15 +42,15 @@ fn the_class_directive_effect_binds_its_memo_parameter() {
     const CASES: [(&str, &str); 3] = [
         (
             "<svelte:element this={'span'} class:x={f()}></svelte:element>",
-            "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, $0), [() => ({ x: f() })]);",
+            "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, { x: $0 }), [() => f()]);",
         ),
         (
             "<svelte:element this={'span'} class:x={f()} class:y={f()}></svelte:element>",
-            "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, $0), [() => ({ x: f(), y: f() })]);",
+            "$.template_effect(($0, $1) => classes = $.set_class($$element, 0, '', null, classes, { x: $0, y: $1 }), [() => f(), () => f()]);",
         ),
         (
             "<svelte:element this={'span'} class=\"base\" class:x={f()}></svelte:element>",
-            "$.template_effect(($0) => classes = $.set_class($$element, 0, 'base', null, classes, $0), [() => ({ x: f() })]);",
+            "$.template_effect(($0) => classes = $.set_class($$element, 0, 'base', null, classes, { x: $0 }), [() => f()]);",
         ),
     ];
     for (template, expected) in CASES {
@@ -63,15 +64,20 @@ fn the_class_directive_effect_binds_its_memo_parameter() {
     }
 }
 
-/// Two directives share ONE memo slot — the memoized value is the whole object,
-/// so a fix that emitted one parameter per directive would print `($0, $1)`.
+/// Each directive takes its OWN memo slot — the memoized value is the
+/// directive's expression, not the whole object — so two of them print
+/// `($0, $1)` against a two-element dependency array.
 #[test]
-fn two_directives_share_one_slot() {
+fn two_directives_take_one_slot_each() {
     let out = client(
         "<svelte:element this={'span'} class:x={f()} class:y={f()}></svelte:element>",
         false,
     );
-    assert!(!out.contains("($0, $1)"), "in:\n{out}");
+    assert!(out.contains("($0, $1)"), "in:\n{out}");
+    assert!(
+        out.contains("[() => f(), () => f()]"),
+        "one dependency per directive:\n{out}"
+    );
 }
 
 /// The element's memoizer is its own: a memoized expression on an enclosing
@@ -86,7 +92,7 @@ fn sibling_memo_numbering_is_independent() {
     );
     assert!(
         out.contains(
-            "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, $0), [() => ({ x: f(2) })]);"
+            "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, { x: $0 }), [() => f(2)]);"
         ),
         "inner:\n{out}"
     );
@@ -104,8 +110,8 @@ fn nested_elements_each_start_at_zero() {
         false,
     );
     for expected in [
-        "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, $0), [() => ({ a: f(1) })]);",
-        "$.template_effect(($0) => classes_1 = $.set_class($$element_1, 0, '', null, classes_1, $0), [() => ({ x: f(2) })]);",
+        "$.template_effect(($0) => classes = $.set_class($$element, 0, '', null, classes, { a: $0 }), [() => f(1)]);",
+        "$.template_effect(($0) => classes_1 = $.set_class($$element_1, 0, '', null, classes_1, { x: $0 }), [() => f(2)]);",
     ] {
         assert!(out.contains(expected), "expected: {expected}\nin:\n{out}");
     }
@@ -135,7 +141,7 @@ fn the_already_correct_slots_are_unchanged() {
     const CASES: [(&str, &str); 3] = [
         (
             "<svelte:element this={'span'} style:color={f()}></svelte:element>",
-            "$.attribute_effect($$element, ($0) => ({ style: '', [$.STYLE]: $0 }), [() => ({ color: f() })]);",
+            "$.attribute_effect($$element, ($0) => ({ style: '', [$.STYLE]: { color: $0 } }), [() => f()]);",
         ),
         (
             "<svelte:element this={'span'} title={f()}></svelte:element>",
@@ -143,7 +149,7 @@ fn the_already_correct_slots_are_unchanged() {
         ),
         (
             "<div class:x={f()}></div>",
-            "$.template_effect(($0) => classes = $.set_class(div, 1, '', null, classes, $0), [() => ({ x: f() })]);",
+            "$.template_effect(($0) => classes = $.set_class(div, 1, '', null, classes, { x: $0 }), [() => f()]);",
         ),
     ];
     for (template, expected) in CASES {

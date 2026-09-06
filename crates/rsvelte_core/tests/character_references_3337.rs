@@ -1,9 +1,10 @@
 //! Three character-reference decoder disagreements found in one 560-cell sweep
 //! (issue #3337), each reachable only through a different axis of that sweep:
 //!
-//! 1. `&#X41;` — upstream's `#(?:x[a-fA-F\d]+|\d+)` spells the marker
-//!    lowercase, so an uppercase `X` is not a character reference at all.
-//!    rsvelte accepted both spellings.
+//! 1. `&#X41;` — upstream's `#(?:x[a-fA-F\d]+|\d+)` spelled the marker
+//!    lowercase, so an uppercase `X` was not a character reference at all.
+//!    Upstream `1b02aa2` (svelte#18708, 5.57.0) accepts both spellings, and the
+//!    rows below now pin the decode rather than the refusal.
 //! 2. A surrogate half or an out-of-range code point — `validate_code` returns
 //!    0 and upstream then emits `String.fromCodePoint(0)`, a literal NUL.
 //!    rsvelte treated the 0 as "undecodable" and left the source text.
@@ -43,12 +44,12 @@ fn server(markup: &str) -> String {
 }
 
 #[test]
-fn uppercase_hex_marker_is_not_a_character_reference() {
+fn uppercase_hex_marker_decodes_like_the_lowercase_one() {
+    // The client emits raw HTML into `from_html`, so the reference survives
+    // there whichever way it is spelled; the server is where the decode shows.
     let code = client("<p>&#X41;</p>");
     assert!(code.contains("<p>&#X41;</p>"), "{code}");
-    assert!(!code.contains("<p>A</p>"), "{code}");
-    // The server escapes the ampersand it did not consume.
-    assert!(server("<p>&#X41;</p>").contains("<p>&amp;#X41;</p>"));
+    assert!(server("<p>&#X41;</p>").contains("<p>A</p>"));
 }
 
 #[test]
@@ -60,7 +61,7 @@ fn lowercase_hex_marker_is_the_control() {
 }
 
 #[test]
-fn uppercase_marker_stays_literal_in_every_host() {
+fn uppercase_marker_decodes_in_every_host() {
     for markup in [
         "<p title=\"&#X41;\">x</p>",
         "<p title='&#X41;'>x</p>",
@@ -70,12 +71,12 @@ fn uppercase_marker_stays_literal_in_every_host() {
     ] {
         let code = server(markup);
         assert!(
-            code.contains("&amp;#X41;") || code.contains("&#X41;"),
-            "{markup}: expected the reference to stay literal, got {code}"
+            !code.contains("&#X41;") && !code.contains("&amp;#X41;"),
+            "{markup}: expected the reference to decode, got {code}"
         );
         assert!(
-            !code.contains(">A<") && !code.contains("=\"A\""),
-            "{markup}: decoded, got {code}"
+            code.contains(">A<") || code.contains("=\"A\"") || code.contains(">A`"),
+            "{markup}: did not decode to `A`, got {code}"
         );
     }
 }

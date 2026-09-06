@@ -373,6 +373,8 @@ pub struct VisitorContext<'a> {
     pub function_depth: usize,
     /// Depth inside $derived(...) expressions (but not $derived.by(...)) or @const
     pub derived_function_depth: usize,
+    /// Whether an `await` in the current reactive expression already pickled.
+    pub pickled_await_seen: bool,
     /// Whether we have a $props() rune.
     pub has_props_rune: bool,
     /// Current component slots.
@@ -614,6 +616,7 @@ impl<'a> VisitorContext<'a> {
             parent_element: None,
             function_depth: 0,
             derived_function_depth: 0,
+            pickled_await_seen: false,
             has_props_rune: false,
             component_slots: rustc_hash::FxHashSet::default(),
             ast_type: AstType::Template,
@@ -696,6 +699,19 @@ impl<'a> VisitorContext<'a> {
     /// This is called when leaving a node that pushed ignores.
     pub fn pop_ignore(&mut self) {
         self.ignore_stack.pop();
+    }
+
+    /// The whole enclosing ignore stack, which is what upstream stores on a node
+    /// (`ignore_map.set(node, get_ignore_snapshot())`).
+    pub fn current_ignores(&self) -> Vec<String> {
+        match self.ignore_stack.last() {
+            Some(codes) => {
+                let mut out: Vec<String> = codes.iter().cloned().collect();
+                out.sort_unstable();
+                out
+            }
+            None => Vec::new(),
+        }
     }
 
     /// Check if a warning code is currently being ignored.

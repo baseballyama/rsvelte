@@ -227,6 +227,8 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     flush_sync_group(&mut sync_group_open, &mut async_index);
     let _ = async_index;
 
+    apply_store_sub_blockers(&mut blocker_map);
+
     // Post-processing: add function names to the blocker_map if their bodies
     // transitively reference any blocked variable. This ensures that template
     // expressions like `checkedFactory()()` get properly detected by
@@ -239,12 +241,15 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
                 continue;
             }
             let body_ids = extract_all_identifiers_from_statement(func_body);
-            for body_id in &body_ids {
-                if let Some(&idx) = blocker_map.get(body_id) {
-                    blocker_map.insert(func_name.clone(), idx);
-                    changed = true;
-                    break;
-                }
+            let mut inherited = body_ids
+                .iter()
+                .find_map(|body_id| blocker_map.get(body_id).copied());
+            if inherited.is_none() {
+                inherited = store_sub_blocker_for_body(func_body, &blocker_map);
+            }
+            if let Some(idx) = inherited {
+                blocker_map.insert(func_name.clone(), idx);
+                changed = true;
             }
         }
     }
@@ -342,7 +347,65 @@ pub fn compute_blocker_primary_names(
     flush_sync_group(&mut sync_group_open, &mut async_index);
     let _ = async_index;
 
+    // A function that inherits a blocker gets a `binding.blocker` Expression of
+    // its own upstream, so it is its own identity class in the dedup Set.
+    let blocker_map = compute_blocker_map(raw_script);
+    let uncommented: Vec<String> = statements
+        .iter()
+        .map(|stmt| split_leading_comments(stmt.trim()).1.to_string())
+        .collect();
+    for func_name in collect_function_bodies(&uncommented).keys() {
+        if let Some(&idx) = blocker_map.get(func_name) {
+            names.entry(idx).or_default().insert(func_name.clone());
+        }
+    }
+
     names
+}
+
+/// Whether `body` mentions `name` as a whole token.
+///
+/// `extract_all_identifiers_from_statement` drops every `$`-prefixed token, so a
+/// store subscription has to be matched against the blocker map's own keys.
+fn body_mentions_store_sub(body: &str, name: &str) -> bool {
+    let mut from = 0;
+    while let Some(rel) = memmem::find(&body.as_bytes()[from..], name.as_bytes()) {
+        let at = from + rel;
+        let after = at + name.len();
+        let follows = body[after..].chars().next();
+        if !follows.is_some_and(crate::compiler::utils::is_js_ident_continue) {
+            return true;
+        }
+        from = at + 1;
+    }
+    false
+}
+
+/// The blocker index a function body inherits from a store subscription it reads.
+fn store_sub_blocker_for_body(
+    body: &str,
+    blocker_map: &rustc_hash::FxHashMap<String, usize>,
+) -> Option<usize> {
+    blocker_map
+        .iter()
+        .filter(|(name, _)| {
+            name.starts_with('$') && !name.starts_with("$$") && body_mentions_store_sub(body, name)
+        })
+        .map(|(_, &idx)| idx)
+        .max()
+}
+
+/// A store subscription waits on whatever blocks the store itself.
+///
+/// Must run before function tracing so a function reading `$store` inherits it.
+pub fn apply_store_sub_blockers(blocker_map: &mut rustc_hash::FxHashMap<String, usize>) {
+    for (name, idx) in blocker_map.clone() {
+        if name.starts_with('$') {
+            continue;
+        }
+        let entry = blocker_map.entry(format!("${name}")).or_insert(idx);
+        *entry = (*entry).min(idx);
+    }
 }
 
 /// Enrich the blocker_map with transitive function dependencies.
@@ -391,12 +454,15 @@ pub fn enrich_blocker_map_with_transitive_deps(
                 continue;
             }
             let body_ids = extract_all_identifiers_from_statement(func_body);
-            for body_id in &body_ids {
-                if let Some(&idx) = blocker_map.get(body_id) {
-                    blocker_map.insert(func_name.clone(), idx);
-                    changed = true;
-                    break;
-                }
+            let mut inherited = body_ids
+                .iter()
+                .find_map(|body_id| blocker_map.get(body_id).copied());
+            if inherited.is_none() {
+                inherited = store_sub_blocker_for_body(func_body, blocker_map);
+            }
+            if let Some(idx) = inherited {
+                blocker_map.insert(func_name.clone(), idx);
+                changed = true;
             }
         }
     }

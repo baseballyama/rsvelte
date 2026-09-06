@@ -2085,3 +2085,20 @@ pub fn is_event_attribute(attribute: &crate::ast::template::AttributeNode) -> bo
             }
         }
 }
+
+/// Warn when an event attribute uses the shorthand form (`{onclick}`) and the
+/// referenced name is not declared, so it silently resolves to the global handler.
+pub fn check_global_event_reference(
+    attr: &crate::ast::template::AttributeNode,
+    context: &mut VisitorContext,
+) {
+    let (start, end) = (attr.start, attr.end);
+    if let Some(expression_tag) = super::attribute::get_attribute_expression(attr)
+        && expression_tag.expression.node_type() == Some("Identifier")
+        && let Some(name) = expression_tag.expression.identifier_name()
+        && name == attr.name
+        && context.analysis.root.find_binding_any_scope(name).is_none()
+    {
+        context.emit_warning(warnings::attribute_global_event_reference(&attr.name).at(start, end));
+    }
+}

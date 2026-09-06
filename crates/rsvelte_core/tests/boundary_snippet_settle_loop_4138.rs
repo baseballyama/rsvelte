@@ -1,11 +1,9 @@
-//! A `{#snippet}` declared inside `<svelte:boundary>` must render OUTSIDE the
-//! component-bindings settle loop, like every other snippet.
-//!
-//! Upstream marks each snippet function `___snippet` and
-//! `3-transform/server/transform-server.js:180` keeps those declarations ahead of
-//! `$$render_inner`. The boundary visitor builds its `failed` declaration itself
-//! rather than through the snippet visitor, so it has to record the name the same
-//! way — the two hoisting rows below are the controls that a fix must not move.
+//! A `{#snippet}` declared inside `<svelte:boundary>` is scoped to its own
+//! boundary block, so two sibling boundaries can both declare `failed`
+//! (upstream `38ef714`, svelte#18593). That block sits inside `$$render_inner`,
+//! which is what separates a boundary snippet from every other one: the two
+//! hoisting rows below are the controls that keep an ordinary snippet ahead of
+//! the component-bindings settle loop.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -42,6 +40,20 @@ const BOUNDARY: &str = r#"<script>
 </svelte:boundary>
 "#;
 
+const SIBLING_BOUNDARIES: &str = r#"<script>
+	let label = 'x';
+</script>
+
+<svelte:boundary>
+	<p>a</p>
+	{#snippet failed()}<p>1</p>{/snippet}
+</svelte:boundary>
+<svelte:boundary>
+	<p>b</p>
+	{#snippet failed()}<p>2</p>{/snippet}
+</svelte:boundary>
+"#;
+
 const COMPONENT_LOCAL: &str = r#"<script>
 	let value = $state('');
 	let label = 'x';
@@ -68,14 +80,30 @@ const HOISTABLE: &str = r#"<script>
 "#;
 
 #[test]
-fn a_boundary_failed_snippet_is_declared_before_the_settle_loop() {
+fn a_boundary_failed_snippet_is_scoped_to_its_boundary() {
     let out = server(BOUNDARY);
     let snippet = out
         .find("function failed(")
         .unwrap_or_else(|| panic!("no `failed` declaration:\n{out}"));
     assert!(
-        snippet < settled_at(&out),
-        "the boundary's `failed` snippet must precede `$$settled`:\n{out}"
+        snippet > settled_at(&out),
+        "the boundary's `failed` snippet is scoped inside `$$render_inner`:\n{out}"
+    );
+}
+
+/// The scoping is what lets two sibling boundaries each declare `failed`
+/// without redeclaring one name in a single scope.
+#[test]
+fn sibling_boundaries_each_declare_their_own_failed() {
+    let out = server(SIBLING_BOUNDARIES);
+    assert_eq!(
+        out.matches("function failed(").count(),
+        2,
+        "each boundary declares its own `failed`:\n{out}"
+    );
+    assert!(
+        !out.contains("let $$settled"),
+        "no component binding here, so no settle loop:\n{out}"
     );
 }
 

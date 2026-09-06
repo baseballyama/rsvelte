@@ -31,12 +31,10 @@ use super::html::validate_code;
 ///
 /// # Returns
 /// The decoded character, or None if invalid
-pub fn decode_numeric_entity(entity: &str) -> Option<char> {
+pub fn decode_numeric_entity(entity: &str, is_attribute_value: bool) -> Option<char> {
     let entity = entity.strip_suffix(';').unwrap_or(entity);
 
-    // Upstream's pattern is `#(?:x[a-fA-F\d]+|\d+)(?:;)?` — the `x` is lowercase
-    // only, so `&#X41;` is not a character reference at all.
-    let num = if let Some(hex) = entity.strip_prefix('x') {
+    let num = if let Some(hex) = entity.strip_prefix(['x', 'X']) {
         parse_saturating(hex, 16)
     } else {
         parse_saturating(entity, 10)
@@ -48,7 +46,7 @@ pub fn decode_numeric_entity(entity: &str) -> Option<char> {
         if code == 0 {
             return None;
         }
-        char::from_u32(validate_code(code))
+        char::from_u32(validate_code(code, is_attribute_value))
     })
 }
 
@@ -118,7 +116,7 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                 // Collect '#' first
                 i += 1;
                 // Check if hex (#x...) or decimal (#d...)
-                let is_hex = i < len && bytes[i] == b'x';
+                let is_hex = i < len && (bytes[i] == b'x' || bytes[i] == b'X');
                 if is_hex {
                     i += 1;
                     // Upstream's `x[a-fA-F\d]+` is unbounded, so a digit cap here
@@ -183,7 +181,7 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                     let num_str = entity_without_semi
                         .strip_prefix('#')
                         .unwrap_or(entity_without_semi);
-                    decode_numeric_entity(num_str).map(|c| c.to_string())
+                    decode_numeric_entity(num_str, is_attribute_value).map(|c| c.to_string())
                 } else {
                     decode_named_entity(entity_without_semi)
                 };
@@ -214,7 +212,7 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                 // Numeric entity without semicolon: semicolon is optional for numeric entities.
                 // Matches Svelte's regex: #(?:x[a-fA-F\d]+|\d+)(?:;)?
                 let num_str = entity.strip_prefix('#').unwrap_or(entity);
-                if let Some(c) = decode_numeric_entity(num_str) {
+                if let Some(c) = decode_numeric_entity(num_str, is_attribute_value) {
                     result.push(c);
                 } else {
                     // Invalid numeric entity, output as-is
@@ -297,33 +295,36 @@ mod tests {
 
     #[test]
     fn test_decode_numeric_entity_decimal() {
-        assert_eq!(decode_numeric_entity("65"), Some('A'));
-        assert_eq!(decode_numeric_entity("97"), Some('a'));
-        assert_eq!(decode_numeric_entity("8364"), Some('\u{20AC}')); // Euro sign
+        assert_eq!(decode_numeric_entity("65", false), Some('A'));
+        assert_eq!(decode_numeric_entity("97", false), Some('a'));
+        assert_eq!(decode_numeric_entity("8364", false), Some('\u{20AC}')); // Euro sign
     }
 
     #[test]
     fn test_decode_numeric_entity_hex() {
-        assert_eq!(decode_numeric_entity("x41"), Some('A'));
-        // Upstream's pattern only admits a lowercase `x`.
-        assert_eq!(decode_numeric_entity("X41"), None);
-        assert_eq!(decode_numeric_entity("x61"), Some('a'));
-        assert_eq!(decode_numeric_entity("x20AC"), Some('\u{20AC}')); // Euro sign
+        assert_eq!(decode_numeric_entity("x41", false), Some('A'));
+        // Upstream's pattern is `[xX]`, so an uppercase `X` is a hex prefix too.
+        assert_eq!(decode_numeric_entity("X41", false), Some('A'));
+        assert_eq!(decode_numeric_entity("x61", false), Some('a'));
+        assert_eq!(decode_numeric_entity("x20AC", false), Some('\u{20AC}')); // Euro sign
     }
 
     #[test]
     fn test_decode_numeric_entity_edge_cases() {
         // NULL - upstream bails on a falsy parse result and keeps the source text
-        assert_eq!(decode_numeric_entity("0"), None);
+        assert_eq!(decode_numeric_entity("0", false), None);
         // Surrogate / out of range - validate_code folds these to NUL, and upstream
         // still emits `String.fromCodePoint(0)`
-        assert_eq!(decode_numeric_entity("xD800"), Some('\0'));
-        assert_eq!(decode_numeric_entity("xDFFF"), Some('\0'));
-        assert_eq!(decode_numeric_entity("x110000"), Some('\0'));
-        assert_eq!(decode_numeric_entity("99999999999999999999"), Some('\0'));
+        assert_eq!(decode_numeric_entity("xD800", false), Some('\0'));
+        assert_eq!(decode_numeric_entity("xDFFF", false), Some('\0'));
+        assert_eq!(decode_numeric_entity("x110000", false), Some('\0'));
+        assert_eq!(
+            decode_numeric_entity("99999999999999999999", false),
+            Some('\0')
+        );
         // Windows-1252 mapping
-        assert_eq!(decode_numeric_entity("x80"), Some('\u{20AC}')); // Euro
-        assert_eq!(decode_numeric_entity("x99"), Some('\u{2122}')); // Trademark
+        assert_eq!(decode_numeric_entity("x80", false), Some('\u{20AC}')); // Euro
+        assert_eq!(decode_numeric_entity("x99", false), Some('\u{2122}')); // Trademark
     }
 
     #[test]
@@ -340,8 +341,7 @@ mod tests {
     fn test_decode_html_entities_numeric() {
         assert_eq!(decode_html_entities("&#65;", false), "A");
         assert_eq!(decode_html_entities("&#x41;", false), "A");
-        // Upstream's pattern only admits a lowercase `x`, so this is literal text.
-        assert_eq!(decode_html_entities("&#X41;", false), "&#X41;");
+        assert_eq!(decode_html_entities("&#X41;", false), "A");
         // A surrogate half and an above-range value reach `String.fromCodePoint(0)`.
         assert_eq!(decode_html_entities("&#xD800;", false), "\0");
         assert_eq!(decode_html_entities("&#x110000;", false), "\0");

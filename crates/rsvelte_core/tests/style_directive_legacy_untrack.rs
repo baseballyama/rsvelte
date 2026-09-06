@@ -111,8 +111,8 @@ fn runes_mode_does_not_wrap() {
         "`build_expression` returns early in runes mode:\n{out}"
     );
     assert!(
-        out.contains("background: rnd()"),
-        "the value is emitted bare:\n{out}"
+        out.contains("{ background: $0 }), [() => rnd()]"),
+        "the value is memoized, not untracked:\n{out}"
     );
 }
 
@@ -124,7 +124,7 @@ fn a_class_directive_does_not_wrap() {
         "upstream builds a class directive's value without `build_expression`:\n{out}"
     );
     assert!(
-        out.contains("a: rnd()"),
-        "the value is emitted bare:\n{out}"
+        out.contains("{ a: $0 }), [() => rnd()]"),
+        "the value is memoized, not untracked:\n{out}"
     );
 }

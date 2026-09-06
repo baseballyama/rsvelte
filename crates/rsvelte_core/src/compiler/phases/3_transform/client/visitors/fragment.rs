@@ -450,46 +450,22 @@ pub fn fragment(
                 flags |= TEMPLATE_USE_IMPORT_NODE;
             }
 
-            // Check for special case: single comment
-            // If the template has only one node and it's a comment, we can use $.comment()
-            // instead of creating a unique template
-            use crate::compiler::phases::phase3_transform::client::transform_template::types::Node;
-
-            if context.state.template.nodes.len() == 1
-                && matches!(context.state.template.nodes.first(), Some(Node::Comment(_)))
-            {
-                // Special case — we can use `$.comment` instead of creating a unique template
-                context.state.init.insert(
-                    0,
-                    b::var_decl(
-                        &context.arena,
-                        &id_name,
-                        Some(b::call(
-                            &context.arena,
-                            b::member_path(&context.arena, "$.comment"),
-                            vec![],
-                        )),
-                    ),
-                );
-            } else {
-                // Standard template case
-                let template_id_expr = transform_template(
+            let template_id_expr = transform_template(
+                &context.arena,
+                &mut context.state,
+                "root",
+                parse_namespace(&namespace),
+                Some(flags),
+                None,
+            );
+            context.state.init.insert(
+                0,
+                b::var_decl(
                     &context.arena,
-                    &mut context.state,
-                    "root",
-                    parse_namespace(&namespace),
-                    Some(flags),
-                    None,
-                );
-                context.state.init.insert(
-                    0,
-                    b::var_decl(
-                        &context.arena,
-                        &id_name,
-                        Some(b::call(&context.arena, template_id_expr, vec![])),
-                    ),
-                );
-            }
+                    &id_name,
+                    Some(b::call(&context.arena, template_id_expr, vec![])),
+                ),
+            );
 
             close = Some(b::stmt(
                 &context.arena,
@@ -638,7 +614,14 @@ pub fn fragment(
                 let mut seen_names: rustc_hash::FxHashSet<String> =
                     rustc_hash::FxHashSet::default();
                 for name in &all_names {
-                    let name_str = name.to_string();
+                    // A store subscription shares the store's blocker Expression,
+                    // so `$store` and `store` are one entry, not two.
+                    let name_str = match name.strip_prefix('$') {
+                        Some(store) if map.get(store) == map.get(name.as_str()) => {
+                            store.to_string()
+                        }
+                        _ => name.to_string(),
+                    };
                     if !seen_names.insert(name_str.clone()) {
                         continue;
                     }
@@ -873,6 +856,16 @@ pub(crate) fn collect_ids_from_expr(
         JsExpr::Spanned(inner, _, _) => {
             collect_ids_from_expr(arena.get_expr(*inner), arena, names);
         }
+        // A source anchor is a positioning wrapper, so its references are the
+        // wrapped node's.
+        JsExpr::SourceAnchored(anchor) => {
+            collect_ids_from_expr(arena.get_expr(anchor.inner), arena, names);
+        }
+        // An opaque identifier is a reference the transform must not rewrite,
+        // not a non-reference.
+        JsExpr::OpaqueIdentifier(name) if !names.contains(name) => {
+            names.push(name.clone());
+        }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
         }
@@ -1039,6 +1032,14 @@ pub(crate) fn collect_ids_from_expr_props(
     match expr {
         JsExpr::Spanned(inner, _, _) => {
             collect_ids_from_expr_props(arena.get_expr(*inner), arena, names);
+        }
+        JsExpr::SourceAnchored(anchor) => {
+            collect_ids_from_expr_props(arena.get_expr(anchor.inner), arena, names);
+        }
+        // An opaque identifier is a reference the transform must not rewrite,
+        // not a non-reference.
+        JsExpr::OpaqueIdentifier(name) if !names.contains(name) => {
+            names.push(name.clone());
         }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
@@ -1234,6 +1235,14 @@ fn collect_ids_from_expr_deep(
     match expr {
         JsExpr::Spanned(inner, _, _) => {
             collect_ids_from_expr_deep(arena.get_expr(*inner), arena, names);
+        }
+        JsExpr::SourceAnchored(anchor) => {
+            collect_ids_from_expr_deep(arena.get_expr(anchor.inner), arena, names);
+        }
+        // An opaque identifier is a reference the transform must not rewrite,
+        // not a non-reference.
+        JsExpr::OpaqueIdentifier(name) if !names.contains(name) => {
+            names.push(name.clone());
         }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());

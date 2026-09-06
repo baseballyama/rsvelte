@@ -103,7 +103,7 @@ fn the_server_target_is_unaffected() {
 
     assert!(!out.contains("COMPILE_ERROR"), "server: {out}");
     assert!(
-        !out.contains("$.child(") && !out.contains("$.sibling("),
+        !out.contains("$.child(") && !out.contains("$.only_child(") && !out.contains("$.sibling("),
         "server: emitted a client traversal:\n{out}"
     );
     assert!(

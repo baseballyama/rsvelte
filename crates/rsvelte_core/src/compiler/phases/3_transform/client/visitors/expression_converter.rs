@@ -129,7 +129,7 @@ fn build_fallback_expr(
 
     // Case 3: Expression contains await -> async thunk
     if json_has_await_expression(right_json) {
-        let thunk = b::async_arrow(&context.arena, vec![], right_converted);
+        let thunk = b::async_arrow_unsaving(&context.arena, right_converted);
         return b::await_expr(
             &context.arena,
             b::call(
@@ -5903,7 +5903,7 @@ fn try_dev_assign_wrap_typed(
 
     let rhs = if needs_lazy_getter {
         if needs_async {
-            b::async_arrow(&context.arena, vec![], conv_right.clone())
+            b::async_arrow_unsaving(&context.arena, conv_right.clone())
         } else {
             b::arrow(&context.arena, vec![], conv_right.clone())
         }

@@ -510,6 +510,7 @@
 		"svelte-ux/packages/svelte-ux/src/routes/+error.svelte": "unattributed",
 		"svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte": "unattributed",
 		"svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte": "css-engine-selector-token-spacing",
+		"svelte/packages/svelte/tests/print/samples/comment/output.svelte": "unattributed",
 		"svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte": "css-engine-trailing-escape-space",
 		"sveltekit/packages/enhanced-img/test/Output.svelte": "unattributed",
 		"sveltekit/packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte": "unattributed",

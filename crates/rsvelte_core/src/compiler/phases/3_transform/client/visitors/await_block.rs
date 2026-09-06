@@ -110,11 +110,9 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
         .get_blockers_for_expr(&built_expr, &context.arena);
     let has_blockers = !blocker_exprs.is_empty();
 
-    // Wrap in thunk (async if has_await)
-    // Note: b::async_thunk(&context.arena) already applies $.save() wrapping internally,
-    // so we must NOT apply it separately to avoid double $.save() wrapping.
+    // An async thunk is never unthunked: a deferred read must see the live binding.
     let expression = if node.metadata.expression.has_await() {
-        b::async_thunk(&context.arena, built_expr)
+        b::async_arrow_unsaving(&context.arena, built_expr)
     } else {
         b::thunk(&context.arena, built_expr)
     };

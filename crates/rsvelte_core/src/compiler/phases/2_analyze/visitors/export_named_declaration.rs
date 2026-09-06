@@ -295,18 +295,6 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             super::script::walk_js_node_typed(decl, context)?;
         }
 
-        // Also after the walk, and before the per-declarator checks below —
-        // upstream raises this between `context.next()` and its own loop, so a
-        // rune error in the initializer (`export let x = $host()`) wins while
-        // `derived_invalid_export` does not.
-        if context.analysis.runes
-            && context.ast_type == super::AstType::Instance
-            && let Some(JsNode::VariableDeclaration { kind, .. }) = decl_node
-            && kind == "let"
-        {
-            return Err(errors::legacy_export_invalid().at(*start, *end));
-        }
-
         // Check for invalid state/derived exports in VariableDeclarations.
         // Runs AFTER walking the declaration — upstream's ExportNamedDeclaration.js
         // calls `context.next()` first, so errors raised while visiting children
@@ -318,6 +306,16 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                     check_export_bindings(arena.get_js_node(*id), arena, context, *start, *end)?;
                 }
             }
+        }
+
+        // Last, so `export let x = $derived(...)` reports `derived_invalid_export`
+        // rather than this — upstream raises it below its own declarator loop.
+        if context.analysis.runes
+            && context.ast_type == super::AstType::Instance
+            && let Some(JsNode::VariableDeclaration { kind, .. }) = decl_node
+            && kind == "let"
+        {
+            return Err(errors::legacy_export_invalid().at(*start, *end));
         }
     }
 

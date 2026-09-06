@@ -862,6 +862,7 @@ pub(crate) fn transform_client(
             options.dev,
         ) {
             let mut blocker_map = async_result.blocker_map.clone();
+            super::shared::async_body::apply_store_sub_blockers(&mut blocker_map);
             super::shared::async_body::enrich_blocker_map_with_transitive_deps(
                 transformed,
                 &mut blocker_map,
@@ -1524,7 +1525,9 @@ pub(crate) fn transform_client(
                     ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
-                        *context.state.blocker_map.borrow_mut() = async_result.blocker_map;
+                        let mut blocker_map = async_result.blocker_map;
+                        super::shared::async_body::apply_store_sub_blockers(&mut blocker_map);
+                        *context.state.blocker_map.borrow_mut() = blocker_map;
                     }
                 } else {
                     // No top-level await: strip any async noop placeholders
@@ -6051,26 +6054,20 @@ fn transform_module_script_runes_with_target(
                     &var_name,
                 );
                 let new_derived = if inner_has_nested_await {
-                    let is_object = saved_content.trim().starts_with('{');
-                    if is_object {
-                        format!(
-                            "await $.async_derived(async () => ({}){})",
-                            saved_content, dev_tail
-                        )
+                    let trimmed = saved_content.trim();
+                    let thunk = if trimmed.starts_with('{') {
+                        async_thunk_text(&format!("({trimmed})"), server)
                     } else {
-                        format!(
-                            "await $.async_derived(async () => {}{})",
-                            saved_content, dev_tail
-                        )
-                    }
+                        async_thunk_text(trimmed, server)
+                    };
+                    format!("await $.async_derived({}{})", thunk, dev_tail)
                 } else {
                     let inner_trimmed = inner_expr.trim();
                     let inner_is_object = inner_trimmed.starts_with('{');
                     if inner_is_object {
                         format!("await $.async_derived(() => ({}){})", inner_expr, dev_tail)
                     } else {
-                        let thunk_arg = unthunk_string(&inner_expr);
-                        format!("await $.async_derived({}{})", thunk_arg, dev_tail)
+                        format!("await $.async_derived(() => {}{})", inner_trimmed, dev_tail)
                     }
                 };
                 result = format!(

@@ -497,11 +497,21 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
     }
 
     // mouse-events-have-key-events
-    if !has_spread && handlers.contains("mouseover") && !handlers.contains("focus") {
+    // `focus`/`blur` do not bubble, so an element that is not focusable itself can
+    // only learn about focus changes inside it through `focusin`/`focusout`.
+    if !has_spread
+        && handlers.contains("mouseover")
+        && !handlers.contains("focus")
+        && !handlers.contains("focusin")
+    {
         warnings.push(w::a11y_mouse_events_have_key_events("mouseover", "focus"));
     }
 
-    if !has_spread && handlers.contains("mouseout") && !handlers.contains("blur") {
+    if !has_spread
+        && handlers.contains("mouseout")
+        && !handlers.contains("blur")
+        && !handlers.contains("focusout")
+    {
         warnings.push(w::a11y_mouse_events_have_key_events("mouseout", "blur"));
     }
 

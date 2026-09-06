@@ -147,11 +147,9 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
         };
 
         let async_values = if has_await {
-            // Strip the top-level await from the expression since $.async handles
-            // the awaiting internally. The expression becomes a thunk returning the Promise.
-            b::array(vec![b::thunk(
+            b::array(vec![b::async_arrow_unsaving(
                 &context.arena,
-                b::strip_await(&context.arena, built_expression),
+                built_expression,
             )])
         } else {
             b::undefined(&context.arena)

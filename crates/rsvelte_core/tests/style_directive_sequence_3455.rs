@@ -66,7 +66,7 @@ fn a_sequence_of_only_known_chunks_stays_a_one_shot_call() {
 fn the_spread_attribute_path_also_reads_every_chunk() {
     let out = client(r#"<div {...rest} style:color="{s}{f()}"></div>"#);
     assert!(
-        out.contains("[() => ({ color: `x${f() ?? ''}` })]"),
+        out.contains("{ color: $0 } }), [() => `x${f() ?? ''}`]"),
         "expected the later chunk's call to be memoized into the dependency array, got:\n{out}"
     );
 }

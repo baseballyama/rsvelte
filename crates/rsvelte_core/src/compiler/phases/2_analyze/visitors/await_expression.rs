@@ -40,11 +40,21 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     let in_reactive = in_derived || context.expression.is_some();
 
     if in_reactive {
+        // Once an expression pickles one await, every later await pickles too, so
+        // the restored context ends at the next suspension.
+        let already_pickled = context.pickled_await_seen
+            || context
+                .current_expression()
+                .is_some_and(|m| m.has_pickled_await());
         // Need Value for is_last_evaluated_expression_js comparison
         let value = node.to_value();
-        if !is_last_evaluated_expression_js(&context.js_path, &value) {
+        if already_pickled || !is_last_evaluated_expression_js(&context.js_path, &value) {
             let start = node.start().unwrap_or(0);
             context.analysis.pickled_awaits.insert(start);
+            context.pickled_await_seen = true;
+            if let Some(metadata) = context.current_expression() {
+                metadata.set_has_pickled_await(true);
+            }
         }
     }
 
@@ -147,14 +157,7 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             }
 
             Some("MemberExpression") => {
-                if parent
-                    .field("computed")
-                    .and_then(|c| c.as_bool())
-                    .unwrap_or(false)
-                    && is_same_node(parent.field("object"), current)
-                {
-                    return false;
-                }
+                return false;
             }
 
             Some("ObjectExpression") => {

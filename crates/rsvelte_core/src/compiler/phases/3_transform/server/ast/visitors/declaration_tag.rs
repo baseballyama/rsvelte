@@ -599,8 +599,16 @@ fn extract_async_derived_thunk_body(rhs: &str) -> Option<String> {
     // Strip the thunk arrow (`() =>` / `async () =>`) so the caller re-wraps the
     // bare expression body with the inner `$.save(...)`.
     let inner = after[..close].trim();
-    inner
+    if let Some(body) = inner
         .strip_prefix("async () =>")
         .or_else(|| inner.strip_prefix("() =>"))
-        .map(|body| body.trim().to_string())
+    {
+        return Some(body.trim().to_string());
+    }
+    // The rune lowering unthunks `() => f()` to `f`, so a bare callee is still
+    // the thunk shape and its body is a call on that callee.
+    if inner.is_empty() || inner.contains(|c: char| c.is_whitespace()) {
+        return None;
+    }
+    Some(format!("{inner}()"))
 }

@@ -41,6 +41,11 @@ pub fn visit(
     // attribute, so "does this element take arbitrary attributes at all" is
     // answered ahead of every per-directive rule below.
     for attr in &document.attributes {
+        if let Attribute::Attribute(a) = attr
+            && super::shared::utils::is_event_attribute(a)
+        {
+            super::shared::utils::check_global_event_reference(a, context);
+        }
         let span = match attr {
             Attribute::SpreadAttribute(spread) => Some((spread.start, spread.end)),
             Attribute::Attribute(a) if !super::shared::utils::is_event_attribute(a) => {

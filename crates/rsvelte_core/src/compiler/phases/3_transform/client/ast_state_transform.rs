@@ -30,8 +30,8 @@ use super::destructure_transforms::{
     unthunk_string,
 };
 use super::expression_utils::{
-    contains_direct_await_in_expression, extract_enclosing_function_name, extract_trace_call_label,
-    find_trace_source_location, strip_top_level_await_from_expr,
+    async_thunk_text, contains_direct_await_in_expression, extract_enclosing_function_name,
+    extract_trace_call_label, find_trace_source_location, strip_top_level_await_from_expr,
     wrap_await_with_save_in_async_derived,
 };
 use super::props_transforms::transform_props_destructuring;
@@ -1883,17 +1883,15 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let dev_tail = dev_args(self.async_derived_locations, label, &lookup_name);
 
             if inner_has_nested_await {
-                let is_object = saved_content.trim().starts_with('{');
-                let stmt = if is_object {
-                    format!(
-                        "{d_name} = await $.async_derived(async () => ({saved_content}){dev_tail})"
-                    )
+                let trimmed = saved_content.trim();
+                let thunk = if trimmed.starts_with('{') {
+                    async_thunk_text(&format!("({trimmed})"), false)
                 } else {
-                    format!(
-                        "{d_name} = await $.async_derived(async () => {saved_content}{dev_tail})"
-                    )
+                    async_thunk_text(trimmed, false)
                 };
-                declarations.push(stmt);
+                declarations.push(format!(
+                    "{d_name} = await $.async_derived({thunk}{dev_tail})"
+                ));
             } else {
                 let inner_trimmed = inner_expr.trim();
                 let inner_is_object = inner_trimmed.starts_with('{');
@@ -1902,9 +1900,8 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                         "{d_name} = await $.async_derived(() => ({inner_expr}){dev_tail})"
                     ));
                 } else {
-                    let thunk_arg = unthunk_string(&inner_expr);
                     declarations.push(format!(
-                        "{d_name} = await $.async_derived({thunk_arg}{dev_tail})"
+                        "{d_name} = await $.async_derived(() => {inner_trimmed}{dev_tail})"
                     ));
                 }
             }
@@ -2404,18 +2401,18 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let dev_tail = dev_args(self.async_derived_locations, var_name, var_name);
             let async_derived_call = if inner_has_nested_await {
                 let is_obj = saved_for_emit.starts_with('{');
-                if is_obj {
-                    format!("$.async_derived(async () => ({saved_for_emit}){dev_tail})")
+                let thunk = if is_obj {
+                    async_thunk_text(&format!("({saved_for_emit})"), false)
                 } else {
-                    format!("$.async_derived(async () => {saved_for_emit}{dev_tail})")
-                }
+                    async_thunk_text(&saved_for_emit, false)
+                };
+                format!("$.async_derived({thunk}{dev_tail})")
             } else {
                 let inner_is_object = inner_trimmed.starts_with('{');
                 if inner_is_object {
                     format!("$.async_derived(() => ({inner_expr}){dev_tail})")
                 } else {
-                    let thunk_arg = unthunk_string(&inner_expr);
-                    format!("$.async_derived({thunk_arg}{dev_tail})")
+                    format!("$.async_derived(() => {inner_trimmed}{dev_tail})")
                 }
             };
             let mut replacement = if should_save {
@@ -5780,30 +5777,30 @@ mod tests {
     }
 
     #[test]
-    fn destructured_async_derived_saves_non_final_awaits() {
+    fn destructured_async_derived_saves_every_await_once_one_pickles() {
         let output = transform("const { a, b } = $derived((await p) + (await q));", &[]);
 
         assert!(
-            output.has_sub("$.save(p)") && output.has_sub("await q"),
-            "non-final await must preserve reactive context: {output}"
+            output.has_sub("$.save(p)") && output.has_sub("$.save(q)"),
+            "pickling is sticky: every later await saves too: {output}"
         );
         assert!(
-            !output.has_sub("$.save(q)"),
-            "the final await must not be save-wrapped: {output}"
+            output.has_sub("$.unsave()"),
+            "a saving thunk must exit through $.unsave(): {output}"
         );
     }
 
     #[test]
-    fn async_derived_saves_non_final_awaits() {
+    fn async_derived_saves_every_await_once_one_pickles() {
         let output = transform("const a = $derived((await p) + (await q));", &[]);
 
         assert!(
-            output.has_sub("$.save(p)") && output.has_sub("await q"),
-            "non-final await must preserve reactive context: {output}"
+            output.has_sub("$.save(p)") && output.has_sub("$.save(q)"),
+            "pickling is sticky: every later await saves too: {output}"
         );
         assert!(
-            !output.has_sub("$.save(q)"),
-            "the final await must not be save-wrapped: {output}"
+            output.has_sub("$.unsave()"),
+            "a saving thunk must exit through $.unsave(): {output}"
         );
     }
 

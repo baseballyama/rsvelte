@@ -426,6 +426,7 @@ impl<'a> ComponentContext<'a> {
                     &css_hash,
                     false, // should_remove_defaults - not needed for svelte:element
                     false, // ignore_hydration - not needed for svelte:element
+                    false, // is_select - svelte:element name is not statically known
                 );
             } else if !class_directives.is_empty() {
                 // Class directives only (no class attribute) on svelte:element
@@ -3048,7 +3049,7 @@ impl Memoizer {
         let thunks: Vec<JsExpr> = self
             .async_entries
             .iter()
-            .map(|memo| b::async_arrow(arena, vec![], memo.expression.clone()))
+            .map(|memo| b::async_arrow_unsaving(arena, memo.expression.clone()))
             .collect();
 
         Some(b::array(thunks))
@@ -3265,6 +3266,7 @@ const FLAG_HAS_CALL: u8 = 1 << 1;
 const FLAG_HAS_AWAIT: u8 = 1 << 2;
 const FLAG_HAS_MEMBER_EXPRESSION: u8 = 1 << 3;
 const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
+const FLAG_HAS_PICKLED_AWAIT: u8 = 1 << 5;
 
 /// Expression metadata for analysis.
 ///
@@ -3293,9 +3295,9 @@ impl ExpressionMetadata {
     /// Uses direct flag byte copy (bits 0-4 are aligned between the two types).
     #[inline]
     pub fn from_template_metadata(meta: &crate::ast::template::ExpressionMetadata) -> Self {
-        // Copy bits 0-4 directly (STATE, CALL, AWAIT, MEMBER_EXPRESSION, ASSIGNMENT).
-        // Bit 5 (DYNAMIC) is not present in the template metadata, so it stays 0.
-        let flags = meta.raw_flags() & 0x1F; // mask to bits 0-4
+        // Bits 0-5 have the same meaning in both types (STATE, CALL, AWAIT,
+        // MEMBER_EXPRESSION, ASSIGNMENT, PICKLED_AWAIT).
+        let flags = meta.raw_flags() & 0x3F;
         Self {
             flags,
             blockers: Vec::new(),
@@ -3319,7 +3321,14 @@ impl ExpressionMetadata {
         }
     }
 
-    /// Whether the expression contains await
+    /// Whether an `await` restores the reaction context, so the thunk around it
+    /// must end that context on the way out.
+    #[inline]
+    pub fn has_pickled_await(&self) -> bool {
+        self.flags & FLAG_HAS_PICKLED_AWAIT != 0
+    }
+
+    /// Whether the expression contains an await
     #[inline]
     pub fn has_await(&self) -> bool {
         self.flags & FLAG_HAS_AWAIT != 0

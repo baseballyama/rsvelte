@@ -661,6 +661,10 @@ pub(crate) fn analyze_prepared_component_with_retained(
                             }
                             // If not a snippet and not in any scope at all, export_undefined
                             // is already raised by the export_named_declaration visitor.
+                        } else if analysis.template.hoisted_snippets.contains(name) {
+                            // A consumer can import the snippet without the default export, so
+                            // the CSS must not be tree-shaken when the component is unused.
+                            analysis.css.has_global = true;
                         }
                     }
                     continue;

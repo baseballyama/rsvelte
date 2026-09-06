@@ -100,6 +100,14 @@ pub fn transform_template<'a>(
     flags: Option<u32>,
     locator: Option<&Locator>,
 ) -> JsExpr {
+    // `$.comment` builds a lone anchor more cheaply than cloning a template, and
+    // every call site benefits from the case living here rather than in `Fragment`.
+    if state.template.nodes.len() == 1
+        && matches!(state.template.nodes.first(), Some(Node::Comment(_)))
+    {
+        return b::member_path(arena, "$.comment");
+    }
+
     let tree = state.options.fragments == FragmentsMode::Tree;
     let mut current_flags = flags.unwrap_or(0);
 

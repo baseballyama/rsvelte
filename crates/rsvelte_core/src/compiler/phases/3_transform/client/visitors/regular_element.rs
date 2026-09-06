@@ -31,9 +31,11 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
+use crate::compiler::phases::phase3_transform::js_ast::ExprId;
+use crate::compiler::phases::phase3_transform::js_ast::arena::JsArena;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
-    JsExpr, JsLiteral, JsPattern, JsStatement,
+    JsExpr, JsLiteral, JsMemberProperty, JsPattern, JsStatement,
 };
 use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use crate::compiler::phases::phase3_transform::utils::{
@@ -540,6 +542,7 @@ pub fn visit_regular_element(
             &css_hash,
             should_remove_defaults,
             ignore_hydration,
+            node.name == "select",
         );
     } else {
         // Find class attribute for special handling
@@ -588,6 +591,12 @@ pub fn visit_regular_element(
                     continue;
                 }
 
+                // `<select defaultValue>` selects among options that do not exist yet,
+                // so it is deferred to after the children alongside `value`.
+                if node.name == "select" && name == "defaultValue" {
+                    continue;
+                }
+
                 // Handle class attribute with class directives inline at source position
                 // (matching the official compiler's RegularElement.js which processes
                 // class at its source position, not post-loop)
@@ -630,6 +639,7 @@ pub fn visit_regular_element(
                 // branch selectors below, so `autoFocus` takes the static path.
                 if !is_custom_element
                     && !cannot_be_set_statically(&attr.name)
+                    && (name != "value" || node.name != "textarea")
                     && (is_true_value || is_text_attribute(attr))
                 {
                     // `None` is upstream's boolean `true` for a valueless attribute,
@@ -1331,13 +1341,6 @@ pub fn visit_regular_element(
             Some(1u32),
             None,
         );
-        // Use the returned identifier name for the body's factory call below.
-        let template_name = match &template_id_expr {
-            crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr::Identifier(name) => {
-                name.to_string()
-            }
-            _ => template_base.clone(),
-        };
 
         // Restore saved state (template + init/update/after_update) now that
         // the select template has been hoisted via the shared cache.
@@ -1362,7 +1365,7 @@ pub fn visit_regular_element(
             b::var_decl(
                 &context.arena,
                 &fragment_id_name,
-                Some(b::call(&context.arena, b::id(&template_name), vec![])),
+                Some(b::call(&context.arena, template_id_expr, vec![])),
             ),
         ];
         body_stmts.extend(child_init);
@@ -1475,7 +1478,15 @@ pub fn visit_regular_element(
                     && !is_static_element(n.as_ref(), &context.state)
             });
 
-        if needs_reset {
+        let folded = needs_reset
+            && match &element_node {
+                JsExpr::Identifier(name) => {
+                    fold_reset_into_child(&context.arena, &mut context.state.init, name)
+                }
+                _ => false,
+            };
+
+        if needs_reset && !folded {
             context.state.init.push(b::stmt(
                 &context.arena,
                 b::call(
@@ -1762,21 +1773,70 @@ pub fn visit_regular_element(
                         context,
                     );
 
-                    // For select elements with value, add $.init_select(node)
-                    if is_select_with_value {
-                        context.state.init.push(b::stmt(
-                            &context.arena,
-                            b::call(
-                                &context.arena,
-                                b::member(&context.arena, b::id("$"), "init_select"),
-                                vec![b::id(&node_id)],
-                            ),
-                        ));
-                    }
-
                     break;
                 }
             }
+        }
+    }
+
+    // Deferred from the attribute loop above so the options `defaultValue`
+    // selects from have been created and had their values assigned.
+    if !has_spread && node.name == "select" {
+        let node_id = extract_node_id(&context.state.node);
+
+        let default_value = attributes.iter().find_map(|attribute| match attribute {
+            Attribute::Attribute(attr) if get_attribute_name(node, attr) == "defaultValue" => {
+                Some(attr)
+            }
+            _ => None,
+        });
+
+        if let Some(attr) = default_value {
+            let mut captured_metadata = ExpressionMetadata::default();
+            let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                captured_metadata = metadata.clone();
+                expr
+            });
+            let value = context.state.memoizer.add(
+                result.value,
+                captured_metadata.has_call(),
+                captured_metadata.has_await(),
+                false,
+                result.has_state,
+            );
+            let update = b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.set_default_select_value"),
+                    vec![b::id(&node_id), value],
+                ),
+            );
+            if result.has_state {
+                context.state.update.push(update);
+            } else {
+                context.state.init.push(update);
+            }
+        }
+
+        let dynamic_value = attributes.iter().any(|attribute| match attribute {
+            Attribute::Attribute(attr) => {
+                attr.name == "value"
+                    && !matches!(&attr.value, AttributeValue::True(_))
+                    && !is_text_attribute(attr)
+            }
+            _ => false,
+        });
+
+        if default_value.is_some() || dynamic_value || bindings.contains_key("value") {
+            context.state.init.push(b::stmt(
+                &context.arena,
+                b::call(
+                    &context.arena,
+                    b::member_path(&context.arena, "$.init_select"),
+                    vec![b::id(&node_id)],
+                ),
+            ));
         }
     }
 
@@ -2341,11 +2401,25 @@ fn build_element_special_value_attribute(
     let value_is_defined = is_in_scope_each_index
         || is_js_expr_defined(value_for_definedness, &context.arena, context);
 
-    // node.__value = transformed_value
+    // With a dynamic value the guard below has already evaluated it into
+    // `<node>_value`, so the update reads that back rather than evaluating the
+    // same expression — and its signal reads — a second time.
+    let value_id = has_state.then(|| {
+        context
+            .state
+            .memoizer
+            .generate_id(&format!("{}_value", node_id))
+    });
+    let update_value = match &value_id {
+        Some(id) => b::id(id),
+        None => transformed_value.clone(),
+    };
+
+    // node.__value = update_value
     let assignment = b::assign(
         &context.arena,
         b::member(&context.arena, b::id(node_id), "__value"),
-        transformed_value.clone(),
+        update_value.clone(),
     );
 
     // For non-synthetic values: node.value = (node.__value = transformed_value) ?? ''
@@ -2376,7 +2450,7 @@ fn build_element_special_value_attribute(
                 b::call(
                     &context.arena,
                     b::member_path(&context.arena, "$.select_option"),
-                    vec![b::id(node_id), transformed_value.clone()],
+                    vec![b::id(node_id), update_value.clone()],
                 ),
             ]),
         )
@@ -2392,10 +2466,7 @@ fn build_element_special_value_attribute(
         // if (node_value !== (node_value = transformed_value)) {
         //     node.__value = transformed_value;  // or node.value = node.__value = transformed_value for non-synthetic
         // }
-        let value_id = context
-            .state
-            .memoizer
-            .generate_id(&format!("{}_value", node_id));
+        let value_id = value_id.expect("generated above whenever `has_state`");
 
         // For option elements, use {} as initial value (a sentinel that won't equal any real value)
         // This ensures the first comparison always triggers the update
@@ -2438,6 +2509,63 @@ fn expression_tag_of<'a>(value: &'a AttributeValue<'a>) -> Option<&'a Expression
             AttributeValuePart::ExpressionTag(tag) => Some(tag),
             AttributeValuePart::Text(_) => None,
         },
+        _ => None,
+    }
+}
+
+/// `<p>{text}</p>` emits `var x = $.child(p, true); $.reset(p);`, and upstream folds
+/// that pair into one `$.only_child` call when the `$.child` is the last statement this
+/// element emitted (`RegularElement.js`'s `fold_reset_into_child`).
+fn fold_reset_into_child(arena: &JsArena, init: &mut [JsStatement], node_name: &str) -> bool {
+    let Some(JsStatement::VariableDeclaration(decl)) = init.last_mut() else {
+        return false;
+    };
+    if decl.declarations.len() != 1 {
+        return false;
+    }
+    let Some(init_id) = decl.declarations[0].init else {
+        return false;
+    };
+
+    // Cloned before allocating: `alloc_expr` takes `&self`, so the borrow of the
+    // existing call must not still be live when the arena grows.
+    let arguments = {
+        let JsExpr::Call(call) = arena.get_expr(init_id) else {
+            return false;
+        };
+        if !is_dollar_call(arena, call.callee, "child") {
+            return false;
+        }
+        if identifier_name(arena, call.arguments.first()) != Some(node_name) {
+            return false;
+        }
+        call.arguments.clone()
+    };
+
+    let folded = b::call(arena, b::member_path(arena, "$.only_child"), arguments);
+    decl.declarations[0].init = Some(arena.alloc_expr(folded));
+
+    true
+}
+
+/// Whether `callee` is exactly `$.<name>`.
+fn is_dollar_call(arena: &JsArena, callee: ExprId, name: &str) -> bool {
+    let JsExpr::Member(member) = arena.get_expr(callee) else {
+        return false;
+    };
+    if member.computed || !matches!(&member.property, JsMemberProperty::Identifier(p) if p == name)
+    {
+        return false;
+    }
+    matches!(arena.get_expr(member.object), JsExpr::Identifier(o) if o == "$")
+}
+
+/// The name an expression denotes, seeing through the span wrapper the element
+/// identifier carries.
+fn identifier_name<'a>(arena: &'a JsArena, expr: Option<&'a JsExpr>) -> Option<&'a str> {
+    match expr? {
+        JsExpr::Identifier(name) => Some(name.as_str()),
+        JsExpr::Spanned(inner, _, _) => identifier_name(arena, Some(arena.get_expr(*inner))),
         _ => None,
     }
 }

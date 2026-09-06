@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-04T16:55:15.300197+00:00",
-  "commit_sha": "56a036f4ce87",
+  "generated_at": "2026-09-06T17:50:07.374488+00:00",
+  "commit_sha": "7bc0a70fe64d",
   "summary": {
-    "total": 3672,
-    "passed": 3592,
+    "total": 3711,
+    "passed": 3631,
     "failed": 0,
     "skipped": 80,
     "percentage": 100
@@ -135,8 +135,8 @@
     {
       "id": "parser-legacy",
       "name": "Parser Legacy",
-      "total": 83,
-      "passed": 82,
+      "total": 84,
+      "passed": 83,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -407,6 +407,10 @@
           "status": "pass"
         },
         {
+          "name": "convert-entities-line-feed",
+          "status": "pass"
+        },
+        {
           "name": "loose-unclosed-open-tag",
           "status": "pass"
         },
@@ -615,8 +619,8 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 182,
-      "passed": 182,
+      "total": 183,
+      "passed": 183,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -1306,6 +1310,10 @@
           "status": "pass"
         },
         {
+          "name": "snippet-exported",
+          "status": "pass"
+        },
+        {
           "name": "supports-query",
           "status": "pass"
         },
@@ -1354,8 +1362,8 @@
     {
       "id": "validator",
       "name": "Validator",
-      "total": 334,
-      "passed": 333,
+      "total": 335,
+      "passed": 334,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -2538,6 +2546,10 @@
           "status": "pass"
         },
         {
+          "name": "global-event-reference-special-elements",
+          "status": "pass"
+        },
+        {
           "name": "mutate-derived-private-field",
           "status": "pass"
         },
@@ -2702,8 +2714,8 @@
     {
       "id": "compiler-errors",
       "name": "Compiler Errors",
-      "total": 145,
-      "passed": 145,
+      "total": 146,
+      "passed": 146,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -3069,6 +3081,10 @@
           "status": "pass"
         },
         {
+          "name": "runes-export-let-derived",
+          "status": "pass"
+        },
+        {
           "name": "runes-no-const-assignment",
           "status": "pass"
         },
@@ -3293,8 +3309,8 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 1020,
-      "passed": 1020,
+      "total": 1046,
+      "passed": 1046,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -3333,6 +3349,10 @@
         },
         {
           "name": "async-flushsync-in-effect",
+          "status": "pass"
+        },
+        {
+          "name": "async-save-throwing-expression",
           "status": "pass"
         },
         {
@@ -3549,6 +3569,10 @@
         },
         {
           "name": "async-stale-derived-4",
+          "status": "pass"
+        },
+        {
+          "name": "derived-leading-comments",
           "status": "pass"
         },
         {
@@ -3828,6 +3852,10 @@
           "status": "pass"
         },
         {
+          "name": "async-store-sub-blocker",
+          "status": "pass"
+        },
+        {
           "name": "async-overlap-multiple-6",
           "status": "pass"
         },
@@ -3900,6 +3928,10 @@
           "status": "pass"
         },
         {
+          "name": "async-save-await-block-pending",
+          "status": "pass"
+        },
+        {
           "name": "html-tag-empty",
           "status": "pass"
         },
@@ -3917,6 +3949,10 @@
         },
         {
           "name": "async-component-exports",
+          "status": "pass"
+        },
+        {
+          "name": "async-declaration-closure-read",
           "status": "pass"
         },
         {
@@ -4009,6 +4045,10 @@
         },
         {
           "name": "async-effect-pending-nested",
+          "status": "pass"
+        },
+        {
+          "name": "form-default-checked-radio-spread",
           "status": "pass"
         },
         {
@@ -4184,6 +4224,10 @@
           "status": "pass"
         },
         {
+          "name": "async-save-foreign-microtask-mutation-prod",
+          "status": "pass"
+        },
+        {
           "name": "async-head-title-3",
           "status": "pass"
         },
@@ -4253,6 +4297,10 @@
         },
         {
           "name": "html-namespace-infer-a-tag",
+          "status": "pass"
+        },
+        {
+          "name": "transition-global-nested-resume-each",
           "status": "pass"
         },
         {
@@ -4337,6 +4385,10 @@
         },
         {
           "name": "option-rich-content",
+          "status": "pass"
+        },
+        {
+          "name": "async-const-closure-read",
           "status": "pass"
         },
         {
@@ -4565,6 +4617,10 @@
         },
         {
           "name": "async-effect-pending-eager",
+          "status": "pass"
+        },
+        {
+          "name": "bind-this-component-in-state",
           "status": "pass"
         },
         {
@@ -4892,6 +4948,10 @@
           "status": "pass"
         },
         {
+          "name": "class-directive-memoize",
+          "status": "pass"
+        },
+        {
           "name": "async-props-id",
           "status": "pass"
         },
@@ -4921,6 +4981,10 @@
         },
         {
           "name": "async-fork-if",
+          "status": "pass"
+        },
+        {
+          "name": "select-default-value-preserve-selection",
           "status": "pass"
         },
         {
@@ -5021,6 +5085,10 @@
         },
         {
           "name": "async-batch-derived",
+          "status": "pass"
+        },
+        {
+          "name": "transition-global-nested-resume-flipback",
           "status": "pass"
         },
         {
@@ -5184,6 +5252,10 @@
           "status": "pass"
         },
         {
+          "name": "select-function-binding-derived",
+          "status": "pass"
+        },
+        {
           "name": "event-import-no-param-hoisting",
           "status": "pass"
         },
@@ -5340,6 +5412,10 @@
           "status": "pass"
         },
         {
+          "name": "error-boundary-28",
+          "status": "pass"
+        },
+        {
           "name": "derived-indirect-fn",
           "status": "pass"
         },
@@ -5448,6 +5524,10 @@
           "status": "pass"
         },
         {
+          "name": "transition-global-nested-resume",
+          "status": "pass"
+        },
+        {
           "name": "each-updates-7",
           "status": "pass"
         },
@@ -5520,6 +5600,10 @@
           "status": "pass"
         },
         {
+          "name": "async-store-sub-teardown",
+          "status": "pass"
+        },
+        {
           "name": "async-ignore-skipped-block",
           "status": "pass"
         },
@@ -5553,6 +5637,10 @@
         },
         {
           "name": "async-overlap-multiple-fork-1",
+          "status": "pass"
+        },
+        {
+          "name": "html-entity-line-feed",
           "status": "pass"
         },
         {
@@ -5725,6 +5813,10 @@
         },
         {
           "name": "derived-unowned-12",
+          "status": "pass"
+        },
+        {
+          "name": "async-save-foreign-microtask-mutation",
           "status": "pass"
         },
         {
@@ -6021,6 +6113,14 @@
         },
         {
           "name": "bindable-prop-and-export",
+          "status": "pass"
+        },
+        {
+          "name": "form-default-value-select",
+          "status": "pass"
+        },
+        {
+          "name": "svelte-head-anchor-cleanup",
           "status": "pass"
         },
         {
@@ -6844,6 +6944,10 @@
           "status": "pass"
         },
         {
+          "name": "ownership-invalid-mutation-binding-ignore",
+          "status": "pass"
+        },
+        {
           "name": "title-nullish",
           "status": "pass"
         },
@@ -6873,6 +6977,10 @@
         },
         {
           "name": "svelte-meta",
+          "status": "pass"
+        },
+        {
+          "name": "state-snapshot-svelte-date",
           "status": "pass"
         },
         {
@@ -7036,6 +7144,10 @@
           "status": "pass"
         },
         {
+          "name": "bind-this-component-in-state-dev",
+          "status": "pass"
+        },
+        {
           "name": "key-nan",
           "status": "pass"
         },
@@ -7061,10 +7173,6 @@
         },
         {
           "name": "async-redirect-initial",
-          "status": "pass"
-        },
-        {
-          "name": "derived-forward-ref-leading-comments",
           "status": "pass"
         },
         {
@@ -7224,6 +7332,10 @@
           "status": "pass"
         },
         {
+          "name": "select-default-value-single-observer",
+          "status": "pass"
+        },
+        {
           "name": "proxy-set-accessor",
           "status": "pass"
         },
@@ -7257,6 +7369,10 @@
         },
         {
           "name": "attachment-component-falsy",
+          "status": "pass"
+        },
+        {
+          "name": "style-directive-memoize",
           "status": "pass"
         },
         {
@@ -7377,6 +7493,10 @@
         },
         {
           "name": "contenteditable-state",
+          "status": "pass"
+        },
+        {
+          "name": "async-error-boundary-5",
           "status": "pass"
         }
       ]
@@ -12223,8 +12343,8 @@
     {
       "id": "runtime-browser",
       "name": "Runtime Browser",
-      "total": 32,
-      "passed": 32,
+      "total": 35,
+      "passed": 35,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12251,6 +12371,10 @@
         },
         {
           "name": "component-css-custom-properties-dynamic",
+          "status": "pass"
+        },
+        {
+          "name": "selectedcontent-oninput-interfere",
           "status": "pass"
         },
         {
@@ -12290,6 +12414,10 @@
           "status": "pass"
         },
         {
+          "name": "transition-nested-measure",
+          "status": "pass"
+        },
+        {
           "name": "browser-events-ending-with-capture",
           "status": "pass"
         },
@@ -12311,6 +12439,10 @@
         },
         {
           "name": "inline-style-directive-precedence",
+          "status": "pass"
+        },
+        {
+          "name": "transition-slide-hidden-parent",
           "status": "pass"
         },
         {
@@ -12362,8 +12494,8 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 80,
-      "passed": 80,
+      "total": 81,
+      "passed": 81,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12569,6 +12701,10 @@
           "status": "pass"
         },
         {
+          "name": "head-css-no-class",
+          "status": "pass"
+        },
+        {
           "name": "text-empty-2",
           "status": "pass"
         },
@@ -12693,8 +12829,8 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 100,
-      "passed": 100,
+      "total": 104,
+      "passed": 104,
       "failed": 0,
       "skipped": 0,
       "percentage": 100,
@@ -12820,6 +12956,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-duplicate-failed-snippets",
+          "status": "pass"
+        },
+        {
           "name": "boundary-error-no-onerror",
           "status": "pass"
         },
@@ -12853,6 +12993,10 @@
         },
         {
           "name": "head-multiple-title",
+          "status": "pass"
+        },
+        {
+          "name": "select-default-value",
           "status": "pass"
         },
         {
@@ -12893,6 +13037,10 @@
         },
         {
           "name": "attribute-escaped-quotes",
+          "status": "pass"
+        },
+        {
+          "name": "select-multiple-value",
           "status": "pass"
         },
         {
@@ -12997,6 +13145,10 @@
         },
         {
           "name": "attribute-strip-svg-mathml-ce",
+          "status": "pass"
+        },
+        {
+          "name": "empty-boolean-attribute-object",
           "status": "pass"
         },
         {
@@ -13318,8 +13470,8 @@
     {
       "id": "print",
       "name": "Print",
-      "total": 50,
-      "passed": 49,
+      "total": 51,
+      "passed": 50,
       "failed": 0,
       "skipped": 1,
       "percentage": 100,
@@ -13479,6 +13631,10 @@
         },
         {
           "name": "svelte-component",
+          "status": "pass"
+        },
+        {
+          "name": "inline-element-whitespace",
           "status": "pass"
         },
         {
