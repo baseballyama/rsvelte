@@ -818,7 +818,12 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             JsNode::FunctionDeclaration {
-                id, params, body, ..
+                id,
+                params,
+                body,
+                start: decl_start,
+                end: decl_end,
+                ..
             } => {
                 if let Some(id_ref) = id {
                     let id_node = self.arena.get_js_node(*id_ref);
@@ -841,6 +846,12 @@ impl<'a> ScopeBuilder<'a> {
                         self.bindings[idx].initial_is_function = true;
                         self.bindings[idx].is_function_implementation = has_body;
                         self.bindings[idx].declaration_start = Some(*start);
+                        // Upstream's `declare` passes the FunctionDeclaration itself
+                        // as `binding.initial` (`scope.js:673`) and `evaluate` folds
+                        // it in the same arm as an arrow (`scope.js:560-563`), so a
+                        // name bound by `function h() {}` resolves exactly like one
+                        // bound by `const h = () => {}`.
+                        self.bindings[idx].initial_span = Some((*decl_start, *decl_end));
                     }
                 }
                 let params = *params;
