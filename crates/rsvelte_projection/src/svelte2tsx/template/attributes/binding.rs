@@ -1,13 +1,14 @@
 //! `bind:` directives. Mirrors `htmlxtojsx_v2/nodes/Binding.ts`.
 
-use std::fmt::Write as _;
-
 use crate::ast::template::{Attribute, BindDirective};
 use crate::svelte2tsx::svelte2tsx::slice_src;
-use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
+use crate::svelte2tsx::template::segs::{
+    Seg, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
+};
 use crate::svelte2tsx::template::utils::expr::{
-    extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
-    get_expression_range, get_expression_text, get_set_binding_ranges,
+    extend_expr_end_with_ts_postfix, get_binding_lhs_range, get_binding_lhs_text,
+    get_expression_end_stripping_ts, get_expression_range, get_expression_text,
+    get_set_binding_ranges,
 };
 
 /// Structured-bake variant of [`format_bind_directive`].
@@ -186,94 +187,115 @@ pub fn build_bind_directive_suffix(
         let Attribute::BindDirective(bind) = attr else {
             continue;
         };
-        out.push_str(&bind_directive_suffix_seg(
-            bind,
+        out.push_str(&segs_to_string(
+            &bind_directive_suffix_segs(bind, source, element_var, parent_tag, use_ts_syntax),
             source,
-            element_var,
-            parent_tag,
-            use_ts_syntax,
         ));
     }
     out
 }
 
-/// Per-attribute variant of [`build_bind_directive_suffix`]: returns the
-/// suffix string for a single `bind:` directive. Used both by the grouped
-/// builder above and by the source-order unified element-suffix builder.
-pub fn bind_directive_suffix_seg(
+/// Per-attribute variant of [`build_bind_directive_suffix`]: the suffix
+/// statement for a single `bind:` directive, as segments.
+///
+/// Upstream's `handleBinding` emits the binding's assignment target as a
+/// TransformationArray *range* (`appendOneWayBinding`'s `[expression.start,
+/// end]`, and `[set.start, getEnd(set)]` for a get/set `bind:this`), so the
+/// expression chunk survives into the shadow with its own mapping and hover
+/// inside `bind:this={el}` answers about `el`. Baking it in as generated text
+/// instead leaves the position unmapped, and the nearest mapping to its left —
+/// the previous attribute's expression — answers in its place. Only the generic
+/// two-way widener stays literal: upstream wraps that one in ignore comments and
+/// builds it from `str.original.substring`, with no range.
+pub fn bind_directive_suffix_segs(
     bind: &BindDirective,
     source: &str,
     element_var: Option<&str>,
     parent_tag: &str,
     use_ts_syntax: bool,
-) -> String {
-    let mut out = String::new();
-    {
-        // Svelte 5 function binding `bind:foo={getFn, setFn}`: the get/set
-        // pair is checked via `__sveltets_2_get_set_binding(...)` in the
-        // attribute list, so the one-way / group / generic type-widener
-        // suffixes (all guarded by `if (!isGetSetBinding)` upstream) are
-        // skipped. `bind:this={getFn, setFn}` instead invokes the setter
-        // with the element instance: `(setFn)(var);` (mirrors Binding.ts).
-        if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
-            if bind.name == "this"
-                && let Some(var) = element_var
-            {
-                let _ = write!(
-                    out,
-                    "({})({});",
-                    slice_src(source, ss as usize, se as usize),
-                    var
-                );
-            }
-            return out;
-        }
-        // Every branch here emits `expr` as an assignment LHS, so a trailing TS
-        // assertion must be stripped (mirrors upstream `getEnd(attr.expression)`).
-        let expr_text = get_binding_lhs_text(&bind.expression, source);
-        if bind.name == "this" {
-            if let Some(var) = element_var {
-                // A trailing TS postfix on the bind expression
-                // (`bind:this={el as HTMLElement}`) moves onto the RHS var:
-                // `el = $$_var as HTMLElement;` (mirrors Binding.ts appending
-                // `[getEnd, expression.end]` after the assignment).
-                let postfix = get_expression_range(&bind.expression).map_or("", |(_, e)| {
-                    let ge = get_expression_end_stripping_ts(&bind.expression, source).unwrap_or(e);
-                    let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                    slice_src(source, ge as usize, ee as usize)
-                });
-                let _ = write!(out, "{expr_text} = {var}{postfix};");
-            }
-        } else if bind.name == "group" && parent_tag == "input" {
-            // `bind:group` on `<input>` only gets a type-widening
-            // assignment; mirrors the dedicated branch in
-            // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
-            let _ = write!(out, "{expr_text} = __sveltets_2_any(null);");
-        } else if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
-            // `Binding.ts`'s `useTypescriptSyntax`. A TS assertion in a shadow
-            // emitted as JavaScript is a SYNTAX error (TS8016), which suppresses
-            // every semantic diagnostic in the program.
-            let value = if use_ts_syntax {
-                format!("null as {ty}")
+) -> Vec<Seg> {
+    let mut out: Vec<Seg> = Vec::new();
+    // A degenerate or absent range would drop the text, so fall back to the
+    // literal the range was derived from.
+    let push_lhs = |out: &mut Vec<Seg>| match get_binding_lhs_range(&bind.expression, source) {
+        Some((start, end)) if start < end => segs_push_src(out, start, end),
+        _ => segs_push_lit(out, get_binding_lhs_text(&bind.expression, source)),
+    };
+    // Svelte 5 function binding `bind:foo={getFn, setFn}`: the get/set
+    // pair is checked via `__sveltets_2_get_set_binding(...)` in the
+    // attribute list, so the one-way / group / generic type-widener
+    // suffixes (all guarded by `if (!isGetSetBinding)` upstream) are
+    // skipped. `bind:this={getFn, setFn}` instead invokes the setter
+    // with the element instance: `(setFn)(var);` (mirrors Binding.ts).
+    if let Some((_, (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
+        if bind.name == "this"
+            && let Some(var) = element_var
+        {
+            segs_push_lit(&mut out, "(");
+            if ss < se {
+                segs_push_src(&mut out, ss, se);
             } else {
-                format!("/** @type {{{ty}}} */ (null)")
-            };
-            let _ = write!(
-                out,
-                "{expr_text}= /*\u{03A9}ignore_start\u{03A9}*/{value}/*\u{03A9}ignore_end\u{03A9}*/;"
-            );
-        } else if is_one_way_binding_attribute(&bind.name) {
-            if let Some(var) = element_var {
-                let _ = write!(out, "{}= {}.{};", expr_text, var, bind.name);
+                segs_push_lit(&mut out, slice_src(source, ss as usize, se as usize));
             }
-        } else {
-            // Generic two-way binding: type-widener so TS doesn't infer
-            // an overly-narrow type.
-            let _ = write!(
-                out,
-                "/*\u{03A9}ignore_start\u{03A9}*/() => {expr_text} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/"
-            );
+            segs_push_fmt(&mut out, format_args!(")({var});"));
         }
+        return out;
+    }
+    if bind.name == "this" {
+        if let Some(var) = element_var {
+            push_lhs(&mut out);
+            segs_push_fmt(&mut out, format_args!(" = {var}"));
+            // A trailing TS postfix on the bind expression
+            // (`bind:this={el as HTMLElement}`) moves onto the RHS var:
+            // `el = $$_var as HTMLElement;` (mirrors Binding.ts appending
+            // `[getEnd, expression.end]` after the assignment).
+            if let Some((_, e)) = get_expression_range(&bind.expression) {
+                let ge = get_expression_end_stripping_ts(&bind.expression, source).unwrap_or(e);
+                let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                if ge < ee {
+                    segs_push_src(&mut out, ge, ee);
+                }
+            }
+            segs_push_lit(&mut out, ";");
+        }
+    } else if bind.name == "group" && parent_tag == "input" {
+        // `bind:group` on `<input>` only gets a type-widening
+        // assignment; mirrors the dedicated branch in
+        // `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
+        push_lhs(&mut out);
+        segs_push_lit(&mut out, " = __sveltets_2_any(null);");
+    } else if let Some(ty) = one_way_binding_not_on_element_type(&bind.name) {
+        // `Binding.ts`'s `useTypescriptSyntax`. A TS assertion in a shadow
+        // emitted as JavaScript is a SYNTAX error (TS8016), which suppresses
+        // every semantic diagnostic in the program.
+        let value = if use_ts_syntax {
+            format!("null as {ty}")
+        } else {
+            format!("/** @type {{{ty}}} */ (null)")
+        };
+        push_lhs(&mut out);
+        segs_push_fmt(
+            &mut out,
+            format_args!(
+                "= /*\u{03A9}ignore_start\u{03A9}*/{value}/*\u{03A9}ignore_end\u{03A9}*/;"
+            ),
+        );
+    } else if is_one_way_binding_attribute(&bind.name) {
+        if let Some(var) = element_var {
+            push_lhs(&mut out);
+            segs_push_fmt(&mut out, format_args!("= {}.{};", var, bind.name));
+        }
+    } else {
+        // Generic two-way binding: type-widener so TS doesn't infer
+        // an overly-narrow type. Upstream builds this one from
+        // `str.original.substring`, not a range, so it stays literal.
+        segs_push_fmt(
+            &mut out,
+            format_args!(
+                "/*\u{03A9}ignore_start\u{03A9}*/() => {} = __sveltets_2_any(null);/*\u{03A9}ignore_end\u{03A9}*/",
+                get_binding_lhs_text(&bind.expression, source)
+            ),
+        );
     }
     out
 }

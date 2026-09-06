@@ -272,12 +272,26 @@ pub fn get_expression_start_stripping_ts(
 /// end and a leading `<T>` type-assertion prefix from the start, so a cast never
 /// lands on the assignment target.
 pub fn get_binding_lhs_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
+    match get_binding_lhs_range(expr, source) {
+        Some((start, ge)) => slice_src(source, start as usize, ge as usize),
+        None => get_expression_text(expr, source),
+    }
+}
+
+/// Source byte range whose slice is [`get_binding_lhs_text`]. Upstream emits the
+/// LHS as a mapped `[expression.start, getEnd(expression)]` chunk, so a caller
+/// that bakes the text in loses the mapping hover is answered from; deriving the
+/// two from one function keeps the range and the text from drifting apart.
+pub fn get_binding_lhs_range(
+    expr: &crate::ast::js::Expression,
+    source: &str,
+) -> Option<(u32, u32)> {
     match (
         get_expression_start_stripping_ts(expr, source),
         get_expression_end_stripping_ts(expr, source),
     ) {
-        (Some(start), Some(ge)) if start <= ge => slice_src(source, start as usize, ge as usize),
-        _ => get_expression_text(expr, source),
+        (Some(start), Some(ge)) if start <= ge => Some((start, ge)),
+        _ => get_expression_range(expr),
     }
 }
 

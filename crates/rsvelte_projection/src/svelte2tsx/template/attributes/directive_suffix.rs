@@ -1,7 +1,7 @@
 //! Suffix statements emitted after an element / component opener for the
 //! directives that the JS reference lowers outside the props object.
 
-use super::binding::bind_directive_suffix_seg;
+use super::binding::bind_directive_suffix_segs;
 use super::class_style::class_style_directive_seg;
 use super::transition::{format_animate_directive_v4, format_transition_directive_v4};
 use std::fmt::Write as _;
@@ -73,11 +73,13 @@ pub fn build_element_directive_suffix_segments(
                 );
             }
             Attribute::BindDirective(bind) => {
-                let s =
-                    bind_directive_suffix_seg(bind, source, element_var, parent_tag, use_ts_syntax);
-                if !s.is_empty() {
-                    segs_push_lit(&mut out, &s);
-                }
+                out.extend(bind_directive_suffix_segs(
+                    bind,
+                    source,
+                    element_var,
+                    parent_tag,
+                    use_ts_syntax,
+                ));
             }
             _ => {}
         }

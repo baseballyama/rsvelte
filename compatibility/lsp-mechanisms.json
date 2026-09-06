@@ -214335,16 +214335,16 @@
 		"differential:upstream-features/$$slots/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=5,hash=9ea894242b28]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=8,hash=1398f6b4a6bb]": [
+		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=6,hash=00b9e7e2a457]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=6cfe3bebae6c]": [
+		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=259a630d7810]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=8,hash=1398f6b4a6bb]": [
+		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=6,hash=00b9e7e2a457]": [
 			"diagnostic-item-set-extra-ts"
 		],
-		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=6cfe3bebae6c]": [
+		"differential:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=259a630d7810]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/$store-wrong-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=fd8b347a8abd]": [
@@ -214503,16 +214503,16 @@
 		"differential:upstream-features/await.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=e932cbb32eab]": [
 			"diagnostic-item-set-missing-mixed"
 		],
-		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=20,hash=10396c906f30]": [
+		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=19,hash=d83cc0597acd]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=7,hash=7f6876878b03]": [
+		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=20,hash=10396c906f30]": [
+		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=19,hash=d83cc0597acd]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=7,hash=7f6876878b03]": [
+		"differential:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"differential:upstream-features/bindings/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=17e58646b355]": [
@@ -218991,16 +218991,16 @@
 		"expected:upstream-features/$$slots/input.svelte|textDocument/inlayHint|phase=edit|/:value-mismatch[official=4f53cda18c2b,rsvelte=74234e98afe7]": [
 			"empty-result-spelling-inlay-hint"
 		],
-		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=12,hash=29fb0b74b6df]": [
+		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=10,hash=d87039cb8261]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=4,hash=6cfe3bebae6c]": [
+		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=2,hash=259a630d7810]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=12,hash=29fb0b74b6df]": [
+		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=10,hash=d87039cb8261]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=4,hash=6cfe3bebae6c]": [
+		"expected:upstream-features/$store-bind/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=2,hash=259a630d7810]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/$store-wrong-usage/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=fd8b347a8abd]": [
@@ -219171,16 +219171,16 @@
 		"expected:upstream-features/await.v5/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=6b06560cc1ec]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=21,hash=ddcd2370e987]": [
+		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=20,hash=33b7a79bd168]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=7,hash=7f6876878b03]": [
+		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
 			"diagnostic-item-set-missing-ts"
 		],
-		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=21,hash=ddcd2370e987]": [
+		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:extra-rsvelte[count=20,hash=33b7a79bd168]": [
 			"diagnostic-item-set-extra-mixed"
 		],
-		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=7,hash=7f6876878b03]": [
+		"expected:upstream-features/bind-this/input.svelte|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=6,hash=05ef533a8977]": [
 			"diagnostic-item-set-missing-ts"
 		],
 		"expected:upstream-features/bindings/input.svelte|textDocument/diagnostic|/items:extra-rsvelte[count=4,hash=17e58646b355]": [
