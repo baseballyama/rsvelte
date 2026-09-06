@@ -8911,7 +8911,7 @@ measurement above had to be written for this row.
 ### The formatter's CSS engine is oxc, not prettier's PostCSS
 
 **Ratchet** `compatibility/fmt-oracle-excluded.json`, three `oracle-bug` entries: `css-vars`,
-`svelte.dev .../docs/[topic]/[...path]/+layout.svelte`, and
+`svelte.dev .../docs/[topic]/[...path=documentation]/+layout.svelte`, and
 `pattern/adversarial/css/css-custom-property-values`.
 **Pinned by** `crates/rsvelte_formatter/tests/css_native.rs`.
 
