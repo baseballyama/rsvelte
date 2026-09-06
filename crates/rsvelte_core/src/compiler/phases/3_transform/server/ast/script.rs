@@ -3817,26 +3817,41 @@ fn transform_script_legacy<'a>(
         // its coordinates, which this lowering blanks, and one past the last
         // declarator belongs inside the `$.fallback(...)` call upstream builds.
         let stmt_trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
-        let carry_leading = matches!(
+        let carry_leading =
+            matches!(
+                stmt,
+                Statement::VariableDeclaration(_) | Statement::ExportDeclaration(_)
+            ) && (multi_declarator_gaps(stmt).is_some_and(|(last_start, spans)| {
+                let mut carried_comments = 0usize;
+                for c in &ret.program.comments {
+                    if c.span.start < region_start || c.span.end > stmt_trailing_end {
+                        continue;
+                    }
+                    if c.span.end > last_start
+                        || spans
+                            .iter()
+                            .any(|d| c.span.start < d.end && c.span.end > d.start)
+                    {
+                        return false;
+                    }
+                    carried_comments += 1;
+                }
+                carried_comments > 0
+            }));
+        // The trailing-carry is granted OPTIMISTICALLY: whether the declarator
+        // keeps a located node inside the call it lowers to is decided by the
+        // lowering, so it poisons the carry back when it does not and the
+        // placement falls back to collapsing onto one address.
+        let trailing_carry = matches!(
             stmt,
             Statement::VariableDeclaration(_) | Statement::ExportDeclaration(_)
-        ) && multi_declarator_gaps(stmt).is_some_and(|(last_start, spans)| {
-            let mut carried_comments = 0usize;
-            for c in &ret.program.comments {
-                if c.span.start < region_start || c.span.end > stmt_trailing_end {
-                    continue;
-                }
-                if c.span.end > last_start
-                    || spans
-                        .iter()
-                        .any(|d| c.span.start < d.end && c.span.end > d.start)
-                {
-                    return false;
-                }
-                carried_comments += 1;
-            }
-            carried_comments > 0
-        });
+        ) && single_declarator_trailing_carry(
+            stmt,
+            &ret.program.comments,
+            region_start,
+            stmt_span,
+            stmt_trailing_end,
+        );
         let mut carried = false;
 
         'emit: {
@@ -3900,7 +3915,8 @@ fn transform_script_legacy<'a>(
                                 true,
                                 &mut array_counter,
                                 &mut verbatim,
-                                carry_leading,
+                                carry_leading || trailing_carry,
+                                trailing_carry,
                                 &mut carried,
                             );
                             if verbatim.is_none() {
@@ -3944,7 +3960,8 @@ fn transform_script_legacy<'a>(
                         false,
                         &mut array_counter,
                         &mut verbatim,
-                        carry_leading,
+                        carry_leading || trailing_carry,
+                        trailing_carry,
                         &mut carried,
                     );
                     if verbatim.is_none() {
@@ -4614,6 +4631,7 @@ fn lower_legacy_var_decl<'a>(
     array_counter: &mut u32,
     verbatim: &mut Option<Span>,
     carry: bool,
+    trailing_carry: bool,
     carried: &mut bool,
 ) -> Vec<Statement<'a>> {
     if vd.declarations.first().is_some_and(|d| {
@@ -4701,6 +4719,12 @@ fn lower_legacy_var_decl<'a>(
                 // `let x = $$props['alias']` or `… = $.fallback($$props['alias'], …)`.
                 let alias = legacy_prop_alias(state, id.name.as_str());
                 let prop = b.member_computed(b.id("$$props"), b.string(&alias));
+                // No initializer: the whole init is builder-made, so nothing
+                // inside it can hold the trailing comment and it must flush after
+                // the statement — which only the collapsed form does.
+                if trailing_carry && d.init.is_none() {
+                    poisoned = true;
+                }
                 let init = match d.init.as_ref() {
                     None => prop,
                     Some(init) => {
@@ -4709,6 +4733,28 @@ fn lower_legacy_var_decl<'a>(
                         // ALREADY-VISITED (read-wrapped) value, so `= $store`
                         // (wrapped to a `$.store_get(...)` CALL) is NOT simple and
                         // gets the `() => …, true` thunk form.
+                        let simple = is_simple_default(&default_expr);
+                        if !poisoned && simple {
+                            // The simple form passes the source value through as the
+                            // call's LAST argument, so upstream still has its `loc`
+                            // there and a comment trailing the declaration flushes
+                            // before the closing paren. `reparse_init_read_wrapped`
+                            // re-parses the init span alone, so slice offset 0 is
+                            // the init's own start.
+                            ShiftBy {
+                                delta: i64::from(init.span().start),
+                            }
+                            .visit_expression(&mut default_expr);
+                        } else {
+                            // The thunked form wraps the value in a builder-made
+                            // arrow, which upstream leaves location-less — so the
+                            // last argument carries no position and the comment
+                            // trails the statement instead.
+                            BlankSpans.visit_expression(&mut default_expr);
+                            if trailing_carry {
+                                poisoned = true;
+                            }
+                        }
                         build_legacy_fallback(
                             state,
                             prop,
@@ -4716,14 +4762,6 @@ fn lower_legacy_var_decl<'a>(
                         )
                     }
                 };
-                let mut init = init;
-                if !poisoned {
-                    // Only the pattern is a located node upstream keeps here;
-                    // the `$.fallback(...)` wrapper is builder-made. A re-parsed
-                    // init carries slice-relative spans, which the shift would
-                    // scatter across the region, so blank them.
-                    BlankSpans.visit_expression(&mut init);
-                }
                 decls.push((pat, Some(init)));
                 // A single identifier declarator → one statement.
                 out.push(b.var_decl_from_pairs(kind, decls));
@@ -4830,6 +4868,37 @@ fn lower_legacy_var_decl<'a>(
 /// declaration: a comment between the keyword and the name is one esrap also
 /// flushes at the pattern, and it is the source's own line break there that
 /// decides how it prints.
+/// Whether a SINGLE-declarator declaration carries nothing but a comment run
+/// TRAILING it. `multi_declarator_gaps` answers only for a split declaration,
+/// where the carry exists to put a comment ahead of a declarator on that
+/// declarator; this is the other reason to keep source coordinates, and it is
+/// the one upstream needs to print a trailing comment INSIDE the
+/// `$.fallback(...)` the declarator lowers to. Deliberately narrow: a comment
+/// anywhere before the statement's end still takes the collapse-onto-one-address
+/// form, so this cannot move a leading- or interior-comment case.
+fn single_declarator_trailing_carry(
+    stmt: &Statement<'_>,
+    comments: &[Comment],
+    region_start: u32,
+    stmt_span: Span,
+    trailing_end: u32,
+) -> bool {
+    let vd = match stmt {
+        Statement::VariableDeclaration(vd) => vd.as_ref(),
+        Statement::ExportDeclaration(exp) => match &exp.declaration {
+            oxc_ast::ast::Declaration::VariableDeclaration(vd) => vd.as_ref(),
+            _ => return false,
+        },
+        _ => return false,
+    };
+    if vd.declarations.len() != 1 || trailing_end <= stmt_span.end {
+        return false;
+    }
+    !comments
+        .iter()
+        .any(|c| c.span.start >= region_start && c.span.start < stmt_span.end)
+}
+
 fn multi_declarator_gaps(stmt: &Statement<'_>) -> Option<(u32, Vec<Span>)> {
     let vd = match stmt {
         Statement::VariableDeclaration(vd) => vd.as_ref(),
