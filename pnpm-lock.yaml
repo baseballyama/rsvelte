@@ -33,8 +33,8 @@ importers:
         specifier: ^4.1.0
         version: 4.1.1(prettier@3.9.6)(svelte@5.56.10)
       sass:
-        specifier: 1.103.1
-        version: 1.103.1
+        specifier: 1.104.0
+        version: 1.104.0
       svelte:
         specifier: 5.56.10
         version: 5.56.10
