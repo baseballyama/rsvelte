@@ -96,19 +96,108 @@ check('a workspace package is inspected too', () => {
 // manifest never named. Match only non-peer declarations here. pnpm records an
 // optional peer under an importer's `dependencies`, so a flat scan cannot tell
 // that its range is intentionally exempt.
+// pnpm 12 writes a two-document lockfile: `packageManagerDependencies` (pnpm's
+// own binaries) first, the project second, `---` separated. Both documents carry
+// an `importers:` with a `.:` under it, so reading the FIRST match finds pnpm's
+// and reports the project's pin as absent. Read every document and require the
+// specifier to be recorded and to agree wherever it appears, so the control is
+// document-count agnostic without becoming permissive.
+export function lockfileSpecifiers(lock, importer) {
+	const escaped = importer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const block = new RegExp(`^  ${escaped}:\\n([\\s\\S]*?)(?=^  \\S|(?![\\s\\S]))`, 'm');
+	const out = [];
+	for (const document of lock.split(/^---$/m)) {
+		const spec = document
+			.match(block)?.[1]
+			?.match(/^      svelte:\n        specifier: (.+)$/m)?.[1];
+		if (spec !== undefined) out.push(spec);
+	}
+	return out;
+}
+
 check('every non-peer manifest pin is reflected in the lockfile', () => {
 	const lock = readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8');
 	const found = declarations(manifests());
 	for (const declaration of found) {
 		const importer = declaration.file === 'package.json' ? '.' : dirname(declaration.file);
-		const escaped = importer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-		const block = lock.match(
-			new RegExp(`^  ${escaped}:\\n([\\s\\S]*?)(?=^  \\S|(?![\\s\\S]))`, 'm'),
-		)?.[1];
-		assert.ok(block, `no lockfile importer found for ${importer}`);
-		const spec = block.match(/^      svelte:\n        specifier: (.+)$/m)?.[1];
-		assert.equal(spec, declaration.spec, `${declaration.file} is not reflected in pnpm-lock.yaml`);
+		const specs = lockfileSpecifiers(lock, importer);
+		assert.ok(specs.length > 0, `no lockfile importer records svelte for ${importer}`);
+		for (const spec of specs) {
+			assert.equal(spec, declaration.spec, `${declaration.file} is not reflected in pnpm-lock.yaml`);
+		}
 	}
+});
+
+// The shape #4364 arrived in: pnpm 12's own document first, the project second.
+// Its `.:` also has a `specifier:` line, so a reader that stops at the first
+// `.:` finds pnpm's block and reports the project's pin as missing.
+const PNPM12_LOCKFILE = `---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.3.4
+        version: 12.3.4
+
+packages:
+
+  '@pnpm/exe.darwin-arm64@12.3.4':
+    resolution: {integrity: sha512-deadbeef==}
+
+---
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+
+importers:
+
+  .:
+    devDependencies:
+      svelte:
+        specifier: 5.56.10
+        version: 5.56.10
+`;
+
+const PNPM11_LOCKFILE = `lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+
+importers:
+
+  .:
+    devDependencies:
+      svelte:
+        specifier: 5.56.10
+        version: 5.56.10
+`;
+
+check('a two-document lockfile is read at the project document', () => {
+	assert.deepEqual(lockfileSpecifiers(PNPM12_LOCKFILE, '.'), ['5.56.10']);
+});
+
+check('a one-document lockfile is unchanged', () => {
+	assert.deepEqual(lockfileSpecifiers(PNPM11_LOCKFILE, '.'), ['5.56.10']);
+});
+
+// Reading every document must not become "accept if any document agrees".
+check('a wrong specifier in the project document is still visible', () => {
+	assert.deepEqual(
+		lockfileSpecifiers(PNPM12_LOCKFILE.replace('specifier: 5.56.10', 'specifier: 5.56.4'), '.'),
+		['5.56.4'],
+	);
+});
+
+// The state that must stay a failure: a lockfile recording no svelte at all.
+// Without this the `specs.length > 0` assertion could be dropped and every
+// control above would still pass.
+check('a lockfile that records no svelte yields nothing to compare', () => {
+	assert.deepEqual(lockfileSpecifiers(PNPM12_LOCKFILE.split('---')[1], '.'), []);
 });
 
 check('ci.yml runs the guard and this control', () => {
