@@ -78,6 +78,8 @@ fn build_completions(
                     .items,
             );
         }
+        let lang = lang_completions(&list.items);
+        list.items.extend(lang);
         return Some(list);
     }
 
@@ -114,6 +116,8 @@ fn build_completions(
             list.items
                 .extend(crate::css::id_class_completions(text, node_type).items);
         }
+        let lang = lang_completions(&list.items);
+        list.items.extend(lang);
         return Some(list);
     }
 
@@ -542,6 +546,50 @@ fn html_tag_completions(text: &str, offset: usize, prefix: &str, markdown: bool)
     }
 }
 
+/// `getLangCompletions` (`HTMLPlugin.ts:281-317`): beside the plain `script` /
+/// `style` / `template` item, upstream offers a copy carrying the language
+/// attribute. Upstream applies it to the whole html list and the kind filter is
+/// what confines it to tag items, so it is applied at both call sites here too.
+fn lang_completions(items: &[CompletionItem]) -> Vec<CompletionItem> {
+    const LANGUAGES: [(&str, &[&str]); 3] = [
+        ("script", &["ts"]),
+        ("style", &["less", "scss"]),
+        ("template", &["pug"]),
+    ];
+    let mut lang = Vec::new();
+    for (tag, languages) in LANGUAGES {
+        let Some(existing) = items
+            .iter()
+            .find(|item| item.kind == Some(CompletionItemKind::PROPERTY) && item.label == tag)
+        else {
+            continue;
+        };
+        for language in languages {
+            let suffix = format!(" lang=\"{language}\"");
+            lang.push(CompletionItem {
+                label: format!("{tag} (lang=\"{language}\")"),
+                insert_text: existing
+                    .insert_text
+                    .as_ref()
+                    .map(|text| format!("{text}{suffix}")),
+                // `TextEdit.is` drops an `InsertReplaceEdit` rather than
+                // rewriting it, leaving the copy with no edit at all.
+                text_edit: match &existing.text_edit {
+                    Some(lsp_types::CompletionTextEdit::Edit(edit)) => {
+                        Some(lsp_types::CompletionTextEdit::Edit(TextEdit {
+                            range: edit.range,
+                            new_text: format!("{}{suffix}", edit.new_text),
+                        }))
+                    }
+                    _ => None,
+                },
+                ..existing.clone()
+            });
+        }
+    }
+    lang
+}
+
 /// The up-to-`WINDOW` characters in front of `offset`.
 fn preceding(text: &str, offset: usize) -> &str {
     let before = text.get(..offset).unwrap_or(text);
@@ -841,6 +889,83 @@ mod tests {
                 "the provider itself still repeats them"
             );
         }
+    }
+
+    /// Expectations read off the pinned official server, not off this port:
+    /// `<div>\n  <\n</div>\n` at the offset after `<` answers 132 items, four
+    /// of them `kind: 10` copies whose `textEdit.newText` is the base tag name
+    /// plus ` lang="…"`, carrying the base item's documentation and range and
+    /// no `insertText`.
+    #[test]
+    fn the_four_lang_items_copy_their_tag_item() {
+        let source = "<div>\n  <\n</div>\n";
+        let offset = source.find("  <").expect("the inner tag") + 3;
+        let list = completions(source, offset).expect("tag completions");
+        let expected = [
+            ("script (lang=\"ts\")", "script", "script lang=\"ts\""),
+            ("style (lang=\"less\")", "style", "style lang=\"less\""),
+            ("style (lang=\"scss\")", "style", "style lang=\"scss\""),
+            (
+                "template (lang=\"pug\")",
+                "template",
+                "template lang=\"pug\"",
+            ),
+        ];
+        let offered = list
+            .items
+            .iter()
+            .filter(|item| item.label.contains("(lang=\""))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            offered
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            expected
+                .iter()
+                .map(|(label, ..)| *label)
+                .collect::<Vec<_>>(),
+            "`addLangCompletion` is called script, style, template in that order"
+        );
+        for (item, (_, tag, new_text)) in offered.iter().zip(expected) {
+            let base = list
+                .items
+                .iter()
+                .find(|candidate| candidate.label == tag)
+                .expect("the plain tag item is still offered");
+            assert_eq!(item.kind, base.kind);
+            assert_eq!(item.documentation, base.documentation);
+            assert_eq!(item.insert_text, None, "the base item carries none either");
+            let (
+                Some(lsp_types::CompletionTextEdit::Edit(edit)),
+                Some(lsp_types::CompletionTextEdit::Edit(base_edit)),
+            ) = (&item.text_edit, &base.text_edit)
+            else {
+                panic!("{} lost its edit", item.label);
+            };
+            assert_eq!(edit.new_text, new_text);
+            assert_eq!(edit.range, base_edit.range);
+        }
+    }
+
+    /// `style` is a global attribute, so an attribute position offers an item
+    /// labelled `style` — and upstream still sends no lang item there, because
+    /// `getLangCompletions` filters on `CompletionItemKind.Property` and an
+    /// attribute is `Value`. Measured on the official server: 0.
+    #[test]
+    fn an_attribute_position_offers_no_lang_item() {
+        let list = completions("<div ", 5).expect("attribute completions");
+        assert!(
+            list.items.iter().any(|item| item.label == "style"),
+            "the control needs the name the filter has to reject"
+        );
+        assert_eq!(
+            list.items
+                .iter()
+                .filter(|item| item.label.contains("(lang=\""))
+                .count(),
+            0
+        );
     }
 
     fn all_modifiers() -> Vec<String> {
