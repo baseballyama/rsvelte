@@ -68,6 +68,13 @@ const RULES = [
     requires: ['@rsvelte/compiler', '@rsvelte/svelte2tsx', '@rsvelte/svelte-check'],
   },
   {
+    prefix: 'crates/rsvelte_esrap/src/',
+    // Only `rsvelte_core` links it, so a change here reaches every artifact the
+    // core reaches while matching none of the `crates/rsvelte_core/src/` prefix
+    // below — the printer can ship a different output shape with no changeset.
+    requires: ['@rsvelte/compiler'],
+  },
+  {
     prefix: 'crates/rsvelte_check/src/',
     requires: ['@rsvelte/svelte-check'],
   },

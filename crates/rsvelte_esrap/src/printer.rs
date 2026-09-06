@@ -668,6 +668,22 @@ fn child_binary_op(expr: &Expression) -> &'static str {
     }
 }
 
+/// esrap derives a pattern property's shorthand from key/value name equality, not
+/// from the parsed flag, unwrapping an `AssignmentPattern` default before comparing.
+fn binding_property_is_shorthand(node: &BindingProperty) -> bool {
+    if node.computed {
+        return false;
+    }
+    let PropertyKey::StaticIdentifier(key) = &node.key else {
+        return false;
+    };
+    let mut value = &node.value;
+    if let BindingPattern::AssignmentPattern(assign) = value {
+        value = &assign.left;
+    }
+    matches!(value, BindingPattern::BindingIdentifier(id) if id.name == key.name)
+}
+
 /// Whether a concise arrow body must be wrapped in parens (esrap's
 /// `arrow_concise_body_needs_wrap`). A body that is an object literal — or a
 /// compound whose leftmost token would otherwise be `{` — is ambiguous with a
@@ -3093,7 +3109,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     }
 
     fn binding_property(&mut self, node: &BindingProperty, ctx: &mut Context<DIRECT>) {
-        if node.shorthand {
+        if node.shorthand || binding_property_is_shorthand(node) {
             self.binding_pattern(&node.value, ctx);
             return;
         }
@@ -6160,6 +6176,38 @@ mod tests {
             print_ok("function f({ a = 1 }) {}"),
             "function f({ a = 1 }) {}"
         );
+    }
+
+    /// Every expectation is esrap 2.2.12's own output for the same source
+    /// (`submodules/svelte/node_modules/.pnpm/esrap@*/node_modules/esrap`), which
+    /// derives shorthand from key/value name equality rather than from the parsed
+    /// flag. The last four rows are the controls: a real alias, a string key and a
+    /// computed key must NOT collapse, and an already-shorthand property must not
+    /// change.
+    #[test]
+    fn redundant_binding_alias_collapses_to_shorthand() {
+        assert_eq!(print_ok("const { a: a } = o;"), "const { a } = o;");
+        assert_eq!(print_ok("const { a: a = 1 } = o;"), "const { a = 1 } = o;");
+        assert_eq!(
+            print_ok("const { a: a, ...rest } = o;"),
+            "const { a, ...rest } = o;"
+        );
+        assert_eq!(
+            print_ok("const { a: { b: b } } = o;"),
+            "const { a: { b } } = o;"
+        );
+        assert_eq!(
+            print_ok("function f({ a: a = 1 }) {}"),
+            "function f({ a = 1 }) {}"
+        );
+
+        assert_eq!(print_ok("const { a: b } = o;"), "const { a: b } = o;");
+        assert_eq!(
+            print_ok("const { \"a\": a } = o;"),
+            "const { \"a\": a } = o;"
+        );
+        assert_eq!(print_ok("const { [k]: k } = o;"), "const { [k]: k } = o;");
+        assert_eq!(print_ok("const { a } = o;"), "const { a } = o;");
     }
 
     #[test]
