@@ -48,7 +48,7 @@ rsvelte_core = { path = "../rsvelte_core", default-features = false }
 grass = { version = "0.13", optional = true }
 serde_json = { version = "1", optional = true }
 regex = { version = "1.11", optional = true }
-comrak = { version = "0.54", default-features = false, optional = true }
+comrak = { version = "0.55", default-features = false, optional = true }
 serde_yaml = { version = "0.9", optional = true }
 
 [dev-dependencies]
