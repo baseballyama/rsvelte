@@ -7,6 +7,7 @@
 // variants, and asserts that `decodeParseEnvelope` throws on out-of-range
 // string/JSON windows instead of silently truncating.
 
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,7 +18,14 @@ const { decodeParseEnvelope } = await import(
 ).then((m) => m.default ?? m);
 
 const MAGIC = 0x3156_5052; // "RPV1"
-const VERSION = 11;
+// Read out of the decoder rather than copied. A third literal is not a gate:
+// this file pins test <-> decoder and can never see the Rust writer, so keeping
+// its own copy only made the number look enforced. What compares the writer to
+// the decoder is `test-parse-envelope-golden.mjs`.
+const VERSION = Number(
+	readFileSync(join(repoRoot, 'apps/npm/vite-plugin-svelte-native/parse-envelope.js'), 'utf8')
+		.match(/^const VERSION = (\d+);$/m)[1]
+);
 const HEADER_LEN = 24;
 const TAG_JSON = 0x00;
 const JS_IDENTIFIER = 0x80;
