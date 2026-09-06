@@ -701,6 +701,19 @@ impl<'a> VisitorContext<'a> {
         self.ignore_stack.pop();
     }
 
+    /// The whole enclosing ignore stack, which is what upstream stores on a node
+    /// (`ignore_map.set(node, get_ignore_snapshot())`).
+    pub fn current_ignores(&self) -> Vec<String> {
+        match self.ignore_stack.last() {
+            Some(codes) => {
+                let mut out: Vec<String> = codes.iter().cloned().collect();
+                out.sort_unstable();
+                out
+            }
+            None => Vec::new(),
+        }
+    }
+
     /// Check if a warning code is currently being ignored.
     pub fn is_ignored(&self, code: &str) -> bool {
         if let Some(current_ignores) = self.ignore_stack.last() {

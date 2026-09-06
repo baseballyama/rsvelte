@@ -142,23 +142,30 @@ pub fn analyze<'a, 'b: 'a>(
         };
         let has_ignores = !ignore_codes.is_empty();
         if has_ignores {
-            // Store ignored codes on element metadata for use during code generation
+            context.push_ignore(ignore_codes);
+        }
+
+        // `ignore_map.set(node, get_ignore_snapshot())` runs for every node AFTER
+        // its own ignores are pushed (`2-analyze/index.js:138`), so what a node
+        // carries is the whole enclosing stack — an ignore on a wrapping
+        // `{#if}` reaches the element inside it.
+        let inherited = context.current_ignores();
+        if !inherited.is_empty() {
             match node {
                 TemplateNode::RegularElement(elem) => {
-                    elem.metadata.ignored_codes = ignore_codes.clone();
+                    elem.metadata.ignored_codes = inherited.clone();
                 }
                 TemplateNode::HtmlTag(tag) => {
-                    tag.metadata.ignored_codes = ignore_codes.clone();
+                    tag.metadata.ignored_codes = inherited.clone();
                 }
                 TemplateNode::Component(comp) => {
-                    comp.metadata.ignored_codes = ignore_codes.clone();
+                    comp.metadata.ignored_codes = inherited.clone();
                 }
                 TemplateNode::SvelteComponent(comp) => {
-                    comp.ignored_codes = ignore_codes.clone();
+                    comp.ignored_codes = inherited;
                 }
                 _ => {}
             }
-            context.push_ignore(ignore_codes);
         }
 
         // Visit the node
