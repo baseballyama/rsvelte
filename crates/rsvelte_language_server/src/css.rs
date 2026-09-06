@@ -48,29 +48,8 @@ pub fn diagnostics(text: &str) -> Vec<Diagnostic> {
         let end = text[start..]
             .find("</style")
             .map_or(text.len(), |at| start + at);
-        let body = &text[start..end];
-        let mut line_offset = 0;
-        for line in body.split_inclusive('\n') {
-            let current_line_offset = line_offset;
-            line_offset += line.len();
-            let Some(colon) = line.find(':') else {
-                continue;
-            };
-            let property = line[..colon]
-                .rsplit(['{', '}', ';'])
-                .next()
-                .unwrap_or("")
-                .trim();
-            if property.is_empty()
-                || property.starts_with("--")
-                || !property
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphabetic() || byte == b'-')
-                || KNOWN_CSS_PROPERTIES.contains(&property)
-            {
-                continue;
-            }
-            let property_start = start + current_line_offset + line.find(property).unwrap_or(0);
+        for (property_start, property) in unknown_properties(&text[start..end]) {
+            let property_start = start + property_start;
             diagnostics.push(Diagnostic {
                 range: Range::new(
                     index.position(text, property_start),
@@ -86,6 +65,86 @@ pub fn diagnostics(text: &str) -> Vec<Diagnostic> {
         from = end.saturating_add(8);
     }
     diagnostics
+}
+
+/// Every unknown property name in a `<style>` body, as `(offset, name)`.
+///
+/// `vscode-css-languageservice` asks a parsed stylesheet (`lint.js:355,369`
+/// consult `decl.getProperty()`), so a declaration is what sits between two
+/// declaration boundaries *inside a block* — never a selector, and never only
+/// the first one on a line.
+fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
+    let bytes = body.as_bytes();
+    let mut found = Vec::new();
+    let mut depth = 0usize;
+    let mut chunk_start = 0usize;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i = body[i + 2..]
+                    .find("*/")
+                    .map_or(bytes.len(), |at| i + 2 + at + 2);
+                continue;
+            }
+            quote @ (b'"' | b'\'') => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+                continue;
+            }
+            b'{' => {
+                depth += 1;
+                chunk_start = i + 1;
+            }
+            b'}' => {
+                if depth > 0 {
+                    push_declaration(body, chunk_start, i, depth, &mut found);
+                }
+                depth = depth.saturating_sub(1);
+                chunk_start = i + 1;
+            }
+            b';' => {
+                push_declaration(body, chunk_start, i, depth, &mut found);
+                chunk_start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    // An unterminated final declaration is still one the user is typing.
+    push_declaration(body, chunk_start, bytes.len(), depth, &mut found);
+    found
+}
+
+fn push_declaration<'a>(
+    body: &'a str,
+    start: usize,
+    end: usize,
+    depth: usize,
+    found: &mut Vec<(usize, &'a str)>,
+) {
+    if depth == 0 || start >= end {
+        return;
+    }
+    let chunk = &body[start..end];
+    let Some(colon) = chunk.find(':') else {
+        return;
+    };
+    let name = chunk[..colon].trim();
+    if name.is_empty()
+        || name.starts_with("--")
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphabetic() || byte == b'-')
+        || KNOWN_CSS_PROPERTIES.contains(&name)
+    {
+        return;
+    }
+    let offset = start + (name.as_ptr() as usize - chunk.as_ptr() as usize);
+    found.push((offset, name));
 }
 
 #[must_use]
@@ -381,6 +440,7 @@ fn values(prefix: &str) -> Vec<CompletionItem> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lsp_types::Position;
 
     fn labels(text: &str) -> Vec<String> {
         completions(text, text.len())
@@ -475,6 +535,13 @@ mod tests {
         );
     }
 
+    fn messages(text: &str) -> Vec<String> {
+        diagnostics(text)
+            .into_iter()
+            .map(|diagnostic| diagnostic.message)
+            .collect()
+    }
+
     #[test]
     fn reports_unknown_css_properties() {
         let typo = diagnostics("<style>a { colro: red; --theme: blue }</style>");
@@ -483,8 +550,51 @@ mod tests {
             typo[0].code,
             Some(NumberOrString::String("css_unknown_property".to_string()))
         );
-        // The scan stops at the first `:` on a line, so the `--theme` above is
-        // never read and the custom-property guard decides nothing there.
         assert!(diagnostics("<style>a {\n  --theme: blue;\n}</style>").is_empty());
+    }
+
+    #[test]
+    fn a_selector_colon_is_not_a_declaration() {
+        for selector in [
+            "a:hover",
+            "input:focus",
+            "li:nth-child(2)",
+            "::selection",
+            "a:hover, b:focus",
+        ] {
+            assert!(
+                messages(&format!("<style>\n{selector} {{ color: red }}\n</style>")).is_empty(),
+                "{selector}"
+            );
+        }
+        assert!(
+            messages("<style>\n@media (min-width: 700px) {\n  a { color: red }\n}\n</style>")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn every_declaration_on_a_line_is_read() {
+        assert_eq!(
+            messages("<style>\na { colro: red; badprop: blue }\n</style>"),
+            [
+                "Unknown CSS property `colro`.".to_string(),
+                "Unknown CSS property `badprop`.".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn declaration_range_covers_the_property_name() {
+        let text = "<style>\na { colro: red }\n</style>";
+        let range = diagnostics(text)[0].range;
+        assert_eq!(range.start, Position::new(1, 4));
+        assert_eq!(range.end, Position::new(1, 9));
+    }
+
+    #[test]
+    fn comments_and_strings_are_not_declarations() {
+        assert!(messages("<style>\na { /* colro: red */ color: blue }\n</style>").is_empty());
+        assert!(messages("<style>\na::before { content: \"badprop: x\" }\n</style>").is_empty());
     }
 }
