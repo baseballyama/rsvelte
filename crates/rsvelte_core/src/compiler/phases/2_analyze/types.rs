@@ -54,6 +54,14 @@ pub(crate) struct ScriptProjection {
     /// module Program drops them. Keeping the ranges separate lets Phase 3 make
     /// that distinction without trying to infer their origin from stripped JS.
     pub(crate) reemitted_comment_outputs: Vec<Range<u32>>,
+    /// The subset of `reemitted_comment_outputs` upstream prints TWICE.
+    ///
+    /// acorn-typescript's `tsLookAhead` does not set `isLookahead`, so a comment
+    /// consumed while speculatively parsing an object type fires `onComment`
+    /// once during the lookahead and again after the rewind. The region that
+    /// speculation covers is a `TSTypeLiteral`'s braces up to the end of its
+    /// first member, which is why an `interface` body never doubles.
+    pub(crate) repeated_comment_outputs: Vec<Range<u32>>,
     /// Source ranges of leading comments attached to an erased TypeScript
     /// declaration when the next surviving statement is an exported prop.
     ///
@@ -672,6 +680,11 @@ fn strip_typescript_from_program_impl(
 
     let mut removals: Vec<(u32, u32)> = Vec::new();
     collect_ts_removals_from_program(program, source, &mut removals);
+    let repeat_regions = if include_projection {
+        collect_speculative_type_head_regions(program)
+    } else {
+        Vec::new()
+    };
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -773,6 +786,7 @@ fn strip_typescript_from_program_impl(
     let mut copied_chunks =
         include_projection.then(|| Vec::with_capacity(merged.len().saturating_add(1)));
     let mut reemitted_comment_outputs = include_projection.then(Vec::new);
+    let mut repeated_comment_outputs = include_projection.then(Vec::new);
     let mut pos = 0u32;
 
     for (remove_start, remove_end) in &merged {
@@ -831,10 +845,17 @@ fn strip_typescript_from_program_impl(
                             &mut output,
                             Some(copied_chunks),
                         );
+                        let out_range = output_start..output.len() as u32;
                         reemitted_comment_outputs
                             .as_mut()
                             .unwrap()
-                            .push(output_start..output.len() as u32);
+                            .push(out_range.clone());
+                        if repeat_regions
+                            .iter()
+                            .any(|(from, to)| comment_start >= *from && comment_end <= *to)
+                        {
+                            repeated_comment_outputs.as_mut().unwrap().push(out_range);
+                        }
                         output.push('\n');
                     }
                 } else {
@@ -863,6 +884,7 @@ fn strip_typescript_from_program_impl(
     let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
         copied_chunks,
         reemitted_comment_outputs: reemitted_comment_outputs.unwrap_or_default(),
+        repeated_comment_outputs: repeated_comment_outputs.unwrap_or_default(),
         erased_leading_comments_before_export_props,
         binding_annotation_ends: collect_binding_annotation_ends(program),
         source_len: source.len() as u32,
@@ -1013,6 +1035,69 @@ fn collect_ts_removals_from_program(
 ) {
     use oxc_ast_visit::Visit;
     ts_removals::TsRemovalCollector { source, removals }.visit_program(program);
+}
+
+/// Source regions in which a comment is printed twice by the official compiler.
+///
+/// acorn-typescript decides what an opening token starts by parsing ahead and
+/// rewinding, and its `tsLookAhead` leaves `isLookahead` unset — so every
+/// comment consumed before the decision point fires `onComment` twice. The
+/// region is therefore the opener to the first token that settles the
+/// ambiguity. Measured against the oracle on 29 cells: a `{` opening an object
+/// or mapped type doubles (through intersections, unions, nesting, generics and
+/// an `as` clause), and so does the `(` of a function type's parameter list,
+/// including an empty one. An `interface` body, a `new (` constructor type, a
+/// method signature's `(`, a tuple's `[`, a type argument list's `<` and every
+/// position after the first member do NOT.
+fn collect_speculative_type_head_regions(program: &oxc_ast::ast::Program) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::Visit;
+    let mut regions = Vec::new();
+    SpeculativeTypeHeads {
+        regions: &mut regions,
+    }
+    .visit_program(program);
+    regions
+}
+
+struct SpeculativeTypeHeads<'r> {
+    regions: &'r mut Vec<(u32, u32)>,
+}
+
+impl<'a> oxc_ast_visit::Visit<'a> for SpeculativeTypeHeads<'_> {
+    fn visit_ts_type_literal(&mut self, it: &oxc_ast::ast::TSTypeLiteral<'a>) {
+        use oxc_span::GetSpan;
+        let end = it
+            .members
+            .first()
+            .map_or(it.span.end, |member| member.span().start);
+        self.regions.push((it.span.start, end));
+        oxc_ast_visit::walk::walk_ts_type_literal(self, it);
+    }
+
+    fn visit_ts_mapped_type(&mut self, it: &oxc_ast::ast::TSMappedType<'a>) {
+        self.regions.push((it.span.start, it.key.span.start));
+        oxc_ast_visit::walk::walk_ts_mapped_type(self, it);
+    }
+
+    fn visit_ts_function_type(&mut self, it: &oxc_ast::ast::TSFunctionType<'a>) {
+        use oxc_span::GetSpan;
+        // The `(` is the parameter list's own start, not the node's: a generic
+        // function type opens at `<` and no comment there is doubled.
+        let end = it
+            .params
+            .items
+            .first()
+            .map_or(it.params.span.end, |param| param.span().start);
+        self.regions.push((it.params.span.start, end));
+        oxc_ast_visit::walk::walk_ts_function_type(self, it);
+    }
+
+    fn visit_ts_parenthesized_type(&mut self, it: &oxc_ast::ast::TSParenthesizedType<'a>) {
+        use oxc_span::GetSpan;
+        self.regions
+            .push((it.span.start, it.type_annotation.span().start));
+        oxc_ast_visit::walk::walk_ts_parenthesized_type(self, it);
+    }
 }
 
 /// Span collector behind [`collect_ts_removals_from_program`].

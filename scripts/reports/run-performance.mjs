@@ -455,7 +455,7 @@ for (const target of targets) {
     dev: target.dev,
     comparisonClasses: [
       {
-        id: "svelte-5.56.8",
+        id: `svelte-${officialVersion}`,
         files: currentEligible.length,
         excludedFiles: files.length - currentEligible.length,
         bytes: currentBytes,
@@ -500,7 +500,7 @@ for (const target of targets) {
         ],
       },
       {
-        id: "svelte-5.56.4",
+        id: `svelte-${referenceVersion}-mrwaip`,
         files: mrwaipEligible.length,
         excludedFiles: files.length - mrwaipEligible.length,
         bytes: mrwaipBytes,
@@ -539,7 +539,7 @@ for (const target of targets) {
         ],
       },
       {
-        id: "svelte-5.56.8-verter",
+        id: `svelte-${officialVersion}-verter`,
         files: currentEligible.length,
         excludedFiles: files.length - currentEligible.length,
         bytes: currentBytes,
@@ -863,7 +863,7 @@ const result = {
       `@typescript/native (npm:typescript@${tsgoVersion.replace(/^TypeScript | \(native\)$/g, "")})`,
       `oxvelte@${OXVELTE_VERSION}+${OXVELTE_REV}`,
     ],
-    competitorReferences: ["svelte@5.56.4", "svelte@5.56.8"],
+    competitorReferences: [`svelte@${referenceVersion}`, `svelte@${officialVersion}`],
   },
   commit: {
     rsvelte: git("rev-parse", "HEAD"),

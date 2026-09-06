@@ -210,7 +210,10 @@ const EXPECTED_ANCHOR_COUNT: usize = 23;
 /// +15, wrong +2). Those 17 are newly *visible*, not newly *broken* — overall
 /// reproduction rose 164/772 to 193/818 — so the entry records a measurement
 /// this gate could not make before, not a regression it is forgiving.
-const EXPECTED_IDENTICAL_OUTPUTS: usize = 57;
+/// It grew again for the same reason: stopping the comment repeat at the
+/// speculative position made `typescript`/`client` byte-identical, so the
+/// population went 57 -> 58 pairs and 770 -> 822 official segments.
+const EXPECTED_IDENTICAL_OUTPUTS: usize = 58;
 
 // What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
 // sourcemaps `_config.js` fails to import under the generator (it pulls in the
