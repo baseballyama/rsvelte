@@ -196,6 +196,18 @@ impl ScopeRoot {
         false
     }
 
+    /// Whether `binding_idx` is a block-local binding that is not in scope at
+    /// `scope_idx`. Scope 0 is intentionally polluted with every child-scope
+    /// declaration, so a plain `get_binding` answers with an `{#each}` item or
+    /// an `{#await}` value for a reference nowhere near its block; upstream's
+    /// scope chain has no such name there at all.
+    pub fn is_block_local_out_of_scope(&self, binding_idx: usize, scope_idx: usize) -> bool {
+        let Some(binding) = self.bindings.get(binding_idx) else {
+            return false;
+        };
+        binding.kind.is_block_local() && !self.is_scope_ancestor_of(binding.scope_index, scope_idx)
+    }
+
     /// Look up the first binding (in declaration order) with the given name
     /// whose `declaration_start` equals `start`. Position-based lookup used to
     /// disambiguate same-named bindings declared in different (e.g. sibling
@@ -768,6 +780,18 @@ pub enum BindingKind {
 }
 
 impl BindingKind {
+    /// Whether the binding's scope is one template block rather than the whole
+    /// component, so a reference outside that block cannot resolve to it.
+    pub fn is_block_local(&self) -> bool {
+        matches!(
+            self,
+            BindingKind::EachItem
+                | BindingKind::EachIndex
+                | BindingKind::AwaitThen
+                | BindingKind::AwaitCatch
+        )
+    }
+
     /// Returns true if this binding kind is reactive (needs runtime tracking)
     pub fn is_reactive(&self) -> bool {
         matches!(

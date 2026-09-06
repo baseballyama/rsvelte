@@ -1411,8 +1411,14 @@ pub fn walk_js_expression_node(
 
             // Look up binding
             let scoped_binding = context.analysis.root.get_binding(name, context.scope);
-            if let Some(binding_idx) =
-                scoped_binding.or_else(|| context.analysis.root.find_binding_any_scope(name))
+            if let Some(binding_idx) = scoped_binding
+                .or_else(|| context.analysis.root.find_binding_any_scope(name))
+                .filter(|&idx| {
+                    !context
+                        .analysis
+                        .root
+                        .is_block_local_out_of_scope(idx, context.scope)
+                })
             {
                 let is_template_reference =
                     matches!(context.ast_type, super::super::AstType::Template);

@@ -154,6 +154,14 @@ fn visit_identifier_inner(
         None => return Ok(()), // No binding, might be a global
     };
 
+    if context
+        .analysis
+        .root
+        .is_block_local_out_of_scope(binding_idx, context.scope)
+    {
+        return Ok(());
+    }
+
     // Track this reference on the binding itself
     // This is used by the component_name_lowercase warning to check if an import is referenced
     // Also track if this is a template reference (for legacy state promotion)

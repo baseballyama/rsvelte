@@ -4887,6 +4887,19 @@ fn identifier_has_reactive_state(
             )
         });
 
+    // `get_binding` is name-keyed over a flat list of every binding in the
+    // component, so a block-local one — an `{#each}` item or index, an
+    // `{#await}` value or error — answers for a reference that is nowhere near
+    // its block. Upstream resolves through the scope chain, where such a name is
+    // simply not in scope at that reference. Phase 2 attributed every reference
+    // it could to a binding, so `by_position` returning nothing at a known
+    // offset IS that answer; the name fallback stays only for kinds whose scope
+    // is the whole component.
+    let by_name = context
+        .state
+        .get_binding(name)
+        .filter(|b| start.is_none() || by_position.is_some() || !b.kind.is_block_local());
+
     // Check if identifier has a transform registered (e.g., @const, snippet parameter)
     // Identifiers with transforms are derived values that need reactive tracking,
     // BUT only if the transform has is_reactive=true.
@@ -4907,7 +4920,7 @@ fn identifier_has_reactive_state(
         // walks the root-scope-polluted map, which prefers an OUTER same-named
         // binding; when an in-scope `{@const}` shadows it, that resolves to the
         // outer binding instead of the `{@const}`.
-        let resolved = by_position.or_else(|| context.state.get_binding(name));
+        let resolved = by_position.or(by_name);
 
         // Check if this is a Derived/State binding - if so, skip the early
         // return and fall through to the detailed binding kind check below.
@@ -4943,7 +4956,7 @@ fn identifier_has_reactive_state(
             return transform.is_reactive;
         }
     }
-    if let Some(binding) = by_position.or_else(|| context.state.get_binding(name)) {
+    if let Some(binding) = by_position.or(by_name) {
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
         // Match Svelte's logic from Identifier.js (lines 95-101):
