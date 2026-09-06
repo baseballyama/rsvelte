@@ -48,7 +48,8 @@ pub fn highlights(text: &str, offset: usize) -> Vec<DocumentHighlight> {
         .into_iter()
         .map(|span| DocumentHighlight {
             range: range(&index, text, span),
-            kind: Some(DocumentHighlightKind::TEXT),
+            // `htmlHighlighting.js:18,21` pushes both tag names as `Read`.
+            kind: Some(DocumentHighlightKind::READ),
         })
         .collect()
 }

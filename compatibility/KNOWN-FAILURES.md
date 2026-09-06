@@ -5284,7 +5284,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23742 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23734 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5318,13 +5318,13 @@ The ratchet stays on the pending list until it is burned down.
 deletion, a cluster table buys no attribution and would cost a classification pass over every
 remaining key; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
-Partition of `lsp-known-failures.json` by key kind: `21630 + 1772 + 340` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21630 + 1764 + 340` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11876 + 11866`
+Partition of `lsp-known-failures.json` by request phase: `11872 + 11862`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per
@@ -5340,6 +5340,52 @@ between the phases. `aggregateCorpusDifferences` no longer puts that count in th
 file's method is one unit per phase and the partition is exactly explainable. Progress here is still
 better read as divergent fields and requests than as a change in entry count, but the entry count is
 no longer moved by a divergence merely getting smaller.
+
+### The fixture suite's `documentHighlight` / `prepareRename` / `formatting` entries
+
+Until #4331 / #4209, `fixtureCases` sent `{ textDocument }` alone for three methods whose
+request type declares more: `documentHighlight` and `prepareRename` require a `position`, and
+`formatting` requires `options`. A missing required member is not a smaller request — the server
+fails to deserialize and answers a spelling of "nothing" — so **30 entries were measuring the
+harness rather than either compiler**. The fingerprint was in the ratchet: 5 distinct
+`documentHighlight` sources, each at both phases, all carried
+`[official=74234e98afe7,rsvelte=4f53cda18c2b]`, and 10 distinct `plugin-format-*` fixtures, each at
+both phases, all carried `[count=1,hash=f411dae2ecdd]`. A response identical across unrelated
+inputs is not a response to the input.
+
+Supplying the declared params retires all 30 and enrols **22**, which are the divergences those
+requests were always meant to observe:
+
+* **10 `documentHighlight`** over 4 sources. `html-smoke-word-highlight`, `css-smoke-highlight` and
+  `css-smoke-highlight-unsupported` are the `native_expected` rows already recorded in
+  `scripts/compat-lsp/upstream-fixture-manifest.json`: rsvelte has no CSS or pug word highlight, so
+  it answers nothing where `vscode-css-languageservice` answers ranges. `css-smoke-highlight-attribute`
+  carries 4 rather than 2 because both servers answer one range and the ranges differ, which is one
+  `extra-rsvelte` plus one `missing-rsvelte` per phase rather than a single value mismatch.
+* **12 `prepareRename`** over 3 sources. rsvelte has no HTML tag-name rename, so `html-smoke-rename`
+  gets a range from official and `null` from rsvelte; `html-smoke-rename-uppercase` is the reverse
+  and is likewise already recorded as a `native_expected` row. `html-smoke-rename-invalid-1` carries
+  8 of the 12 and is **not** an empty answer on either side: inside `on:click={ab => ab}` official
+  answers a bare `Range` (`/start`, `/end`) and rsvelte answers the
+  `{ range, placeholder }` variant, so the two agree that renaming is possible and disagree about
+  which of `PrepareRenameResult`'s legal shapes to say it in — one key per member of each side,
+  times two phases.
+
+`html-document-highlight` enrols nothing: it was the one case where rsvelte's ranges already
+matched and only `DocumentHighlightKind` differed (`Text` where `htmlHighlighting.js:18,21` pushes
+`Read`), which the same change fixes. All 20 `formatting` entries retire with no replacement — the
+two servers agree byte-for-byte on all ten `plugin-format-*` fixtures once `options` is sent.
+
+12 of the 22 are labelled `unclassified` in `lsp-mechanisms.json`, and that is the classifier's own
+answer rather than a gap in the re-baseline: `classifyDivergence` dispatches on hover, definition,
+completion, diagnostic, documentSymbol, foldingRange and inlayHint, and everything else falls to
+`classifyGeneric`, whose only arms are `initialize`, `selectionRange` and `linkedEditingRange`.
+Neither method has one, so both reach `classifyEmptySpelling` and nothing else — an entry is
+labelled exactly when one side is empty. That is what the split records rather than any judgement
+about the divergences: `documentHighlight` 6 `rsvelte-empty` + 4 `unclassified`, `prepareRename`
+2 `rsvelte-empty` + 2 `official-empty` + 8 `unclassified`, and every one of the 12 is a case where
+**both** sides answered. A method arm for either is a separate change from sending it a valid
+request, and until one exists these 12 are un-attributable by construction.
 
 Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3662 + 7672 + 258 + 10038`
 

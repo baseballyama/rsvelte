@@ -617,6 +617,23 @@ fn serves_diagnostics_and_formatting() {
     );
     assert_eq!(server.response(id), json!([]));
 
+    // A request the server could not parse is not "nothing to change": the
+    // empty result above and this one must be distinguishable to the client.
+    let id = server.request(
+        "textDocument/formatting",
+        json!({ "textDocument": { "uri": uri } }),
+    );
+    let message = server.response_message(id);
+    assert_eq!(message["error"]["code"], json!(-32602));
+    assert!(
+        message["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("options"),
+        "{message}"
+    );
+    assert!(message.get("result").is_none(), "{message}");
+
     // Closing clears the document's diagnostics.
     server.notify(
         "textDocument/didClose",

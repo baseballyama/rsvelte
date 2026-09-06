@@ -736,8 +736,14 @@ impl Server {
         let params = match serde_json::from_value::<DocumentFormattingParams>(request.params) {
             Ok(params) => params,
             Err(err) => {
-                log::warn(format_args!("textDocument/formatting: {err}"));
-                self.respond_no_edits(id);
+                // "I could not read your request" is not "I have nothing to
+                // change": every other branch below answers no edits, so a
+                // request the server never parsed must be distinguishable.
+                self.respond(Response::new_err(
+                    id,
+                    ErrorCode::InvalidParams as i32,
+                    format!("textDocument/formatting: {err}"),
+                ));
                 return;
             }
         };

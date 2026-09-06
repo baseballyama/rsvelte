@@ -142,7 +142,7 @@ function positionAt(text, offset) {
   return { line: before.length - 1, character: before.at(-1).length };
 }
 
-function fixtureCases(root) {
+export function fixtureCases(root) {
   const manifest = fixtureManifest(root);
   const directory = path.join(root, "compatibility/lsp-fixtures");
   return manifest.behavior_cases
@@ -155,14 +155,22 @@ function fixtureCases(root) {
       const position =
         marker >= 0 ? positionAt(text, marker) : { line: 0, character: 0 };
       let params = { textDocument: { uri } };
+      // Each method gets the params its own request type declares required. A
+      // missing one is not a smaller request: the server fails to deserialize
+      // and answers a spelling of "nothing", identically for every source, so
+      // the ratchet records the harness rather than either compiler.
       if (
         [
           "textDocument/completion",
           "textDocument/hover",
           "textDocument/linkedEditingRange",
+          "textDocument/documentHighlight",
+          "textDocument/prepareRename",
         ].includes(entry.method)
       ) {
         params = { ...params, position };
+      } else if (entry.method === "textDocument/formatting") {
+        params = { ...params, options: { tabSize: 4, insertSpaces: true } };
       } else if (entry.method === "textDocument/selectionRange") {
         params = { ...params, positions: [position] };
       } else if (entry.method === "textDocument/codeAction") {

@@ -213777,23 +213777,29 @@
 		"differential:fixtures/css-smoke-fold|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=e09d6d1f2288]": [
 			"folding-range-set-missing"
 		],
-		"differential:fixtures/css-smoke-highlight-attribute|textDocument/documentHighlight|0:13|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/css-smoke-highlight-attribute|textDocument/documentHighlight|0:13|:extra-rsvelte[count=1,hash=ddeb018155e5]": [
+			"unclassified"
 		],
-		"differential:fixtures/css-smoke-highlight-attribute|textDocument/documentHighlight|0:13|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/css-smoke-highlight-attribute|textDocument/documentHighlight|0:13|:missing-rsvelte[count=1,hash=8de269a31d4e]": [
+			"unclassified"
 		],
-		"differential:fixtures/css-smoke-highlight-unsupported|textDocument/documentHighlight|0:24|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/css-smoke-highlight-attribute|textDocument/documentHighlight|0:13|phase=edit|:extra-rsvelte[count=1,hash=ddeb018155e5]": [
+			"unclassified"
 		],
-		"differential:fixtures/css-smoke-highlight-unsupported|textDocument/documentHighlight|0:24|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/css-smoke-highlight-attribute|textDocument/documentHighlight|0:13|phase=edit|:missing-rsvelte[count=1,hash=8de269a31d4e]": [
+			"unclassified"
 		],
-		"differential:fixtures/css-smoke-highlight|textDocument/documentHighlight|0:9|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/css-smoke-highlight-unsupported|textDocument/documentHighlight|0:24|/:value-mismatch[official=026f6b82748a,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
-		"differential:fixtures/css-smoke-highlight|textDocument/documentHighlight|0:9|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/css-smoke-highlight-unsupported|textDocument/documentHighlight|0:24|phase=edit|/:value-mismatch[official=026f6b82748a,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
+		],
+		"differential:fixtures/css-smoke-highlight|textDocument/documentHighlight|0:9|/:value-mismatch[official=b0885f231a41,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
+		],
+		"differential:fixtures/css-smoke-highlight|textDocument/documentHighlight|0:9|phase=edit|/:value-mismatch[official=b0885f231a41,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
 		"differential:fixtures/css-smoke-hover-attribute|textDocument/hover|0:13|/contents/value:value-mismatch[official=fd1653666824,rsvelte=fce3ea66547c]": [
 			"css-data"
@@ -213921,12 +213927,6 @@
 		"differential:fixtures/hover-style-null|textDocument/hover|0:10|phase=edit|/range:missing-rsvelte[hash=eb2910e15223]": [
 			"css-data"
 		],
-		"differential:fixtures/html-document-highlight|textDocument/documentHighlight|0:2|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
-		],
-		"differential:fixtures/html-document-highlight|textDocument/documentHighlight|0:2|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
-		],
 		"differential:fixtures/html-smoke-completions|textDocument/completion|0:1|/isIncomplete:value-mismatch[official=b5bea41b6c62,rsvelte=fcbcf165908d]": [
 			"completion-is-incomplete"
 		],
@@ -214041,17 +214041,53 @@
 		"differential:fixtures/html-smoke-outside-moustache|textDocument/completion|0:21|phase=edit|/items:missing-rsvelte[count=1,hash=9907ac0aac10]": [
 			"completion-item-set-missing-html"
 		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|/end:missing-rsvelte[hash=9c41b5d7b8de]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|/placeholder:extra-rsvelte[hash=782beb2948d6]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|/range:extra-rsvelte[hash=f65bb2689905]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|/start:missing-rsvelte[hash=274d8613132b]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|phase=edit|/end:missing-rsvelte[hash=9c41b5d7b8de]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|phase=edit|/placeholder:extra-rsvelte[hash=782beb2948d6]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|phase=edit|/range:extra-rsvelte[hash=f65bb2689905]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-invalid-1|textDocument/prepareRename|0:17|phase=edit|/start:missing-rsvelte[hash=274d8613132b]": [
+			"unclassified"
+		],
+		"differential:fixtures/html-smoke-rename-uppercase|textDocument/prepareRename|0:2|/:value-mismatch[official=74234e98afe7,rsvelte=9abc239d203b]": [
+			"official-empty"
+		],
+		"differential:fixtures/html-smoke-rename-uppercase|textDocument/prepareRename|0:2|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=9abc239d203b]": [
+			"official-empty"
+		],
+		"differential:fixtures/html-smoke-rename|textDocument/prepareRename|0:2|/:value-mismatch[official=4a0b37dd653c,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
+		],
+		"differential:fixtures/html-smoke-rename|textDocument/prepareRename|0:2|phase=edit|/:value-mismatch[official=4a0b37dd653c,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
+		],
 		"differential:fixtures/html-smoke-trigger-skip|textDocument/completion|0:5|/items:missing-rsvelte[count=1062,hash=5a55534fe48b]": [
 			"completion-item-set-missing-mixed"
 		],
 		"differential:fixtures/html-smoke-trigger-skip|textDocument/completion|0:5|phase=edit|/items:missing-rsvelte[count=1062,hash=5a55534fe48b]": [
 			"completion-item-set-missing-mixed"
 		],
-		"differential:fixtures/html-smoke-word-highlight|textDocument/documentHighlight|1:4|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/html-smoke-word-highlight|textDocument/documentHighlight|1:4|/:value-mismatch[official=3ab2c20f278a,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
-		"differential:fixtures/html-smoke-word-highlight|textDocument/documentHighlight|1:4|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=4f53cda18c2b]": [
-			"empty-result-spelling-document-highlight"
+		"differential:fixtures/html-smoke-word-highlight|textDocument/documentHighlight|1:4|phase=edit|/:value-mismatch[official=3ab2c20f278a,rsvelte=74234e98afe7]": [
+			"rsvelte-empty"
 		],
 		"differential:fixtures/plugin-diagnostic-error|textDocument/diagnostic|/items:extra-rsvelte[count=1,hash=568ec1805561]": [
 			"diagnostic-item-set-extra-svelte"
@@ -214076,66 +214112,6 @@
 		],
 		"differential:fixtures/plugin-diagnostic-untrusted|textDocument/diagnostic|phase=edit|/items:missing-rsvelte[count=1,hash=94fdc094f40e]": [
 			"diagnostic-item-set-missing-svelte"
-		],
-		"differential:fixtures/plugin-format-builtin-fallback|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-builtin-fallback|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-config|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-config|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-empty-config-options|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-empty-config-options|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-fallback-config|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-fallback-config|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-module-plugin|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-module-plugin|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-options|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-options|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-plugin-resolution-fallback|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-plugin-resolution-fallback|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-resolve-plugin|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-resolve-plugin|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-user-prettier-v2-async|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-user-prettier-v2-async|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-user-prettier-v2|textDocument/formatting|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
-		],
-		"differential:fixtures/plugin-format-user-prettier-v2|textDocument/formatting|phase=edit|:missing-rsvelte[count=1,hash=f411dae2ecdd]": [
-			"rsvelte-empty"
 		],
 		"differential:fixtures/selection-embedded-null|textDocument/selectionRange|0:7|:extra-rsvelte[count=1,hash=42b8a2898ac0]": [
 			"selection-range-chain-rsvelte-deeper"
