@@ -20,10 +20,10 @@
 //! source callee and stays inside. A grid of literal defaults holds that axis
 //! fixed and reads 7/7 while the shape a real component carries is wrong.
 //!
-//! A trailing BLOCK comment on a synthesized-thunk default is a separate,
-//! pre-existing defect and is not covered here: it reaches the initializer
-//! through `interior_comments` rather than through this restorer, and its four
-//! cells are byte-identical on the arm before this change. Measured in #4280.
+//! A trailing BLOCK comment on a synthesized-thunk default, and a declaration
+//! with no initializer at all, reach the same rule through other paths; they are
+//! measured in `prop_trailing_comment_hosts.rs`, together with the second host
+//! (`let v = 1` plus `export { v }`) that this file's grid does not enter.
 //!
 //! Not covered here, and not this fix: a MULTI-declarator declaration is split
 //! one statement per declarator before this lowering sees it, so the comment
