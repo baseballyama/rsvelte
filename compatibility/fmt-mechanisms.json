@@ -205,6 +205,7 @@
 		"kite-public/src/lib/components/story/StoryQuote.svelte": "unattributed",
 		"layercake/src/_components/AxisY.percent-range.html.svelte": "unattributed",
 		"layercake/src/_components/AxisYRight.percent-range.html.svelte": "unattributed",
+		"layerchart/docs/src/examples/components/Chart/facet-click.svelte": "unattributed",
 		"layerchart/docs/src/examples/components/Chart/facet-wrap.svelte": "unattributed",
 		"layerchart/docs/src/routes/+page.svelte": "css-engine-multi-value-indent",
 		"layerchart/packages/layerchart/src/lib/components/Labels/Labels.base.svelte": "unattributed",

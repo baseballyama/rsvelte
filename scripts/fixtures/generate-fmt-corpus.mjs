@@ -241,6 +241,22 @@ async function main() {
   const configSrc = fs.readFileSync(OXFMT_CONFIG, 'utf8');
   const configHash = createHash('sha256').update(configSrc).digest('hex').slice(0, 16);
 
+  // An exclusion whose path no longer exists silently stops excluding anything,
+  // and the byte-exact gate then fails on whatever upstream renamed the file to.
+  const stale = [...EXCLUDED_REL].filter(
+    (rel) => !fs.existsSync(path.join(SVELTE_DEV, rel)),
+  );
+  if (stale.length > 0) {
+    console.error(
+      `[generate-fmt-corpus] compatibility/fmt-oracle-excluded.json names ` +
+        `${stale.length} svelte.dev path(s) this checkout does not have:\n` +
+        stale.map((rel) => `  svelte.dev/${rel}`).join('\n') +
+        `\n\nUpstream renamed or deleted them. Point each entry at the new path, ` +
+        `or drop it if the divergence is gone.`,
+    );
+    process.exit(1);
+  }
+
   const svelteFiles = [...walkFiles(SVELTE_DEV, (n) => n.endsWith('.svelte'))].sort();
   const mdFiles = [
     ...walkFiles(SVELTE_DEV, (n) => MARKDOWN_EXTS.has(path.extname(n))),

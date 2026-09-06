@@ -80,7 +80,7 @@
 		"reason": "oxfmt's `--svelte` CSS path emits a single space before `{` after an escaped-unicode selector (`#\\31\\32\\33 {`), while its OWN raw-CSS path emits two (`#\\31\\32\\33  {`) — the same text rsvelte produces under --no-native-css. Oracle is internally inconsistent between its svelte-embedded and standalone CSS formatters; rsvelte matches the raw-CSS path."
 	},
 	{
-		"id": "svelte.dev/apps/svelte.dev/src/routes/docs/[topic]/[...path]/+layout.svelte",
+		"id": "svelte.dev/apps/svelte.dev/src/routes/docs/[topic]/[...path=documentation]/+layout.svelte",
 		"class": "oracle-bug",
 		"reason": "oxfmt's `--svelte` CSS path wraps a deeply-nested `calc((100vw - ... ) )` value differently (opens `(` on its own line) than its OWN raw-CSS path, which rsvelte drives under --no-native-css. This is the 'long CSS-value wrapping differs' inconsistency the corpus fmt.mjs header documents between oxfmt's two CSS code paths; rsvelte is self-consistent with the raw-CSS path."
 	},
