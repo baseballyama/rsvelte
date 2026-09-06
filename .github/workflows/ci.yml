@@ -1099,6 +1099,15 @@ jobs:
       - name: Run NAPI option-boundary gate
         run: pnpm run test:napi-options
 
+      # Separate process for the same reason, and the only gate that compares
+      # the Rust parse-envelope writer against the JS decoder.
+      - name: Run parse-envelope golden gate
+        run: pnpm run test:parse-envelope-golden
+
+      # The decoder's own bounds checks. Hand-crafted envelopes, no addon.
+      - name: Run parse-envelope decoder validation
+        run: pnpm run test:parse-envelope
+
       # Again a separate process, for the same reason: this one is the only gate
       # that drives the `cssHash` callback across the boundary.
       - name: Run NAPI cssHash gate
