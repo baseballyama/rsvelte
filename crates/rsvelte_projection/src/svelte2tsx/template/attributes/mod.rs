@@ -139,9 +139,10 @@ pub(super) fn build_attributes_string(
 /// as a list of `Seg`s. Source-bearing expressions (regular attribute
 /// values, `on:` / `class:` / `style:` handlers, spreads, `@attach`
 /// expressions) become `Seg::Src` so their column mapping survives the
-/// element-opener overwrite. `bind:` directives stay as literals — their
-/// expression also appears in `build_bind_directive_suffix` where the
-/// column mapping is already exact.
+/// element-opener overwrite. A `bind:` directive's prop value is a `Seg::Src`
+/// too (`format_bind_directive_segments`), which is what upstream's
+/// `rangeWithTrailingPropertyAccess` emits; the branches that contribute no
+/// prop at all are mapped by `bind_directive_suffix_segs` instead.
 pub(super) fn build_attribute_segments(
     attributes: &[Attribute],
     source: &str,
