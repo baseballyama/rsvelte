@@ -259,7 +259,6 @@ name = "corsa_core"
 version = "1.12.4"
 dependencies = [
  "base64",
- "bumpalo",
  "compact_str",
  "memchr",
  "rustc-hash",
