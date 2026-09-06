@@ -6056,9 +6056,9 @@ fn transform_module_script_runes_with_target(
                 let new_derived = if inner_has_nested_await {
                     let trimmed = saved_content.trim();
                     let thunk = if trimmed.starts_with('{') {
-                        async_thunk_text(&format!("({trimmed})"))
+                        async_thunk_text(&format!("({trimmed})"), server)
                     } else {
-                        async_thunk_text(trimmed)
+                        async_thunk_text(trimmed, server)
                     };
                     format!("await $.async_derived({}{})", thunk, dev_tail)
                 } else {

@@ -141,9 +141,9 @@ impl<'a> ModuleDerivedCollector<'a> {
         if nested {
             let trimmed = saved.trim();
             let thunk = if trimmed.starts_with('{') {
-                async_thunk_text(&format!("({trimmed})"))
+                async_thunk_text(&format!("({trimmed})"), self.server)
             } else {
-                async_thunk_text(trimmed)
+                async_thunk_text(trimmed, self.server)
             };
             declarations.push(format!("{d_name} = await $.async_derived({thunk}{tail})"));
         } else if inner.trim().starts_with('{') {

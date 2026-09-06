@@ -3157,9 +3157,12 @@ pub(super) fn strip_top_level_await_from_expr(expr: &str) -> String {
 }
 
 /// `async () => <body>`, exiting through `$.unsave()` when the body restored the
-/// reaction context, so it cannot leak into a foreign microtask.
-pub(crate) fn async_thunk_text(body: &str) -> String {
-    if memmem::find(body.as_bytes(), b"$.save(").is_none() {
+/// reaction context, so it cannot leak into a foreign microtask. Upstream's
+/// `async_thunk` lives in `3-transform/client/utils.js` and has no server
+/// counterpart, so the server target keeps the concise arrow whatever the body
+/// does.
+pub(crate) fn async_thunk_text(body: &str, server: bool) -> String {
+    if server || memmem::find(body.as_bytes(), b"$.save(").is_none() {
         return format!("async () => {body}");
     }
     format!("async () => {{ try {{ return {body}; }} finally {{ $.unsave(); }} }}")
@@ -3393,12 +3396,12 @@ mod proxy_detection_tests {
     }
 
     #[test]
-    fn save_wrapping_replaces_non_final_dev_await_tracking() {
+    fn save_wrapping_replaces_every_dev_await_tracking_once_one_pickles() {
         assert_eq!(
             wrap_await_with_save_in_async_derived(
                 "(await $.track_reactivity_loss(p))() + (await $.track_reactivity_loss(q))()"
             ),
-            "(await $.save(p))() + (await $.track_reactivity_loss(q))()"
+            "(await $.save(p))() + (await $.save(q))()"
         );
     }
 

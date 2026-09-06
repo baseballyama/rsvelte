@@ -7,8 +7,8 @@
 //! (`#3428`).
 //!
 //! Every expectation below is the pinned oracle's own output —
-//! `submodules/svelte/packages/svelte/src/compiler/index.js` at `20b341f10048`,
-//! which reports `VERSION === '5.56.9'` — not a transcription.
+//! `submodules/svelte/packages/svelte/src/compiler/index.js` at `7bc0a70fe64d`,
+//! which reports `VERSION === '5.57.0'` — not a transcription.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -231,8 +231,7 @@ export default function Plain_tail__line_own__if_block($$renderer, $$props) {
 
 	if (// tail
 	b) {
-		$$renderer.push('<!--[0-->');
-		$$renderer.push(`x`);
+		$$renderer.push(`<!--[0-->x`);
 	} else {
 		$$renderer.push('<!--[-1-->');
 	}

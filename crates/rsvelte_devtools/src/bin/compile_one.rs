@@ -3,11 +3,14 @@
 //!
 //! Usage:
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
-//!     [--runes-false | --runes-true]
+//!     [--runes-false | --runes-true] [--experimental-async]
 //!
 //! A path that does not end in `.svelte` is compiled as a `.svelte.js` module.
 
-use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
+use rsvelte_core::{
+    CompileOptions, ExperimentalOptions, GenerateMode, ModuleCompileOptions, compile,
+    compile_module,
+};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -22,6 +25,9 @@ fn main() {
         Some(true)
     } else {
         None
+    };
+    let experimental = ExperimentalOptions {
+        r#async: args.iter().any(|a| a == "--experimental-async"),
     };
     let generate = if args.iter().any(|a| a == "--server") {
         GenerateMode::Server
@@ -44,6 +50,7 @@ fn main() {
                 generate,
                 dev,
                 filename: Some(path.clone()),
+                experimental,
                 ..Default::default()
             },
         ) {
@@ -63,6 +70,7 @@ fn main() {
             dev,
             runes,
             filename: Some(path.clone()),
+            experimental,
             ..Default::default()
         },
     ) {

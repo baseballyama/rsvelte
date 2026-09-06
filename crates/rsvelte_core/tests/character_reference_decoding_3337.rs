@@ -42,19 +42,19 @@ fn check(cases: &[(&str, &str)]) {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 
-/// The `x` of a hexadecimal reference is lowercase-only in upstream's pattern
-/// (`#(?:x[a-fA-F\d]+|\d+)(?:;)?`), so `&#X41;` is not a reference at all.
+/// Upstream `1b02aa2` (svelte#18708, released in 5.57.0) accepts `X` beside `x`
+/// as the hexadecimal marker, so `&#X41;` decodes exactly like `&#x41;`.
 #[test]
-fn uppercase_hex_marker_is_not_a_character_reference() {
+fn uppercase_hex_marker_decodes_like_the_lowercase_one() {
     check(&[
-        ("<p>&#X41;</p>", "$$renderer.push(`<p>&amp;#X41;</p>`);"),
+        ("<p>&#X41;</p>", "$$renderer.push(`<p>A</p>`);"),
         (
             "<p title=\"&#X41;\">y</p>",
-            "$$renderer.push(`<p title=\"&amp;#X41;\">y</p>`);",
+            "$$renderer.push(`<p title=\"A\">y</p>`);",
         ),
         (
             "<textarea>&#X41;</textarea>",
-            "$$renderer.push(`<textarea>&amp;#X41;</textarea>`);",
+            "$$renderer.push(`<textarea>A</textarea>`);",
         ),
         // control: the lowercase spelling still decodes everywhere
         ("<p>&#x41;</p>", "$$renderer.push(`<p>A</p>`);"),

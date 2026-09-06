@@ -68,7 +68,7 @@ fn assert_folds(head: &str, body: &str, expected: &str) {
             "expected textContent '{expected}' for {body} (dev={dev}) in:\n{code}"
         );
         assert!(
-            !code.contains("$.child(u"),
+            !code.contains("$.only_child(u"),
             "expected no text node for {body} (dev={dev}) in:\n{code}"
         );
     }
@@ -84,7 +84,7 @@ fn assert_reactive(head: &str, body: &str) {
             "expected a placeholder <u> for {body} (dev={dev}) in:\n{code}"
         );
         assert!(
-            code.contains("$.child(u, true)") && code.contains("$.template_effect("),
+            code.contains("$.only_child(u, true)") && code.contains("$.template_effect("),
             "expected a reactive text node for {body} (dev={dev}) in:\n{code}"
         );
         assert!(

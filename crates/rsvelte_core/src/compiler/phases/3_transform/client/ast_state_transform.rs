@@ -1885,9 +1885,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             if inner_has_nested_await {
                 let trimmed = saved_content.trim();
                 let thunk = if trimmed.starts_with('{') {
-                    async_thunk_text(&format!("({trimmed})"))
+                    async_thunk_text(&format!("({trimmed})"), false)
                 } else {
-                    async_thunk_text(trimmed)
+                    async_thunk_text(trimmed, false)
                 };
                 declarations.push(format!(
                     "{d_name} = await $.async_derived({thunk}{dev_tail})"
@@ -2402,9 +2402,9 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             let async_derived_call = if inner_has_nested_await {
                 let is_obj = saved_for_emit.starts_with('{');
                 let thunk = if is_obj {
-                    async_thunk_text(&format!("({saved_for_emit})"))
+                    async_thunk_text(&format!("({saved_for_emit})"), false)
                 } else {
-                    async_thunk_text(&saved_for_emit)
+                    async_thunk_text(&saved_for_emit, false)
                 };
                 format!("$.async_derived({thunk}{dev_tail})")
             } else {
@@ -5777,30 +5777,30 @@ mod tests {
     }
 
     #[test]
-    fn destructured_async_derived_saves_non_final_awaits() {
+    fn destructured_async_derived_saves_every_await_once_one_pickles() {
         let output = transform("const { a, b } = $derived((await p) + (await q));", &[]);
 
         assert!(
-            output.has_sub("$.save(p)") && output.has_sub("await q"),
-            "non-final await must preserve reactive context: {output}"
+            output.has_sub("$.save(p)") && output.has_sub("$.save(q)"),
+            "pickling is sticky: every later await saves too: {output}"
         );
         assert!(
-            !output.has_sub("$.save(q)"),
-            "the final await must not be save-wrapped: {output}"
+            output.has_sub("$.unsave()"),
+            "a saving thunk must exit through $.unsave(): {output}"
         );
     }
 
     #[test]
-    fn async_derived_saves_non_final_awaits() {
+    fn async_derived_saves_every_await_once_one_pickles() {
         let output = transform("const a = $derived((await p) + (await q));", &[]);
 
         assert!(
-            output.has_sub("$.save(p)") && output.has_sub("await q"),
-            "non-final await must preserve reactive context: {output}"
+            output.has_sub("$.save(p)") && output.has_sub("$.save(q)"),
+            "pickling is sticky: every later await saves too: {output}"
         );
         assert!(
-            !output.has_sub("$.save(q)"),
-            "the final await must not be save-wrapped: {output}"
+            output.has_sub("$.unsave()"),
+            "a saving thunk must exit through $.unsave(): {output}"
         );
     }
 
