@@ -677,6 +677,7 @@ fn strip_typescript_from_program_impl(
     } else {
         Vec::new()
     };
+    let uninit_annotations = collect_uninitialized_declarator_annotations(program);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -779,32 +780,19 @@ fn strip_typescript_from_program_impl(
         // statement. Keep them: re-emit every comment found inside a removed
         // multi-line region in place.
         //
-        // Exception: do NOT re-emit comments from inline TS type annotations
-        // on variable declarations (e.g. `}: SomeType & { /** JSDoc */ ... }`).
-        // Those annotations start with `:` (the TS type annotation sigil), and
-        // re-emitting their interior JSDoc comments would leave the comment
-        // floating between the destructuring `}` and `= $props()`, which breaks
-        // `collapse_multiline_destructuring` — it closes the destructure accumulation
-        // at the `}` (depth → 0) before seeing `= $$props`, so the collapsed string
-        // never matches and `$$slots`/`$$events` injection is skipped.
+        // Exception: an annotation on a declarator with NO initializer. Upstream
+        // attaches the comment to the next located node rather than to the
+        // declaration, so re-emitting it here puts it after the `;`, where the
+        // client's legacy state lowering stops scanning and drops the
+        // `$.mutable_source()` initializer it was about to add.
         let start = *remove_start as usize;
         let end = (*remove_end as usize).min(source.len());
         if pos as usize <= start && start < end {
             let removed = &source[start..end];
-            // An inline TS type annotation starts with `:` (optionally preceded by
-            // whitespace already emitted). If the removed chunk starts with `:`, it
-            // is a type annotation — skip comment re-emission for it entirely.
-            // A definite-assignment `!` / optional `?` marker is spliced together
-            // with the annotation that follows it, so look past it before testing
-            // for the sigil.
-            let is_inline_type_annotation = removed
-                .trim_start()
-                .trim_start_matches(['!', '?'])
-                .trim_start()
-                .starts_with(':');
-            if !is_inline_type_annotation
-                && removed.contains('\n')
-                && (removed.contains("/*") || removed.contains("//"))
+            if (removed.contains("/*") || removed.contains("//"))
+                && !uninit_annotations
+                    .iter()
+                    .any(|(from, _)| *from == *remove_start)
             {
                 if let Some(copied_chunks) = copied_chunks.as_mut() {
                     for (comment_offset, comment) in
@@ -1034,6 +1022,32 @@ fn collect_speculative_type_head_regions(program: &oxc_ast::ast::Program) -> Vec
 
 struct SpeculativeTypeHeads<'r> {
     regions: &'r mut Vec<(u32, u32)>,
+}
+
+/// Annotation spans on a declarator that has NO initializer. Upstream's printer
+/// attaches a comment left in such an annotation to the next located node, not
+/// to the declaration; re-emitting it at the removal point puts it after the
+/// `;`, where the client's legacy state lowering stops scanning.
+fn collect_uninitialized_declarator_annotations(
+    program: &oxc_ast::ast::Program,
+) -> Vec<(u32, u32)> {
+    use oxc_ast_visit::Visit;
+    struct V<'r> {
+        spans: &'r mut Vec<(u32, u32)>,
+    }
+    impl<'a> oxc_ast_visit::Visit<'a> for V<'_> {
+        fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
+            if it.init.is_none()
+                && let Some(ann) = &it.type_annotation
+            {
+                self.spans.push((ann.span.start, ann.span.end));
+            }
+            oxc_ast_visit::walk::walk_variable_declarator(self, it);
+        }
+    }
+    let mut spans = Vec::new();
+    V { spans: &mut spans }.visit_program(program);
+    spans
 }
 
 impl<'a> oxc_ast_visit::Visit<'a> for SpeculativeTypeHeads<'_> {
@@ -2871,20 +2885,18 @@ const answer = 42;
         }
     }
 
-    /// Regression: `strip_typescript` must NOT re-emit JSDoc comments that live
-    /// inside a TS type annotation on a `$props()` destructure.
-    ///
-    /// Before the fix, the code in `strip_typescript` intentionally re-emitted
-    /// comments found inside removed regions (to preserve JSDoc from
-    /// `interface Props { … }` bodies).  This caused the JSDoc to land *between*
-    /// the destructure's closing `}` and `= $props()`, breaking
-    /// `collapse_multiline_destructuring` which expected them on the same line.
-    ///
-    /// The fix: skip comment re-emission for regions that start with `:` —
-    /// those are inline TS type annotations, not top-level declarations.
+    /// Where a comment left inside an erased annotation may be re-emitted is
+    /// decided by whether the declarator has an initializer, because that is
+    /// what upstream's printer keys on: with one, the comment is flushed ahead
+    /// of the initializer and stays attached to the declaration; without one,
+    /// the declaration ends at the identifier and the comment floats to the
+    /// next located node instead. Re-emitting it at the removal point in the
+    /// second case puts it after the `;`, where the client's legacy state
+    /// lowering stops scanning and drops the `$.mutable_source()` it was about
+    /// to add.
     #[test]
-    fn jsdoc_inside_inline_ts_type_annotation_is_not_re_emitted() {
-        let source = "\
+    fn an_erased_annotation_re_emits_only_where_the_declarator_is_initialized() {
+        let with_init = "\
 let {
 \tvalue: valueProp = $bindable([]),
 \titems = [],
@@ -2896,37 +2908,35 @@ let {
 \titems?: string[];
 } = $props();
 ";
-        let stripped = strip_typescript(source);
-        // The JSDoc comment must NOT appear in the stripped output.
+        let stripped = strip_typescript(with_init);
         assert!(
-            !stripped.contains("The individual items"),
-            "JSDoc from inline TS annotation was re-emitted: {stripped:?}"
+            stripped.contains("The individual items"),
+            "an initialized declarator keeps the comment: {stripped:?}"
         );
-        // The destructure pattern itself must be preserved.
         assert!(
             stripped.contains("...restProps"),
             "restProps missing after strip: {stripped:?}"
         );
-        // The assignment RHS must be preserved.
         assert!(
             stripped.contains("$props()"),
             "$props() missing after strip: {stripped:?}"
         );
-        // The closing `}` must not have floating content between it and `= $props()`.
-        // Specifically, the stripped output should not have a `/**` on a line
-        // between `}` and `= $props()`.
-        let lines: Vec<&str> = stripped.lines().collect();
-        let closing_brace_idx = lines.iter().rposition(|l| l.trim() == "}");
-        let props_idx = lines.iter().rposition(|l| l.contains("$props()"));
-        if let (Some(brace), Some(props)) = (closing_brace_idx, props_idx) {
-            // All lines between `}` and `= $props()` should be whitespace or the `=` line itself.
-            for l in &lines[brace + 1..props] {
-                assert!(
-                    l.trim().is_empty() || l.trim().starts_with('='),
-                    "Unexpected content between `}}` and `= $props()`: {l:?}\nFull output: {stripped:?}"
-                );
-            }
-        }
+
+        let no_init = "\
+let stats: {
+\t/* keep me */
+\ta: number;
+} | null;
+";
+        let stripped = strip_typescript(no_init);
+        assert!(
+            !stripped.contains("keep me"),
+            "an uninitialized declarator must not carry the comment past its `;`: {stripped:?}"
+        );
+        assert!(
+            stripped.contains("let stats"),
+            "declaration missing after strip: {stripped:?}"
+        );
     }
 
     /// A definite-assignment assertion must strip to exactly what the same
