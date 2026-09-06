@@ -3680,7 +3680,9 @@ fn copied_spans_for_normalized_code(
                 // neither side alone: `count++` -> `$.update(count)` leaves the
                 // source's `++` against the generated `)`, and the run after it
                 // begins one byte along on the right and two on the left.
-                const PAIR_WINDOW: usize = 16;
+                // Operator-width only: a wider window outruns the weak one-sided
+                // anchor and skips a whole statement, dropping its mappings.
+                const PAIR_WINDOW: usize = 4;
                 let near_input = &input_tail[..input_tail.len().min(PAIR_WINDOW)];
                 let near_output = &code_tail[..code_tail.len().min(PAIR_WINDOW)];
                 for (skip_input, &byte) in near_input.iter().enumerate().skip(1) {

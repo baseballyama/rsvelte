@@ -135,3 +135,20 @@ fn cell_first_fragment_after_an_import() {
          19:48->7:6 19:53->7:11 20:20->7:1 20:23->7:4 22:0->6:8 22:1->6:9",
     );
 }
+
+/// The pair search's WIDTH, not its presence. `m = 1;` -> `$.set(m, 1);` puts a
+/// long common run (`} catch`) 21 bytes away on the two sides together, so a
+/// window wide enough to reach it beats the weak one-sided `m` <-> `m` anchor
+/// six bytes out and skips the whole statement — the source's `1` at 2:11 then
+/// has no segment. Bounded to operator width, the jump is out of reach.
+#[test]
+fn cell_a_statement_rewrite_does_not_outrun_the_weak_anchor() {
+    assert_covers_oracle(
+        "<script lang=\"ts\">\n\tlet m = 0;\n\ttry { m = 1; } catch (e: any) { m = 2; }\n</script>\n{m}\n",
+        "4:36->0:0 4:37->0:1 5:1->1:1 5:5->1:5 5:6->1:6 5:26->1:9 5:27->1:10
+         7:1->2:1 7:4->2:4 7:5->2:5 7:6->2:6 8:8->2:7 8:9->2:8 8:11->2:11 8:12->2:12
+         9:1->2:14 9:2->2:15 9:3->2:16 9:8->2:21 9:9->2:23 9:10->2:29 9:12->2:31
+         9:13->2:32 10:8->2:33 10:9->2:34 10:11->2:37 10:12->2:38 11:1->2:40
+         11:2->2:41 17:48->4:1 17:49->4:2 19:0->3:8 19:1->3:9",
+    );
+}
