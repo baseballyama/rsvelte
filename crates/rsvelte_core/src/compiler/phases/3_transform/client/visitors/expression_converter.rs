@@ -907,6 +907,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             params,
             body,
             r#async: is_async,
+            expression: is_concise,
             ..
         } => {
             // Convert params via JsNode
@@ -951,14 +952,30 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             context.state.event_handler_arrow_body_level =
                 u32::from(is_exempt_arrow && body_is_assignment);
 
-            let conv_body = match body_node {
-                JsNode::BlockStatement { body, .. } => {
-                    JsArrowBody::Block(convert_block_statement_from_jsnode(body, context))
-                }
-                _ => JsArrowBody::Expression({
-                    let __tmp = convert_js_node(body_node, context);
+            // `expression` is the ESTree field that says which body form this
+            // is, and phase 1's JSON serializer keeps a concise body inside the
+            // `BlockStatement`/`ExpressionStatement` wrapper oxc used to
+            // synthesise. Re-emitting that wrapper turns `() => 1` into a
+            // function that returns `undefined`.
+            let concise_body = if *is_concise {
+                concise_arrow_body(body_node, pa)
+            } else {
+                None
+            };
+            let conv_body = match concise_body {
+                Some(inner) => JsArrowBody::Expression({
+                    let __tmp = convert_js_node(inner, context);
                     context.arena.alloc_expr(__tmp)
                 }),
+                None => match body_node {
+                    JsNode::BlockStatement { body, .. } => {
+                        JsArrowBody::Block(convert_block_statement_from_jsnode(body, context))
+                    }
+                    _ => JsArrowBody::Expression({
+                        let __tmp = convert_js_node(body_node, context);
+                        context.arena.alloc_expr(__tmp)
+                    }),
+                },
             };
 
             context.state.event_handler_arrow_body_level = saved_arrow_level;
@@ -3350,6 +3367,21 @@ fn collect_param_names(value: &Value, names: &mut Vec<String>) {
             _ => {}
         }
     }
+}
+
+/// The expression inside phase 1's concise-arrow-body wrapper, when the node is
+/// exactly that wrapper. A real block body — anything but one lone expression
+/// statement — is left alone, so a contradictory `expression: true` cannot
+/// rewrite it.
+fn concise_arrow_body<'a>(body: &'a JsNode, pa: &'a ParseArena) -> Option<&'a JsNode> {
+    let JsNode::BlockStatement { body: stmts, .. } = body else {
+        return None;
+    };
+    let stmts = pa.get_js_children(*stmts);
+    let [JsNode::ExpressionStatement { expression, .. }] = stmts else {
+        return None;
+    };
+    Some(pa.get_js_node(*expression))
 }
 
 /// Convert an ArrowFunctionExpression node.
