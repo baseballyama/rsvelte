@@ -6134,6 +6134,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [30](#30-is-this-rule-a-global-block--d) | Is this rule a global block? | 4 predicates, 13 decision sites | **[D]** | 5 defects closed, 1 open |
 | [31](#31-does-this-element-hug-its-content--d) | Does this element hug its content? | 3 | **[D]** | no — ports disagree, output does not |
 | [32](#32-which-of-an-overlapping-pair-of-splices-survives--m-and-the-two-ports-are-never-asked) | Which of an overlapping pair of splices survives? | 3 sites, 2 rules | **[M]** | closed — the two rules differ and no input reaches both |
+| [33](#33-is-this-default-value-simple-enough-for-the-eager-fallback-arm--m-for-the-four-ast-ports-s-for-the-text-one-five-ports-two-closed-here) | Is this default value "simple" enough for the eager `$.fallback` arm? | 5 (2 JSON, 2 OXC, 1 text) | **[M]** / **[S]** | 2 closed (#4386); the text port is unreached and unmeasured |
 
 **Rows 22–27 have bodies below and no line in this table** — measured 2026-09-02 by
 enumerating the `#### <n>.` headings against the table's own `[n]` links. The index is the
@@ -8020,6 +8021,55 @@ Parse both sides with OXC, print both with one fixed set of codegen options,
 compare the printed text, then compare the meaningful comments. Everything
 below is the contract that implementation enforces; its unit tests are the
 executable version of this document.
+
+#### 33. Is this default value "simple" enough for the eager `$.fallback` arm? — [M] for the four AST ports, [S] for the text one; five ports, two closed here
+
+**Upstream:** `is_simple_expression` (`utils/ast.js:442-469`), one function, one consumer —
+`build_fallback` (`utils/ast.js:585`) picks the eager `$.fallback(v, d)` over the lazy
+`$.fallback(v, () => d, true)`. Its true-list is
+`Literal | Identifier | ArrowFunctionExpression | FunctionExpression`, with a recursion for
+`ConditionalExpression` / `BinaryExpression` / `LogicalExpression`. There is **no**
+`UnaryExpression` arm.
+
+**Ports — five, in three representations:**
+
+| # | port | representation | had a `UnaryExpression` arm |
+|---|---|---|---|
+| 1 | `client/visitors/snippet_block.rs::is_simple_expression_json` | serde JSON | **yes** → removed here |
+| 2 | `client/visitors/each_block.rs::is_simple_default` | serde JSON | **yes** → removed here |
+| 3 | `server/ast/script.rs::oxc_is_simple_expression` | OXC AST | no |
+| 4 | `server/ast/script.rs::is_simple_default` | OXC AST | no |
+| 5 | `server/transform_legacy.rs::is_simple_default_value` | **text scan** | n/a — see below |
+
+Ports 3 and 4 are two hand-written copies of one rule in **one file**, 1,670 lines apart, and
+agree today. Port 5 answers from the source text: `"-1".parse::<f64>()` succeeds, so `-1` is
+simple, and `void 0` is a hard-coded member of its literal set — both the opposite of upstream.
+
+**The demonstrated divergence is #4386, and what makes it a two-*ports* row is the order the
+cells moved.** 31 default shapes x {`{#snippet}` parameter, `{#each}` destructure} x
+{client, server} = 124 cells against
+`submodules/svelte/packages/svelte/src/compiler/index.js` (`VERSION === '5.57.0'`):
+
+| arm | EQ | DIFF |
+|---|---:|---:|
+| `main` (`939672df8`) | 101 | 23 |
+| port 2 fixed only | 112 | 12 |
+| ports 1 and 2 fixed | **123** | 1 |
+
+The middle row is the row that matters: with the `{#each}` port fixed the **same eleven unary
+shapes** still diverged in the `{#snippet}` host, so the two ports were answering for one host
+each and a fix built from either one reads as complete. The remaining DIFF is #4417, a different
+mechanism (a concise-body arrow default re-emitted with a block body).
+
+Every one of the 62 `server` cells is EQ on both arms, which is the control that puts ports 3 and
+4 on upstream's side of this rule rather than untested.
+
+**Port 5 is not reached by the host it was written for**, and that is measured rather than
+assumed: for `export let p = -1;` the server emits `let p = $.fallback($$props['p'], () => -1,
+true);` — the lazy arm — and port 5 calls `-1` simple, so it cannot have produced that line. The
+same holds for `void 0`. Which inputs *do* reach it is **unmeasured**, so the row stays open: a
+port that disagrees with upstream and is currently unreachable is one refactor away from being
+reachable, and nothing here would notice.
 
 ### Formatting — collapses
 
