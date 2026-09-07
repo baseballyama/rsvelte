@@ -3766,6 +3766,8 @@ fn collect_relative_selector_branches(rels: &[Value], out: &mut Vec<Vec<Value>>)
     // Upstream links a nested rule to its parent through `get_relative_selectors`,
     // which drops the parent's trailing `:global(...)` before matching.
     let rels = truncate_trailing_globals(rels);
+    let rels = drop_leading_globals(rels);
+    let rels = rels.as_slice();
     if level_is_structurally_evaluable(rels) || head_nesting_level_is_evaluable(rels) {
         out.push(rels.to_vec());
         return;
@@ -3777,6 +3779,26 @@ fn collect_relative_selector_branches(rels: &[Value], out: &mut Vec<Vec<Value>>)
             if let Some(inner_rels) = complex.field("children").and_then(|c| c.as_array()) {
                 collect_relative_selector_branches(inner_rels, out);
             }
+        }
+    }
+}
+
+/// Drop a leading run of `:global(...)` relative selectors. Mirrors
+/// `apply_combinator`'s BACKWARD escape (`every_is_global` over the remaining
+/// prefix): a wholly global prefix matches whatever sits above the component,
+/// so it constrains nothing and the first local compound becomes the head.
+fn drop_leading_globals(rel_selectors: &[Value]) -> Vec<Value> {
+    match rel_selectors
+        .iter()
+        .position(|rel| !relative_selector_is_outer_global(rel))
+    {
+        Some(0) | None => rel_selectors.to_vec(),
+        Some(i) => {
+            let mut out = rel_selectors[i..].to_vec();
+            if let Some(Value::Object(map)) = out.first_mut() {
+                map.insert("combinator".to_string(), Value::Null);
+            }
+            out
         }
     }
 }
