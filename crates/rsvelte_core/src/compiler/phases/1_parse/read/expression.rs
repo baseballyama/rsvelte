@@ -5500,7 +5500,7 @@ fn create_call_expression<'a>(
         type_arguments: opt_type_args(
             arena,
             call.type_arguments.as_deref(),
-            offset - 1,
+            || offset - 1,
             line_offsets,
         ),
     })
@@ -5629,7 +5629,7 @@ fn create_new_expression<'a>(
         type_arguments: opt_type_args(
             arena,
             new_expr.type_arguments.as_deref(),
-            offset - 1,
+            || offset - 1,
             line_offsets,
         ),
     })
@@ -5728,7 +5728,7 @@ fn create_function_expression<'a>(
         return_type: opt_type_annotation(
             arena,
             func.return_type.as_deref(),
-            offset - 1,
+            || offset - 1,
             line_offsets,
         ),
     })
@@ -5925,7 +5925,7 @@ fn convert_class_element_for_expr(
             if let Some(type_params) = opt_type_params(
                 arena,
                 method.value.type_parameters.as_deref(),
-                offset - 1,
+                || offset - 1,
                 line_offsets,
             ) {
                 obj.set_field("typeParameters", *type_params);
@@ -5959,7 +5959,7 @@ fn convert_class_element_for_expr(
             if let Some(ta) = opt_type_annotation(
                 arena,
                 prop.type_annotation.as_deref(),
-                offset - 1,
+                || offset - 1,
                 line_offsets,
             ) {
                 obj.set_field("typeAnnotation", *ta);
@@ -6827,7 +6827,7 @@ fn create_arrow_function<'a>(
         return_type: opt_type_annotation(
             arena,
             arrow.return_type.as_deref(),
-            offset - 1,
+            || offset - 1,
             line_offsets,
         ),
     })
@@ -10791,7 +10791,7 @@ fn convert_class_declaration_as_node(
         type_parameters: opt_type_params(
             arena,
             class_decl.type_parameters.as_deref(),
-            offset,
+            || offset,
             line_offsets,
         ),
         super_type_parameters: opt_type_args(
@@ -10800,7 +10800,7 @@ fn convert_class_declaration_as_node(
                 .heritage
                 .as_ref()
                 .and_then(|h| h.type_arguments.as_deref()),
-            offset,
+            || offset,
             line_offsets,
         ),
     }
@@ -11439,7 +11439,7 @@ fn convert_expression_for_program<'a>(
                 type_arguments: opt_type_args(
                     arena,
                     call.type_arguments.as_deref(),
-                    offset,
+                    || offset,
                     line_offsets,
                 ),
             })
@@ -11618,7 +11618,7 @@ fn convert_expression_for_program<'a>(
                 return_type: opt_type_annotation(
                     arena,
                     arrow.return_type.as_deref(),
-                    offset,
+                    || offset,
                     line_offsets,
                 ),
             })
@@ -11820,7 +11820,7 @@ fn convert_expression_for_program<'a>(
                 type_arguments: opt_type_args(
                     arena,
                     new_expr.type_arguments.as_deref(),
-                    offset,
+                    || offset,
                     line_offsets,
                 ),
             })
@@ -12116,7 +12116,7 @@ fn convert_expression_for_program<'a>(
                         type_arguments: opt_type_args(
                             arena,
                             call.type_arguments.as_deref(),
-                            offset,
+                            || offset,
                             line_offsets,
                         ),
                     }
@@ -12715,9 +12715,12 @@ fn convert_class_element_for_program(
             let key = convert_property_key(arena, &prop.key, offset, line_offsets);
             obj.set_field("key", key.to_value());
 
-            if let Some(ta) =
-                opt_type_annotation(arena, prop.type_annotation.as_deref(), offset, line_offsets)
-            {
+            if let Some(ta) = opt_type_annotation(
+                arena,
+                prop.type_annotation.as_deref(),
+                || offset,
+                line_offsets,
+            ) {
                 obj.set_field("typeAnnotation", *ta);
             }
 
@@ -12758,9 +12761,12 @@ fn convert_class_element_for_program(
             let key = convert_property_key(arena, &prop.key, offset, line_offsets);
             obj.set_field("key", key.to_value());
 
-            if let Some(ta) =
-                opt_type_annotation(arena, prop.type_annotation.as_deref(), offset, line_offsets)
-            {
+            if let Some(ta) = opt_type_annotation(
+                arena,
+                prop.type_annotation.as_deref(),
+                || offset,
+                line_offsets,
+            ) {
                 obj.set_field("typeAnnotation", *ta);
             }
 
@@ -12980,7 +12986,12 @@ fn convert_function_expression_for_program_as_node(
         expression: false,
         type_parameters,
         type_parameters_after_body,
-        return_type: opt_type_annotation(arena, func.return_type.as_deref(), offset, line_offsets),
+        return_type: opt_type_annotation(
+            arena,
+            func.return_type.as_deref(),
+            || offset,
+            line_offsets,
+        ),
     }
 }
 
@@ -13009,14 +13020,14 @@ fn program_function_expression_type_parameters(
 fn opt_type_annotation(
     arena: &ParseArena,
     type_ann: Option<&oxc_ast::ast::TSTypeAnnotation<'_>>,
-    adjusted_offset: usize,
+    adjusted_offset: impl FnOnce() -> usize,
     line_offsets: &[usize],
 ) -> Option<Box<serde_json::Value>> {
     type_ann.map(|ta| {
         Box::new(convert_type_annotation_adjusted(
             arena,
             ta,
-            adjusted_offset,
+            adjusted_offset(),
             line_offsets,
         ))
     })
@@ -13025,14 +13036,14 @@ fn opt_type_annotation(
 fn opt_type_args(
     arena: &ParseArena,
     args: Option<&oxc_ast::ast::TSTypeParameterInstantiation<'_>>,
-    adjusted_offset: usize,
+    adjusted_offset: impl FnOnce() -> usize,
     line_offsets: &[usize],
 ) -> Option<Box<serde_json::Value>> {
     args.map(|a| {
         Box::new(convert_ts_type_param_instantiation(
             arena,
             a,
-            adjusted_offset,
+            adjusted_offset(),
             line_offsets,
         ))
     })
@@ -13041,14 +13052,14 @@ fn opt_type_args(
 fn opt_type_params(
     arena: &ParseArena,
     type_params: Option<&oxc_ast::ast::TSTypeParameterDeclaration<'_>>,
-    adjusted_offset: usize,
+    adjusted_offset: impl FnOnce() -> usize,
     line_offsets: &[usize],
 ) -> Option<Box<serde_json::Value>> {
     type_params.map(|tp| {
         Box::new(convert_ts_type_parameter_declaration(
             arena,
             tp,
-            adjusted_offset,
+            adjusted_offset(),
             line_offsets,
         ))
     })
@@ -15368,6 +15379,42 @@ mod tests {
             };
             assert_eq!(value, &LiteralValue::String(expected_value.into()));
             assert_eq!(raw.as_str(), expected_raw);
+        }
+    }
+
+    #[test]
+    fn the_expression_entry_point_accepts_offset_zero() {
+        // The expression path spells an absolute position `offset + span - 1`,
+        // so the adjustment is `offset - 1` -- a value that only exists once the
+        // addition has happened. Every pre-existing site materializes it inside
+        // a `Some` branch; passed as an eager call argument it is evaluated for
+        // EVERY node of that kind, so a plain `work()` at offset 0 underflowed.
+        // Only a debug build says so: release wraps and emits a span nobody
+        // reads back, which is why a release-only suite scores it green.
+        //
+        // Nothing here carries TypeScript. Offset 0 with a real TS construct
+        // underflows for a wider, pre-existing reason -- measured on `main`,
+        // `(v) => v`, `(v: number) => v` and `o as string` all panic there --
+        // and the base genuinely is -1, which no `usize` spells. Making it
+        // signed is a change to the whole TS conversion subtree, not to these
+        // three helpers, so it is tracked separately rather than half-done here.
+        for source in [
+            "work()",
+            "new C(1)",
+            "f(g(1))",
+            "[1, 2].map(f)",
+            "() => 1",
+            "a + b",
+            "o.m(1)",
+            "function q(a) { return a; }",
+            "({ x: 1 })",
+        ] {
+            let arena = ParseArena::new();
+            let line_offsets = super::super::super::compute_line_offsets(source, false);
+            assert!(
+                parse_expression_with_typescript(&arena, source, 0, &line_offsets, true).is_some(),
+                "offset 0 must still parse: {source}"
+            );
         }
     }
 
