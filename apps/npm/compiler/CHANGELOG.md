@@ -1,5 +1,181 @@
 # @rsvelte/compiler
 
+## 0.11.6
+
+### Patch Changes
+
+- 87228ad: A TypeScript grammar rule `acorn-typescript` does not implement is no longer a
+  parse error outside a `<script>`. `ACORN_UNCHECKED_TS_GRAMMAR_RULES` was missing
+  TS2368 and was consulted by the two script-side sites only, so
+  `{<string>() => a}` was rejected in a template, an attribute, a block
+  expression, a snippet parameter and a `{@render}` argument while the identical
+  source compiled in a `<script>`. The eight probes now share one decision, and
+  the server's own expression re-parse joins it — without that half the
+  over-rejection turns into a silently dropped expression rather than an error.
+- b1fcba8: fix(sourcemap): the annotation end survives split coordinates too
+
+  `(binding end, annotation end)` reached only the re-parsed span's end lookup.
+  A comment anywhere in the script moves the printer onto split coordinates,
+  where an end position is resolved through `loc_map` instead — and the copied
+  run carried no override there, so the segment pointed back at the annotation's
+  colon. `LocRange` now carries the pair and the end lookup consumes it on both
+  routes.
+
+- f9db517: fix(svelte2tsx): emit a `bind:` suffix's assignment target as a source range
+
+  Upstream `Binding.ts` emits the target as a TransformationArray _range_ —
+  `appendOneWayBinding`'s `[expression.start, end]`, and `[set.start, getEnd(set)]`
+  for a get/set `bind:this` — so the expression survives into the shadow as an
+  unedited chunk carrying its own map segments. rsvelte baked the text into the
+  suffix statement, so the position carried no segment and a request inside
+  `bind:this={el}` resolved through the nearest mapping to its left: hover answered
+  about the preceding `title={tag}` attribute, at that attribute's range.
+
+  Four of upstream's five suffix branches are ranges (`bind:this`, `bind:group` on
+  `<input>`, the on-element one-way bindings, and the not-on-element ones); only the
+  generic two-way widener is built from `str.original.substring` and stays literal.
+
+  The generated TSX is unchanged; only the map moves.
+
+- 6346204: fix(analyze): a block-local binding no longer answers for a reference outside its block
+
+  `ScopeRoot`'s scope 0 is intentionally polluted with every child-scope
+  declaration, so a name-keyed lookup resolves an `{#each}` item or index or an
+  `{#await}` value or error for a reference nowhere near its block. Phase 2 then
+  recorded that reference on the block-local binding, which is what
+  `binding_at_reference` replays — so even the position-keyed resolution phase 3
+  prefers inherited the wrong answer, and a later `{code}` came out wrapped in
+  `$.template_effect` where upstream writes `text_1.nodeValue` once.
+
+  `ScopeRoot::is_block_local_out_of_scope` is the one place that decides it, and
+  both phase-2 reference writers consult it: `visitors/identifier.rs` and the
+  `find_binding_any_scope` fallback in `visitors/shared/utils.rs`, of which only
+  the second was reached on the reported input. The phase-3 name fallback in
+  `identifier_has_reactive_state` needs the same guard — measured by ablating each
+  half on its own, neither fixes the grid alone.
+
+  Measured over 139,528 corpus pairs (34,885 files x 4 targets), with both arms
+  built from one commit: 12 moved, `MISMATCH -> match` 3, `match -> MISMATCH` 0.
+
+- 4efd2b2: A descendant combinator's span covers its whole whitespace run, matching `read_combinator`
+- f7d6bae: Keep a comment left behind when TypeScript erasure removes a type annotation. The
+  re-emission was gated on a conjunction whose two terms each silenced a host on
+  their own — an inline annotation, and a single-line removed region. It is
+  replaced by the rule upstream's printer follows: an annotation on a declarator
+  with an initializer keeps the comment, and one on a declarator without an
+  initializer does not, because there the comment belongs to whatever follows the
+  declaration rather than to the declaration.
+- 0457d9d: Place a comment left behind by TypeScript erasure where upstream places it. A
+  comment inside an erased `interface` or type alias preceding an `export let` was
+  unconditionally flushed after the `let` keyword; upstream only does that when the
+  source declaration has more than one declarator, and with a single declarator it
+  prints the comment ahead of `let`.
+- 43998fd: A redundant object-pattern alias collapses to shorthand, as esrap derives it from name equality
+- 9171df6: A name bound by a `function` declaration folds to a known function, so the dev-mode `$.assign` wrap is skipped for it as it already is for an arrow
+- 3a39f1c: fix(css): a bare `:global` opening a nested relative selector becomes `&`
+
+  Upstream removes the pseudo-class and then, when the rule has a parent, the
+  pseudo-class carries no arguments and the relative selector has no combinator,
+  writes an `&` where it stood. rsvelte deleted the text and wrote nothing, so
+  `.p { :global > .a { … } }` came out as `.p… { > .a { … } }` — CSS no browser
+  accepts — and `:global.a` lost the subject it was fused to.
+
+- dc78e8c: fix(parse): the legacy `html` fragment's span is read after `svelte:options` is spliced back
+
+  Upstream's `convert_to_legacy` splices the extracted `<svelte:options>` node back
+  into `fragment.nodes` and only then reads `first.start` / `last.end`. rsvelte
+  computed the span from the pre-splice vector while building `children` from the
+  post-splice one, so a component whose first or last node is `<svelte:options>`
+  reported a fragment starting after it — and a component holding nothing else
+  reported `start`/`end` of `null` beside a `children` array of length 1.
+
+- 9e7cafe: fix(client): the legacy `$$props` rename asks the AST which occurrences are references
+
+  Upstream renames from `Identifier.js`, which runs only where `is_reference` is
+  true. rsvelte's legacy port was an occurrence scan over the generated script, so
+  it could not tell a reference from a member property, an object key, a class
+  member name or a label, and it replaced a shorthand where upstream expands it.
+  Measured against the oracle, 8 of 12 non-string cells diverged, and one of them
+  changes runtime behaviour: `function f({ $$props })` came out destructuring the
+  wrong property.
+
+  The rename now reads the AST and leaves an `IdentifierName` or a
+  `LabelIdentifier` alone, which is the same set upstream's `is_reference` answers
+  `false` for. It still runs after generation, and it still needs the allow-list
+  that protects the builder-made `$.prop($$props, …)` calls: moving it to the
+  source — where upstream applies it — was measured and is wrong here, because
+  fourteen builder sites emit a bare `$$props` into the generated instance script
+  and every one of them means the sanitized object.
+
+- a7deb44: A `<script module>` reassignment resolves its value through the binding's initializer, so a module local initialised to `undefined` or a primitive is no longer proxied
+- 196874a: feat(compiler): track Svelte 5.57.0
+
+  Ports the 40 upstream compiler commits between `5.56.10` and `5.57.0`. The ones
+  that changed output rather than only internals:
+
+  - `f2648b3` — a restored reaction context ends at its synchronous segment, so an
+    `await` that is not the last evaluated expression is pickled and every later
+    `await` in that expression pickles too. rsvelte carries the rule in three
+    places (the typed script walk, the template collector and the instance-script
+    text scanner) and all three needed the sticky flag; a member expression is
+    never last, in either half.
+  - The same commit's `async_thunk` never unthunks, so the client's `{#if}`,
+    `{#each}`, `{#await}`, `{@html}` and `{#key}` thunks and all four
+    `$.async_derived` emission sites keep their arrow.
+  - `9d0062d` — a template store subscription inherits its store's blocker, and the
+    server defers the unsubscribe into `$renderer.on_destroy` when it has one.
+  - `63b4c36` — no scoping class on an element inside `<svelte:head>`.
+  - `b20b2ee` — an exported snippet keeps the component's CSS from being
+    tree-shaken.
+  - `05b6916` — `bind:focused` is omitted from SSR output.
+  - `8299cbf` / `34489c1` — `$.comment()` for a lone-anchor template and
+    `$.only_child` for a single-child element.
+
+  All ten fixture suites are at 100%: runtime-runes 1046/1046, runtime-legacy
+  1207/1207, hydration 81/81, SSR 104/104, validator 333/333, CSS 146/146,
+  compiler-errors 145/145, snapshot 30/30, print 50/50, sourcemaps 29/29.
+
+- db04860: fix(client): a trailing comment lands on the node upstream puts it on
+
+  esrap attaches the comment run after a declaration's last code byte to that
+  statement's last _located_ node. When the source initializer survives as the
+  last `$.prop(…)` argument that node is inside the call, so the comment prints
+  before the closing paren; when this pass synthesizes a thunk, or the declaration
+  has no initializer, there is no located node inside the call and upstream
+  flushes the comment after the statement. Nothing in that rule reads the
+  comment's spelling or a `;`.
+
+  rsvelte scanned the last source line for a `//`, restored it only when the
+  declaration had an initializer, and left a block comment to a different pass —
+  and `transform_let_with_reexported_props`, which lowers `let v = 1` with
+  `export { v }`, had no trailing-comment handling at all. Measured against the
+  oracle over comment kind x `;` x default shape x host, 15 of 20 client cells
+  diverged; all 20 agree now.
+
+- 6dd7f94: A comment erased with a TypeScript declaration is repeated exactly where upstream
+  repeats it. acorn-typescript decides what an opening token starts by parsing
+  ahead and rewinding, and `tsLookAhead` leaves `isLookahead` unset, so every
+  comment consumed before the decision point fires `onComment` twice: the `{` of a
+  type literal or a mapped type up to its first member, and the `(` of a function
+  type's parameter list or a parenthesized type up to what follows it. rsvelte
+  repeated "the first comment re-emitted anywhere in the script" instead, which
+  diverged in three directions at once — an `interface` member's comment was
+  repeated (an interface body is never parsed speculatively), a later member's
+  comment was repeated, and the head comment of a second speculative position in
+  the same script was not.
+- 2dae1ae: fix(sourcemap): a binding's type annotation belongs to the binding's range
+
+  Upstream parses with acorn-typescript, whose `Identifier` range covers its own
+  type annotation, so esrap stamps the map at the annotation's end. rsvelte erases
+  the annotation from the script text before re-parsing with oxc, which puts the
+  annotation on the _owner_ node, so the binding ended at its own last byte and
+  every map segment for an annotated binding pointed short.
+
+  `ScriptProjection` now carries `(binding end, annotation end)` for each erased
+  annotation and the printer's end lookup consumes it. Measured over the whole
+  corpus on both arms: 0 generated-code units moved, 3,199 client map units
+  improved, 0 worse, and 7,986 fewer wrong segments.
+
 ## 0.11.5
 
 ### Patch Changes
