@@ -6965,7 +6965,7 @@ fn collect_global_pseudo_cuts(
     node: &Value,
     css_source: &str,
     css_start: usize,
-    out: &mut Vec<(usize, usize)>,
+    out: &mut Vec<(usize, usize, &'static str)>,
 ) {
     if let Some(children) = node.field("children").and_then(|c| c.as_array()) {
         for child in children {
@@ -7009,10 +7009,20 @@ fn collect_global_pseudo_cuts(
                     cut -= 1;
                 }
             }
-            out.push((cut, from + ":global".len()));
+            // Upstream writes `&` where a bare `:global` stood when the rule has a
+            // parent, the args are null and the relative selector has no combinator
+            // (`3-transform/css/index.js:288-296`). Only a global block's body
+            // reaches here, so the parent is given; the two remaining conditions
+            // are the `args` branch above and the combinator test below.
+            let replacement = if idx == 0 && node.field("combinator").is_none_or(Value::is_null) {
+                "&"
+            } else {
+                ""
+            };
+            out.push((cut, from + ":global".len(), replacement));
         } else {
-            out.push((from, from + ":global(".len()));
-            out.push((to - 1, to));
+            out.push((from, from + ":global(".len(), ""));
+            out.push((to - 1, to, ""));
         }
     }
 }
@@ -9138,15 +9148,16 @@ fn global_stripped_complex_selector_text(
     }
     let mut ranges = Vec::new();
     collect_global_pseudo_cuts(node, css_source, css_start, &mut ranges);
-    ranges.retain(|&(a, b)| a >= from && b <= to && a < b);
+    ranges.retain(|&(a, b, _)| a >= from && b <= to && a < b);
     ranges.sort_unstable();
     let mut out = String::new();
     let mut cursor = from;
-    for (a, b) in ranges {
+    for (a, b, replacement) in ranges {
         if a < cursor {
             continue;
         }
         out.push_str(&css_source[cursor..a]);
+        out.push_str(replacement);
         cursor = b;
     }
     out.push_str(&css_source[cursor..to]);
