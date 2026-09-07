@@ -1,5 +1,44 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.24
+
+### Patch Changes
+
+- f9db517: fix(svelte2tsx): emit a `bind:` suffix's assignment target as a source range
+
+  Upstream `Binding.ts` emits the target as a TransformationArray _range_ —
+  `appendOneWayBinding`'s `[expression.start, end]`, and `[set.start, getEnd(set)]`
+  for a get/set `bind:this` — so the expression survives into the shadow as an
+  unedited chunk carrying its own map segments. rsvelte baked the text into the
+  suffix statement, so the position carried no segment and a request inside
+  `bind:this={el}` resolved through the nearest mapping to its left: hover answered
+  about the preceding `title={tag}` attribute, at that attribute's range.
+
+  Four of upstream's five suffix branches are ranges (`bind:this`, `bind:group` on
+  `<input>`, the on-element one-way bindings, and the not-on-element ones); only the
+  generic two-way widener is built from `str.original.substring` and stays literal.
+
+  The generated TSX is unchanged; only the map moves.
+
+- Updated dependencies [87228ad]
+- Updated dependencies [b1fcba8]
+- Updated dependencies [f9db517]
+- Updated dependencies [6346204]
+- Updated dependencies [4efd2b2]
+- Updated dependencies [f7d6bae]
+- Updated dependencies [0457d9d]
+- Updated dependencies [43998fd]
+- Updated dependencies [9171df6]
+- Updated dependencies [3a39f1c]
+- Updated dependencies [dc78e8c]
+- Updated dependencies [9e7cafe]
+- Updated dependencies [a7deb44]
+- Updated dependencies [196874a]
+- Updated dependencies [db04860]
+- Updated dependencies [6dd7f94]
+- Updated dependencies [2dae1ae]
+  - @rsvelte/compiler@0.11.6
+
 ## 0.2.23
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @rsvelte/fmt
 
+## 0.7.20
+
+### Patch Changes
+
+- 1512bcd: A directory run no longer forwards the child `oxfmt`'s stdout in write mode, where it reported a scope the caller never chose
+
 ## 0.7.19
 
 ### Patch Changes

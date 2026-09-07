@@ -1,5 +1,9 @@
 # @rsvelte/svelte-check-linux-x64-gnu
 
+## 0.5.26
+
+No changes in this release.
+
 ## 0.5.25
 
 ## 0.5.24

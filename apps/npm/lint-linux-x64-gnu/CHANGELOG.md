@@ -1,5 +1,9 @@
 # @rsvelte/lint-linux-x64-gnu
 
+## 0.11.6
+
+No changes in this release.
+
 ## 0.11.5
 
 ## 0.11.4

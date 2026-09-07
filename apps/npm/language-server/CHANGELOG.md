@@ -1,5 +1,50 @@
 # @rsvelte/language-server
 
+## 0.7.4
+
+### Patch Changes
+
+- 2904e02: fix(lsp): css diagnostics read declarations, not the first colon on a line
+
+  `css::diagnostics` took the first `:` on each line of a `<style>` body, so a
+  selector's own pseudo-class was reported as an unknown property (`a:hover` on
+  its own line reports `a`) and every declaration after the first `;` on a line
+  was invisible. It now walks the body tracking brace depth, comments and string
+  literals, and reads a property only from a chunk that sits inside a block —
+  which is what `vscode-css-languageservice` gets from a parsed stylesheet.
+
+- f70245f: fix(lsp): a malformed request is an error, and a tag highlight is a `Read`
+
+  `textDocument/formatting` turned a params deserialization failure into a
+  successful empty result, so "I could not read your request" and "I have nothing
+  to change" reached the client as the same `[]`. It now answers `InvalidParams`.
+
+  `html_tags::highlights` emitted `DocumentHighlightKind::Text` where
+  `vscode-html-languageservice` (`htmlHighlighting.js:18,21`) — and therefore the
+  official server — emits `Read`.
+
+- 87fbdef: feat(lsp): offer the four language-attribute tag completions
+
+  `getLangCompletions` (`HTMLPlugin.ts:281-317`) offers a `lang=`-carrying copy
+  beside the plain `script`, `style` and `template` tag items —
+  `script (lang="ts")`, `style (lang="less")`, `style (lang="scss")` and
+  `template (lang="pug")`. rsvelte had no counterpart, so it answered 128 items
+  where the official server answers 132 on the same document and offset.
+
+- e24ac7e: Resolve a `tsconfig` `paths` alias that names a `.svelte` module.
+
+  The tsgo overlay inherited `paths` through `extends`, so an alias resolved
+  against the source tree — where a component's `.svelte.tsx` shadow does not
+  exist, because the shadow is served from memory under the cache directory.
+  `rootDirs` lists both trees but governs relative resolution only, so
+  `import Widget from '$lib/Widget.svelte'` had no type at all: hover returned
+  `null` and the symbol was `any`, with no diagnostic to say so.
+
+  The overlay now re-declares every mapping with its shadow-tree twin beside the
+  original, the original first so nothing that resolves today moves. This covers
+  SvelteKit's generated `"$lib/*": ["../src/lib/*"]`, which is the alias most
+  projects import components through.
+
 ## 0.7.3
 
 ### Patch Changes
