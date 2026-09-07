@@ -6318,7 +6318,10 @@ fn separate_same_line_top_level_statements<'a>(
     use oxc_parser::Parser;
     use oxc_span::{GetSpan as _, SourceType};
 
-    let has_export = script.has_sub("export let ") || script.has_sub("export var ");
+    // Any `export`, not only the two prop spellings: the boundary this makes
+    // visible is needed on either side of the pair, and an `export const` or an
+    // `export { a as p }` reaches the same line-oriented lowering.
+    let has_export = memmem::find(script.as_bytes(), b"export").is_some();
     let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
     // A semicolon at the start of a physical line belongs to the statement
     // before it in the parser span, while everything after it belongs to the
@@ -6350,9 +6353,22 @@ fn separate_same_line_top_level_statements<'a>(
         let previous = pair[0].span();
         let next = pair[1].span();
         let previous_text = &script[previous.start as usize..previous.end as usize];
+        let next_text = &script[next.start as usize..next.end as usize];
         let gap = &script[previous.end as usize..next.start as usize];
-        let export_declaration = previous_text.trim_start().starts_with("export let ")
-            || previous_text.trim_start().starts_with("export var ");
+        // Either side puts the boundary inside a line the prop lowering reads
+        // whole: an `export` that is not the first token on its own line never
+        // reaches that lowering and is copied into the component function
+        // verbatim, where `export` is not JavaScript. The text is the parser's
+        // own statement span, so an `export let` spelled inside a string
+        // literal is not a statement and does not match.
+        let opens_an_export = |text: &str| {
+            text.trim_start()
+                .strip_prefix("export")
+                .is_some_and(|rest| {
+                    !rest.starts_with(|c: char| c.is_alphanumeric() || c == '_' || c == '$')
+                })
+        };
+        let export_declaration = opens_an_export(previous_text) || opens_an_export(next_text);
         let previous_end = previous.end as usize;
         let leading_semicolon = previous_end.checked_sub(1).is_some_and(|semicolon| {
             script.as_bytes().get(semicolon) == Some(&b';')
