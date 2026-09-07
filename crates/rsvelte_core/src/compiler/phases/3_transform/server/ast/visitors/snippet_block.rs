@@ -36,6 +36,59 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
 use serde_json::Value;
 
+/// One declared snippet parameter as an oxc binding pattern.
+///
+/// The default value comes from the parsed node, not from its source span: the
+/// span still covers the TypeScript the parse erased (`(t: T) => t` spans
+/// `t: T`, and OXC reads `<string>() => 1` as a generic arrow), so a slice
+/// re-parsed as plain JS is either wrong or rejected — and a rejection used to
+/// discard the WHOLE parameter list.
+fn snippet_param_pattern<'a>(
+    param: &crate::ast::js::Expression,
+    state: &ServerTransformState<'a>,
+) -> oxc_ast::ast::BindingPattern<'a> {
+    let b = state.b;
+    let json = param.as_json();
+    let node_type = json.field("type").and_then(Value::as_str).unwrap_or("");
+
+    if node_type == "AssignmentPattern"
+        && let Some(left) = json.field("left")
+        && let Some(right) = json.field("right")
+    {
+        let left_expr = crate::ast::js::Expression::from_json(left.clone());
+        let left_pat = pattern_from_span(&left_expr, state);
+        let right_expr = crate::ast::js::Expression::from_json(right.clone());
+        return oxc_ast::ast::BindingPattern::new_assignment_pattern(
+            oxc_span::SPAN,
+            left_pat,
+            state.visit_expr_raw(&right_expr),
+            &b.ab(),
+        );
+    }
+
+    pattern_from_span(param, state)
+}
+
+/// A binding pattern re-parsed from its own source span with the TypeScript
+/// annotation removed. A pattern has no expression to convert, so this half
+/// stays textual.
+fn pattern_from_span<'a>(
+    expr: &crate::ast::js::Expression,
+    state: &ServerTransformState<'a>,
+) -> oxc_ast::ast::BindingPattern<'a> {
+    let src = match (expr.start(), expr.end()) {
+        (Some(start), Some(end))
+            if (end as usize) > start as usize && (end as usize) <= state.source.len() =>
+        {
+            strip_ts_type_annotation(&state.source[start as usize..end as usize])
+        }
+        _ => String::new(),
+    };
+    state
+        .reparse_pattern(&src)
+        .unwrap_or_else(|| state.b.id_pat(&src))
+}
+
 /// Visit a `{#snippet name(params)}...{/snippet}` block.
 pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransformState<'a>) {
     let b = state.b;
@@ -106,22 +159,12 @@ pub(super) fn build_snippet_function<'a>(
 
     // -- parameters ---------------------------------------------------------
     // 写经 upstream: `[b.id('$$renderer'), ...node.parameters]` — the declared
-    // parameters are spread VERBATIM into the formal-parameter list. We
-    // reconstruct each parameter's source spelling (mirroring the text oracle's
-    // `extract_snippet_param`: TS-strip, default-value via span, parenthesize a
-    // SequenceExpression default) and reparse the whole list into oxc
-    // FormalParameters so destructuring patterns + default values survive.
-    let mut param_srcs: Vec<String> = vec!["$$renderer".to_string()];
+    // parameters are spread VERBATIM into the formal-parameter list.
+    let mut patterns = vec![b.id_pat("$$renderer")];
     for param in &node.parameters {
-        let s = extract_snippet_param(param, state.source);
-        if !s.is_empty() {
-            param_srcs.push(s);
-        }
+        patterns.push(snippet_param_pattern(param, state));
     }
-    let mut params = state
-        .reparse_params(&param_srcs)
-        // Fallback (unreachable for valid input): `($$renderer)` only.
-        .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
+    let mut params = b.params(patterns, None);
     let mut parameter_region_start = node.expression.end().unwrap_or(node.start + 9);
     for (param, formal) in node.parameters.iter().zip(params.items.iter_mut().skip(1)) {
         if let (Some(start), Some(end)) = (param.start(), param.end()) {
@@ -226,80 +269,6 @@ fn collect_pattern_names_json(json: &Value, out: &mut rustc_hash::FxHashSet<Stri
             }
         }
         _ => {}
-    }
-}
-
-/// Reconstruct a snippet parameter's source spelling, stripping any TypeScript
-/// type annotation. Mirrors the text oracle's `extract_snippet_param`: an
-/// `AssignmentPattern` (default value) keeps `<lhs> = <rhs>` (parenthesizing a
-/// `SequenceExpression` default), and `ObjectPattern`/`ArrayPattern`/identifier
-/// patterns are taken from the source span with the type annotation stripped.
-pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &str) -> String {
-    let json = expr.as_json();
-    let node_type = json.field("type").and_then(Value::as_str).unwrap_or("");
-
-    match node_type {
-        "AssignmentPattern" => {
-            let left = json.field("left");
-            let right = json.field("right");
-
-            let left_str = if let Some(left_val) = left {
-                let left_expr = crate::ast::js::Expression::from_json(left_val.clone());
-                let start = left_expr.start().unwrap_or(0) as usize;
-                let end = left_expr.end().unwrap_or(0) as usize;
-                if end > start && end <= source.len() {
-                    strip_ts_type_annotation(&source[start..end])
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-
-            let right_str = if let Some(right_val) = right {
-                let right_expr = crate::ast::js::Expression::from_json(right_val.clone());
-                let start = right_expr.start().unwrap_or(0) as usize;
-                let end = right_expr.end().unwrap_or(0) as usize;
-                if end > start && end <= source.len() {
-                    let val = source[start..end].trim().to_string();
-                    // A SequenceExpression default (`c = (2, 3)`) covers only the
-                    // inner `2, 3` span — re-wrap it in parens to preserve the
-                    // comma-expression semantics in parameter position.
-                    let right_type = right_val
-                        .field("type")
-                        .and_then(Value::as_str)
-                        .unwrap_or("");
-                    if right_type == "SequenceExpression" {
-                        format!("({val})")
-                    } else {
-                        val
-                    }
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
-
-            if left_str.is_empty() {
-                String::new()
-            } else if right_str.is_empty() {
-                left_str
-            } else {
-                format!("{left_str} = {right_str}")
-            }
-        }
-        _ => {
-            // Identifier / ObjectPattern / ArrayPattern: take the source span and
-            // strip the type annotation.
-            let start = expr.start().unwrap_or(0) as usize;
-            let end = expr.end().unwrap_or(0) as usize;
-            if end > start && end <= source.len() {
-                strip_ts_type_annotation(&source[start..end])
-            } else {
-                String::new()
-            }
-        }
     }
 }
 
