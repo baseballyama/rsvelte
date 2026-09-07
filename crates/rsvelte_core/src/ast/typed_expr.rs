@@ -248,6 +248,8 @@ pub enum JsNode {
         callee: JsNodeId,
         arguments: IdRange,
         optional: bool,
+        /// Opaque, output-only TS `typeArguments` blob, serialized verbatim.
+        type_arguments: Option<Box<serde_json::Value>>,
     },
     MemberExpression {
         start: u32,
@@ -264,6 +266,9 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         callee: JsNodeId,
         arguments: IdRange,
+        /// Opaque, output-only TS `typeArguments` blob. acorn-typescript emits it
+        /// *before* `arguments` here and *after* them on `CallExpression`.
+        type_arguments: Option<Box<serde_json::Value>>,
     },
     FunctionExpression {
         start: u32,
@@ -283,6 +288,8 @@ pub enum JsNode {
         /// acorn-typescript appends `typeParameters` *after* `body` there (like
         /// arrows) rather than in the declaration/expression slot before `params`.
         type_parameters_after_body: bool,
+        /// Opaque, output-only TS `returnType` blob, serialized verbatim.
+        return_type: Option<Box<serde_json::Value>>,
     },
     ClassExpression {
         start: u32,
@@ -306,6 +313,9 @@ pub enum JsNode {
         /// declarations/expressions, acorn-typescript appends it *after* `body`
         /// for arrows. `None` for the overwhelming majority (non-generic) arrows.
         type_parameters: Option<Box<serde_json::Value>>,
+        /// Opaque, output-only TS `returnType` blob. acorn-typescript emits it
+        /// ahead of `id` on an arrow, not after `params` as elsewhere.
+        return_type: Option<Box<serde_json::Value>>,
     },
     AssignmentExpression {
         start: u32,
@@ -510,6 +520,9 @@ pub enum JsNode {
         loc: Option<Box<Loc>>,
         id: JsNodeId,
         init: Option<JsNodeId>,
+        /// Stamped only where the definite-assignment `!` is written; acorn
+        /// omits the key entirely otherwise rather than writing `false`.
+        definite: bool,
     },
     FunctionDeclaration {
         start: u32,
@@ -544,6 +557,10 @@ pub enum JsNode {
         r#abstract: bool,
         implements: bool,
         decorators: IdRange,
+        /// Opaque, output-only TS `typeParameters` blob (`class K<T>`).
+        type_parameters: Option<Box<serde_json::Value>>,
+        /// Opaque, output-only TS `superTypeParameters` blob (`extends M<number>`).
+        super_type_parameters: Option<Box<serde_json::Value>>,
     },
     ReturnStatement {
         start: u32,
@@ -746,6 +763,8 @@ pub enum JsNode {
         r#static: bool,
         computed: bool,
         modifiers: TsMemberModifiers,
+        /// Opaque, output-only TS `typeParameters` blob (`m<T>()`).
+        type_parameters: Option<Box<serde_json::Value>>,
     },
     PropertyDefinition {
         start: u32,
@@ -760,6 +779,8 @@ pub enum JsNode {
         /// lossless; dropping one silently accepts an unsupported feature) and
         /// so `parse()` reports the same field set acorn-typescript does.
         modifiers: TsMemberModifiers,
+        /// Opaque, output-only TS `typeAnnotation` blob (`p: number`).
+        type_annotation: Option<Box<serde_json::Value>>,
     },
     StaticBlock {
         start: u32,
@@ -1208,6 +1229,7 @@ impl Serialize for JsNode {
                 callee,
                 arguments,
                 optional,
+                type_arguments,
             } => {
                 let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("type", "CallExpression")?;
@@ -1216,6 +1238,9 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 ser_node!(map, "callee", callee);
                 ser_children!(map, "arguments", arguments);
+                if let Some(ta) = type_arguments {
+                    map.serialize_entry("typeArguments", ta.as_ref())?;
+                }
                 map.serialize_entry("optional", optional)?;
                 ser_comments!(map, "CallExpression", *start, *end);
                 map.end()
@@ -1247,6 +1272,7 @@ impl Serialize for JsNode {
                 loc,
                 callee,
                 arguments,
+                type_arguments,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "NewExpression")?;
@@ -1254,6 +1280,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "callee", callee);
+                if let Some(ta) = type_arguments {
+                    map.serialize_entry("typeArguments", ta.as_ref())?;
+                }
                 ser_children!(map, "arguments", arguments);
                 ser_comments!(map, "NewExpression", *start, *end);
                 map.end()
@@ -1270,6 +1299,7 @@ impl Serialize for JsNode {
                 expression,
                 type_parameters,
                 type_parameters_after_body,
+                return_type,
             } => {
                 let mut map = serializer.serialize_map(Some(6))?;
                 map.serialize_entry("type", "FunctionExpression")?;
@@ -1286,6 +1316,9 @@ impl Serialize for JsNode {
                     map.serialize_entry("typeParameters", tp.as_ref())?;
                 }
                 ser_children!(map, "params", params);
+                if let Some(rt) = return_type {
+                    map.serialize_entry("returnType", rt.as_ref())?;
+                }
                 ser_opt_node!(map, "body", body);
                 if let Some(tp) = type_parameters
                     && *type_parameters_after_body
@@ -1325,12 +1358,17 @@ impl Serialize for JsNode {
                 generator,
                 r#async,
                 type_parameters,
+                return_type,
             } => {
                 let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "ArrowFunctionExpression")?;
                 map.serialize_entry("start", start)?;
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
+                // acorn-typescript writes an arrow's `returnType` ahead of `id`.
+                if let Some(rt) = return_type {
+                    map.serialize_entry("returnType", rt.as_ref())?;
+                }
                 ser_opt_node!(map, "id", id);
                 map.serialize_entry("expression", expression)?;
                 map.serialize_entry("generator", generator)?;
@@ -1812,6 +1850,7 @@ impl Serialize for JsNode {
                 loc,
                 id,
                 init,
+                definite,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "VariableDeclarator")?;
@@ -1819,6 +1858,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_node!(map, "id", id);
+                if *definite {
+                    map.serialize_entry("definite", &true)?;
+                }
                 ser_opt_node!(map, "init", init);
                 ser_comments!(map, "VariableDeclarator", *start, *end);
                 map.end()
@@ -1881,6 +1923,8 @@ impl Serialize for JsNode {
                 r#abstract,
                 implements,
                 decorators,
+                type_parameters,
+                super_type_parameters,
             } => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("type", "ClassDeclaration")?;
@@ -1888,7 +1932,13 @@ impl Serialize for JsNode {
                 map.serialize_entry("end", end)?;
                 ser_loc!(map, loc);
                 ser_opt_node!(map, "id", id);
+                if let Some(tp) = type_parameters {
+                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                }
                 ser_opt_node!(map, "superClass", super_class);
+                if let Some(stp) = super_type_parameters {
+                    map.serialize_entry("superTypeParameters", stp.as_ref())?;
+                }
                 ser_node!(map, "body", body);
                 if *declare {
                     map.serialize_entry("declare", &true)?;
@@ -2388,6 +2438,7 @@ impl Serialize for JsNode {
                 r#static,
                 computed,
                 modifiers,
+                type_parameters,
             } => {
                 let mut map = serializer.serialize_map(Some(8))?;
                 map.serialize_entry("type", "MethodDefinition")?;
@@ -2398,6 +2449,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("computed", computed)?;
                 map.serialize_entry("kind", kind.as_str())?;
                 ser_node!(map, "key", key);
+                if let Some(tp) = type_parameters {
+                    map.serialize_entry("typeParameters", tp.as_ref())?;
+                }
                 ser_node!(map, "value", value);
                 ser_member_modifiers!(map, modifiers);
                 ser_comments!(map, "MethodDefinition", *start, *end);
@@ -2412,6 +2466,7 @@ impl Serialize for JsNode {
                 r#static,
                 computed,
                 modifiers,
+                type_annotation,
             } => {
                 let mut map = serializer.serialize_map(Some(7))?;
                 map.serialize_entry("type", "PropertyDefinition")?;
@@ -2422,6 +2477,9 @@ impl Serialize for JsNode {
                 map.serialize_entry("computed", computed)?;
                 ser_member_modifiers!(map, modifiers);
                 ser_node!(map, "key", key);
+                if let Some(ta) = type_annotation {
+                    map.serialize_entry("typeAnnotation", ta.as_ref())?;
+                }
                 ser_opt_node!(map, "value", value);
                 ser_comments!(map, "PropertyDefinition", *start, *end);
                 map.end()
@@ -2950,6 +3008,7 @@ impl JsNode {
                         callee: convert_child(obj, "callee"),
                         arguments: convert_array(obj, "arguments"),
                         optional: get_bool(obj, "optional"),
+                        type_arguments: obj.field("typeArguments").cloned().map(Box::new),
                     },
                     "MemberExpression" => Self::MemberExpression {
                         start,
@@ -2966,6 +3025,7 @@ impl JsNode {
                         loc,
                         callee: convert_child(obj, "callee"),
                         arguments: convert_array(obj, "arguments"),
+                        type_arguments: obj.field("typeArguments").cloned().map(Box::new),
                     },
                     "FunctionExpression" => Self::FunctionExpression {
                         start,
@@ -2979,6 +3039,7 @@ impl JsNode {
                         expression: get_bool(obj, "expression"),
                         type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                         type_parameters_after_body: false,
+                        return_type: obj.field("returnType").cloned().map(Box::new),
                     },
                     "ClassExpression" => Self::ClassExpression {
                         start,
@@ -2999,6 +3060,7 @@ impl JsNode {
                         generator: get_bool(obj, "generator"),
                         r#async: get_bool(obj, "async"),
                         type_parameters: obj.field("typeParameters").cloned().map(Box::new),
+                        return_type: obj.field("returnType").cloned().map(Box::new),
                     },
                     "AssignmentExpression" => Self::AssignmentExpression {
                         start,
@@ -3215,6 +3277,7 @@ impl JsNode {
                         loc,
                         id: convert_child(obj, "id"),
                         init: convert_optional_child(obj, "init"),
+                        definite: get_bool(obj, "definite"),
                     },
                     "FunctionDeclaration" | "TSDeclareFunction" => Self::FunctionDeclaration {
                         start,
@@ -3241,6 +3304,11 @@ impl JsNode {
                         r#abstract: get_bool(obj, "abstract"),
                         implements: get_bool(obj, "implements"),
                         decorators: convert_array(obj, "decorators"),
+                        type_parameters: obj.field("typeParameters").cloned().map(Box::new),
+                        super_type_parameters: obj
+                            .field("superTypeParameters")
+                            .cloned()
+                            .map(Box::new),
                     },
                     "ReturnStatement" => Self::ReturnStatement {
                         start,
@@ -3449,6 +3517,7 @@ impl JsNode {
                         r#static: get_bool(obj, "static"),
                         computed: get_bool(obj, "computed"),
                         modifiers: member_modifiers_from_value(obj),
+                        type_parameters: obj.field("typeParameters").cloned().map(Box::new),
                     },
                     "PropertyDefinition" => Self::PropertyDefinition {
                         start,
@@ -3459,6 +3528,7 @@ impl JsNode {
                         r#static: get_bool(obj, "static"),
                         computed: get_bool(obj, "computed"),
                         modifiers: member_modifiers_from_value(obj),
+                        type_annotation: obj.field("typeAnnotation").cloned().map(Box::new),
                     },
                     "StaticBlock" => Self::StaticBlock {
                         start,

@@ -5824,6 +5824,7 @@ fn collect_identifier_names_in_node(
             callee,
             arguments,
             optional: _,
+            type_arguments: _,
         } => {
             walk(*callee, out);
             walk_range(*arguments, out);
@@ -5835,6 +5836,7 @@ fn collect_identifier_names_in_node(
             loc: _,
             callee,
             arguments,
+            type_arguments: _,
         } => {
             walk(*callee, out);
             walk_range(*arguments, out);
@@ -5868,6 +5870,7 @@ fn collect_identifier_names_in_node(
             expression: _,
             type_parameters: _,
             type_parameters_after_body: _,
+            return_type: _,
         } => {
             walk_range(*params, out);
             walk_opt(body, out);
@@ -5902,6 +5905,7 @@ fn collect_identifier_names_in_node(
             generator: _,
             r#async: _,
             type_parameters: _,
+            return_type: _,
         } => {
             walk_range(*params, out);
             walk(*body, out);
@@ -5930,6 +5934,8 @@ fn collect_identifier_names_in_node(
             r#abstract: _,
             implements: _,
             decorators,
+            type_parameters: _,
+            super_type_parameters: _,
         } => {
             walk_opt(super_class, out);
             walk(*body, out);
@@ -6144,6 +6150,7 @@ fn collect_identifier_names_in_node(
             r#static: _,
             computed,
             modifiers: _,
+            type_parameters: _,
         } => {
             if *computed {
                 walk(*key, out);
@@ -6160,6 +6167,7 @@ fn collect_identifier_names_in_node(
             r#static: _,
             computed,
             modifiers: _,
+            type_annotation: _,
         } => {
             if *computed {
                 walk(*key, out);
@@ -6209,6 +6217,7 @@ fn collect_identifier_names_in_node(
             loc: _,
             id: _,
             init,
+            definite: _,
         } => walk_opt(init, out),
 
         JsNode::IfStatement {

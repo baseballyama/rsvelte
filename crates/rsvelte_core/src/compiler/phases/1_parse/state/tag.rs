@@ -3289,6 +3289,7 @@ fn build_variable_declaration<'a>(
         loc: None,
         id,
         init: Some(init_id),
+        definite: false,
     }]);
 
     Expression::from_node(JsNode::VariableDeclaration {

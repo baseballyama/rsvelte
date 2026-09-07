@@ -6424,7 +6424,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **200 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **180 entries**.
 
 ### The question it asks
 
@@ -6540,15 +6540,15 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `55 + 44 + 30 + 28 + 14 + 14 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `55 + 42 + 30 + 14 + 14 + 10 + 6 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
 | `span` | 55 | 29 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
 | `node-type` | 14 | 8 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
-| `estree-fields` | 28 | 14 | ESTree fields rsvelte's serializer omits or adds: `typeAnnotation`, `returnType`, `optional`, `readonly`. The lint gates found some of these from the other side. |
+| `estree-fields` | 10 | 5 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335); what is left is `Identifier.typeAnnotation`, `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional`. The lint gates found some of these from the other side. |
 | `unclustered` | 30 | 19 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
-| `comment-attachment` | 44 | 22 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
+| `comment-attachment` | 42 | 21 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
 | `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
 | `child-count` | 6 | 5 | an array of children with a different length. |
@@ -6557,7 +6557,7 @@ Partition of `parse-ast-known-failures.json` by cluster: `55 + 44 + 30 + 28 + 14
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 200 keys are **112 distinct bases**: 88 appear on both axes and 24 on one
+`legacy`, so 180 keys are **102 distinct bases**: 78 appear on both axes and 24 on one
 (88x2 + 24 = 200, a 1.79x collapse). The defect ceiling is 112. The per-cluster collapse is not
 uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x (every base is on
 both axes), `css-shape` 1.56x and `child-count` 1.20x (legacy-only shapes), `ast-mode` and
