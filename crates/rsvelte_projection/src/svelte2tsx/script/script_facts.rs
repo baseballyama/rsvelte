@@ -9,7 +9,6 @@ use super::stores::{
 
 pub(super) struct ScriptFacts {
     pub(super) type_assertions: Vec<TypeAssertionFacts>,
-    pub(super) arrow_generic_commas: Vec<u32>,
     #[cfg(test)]
     pub(super) visitor_dispatches: VisitorDispatches,
 }
@@ -38,7 +37,6 @@ impl ScriptFacts {
             has_props_rune_declaration: false,
             facts: Self {
                 type_assertions: Vec::new(),
-                arrow_generic_commas: Vec::new(),
                 #[cfg(test)]
                 visitor_dispatches: VisitorDispatches::default(),
             },
@@ -139,29 +137,6 @@ impl ScriptFactsCollector<'_, '_, '_> {
             self.store_scan.add_self_named_rune_call(pos);
         }
     }
-
-    fn add_arrow_generic_comma(&mut self, arrow: &oxc::ArrowFunctionExpression<'_>) {
-        let Some(type_parameters) = arrow.type_parameters.as_deref() else {
-            return;
-        };
-        if type_parameters.params.len() != 1 {
-            return;
-        }
-        let param = &type_parameters.params[0];
-        if param.constraint.is_some() || param.default.is_some() {
-            return;
-        }
-        let bytes = self.raw_content.as_bytes();
-        let mut index = param.span.end as usize;
-        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
-            index += 1;
-        }
-        if index >= bytes.len() || bytes[index] != b',' {
-            self.facts
-                .arrow_generic_commas
-                .push(param.span.end + self.offset);
-        }
-    }
 }
 
 impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
@@ -180,7 +155,6 @@ impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
             self.facts.visitor_dispatches.arrows += 1;
         }
         self.add_params(&it.params, it.span);
-        self.add_arrow_generic_comma(it);
         oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
     }
 
@@ -351,10 +325,6 @@ function outer($outer) {
                 arrows: 2,
                 type_assertions: 3,
             }
-        );
-        assert_eq!(
-            facts.arrow_generic_commas,
-            vec![source.find("<T>").unwrap() as u32 + 2 + offset]
         );
 
         let outer_start = source.find("function outer").unwrap() as u32 + offset;
