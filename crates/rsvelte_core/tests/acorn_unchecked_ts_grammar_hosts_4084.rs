@@ -210,12 +210,12 @@ fn a_legal_generic_arrow_is_untouched() {
 /// `{@render}` argument at `s($$renderer, undefined);` while the client is
 /// already correct.
 ///
-/// `{#snippet s(p = <string>() => 1)}` is deliberately absent: its parameter is
-/// dropped on the server (`function s($$renderer)`) on this branch AND on
-/// `main`. That is a different mechanism, not a ninth port of this rule —
-/// `extract_snippet_param` strips TS annotations and not `<T>` casts, so
-/// `reparse_params`, which reads plain `mjs` where the cast is a real syntax
-/// error, falls back and drops the whole list. The client half is in `HOSTS`.
+/// `{#snippet s(p = <string>() => 1)}` is deliberately absent: it is a
+/// different mechanism, not a ninth port of this rule. The server rebuilt a
+/// snippet's parameter list from each parameter's SOURCE SPAN, which still
+/// covers the erased TypeScript, so a slice that failed to re-parse dropped
+/// the whole list; that is #4383, pinned in `snippet_param_ts_default_4383.rs`.
+/// The client half is in `HOSTS`.
 #[test]
 fn the_server_port_reaches_the_same_decision() {
     for (host, source, expected) in [
