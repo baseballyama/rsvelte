@@ -957,8 +957,9 @@ fn source_parenthesizes(value: &serde_json::Value, source: &str) -> bool {
     before > 0 && after < bytes.len() && bytes[before - 1] == b'(' && bytes[after] == b')'
 }
 
-/// Check if a JSON AST expression is "simple" (doesn't need thunking).
-/// Matches the official Svelte compiler's `is_simple_expression` logic.
+/// Upstream's `is_simple_expression` (`utils/ast.js:442-469`), which picks the eager
+/// `$.fallback(v, d)` arm over the lazy `$.fallback(v, () => d, true)` one. It has no
+/// `UnaryExpression` arm, so `-1` is not simple.
 fn is_simple_expression_json(value: &serde_json::Value) -> bool {
     let obj = match value.as_object() {
         Some(o) => o,
@@ -998,10 +999,6 @@ fn is_simple_expression_json(value: &serde_json::Value) -> bool {
                 .unwrap_or(true);
             left_simple && right_simple
         }
-        "UnaryExpression" => obj
-            .field("argument")
-            .map(is_simple_expression_json)
-            .unwrap_or(true),
         // Generic "Expression" fallback from parser (position-only placeholder)
         "Expression" => true,
         _ => false,

@@ -1953,7 +1953,9 @@ fn build_fallback_expression(
     }
 }
 
-/// Check if a default value expression is "simple" (doesn't need thunking in $.fallback).
+/// Upstream's `is_simple_expression` (`utils/ast.js:442-469`), which picks the eager
+/// `$.fallback(v, d)` arm over the lazy `$.fallback(v, () => d, true)` one. It has no
+/// `UnaryExpression` arm, so `-1` is not simple.
 fn is_simple_default(value: &serde_json::Value) -> bool {
     let obj = match value.as_object() {
         Some(o) => o,
@@ -1982,7 +1984,6 @@ fn is_simple_default(value: &serde_json::Value) -> bool {
             obj.field("left").map(is_simple_default).unwrap_or(true)
                 && obj.field("right").map(is_simple_default).unwrap_or(true)
         }
-        "UnaryExpression" => obj.field("argument").map(is_simple_default).unwrap_or(true),
         _ => false,
     }
 }
