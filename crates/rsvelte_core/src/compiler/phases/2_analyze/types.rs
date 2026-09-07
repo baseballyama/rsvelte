@@ -677,7 +677,7 @@ fn strip_typescript_from_program_impl(
     } else {
         Vec::new()
     };
-    let uninit_annotations = collect_uninitialized_declarator_annotations(program);
+    let declarator_annotations = collect_declarator_annotations(program);
 
     // Text-based fallback: strip `declare global { ... }`, `declare module ... { ... }`,
     // and `declare namespace ... { ... }` blocks. These may not always be parsed as
@@ -764,13 +764,21 @@ fn strip_typescript_from_program_impl(
     let mut repeated_comment_outputs = include_projection.then(Vec::new);
     let mut pos = 0u32;
 
+    // Comments an erased annotation left behind, waiting for the offset upstream
+    // flushes them at (the initializer's start) to be reached by the copy below.
+    let mut pending: Vec<(u32, u32, u32)> = Vec::new();
+
     for (remove_start, remove_end) in &merged {
         if *remove_start > pos {
-            push_source_range(
+            push_range_flushing_pending(
                 source,
                 pos..*remove_start,
+                &mut pending,
                 &mut output,
                 copied_chunks.as_mut(),
+                reemitted_comment_outputs.as_mut(),
+                repeated_comment_outputs.as_mut(),
+                &repeat_regions,
             );
         }
         // The official compiler PARSES TypeScript and only removes the
@@ -789,12 +797,32 @@ fn strip_typescript_from_program_impl(
         let end = (*remove_end as usize).min(source.len());
         if pos as usize <= start && start < end {
             let removed = &source[start..end];
+            let declarator_annotation = declarator_annotations
+                .iter()
+                .find(|(from, _)| *from == *remove_start)
+                .map(|(_, init_start)| *init_start);
+            // `Some(None)` is an uninitialized declarator: upstream drops the
+            // comment onto the next located node, so this one is not ours to print.
+            let flush_at = match declarator_annotation {
+                Some(None) => None,
+                Some(Some(init_start)) => Some(Some(init_start)),
+                None => Some(None),
+            };
             if (removed.contains("/*") || removed.contains("//"))
-                && !uninit_annotations
-                    .iter()
-                    .any(|(from, _)| *from == *remove_start)
+                && let Some(flush_at) = flush_at
             {
-                if let Some(copied_chunks) = copied_chunks.as_mut() {
+                if let Some(init_start) = flush_at {
+                    for (comment_offset, comment) in
+                        crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
+                    {
+                        let comment_start = *remove_start + comment_offset as u32;
+                        pending.push((
+                            init_start,
+                            comment_start,
+                            comment_start + comment.len() as u32,
+                        ));
+                    }
+                } else if let Some(copied_chunks) = copied_chunks.as_mut() {
                     for (comment_offset, comment) in
                         crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
                     {
@@ -835,12 +863,33 @@ fn strip_typescript_from_program_impl(
 
     // Add remaining content
     if (pos as usize) < source.len() {
-        push_source_range(
+        push_range_flushing_pending(
             source,
             pos..source.len() as u32,
+            &mut pending,
             &mut output,
             copied_chunks.as_mut(),
+            reemitted_comment_outputs.as_mut(),
+            repeated_comment_outputs.as_mut(),
+            &repeat_regions,
         );
+    }
+    // A flush point the copy never reached (an initializer inside a later removed
+    // region) would silently drop the comment, so print what is left rather than
+    // lose it.
+    if !pending.is_empty() {
+        for (_, comment_start, comment_end) in std::mem::take(&mut pending) {
+            emit_pending_comment(
+                source,
+                comment_start,
+                comment_end,
+                &mut output,
+                copied_chunks.as_mut(),
+                reemitted_comment_outputs.as_mut(),
+                repeated_comment_outputs.as_mut(),
+                &repeat_regions,
+            );
+        }
     }
 
     let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
@@ -853,6 +902,82 @@ fn strip_typescript_from_program_impl(
     });
 
     (output, projection)
+}
+
+/// Copy `source_range`, splitting it at every pending flush point it spans so an
+/// erased annotation's comment lands where upstream's printer puts it — ahead of
+/// the initializer, not at the annotation.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one call site each; the projection bookkeeping travels with the copy"
+)]
+fn push_range_flushing_pending(
+    source: &str,
+    source_range: Range<u32>,
+    pending: &mut Vec<(u32, u32, u32)>,
+    output: &mut String,
+    mut copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
+    mut reemitted: Option<&mut Vec<Range<u32>>>,
+    mut repeated: Option<&mut Vec<Range<u32>>>,
+    repeat_regions: &[(u32, u32)],
+) {
+    let mut cursor = source_range.start;
+    while let Some(index) = pending
+        .iter()
+        .position(|(flush_at, _, _)| *flush_at >= cursor && *flush_at <= source_range.end)
+    {
+        let (flush_at, comment_start, comment_end) = pending.remove(index);
+        push_source_range(
+            source,
+            cursor..flush_at,
+            output,
+            copied_chunks.as_deref_mut(),
+        );
+        emit_pending_comment(
+            source,
+            comment_start,
+            comment_end,
+            output,
+            copied_chunks.as_deref_mut(),
+            reemitted.as_deref_mut(),
+            repeated.as_deref_mut(),
+            repeat_regions,
+        );
+        cursor = flush_at;
+    }
+    push_source_range(source, cursor..source_range.end, output, copied_chunks);
+}
+
+/// Print one held-back comment, with the projection bookkeeping the in-place
+/// re-emission does.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "shares the caller's projection state"
+)]
+fn emit_pending_comment(
+    source: &str,
+    comment_start: u32,
+    comment_end: u32,
+    output: &mut String,
+    copied_chunks: Option<&mut Vec<CopiedSourceChunk>>,
+    reemitted: Option<&mut Vec<Range<u32>>>,
+    repeated: Option<&mut Vec<Range<u32>>>,
+    repeat_regions: &[(u32, u32)],
+) {
+    let output_start = output.len() as u32;
+    push_source_range(source, comment_start..comment_end, output, copied_chunks);
+    let out_range = output_start..output.len() as u32;
+    if let Some(reemitted) = reemitted {
+        reemitted.push(out_range.clone());
+    }
+    if let Some(repeated) = repeated
+        && repeat_regions
+            .iter()
+            .any(|(from, to)| comment_start >= *from && comment_end <= *to)
+    {
+        repeated.push(out_range);
+    }
+    output.push('\n');
 }
 
 fn push_source_range(
@@ -1024,23 +1149,28 @@ struct SpeculativeTypeHeads<'r> {
     regions: &'r mut Vec<(u32, u32)>,
 }
 
-/// Annotation spans on a declarator that has NO initializer. Upstream's printer
-/// attaches a comment left in such an annotation to the next located node, not
-/// to the declaration; re-emitting it at the removal point puts it after the
-/// `;`, where the client's legacy state lowering stops scanning.
-fn collect_uninitialized_declarator_annotations(
-    program: &oxc_ast::ast::Program,
-) -> Vec<(u32, u32)> {
+/// Where a comment left inside an erased declarator annotation belongs, keyed by
+/// the annotation's start. `Some(offset)` is the initializer's start: upstream's
+/// printer flushes the comment ahead of the initializer, not at the annotation
+/// it removed, and the difference is not cosmetic — a comment left between the
+/// identifier and the `=` makes the client's legacy state lowering miss its
+/// `"<keyword> <var> ="` needle and drop the `$.mutable_source()` wrapping.
+/// `None` is a declarator with no initializer at all, where upstream attaches
+/// the comment to the next located node instead and re-emitting it here would
+/// put it after the `;`.
+fn collect_declarator_annotations(program: &oxc_ast::ast::Program) -> Vec<(u32, Option<u32>)> {
     use oxc_ast_visit::Visit;
+    use oxc_span::GetSpan;
     struct V<'r> {
-        spans: &'r mut Vec<(u32, u32)>,
+        spans: &'r mut Vec<(u32, Option<u32>)>,
     }
     impl<'a> oxc_ast_visit::Visit<'a> for V<'_> {
         fn visit_variable_declarator(&mut self, it: &oxc_ast::ast::VariableDeclarator<'a>) {
-            if it.init.is_none()
-                && let Some(ann) = &it.type_annotation
-            {
-                self.spans.push((ann.span.start, ann.span.end));
+            if let Some(ann) = &it.type_annotation {
+                self.spans.push((
+                    ann.span.start,
+                    it.init.as_ref().map(|init| init.span().start),
+                ));
             }
             oxc_ast_visit::walk::walk_variable_declarator(self, it);
         }
