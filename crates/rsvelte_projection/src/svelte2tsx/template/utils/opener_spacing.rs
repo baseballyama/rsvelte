@@ -482,7 +482,7 @@ fn push_comment_ranges(
     }
     out.extend(segs.into_iter().filter_map(|seg| match seg {
         Seg::Src(s, e) => Some((s, e)),
-        Seg::Lit(_) => None,
+        Seg::Lit(_) | Seg::LitOpen(_) => None,
     }));
 }
 

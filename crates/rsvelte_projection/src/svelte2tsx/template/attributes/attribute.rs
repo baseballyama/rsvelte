@@ -7,7 +7,9 @@ use super::svg::is_svg_attribute;
 use crate::ast::template::{Attribute, AttributeNode, AttributeValue, AttributeValuePart};
 use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
-use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
+use crate::svelte2tsx::template::segs::{
+    Seg, segs_push_fmt, segs_push_lit, segs_push_lit_open, segs_push_src,
+};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 fn source_offset(value: usize) -> u32 {
@@ -302,6 +304,7 @@ pub fn trailing_attr_comment_segs(
 fn append_segments(dst: &mut Vec<Seg>, src: Vec<Seg>) {
     for seg in src {
         match seg {
+            Seg::LitOpen(text) => dst.push(Seg::LitOpen(text)),
             Seg::Lit(text) => {
                 if let Some(Seg::Lit(last)) = dst.last_mut() {
                     last.push_str(&text);
@@ -348,7 +351,7 @@ fn push_attribute_name(out: &mut Vec<Seg>, node: &AttributeNode, source: &str, n
     let start = node.start;
     let end = start + u32::try_from(node.name.len()).unwrap_or(0);
     if source.get(start as usize..end as usize) == Some(name) {
-        segs_push_lit(out, "\"");
+        segs_push_lit_open(out, "\"");
         segs_push_src(out, start, end);
         segs_push_lit(out, "\"");
     } else {

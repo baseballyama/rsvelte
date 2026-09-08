@@ -17,7 +17,9 @@ pub(super) mod transition;
 use crate::ast::template::Attribute;
 use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
-use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
+use crate::svelte2tsx::template::segs::{
+    Seg, segs_push_fmt, segs_push_lit, segs_push_lit_open, segs_push_src,
+};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_expression_range, get_expression_text,
     get_set_binding_ranges,
@@ -119,6 +121,7 @@ pub(super) fn build_attribute_segments(
         for s in inner {
             match s {
                 Seg::Lit(t) => segs_push_lit(segs, &t),
+                Seg::LitOpen(t) => segs_push_lit_open(segs, &t),
                 Seg::Src(a, b) => segs_push_src(segs, a, b),
             }
         }
@@ -241,6 +244,7 @@ pub(super) fn build_component_props_segments(
         for s in src {
             match s {
                 Seg::Lit(t) => segs_push_lit(dst, &t),
+                Seg::LitOpen(t) => segs_push_lit_open(dst, &t),
                 Seg::Src(a, b) => segs_push_src(dst, a, b),
             }
         }
