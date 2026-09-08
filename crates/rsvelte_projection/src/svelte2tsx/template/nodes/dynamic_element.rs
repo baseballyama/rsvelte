@@ -9,14 +9,14 @@ use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
 use crate::svelte2tsx::template::attributes::attribute::{AttrHost, element_is_custom};
 use crate::svelte2tsx::template::attributes::binding::{
-    any_bind_needs_element_var, build_bind_directive_suffix, element_var_base_name,
+    any_bind_needs_element_var, build_bind_directive_suffix_segs, element_var_base_name,
 };
-use crate::svelte2tsx::template::attributes::build_attributes_string;
+use crate::svelte2tsx::template::attributes::build_attribute_segments;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_directive_prefix_suffix;
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
-use crate::svelte2tsx::template::segs::segs_to_string;
+use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
@@ -65,30 +65,40 @@ pub fn handle_svelte_dynamic_element(
     // If the `this` attribute value is a plain string literal (this="tag"),
     // the parser stores just the text without quotes. We need to wrap it
     // in quotes to produce valid JavaScript: createElement("tag", ...).
-    let tag_text = if tag_is_quoted_attribute {
-        format!("\"{raw_tag_text}\"")
+    // `this="div"` has no expression range (the parser stores the bare text), so
+    // it is generated; `this={tag}` is upstream's `[tag.start, tag.end]` range and
+    // must reach the shadow as a source chunk or hover inside it answers nothing.
+    let tag_segs: Vec<Seg> = if tag_is_quoted_attribute {
+        vec![Seg::Lit(format!("\"{raw_tag_text}\""))]
     } else {
-        raw_tag_text.to_string()
+        match raw_tag_range {
+            Some((start, end)) if start < end => vec![Seg::Src(start, end)],
+            _ => vec![Seg::Lit(raw_tag_text.to_string())],
+        }
     };
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
-    let attrs_str = if named_slot.is_some() {
-        build_named_slot_element_attrs(
+    // The named-slot form rewrites the attribute list wholesale (the `slot`
+    // attribute is consumed by the wrapper), so it has no per-expression ranges
+    // to preserve and stays a single literal.
+    let attr_segs: Vec<Seg> = if named_slot.is_some() {
+        vec![Seg::Lit(build_named_slot_element_attrs(
             &el.attributes,
             source,
             &options.typings_namespace,
             &el.name,
             true,
             options.namespace.preserves_attribute_case(),
-        )
+        ))]
     } else {
-        build_attributes_string(
+        build_attribute_segments(
             &el.attributes,
             source,
             &counter.element_opener_comments,
             saved_slot.is_some(),
+            None,
             AttrHost::Element {
                 tag: &el.name,
                 preserve_case: options.namespace.preserves_attribute_case(),
@@ -149,8 +159,8 @@ pub fn handle_svelte_dynamic_element(
             depth,
             opening_tag_end,
             indent: &indent,
-            tag_text: &tag_text,
-            attrs: &attrs_str,
+            tag_segs: &tag_segs,
+            attr_segs: &attr_segs,
             attribute_padding: spacing.in_attr_object,
         },
         str,
@@ -172,8 +182,8 @@ struct DynamicElementRenderInput<'a> {
     depth: u32,
     opening_tag_end: u32,
     indent: &'a str,
-    tag_text: &'a str,
-    attrs: &'a str,
+    tag_segs: &'a [Seg],
+    attr_segs: &'a [Seg],
     attribute_padding: usize,
 }
 
@@ -191,10 +201,9 @@ fn render_dynamic_element(
     );
     let actions_arg = dynamic_action_arguments(action_count);
     let inner_close = if directive_prefix.is_empty() { "" } else { "}" };
-    let attrs = format!("{}{}", " ".repeat(input.attribute_padding), input.attrs);
     let element_var = any_bind_needs_element_var(&el.attributes, input.source)
         .then(|| format!("$$_{}{}", element_var_base_name(&el.name), input.depth));
-    let bind_suffix = build_bind_directive_suffix(
+    let bind_suffix = build_bind_directive_suffix_segs(
         &el.attributes,
         input.source,
         element_var.as_deref(),
@@ -205,38 +214,39 @@ fn render_dynamic_element(
         .as_ref()
         .map(|value| format!("const {value} = "))
         .unwrap_or_default();
-    let class_style_suffix = segs_to_string(
-        &build_class_style_directive_suffix_segments(&el.attributes, input.source),
-        input.source,
-    );
+    let class_style_suffix =
+        build_class_style_directive_suffix_segments(&el.attributes, input.source);
     let suffix = ordered_dynamic_suffix(
         &el.attributes,
-        &directive_suffix,
-        &class_style_suffix,
-        &bind_suffix,
-    );
-    let create = format!(
-        " {element_var_decl}{}.createElement({}{actions_arg}, {{{attrs}}});{suffix}",
-        input.options.typings_namespace, input.tag_text,
+        vec![Seg::Lit(directive_suffix)],
+        class_style_suffix,
+        bind_suffix,
     );
     let inner_open = if directive_prefix.is_empty() { "" } else { "{" };
+    // The opener is applied through `emit_segmented_overwrite` so the `this={…}`
+    // expression and every attribute value reach the shadow as unedited chunks.
+    let mut opener: Vec<Seg> = Vec::with_capacity(input.attr_segs.len() + suffix.len() + 6);
+    opener.push(Seg::Lit(format!(
+        "{}{{{directive_prefix}{inner_open} {element_var_decl}{}.createElement(",
+        input.indent, input.options.typings_namespace,
+    )));
+    opener.extend(input.tag_segs.iter().cloned());
+    opener.push(Seg::Lit(format!(
+        "{actions_arg}, {{{}",
+        " ".repeat(input.attribute_padding)
+    )));
+    opener.extend(input.attr_segs.iter().cloned());
+    opener.push(Seg::Lit("});".to_string()));
+    opener.extend(suffix);
     if dynamic_element_is_self_closing(el, input.source) {
-        str.overwrite(
-            el.start,
-            el.end,
-            &format!(
-                "{}{{{directive_prefix}{inner_open}{create}{inner_close}}}",
-                input.indent
-            ),
-        );
+        opener.push(Seg::Lit(format!("{inner_close}}}")));
+        let opener = bake_out_of_order_src(opener, input.source);
+        emit_segmented_overwrite(str, el.start, el.end, &opener);
         return;
     }
 
-    str.overwrite(
-        el.start,
-        input.opening_tag_end,
-        &format!("{}{{{directive_prefix}{inner_open}{create}", input.indent),
-    );
+    let opener = bake_out_of_order_src(opener, input.source);
+    emit_segmented_overwrite(str, el.start, input.opening_tag_end, &opener);
     hoist_snippet_blocks(&el.fragment, input.source, str);
     process_fragment_inplace(
         &el.fragment,
@@ -281,10 +291,10 @@ fn dynamic_element_is_self_closing(el: &SvelteDynamicElement, source: &str) -> b
 
 fn ordered_dynamic_suffix(
     attributes: &[Attribute],
-    directive_suffix: &str,
-    class_style_suffix: &str,
-    bind_suffix: &str,
-) -> String {
+    directive_suffix: Vec<Seg>,
+    class_style_suffix: Vec<Seg>,
+    bind_suffix: Vec<Seg>,
+) -> Vec<Seg> {
     let first_binding = attributes.iter().find_map(|attribute| match attribute {
         Attribute::BindDirective(binding) => Some(binding.start),
         _ => None,
@@ -300,15 +310,18 @@ fn ordered_dynamic_suffix(
         _ => None,
     });
     let mut pieces = Vec::new();
-    if !directive_suffix.is_empty() {
-        pieces.push((first_directive.unwrap_or(u32::MAX), directive_suffix));
-    }
-    if !class_style_suffix.is_empty() {
-        pieces.push((first_class_style.unwrap_or(u32::MAX), class_style_suffix));
-    }
-    if !bind_suffix.is_empty() {
-        pieces.push((first_binding.unwrap_or(u32::MAX), bind_suffix));
+    for (position, segs) in [
+        (first_directive, directive_suffix),
+        (first_class_style, class_style_suffix),
+        (first_binding, bind_suffix),
+    ] {
+        if segs
+            .iter()
+            .any(|seg| !matches!(seg, Seg::Lit(text) if text.is_empty()))
+        {
+            pieces.push((position.unwrap_or(u32::MAX), segs));
+        }
     }
     pieces.sort_by_key(|(position, _)| *position);
-    pieces.into_iter().map(|(_, suffix)| suffix).collect()
+    pieces.into_iter().flat_map(|(_, segs)| segs).collect()
 }
