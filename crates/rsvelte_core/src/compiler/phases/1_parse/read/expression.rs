@@ -1922,7 +1922,13 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
                 }
                 // `()` is the wrapper's own diagnostic for an empty tag body;
                 // acorn, given the body unwrapped, calls it an unexpected token.
+                // An expression that runs out of input has nothing for acorn to
+                // name, so `parseExpressionAt` reports the token it did not get:
+                // `Unexpected token`, at the end. A LEXICAL run-out
+                // (`Unterminated template`, `Unterminated regular expression`)
+                // is not this shape and OXC does not spell it this way either.
                 let message = if first_error.message.as_ref() == "Empty parenthesized expression"
+                    || first_error.message.ends_with("but found `EOF`")
                     || first_error
                         .message
                         .starts_with("Expected `,` or `}` but found ")
@@ -2127,8 +2133,30 @@ fn shorthand_assign_offset(slice: &str) -> Option<usize> {
     None
 }
 
+/// The leftover-input probe run with one bracket pair. A pair the leftover token
+/// itself closes is absorbed by the wrapper — `a)` reads as the complete `(a)`
+/// followed by the probe's own `)` — so the caller runs both and takes whichever
+/// answers, which is the whole reason this is a parameter rather than a literal.
 pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
-    // Wrap in parens so a *complete* leading expression is consumed greedily and
+    // Round is tried first because every existing expectation was measured on it;
+    // square only ever answers where round is blind, and vice versa.
+    let round = trailing_token_offset_with(content, ts, Bracket::Round);
+    let square = trailing_token_offset_with(content, ts, Bracket::Square);
+    match (round, square) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (a, b) => a.or(b),
+    }
+}
+
+/// The bracket pair the leftover-input probe wraps `content` in.
+#[derive(Clone, Copy)]
+enum Bracket {
+    Round,
+    Square,
+}
+
+fn trailing_token_offset_with(content: &str, ts: bool, bracket: Bracket) -> Option<usize> {
+    // Wrap in brackets so a *complete* leading expression is consumed greedily and
     // the error label lands on the offending region. (Parsing the bare string as
     // a program is unreliable: OXC's statement-level error recovery folds
     // trailing tokens into one recovered node, hiding the boundary.)
@@ -2136,12 +2164,18 @@ pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
     // annotation is legal, so OXC reads past the colon acorn-typescript stops at.
     // A leading operand cannot be a parameter, which forces the sequence reading
     // and puts the error back on the colon.
-    let open: &str = if ts { "(0," } else { "(" };
+    let (open, close): (&str, &str) = match (bracket, ts) {
+        (Bracket::Round, false) => ("(", ")"),
+        (Bracket::Round, true) => ("(0,", ")"),
+        (Bracket::Square, false) => ("[", "]"),
+        (Bracket::Square, true) => ("[0,", "]"),
+    };
     let mut wrapped = String::with_capacity(content.len() + open.len() + 2);
     wrapped.push_str(open);
     wrapped.push_str(content);
-    // a trailing `//` comment would swallow a same-line `)`
-    wrapped.push_str("\n)");
+    // a trailing `//` comment would swallow a same-line close token
+    wrapped.push('\n');
+    wrapped.push_str(close);
 
     let content_pos = with_oxc_allocator(|allocator| {
         let result = OxcParser::new(allocator, &wrapped, expression_source_type(ts)).parse();
