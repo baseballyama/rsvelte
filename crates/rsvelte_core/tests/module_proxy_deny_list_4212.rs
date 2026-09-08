@@ -206,16 +206,35 @@ fn an_inner_assignment_is_proxied_from_the_node() {
     has(&module(src, false), "$.set(s, $.set(inner, 1), true);");
 }
 
-/// A module-level `const` whose initializer is a literal or `undefined` is still
-/// over-proxied at an assignment site: upstream resolves the identifier through
-/// `binding.initial`, and that recursion lives in `ident_rhs_needs_proxy`, not in
-/// the predicate this change replaces. Pinned so the remaining half of #4212 has
-/// a witness rather than being rediscovered.
+/// Upstream resolves an identifier at an assignment site through
+/// `binding.initial` (`should_proxy(binding.initial, null)`), so a module-level
+/// `const c = 1` is NOT proxied on `s = c` while `const c = {}` is. Every
+/// expectation is the official compiler's own output at 5.57.0. The object row
+/// is the live control: with it, a port that proxies nothing and a port that
+/// resolves correctly are distinguishable.
 #[test]
-fn a_const_initialised_to_a_literal_is_still_over_proxied_at_an_assignment() {
-    let out = module(
-        "let s = $state(0);\nconst c = 1;\nexport function i() { s = c; }\nexport function g() { return s; }\n",
-        false,
+fn an_identifier_rhs_resolves_through_its_initializer() {
+    /// `(declaration, expected `$.set` line)`.
+    const CELLS: &[(&str, &str)] = &[
+        ("const c = undefined;", "$.set(s, c);"),
+        ("const c = 1;", "$.set(s, c);"),
+        ("let c = 1;", "$.set(s, c);"),
+        ("const c = {};", "$.set(s, c, true);"),
+    ];
+    for (decl, expected) in CELLS {
+        let src = format!(
+            "let s = $state(0);\n{decl}\nexport function i() {{ s = c; }}\nexport function g() {{ return s; }}\n"
+        );
+        for dev in [true, false] {
+            let out = module(&src, dev);
+            assert!(
+                out.contains(expected),
+                "{decl} (dev: {dev}): expected `{expected}`. Got:\n{out}"
+            );
+        }
+    }
+    assert!(
+        CELLS.iter().any(|c| c.1.contains(", true")),
+        "no cell is proxied, so the grid cannot see a port that proxies nothing"
     );
-    has(&out, "$.set(s, c, true);");
 }
