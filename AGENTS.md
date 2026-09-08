@@ -291,7 +291,9 @@ are in the archived file.
 - **Never read a verdict through a truncating or discarding stage.** `| tail`, `| head`,
   `2>/dev/null`, `|| echo 0`, `; echo EXIT=$?` and `head` closing a pipe before a buffered
   process flushes all turn a failure into a green. Write to a file, then read the file; a
-  pipeline's status is its last stage's.
+  pipeline's status is its last stage's. In code the same shape is a conservative
+  `unwrap_or`/`unwrap_or_default` on a computed boundary: a wrong argument then reads as
+  "the change is inert" rather than as a broken instrument.
 - **A negative result needs a positive control, and a control must bypass a stage the
   measurement passed through.** `grep` here is a `ugrep --ignore-files` wrapper (`command
   grep`); quote every glob-shaped argument (`--include='*.svelte'`); a NUL byte makes
@@ -305,6 +307,11 @@ are in the archived file.
   change's own diff, probe for what it should contain **and** lack, `sha256` both artifacts
   (equal hashes mean one arm measured twice), and settle provenance with
   `git merge-base --is-ancestor`. A staged input can be corrupt: `diff -q` it against the source.
+  A probe separates your arm from the alternative you handed it and from no other: when the
+  question is "did commit X make my change dead", a cell **X and your change both satisfy**
+  answers yes either way, and an arm built from a worktree whose working copy still held the
+  change then reads as the base. Prefer building the base from a pristine checkout of the
+  merge base, or believe CI over a local arm — CI's tree is one nobody in this session made.
 - **Ratios pair arms in time** (official and rsvelte back to back inside each round, ABBA), one
   statistic on both sides; read a profile's call counts before its timings; a shortfall smaller
   than the deciding arm's within-run drift is not a shortfall. Nothing commits on an unmeasured
