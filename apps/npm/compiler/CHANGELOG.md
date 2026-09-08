@@ -1,5 +1,105 @@
 # @rsvelte/compiler
 
+## 0.11.7
+
+### Patch Changes
+
+- 903827b: Keep an `{#each}` destructuring default that is a concise-body arrow concise. `{#each items as { a = () => 1 }}` emitted `() => { 1; }`, a function returning `undefined`, and `() => ({ a: 1 })` emitted a block holding a labelled statement.
+- 1094095: Flush a comment left inside an erased declarator annotation ahead of the
+  INITIALIZER, which is where upstream's printer puts it, rather than at the
+  annotation that was removed. Re-emitted at the removal point the comment sits
+  between the identifier and the `=`, and the client's legacy state lowering looks
+  for the literal `"<keyword> <var> ="`: the needle misses, the
+  `$.mutable_source()` wrapping is dropped, and the declaration keeps its raw value
+  while every read and write around it still goes through `$.get`/`$.set`.
+- 38ab263: Split a top-level `export let` / `export var` onto its own line when the statement before it ends on the same line, so the legacy prop lowering sees it. Previously `let a = 1; export let p = 1;` was copied into the component function verbatim, emitting an `export` below the top level.
+- 59ce7d0: A global block's body no longer scopes elements
+
+  Upstream's prune visits a global block's prelude and not its body, so a `.p`
+  prefix still scopes what it matches and nothing written inside the block scopes
+  anything. rsvelte read that decision off `metadata.is_global_block`, a key read
+  once and written nowhere, so the short-circuit was unreachable: the body was
+  walked like any other nested rule and a `&` in the subject matched every
+  element, giving `.p :global { &.a { … } }` a scope class on every descendant.
+
+- e2b4ce8: css: a nested rule under a `:global(...)`-leading parent is pruned against the component's own DOM again. The ancestor walk abandoned the level because no branch of `:global(.x) .p` was structurally evaluable, so `.a &` was kept and unwarned where the official compiler prunes it; a wholly global prefix constrains nothing above the component, so the walk now continues from the first local compound.
+- f51d6ca: A `.svelte.(js|ts)` module now decides `$.proxy` with upstream's deny-list instead of a text sniff, so a sequence expression, a tagged template, a parenthesised object and the dev-instrumented spellings of `await` and `===` keep their proxy. Previously they were stored unproxied, so mutating them did not invalidate — output that parses, runs and is not reactive.
+- adc3da1: fix(client): `svelte-ignore ownership_invalid_mutation` reaches a special element and not a component binding
+
+  Upstream registers a `bind:` setter's assignment in `ignore_map` per node, so an
+  enclosing `<!-- svelte-ignore ownership_invalid_mutation -->` reaches
+  `<svelte:window>`, `<svelte:document>` and `<svelte:body>` — which rsvelte left
+  out of the inherited-ignore walk — while a component binding is built with a bare
+  `b.assignment` that is never registered, so the comment does not reach it.
+  rsvelte had both directions backwards.
+
+- b003aae: `parse()` reports a destructured parameter's default value and a `function`
+  expression's parameters at the spans the source wrote. A template expression is
+  parsed inside a `(`-wrapper, and the two ways this file carries that one-byte
+  shift — pre-subtracted into the converter's base, or subtracted from the span
+  by `convert_expression` — meet at four places, of which one converted between
+  them. Every destructured default (`{(({ a = 1 }) => a)({})}`) was reported one
+  byte early and every `function` expression parameter one byte late.
+- 9e2a02c: fix(parse): keep TypeScript type fields on `parse()` output
+
+  `parse()` erased every type annotation from a `lang="ts"` script: acorn-typescript
+  stamps the annotation on the node it belongs to, and rsvelte emitted the node
+  without it. Nine fields are now carried through — `CallExpression.typeArguments`,
+  `NewExpression.typeArguments`, `FunctionExpression.returnType`,
+  `ArrowFunctionExpression.returnType`, `ClassDeclaration.typeParameters`,
+  `ClassDeclaration.superTypeParameters`, `MethodDefinition.typeParameters`,
+  `PropertyDefinition.typeAnnotation` and `VariableDeclarator.definite` — with the
+  spans and `loc` upstream writes, and omitted (rather than written empty) wherever
+  upstream omits them.
+
+  Generated code is unaffected: these are output-only fields on the JSON surface.
+
+- bf81524: fix(server): a comment preceding a legacy prop declaration no longer collapses its trailing one
+
+  On the server a trailing comment on a legacy prop default is kept inside the
+  `$.fallback(...)` call, unless some comment preceded the declaration — then both
+  collapsed onto the statement's own address. Two separate causes: the carry's guard
+  was spelled from the region's start, so it was denied for a comment merely
+  _preceding_ the statement when only one _inside_ the declaration needs the
+  collapsed form; and the rebuilt, location-less statement was anchored at the head
+  of the region, which leaves every comment in it to flush at the declarator. That
+  anchor is right for a split declaration — upstream prints `let // pre` + `a = …`
+  there — and wrong for a single declarator, which now keeps the keyword's own
+  position.
+
+- 328c6b7: Server: a comment trailing an `export let x = <literal>` declaration now prints inside the `$.fallback(...)` call, where upstream puts it, instead of after the statement. The lowering blanked the default's source coordinates and the comment placement declined to carry the region because it blanked, so neither half could move alone.
+- f7b0542: Keep a snippet parameter default's source parentheses on both targets. Upstream parses the parameter list with `preserveParens: true` and never calls `remove_parens` there, so a `ParenthesizedExpression` survives into `node.parameters` and is spread verbatim: esrap prints one pair per node, and `is_simple_expression` — which has no arm for a paren node — takes the lazy `$.fallback(v, () => d, true)` arm however simple the contents are. rsvelte unwrapped every paren at conversion, so `p = (obj.a)` lost its brackets on both targets, `p = obj.a ? (obj.a ? 1 : 2) : 3` lost the inner pair on the server, and `p = (obj.a, obj.a)` lost the outer pair the sequence's own brackets sit inside. The same surviving node is read a second time in phase 2: `is_safe_identifier` walks a member chain by `node.object` and stops at a paren, so `(obj.a).b` as a snippet parameter default also sets `needs_context` and the component gains `$.push`/`$.init`/`$.pop`.
+- 8916f85: Server: keep a snippet's parameter list when a default carries TypeScript
+
+  `build_snippet_function` rebuilt each parameter by re-parsing its source span,
+  and the span still covers the TypeScript the parse erased — `(t: string) => t`
+  spans `t: string`. A slice that failed to re-parse discarded the whole
+  parameter list, so the emitted function read names it never declared. The
+  default now comes from the parsed node.
+
+- 2c7d0f3: svelte2tsx: a script's angle-bracket type-parameter list is copied into the TSX shadow verbatim. rsvelte inserted a disambiguating comma (`<T>` → `<T,>`) that upstream never inserts, which changed the program the type checker sees — `<string>() => a` is a type assertion, `<string,>() => a` is a generic arrow whose type parameter is named `string`.
+- 625f972: A `UnaryExpression` default on a snippet parameter or an `{#each}` destructure no longer takes
+  the eager `$.fallback(value, default)` arm. Upstream's `is_simple_expression` has no
+  `UnaryExpression` arm, so `-1` is not simple and the lazy `$.fallback(value, () => default, true)`
+  arm is the correct one.
+- b28f33a: A leftover `)` after a complete mustache expression is now `expected_token` at that
+  token, matching the official compiler. `{a)}` reported `js_parse_error` at a column that
+  exists only inside the `(…)` the leftover-input probe wraps the body in: the probe's own
+  `)` closed against the source's, so the leftover moved past the end of the content and the
+  classification fell through. `{a]}` was already right, which is what shows the axis is "a
+  leftover bracket **this wrapper closes**" rather than "a leftover bracket" — the probe now
+  runs with both bracket pairs and each covers the other's blind spot. Separately, an
+  expression that runs out of input reports acorn's `Unexpected token` rather than the
+  delimiter OXC wanted.
+- 192592b: Stop reporting a parse error the expression wrapper produced
+
+  A template expression is parsed by wrapping it as `(<body>\n)`, and that `(` makes
+  OXC speculate an arrow parameter list — so `{accessor satisfies string}` was a
+  `js_parse_error` in every template host while the identical body compiled inside
+  `<script>`. The conversion path now retries the body with a newline in place of the
+  `(`, which is the same one byte and keeps every caller's offset arithmetic intact. A body that is not a lone expression on its own is
+  rejected exactly as before.
+
 ## 0.11.6
 
 ### Patch Changes

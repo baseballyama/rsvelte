@@ -1,5 +1,9 @@
 # @rsvelte/vite-plugin-svelte-native-darwin-arm64
 
+## 0.3.13
+
+No changes in this release.
+
 ## 0.3.12
 
 ## 0.3.11

@@ -1,5 +1,9 @@
 # @rsvelte/language-server-linux-x64-gnu
 
+## 0.7.5
+
+No changes in this release.
+
 ## 0.7.4
 
 No changes in this release.

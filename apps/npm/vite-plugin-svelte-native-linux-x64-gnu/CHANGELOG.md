@@ -1,5 +1,9 @@
 # @rsvelte/vite-plugin-svelte-native-linux-x64-gnu
 
+## 0.3.13
+
+No changes in this release.
+
 ## 0.3.12
 
 ## 0.3.11
