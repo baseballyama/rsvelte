@@ -251,6 +251,18 @@ fn reflow_template_type_unions(
     }
 }
 
+/// Whether the const-wrapper retry produced the one declarator it was given.
+/// Without the inner parens `a, b` would read as two declarations, so a source
+/// the paren wrapper could parse must never be re-read through this.
+fn is_single_declarator(program: &Program<'_>) -> bool {
+    program.body.len() == 1
+        && matches!(
+            program.body.first(),
+            Some(oxc_ast::ast::Statement::VariableDeclaration(decl))
+                if decl.declarations.len() == 1
+        )
+}
+
 fn expression_wrapper(expr_source: &str, typescript: bool) -> (String, SourceType, bool) {
     // The closing `);` goes on its own line: a trailing `//` comment in
     // `expr_source` would otherwise swallow it.
@@ -335,9 +347,27 @@ pub(super) fn format_expr_core(
     let (wrapped, source_type, use_const_wrapper) =
         expression_wrapper(expr_source, options.typescript);
 
-    let parser_ret = Parser::new(allocator, &wrapped, source_type)
+    let first = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
+    // A head OXC reads as a TypeScript parameter modifier (`accessor`,
+    // `declare`, `readonly`, …) makes the wrapper's `(` open an arrow parameter
+    // list, and the parse aborts on a diagnostic acorn never raises. The const
+    // wrapper is the same expression position with no `(` at the head.
+    let retry_src = (!use_const_wrapper).then(|| format!("{TS_CONST_PREFIX}{expr_source}\n;"));
+    let (use_const_wrapper, parser_ret) = match &retry_src {
+        Some(src) if !first.diagnostics.is_empty() => {
+            let retry = Parser::new(allocator, src, source_type)
+                .with_options(formatter_parse_options())
+                .parse();
+            if retry.diagnostics.is_empty() && is_single_declarator(&retry.program) {
+                (true, retry)
+            } else {
+                (use_const_wrapper, first)
+            }
+        }
+        _ => (use_const_wrapper, first),
+    };
     if !parser_ret.diagnostics.is_empty() {
         return Err(FormatError::ScriptParse(format!(
             "{:?}",
