@@ -1677,7 +1677,7 @@ pub fn parse_destructuring_pattern<'a>(
             result.program.body.first()
             && let Some(declarator) = var_decl.declarations.first()
         {
-            let adjusted_offset = offset.wrapping_sub(4);
+            let adjusted_offset = AdjustedOffset::wrapped(offset, 4);
             let pattern_node = convert_binding_pattern_for_param_as_node(
                 arena,
                 &declarator.id,
@@ -2714,7 +2714,12 @@ pub fn parse_typescript_params<'a>(
         {
             let mut p = Vec::new();
             for param in &arrow.params.items {
-                let param_expr = convert_formal_parameter(arena, param, offset - 1, line_offsets);
+                let param_expr = convert_formal_parameter(
+                    arena,
+                    param,
+                    AdjustedOffset::wrapped(offset, 1),
+                    line_offsets,
+                );
                 p.push(param_expr);
             }
             // A rest parameter (`...args`) lives in `params.rest`, not `items`.
@@ -2723,8 +2728,12 @@ pub fn parse_typescript_params<'a>(
             if let Some(rest) = &arrow.params.rest {
                 let rest_start = (offset - 1) + rest.span.start as usize;
                 let rest_end = (offset - 1) + rest.span.end as usize;
-                let argument =
-                    convert_binding_pattern(arena, &rest.rest.argument, offset - 1, line_offsets);
+                let argument = convert_binding_pattern(
+                    arena,
+                    &rest.rest.argument,
+                    AdjustedOffset::wrapped(offset, 1),
+                    line_offsets,
+                );
                 p.push(Expression::from_node(JsNode::RestElement {
                     start: rest_start as u32,
                     end: rest_end as u32,
@@ -2734,7 +2743,7 @@ pub fn parse_typescript_params<'a>(
                         Box::new(convert_type_annotation_adjusted(
                             arena,
                             ta,
-                            offset - 1,
+                            AdjustedOffset::wrapped(offset, 1),
                             line_offsets,
                         ))
                     }),
@@ -2767,7 +2776,12 @@ pub fn parse_typescript_params<'a>(
             let mut p = Vec::new();
             for param in &arrow.params.items {
                 let param_expr = if stripped.removed_positions.is_empty() {
-                    convert_formal_parameter(arena, param, offset - 1, line_offsets)
+                    convert_formal_parameter(
+                        arena,
+                        param,
+                        AdjustedOffset::wrapped(offset, 1),
+                        line_offsets,
+                    )
                 } else {
                     convert_formal_parameter_with_remap(
                         arena,
@@ -2815,7 +2829,12 @@ pub fn parse_typescript_params<'a>(
                     && let Some(param) = arrow.params.items.first()
                 {
                     let param_expr = if stripped_part.removed_positions.is_empty() {
-                        convert_formal_parameter(arena, param, offset - 1, line_offsets)
+                        convert_formal_parameter(
+                            arena,
+                            param,
+                            AdjustedOffset::wrapped(offset, 1),
+                            line_offsets,
+                        )
                     } else {
                         convert_formal_parameter_with_remap(
                             arena,
@@ -2894,7 +2913,12 @@ fn convert_formal_parameter_with_remap<'a>(
     // This is a pragmatic fix: the inner spans (like type annotations) may still be slightly off,
     // but for snippet parameters, only the top-level span is used to extract source text.
 
-    let expr = convert_formal_parameter(arena, param, base_offset - 1, line_offsets);
+    let expr = convert_formal_parameter(
+        arena,
+        param,
+        AdjustedOffset::wrapped(base_offset, 1),
+        line_offsets,
+    );
 
     // Fix up the top-level span: remap start and end from cleaned positions to original
     let mut val = expr.as_json().clone();
@@ -2950,12 +2974,56 @@ fn convert_formal_parameter_with_remap<'a>(
     Expression::from_json(val)
 }
 
+/// The base a `wrap_for_parse` parse resolves its spans against.
+///
+/// The wrapper shifts every node right by `prefix`, so a node at relative `p`
+/// sits at `base + p - prefix`. Spelling that as a pre-subtracted `usize` makes
+/// the base itself negative whenever `base < prefix` — which is every position
+/// when a caller starts at 0 — so the type keeps the two halves apart and only
+/// ever hands out a sum. Every sum is non-negative, because `p` is at least
+/// `prefix` for any node inside the wrapped content.
+#[derive(Clone, Copy, Debug)]
+struct AdjustedOffset {
+    base: usize,
+    prefix: usize,
+}
+
+impl AdjustedOffset {
+    /// Spans measured inside `wrap_for_parse(prefix, content, ..)`.
+    fn wrapped(base: usize, prefix: usize) -> Self {
+        Self { base, prefix }
+    }
+
+    /// Spans already measured against `base` itself.
+    fn plain(base: usize) -> Self {
+        Self { base, prefix: 0 }
+    }
+
+    /// The base `convert_expression` wants: it removes a one-character wrapper
+    /// from the span itself, so it needs a base that has not had one removed.
+    fn for_paren_converter(self) -> usize {
+        self.base.wrapping_add(1).wrapping_sub(self.prefix)
+    }
+
+    /// The base `convert_ts_type` wants: it removes no wrapper of its own.
+    fn for_plain_converter(self) -> usize {
+        self.base.wrapping_sub(self.prefix)
+    }
+}
+
+impl std::ops::Add<usize> for AdjustedOffset {
+    type Output = usize;
+
+    fn add(self, rhs: usize) -> usize {
+        self.base.wrapping_add(rhs).wrapping_sub(self.prefix)
+    }
+}
+
 /// Convert oxc FormalParameter to our Expression format with type annotations.
-/// Caller should pass pre-adjusted offset if needed (e.g., offset - 1 for paren-wrapped content).
 fn convert_formal_parameter<'a>(
     arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Expression<'a> {
     // Check for TypeScript parameter properties (e.g., `constructor(private x: number)`)
@@ -2991,7 +3059,7 @@ fn convert_formal_parameter<'a>(
 fn convert_formal_parameter_inner<'a>(
     arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Expression<'a> {
     use oxc_ast::ast::BindingPattern;
@@ -3070,7 +3138,12 @@ fn convert_formal_parameter_inner<'a>(
         let pattern_start = adjusted_offset + param.span.start as usize;
         let pattern_end = adjusted_offset + param.span.end as usize;
 
-        let right = convert_expression(arena, initializer, adjusted_offset + 1, line_offsets);
+        let right = convert_expression(
+            arena,
+            initializer,
+            adjusted_offset.for_paren_converter(),
+            line_offsets,
+        );
 
         return Expression::from_node(JsNode::AssignmentPattern {
             start: pattern_start as u32,
@@ -3097,7 +3170,7 @@ fn attach_param_type_annotation<'a>(
     arena: &ParseArena,
     expr: Expression<'a>,
     param: &oxc_ast::ast::FormalParameter,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let Some(type_ann) = &param.type_annotation else {
@@ -3138,7 +3211,7 @@ fn attach_param_type_annotation<'a>(
 fn convert_object_pattern_to_expr<'a>(
     arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let start = adjusted_offset + obj_pat.span.start as usize;
@@ -3207,7 +3280,7 @@ fn convert_object_pattern_to_expr<'a>(
 fn convert_array_pattern_to_expr<'a>(
     arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let start = adjusted_offset + arr_pat.span.start as usize;
@@ -3259,7 +3332,7 @@ fn convert_array_pattern_to_expr<'a>(
 fn convert_assignment_pattern_to_expr<'a>(
     arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Expression<'a> {
     let start = adjusted_offset + assign_pat.span.start as usize;
@@ -3298,7 +3371,7 @@ fn convert_assignment_pattern_to_expr<'a>(
 fn convert_binding_pattern_for_param(
     arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     use oxc_ast::ast::BindingPattern;
@@ -3390,8 +3463,12 @@ fn convert_binding_pattern_for_param(
             // Convert right (the default value) using the full expression converter.
             // Must use with_serialize_arena to resolve IdRange children
             // allocated in the parse arena during serialization.
-            let right_expr =
-                convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets);
+            let right_expr = convert_expression(
+                arena,
+                &assign_pat.right,
+                adjusted_offset.for_paren_converter(),
+                line_offsets,
+            );
             let right_val =
                 crate::ast::arena::with_serialize_arena(arena, || right_expr.as_json().clone());
             obj.set_field("right", right_val);
@@ -3412,7 +3489,7 @@ fn convert_binding_pattern_for_param(
 fn convert_property_key_for_param_as_node(
     arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     use oxc_ast::ast::PropertyKey;
@@ -3438,7 +3515,7 @@ fn convert_property_key_for_param_as_node(
                 expr_to_node(convert_expression(
                     arena,
                     expr,
-                    adjusted_offset,
+                    adjusted_offset.for_paren_converter(),
                     line_offsets,
                 ))
             } else {
@@ -3466,7 +3543,7 @@ fn convert_property_key_for_param_as_node(
 fn convert_binding_pattern_for_param_as_node(
     arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     use oxc_ast::ast::BindingPattern;
@@ -3498,7 +3575,12 @@ fn convert_binding_pattern_for_param_as_node(
                 adjusted_offset,
                 line_offsets,
             );
-            let right = convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets);
+            let right = convert_expression(
+                arena,
+                &assign_pat.right,
+                adjusted_offset.for_paren_converter(),
+                line_offsets,
+            );
             JsNode::AssignmentPattern {
                 start: start as u32,
                 end: end as u32,
@@ -3514,7 +3596,7 @@ fn convert_binding_pattern_for_param_as_node(
 fn convert_type_annotation_adjusted(
     arena: &ParseArena,
     type_ann: &oxc_ast::ast::TSTypeAnnotation,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     let start = adjusted_offset + type_ann.span.start as usize;
@@ -3566,16 +3648,21 @@ fn ts_assertion_value(
 fn convert_ts_type_adjusted(
     arena: &ParseArena,
     ts_type: &oxc_ast::ast::TSType,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
-    convert_ts_type(arena, ts_type, adjusted_offset, line_offsets)
+    convert_ts_type(
+        arena,
+        ts_type,
+        adjusted_offset.for_plain_converter(),
+        line_offsets,
+    )
 }
 
 /// Convert TSTypeName with pre-adjusted offset.
 fn convert_ts_type_name_adjusted(
     type_name: &oxc_ast::ast::TSTypeName,
-    adjusted_offset: usize,
+    adjusted_offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> Value {
     match type_name {
@@ -3697,7 +3784,11 @@ fn convert_ts_type(
             let mut obj = base("TSTypeReference");
             obj.set_field(
                 "typeName",
-                convert_ts_type_name_adjusted(&type_ref.type_name, offset, line_offsets),
+                convert_ts_type_name_adjusted(
+                    &type_ref.type_name,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ),
             );
             if let Some(args) = &type_ref.type_arguments {
                 obj.set_field(
@@ -3853,7 +3944,12 @@ fn convert_ts_type(
             );
             obj.set_field(
                 "typeAnnotation",
-                convert_type_annotation_adjusted(arena, &f.return_type, offset, line_offsets),
+                convert_type_annotation_adjusted(
+                    arena,
+                    &f.return_type,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ),
             );
             Value::Object(obj)
         }
@@ -3885,7 +3981,12 @@ fn convert_ts_type(
             );
             obj.set_field(
                 "typeAnnotation",
-                convert_type_annotation_adjusted(arena, &c.return_type, offset, line_offsets),
+                convert_type_annotation_adjusted(
+                    arena,
+                    &c.return_type,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ),
             );
             Value::Object(obj)
         }
@@ -3963,7 +4064,13 @@ fn convert_ts_type(
                 }
                 other => other
                     .as_ts_type_name()
-                    .map(|name| convert_ts_type_name_adjusted(name, offset, line_offsets))
+                    .map(|name| {
+                        convert_ts_type_name_adjusted(
+                            name,
+                            AdjustedOffset::plain(offset),
+                            line_offsets,
+                        )
+                    })
                     .unwrap_or(Value::Null),
             };
             obj.set_field("exprName", expr_name);
@@ -3998,7 +4105,14 @@ fn convert_ts_type(
                 predicate
                     .type_annotation
                     .as_ref()
-                    .map(|ta| convert_type_annotation_adjusted(arena, ta, offset, line_offsets))
+                    .map(|ta| {
+                        convert_type_annotation_adjusted(
+                            arena,
+                            ta,
+                            AdjustedOffset::plain(offset),
+                            line_offsets,
+                        )
+                    })
                     .unwrap_or(Value::Null),
             );
             Value::Object(obj)
@@ -4279,7 +4393,12 @@ fn convert_this_param(
     if let Some(type_ann) = &this_param.type_annotation {
         obj.set_field(
             "typeAnnotation",
-            convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+            convert_type_annotation_adjusted(
+                arena,
+                type_ann,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
         );
     }
     Value::Object(obj)
@@ -4300,12 +4419,22 @@ fn convert_rest_parameter(
     push_span_fields(&mut obj, start, end, line_offsets);
     obj.set_field(
         "argument",
-        convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets),
+        convert_binding_pattern_for_param(
+            arena,
+            &rest.rest.argument,
+            AdjustedOffset::plain(offset),
+            line_offsets,
+        ),
     );
     if let Some(type_ann) = &rest.type_annotation {
         obj.set_field(
             "typeAnnotation",
-            convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+            convert_type_annotation_adjusted(
+                arena,
+                type_ann,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
         );
     }
     Value::Object(obj)
@@ -4328,7 +4457,7 @@ fn convert_ts_function_like_params(
 
     for param in &params.items {
         out.push(
-            convert_formal_parameter(arena, param, offset, line_offsets)
+            convert_formal_parameter(arena, param, AdjustedOffset::plain(offset), line_offsets)
                 .as_json()
                 .clone(),
         );
@@ -4373,7 +4502,12 @@ fn convert_ts_signature(
             if let Some(type_ann) = &prop.type_annotation {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+                    convert_type_annotation_adjusted(
+                        arena,
+                        type_ann,
+                        AdjustedOffset::plain(offset),
+                        line_offsets,
+                    ),
                 );
             }
             Value::Object(obj)
@@ -4424,7 +4558,12 @@ fn convert_ts_signature(
             if let Some(return_type) = &method.return_type {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+                    convert_type_annotation_adjusted(
+                        arena,
+                        return_type,
+                        AdjustedOffset::plain(offset),
+                        line_offsets,
+                    ),
                 );
             }
             Value::Object(obj)
@@ -4457,7 +4596,12 @@ fn convert_ts_signature(
             if let Some(return_type) = &call.return_type {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+                    convert_type_annotation_adjusted(
+                        arena,
+                        return_type,
+                        AdjustedOffset::plain(offset),
+                        line_offsets,
+                    ),
                 );
             }
             Value::Object(obj)
@@ -4490,7 +4634,12 @@ fn convert_ts_signature(
             if let Some(return_type) = &constructor.return_type {
                 obj.set_field(
                     "typeAnnotation",
-                    convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+                    convert_type_annotation_adjusted(
+                        arena,
+                        return_type,
+                        AdjustedOffset::plain(offset),
+                        line_offsets,
+                    ),
                 );
             }
             Value::Object(obj)
@@ -4533,7 +4682,7 @@ fn convert_ts_index_signature(
                 convert_type_annotation_adjusted(
                     arena,
                     &param.type_annotation,
-                    offset,
+                    AdjustedOffset::plain(offset),
                     line_offsets,
                 ),
             );
@@ -4543,7 +4692,12 @@ fn convert_ts_index_signature(
     obj.set_field("parameters", Value::Array(parameters));
     obj.set_field(
         "typeAnnotation",
-        convert_type_annotation_adjusted(arena, &index.type_annotation, offset, line_offsets),
+        convert_type_annotation_adjusted(
+            arena,
+            &index.type_annotation,
+            AdjustedOffset::plain(offset),
+            line_offsets,
+        ),
     );
     Value::Object(obj)
 }
@@ -5700,13 +5854,27 @@ fn create_function_expression<'a>(
         .params
         .items
         .iter()
-        .map(|param| convert_binding_pattern(arena, &param.pattern, offset, line_offsets))
+        // The whole conversion is in the paren-wrapper's coordinates, as the
+        // `id` and rest spans above and below already are.
+        .map(|param| {
+            convert_binding_pattern(
+                arena,
+                &param.pattern,
+                AdjustedOffset::wrapped(offset, 1),
+                line_offsets,
+            )
+        })
         .collect();
     // Handle rest parameter (`...args`).
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
-        let argument = convert_binding_pattern(arena, &rest.rest.argument, offset, line_offsets);
+        let argument = convert_binding_pattern(
+            arena,
+            &rest.rest.argument,
+            AdjustedOffset::wrapped(offset, 1),
+            line_offsets,
+        );
         params.push(JsNode::RestElement {
             start: rest_start as u32,
             end: rest_end as u32,
@@ -5716,7 +5884,7 @@ fn create_function_expression<'a>(
                 Box::new(convert_type_annotation_adjusted(
                     arena,
                     ta,
-                    offset - 1,
+                    AdjustedOffset::wrapped(offset, 1),
                     line_offsets,
                 ))
             }),
@@ -5762,7 +5930,7 @@ fn create_function_expression<'a>(
         return_type: opt_type_annotation(
             arena,
             func.return_type.as_deref(),
-            || offset - 1,
+            || AdjustedOffset::wrapped(offset, 1),
             line_offsets,
         ),
     })
@@ -5993,7 +6161,7 @@ fn convert_class_element_for_expr(
             if let Some(ta) = opt_type_annotation(
                 arena,
                 prop.type_annotation.as_deref(),
-                || offset - 1,
+                || AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             ) {
                 obj.set_field("typeAnnotation", *ta);
@@ -6798,7 +6966,7 @@ fn create_arrow_function<'a>(
             expr_to_node(convert_formal_parameter(
                 arena,
                 param,
-                offset - 1,
+                AdjustedOffset::wrapped(offset, 1),
                 line_offsets,
             ))
         })
@@ -6810,7 +6978,7 @@ fn create_arrow_function<'a>(
         let argument = convert_binding_pattern_for_param_as_node(
             arena,
             &rest.rest.argument,
-            offset - 1,
+            AdjustedOffset::wrapped(offset, 1),
             line_offsets,
         );
         params.push(JsNode::RestElement {
@@ -6822,7 +6990,7 @@ fn create_arrow_function<'a>(
                 Box::new(convert_type_annotation_adjusted(
                     arena,
                     ta,
-                    offset - 1,
+                    AdjustedOffset::wrapped(offset, 1),
                     line_offsets,
                 ))
             }),
@@ -6861,7 +7029,7 @@ fn create_arrow_function<'a>(
         return_type: opt_type_annotation(
             arena,
             arrow.return_type.as_deref(),
-            || offset - 1,
+            || AdjustedOffset::wrapped(offset, 1),
             line_offsets,
         ),
     })
@@ -7134,7 +7302,7 @@ fn convert_statement(
                     arena.alloc_js_node(convert_binding_pattern_for_param_as_node(
                         arena,
                         &param.pattern,
-                        offset - 1,
+                        AdjustedOffset::wrapped(offset, 1),
                         line_offsets,
                     ))
                 });
@@ -7215,7 +7383,7 @@ fn convert_statement(
                     expr_to_node(convert_formal_parameter(
                         arena,
                         param,
-                        offset - 1,
+                        AdjustedOffset::wrapped(offset, 1),
                         line_offsets,
                     ))
                 })
@@ -7226,7 +7394,7 @@ fn convert_statement(
                 let argument = convert_binding_pattern_for_param_as_node(
                     arena,
                     &rest.rest.argument,
-                    offset - 1,
+                    AdjustedOffset::wrapped(offset, 1),
                     line_offsets,
                 );
                 params.push(JsNode::RestElement {
@@ -7238,7 +7406,7 @@ fn convert_statement(
                         Box::new(convert_type_annotation_adjusted(
                             arena,
                             ta,
-                            offset - 1,
+                            AdjustedOffset::wrapped(offset, 1),
                             line_offsets,
                         ))
                     }),
@@ -7272,7 +7440,7 @@ fn convert_statement(
                     Box::new(convert_type_annotation_adjusted(
                         arena,
                         rt,
-                        offset - 1,
+                        AdjustedOffset::wrapped(offset, 1),
                         line_offsets,
                     ))
                 }),
@@ -7385,8 +7553,12 @@ fn convert_binding_pattern_for_decl_as_node(
                 // annotation blob verbatim (same as the Value form at
                 // `convert_binding_pattern_for_decl`).
                 let end = offset + type_ann.span.end as usize - 1;
-                let ta_value =
-                    convert_type_annotation_adjusted(arena, type_ann, offset - 1, line_offsets);
+                let ta_value = convert_type_annotation_adjusted(
+                    arena,
+                    type_ann,
+                    AdjustedOffset::wrapped(offset, 1),
+                    line_offsets,
+                );
                 JsNode::Identifier {
                     start: start as u32,
                     end: end as u32,
@@ -7400,15 +7572,24 @@ fn convert_binding_pattern_for_decl_as_node(
                 expr_to_node(create_identifier(&id.name, start, end, line_offsets))
             }
         }
-        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
-            convert_object_pattern(arena, obj_pat, offset - 1, line_offsets)
-        }
-        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
-            convert_array_pattern(arena, arr_pat, offset - 1, line_offsets)
-        }
-        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
-            convert_assignment_pattern(arena, assign_pat, offset - 1, line_offsets)
-        }
+        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => convert_object_pattern(
+            arena,
+            obj_pat,
+            AdjustedOffset::wrapped(offset, 1),
+            line_offsets,
+        ),
+        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => convert_array_pattern(
+            arena,
+            arr_pat,
+            AdjustedOffset::wrapped(offset, 1),
+            line_offsets,
+        ),
+        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => convert_assignment_pattern(
+            arena,
+            assign_pat,
+            AdjustedOffset::wrapped(offset, 1),
+            line_offsets,
+        ),
     }
 }
 
@@ -9396,7 +9577,7 @@ fn convert_statement_for_program(
                             expr_to_node(convert_formal_parameter(
                                 arena,
                                 param,
-                                offset,
+                                AdjustedOffset::plain(offset),
                                 line_offsets,
                             ))
                         })
@@ -9426,7 +9607,7 @@ fn convert_statement_for_program(
                             Box::new(convert_type_annotation_adjusted(
                                 arena,
                                 rt,
-                                offset,
+                                AdjustedOffset::plain(offset),
                                 line_offsets,
                             ))
                         }),
@@ -9819,7 +10000,7 @@ fn convert_statement_for_program(
                     arena.alloc_js_node(convert_binding_pattern(
                         arena,
                         &param.pattern,
-                        offset,
+                        AdjustedOffset::plain(offset),
                         line_offsets,
                     ))
                 });
@@ -10267,7 +10448,11 @@ fn convert_ts_module_reference(
             push_span_fields(&mut obj, start, end, line_offsets);
             obj.set_field(
                 "left",
-                convert_ts_type_name_adjusted(&qualified.left, offset, line_offsets),
+                convert_ts_type_name_adjusted(
+                    &qualified.left,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ),
             );
             obj.set_field(
                 "right",
@@ -10558,7 +10743,11 @@ fn convert_ts_interface_declaration_as_node(
             );
             heritage_obj.set_field(
                 "expression",
-                convert_ts_type_name_adjusted(&heritage.type_name, offset, line_offsets),
+                convert_ts_type_name_adjusted(
+                    &heritage.type_name,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ),
             );
             if let Some(arguments) = &heritage.type_arguments {
                 heritage_obj.set_field(
@@ -10694,11 +10883,14 @@ fn convert_function_declaration_as_node(
         })
         .into_iter()
         .collect();
-    params.extend(
-        func_decl.params.items.iter().map(|param| {
-            expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
-        }),
-    );
+    params.extend(func_decl.params.items.iter().map(|param| {
+        expr_to_node(convert_formal_parameter(
+            arena,
+            param,
+            AdjustedOffset::plain(offset),
+            line_offsets,
+        ))
+    }));
     if let Some(rest) = &func_decl.params.rest {
         params.push(expr_to_node(Expression::from_json(convert_rest_parameter(
             arena,
@@ -10741,7 +10933,7 @@ fn convert_function_declaration_as_node(
             Box::new(convert_type_annotation_adjusted(
                 arena,
                 rt,
-                offset,
+                AdjustedOffset::plain(offset),
                 line_offsets,
             ))
         }),
@@ -11020,7 +11212,7 @@ fn convert_declaration_for_program(
                 .into_iter()
                 .collect();
             params.extend(func_decl.params.items.iter().map(|param| {
-                convert_formal_parameter(arena, param, offset, line_offsets)
+                convert_formal_parameter(arena, param, AdjustedOffset::plain(offset), line_offsets)
                     .as_json()
                     .clone()
             }));
@@ -11276,7 +11468,8 @@ fn convert_variable_declarator_for_program(
     // carrying the annotation as an opaque boundary blob; an annotated
     // destructuring pattern (`let { a }: T = …`) keeps the Value (Raw) form
     // since the annotation hangs off a pattern node.
-    let id_pattern = convert_binding_pattern(arena, &decl.id, offset, line_offsets);
+    let id_pattern =
+        convert_binding_pattern(arena, &decl.id, AdjustedOffset::plain(offset), line_offsets);
     let id_node = if let Some(type_annotation) = &decl.type_annotation {
         let ts_start = type_annotation.span.start as usize + offset;
         let ts_end = type_annotation.span.end as usize + offset;
@@ -11534,7 +11727,12 @@ fn convert_expression_for_program<'a>(
                     oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
                         let prop_start = offset + p.span.start as usize;
                         let prop_end = offset + p.span.end as usize;
-                        let key = convert_property_key(arena, &p.key, offset, line_offsets);
+                        let key = convert_property_key(
+                            arena,
+                            &p.key,
+                            AdjustedOffset::plain(offset),
+                            line_offsets,
+                        );
                         let value =
                             convert_expression_for_program(arena, &p.value, offset, line_offsets);
                         let mut value_node = expr_to_node(value);
@@ -11592,14 +11790,23 @@ fn convert_expression_for_program<'a>(
                 .items
                 .iter()
                 .map(|param| {
-                    expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
+                    expr_to_node(convert_formal_parameter(
+                        arena,
+                        param,
+                        AdjustedOffset::plain(offset),
+                        line_offsets,
+                    ))
                 })
                 .collect();
             if let Some(rest) = &arrow.params.rest {
                 let rest_start = offset + rest.span.start as usize;
                 let rest_end = offset + rest.span.end as usize;
-                let argument =
-                    convert_binding_pattern(arena, &rest.rest.argument, offset, line_offsets);
+                let argument = convert_binding_pattern(
+                    arena,
+                    &rest.rest.argument,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                );
                 params.push(JsNode::RestElement {
                     start: rest_start as u32,
                     end: rest_end as u32,
@@ -11609,7 +11816,7 @@ fn convert_expression_for_program<'a>(
                         Box::new(convert_type_annotation_adjusted(
                             arena,
                             ta,
-                            offset,
+                            AdjustedOffset::plain(offset),
                             line_offsets,
                         ))
                     }),
@@ -11652,7 +11859,7 @@ fn convert_expression_for_program<'a>(
                 return_type: opt_type_annotation(
                     arena,
                     arrow.return_type.as_deref(),
-                    || offset,
+                    || AdjustedOffset::plain(offset),
                     line_offsets,
                 ),
             })
@@ -12544,7 +12751,12 @@ fn convert_class_element_for_program_as_node(
                 oxc_ast::ast::MethodDefinitionKind::Get => "get",
                 oxc_ast::ast::MethodDefinitionKind::Set => "set",
             };
-            let key = convert_property_key(arena, &method.key, offset, line_offsets);
+            let key = convert_property_key(
+                arena,
+                &method.key,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             // A method's generics live on the MethodDefinition, not the inner
             // function (acorn-typescript), so the inner function gets `None`.
             let value = convert_function_expression_for_program_as_node(
@@ -12595,7 +12807,12 @@ fn convert_class_element_for_program_as_node(
             }
             let start = offset + prop.span.start as usize;
             let end = offset + prop.span.end as usize;
-            let key = convert_property_key(arena, &prop.key, offset, line_offsets);
+            let key = convert_property_key(
+                arena,
+                &prop.key,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             let value = prop.value.as_ref().map(|value| {
                 arena.alloc_js_node(expr_to_node(convert_expression_for_program(
                     arena,
@@ -12694,7 +12911,12 @@ fn convert_class_element_for_program(
             obj.set_field("kind", Value::String(kind.to_string()));
 
             // key
-            let key = convert_property_key(arena, &method.key, offset, line_offsets);
+            let key = convert_property_key(
+                arena,
+                &method.key,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             obj.set_field("key", key.to_value());
 
             // value (function expression). acorn-typescript gives a bodyless
@@ -12746,13 +12968,18 @@ fn convert_class_element_for_program(
             obj.set_field("computed", Value::Bool(prop.computed));
 
             // key
-            let key = convert_property_key(arena, &prop.key, offset, line_offsets);
+            let key = convert_property_key(
+                arena,
+                &prop.key,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             obj.set_field("key", key.to_value());
 
             if let Some(ta) = opt_type_annotation(
                 arena,
                 prop.type_annotation.as_deref(),
-                || offset,
+                || AdjustedOffset::plain(offset),
                 line_offsets,
             ) {
                 obj.set_field("typeAnnotation", *ta);
@@ -12792,13 +13019,18 @@ fn convert_class_element_for_program(
             obj.set_field("static", Value::Bool(prop.r#static));
             obj.set_field("computed", Value::Bool(prop.computed));
 
-            let key = convert_property_key(arena, &prop.key, offset, line_offsets);
+            let key = convert_property_key(
+                arena,
+                &prop.key,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             obj.set_field("key", key.to_value());
 
             if let Some(ta) = opt_type_annotation(
                 arena,
                 prop.type_annotation.as_deref(),
-                || offset,
+                || AdjustedOffset::plain(offset),
                 line_offsets,
             ) {
                 obj.set_field("typeAnnotation", *ta);
@@ -12875,15 +13107,19 @@ fn convert_function_expression_for_program(
         .into_iter()
         .collect();
     params.extend(func.params.items.iter().map(|param| {
-        convert_formal_parameter(arena, param, offset, line_offsets)
+        convert_formal_parameter(arena, param, AdjustedOffset::plain(offset), line_offsets)
             .as_json()
             .clone()
     }));
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
-        let argument =
-            convert_binding_pattern_for_param(arena, &rest.rest.argument, offset, line_offsets);
+        let argument = convert_binding_pattern_for_param(
+            arena,
+            &rest.rest.argument,
+            AdjustedOffset::plain(offset),
+            line_offsets,
+        );
         let mut rest_obj = Map::new();
         rest_obj.set_field("type", Value::String("RestElement".to_string()));
         rest_obj.set_field("start", Value::Number((rest_start as i64).into()));
@@ -12895,7 +13131,12 @@ fn convert_function_expression_for_program(
         if let Some(type_ann) = &rest.type_annotation {
             rest_obj.set_field(
                 "typeAnnotation",
-                convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+                convert_type_annotation_adjusted(
+                    arena,
+                    type_ann,
+                    AdjustedOffset::plain(offset),
+                    line_offsets,
+                ),
             );
         }
         params.push(Value::Object(rest_obj));
@@ -12906,7 +13147,12 @@ fn convert_function_expression_for_program(
     if let Some(return_type) = &func.return_type {
         obj.set_field(
             "returnType",
-            convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+            convert_type_annotation_adjusted(
+                arena,
+                return_type,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            ),
         );
     }
 
@@ -12957,18 +13203,21 @@ fn convert_function_expression_for_program_as_node(
         })
         .into_iter()
         .collect();
-    params.extend(
-        func.params.items.iter().map(|param| {
-            expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
-        }),
-    );
+    params.extend(func.params.items.iter().map(|param| {
+        expr_to_node(convert_formal_parameter(
+            arena,
+            param,
+            AdjustedOffset::plain(offset),
+            line_offsets,
+        ))
+    }));
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
         let argument = convert_binding_pattern_for_param_as_node(
             arena,
             &rest.rest.argument,
-            offset,
+            AdjustedOffset::plain(offset),
             line_offsets,
         );
         params.push(JsNode::RestElement {
@@ -12980,7 +13229,7 @@ fn convert_function_expression_for_program_as_node(
                 Box::new(convert_type_annotation_adjusted(
                     arena,
                     ta,
-                    offset,
+                    AdjustedOffset::plain(offset),
                     line_offsets,
                 ))
             }),
@@ -13023,7 +13272,7 @@ fn convert_function_expression_for_program_as_node(
         return_type: opt_type_annotation(
             arena,
             func.return_type.as_deref(),
-            || offset,
+            || AdjustedOffset::plain(offset),
             line_offsets,
         ),
     }
@@ -13048,13 +13297,12 @@ fn program_function_expression_type_parameters(
     })
 }
 
-/// The caller supplies the adjusted offset because the two parse contexts
-/// disagree: an expression is parsed from a slice wrapped in parens, so its
-/// spans need `offset - 1`, while a program's need `offset`.
+/// The caller supplies the base because the two parse contexts disagree: an
+/// expression is parsed from a slice wrapped in parens, a program's is not.
 fn opt_type_annotation(
     arena: &ParseArena,
     type_ann: Option<&oxc_ast::ast::TSTypeAnnotation<'_>>,
-    adjusted_offset: impl FnOnce() -> usize,
+    adjusted_offset: impl FnOnce() -> AdjustedOffset,
     line_offsets: &[usize],
 ) -> Option<Box<serde_json::Value>> {
     type_ann.map(|ta| {
@@ -13166,7 +13414,7 @@ fn convert_function_body_for_program_as_node(
 fn convert_binding_pattern(
     arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     match pattern {
@@ -13191,7 +13439,7 @@ fn convert_binding_pattern(
 fn convert_object_pattern(
     arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     let start = offset + obj_pat.span.start as usize;
@@ -13234,7 +13482,7 @@ fn convert_object_pattern(
 fn convert_array_pattern(
     arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     let start = offset + arr_pat.span.start as usize;
@@ -13280,7 +13528,7 @@ fn convert_array_pattern(
 fn convert_assignment_pattern(
     arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     let start = offset + assign_pat.span.start as usize;
@@ -13305,7 +13553,7 @@ fn convert_assignment_pattern(
         right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
             arena,
             &assign_pat.right,
-            offset,
+            offset.for_plain_converter(),
             line_offsets,
         ))),
     }
@@ -13654,7 +13902,12 @@ fn convert_assignment_target_property_for_program(
             let start = offset + prop_prop.span.start as usize;
             let end = offset + prop_prop.span.end as usize;
 
-            let key = convert_property_key(arena, &prop_prop.name, offset, line_offsets);
+            let key = convert_property_key(
+                arena,
+                &prop_prop.name,
+                AdjustedOffset::plain(offset),
+                line_offsets,
+            );
             let value = convert_assignment_target_maybe_default_for_program(
                 arena,
                 &prop_prop.binding,
@@ -13810,7 +14063,7 @@ fn convert_assignment_target_maybe_default_for_program(
 fn convert_binding_property(
     arena: &ParseArena,
     prop: &oxc_ast::ast::BindingProperty,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     let start = offset + prop.span.start as usize;
@@ -13836,7 +14089,7 @@ fn convert_binding_property(
 fn convert_property_key(
     arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
-    offset: usize,
+    offset: AdjustedOffset,
     line_offsets: &[usize],
 ) -> JsNode {
     match key {
@@ -13864,7 +14117,7 @@ fn convert_property_key(
                 expr_to_node(convert_expression_for_program(
                     arena,
                     expr,
-                    offset,
+                    offset.for_plain_converter(),
                     line_offsets,
                 ))
             } else {
@@ -14897,7 +15150,7 @@ fn create_arrow_function_with_adjustment(
     // system; use convert_binding_pattern_for_param with (doc_offset - prefix_len)
     // so that span positions map back to document coordinates.
     let mut params: Vec<Value> = Vec::with_capacity(arrow.params.items.len() + 1);
-    let adjusted_offset = doc_offset.saturating_sub(prefix_len);
+    let adjusted_offset = AdjustedOffset::wrapped(doc_offset, prefix_len);
     for param in &arrow.params.items {
         params.push(convert_binding_pattern_for_param(
             arena,
@@ -15432,6 +15685,13 @@ mod tests {
         // and the base genuinely is -1, which no `usize` spells. Making it
         // signed is a change to the whole TS conversion subtree, not to these
         // three helpers, so it is tracked separately rather than half-done here.
+        //
+        // A parameter DEFAULT is the same wider class and is deliberately absent
+        // below: its value goes to `convert_expression_for_program`, whose base
+        // in a paren-wrapped host genuinely is -1. Measured, giving that one
+        // function the type produces 59 further type errors, so it is the same
+        // out-of-scope subtree as the TS conversion above and not a cell this
+        // change can turn green.
         for source in [
             "work()",
             "new C(1)",
@@ -15442,6 +15702,17 @@ mod tests {
             "o.m(1)",
             "function q(a) { return a; }",
             "({ x: 1 })",
+            // The binding-pattern family: every one of these reaches it with a
+            // base the paren wrapper has shifted, so a pre-subtracted `usize`
+            // is `usize::MAX` here and only a debug build says so.
+            "function q({ a }) { return a; }",
+            "function q([a]) { return a; }",
+            "function q(...r) { return r; }",
+            "function q({ a, ...r }) { return r; }",
+            "function q([a, ...r]) { return r; }",
+            "({ a }) => a",
+            "([a]) => a",
+            "(...r) => r",
         ] {
             let arena = ParseArena::new();
             let line_offsets = super::super::super::compute_line_offsets(source, false);
