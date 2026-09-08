@@ -266,6 +266,143 @@ fn glued_tag_end(source: &str, open: usize) -> Option<usize> {
     None
 }
 
+/// The columns a `{@keyword …}` tag's fit test must charge for everything that
+/// precedes it on its output line.
+///
+/// The oracle measures a group against the rest of the line, so a run of
+/// siblings glued to the tag is charged in full — probed against
+/// `oxfmt --svelte`, a text run, a `{#snippet}…{/snippet}`, a `{#if}…{/if}` and
+/// an inline `<span>…</span>` all move the tag's break threshold by their own
+/// width.
+///
+/// The scan stops at the ENCLOSING ELEMENT's open tag and nowhere else: when
+/// that tag wraps, its `>` moves down to the content's line and the tag restarts
+/// at the element indent, which the caller's `depth` already charges. A block
+/// opener (`{#if …}`) is not such a boundary — it stays on the line — so it is
+/// charged like text. Closing tags are skipped whole with their openers rather
+/// than scanned into, which is what separates `{#snippet}<p>…</p>{/snippet}`
+/// (charged in full) from `<div …>` (charged nothing).
+fn preceding_run_width(source: &str, tag_start: u32, options: &FormatOptions) -> usize {
+    let start = tag_start as usize;
+    let line_start = source[..start].rfind('\n').map_or(0, |index| index + 1);
+    let Some(line) = source.get(line_start..start) else {
+        return 0;
+    };
+    let bytes = line.as_bytes();
+    // The line's own indentation is already charged by the caller's `depth`, so
+    // only the content glued in front of the tag counts.
+    let content_start = line.len() - line.trim_start().len();
+    let whole = || line[content_start..].visual_width(tab_width(options));
+    let mut index = line.len();
+    // Unmatched closers seen so far, scanning right to left. A `>` or `{#…}`
+    // reached at depth 0 is the enclosing element's or block's own opener.
+    let mut depth = 0usize;
+    while index > content_start {
+        match bytes[index - 1] {
+            b'>' => {
+                let Some(open) = element_open_index(line, index - 1) else {
+                    return whole();
+                };
+                let text = &line[open..index];
+                // A block-display sibling is itself a break opportunity: the
+                // oracle puts the tag on its own line after one, so the run
+                // restarts there and nothing before it is charged.
+                if depth == 0
+                    && let Some(name) = element_tag_name(text)
+                    && crate::markup::is_html_block_display_element(name)
+                {
+                    return line
+                        .get(index..)
+                        .map_or(0, |rest| rest.visual_width(tab_width(options)));
+                }
+                if text.starts_with("</") {
+                    depth += 1;
+                } else if text.ends_with("/>") {
+                    // A complete element: no nesting change, charge it.
+                } else if depth == 0 {
+                    // The enclosing element's open tag.
+                    return line
+                        .get(index..)
+                        .map_or(0, |rest| rest.visual_width(tab_width(options)));
+                } else {
+                    depth -= 1;
+                }
+                index = open;
+            }
+            b'}' => {
+                let Some(open) = brace_open_index(line, index - 1) else {
+                    return whole();
+                };
+                match line.as_bytes().get(open + 1) {
+                    Some(b'/') => depth += 1,
+                    Some(b'#') if depth > 0 => depth -= 1,
+                    // A block opener at depth 0, or any other mustache: charged.
+                    _ => {}
+                }
+                index = open;
+            }
+            _ => index -= 1,
+        }
+    }
+    whole()
+}
+
+/// The tag name of an element tag written `<x …>`, `</x>` or `<x … />`.
+fn element_tag_name(text: &str) -> Option<&str> {
+    let rest = text
+        .strip_prefix("</")
+        .or_else(|| text.strip_prefix('<'))?
+        .trim_start();
+    let end = rest
+        .find(|c: char| c.is_whitespace() || c == '>' || c == '/')
+        .unwrap_or(rest.len());
+    Some(&rest[..end]).filter(|name| !name.is_empty())
+}
+
+/// The index of the `<` opening the tag whose `>` sits at `close`, honouring
+/// quoted attribute values. `None` when the tag does not start on this line.
+fn element_open_index(line: &str, close: usize) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let mut index = close;
+    let mut quote: Option<u8> = None;
+    while index > 0 {
+        let byte = bytes[index - 1];
+        match quote {
+            Some(q) if byte == q => quote = None,
+            Some(_) => {}
+            None => match byte {
+                b'\'' | b'"' => quote = Some(byte),
+                b'<' => return Some(index - 1),
+                b'>' if index - 1 != close => return None,
+                _ => {}
+            },
+        }
+        index -= 1;
+    }
+    None
+}
+
+/// The index of the `{` opening the mustache whose `}` sits at `close`.
+fn brace_open_index(line: &str, close: usize) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let mut index = close;
+    let mut depth = 0usize;
+    while index > 0 {
+        match bytes[index - 1] {
+            b'}' => depth += 1,
+            b'{' => {
+                if depth == 0 {
+                    return Some(index - 1);
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+        index -= 1;
+    }
+    None
+}
+
 /// Replace `{@<keyword> EXPR}` (full tag span) with the formatted expression
 /// body and a single space after the keyword.
 pub(super) fn push_tag_form(
@@ -294,7 +431,11 @@ pub(super) fn push_tag_form(
     // part of the keyword string already for `@render`, `@html`, `@attach`).
     // Actually the emitted tag is `{keyword} expr}` where keyword is e.g. `@render`,
     // so the prefix is `{` + `@render` + ` ` = 1 + keyword.len() + 1.
-    let prefix_lead = 1 + keyword.len() + 1; // `{` + keyword + ` `
+    // `{` + keyword + ` `, plus whatever already sits on the line: the oracle
+    // measures the group against the rest of the line, and this port charged
+    // only the tag's own prefix, so a glued run left the tag measured from
+    // column 0 (#4085).
+    let prefix_lead = preceding_run_width(source, tag_start, options) + 1 + keyword.len() + 1;
     let formatted = format_content_expression_with_prefix(slice, options, depth, prefix_lead)?;
     edits.push((tag_start, tag_end, format!("{{{keyword} {formatted}}}")));
     Ok(())
