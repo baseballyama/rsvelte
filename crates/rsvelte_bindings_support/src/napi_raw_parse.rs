@@ -1317,6 +1317,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             callee,
             arguments,
             optional,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            type_arguments: _,
         } => {
             write_preamble(w, JS_CALL_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1346,6 +1350,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             loc,
             callee,
             arguments,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            type_arguments: _,
         } => {
             write_preamble(w, JS_NEW_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1364,6 +1372,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             expression,
             type_parameters,
             type_parameters_after_body,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            return_type: _,
         } => {
             write_preamble(w, JS_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1402,6 +1414,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             generator,
             r#async,
             type_parameters,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            return_type: _,
         } => {
             write_preamble(w, JS_ARROW_FUNCTION_EXPRESSION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1706,6 +1722,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             loc,
             id,
             init,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            definite: _,
         } => {
             write_preamble(w, JS_VARIABLE_DECLARATOR, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -1749,6 +1769,11 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             r#abstract,
             implements,
             decorators,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            type_parameters: _,
+            super_type_parameters: _,
         } => {
             write_preamble(w, JS_CLASS_DECLARATION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -2098,6 +2123,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             // The envelope has never carried TS member modifiers; widening it
             // is a separate change with its own decoder side.
             modifiers: _,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            type_parameters: _,
         } => {
             write_preamble(w, JS_METHOD_DEFINITION, *start, *end);
             write_typed_loc(w, loc.as_deref());
@@ -2116,6 +2145,10 @@ fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std
             r#static,
             computed,
             modifiers: _,
+            // Output-only TS blobs for `parse()`'s JSON surface. The envelope has
+            // never carried these (same call as `modifiers` above); widening it is
+            // a separate change with its own decoder side and a VERSION bump.
+            type_annotation: _,
         } => {
             write_preamble(w, JS_PROPERTY_DEFINITION, *start, *end);
             write_typed_loc(w, loc.as_deref());

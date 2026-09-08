@@ -552,6 +552,8 @@ fn try_parse_call_expression<'a>(
         callee: arena.alloc_js_node(expr_to_node(callee)),
         arguments: arena.alloc_js_children(arguments),
         optional: false,
+        // This fast path bails out on any TS syntax, so never generic.
+        type_arguments: None,
     }))
 }
 
@@ -891,6 +893,7 @@ fn try_parse_arrow_function<'a>(
         r#async: false,
         // This fast path bails out on any TS syntax, so never generic.
         type_parameters: None,
+        return_type: None,
     }))
 }
 
@@ -5494,6 +5497,12 @@ fn create_call_expression<'a>(
         callee: arena.alloc_js_node(expr_to_node(callee)),
         arguments: arena.alloc_js_children(args),
         optional: call.optional,
+        type_arguments: opt_type_args(
+            arena,
+            call.type_arguments.as_deref(),
+            || offset - 1,
+            line_offsets,
+        ),
     })
 }
 
@@ -5617,6 +5626,12 @@ fn create_new_expression<'a>(
         loc: create_typed_loc(start, end, line_offsets),
         callee: arena.alloc_js_node(expr_to_node(callee)),
         arguments: arena.alloc_js_children(args),
+        type_arguments: opt_type_args(
+            arena,
+            new_expr.type_arguments.as_deref(),
+            || offset - 1,
+            line_offsets,
+        ),
     })
 }
 
@@ -5710,6 +5725,12 @@ fn create_function_expression<'a>(
         expression: false,
         type_parameters,
         type_parameters_after_body,
+        return_type: opt_type_annotation(
+            arena,
+            func.return_type.as_deref(),
+            || offset - 1,
+            line_offsets,
+        ),
     })
 }
 
@@ -5901,6 +5922,14 @@ fn convert_class_element_for_expr(
                 None,
                 false,
             );
+            if let Some(type_params) = opt_type_params(
+                arena,
+                method.value.type_parameters.as_deref(),
+                || offset - 1,
+                line_offsets,
+            ) {
+                obj.set_field("typeParameters", *type_params);
+            }
             obj.set_field("value", value.as_json().clone());
 
             push_member_modifiers(
@@ -5926,6 +5955,15 @@ fn convert_class_element_for_expr(
             // key
             let key = convert_property_key_for_expr(arena, &prop.key, offset, line_offsets);
             obj.set_field("key", key.to_value());
+
+            if let Some(ta) = opt_type_annotation(
+                arena,
+                prop.type_annotation.as_deref(),
+                || offset - 1,
+                line_offsets,
+            ) {
+                obj.set_field("typeAnnotation", *ta);
+            }
 
             // value
             if let Some(ref value) = prop.value {
@@ -6786,6 +6824,12 @@ fn create_arrow_function<'a>(
                 line_offsets,
             ))
         }),
+        return_type: opt_type_annotation(
+            arena,
+            arrow.return_type.as_deref(),
+            || offset - 1,
+            line_offsets,
+        ),
     })
 }
 
@@ -7278,6 +7322,7 @@ fn convert_variable_declarator(
         loc: create_typed_loc(start, end, line_offsets),
         id: arena.alloc_js_node(id),
         init,
+        definite: decl.definite,
     }
 }
 
@@ -10743,6 +10788,21 @@ fn convert_class_declaration_as_node(
         r#abstract: class_decl.r#abstract,
         implements: !class_decl.implements.is_empty(),
         decorators,
+        type_parameters: opt_type_params(
+            arena,
+            class_decl.type_parameters.as_deref(),
+            || offset,
+            line_offsets,
+        ),
+        super_type_parameters: opt_type_args(
+            arena,
+            class_decl
+                .heritage
+                .as_ref()
+                .and_then(|h| h.type_arguments.as_deref()),
+            || offset,
+            line_offsets,
+        ),
     }
 }
 
@@ -11272,6 +11332,7 @@ fn convert_variable_declarator_for_program(
         loc,
         id: id_node,
         init: init_node,
+        definite: decl.definite,
     })
 }
 
@@ -11375,6 +11436,12 @@ fn convert_expression_for_program<'a>(
                 callee: arena.alloc_js_node(expr_to_node(callee)),
                 arguments: arena.alloc_js_children(args),
                 optional: false,
+                type_arguments: opt_type_args(
+                    arena,
+                    call.type_arguments.as_deref(),
+                    || offset,
+                    line_offsets,
+                ),
             })
         }
         OxcExpression::ArrayExpression(arr) => {
@@ -11548,6 +11615,12 @@ fn convert_expression_for_program<'a>(
                         line_offsets,
                     ))
                 }),
+                return_type: opt_type_annotation(
+                    arena,
+                    arrow.return_type.as_deref(),
+                    || offset,
+                    line_offsets,
+                ),
             })
         }
         OxcExpression::FunctionExpression(func) => {
@@ -11744,6 +11817,12 @@ fn convert_expression_for_program<'a>(
                 loc: create_typed_loc(start, end, line_offsets),
                 callee: arena.alloc_js_node(expr_to_node(callee)),
                 arguments: arena.alloc_js_children(args),
+                type_arguments: opt_type_args(
+                    arena,
+                    new_expr.type_arguments.as_deref(),
+                    || offset,
+                    line_offsets,
+                ),
             })
         }
         OxcExpression::ClassExpression(class_expr) => {
@@ -12034,6 +12113,12 @@ fn convert_expression_for_program<'a>(
                         callee: arena.alloc_js_node(expr_to_node(callee)),
                         arguments: arena.alloc_js_children(args),
                         optional: call.optional,
+                        type_arguments: opt_type_args(
+                            arena,
+                            call.type_arguments.as_deref(),
+                            || offset,
+                            line_offsets,
+                        ),
                     }
                 }
                 oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => {
@@ -12448,6 +12533,12 @@ fn convert_class_element_for_program_as_node(
                 // Any written modifier bails to the Value blob above, so a
                 // typed member never carries one.
                 modifiers: TsMemberModifiers::default(),
+                type_parameters: program_function_expression_type_parameters(
+                    arena,
+                    &method.value,
+                    offset,
+                    line_offsets,
+                ),
             })
         }
         oxc_ast::ast::ClassElement::PropertyDefinition(prop) => {
@@ -12490,6 +12581,9 @@ fn convert_class_element_for_program_as_node(
                 // AccessorProperty and every written modifier bail to the Value
                 // blob above, so a typed PropertyDefinition never carries one.
                 modifiers: TsMemberModifiers::default(),
+                // An annotated property bails to the Value path above, so the typed
+                // variant can only ever be reached without one.
+                type_annotation: None,
             })
         }
         // AccessorProperty: the Value path emits a `PropertyDefinition` with an
@@ -12578,12 +12672,14 @@ fn convert_class_element_for_program(
                 func.set_field("type", Value::String("TSDeclareMethod".to_string()));
                 func.remove("body");
                 func.set_field("expression", Value::Bool(false));
-                if let Some(return_type) = &method.value.return_type {
-                    func.set_field(
-                        "returnType",
-                        convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
-                    );
-                }
+            }
+            if let Some(type_params) = program_function_expression_type_parameters(
+                arena,
+                &method.value,
+                offset,
+                line_offsets,
+            ) {
+                obj.set_field("typeParameters", *type_params);
             }
             obj.set_field("value", value);
 
@@ -12618,6 +12714,15 @@ fn convert_class_element_for_program(
             // key
             let key = convert_property_key(arena, &prop.key, offset, line_offsets);
             obj.set_field("key", key.to_value());
+
+            if let Some(ta) = opt_type_annotation(
+                arena,
+                prop.type_annotation.as_deref(),
+                || offset,
+                line_offsets,
+            ) {
+                obj.set_field("typeAnnotation", *ta);
+            }
 
             // value
             if let Some(ref value) = prop.value {
@@ -12655,6 +12760,15 @@ fn convert_class_element_for_program(
 
             let key = convert_property_key(arena, &prop.key, offset, line_offsets);
             obj.set_field("key", key.to_value());
+
+            if let Some(ta) = opt_type_annotation(
+                arena,
+                prop.type_annotation.as_deref(),
+                || offset,
+                line_offsets,
+            ) {
+                obj.set_field("typeAnnotation", *ta);
+            }
 
             if let Some(ref value) = prop.value {
                 let val = convert_expression_for_program(arena, value, offset, line_offsets);
@@ -12753,6 +12867,14 @@ fn convert_function_expression_for_program(
         params.push(Value::Object(rest_obj));
     }
     obj.set_field("params", Value::Array(params));
+
+    // acorn-typescript writes a return type between `params` and `body`.
+    if let Some(return_type) = &func.return_type {
+        obj.set_field(
+            "returnType",
+            convert_type_annotation_adjusted(arena, return_type, offset, line_offsets),
+        );
+    }
 
     // body
     if let Some(ref body) = func.body {
@@ -12864,6 +12986,12 @@ fn convert_function_expression_for_program_as_node(
         expression: false,
         type_parameters,
         type_parameters_after_body,
+        return_type: opt_type_annotation(
+            arena,
+            func.return_type.as_deref(),
+            || offset,
+            line_offsets,
+        ),
     }
 }
 
@@ -12881,6 +13009,57 @@ fn program_function_expression_type_parameters(
             arena,
             tp,
             offset,
+            line_offsets,
+        ))
+    })
+}
+
+/// The caller supplies the adjusted offset because the two parse contexts
+/// disagree: an expression is parsed from a slice wrapped in parens, so its
+/// spans need `offset - 1`, while a program's need `offset`.
+fn opt_type_annotation(
+    arena: &ParseArena,
+    type_ann: Option<&oxc_ast::ast::TSTypeAnnotation<'_>>,
+    adjusted_offset: impl FnOnce() -> usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    type_ann.map(|ta| {
+        Box::new(convert_type_annotation_adjusted(
+            arena,
+            ta,
+            adjusted_offset(),
+            line_offsets,
+        ))
+    })
+}
+
+fn opt_type_args(
+    arena: &ParseArena,
+    args: Option<&oxc_ast::ast::TSTypeParameterInstantiation<'_>>,
+    adjusted_offset: impl FnOnce() -> usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    args.map(|a| {
+        Box::new(convert_ts_type_param_instantiation(
+            arena,
+            a,
+            adjusted_offset(),
+            line_offsets,
+        ))
+    })
+}
+
+fn opt_type_params(
+    arena: &ParseArena,
+    type_params: Option<&oxc_ast::ast::TSTypeParameterDeclaration<'_>>,
+    adjusted_offset: impl FnOnce() -> usize,
+    line_offsets: &[usize],
+) -> Option<Box<serde_json::Value>> {
+    type_params.map(|tp| {
+        Box::new(convert_ts_type_parameter_declaration(
+            arena,
+            tp,
+            adjusted_offset(),
             line_offsets,
         ))
     })
@@ -15200,6 +15379,42 @@ mod tests {
             };
             assert_eq!(value, &LiteralValue::String(expected_value.into()));
             assert_eq!(raw.as_str(), expected_raw);
+        }
+    }
+
+    #[test]
+    fn the_expression_entry_point_accepts_offset_zero() {
+        // The expression path spells an absolute position `offset + span - 1`,
+        // so the adjustment is `offset - 1` -- a value that only exists once the
+        // addition has happened. Every pre-existing site materializes it inside
+        // a `Some` branch; passed as an eager call argument it is evaluated for
+        // EVERY node of that kind, so a plain `work()` at offset 0 underflowed.
+        // Only a debug build says so: release wraps and emits a span nobody
+        // reads back, which is why a release-only suite scores it green.
+        //
+        // Nothing here carries TypeScript. Offset 0 with a real TS construct
+        // underflows for a wider, pre-existing reason -- measured on `main`,
+        // `(v) => v`, `(v: number) => v` and `o as string` all panic there --
+        // and the base genuinely is -1, which no `usize` spells. Making it
+        // signed is a change to the whole TS conversion subtree, not to these
+        // three helpers, so it is tracked separately rather than half-done here.
+        for source in [
+            "work()",
+            "new C(1)",
+            "f(g(1))",
+            "[1, 2].map(f)",
+            "() => 1",
+            "a + b",
+            "o.m(1)",
+            "function q(a) { return a; }",
+            "({ x: 1 })",
+        ] {
+            let arena = ParseArena::new();
+            let line_offsets = super::super::super::compute_line_offsets(source, false);
+            assert!(
+                parse_expression_with_typescript(&arena, source, 0, &line_offsets, true).is_some(),
+                "offset 0 must still parse: {source}"
+            );
         }
     }
 
