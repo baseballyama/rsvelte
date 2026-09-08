@@ -41,7 +41,7 @@ pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
             return None;
         }
         return crate::css::hover(text, offset, markdown)
-            .map(|(value, span)| ranged(markup(markdown, value), text, span));
+            .map(|(answer, span)| ranged(css_answer(markdown, answer), text, span));
     }
     // A script body belongs to tsgo; answering it here spells an import path as
     // a CSS property.
@@ -67,7 +67,7 @@ pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
     let attribute = attribute_context(text, offset)?;
     if attribute.in_value && attribute.name == "style" {
         return crate::css::hover(text, offset, markdown)
-            .map(|(value, span)| ranged(markup(markdown, value), text, span));
+            .map(|(answer, span)| ranged(css_answer(markdown, answer), text, span));
     }
     // `HTMLPlugin.doHover` bails on `possiblyComponent(node)`, so a component's
     // attributes get no HTML description.
@@ -233,6 +233,24 @@ const fn plain(value: String) -> Hover {
 /// `HTMLHover.convertContents` (`htmlHover.js:217-239`) relabels a
 /// `MarkupContent` as plain text without rewriting it, so only the `kind`
 /// follows the capability here.
+/// A selector answers with a `MarkedString[]` and a declaration with a
+/// `MarkupContent`, which is the shape official puts on the wire.
+fn css_answer(markdown: bool, answer: crate::css::Answer) -> Hover {
+    match answer {
+        crate::css::Answer::Markup(value) => markup(markdown, value),
+        crate::css::Answer::Marked { tree, specificity } => Hover {
+            contents: HoverContents::Array(vec![
+                MarkedString::LanguageString(lsp_types::LanguageString {
+                    language: "html".to_string(),
+                    value: tree,
+                }),
+                MarkedString::String(specificity),
+            ]),
+            range: None,
+        },
+    }
+}
+
 const fn markup(markdown: bool, value: String) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {

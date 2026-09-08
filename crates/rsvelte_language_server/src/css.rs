@@ -294,32 +294,104 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
 /// The `Selector` and `SimpleSelector` arms — which is where a pseudo-class, a
 /// pseudo-element and `:global()` are answered, since `Selector` breaks the
 /// top-down walk before those arms are reached — are not ported.
+/// What a CSS hover answers with. Official sends a selector as a
+/// `MarkedString[]` and a declaration as a `MarkupContent`
+/// (`CSSPlugin.doHoverInternal` passes the `Hover` through untouched), so the
+/// two cannot share one string.
+pub enum Answer {
+    /// A declaration's documentation, rendered by the caller's `markdown` flag.
+    Markup(String),
+    /// A selector's element tree and its specificity line.
+    Marked { tree: String, specificity: String },
+}
+
 #[must_use]
 pub fn hover(
     text: &str,
     offset: usize,
     markdown: bool,
-) -> Option<(String, std::ops::Range<usize>)> {
-    if text.get(..offset)?.ends_with(":global") || word_at(text, offset) == Some("global") {
-        // The cursor may sit anywhere in the word, so the token cannot be found
-        // by searching the text behind it — walk back over `global` instead.
-        let mut start = offset.min(text.len());
-        while start > 0 && text.as_bytes()[start - 1].is_ascii_alphabetic() {
-            start -= 1;
-        }
-        if start > 0 && text.as_bytes()[start - 1] == b':' {
-            start -= 1;
-        }
-        return Some((
-            "`:global(...)` prevents Svelte CSS scoping for a selector.".to_string(),
-            start..start + ":global".len(),
-        ));
+) -> Option<(Answer, std::ops::Range<usize>)> {
+    // `doHover` walks the node path outermost-first and breaks at `Selector`,
+    // so a pseudo-class, a pseudo-element and `:global()` are all answered
+    // here rather than by the declaration arm below.
+    if let Some((tree, specificity, span)) = selector_answer(text, offset) {
+        return Some((Answer::Marked { tree, specificity }, span));
     }
     let (body, base_depth) = hovered_css_region(text, offset)?;
     let (name, span) = declaration_at(&text[body.clone()], offset - body.start, base_depth)?;
     let property = web::PROPERTIES.iter().find(|entry| entry.name == name)?;
     let value = documentation::documentation(&property.into(), markdown)?;
-    Some((value, body.start + span.start..body.start + span.end))
+    Some((
+        Answer::Markup(value),
+        body.start + span.start..body.start + span.end,
+    ))
+}
+
+/// The `<style …>…</style>` element and the offset it starts at, so a node span
+/// parsed out of the slice can be reported against the document.
+fn style_element_at(text: &str) -> Option<(&str, usize)> {
+    let open = text.find("<style")?;
+    let end = text[open..].find("</style").and_then(|at| {
+        text[open + at..]
+            .find('>')
+            .map(|close| open + at + close + 1)
+    })?;
+    Some((&text[open..end], open))
+}
+
+/// The innermost `ComplexSelector` covering `offset`, as an element tree and a
+/// specificity line.
+fn selector_answer(text: &str, offset: usize) -> Option<(String, String, std::ops::Range<usize>)> {
+    let (style, base) = style_element_at(text)?;
+    let local = offset.checked_sub(base)?;
+    let allocator = rsvelte_core::Allocator::default();
+    let options = rsvelte_core::ParseOptions {
+        skip_expression_loc: true,
+        lenient_script: true,
+        ..rsvelte_core::ParseOptions::default()
+    };
+    let root = rsvelte_core::parse(style, &allocator, options).ok()?;
+    let css = root.css.as_deref()?;
+    let mut found: Option<(&serde_json::Value, u64, u64)> = None;
+    for child in &css.children {
+        collect_complex_selectors(child, local, &mut found);
+    }
+    let (node, start, end) = found?;
+    let (tree, specificity) = crate::css_selector::selector_marked_strings(node);
+    Some((
+        tree,
+        specificity,
+        base + usize::try_from(start).ok()?..base + usize::try_from(end).ok()?,
+    ))
+}
+
+/// Keeps the tightest covering selector, which is the one a nested rule wants.
+fn collect_complex_selectors<'a>(
+    node: &'a serde_json::Value,
+    offset: usize,
+    found: &mut Option<(&'a serde_json::Value, u64, u64)>,
+) {
+    if node.get("type").and_then(serde_json::Value::as_str) == Some("ComplexSelector")
+        && let Some(start) = node.get("start").and_then(serde_json::Value::as_u64)
+        && let Some(end) = node.get("end").and_then(serde_json::Value::as_u64)
+        && (start..=end).contains(&(offset as u64))
+        && found.is_none_or(|(_, s, e)| end - start < e - s)
+    {
+        *found = Some((node, start, end));
+    }
+    match node {
+        serde_json::Value::Array(children) => {
+            for child in children {
+                collect_complex_selectors(child, offset, found);
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for value in fields.values() {
+                collect_complex_selectors(value, offset, found);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// The CSS region `offset` sits in, and the brace depth its declarations
@@ -555,11 +627,24 @@ mod tests {
         assert!(labels("<div style=\"colo").contains(&"color".to_string()));
     }
 
+    /// The markup a declaration hover answers with. A selector answers with
+    /// marked strings instead, so unwrapping here is the assertion that this
+    /// offset took the declaration arm.
+    fn markup_of(answer: Answer) -> String {
+        match answer {
+            Answer::Markup(value) => value,
+            Answer::Marked { tree, .. } => {
+                panic!("expected a declaration hover, got a selector tree: {tree}")
+            }
+        }
+    }
+
     #[test]
     fn completes_common_values_and_hovers_properties() {
         assert!(labels("<style>a { display: fl").contains(&"flex".to_string()));
         let source = "<style>a { color: red }</style>";
-        let (value, span) = hover(source, 13, true).expect("a known property hovers");
+        let (answer, span) = hover(source, 13, true).expect("a known property hovers");
+        let value = markup_of(answer);
         assert!(
             value.starts_with("Sets the color of an element's text"),
             "{value}"
@@ -621,7 +706,8 @@ mod tests {
     #[test]
     fn a_less_merge_suffix_is_trimmed_from_the_name_and_kept_in_the_range() {
         let source = "<style>a { color_: red }</style>";
-        let (value, span) = hover(source, 13, true).expect("the merged property");
+        let (answer, span) = hover(source, 13, true).expect("the merged property");
+        let value = markup_of(answer);
         assert!(
             value.starts_with("Sets the color of an element's text"),
             "{value}"
@@ -654,22 +740,58 @@ mod tests {
         }
     }
 
-    /// A selector is not a declaration chunk, so nothing answers there. The
-    /// `Selector` arm of `CSSHover.doHover` — which is what official uses for a
-    /// pseudo-class, a pseudo-element and a plain selector — is unported.
+    /// The `Selector` arm of `CSSHover.doHover`, which is what official uses for
+    /// a plain selector, a pseudo-class and a pseudo-element. Every expected
+    /// value was generated by driving `vscode-css-languageservice@6.3.5` and
+    /// printing the raw `contents` — the `language: "html"` field of a
+    /// MarkedString is metadata, and reads as an `<html>` element if the value
+    /// is taken through a stringification instead.
     #[test]
-    fn a_selector_answers_nothing() {
-        for (source, offset) in [
-            ("<style>.box span { color: red }</style>", 9),
-            ("<style>a:hover { color: red }</style>", 10),
-            ("<style>p::before { content: \"\" }</style>", 11),
+    fn a_selector_answers_with_its_element_tree_and_specificity() {
+        for (source, offset, tree, spec, range) in [
             (
-                "<style>@media (min-width: 1px) { i { color: red } }</style>",
+                "<style>.box span { color: red }</style>",
+                9,
+                "<element class=\"box\">\n  \u{2026}\n    <span>",
+                "(0, 1, 1)",
+                ".box span",
+            ),
+            (
+                "<style>a:hover { color: red }</style>",
                 10,
+                "<a :hover>",
+                "(0, 1, 1)",
+                "a:hover",
+            ),
+            (
+                "<style>p::before { content: \"\" }</style>",
+                11,
+                "<p ::before>",
+                "(0, 0, 2)",
+                "p::before",
             ),
         ] {
-            assert!(hover(source, offset, true).is_none(), "{source} @{offset}");
+            let (answer, span) = hover(source, offset, true).expect("a selector answers");
+            let Answer::Marked {
+                tree: got,
+                specificity,
+            } = answer
+            else {
+                panic!("a selector answers with marked strings: {source} @{offset}");
+            };
+            assert_eq!(got, tree, "{source} @{offset}");
+            assert!(specificity.ends_with(&format!(": {spec}")), "{specificity}");
+            assert_eq!(&source[span], range, "{source} @{offset}");
         }
+    }
+
+    /// An at-rule prelude is not a selector, and official answers nothing there
+    /// — the negative half of the arm above, which a suite of answering cells
+    /// alone cannot show.
+    #[test]
+    fn an_at_rule_prelude_answers_nothing() {
+        let source = "<style>@media (min-width: 1px) { i { color: red } }</style>";
+        assert!(hover(source, 10, true).is_none(), "{source}");
     }
 
     #[test]
@@ -737,11 +859,23 @@ mod tests {
         // Two branches reach this: the cursor at the end of the token, and the
         // cursor inside the word. A cell for only the first passes while the
         // second returns nothing.
+        // Official has no `:global` special case in hover at all — it answers
+        // like any other pseudo-class, ranged over the whole selector. Values
+        // generated by driving `vscode-css-languageservice@6.3.5`, which
+        // returns the identical answer at every offset inside the selector,
+        // including inside the argument.
         let source = "<style>:global(.external) {}</style>";
-        for offset in [14, 11, 8] {
-            let (value, span) = hover(source, offset, true).expect(":global is documented");
-            assert!(value.contains("prevents"), "{value}");
-            assert_eq!(&source[span], ":global", "at {offset}");
+        for offset in [14, 11, 8, 7, 25] {
+            let (answer, span) = hover(source, offset, true).expect(":global is a selector");
+            let Answer::Marked { tree, specificity } = answer else {
+                panic!("a selector answers with marked strings, at {offset}");
+            };
+            assert_eq!(tree, "<element :global>", "at {offset}");
+            assert!(
+                specificity.ends_with(": (0, 1, 0)"),
+                "{specificity} at {offset}"
+            );
+            assert_eq!(&source[span], ":global(.external)", "at {offset}");
         }
     }
 
