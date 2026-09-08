@@ -1280,10 +1280,11 @@ pub(crate) fn canonicalize_props_call(s: &str) -> Cow<'_, str> {
     static REGEX_PROPS_ASSIGN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         // `[\s\u{feff}]` rather than `\s`: JS counts U+FEFF as whitespace and
         // Unicode's `White_Space` property, which Rust's `\s` follows, does not.
-        regex::Regex::new(
-            r"=[\s\u{feff}]*(?:(?://[^\n]*\n|/\*(?s:.*?)\*/[\s\u{feff}]*))*\$props[\s\u{feff}]*\([\s\u{feff}]*\)",
-        )
-        .unwrap()
+        // A comment is a separator wherever whitespace is one, so the same gap
+        // spells every position; admitting it only after `=` left the rune
+        // un-lowered for `$props/* c */()` and `$props(/* c */)`.
+        const GAP: &str = r"(?:[\s\u{feff}]|//[^\n]*\n|/\*(?s:.*?)\*/)*";
+        regex::Regex::new(&format!(r"={GAP}\$props{GAP}\({GAP}\)")).unwrap()
     });
     // `$$` is the regex-crate escape for a literal `$` in the replacement
     // string (a bare `$props` would be read as a capture-group reference).
@@ -1368,6 +1369,34 @@ mod tests {
         assert_eq!(
             canonicalize_props_call("let { x } =\u{feff}$props()"),
             "let { x } = $props()"
+        );
+    }
+
+    #[test]
+    fn canonicalize_props_call_admits_a_comment_wherever_whitespace_is_admitted() {
+        // A comment is a separator in all three gaps, not only after `=`.
+        for input in [
+            "let p = $props/* c */()",
+            "let p = $props(/* c */)",
+            "let p = /* c */ $props/* c */(/* c */)",
+            "let p = $props //x\n()",
+            "let p = $props(//x\n)",
+        ] {
+            assert_eq!(
+                canonicalize_props_call(input),
+                "let p = $props()",
+                "{input}"
+            );
+        }
+        // A comment does not make a non-call into one, and the callee still has
+        // to be `$props`.
+        assert_eq!(
+            canonicalize_props_call("let p = other/* c */()"),
+            "let p = other/* c */()"
+        );
+        assert_eq!(
+            canonicalize_props_call("let p = $props/* c */(1)"),
+            "let p = $props/* c */(1)"
         );
     }
 
