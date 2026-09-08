@@ -1,0 +1,5 @@
+# `4403-ownership-ignore-reach.svelte`
+
+**Issue:** [#4403](https://github.com/baseballyama/rsvelte/issues/4403)
+
+Upstream registers a `bind:` setter's ownership check in `ignore_map` per NODE, so an enclosing `<!-- svelte-ignore ownership_invalid_mutation -->` reaches every start tag — including `<svelte:window>` and its siblings, which rsvelte's inherited-ignore walk left in a `_ => {}` arm. In the other direction `shared/component.js:267` builds a component setter's assignment with a bare `b.assignment` and never registers it, so the comment does not reach a component binding at all; rsvelte suppressed there. The two directions are crossed in one file because a fix that reaches only one reads as done. `<input>` and the `{#each}` body are the suppression controls that were already right, and the last unadorned `<input bind:value={item.title}>` is the live control: it must still validate, so a port that stopped emitting the validator entirely cannot pass by suppressing everything. Only `client-dev` diverges — the other three targets emit no validator at all.

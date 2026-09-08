@@ -1,0 +1,5 @@
+# `4244-erased-annotation-comment.svelte`
+
+**Issue:** [#4244](https://github.com/baseballyama/rsvelte/issues/4244)
+
+A comment left inside an erased TypeScript type that the re-emission dropped entirely. The gate on that re-emission was a conjunction and each term silenced a host on its own — an inline annotation, and a single-line removed region — so the issue's own repro, which trips both, cannot tell a half-fix from a whole one. The comment sits **after** the first member on purpose: `collect_speculative_type_head_regions` records that acorn-typescript doubles a comment in a speculative head and not after it, and only a non-doubling shape can be green on all four targets, because the server does not reproduce the doubling at all. Every doubling host (a type literal's or mapped type's `{`, a function type's `(`) is therefore still server-divergent and cannot land here; those are covered by `crates/rsvelte_core/tests/erased_annotation_comment.rs` on the client, and the server gap is its own issue.

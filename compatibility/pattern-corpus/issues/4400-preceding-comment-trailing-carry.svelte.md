@@ -1,0 +1,5 @@
+# `4400-preceding-comment-trailing-carry.svelte`
+
+**Issue:** [#4400](https://github.com/baseballyama/rsvelte/issues/4400)
+
+A comment the region still owns when a legacy prop declaration is printed. The rebuilt statement is location-less, so it is anchored -- at the region head, which leaves every comment in the region to flush at the DECLARATOR. That is what a split declaration wants (upstream really does print `let // pre` + `a = ...` there, measured, so the shape #4400 calls invalid is upstream's own) and wrong for a single declarator, where the keyword's own position keeps the comment ahead of `let`. The guard was a second, separate error: spelled from `region_start` it denied the carry for a comment merely PRECEDING the statement, where only one INSIDE the declaration needs the collapsed form. Held with its control -- a comment trailing a statement that stays in place, which agreed before and after -- because the axis is ownership at print time, not whether an earlier comment exists.

@@ -1,0 +1,5 @@
+# `a-dynamic-id-matches-any-id-selector.svelte`
+
+**Issue:** css-prune probe
+
+Upstream's `attribute_matches` answers one question — may an element whose attribute value it cannot enumerate match a selector naming that value? — with `true`. rsvelte answers it in four places, and two of them had the escape for `class` and none for `id`, so `<div id={expr}>` pruned `#absent + .b`, `#absent ~ .b`, `.host:has(#absent)` and `#absent { .under { … } }` where official keeps all four (the last as a whole `(empty)` rule rather than the nested selector official drops). The two ports are `selector_matches_element` (sibling, `:has()` argument, `&` compound) and the matcher inlined in `is_parent_chain_unused` (parent prelude); the latter guarded classes and elements with whole-component flags and ids with nothing. **Both directions are pinned, and the second is what an over-wide escape would break**: the `class={expr}` rows matched official before the fix — which is what makes this a two-ports defect rather than an id bug — and the `#absent-static` rows must still prune on an element whose id is static. See `two-ports-inventory.md` row 24 for the port that is still coarse.

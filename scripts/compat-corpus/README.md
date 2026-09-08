@@ -992,14 +992,23 @@ manifest is shared — they also flow through the fmt and svelte2tsx gates.
 
 2. **Do not put provenance in an HTML comment.** Removed comments are themselves
    a whitespace-sensitive compiler input, so a `<!-- issue N -->` line changes
-   what the file tests. Record it in the table in
-   [`compatibility/pattern-corpus/README.md`](../../compatibility/pattern-corpus/README.md)
-   instead — that table is the only provenance record.
+   what the file tests. It goes in a file beside the repro instead.
 
-   `scripts/ci/check-pattern-corpus-docs.mjs` enforces this in both directions,
-   per section: an `issues/` file needs a row in the `issues/` table, a
-   `matrix/<axis>/` file needs one under that axis's `### ` heading, and an
-   `adversarial/<theme>/` directory needs a row in the themes table.
+   For a repro that is a **sibling doc**: `issues/<file>.md`, holding an
+   `**Issue:** <link or label>` line and then the prose saying what the file
+   pins and which of its rows are controls. One doc per repro, so two PRs adding
+   two repros create two files and cannot conflict — that is why it is not one
+   table (#4442).
+
+   For `matrix/` and `adversarial/` it is still a row in
+   [`compatibility/pattern-corpus/README.md`](../../compatibility/pattern-corpus/README.md),
+   because a group is added whole and rarely.
+
+   `scripts/ci/check-pattern-corpus-docs.mjs` enforces this in both directions:
+   an `issues/` file needs a non-empty sibling doc and a doc needs its file, a
+   `matrix/<axis>/` file needs a row under that axis's `### ` heading, and an
+   `adversarial/<theme>/` directory needs a row in the themes table. Run it with
+   `--index` to print every `issues/` doc as one table.
 
 3. **Land it with the fix.** A repro for a still-open divergence would have to be
    seeded into `known-failures.*`; add it in the fix PR (or right after it

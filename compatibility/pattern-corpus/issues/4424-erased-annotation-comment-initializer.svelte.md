@@ -1,0 +1,5 @@
+# `4424-erased-annotation-comment-initializer.svelte`
+
+**Issue:** [#4424](https://github.com/baseballyama/rsvelte/issues/4424)
+
+The sibling of `4244-erased-annotation-comment`: that one asks WHETHER the comment survives, this one asks WHERE. Upstream's printer flushes it ahead of the initializer; re-emitted at the annotation it removed, it sits between the identifier and the `=`, and the client's legacy state lowering — which looks for the literal `"<keyword> <var> ="` — misses, drops the `$.mutable_source()` wrapping, and leaves a declaration whose reads and writes still go through `$.get`/`$.set`. The comment kind carries a `)` only to match the mutant that found it: all eight kinds fail, because the defect is the comment's presence and not a delimiter inside it. The 4-target byte comparison is the point — under the mutation gate's normalization the comment is stripped, so only the missing wrapping shows, and that is exactly the half a comment-position fix could quietly leave broken.

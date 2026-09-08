@@ -1,0 +1,5 @@
+# `class-member-modifier-field-set.svelte`
+
+**Issue:** modifier probe
+
+acorn-typescript emits a class-member modifier **only where the source wrote it**, so absence and `false` are different facts. rsvelte was wrong in both directions at once: it emitted none of `readonly` / `declare` / `optional` / `definite` / `override` / `accessibility`, and it emitted `accessor` on every property whether written or not — so a fix for either direction alone leaves the other, which is why the `Plain` class is in this file. The mechanism was not the emitter: `convert_class_element_for_program` already emitted `declare`, and the class body is then round-tripped through `JsNode::from_value`, whose typed `PropertyDefinition` had nowhere to put a modifier — the field was emitted and then dropped one step later. `TsMemberModifiers` is one field rather than seven because a field is priced on the type, and `JsNode` measured 80 bytes before and after. Measured on the parse-ast gate, same tree, only the binding rebuilt: 377 -> 365 keys, `estree-fields` 68 -> 56, and `MethodDefinition.override#missing` — the entry blocking a re-baseline — gone.
