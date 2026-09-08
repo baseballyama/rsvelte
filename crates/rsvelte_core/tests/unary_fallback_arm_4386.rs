@@ -179,14 +179,36 @@ fn the_table_exercises_both_arms_and_puts_the_unary_rows_on_the_lazy_one() {
     }
 }
 
-/// A concise-body arrow in an `{#each}` destructure comes back with a BLOCK body, so the
-/// default function returns `undefined`. That is #4417 and a different mechanism; it is pinned
-/// here so fixing it turns this row red rather than passing unnoticed.
+/// The `{#each}` destructuring host takes the same lazy/eager split as the snippet host, on
+/// both arms. #4417 was the concise-body arrow coming back with a BLOCK body here — this row
+/// was pinned to that wrong shape so fixing it would go red rather than pass unnoticed, and
+/// #4428 fixed it. The pin is now the oracle's own answer, and it carries the eager and lazy
+/// arms beside the arrow so a port that re-broke either one is caught by the same test.
+///
+/// Three of these rows also appear in `each_destructure_concise_arrow_default_4417.rs`. That is
+/// deliberate and not a duplicate: that table asks whether the concise body is PRESERVED, this
+/// one asks which `$.fallback` arm is TAKEN, and deleting either leaves its own question with
+/// no witness.
 #[test]
-fn the_each_host_concise_arrow_default_is_still_wrong() {
-    let line = fallback_line(&client(&each_host("() => 1")));
-    assert_eq!(
-        line, "let a = $.derived_safe_equal(() => $.fallback($.get($$item).a, () => {",
-        "#4417 changed: official emits `, () => 1));` on one line"
-    );
+fn the_each_host_matches_the_official_compiler() {
+    /// `(default, the line the official compiler emits)`.
+    #[rustfmt::skip]
+    const EACH: &[(&str, &str)] = &[
+        ("() => 1",        "let a = $.derived_safe_equal(() => $.fallback($.get($$item).a, () => 1));"),
+        ("function () {}", "let a = $.derived_safe_equal(() => $.fallback($.get($$item).a, function () {}));"),
+        ("1",              "let a = $.derived_safe_equal(() => $.fallback($.get($$item).a, 1));"),
+        ("-1",             "let a = $.derived_safe_equal(() => $.fallback($.get($$item).a, () => -1, true));"),
+    ];
+
+    for (default, expected) in EACH {
+        assert_eq!(
+            fallback_line(&client(&each_host(default))).as_str(),
+            *expected,
+            "each host, default `{default}`"
+        );
+    }
+
+    // Both arms have to be present or the grid is satisfied by a port that only ever takes one.
+    assert!(EACH.iter().any(|c| is_lazy(c.1)), "no lazy row");
+    assert!(EACH.iter().any(|c| !is_lazy(c.1)), "no eager row");
 }
