@@ -30,27 +30,39 @@ export function idOf(node) {
 }
 
 /**
- * Pair two sibling lists by identity rather than by index.
+ * Pair two sibling lists so that ONE dropped node costs one key.
+ *
+ * Identity alone is not the alignment. An identity built from `(type, start,
+ * end)` de-pairs a node whose span or type is merely WRONG, and those are the
+ * two largest divergence classes here — so aligning on identity alone converts
+ * a `#span` into a phantom delete-plus-insert and a mislabel into two keys
+ * where the walk already reports one. Measured over the corpus, that traded 7
+ * `#span` and 5 `.type#value` keys for node-level pairs that describe the
+ * defect less accurately than the index pairing being replaced.
+ *
+ * So identity is used only to find ANCHORS — ids occurring exactly once on
+ * each side — and the runs between consecutive anchors are paired by index,
+ * which is what the comparator did before. A drop consumes one slot of one gap
+ * and every later sibling re-anchors, while a wrong span or a mislabel stays
+ * inside a gap and is compared exactly as it used to be. The alignment can
+ * therefore only remove keys the old pairing invented; it cannot lose one.
  *
  * `(type, start, end)` is NOT unique: upstream's acorn-typescript comment
- * doubling puts two comments with the identical span in one array, so a map
- * keyed on the triple collapses them and a real deletion of one of them reports
- * nothing — identity matching would be LOOSER than the index matching it
- * replaces. Pairing by `(triple, nth occurrence of that triple)` keeps both.
+ * doubling puts two comments with the identical span in one array. Such an id
+ * is not unique on either side, so it is never an anchor and its occurrences
+ * are index-paired — which keeps a deletion of one of the two visible, where a
+ * map keyed on the triple would collapse the pair and report nothing.
  *
  * Returns `null` when either side holds an element with no identity, so arrays
  * of strings, numbers and typeless objects keep index pairing.
  */
-export function alignByIdentity(a, b) {
+export function alignSiblings(a, b) {
 	const ids = (list) => {
-		const seen = new Map();
 		const out = [];
 		for (const item of list) {
 			const id = idOf(item);
 			if (id === null) return null;
-			const nth = seen.get(id) ?? 0;
-			seen.set(id, nth + 1);
-			out.push(`${id} ${nth}`);
+			out.push(id);
 		}
 		return out;
 	};
@@ -59,36 +71,69 @@ export function alignByIdentity(a, b) {
 	const ib = ids(b);
 	if (ib === null) return null;
 
-	const bIndex = new Map();
-	for (let i = 0; i < ib.length; i++) bIndex.set(ib[i], i);
+	/** id → its only index, or `null` once a second occurrence is seen. */
+	const uniqueIndex = (list) => {
+		const seen = new Map();
+		list.forEach((id, i) => seen.set(id, seen.has(id) ? null : i));
+		return seen;
+	};
+	const ua = uniqueIndex(ia);
+	const ub = uniqueIndex(ib);
 
-	const pairs = [];
-	const onlyA = [];
-	const matchedB = new Set();
+	const anchors = [];
 	for (let i = 0; i < ia.length; i++) {
-		const j = bIndex.get(ia[i]);
-		if (j === undefined) onlyA.push(i);
-		else {
-			pairs.push([i, j]);
-			matchedB.add(j);
-		}
+		if (ua.get(ia[i]) !== i) continue;
+		const j = ub.get(ia[i]);
+		if (j === null || j === undefined) continue;
+		anchors.push([i, j]);
 	}
-	const onlyB = [];
-	for (let j = 0; j < b.length; j++) if (!matchedB.has(j)) onlyB.push(j);
 
-	// Matched pairs are collected in ascending `a` order, so a partner sequence
-	// that is not increasing is a reorder. Testing the matched subsequence
-	// rather than the raw indices is what keeps a deletion from reporting every
-	// following sibling as reordered — that would be the spray this change
-	// exists to remove, wearing a different key.
+	// Anchors are collected in ascending `a` order, so a partner sequence that
+	// is not increasing means the two sides disagree about order.
 	let reordered = false;
-	for (let k = 1; k < pairs.length; k++) {
-		if (pairs[k][1] <= pairs[k - 1][1]) {
+	for (let k = 1; k < anchors.length; k++) {
+		if (anchors[k][1] <= anchors[k - 1][1]) {
 			reordered = true;
 			break;
 		}
 	}
-	return { pairs, onlyA, onlyB, reordered };
+
+	// A reorder leaves "the run between two anchors" undefined on `b`'s side, so
+	// gap pairing is not available: pair the anchors themselves and report the
+	// rest. `#order` is the finding in that case, and it is rare.
+	if (reordered) {
+		const matchedA = new Set(anchors.map(([i]) => i));
+		const matchedB = new Set(anchors.map(([, j]) => j));
+		return {
+			pairs: anchors,
+			onlyA: a.map((_, i) => i).filter((i) => !matchedA.has(i)),
+			onlyB: b.map((_, j) => j).filter((j) => !matchedB.has(j)),
+			reordered: true,
+		};
+	}
+
+	const pairs = [];
+	const onlyA = [];
+	const onlyB = [];
+	let i = 0;
+	let j = 0;
+	const gap = (endA, endB) => {
+		const n = Math.min(endA - i, endB - j);
+		for (let k = 0; k < n; k++) pairs.push([i + k, j + k]);
+		for (let k = i + n; k < endA; k++) onlyA.push(k);
+		for (let k = j + n; k < endB; k++) onlyB.push(k);
+		i = endA;
+		j = endB;
+	};
+	for (const [ai, bj] of anchors) {
+		gap(ai, bj);
+		pairs.push([ai, bj]);
+		i = ai + 1;
+		j = bj + 1;
+	}
+	gap(a.length, b.length);
+
+	return { pairs, onlyA, onlyB, reordered: false };
 }
 
 /**
@@ -109,10 +154,10 @@ export function diffKeys(a, b, out, ctx, rel, depth = 0) {
 	}
 	if (ta === 'array') {
 		if (a.length !== b.length) out.add(`${ctx}${rel}[]#length`);
-		// Index pairing turns ONE dropped node into a spray: every following
+		// Pure index pairing turns ONE dropped node into a spray: every following
 		// sibling is compared against the wrong partner, and each mismatch is
 		// filed under its own key naming a node type the defect never touched.
-		const aligned = alignByIdentity(a, b);
+		const aligned = alignSiblings(a, b);
 		if (aligned === null) {
 			const n = Math.min(a.length, b.length);
 			for (let i = 0; i < n; i++) diffKeys(a[i], b[i], out, ctx, `${rel}[]`, depth + 1);

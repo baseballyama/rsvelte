@@ -2,26 +2,38 @@
 /**
  * Controls for the `parse()` AST comparator's sibling alignment.
  *
- * The property under test is that ONE dropped node reports ONE key. Index
+ * The property under test is that ONE dropped node reports ONE key. Pure index
  * pairing reported a median of 7 and up to 74, because every sibling after the
  * drop was compared against the wrong partner and each mismatch was filed under
  * its own key — naming node types the defect never touched.
  *
- * Two of these controls exist because the obvious implementation fails them:
+ * The property that is just as load-bearing, and that the first version of this
+ * alignment failed, is that it must never report LESS accurately than the index
+ * pairing it replaces. `(type, start, end)` is an identity, and a node whose
+ * span or type is merely WRONG has a different identity — so aligning on
+ * identity alone turns a `#span` into a phantom delete-plus-insert and a
+ * mislabel into two keys where the walk already reports one. Measured over the
+ * corpus that cost 7 `#span` and 5 `.type#value` keys. The alignment therefore
+ * uses identity only to find ANCHORS and index-pairs the runs between them, and
+ * three controls below pin exactly that:
  *
- * - `a_duplicate_span_is_not_one_node` — `(type, start, end)` is not a unique
- *   identity. Upstream's acorn-typescript comment doubling puts two comments
- *   with the same span in one array, so a map keyed on the triple collapses
- *   them and deleting one reports NOTHING. That is looser than the index
- *   pairing being replaced, which is the one thing this change must not be.
- *
+ * - `a_wrong_span_is_not_a_delete_and_insert`
+ * - `a_mislabel_is_one_key_not_two`
  * - `a_field_change_is_not_a_delete_and_insert` — perturbing `type` perturbs
  *   the identity, so it tests alignment while looking like it tests fields.
  *   The perturbation here is on a non-identity leaf.
+ *
+ * And one control exists because the obvious implementation fails it:
+ *
+ * - `a_duplicate_span_is_not_one_node` — `(type, start, end)` is not unique.
+ *   Upstream's acorn-typescript comment doubling puts two comments with the
+ *   same span in one array, so a map keyed on the triple collapses them and
+ *   deleting one reports NOTHING. That is looser than the index pairing being
+ *   replaced, which is the one thing this change must not be.
  */
 
 import assert from 'node:assert/strict';
-import { diffKeys, idOf, alignByIdentity } from '../compat-corpus/parse-ast-diff.mjs';
+import { diffKeys, idOf, alignSiblings } from '../compat-corpus/parse-ast-diff.mjs';
 
 let failures = 0;
 const test = (name, fn) => {
@@ -80,6 +92,34 @@ test('an extra node on rsvelte’s side is reported, not skipped', () => {
 	assert.deepEqual(keysOf(official, rsvelte), ['EmptyStatement#node-extra', 'Program.body[]#length']);
 });
 
+test('a_wrong_span_is_not_a_delete_and_insert: a moved sibling still reports #span', () => {
+	// The node is present on both sides and its span is wrong. Identity-only
+	// alignment de-pairs it and reports `#node-missing` + `#node-extra`, which
+	// describes a deletion that did not happen and loses the actual finding.
+	const official = { type: 'Program', start: 0, end: 30, body: [stmt('VariableDeclaration', 0, 10), stmt('IfStatement', 10, 20), stmt('ReturnStatement', 20, 30)] };
+	const rsvelte = structuredClone(official);
+	rsvelte.body[1].end = 21;
+	assert.deepEqual(keysOf(official, rsvelte), ['IfStatement#span']);
+});
+
+test('a_mislabel_is_one_key_not_two: two node types at one span report .type#value', () => {
+	// The walk already has a branch for this ("the mislabel IS the finding"),
+	// and identity-only alignment never reaches it.
+	const official = { type: 'Program', start: 0, end: 10, body: [stmt('CallExpression', 0, 10, { callee: null })] };
+	const rsvelte = { type: 'Program', start: 0, end: 10, body: [stmt('NewExpression', 0, 10, { callee: null })] };
+	assert.deepEqual(keysOf(official, rsvelte), ['CallExpression.type#value']);
+});
+
+test('a mislabel between two anchors is still one key', () => {
+	// The anchors on either side are what makes the middle a one-element gap;
+	// without them the whole array is one gap and the assertion above would
+	// pass for the wrong reason.
+	const official = { type: 'Program', start: 0, end: 30, body: [stmt('A', 0, 10), stmt('CallExpression', 10, 20, { callee: null }), stmt('C', 20, 30)] };
+	const rsvelte = structuredClone(official);
+	rsvelte.body[1].type = 'NewExpression';
+	assert.deepEqual(keysOf(official, rsvelte), ['CallExpression.type#value']);
+});
+
 test('a_duplicate_span_is_not_one_node: deleting one of two identical spans still reports', () => {
 	// Upstream emits the same comment twice, at the identical span. A map keyed
 	// on (type, start, end) collapses the pair, and this control reads [].
@@ -91,12 +131,13 @@ test('a_duplicate_span_is_not_one_node: deleting one of two identical spans stil
 	};
 	const rsvelte = structuredClone(official);
 	rsvelte.comments.splice(1, 1);
-	const keys = keysOf(official, rsvelte);
-	assert.deepEqual(keys, ['Block#node-missing', 'Root.comments[]#length']);
+	assert.deepEqual(keysOf(official, rsvelte), ['Block#node-missing', 'Root.comments[]#length']);
 
-	// and the alignment itself must pair the survivor with the FIRST occurrence
-	const aligned = alignByIdentity(official.comments, rsvelte.comments);
-	assert.equal(aligned.pairs.length, 2, 'two of the three must pair');
+	// A duplicated id is unique on neither side, so it is never an anchor; the
+	// survivor is index-paired with the FIRST occurrence and the second is the
+	// surplus.
+	const aligned = alignSiblings(official.comments, rsvelte.comments);
+	assert.deepEqual(aligned.pairs, [[0, 0], [2, 1]]);
 	assert.deepEqual(aligned.onlyA, [1], 'the unpaired one is an occurrence, not a span');
 });
 
@@ -121,20 +162,30 @@ test('a reorder is reported rather than silently paired away', () => {
 });
 
 test('a drop does not report the following siblings as reordered', () => {
-	// The order test runs over the MATCHED subsequence. Over raw indices every
-	// sibling after a deletion shifts, so this would be the same spray under a
-	// different key.
+	// The anchors after a deletion still increase, so nothing here is a reorder.
+	// Over raw indices every sibling after the drop shifts, and that would be
+	// the same spray this change exists to remove, wearing a different key.
 	const official = { type: 'Program', start: 0, end: 40, body: [stmt('A', 0, 10), stmt('B', 10, 20), stmt('C', 20, 30), stmt('D', 30, 40)] };
 	const rsvelte = structuredClone(official);
 	rsvelte.body.splice(0, 1);
 	assert.deepEqual(keysOf(official, rsvelte), ['A#node-missing', 'Program.body[]#length']);
 });
 
+test('a drop and a wrong span in one array report one key each', () => {
+	// The two mechanisms must not mask each other: the drop is named, and the
+	// moved node — which is in a different gap — still reports its span.
+	const official = { type: 'Program', start: 0, end: 40, body: [stmt('A', 0, 10), stmt('B', 10, 20), stmt('C', 20, 30), stmt('D', 30, 40)] };
+	const rsvelte = structuredClone(official);
+	rsvelte.body[3].end = 41;
+	rsvelte.body.splice(1, 1);
+	assert.deepEqual(keysOf(official, rsvelte), ['B#node-missing', 'D#span', 'Program.body[]#length']);
+});
+
 test('arrays without identity keep index pairing', () => {
 	// `ignores` is an array of strings: no type, no span. Index pairing is the
 	// only thing available and must still run rather than being skipped.
 	assert.equal(idOf('svelte-ignore'), null);
-	assert.equal(alignByIdentity(['a', 'b'], ['a', 'c']), null);
+	assert.equal(alignSiblings(['a', 'b'], ['a', 'c']), null);
 	const official = { type: 'Comment', start: 0, end: 10, ignores: ['a11y_x'] };
 	const rsvelte = structuredClone(official);
 	rsvelte.ignores[0] = 'a11y_y';
@@ -147,15 +198,6 @@ test('a typeless object in the array falls back to index pairing', () => {
 	assert.equal(idOf(null), null);
 	assert.equal(idOf([1]), null);
 	assert.equal(idOf({ type: 'X', start: 0, end: 1 }), 'X 0 1');
-});
-
-test('a mislabelled node is still one key', () => {
-	// The two sides disagree about `type` at the same span, so they do not pair.
-	// Neither the old walk nor this one descends into a mislabel.
-	const official = { type: 'Program', start: 0, end: 10, body: [stmt('CallExpression', 0, 10, { callee: null })] };
-	const rsvelte = { type: 'Program', start: 0, end: 10, body: [stmt('NewExpression', 0, 10, { callee: null })] };
-	const keys = keysOf(official, rsvelte);
-	assert.deepEqual(keys, ['CallExpression#node-missing', 'NewExpression#node-extra']);
 });
 
 test('nested drops report once each, not once per ancestor', () => {
