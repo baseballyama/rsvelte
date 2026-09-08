@@ -13,22 +13,23 @@ fn source_offset(value: usize) -> u32 {
 }
 
 use crate::svelte2tsx::template::attributes::attribute::{
-    AttrHost, element_is_custom, format_attribute_node,
+    AttrHost, append_attribute_node_segments, element_is_custom,
 };
 use crate::svelte2tsx::template::attributes::binding::{
-    any_bind_needs_element_var, bind_is_filtered_from_props, format_bind_directive,
+    any_bind_needs_element_var, bind_is_filtered_from_props, format_bind_directive_segments,
     sanitize_tag_for_var,
 };
 use crate::svelte2tsx::template::attributes::directive_suffix::{
     action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
 };
-use crate::svelte2tsx::template::attributes::event_handler::format_on_directive;
+use crate::svelte2tsx::template::attributes::event_handler::format_on_directive_segments;
 use crate::svelte2tsx::template::attributes::let_::{
     build_let_destructure_string, has_let_directives,
 };
-use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
-use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
+use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
+use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex, TemplateNodeExt};
 use crate::svelte2tsx::template::segs::segs_to_string;
+use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_set_binding_ranges};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
@@ -484,7 +485,7 @@ pub fn handle_named_slot_element(
     );
 
     // Build attributes string excluding `slot` and `let:` directives
-    let attrs_str = build_named_slot_element_attrs(
+    let attr_segs = build_named_slot_element_attrs(
         &el.attributes,
         source,
         &options.typings_namespace,
@@ -549,8 +550,8 @@ pub fn handle_named_slot_element(
     let element_var_decl = element_var
         .as_ref()
         .map_or_else(String::new, |var| format!("const {var} = "));
-    let opener = format!(
-        "{}{}{}{{ {}{}.createElement(\"{}\"{}, {{{}{}}});{}",
+    let mut opener = vec![Seg::Lit(format!(
+        "{}{}{}{{ {}{}.createElement(\"{}\"{}, {{{}",
         " ".repeat(spacing.before_block),
         block_open,
         // An action prefix gets its own block so `$$action_N` is scoped to the
@@ -565,10 +566,15 @@ pub fn handle_named_slot_element(
         el.name,
         actions_arg,
         " ".repeat(spacing.in_attr_object),
-        attrs_str,
-        directive_suffix
+    ))];
+    opener.extend(attr_segs);
+    opener.push(Seg::Lit(format!("}});{directive_suffix}")));
+    emit_segmented_overwrite(
+        str,
+        el.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
     );
-    str.overwrite(el.start, opening_tag_end, &opener);
     // An action prefix opens one more block, which the closer below has to match.
     // The leading space is the one the overwritten `</tag>` leaves behind, so an
     // element that has no closing tag to overwrite does not get it — same rule
@@ -634,7 +640,7 @@ pub fn handle_named_slot_svelte_fragment(
     // position-preserving emission leaves one space per stripped attribute
     // visible inside the empty `{}` (so `slot="x" let:y` → 2 spaces,
     // `slot="x" let:y let:z` → 3 spaces, etc.).
-    let attrs_str = build_named_slot_element_attrs(
+    let attr_segs = build_named_slot_element_attrs(
         &el.attributes,
         source,
         &options.typings_namespace,
@@ -662,21 +668,34 @@ pub fn handle_named_slot_svelte_fragment(
             preserve_bind: options.preserves_bind_prefix(),
         },
     );
-    let opener = format!(
-        "{}{block_open}{{ {}.createElement(\"svelte:fragment\", {{{}{attrs_str}}});",
+    let mut opener = vec![Seg::Lit(format!(
+        "{}{block_open}{{ {}.createElement(\"svelte:fragment\", {{{}",
         " ".repeat(spacing.before_block),
         options.typings_namespace,
         " ".repeat(spacing.in_attr_object),
-    );
+    ))];
+    opener.extend(attr_segs);
+    opener.push(Seg::Lit("});".to_string()));
 
     if !has_closing_tag {
         // Self-closing `<svelte:fragment slot="x" />` — body has no nodes.
-        let combined = format!("{opener}}}}}");
-        str.overwrite(el.start, el.end, &combined);
+        let mut combined = opener;
+        combined.push(Seg::Lit("}}".to_string()));
+        emit_segmented_overwrite(
+            str,
+            el.start,
+            el.end,
+            &bake_out_of_order_src(combined, source),
+        );
         return;
     }
 
-    str.overwrite(el.start, opening_tag_end, &opener);
+    emit_segmented_overwrite(
+        str,
+        el.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
+    );
     // `<svelte:fragment slot=…>` emits its own `createElement("svelte:fragment")`,
     // so it is an element nesting level — children (their `$$_<name><depth>`
     // instance vars) are at depth + 1.
@@ -875,8 +894,11 @@ pub fn build_named_slot_element_attrs(
     tag: &str,
     lower_bindings: bool,
     preserve_case: bool,
-) -> String {
-    let mut parts: Vec<String> = Vec::new();
+) -> Vec<Seg> {
+    let mut parts: Vec<Seg> = Vec::new();
+    // This path has never carried element-opener comments, so an empty index
+    // keeps the emitted text byte-identical to the string form it replaces.
+    let no_comments = ElementOpenerCommentIndex::default();
 
     for attr in attributes {
         match attr {
@@ -897,10 +919,10 @@ pub fn build_named_slot_element_attrs(
                         is_custom_element: element_is_custom(tag, attributes),
                     }
                 };
-                parts.push(format_attribute_node(node, source, host));
+                append_attribute_node_segments(&mut parts, node, source, &no_comments, host, "");
             }
             Attribute::SpreadAttribute(spread) => {
-                parts.push(format_spread_attribute(spread, source));
+                parts.extend(format_spread_attribute_segments(spread, source));
             }
             Attribute::BindDirective(bind) => {
                 // Same rule as a regular element's props object: `bind:this` and
@@ -911,7 +933,7 @@ pub fn build_named_slot_element_attrs(
                     || (is_get_set && bind.name != "this")
                     || !bind_is_filtered_from_props(&bind.name, tag)
                 {
-                    parts.push(format_bind_directive(
+                    parts.extend(format_bind_directive_segments(
                         bind,
                         source,
                         ns == crate::svelte2tsx::interfaces::DEFAULT_TYPINGS_NAMESPACE,
@@ -919,7 +941,7 @@ pub fn build_named_slot_element_attrs(
                 }
             }
             Attribute::OnDirective(on) => {
-                parts.push(format_on_directive(on, source));
+                parts.extend(format_on_directive_segments(on, source));
             }
             Attribute::ClassDirective(_)
             | Attribute::StyleDirective(_)
@@ -938,5 +960,5 @@ pub fn build_named_slot_element_attrs(
         }
     }
 
-    parts.join("")
+    parts
 }

@@ -9,11 +9,12 @@ use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::attributes::attribute::AttrHost;
 use crate::svelte2tsx::template::attributes::binding::{
-    any_bind_needs_element_var, build_bind_directive_suffix, element_var_base_name,
+    any_bind_needs_element_var, build_bind_directive_suffix_segs, element_var_base_name,
 };
-use crate::svelte2tsx::template::attributes::build_attributes_string;
+use crate::svelte2tsx::template::attributes::build_attribute_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_directive_prefix_suffix;
 use crate::svelte2tsx::template::ctx::Counter;
+use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
 use crate::svelte2tsx::template::walk::process_node_inplace;
@@ -188,7 +189,7 @@ pub fn handle_svelte_special_element(
         });
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
-    let attrs_str = if named_slot.is_some() {
+    let attr_segs: Vec<Seg> = if named_slot.is_some() {
         build_named_slot_element_attrs(
             &el.attributes,
             source,
@@ -198,11 +199,12 @@ pub fn handle_svelte_special_element(
             options.namespace.preserves_attribute_case(),
         )
     } else {
-        build_attributes_string(
+        build_attribute_segments(
             &el.attributes,
             source,
             &counter.element_opener_comments,
             saved_slot.is_some(),
+            None,
             // `<svelte:body|window|document|head|fragment>` is an `Element` whose
             // node type is not `Element`, so neither name rewrite applies.
             AttrHost::SpecialTag { tag: &el.name },
@@ -210,13 +212,13 @@ pub fn handle_svelte_special_element(
         )
     };
 
-    let (attrs_str, indent) = special_element_opening_layout(
+    let (attr_segs, indent) = special_element_opening_layout(
         el,
         source,
         options,
         counter,
         opening_tag_end,
-        attrs_str,
+        attr_segs,
         saved_slot.is_some(),
         named_slot_block.as_ref().or(default_slot_let.as_ref()),
         str,
@@ -242,7 +244,7 @@ pub fn handle_svelte_special_element(
             depth,
             opening_tag_end,
             &indent,
-            &attrs_str,
+            &attr_segs,
             whitespace,
         );
     } else {
@@ -255,7 +257,7 @@ pub fn handle_svelte_special_element(
             depth,
             opening_tag_end,
             &indent,
-            &attrs_str,
+            &attr_segs,
             whitespace,
         );
     }
@@ -272,11 +274,11 @@ fn special_element_opening_layout(
     options: &Svelte2TsxOptions,
     counter: &Counter,
     opening_tag_end: u32,
-    attrs: String,
+    attr_segs: Vec<Seg>,
     in_component_slot: bool,
     slot_let_block: Option<&String>,
     str: &mut MagicString<'_>,
-) -> (String, String) {
+) -> (Vec<Seg>, String) {
     let head = (!LITERAL_NAME_TAGS.contains(&el.name.as_str())).then(|| {
         (
             el.start + 1,
@@ -299,10 +301,12 @@ fn special_element_opening_layout(
             preserve_bind: options.preserves_bind_prefix(),
         },
     );
-    let attrs = if spacing.in_attr_object > 0 {
-        format!("{}{}", " ".repeat(spacing.in_attr_object), attrs)
+    let attr_segs = if spacing.in_attr_object > 0 {
+        let mut padded = vec![Seg::Lit(" ".repeat(spacing.in_attr_object))];
+        padded.extend(attr_segs);
+        padded
     } else {
-        attrs
+        attr_segs
     };
     let indent = " ".repeat(spacing.before_block);
     let indent = if let Some(block) = slot_let_block {
@@ -311,7 +315,7 @@ fn special_element_opening_layout(
     } else {
         indent
     };
-    (attrs, indent)
+    (attr_segs, indent)
 }
 
 fn handle_standard_special_element(
@@ -323,12 +327,17 @@ fn handle_standard_special_element(
     depth: u32,
     opening_tag_end: u32,
     indent: &str,
-    attrs: &str,
+    attr_segs: &[Seg],
     whitespace: SurroundingWhitespace,
 ) {
     let (opener, has_directives) =
-        standard_special_element_opener(el, source, options, depth, indent, attrs);
-    str.overwrite(el.start, opening_tag_end, &opener);
+        standard_special_element_opener(el, source, options, depth, indent, attr_segs);
+    emit_segmented_overwrite(
+        str,
+        el.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
+    );
 
     hoist_snippet_blocks(&el.fragment, source, str);
 
@@ -361,11 +370,11 @@ fn standard_special_element_opener(
     options: &Svelte2TsxOptions,
     depth: u32,
     indent: &str,
-    attrs: &str,
-) -> (String, bool) {
+    attr_segs: &[Seg],
+) -> (Vec<Seg>, bool) {
     let element_var = any_bind_needs_element_var(&el.attributes, source)
         .then(|| format!("$$_{}{}", element_var_base_name(&el.name), depth));
-    let bind_suffix = build_bind_directive_suffix(
+    let bind_suffix = build_bind_directive_suffix_segs(
         &el.attributes,
         source,
         element_var.as_deref(),
@@ -389,17 +398,22 @@ fn standard_special_element_opener(
     );
     let actions_arg = action_arguments(action_count);
     let has_directives = !directive_prefix.is_empty();
-    let opener = if has_directives {
+    let header = if has_directives {
         format!(
-            "{indent}{{{directive_prefix}{{ {element_var_decl}{}.createElement(\"{}\"{actions_arg}, {{{attrs}}});{bind_suffix}{directive_suffix}",
+            "{indent}{{{directive_prefix}{{ {element_var_decl}{}.createElement(\"{}\"{actions_arg}, {{",
             options.typings_namespace, el.name,
         )
     } else {
         format!(
-            "{indent}{{ {element_var_decl}{}.createElement(\"{}\", {{{attrs}}});{bind_suffix}{directive_suffix}",
+            "{indent}{{ {element_var_decl}{}.createElement(\"{}\", {{",
             options.typings_namespace, el.name,
         )
     };
+    let mut opener = vec![Seg::Lit(header)];
+    opener.extend(attr_segs.iter().cloned());
+    opener.push(Seg::Lit("});".to_string()));
+    opener.extend(bind_suffix);
+    opener.push(Seg::Lit(directive_suffix));
     (opener, has_directives)
 }
 
@@ -428,16 +442,19 @@ fn handle_boundary_snippet_props(
     depth: u32,
     opening_tag_end: u32,
     indent: &str,
-    attrs: &str,
+    attr_segs: &[Seg],
     whitespace: SurroundingWhitespace,
 ) {
-    str.overwrite(
+    let mut opener = vec![Seg::Lit(format!(
+        "{indent}{{ {}.createElement(\"{}\", {{",
+        options.typings_namespace, el.name
+    ))];
+    opener.extend(attr_segs.iter().cloned());
+    emit_segmented_overwrite(
+        str,
         el.start,
         opening_tag_end,
-        &format!(
-            "{indent}{{ {}.createElement(\"{}\", {{{attrs}",
-            options.typings_namespace, el.name
-        ),
+        &bake_out_of_order_src(opener, source),
     );
     let mut anchor = opening_tag_end;
     let mut last_snippet_end = None;

@@ -13,19 +13,19 @@ use crate::ast::template::{
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, SvelteVersion, slice_src};
 
-use crate::svelte2tsx::template::attributes::attribute::{AttrHost, format_attribute_node};
-use crate::svelte2tsx::template::attributes::binding::format_component_bind_directive;
+use crate::svelte2tsx::template::attributes::attribute::{
+    AttrHost, append_attribute_node_segments,
+};
+use crate::svelte2tsx::template::attributes::binding::format_component_bind_directive_segments;
+use crate::svelte2tsx::template::attributes::build_component_props_segments;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_component_directive_suffix;
 use crate::svelte2tsx::template::attributes::event_handler::{build_on_calls, get_on_directives};
 use crate::svelte2tsx::template::attributes::let_::{
     build_let_destructure_string, has_let_directives,
 };
-use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
-use crate::svelte2tsx::template::attributes::{
-    build_component_props_segments, build_component_props_string,
-};
-use crate::svelte2tsx::template::ctx::Counter;
+use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
+use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex};
 use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
@@ -608,12 +608,11 @@ pub fn handle_svelte_component(
     let has_events = !on_directives.is_empty();
 
     // Build attribute/props string (excluding on: directives)
-    let mut attrs_str = build_component_props_string(
+    let mut attr_segs = build_component_props_segments(
         &comp.attributes,
         source,
         &counter.element_opener_comments,
         named_slot_close,
-        &options.typings_namespace,
     );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
@@ -634,9 +633,10 @@ pub fn handle_svelte_component(
         },
     );
     if scomp_spacing.in_attr_object > 0 {
-        let mut padded = " ".repeat(scomp_spacing.in_attr_object);
-        padded.push_str(&attrs_str);
-        attrs_str = padded;
+        let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
+        padded.push(Seg::Lit(" ".repeat(scomp_spacing.in_attr_object)));
+        padded.extend(attr_segs);
+        attr_segs = padded;
     }
 
     // Check if component has meaningful children for Svelte 5 children prop
@@ -648,9 +648,22 @@ pub fn handle_svelte_component(
     // such guard). The `let:` destructure is emitted independently below.
     if is_svelte5 && has_children {
         let children_text = "children:() => { return __sveltets_2_any(0); },";
-        let trimmed = attrs_str.trim_start();
-        let leading_ws = &attrs_str[..attrs_str.len() - trimmed.len()];
-        attrs_str = format!("{leading_ws}{children_text}{trimmed}");
+        // Between the leading whitespace `Lit` and the first attribute, as
+        // `handle_component` does: the whitespace is generated and the attributes
+        // are source chunks, so the prop cannot be spliced into them.
+        let mut leading_ws = String::new();
+        if let Some(Seg::Lit(first)) = attr_segs.first_mut() {
+            let trimmed = first.trim_start_matches(|c: char| c.is_whitespace());
+            leading_ws.push_str(&first[..first.len() - trimmed.len()]);
+            *first = trimmed.to_string();
+            if first.is_empty() {
+                attr_segs.remove(0);
+            }
+        }
+        let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
+        prefixed.push(Seg::Lit(format!("{leading_ws}{children_text}")));
+        prefixed.extend(attr_segs);
+        attr_segs = prefixed;
     }
 
     let inst_var = reversed_component_name("svelte_component", depth);
@@ -690,7 +703,7 @@ pub fn handle_svelte_component(
     } else {
         " ".repeat(scomp_spacing.before_block)
     };
-    let (mut opener, trailer_lit) = if needs_inst {
+    let (header_lit, trailer_lit) = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
@@ -698,22 +711,25 @@ pub fn handle_svelte_component(
         };
         (
             format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{{attrs_str}"
+                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
             format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); new {inst_var}C({{ target: __sveltets_2_any(), props: {{{attrs_str}"
+                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             "}});".to_string(),
         )
     };
     // The snippet-props path keeps the props object open so the demoted
     // `{#snippet}` children can be moved inside it.
+    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 3);
+    opener.push(Seg::Lit(header_lit));
+    opener.extend(attr_segs);
     if !use_snippet_props {
-        opener.push_str(&trailer_lit);
+        opener.push(Seg::Lit(trailer_lit.clone()));
     }
 
     // Slot let-forwarding: `{const { $$_$$, prop, } = inst.$$slot_def.default; $$_$$;`
@@ -731,10 +747,15 @@ pub fn handle_svelte_component(
         String::new()
     };
     if !use_snippet_props {
-        opener.push_str(&own_default_let_open);
+        opener.push(Seg::Lit(own_default_let_open.clone()));
     }
 
-    str.overwrite(comp.start, opening_tag_end, &opener);
+    emit_segmented_overwrite(
+        str,
+        comp.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
+    );
 
     // Children of svelte:component are at depth+1 (this component is now an
     // ancestor). Slot-bearing children take the same lowering as a named
@@ -907,7 +928,10 @@ pub fn handle_svelte_self(
     let mut has_on_directives = false;
     let mut on_directives = Vec::new();
     let has_lets = !suppress_lets && has_let_directives(&el.attributes);
-    let mut prop_parts = Vec::new();
+    let mut prop_parts: Vec<Seg> = Vec::new();
+    // This path has never carried element-opener comments, so an empty index
+    // keeps the emitted text byte-identical to the string form it replaces.
+    let no_comments = ElementOpenerCommentIndex::default();
 
     for attr in &el.attributes {
         match attr {
@@ -929,17 +953,24 @@ pub fn handle_svelte_self(
                     }
                     // `<svelte:self>` is component-like (`__sveltets_2_createComponentAny`),
                     // so apply --* CSS-prop wrapping, not data-* element wrapping.
-                    prop_parts.push(format_attribute_node(node, source, AttrHost::Component));
+                    append_attribute_node_segments(
+                        &mut prop_parts,
+                        node,
+                        source,
+                        &no_comments,
+                        AttrHost::Component,
+                        "",
+                    );
                 }
                 Attribute::SpreadAttribute(spread) => {
-                    prop_parts.push(format_spread_attribute(spread, source));
+                    prop_parts.extend(format_spread_attribute_segments(spread, source));
                 }
                 Attribute::BindDirective(bind) => {
                     // `<svelte:self>` is an inline component upstream, so a
                     // binding is a plain prop (`value:x,`), never the element
                     // form (`"bind:value":x,`).
-                    if let Some(s) = format_component_bind_directive(bind, source) {
-                        prop_parts.push(s);
+                    if let Some(segs) = format_component_bind_directive_segments(bind, source) {
+                        prop_parts.extend(segs);
                     }
                 }
                 _ => {}
@@ -957,12 +988,13 @@ pub fn handle_svelte_self(
     {
         prop_parts.insert(
             0,
-            "children:() => { return __sveltets_2_any(0); },".to_string(),
+            Seg::Lit("children:() => { return __sveltets_2_any(0); },".to_string()),
         );
     }
 
-    // `svelte:self` emits its opener as a pure string, so it contributes no
-    // source range before the attribute list.
+    // `<svelte:self>`'s tag name is not kept as a source range — upstream emits
+    // `__sveltets_2_createComponentAny` — so there is no head range before the
+    // attribute list. The attributes themselves are source chunks.
     let self_spacing = opener_spacing(
         source,
         el.start,
@@ -979,17 +1011,8 @@ pub fn handle_svelte_self(
             preserve_bind: options.preserves_bind_prefix(),
         },
     );
-    let props_inner = if prop_parts.is_empty() {
-        " ".repeat(self_spacing.in_attr_object)
-    } else {
-        // `svelte:self` emits its opener as a pure string, so it contributes no
-        // source range before the attribute list.
-        format!(
-            "{}{}",
-            " ".repeat(self_spacing.in_attr_object),
-            prop_parts.join("")
-        )
-    };
+    let mut props_inner: Vec<Seg> = vec![Seg::Lit(" ".repeat(self_spacing.in_attr_object))];
+    props_inner.extend(prop_parts);
 
     // `<svelte:self>` is an `InlineComponent` upstream, so its children are slot
     // consumers of THIS node: named-slot children (anywhere inside control-flow
@@ -1032,13 +1055,9 @@ pub fn handle_svelte_self(
     } else {
         " ".repeat(self_spacing.before_block)
     };
-    let create_call = var_name.as_ref().map_or_else(
-        || format!("{block_indent}{{ __sveltets_2_createComponentAny({{{props_inner}"),
-        |name| {
-            format!(
-                "{block_indent}{{ const {name} = __sveltets_2_createComponentAny({{{props_inner}"
-            )
-        },
+    let create_call_head = var_name.as_ref().map_or_else(
+        || format!("{block_indent}{{ __sveltets_2_createComponentAny({{"),
+        |name| format!("{block_indent}{{ const {name} = __sveltets_2_createComponentAny({{"),
     );
 
     // Closes the props object, then the `bind:` statements and the `$on()`
@@ -1054,11 +1073,12 @@ pub fn handle_svelte_self(
         },
     );
 
-    let mut opener = create_call;
+    let mut opener: Vec<Seg> = vec![Seg::Lit(create_call_head)];
+    opener.extend(props_inner);
     // The snippet-prop path leaves the props object open so the relocated
     // `{#snippet}` props can be appended inside it.
     if !use_snippet_props {
-        opener.push_str(&trailer_lit);
+        opener.push(Seg::Lit(trailer_lit.clone()));
     }
 
     // `let:` directives become a `{const { $$_$$, name, ... } = inst.$$slot_def.default; $$_$$;`
@@ -1079,7 +1099,7 @@ pub fn handle_svelte_self(
         String::new()
     };
     if !use_snippet_props {
-        opener.push_str(&own_default_let_open);
+        opener.push(Seg::Lit(own_default_let_open.clone()));
     }
 
     if !has_closing_tag {
@@ -1087,13 +1107,24 @@ pub fn handle_svelte_self(
         // opener's `{` needs a closing `}` immediately, plus another `}` if
         // there's a let-forward block to close.
         let trailing = if has_lets { "}}" } else { "}" };
-        let combined = format!("{opener}{trailing}");
-        str.overwrite(el.start, el.end, &combined);
+        let mut combined = opener;
+        combined.push(Seg::Lit(trailing.to_string()));
+        emit_segmented_overwrite(
+            str,
+            el.start,
+            el.end,
+            &bake_out_of_order_src(combined, source),
+        );
         counter.slot_inst = saved_outer_slot;
         return;
     }
 
-    str.overwrite(el.start, opening_tag_end, &opener);
+    emit_segmented_overwrite(
+        str,
+        el.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
+    );
     // svelte:self is a component → children at depth+1. Slot-bearing children
     // take the same lowering as a named component's (`$$slot_def.default` /
     // `$$slot_def["x"]` blocks); this node's OWN `let:` block is already in

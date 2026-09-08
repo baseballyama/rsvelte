@@ -8,10 +8,10 @@ use crate::svelte2tsx::template::attributes::attribute::{AttrHost, element_is_cu
 use crate::svelte2tsx::template::attributes::binding::{
     any_bind_needs_element_var, sanitize_tag_for_var,
 };
+use crate::svelte2tsx::template::attributes::build_attribute_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::{
     action_arguments, build_directive_prefix_suffix, build_element_directive_suffix_segments,
 };
-use crate::svelte2tsx::template::attributes::{build_attribute_segments, build_attributes_string};
 use crate::svelte2tsx::template::ctx::Counter;
 use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
@@ -335,11 +335,12 @@ pub fn handle_title_element(
 
     let opening_tag_end =
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
-    let attrs_str = build_attributes_string(
+    let attr_segs = build_attribute_segments(
         &el.attributes,
         source,
         &counter.element_opener_comments,
         saved_slot.is_some(),
+        None,
         AttrHost::Element {
             tag: &el.name,
             preserve_case: options.namespace.preserves_attribute_case(),
@@ -375,14 +376,20 @@ pub fn handle_title_element(
         }
         None => indent,
     };
-    let opener = format!(
-        "{}{{ {}.createElement(\"title\", {{{}{}}});",
+    let mut opener = vec![Seg::Lit(format!(
+        "{}{{ {}.createElement(\"title\", {{{}",
         indent,
         options.typings_namespace,
         " ".repeat(spacing.in_attr_object),
-        attrs_str
+    ))];
+    opener.extend(attr_segs);
+    opener.push(Seg::Lit("});".to_string()));
+    emit_segmented_overwrite(
+        str,
+        el.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
     );
-    str.overwrite(el.start, opening_tag_end, &opener);
 
     // title is an element → children at depth+1.
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);

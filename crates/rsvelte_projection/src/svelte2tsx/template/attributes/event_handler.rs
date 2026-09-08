@@ -33,7 +33,7 @@ pub fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &s
     calls
 }
 
-/// Structured-bake variant of [`format_on_directive`].
+/// An `on:` directive as segments.
 pub fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
     if let Some(ref expr) = on.expression {
@@ -49,15 +49,4 @@ pub fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> 
         segs_push_fmt(&mut out, format_args!("\"on:{}\":undefined,", on.name));
     }
     out
-}
-
-/// Format an on directive: `on:click={handler}` → `"on:click":handler,`
-pub fn format_on_directive(on: &OnDirective, source: &str) -> String {
-    on.expression.as_ref().map_or_else(
-        || format!("\"on:{}\":undefined,", on.name),
-        |expr| {
-            let expr_text = get_expression_text(expr, source);
-            format!("\"on:{}\":{},", on.name, expr_text)
-        },
-    )
 }

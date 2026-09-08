@@ -15,27 +15,18 @@ pub(super) mod svg;
 pub(super) mod transition;
 
 use crate::ast::template::Attribute;
-use crate::svelte2tsx::svelte2tsx::slice_src;
 use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::nodes::attach_tag::format_attach_tag_segments;
-use crate::svelte2tsx::template::segs::{
-    Seg, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
-};
+use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_expression_range, get_expression_text,
     get_set_binding_ranges,
 };
 
-use action::format_use_directive;
-use attribute::{
-    AttrHost, append_attribute_node_segments, format_attribute_node, trailing_attr_comment_segs,
-    trailing_attr_comment_text,
-};
+use attribute::{AttrHost, append_attribute_node_segments, trailing_attr_comment_segs};
 use binding::{bind_is_filtered_from_props, format_bind_directive_segments};
-use class_style::{format_class_directive, format_style_directive};
 use event_handler::format_on_directive_segments;
-use spread::{format_spread_attribute, format_spread_attribute_segments};
-use transition::format_transition_directive;
+use spread::format_spread_attribute_segments;
 
 /// End offset of an attribute or directive in the element opener.
 pub(super) const fn attribute_end(attr: &Attribute) -> u32 {
@@ -93,44 +84,6 @@ fn splice_trailing_segs(segs: &mut Vec<Seg>, trailing: &[Seg]) {
     }
     segs.extend(trailing.iter().cloned());
     segs.push(Seg::Lit(tail));
-}
-
-/// String counterpart of [`splice_trailing_segs`].
-fn splice_trailing_text(part: &mut String, trailing: &str) {
-    if trailing.is_empty() {
-        return;
-    }
-    let suffix_len = if part.ends_with("}),") {
-        3
-    } else if part.ends_with(',') {
-        1
-    } else {
-        return;
-    };
-    part.insert_str(part.len() - suffix_len, trailing);
-}
-
-/// Build the attributes string for TSX output.
-///
-/// Returns the inner content for `{ ... }` in createElement or component props.
-pub(super) fn build_attributes_string(
-    attributes: &[Attribute],
-    source: &str,
-    comments: &ElementOpenerCommentIndex,
-    in_slot_context: bool,
-    host: AttrHost,
-    preserve_bind: bool,
-) -> String {
-    let segs = build_attribute_segments(
-        attributes,
-        source,
-        comments,
-        in_slot_context,
-        None,
-        host,
-        preserve_bind,
-    );
-    segs_to_string(&segs, source)
 }
 
 /// Structured-bake counterpart of `build_attributes_string_with_tag`.
@@ -273,113 +226,9 @@ pub(super) fn build_attribute_segments(
     segs
 }
 
-/// Build the attributes/props string for a component, excluding `on:` directives.
-///
-/// `on:` directives on components become `.$on()` calls instead of props,
-/// so they are filtered out here.
-///
-/// When `on:` directives are present but filtered out, a space is added inside
-/// the empty braces to match the JS svelte2tsx output: `props: { }`.
-pub(super) fn build_component_props_string(
-    attributes: &[Attribute],
-    source: &str,
-    comments: &ElementOpenerCommentIndex,
-    drop_slot: bool,
-    ns: &str,
-) -> String {
-    let mut parts: Vec<String> = Vec::new();
-
-    for attr in attributes {
-        match attr {
-            Attribute::Attribute(node) => {
-                // `slot="foo"` stays a normal prop EXCEPT when this node is
-                // being named-slot-routed by its parent component, where the
-                // attribute is consumed by the `$$slot_def[...]` wrapper
-                // instead (mirrors `build_component_props_segments`'s
-                // `drop_slot`, and official's `element.parent instanceof
-                // InlineComponent` check in `handleAttribute`).
-                if node.name == "slot" && drop_slot {
-                    continue;
-                }
-                // A component's `--*` attrs are wrapped with __sveltets_2_cssProp
-                // inside format_attribute_node (mirrors Attribute.ts `addProp`).
-                parts.push(format_attribute_node(node, source, AttrHost::Component));
-            }
-            Attribute::SpreadAttribute(spread) => {
-                parts.push(format_spread_attribute(spread, source));
-            }
-            Attribute::BindDirective(bind) => {
-                // `bind:foo={expr}` on a component becomes a regular prop
-                // `foo:expr,` (no `bind:` prefix) — mirrors the JS reference
-                // for InlineComponent. `bind:this` is filtered out; the
-                // ensureBindings() helper is added at the call site.
-                if bind.name == "this" {
-                    continue;
-                }
-                // Shorthand `bind:value` (expression right after `bind:`) →
-                // shorthand prop `value`; explicit `bind:foo={expr}` → `foo:expr`.
-                let expr_range = get_expression_range(&bind.expression);
-                let is_shorthand = get_set_binding_ranges(&bind.expression, source).is_none()
-                    && expr_range.is_some_and(|(s, _)| {
-                        s == bind.start
-                            + u32::try_from("bind:".len()).expect("literal length fits in u32")
-                    });
-                if is_shorthand {
-                    let (s, e) = expr_range.unwrap();
-                    parts.push(format!("{},", slice_src(source, s as usize, e as usize)));
-                } else {
-                    // Preserve a trailing TS postfix (`bind:value={value as string}`) —
-                    // the parser narrows it out of the expression span so we must extend
-                    // manually (mirrors upstream Binding.ts using `attr.expression.end`
-                    // which includes the full TSAsExpression span).
-                    let expr_text = if let Some((s, e)) = get_expression_range(&bind.expression) {
-                        let extended = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                        slice_src(source, s as usize, extended as usize)
-                    } else {
-                        get_expression_text(&bind.expression, source)
-                    };
-                    parts.push(format!("{}:{},", bind.name, expr_text));
-                }
-            }
-            Attribute::OnDirective(_)
-            | Attribute::LetDirective(_)
-            | Attribute::AnimateDirective(_) => {
-                // Excluded from component props - handled as $on() calls
-            }
-            Attribute::ClassDirective(class) => {
-                parts.push(format_class_directive(class, source));
-            }
-            Attribute::StyleDirective(style) => {
-                parts.push(format_style_directive(style, source));
-            }
-            Attribute::TransitionDirective(transition) => {
-                parts.push(format_transition_directive(transition, source, ns));
-            }
-            Attribute::UseDirective(use_dir) => {
-                parts.push(format_use_directive(use_dir, source, ns));
-            }
-            Attribute::AttachTag(attach) => {
-                // `{@attach expr}` becomes `[Symbol("@attach")]:expr,`
-                // — same prop-key form as on regular elements.
-                let expr_text = get_expression_text(&attach.expression, source);
-                parts.push(format!("[Symbol(\"@attach\")]:{expr_text},"));
-            }
-        }
-    }
-
-    if let Some(end) = opener_trailing_comment_range(attributes)
-        && let Some(last) = parts.last_mut()
-    {
-        splice_trailing_text(last, &trailing_attr_comment_text(end, source, comments));
-    }
-
-    parts.join("")
-}
-
-/// Structured-bake variant of [`build_component_props_string`]. Same
-/// shape — single value-or-empty leading space, `let:` spacers — but
-/// surfaces every expression as a `Seg::Src` so the eventual
-/// `emit_segmented_overwrite` keeps the per-character source map.
+/// A component's `props: { … }` entries as segments: one value-or-empty
+/// leading space and `let:` spacers, with every expression surfaced as a
+/// `Seg::Src` so `emit_segmented_overwrite` keeps its source mapping.
 pub(super) fn build_component_props_segments(
     attributes: &[Attribute],
     source: &str,
