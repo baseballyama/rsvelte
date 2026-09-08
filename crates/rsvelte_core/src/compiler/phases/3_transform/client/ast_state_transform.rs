@@ -2224,6 +2224,43 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             };
         }
 
+        // This pass replaces source ranges rather than reprinting, so a comment
+        // inside a replaced range is deleted with it. Where the helper returns
+        // nothing the declaration is removed outright, and upstream's printer
+        // flushes its comments before the next node it reaches instead of
+        // dropping them; keeping them in the replacement puts them at that same
+        // position whenever a statement follows in this script.
+        if transformed.trim().is_empty() {
+            let removed = &self.source[decl_span.start as usize..end];
+            // Only the pattern's own comments. A comment in an erased type
+            // annotation is upstream's parser's to keep or drop and the choice
+            // is position-dependent, so carrying those emits text official does
+            // not (measured on two shadcn-svelte components).
+            let pattern_end = removed
+                .find('{')
+                .and_then(|open| {
+                    crate::compiler::phases::phase1_parse::utils::bracket::find_matching_bracket(
+                        removed,
+                        open + 1,
+                        '{',
+                    )
+                })
+                .unwrap_or(0);
+            let mut carried = String::new();
+            for (offset, comment) in
+                crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
+            {
+                if offset < pattern_end {
+                    carried.push_str(&comment);
+                    carried.push('\n');
+                }
+            }
+            if !carried.is_empty() {
+                carried.push_str(&stripped);
+                stripped = carried;
+            }
+        }
+
         self.add_replacement(decl_span.start, end as u32, stripped);
         true
     }
