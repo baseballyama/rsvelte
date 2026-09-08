@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// `compatibility/pattern-corpus/README.md` is the ONLY place a repro's
-// provenance lives — convention 4 of that directory forbids putting it in the
-// file, because a removed HTML comment is itself a whitespace-sensitive
-// compiler input (#1975). So a file with no entry carries no explanation of
+// A repro's provenance lives OUTSIDE the repro — convention 4 of that directory
+// forbids putting it in the file, because a removed HTML comment is itself a
+// whitespace-sensitive compiler input (#1975). For `issues/` that outside place
+// is a sibling `<file>.md`; for `matrix/` and `adversarial/` it is still the
+// README. The issues table moved out because a single append-only table gives
+// every repro PR one shared insertion point, so any two of them conflict
+// (#4442). So a file with no entry carries no explanation of
 // which axis it holds, and an entry with no file describes something that is
 // not there. Nothing checked either direction until this script; seven
 // `issues/` files and fifteen `matrix/` files had drifted out (#3670).
@@ -12,7 +15,7 @@
 // several tables whose leading cell is a filename, so a whole-file scan reads a
 // `matrix/` row as a missing `issues/` file.
 //
-//   issues/<file>          ↔ a row in the `## \`issues/\`` table
+//   issues/<file>          ↔ a sibling `issues/<file>.md`
 //   matrix/<group>/<file>  ↔ a row under that group's `### \`<group>/\`` section
 //   adversarial/<theme>/   ↔ a row in the `## \`adversarial/\`` themes table
 //
@@ -26,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const CORPUS = join(HERE, '..', '..', 'compatibility', 'pattern-corpus');
+const SOURCES = join(HERE, '..', 'compat-corpus', 'corpus-sources.json');
 export const SUBDIRS = ['issues', 'matrix', 'adversarial'];
 
 const ROW_ID = /^\|\s*`([^`]+)`\s*\|/;
@@ -78,7 +82,67 @@ function bijection(label, ids, names, problems) {
   }
 }
 
-export function check(corpus) {
+
+const DOC_SUFFIX = '.md';
+const ISSUE_LINE = '**Issue:** ';
+
+/** `{ repros, docs }` for `issues/`, split on the doc suffix. */
+function issueEntries(corpus) {
+  const all = entries(join(corpus, 'issues'), false);
+  return {
+    repros: all.filter((name) => !name.endsWith(DOC_SUFFIX)),
+    docs: all.filter((name) => name.endsWith(DOC_SUFFIX)),
+  };
+}
+
+/** Read one sibling doc into the two cells the README table used to hold. */
+export function readIssueDoc(corpus, repro) {
+  const text = readFileSync(join(corpus, 'issues', `${repro}${DOC_SUFFIX}`), 'utf8');
+  const lines = text.split('\n');
+  const at = lines.findIndex((line) => line.startsWith(ISSUE_LINE));
+  if (at < 0) return null;
+  const body = lines.slice(at + 1).join('\n').trim();
+  return { issue: lines[at].slice(ISSUE_LINE.length).trim(), body };
+}
+
+/**
+ * A doc per repro, both directions, and non-empty. The emptiness check is not
+ * decoration: a bijection alone is satisfied by 666 empty files, which is the
+ * shape a bulk migration produces when it goes wrong.
+ */
+function issueDocs(corpus, problems) {
+  const { repros, docs } = issueEntries(corpus);
+  const have = new Set(docs);
+  for (const repro of repros) {
+    if (!have.has(`${repro}${DOC_SUFFIX}`)) {
+      problems.push(`issues/${repro} has no sibling \`${repro}${DOC_SUFFIX}\` describing what it pins`);
+      continue;
+    }
+    const doc = readIssueDoc(corpus, repro);
+    if (!doc) problems.push(`issues/${repro}${DOC_SUFFIX} has no \`${ISSUE_LINE.trim()}\` line`);
+    else if (!doc.body) problems.push(`issues/${repro}${DOC_SUFFIX} says nothing about what the repro pins`);
+  }
+  for (const doc of docs) {
+    const repro = doc.slice(0, -DOC_SUFFIX.length);
+    if (!repros.includes(repro)) {
+      problems.push(`issues/${doc} describes \`${repro}\`, which is not on disk`);
+    }
+  }
+}
+
+/** The old README table, generated — `--index`. */
+export function index(corpus) {
+  const { repros } = issueEntries(corpus);
+  const out = ['| File | Issue | What it pins |', '|---|---|---|'];
+  for (const repro of repros) {
+    const doc = readIssueDoc(corpus, repro);
+    if (!doc) continue;
+    out.push(`| \`${repro}\` | ${doc.issue} | ${doc.body.replace(/\n/g, ' ')} |`);
+  }
+  return out.join('\n');
+}
+
+export function check(corpus, sources = SOURCES) {
   const problems = [];
   const layout = entries(corpus, true);
   const unexpected = layout.filter((entry) => !SUBDIRS.includes(entry));
@@ -98,12 +162,22 @@ export function check(corpus) {
 
   const issues = sectionBounds(lines, 2, '`issues/`');
   if (!issues) return { fatal: 'README has no `## `issues/`` section', problems };
-  bijection(
-    'issues/',
-    rowIds(lines, issues.from, issues.to),
-    entries(join(corpus, 'issues'), false),
-    problems,
-  );
+  issueDocs(corpus, problems);
+
+  // Every sibling doc is safe from being collected as a corpus unit only
+  // because `pattern` carries `markdown: false` — `collectRepo`'s own default
+  // is `true`, so this is a flag and not a structure. Assert it here, in the
+  // checker that owns the layout, rather than leaving it to a reviewer: flip it
+  // and a doc that quotes its own repro in a ```svelte fence silently becomes a
+  // corpus entry.
+  const pattern = JSON.parse(readFileSync(sources, 'utf8')).find((s) => s.id === 'pattern');
+  if (!pattern) problems.push('corpus-sources.json has no `pattern` entry');
+  else if (pattern.markdown !== false) {
+    problems.push(
+      'corpus-sources.json gives `pattern` markdown != false, so every `issues/<file>.md` ' +
+        'would be collected as a corpus unit — the sibling docs depend on that flag',
+    );
+  }
 
   const matrix = sectionBounds(lines, 2, '`matrix/`');
   if (!matrix) return { fatal: 'README has no `## `matrix/`` section', problems };
@@ -150,6 +224,10 @@ export function check(corpus) {
 }
 
 function main() {
+  if (process.argv.includes('--index')) {
+    console.log(index(CORPUS));
+    return 0;
+  }
   const { fatal, problems } = check(CORPUS);
   if (fatal) {
     console.error(`::error::${fatal}`);
@@ -159,7 +237,7 @@ function main() {
     for (const problem of problems) console.error(`::error::${problem}`);
     console.error(
       `::error::pattern-corpus documentation drift: ${problems.length} problem(s). ` +
-        "Provenance lives in the README and nowhere else — see that file's conventions.",
+        "Provenance lives beside the repro (`issues/<file>.md`) or in the README — see that file's conventions.",
     );
     return 1;
   }

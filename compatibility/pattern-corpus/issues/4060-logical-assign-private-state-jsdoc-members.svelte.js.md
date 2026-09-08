@@ -1,0 +1,5 @@
+# `4060-logical-assign-private-state-jsdoc-members.svelte.js`
+
+**Issue:** [#4060](https://github.com/baseballyama/rsvelte/issues/4060)
+
+A logical compound assignment (`??=` / `||=` / `&&=`) to a private `$state` / `$state.raw` field, in a class whose members carry JSDoc. Upstream splits these in `AssignmentExpression.js` so the operator short-circuits around the whole `$.set`; leaving the assignment alone lets the read wrap land on the target and emits `$.get(this.#promise) ??= …`, a compound assignment into a call expression that no JS parser accepts — Rolldown rejected it and `vite build` failed for every SvelteKit app importing the remote-functions runtime. The trigger is the members' JSDoc, not the assignment: delete those comment blocks and the same class compiles correctly, so this file is a measured reduction of the real Kit source rather than a hand-written snippet. Three controls ride along — a public `$state.raw` field, whose compound assignment goes through the accessor pair and must stay one; the server target, which wraps no read at all; and the `$state`/`$state.raw` split, which decides the `$.set` proxy flag.

@@ -1,0 +1,5 @@
+# `async-derived-ignore-comment-continuation-indent.svelte`
+
+**Issue:** indent probe
+
+`restore_async_derived_ignore_comments` re-inserts a `svelte-ignore` comment after the `var ` it belongs to. A `//` ends at its newline, so the declarator name moves to the next line — and the insertion wrote a bare `\n`, putting the name at column 0 where upstream writes it at the `var` line's own indent. The insertion now reads that indent out of the text it is inserting into. The two-declarator declaration in the same file is the bound, not a second row: it takes the `hoisted_vars` path instead, where the continuation already sat at the `var` indent plus one level, so a fix that hard-codes one tab is indistinguishable here and wrong in principle. Every hoist a probe reached sits at one tab (top level, inside an each block, one declarator and two), so no input found so far separates the literal from the read — the read is chosen because it is right by construction. Measured against the official compiler on the single-declarator source: the whole generated file goes from one differing line to byte-identical, and the two-declarator source is byte-identical in both arms.

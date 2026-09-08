@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { check } from './check-pattern-corpus-docs.mjs';
+import { check, index } from './check-pattern-corpus-docs.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
@@ -24,11 +24,22 @@ const ROOT = join(HERE, '..', '..');
  * case only has to state the rows it wants, and a case that states none still
  * produces a structurally valid README.
  */
-function corpus({ issues = {}, matrix = {}, adversarial = {}, readme }) {
+function corpus({ issues = {}, orphanDocs = {}, matrix = {}, adversarial = {}, readme, sources }) {
   const dir = mkdtempSync(join(tmpdir(), 'pattern-corpus-'));
   for (const name of ['issues', 'matrix', 'adversarial']) mkdirSync(join(dir, name));
-  for (const [file, body] of Object.entries(issues)) {
-    writeFileSync(join(dir, 'issues', file), body ?? '<p>x</p>\n');
+  for (const [file, spec] of Object.entries(issues)) {
+    writeFileSync(join(dir, 'issues', file), '<p>x</p>\n');
+    // `spec === null` is the ordinary case: a well-formed sibling doc. A string
+    // is written verbatim, so a case can state a malformed one; `false` writes
+    // no doc at all.
+    if (spec === false) continue;
+    writeFileSync(
+      join(dir, 'issues', `${file}.md`),
+      typeof spec === 'string' ? spec : `# \`${file}\`\n\n**Issue:** [#1](x)\n\nwhy\n`,
+    );
+  }
+  for (const [file, spec] of Object.entries(orphanDocs)) {
+    writeFileSync(join(dir, 'issues', file), spec);
   }
   for (const [group, files] of Object.entries(matrix)) {
     mkdirSync(join(dir, 'matrix', group));
@@ -39,6 +50,10 @@ function corpus({ issues = {}, matrix = {}, adversarial = {}, readme }) {
     for (const file of files) writeFileSync(join(dir, 'adversarial', theme, file), '<p>x</p>\n');
   }
   writeFileSync(join(dir, 'README.md'), readme);
+  writeFileSync(
+    join(dir, 'corpus-sources.json'),
+    JSON.stringify(sources ?? [{ path: 'compatibility/pattern-corpus', id: 'pattern', markdown: false }]),
+  );
   return dir;
 }
 
@@ -46,7 +61,7 @@ function table(rows) {
   return ['| a | b |', '|---|---|', ...rows.map((r) => `| \`${r}\` | why |`)].join('\n');
 }
 
-function readme({ issueRows = [], groups = {}, themeRows = [] }) {
+function readme({ groups = {}, themeRows = [] }) {
   const matrixSections = Object.entries(groups)
     .map(([group, rows]) => `### \`${group}/\` — axis\n\n${table(rows)}\n`)
     .join('\n');
@@ -55,7 +70,7 @@ function readme({ issueRows = [], groups = {}, themeRows = [] }) {
     '',
     '## `issues/` — one repro per divergence',
     '',
-    table(issueRows),
+    'Documented by a sibling `issues/<file>.md`, not by a table here.',
     '',
     '## `matrix/` — the axes',
     '',
@@ -79,17 +94,16 @@ function clean(overrides = {}) {
     adversarial: { theme: ['t.svelte'] },
     ...overrides,
   };
+  delete shape.readme;
   return corpus({
     ...shape,
-    readme:
-      overrides.readme ??
-      readme({ issueRows: ['a.svelte'], groups: { grp: ['m.svelte'] }, themeRows: ['theme/'] }),
+    readme: overrides.readme ?? readme({ groups: { grp: ['m.svelte'] }, themeRows: ['theme/'] }),
   });
 }
 
 function run(dir) {
   try {
-    return check(dir);
+    return check(dir, join(dir, 'corpus-sources.json'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -102,24 +116,47 @@ const tests = {
     assert.deepEqual(problems, []);
   },
 
-  'an issues/ file with no row is reported'() {
-    const { problems } = run(clean({ issues: { 'a.svelte': null, 'orphan.svelte': null } }));
+  'an issues/ file with no sibling doc is reported'() {
+    const { problems } = run(clean({ issues: { 'a.svelte': null, 'orphan.svelte': false } }));
     assert.equal(problems.length, 1, problems.join('; '));
-    assert.match(problems[0], /issues\/orphan\.svelte has no row/);
+    assert.match(problems[0], /issues\/orphan\.svelte has no sibling/);
   },
 
-  'an issues/ row with no file is reported'() {
+  'a sibling doc with no file is reported'() {
+    const { problems } = run(clean({ orphanDocs: { 'ghost.svelte.md': '**Issue:** x\n\nwhy\n' } }));
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /issues\/ghost\.svelte\.md describes `ghost\.svelte`, which is not on disk/);
+  },
+
+  // A bijection alone is satisfied by 666 empty files, which is what a bulk
+  // migration produces when it goes wrong. These two pin that it is not.
+  'a sibling doc with no Issue line is reported'() {
+    const { problems } = run(clean({ issues: { 'a.svelte': '# `a.svelte`\n\nprose only\n' } }));
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /has no `\*\*Issue:\*\*` line/);
+  },
+
+  'a sibling doc that says nothing is reported'() {
+    const { problems } = run(clean({ issues: { 'a.svelte': '# `a.svelte`\n\n**Issue:** [#1](x)\n\n' } }));
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /says nothing about what the repro pins/);
+  },
+
+  // Every sibling doc is safe from collection only because `pattern` carries
+  // `markdown: false`, and `collectRepo`'s own default is `true`. The guard has
+  // to fail when someone flips the flag, not when someone later writes a fence.
+  'markdown: true on the pattern source is reported'() {
     const { problems } = run(
-      clean({
-        readme: readme({
-          issueRows: ['a.svelte', 'ghost.svelte'],
-          groups: { grp: ['m.svelte'] },
-          themeRows: ['theme/'],
-        }),
-      }),
+      clean({ sources: [{ path: 'compatibility/pattern-corpus', id: 'pattern', markdown: true }] }),
     );
     assert.equal(problems.length, 1, problems.join('; '));
-    assert.match(problems[0], /`ghost\.svelte`.*names nothing on disk/);
+    assert.match(problems[0], /markdown != false/);
+  },
+
+  'a missing pattern source entry is reported'() {
+    const { problems } = run(clean({ sources: [{ path: 'x', id: 'other', markdown: false }] }));
+    assert.equal(problems.length, 1, problems.join('; '));
+    assert.match(problems[0], /no `pattern` entry/);
   },
 
   // The whole reason the check is section-scoped rather than whole-file.
@@ -128,7 +165,6 @@ const tests = {
       clean({
         matrix: { one: ['x.svelte'], two: ['y.svelte'] },
         readme: readme({
-          issueRows: ['a.svelte'],
           // `y.svelte` is listed, but under `one/`.
           groups: { one: ['x.svelte', 'y.svelte'], two: [] },
           themeRows: ['theme/'],
@@ -153,7 +189,6 @@ const tests = {
       clean({
         matrix: { one: ['x.svelte'], two: ['y.svelte'] },
         readme: readme({
-          issueRows: ['a.svelte'],
           groups: { one: ['x.svelte'], two: ['y.svelte'] },
           themeRows: ['theme/'],
         }),
@@ -167,17 +202,16 @@ const tests = {
   'a matrix row does not document an issues/ file'() {
     const { problems } = run(
       clean({
-        issues: { 'a.svelte': null, 'shared.svelte': null },
+        issues: { 'a.svelte': null, 'shared.svelte': false },
         matrix: { grp: ['m.svelte', 'shared.svelte'] },
         readme: readme({
-          issueRows: ['a.svelte'],
           groups: { grp: ['m.svelte', 'shared.svelte'] },
           themeRows: ['theme/'],
         }),
       }),
     );
     assert.equal(problems.length, 1, problems.join('; '));
-    assert.match(problems[0], /issues\/shared\.svelte has no row/);
+    assert.match(problems[0], /issues\/shared\.svelte has no sibling/);
   },
 
   'a matrix group with no section is reported'() {
@@ -194,7 +228,6 @@ const tests = {
     const { problems } = run(
       clean({
         readme: readme({
-          issueRows: ['a.svelte'],
           groups: { grp: ['m.svelte'], vanished: [] },
           themeRows: ['theme/'],
         }),
@@ -216,7 +249,6 @@ const tests = {
     const { problems } = run(
       clean({
         readme: readme({
-          issueRows: ['a.svelte'],
           groups: { grp: ['m.svelte'] },
           themeRows: ['theme/', 'gone/'],
         }),
@@ -232,6 +264,20 @@ const tests = {
     mkdirSync(join(dir, 'fourth'));
     const { fatal } = run(dir);
     assert.match(fatal ?? '', /sub-corpora this check does not know about: fourth/);
+  },
+
+  // `--index` is advertised in the corpus README as the way to read the docs in
+  // one place, so a broken generator is a documentation defect of its own.
+  '--index reproduces one row per repro, from the docs'() {
+    const dir = clean({ issues: { 'a.svelte': null, 'b.svelte': null } });
+    try {
+      const rows = index(dir).split('\n').filter((line) => /^\| `/.test(line));
+      assert.equal(rows.length, 2, rows.join('; '));
+      assert.equal(rows[0], '| `a.svelte` | [#1](x) | why |');
+      assert.equal(rows[1], '| `b.svelte` | [#1](x) | why |');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   },
 
   // A guard nothing calls is worth nothing.
