@@ -729,6 +729,9 @@ jobs:
 
       - uses: ./.github/actions/setup-rust
         with:
+          # rustfmt: the vendored-LSP-data gate below formats the generators'
+          # output before diffing it, because they emit unformatted Rust.
+          components: rustfmt
           targets: wasm32-unknown-unknown,wasm32-wasip2
           mold: 'true'
           wasm-pack: 'true'
@@ -753,6 +756,20 @@ jobs:
           pnpm --filter svelte-language-server... build
           cd "$GITHUB_WORKSPACE"
           node scripts/compat-lsp/pin-official-svelte.mjs
+
+      # `html_data/web.rs` and `css_data/web.rs` are vendored from
+      # `vscode-{html,css}-languageservice` and record a SHA-256 per input file
+      # — a RECORD nothing re-read. Their two tests compare the port against a
+      # JSON oracle the SAME generator run writes, so a language-tools bump
+      # nobody regenerated leaves port and oracle equally stale and both green
+      # forever (#4258). Re-running the generators is what makes the recorded
+      # hash load-bearing. It lives here because this is the only job that
+      # builds language-tools' `dist/`, which both generators require.
+      - name: Check vendored LSP data is regenerated
+        run: node scripts/ci/check-vendored-lsp-data.mjs
+
+      - name: Run vendored LSP data guard tests
+        run: node scripts/ci/test-check-vendored-lsp-data.mjs
 
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node

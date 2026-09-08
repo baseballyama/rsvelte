@@ -90,6 +90,8 @@
 		"build:vps-native": "node scripts/dev/build-vps-native-local.mjs",
 		"check:vps-version": "node scripts/dev/check-vps-version.mjs",
 		"test:bot-branch-guard": "node scripts/ci/test-bot-branch-guard.mjs",
+		"check:vendored-lsp-data": "node scripts/ci/check-vendored-lsp-data.mjs",
+		"fix:vendored-lsp-data": "node scripts/ci/check-vendored-lsp-data.mjs --fix",
 		"check:workflow-triggers": "node scripts/ci/workflow-trigger-guard.mjs",
 		"test:workflow-trigger-guard": "node scripts/ci/test-workflow-trigger-guard.mjs",
 		"test:capi-release-decision": "node scripts/release/test-capi-release-decision.mjs",
