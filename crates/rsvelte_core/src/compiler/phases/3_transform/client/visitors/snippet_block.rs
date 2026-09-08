@@ -51,6 +51,9 @@ use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::shared::json_field::Field;
+use crate::compiler::phases::phase3_transform::shared::snippet_parens::{
+    SnippetParens, snippet_parameter_parens,
+};
 
 /// Visit a snippet block and generate the corresponding JavaScript code.
 ///
@@ -599,8 +602,9 @@ fn extract_snippet_paths(
         Some("AssignmentPattern") => {
             // `$.fallback(base, default[, true])`, then recurse the left with has_default.
             if let (Some(left), Some(right)) = (obj.field("left"), obj.field("right")) {
+                let parens = pattern_parens(obj, context);
                 let mut fallback_args = vec![base];
-                fallback_args.extend(build_fallback_args(right, context));
+                fallback_args.extend(build_fallback_args(right, &parens, context));
                 let fallback_call = b::call(
                     &context.arena,
                     b::member_path(&context.arena, "$.fallback"),
@@ -707,7 +711,7 @@ fn process_assignment_pattern(
         // $.fallback($$argN?.(), defaultValue) or $.fallback($$argN?.(), () => defaultValue, true)
         let arg_call = b::optional_call(&context.arena, b::id(&arg_alias), vec![]);
 
-        let fallback_args = build_fallback_args(right, context);
+        let fallback_args = build_fallback_args(right, &pattern_parens(obj, context), context);
         let mut all_args = vec![arg_call];
         all_args.extend(fallback_args);
 
@@ -761,7 +765,11 @@ fn process_assignment_pattern(
 
     let arg_call = b::optional_call(&context.arena, b::id(&arg_alias), vec![]);
     let mut fallback_args = vec![arg_call];
-    fallback_args.extend(build_fallback_args(right, context));
+    fallback_args.extend(build_fallback_args(
+        right,
+        &pattern_parens(obj, context),
+        context,
+    ));
     let fallback_call = b::call(
         &context.arena,
         b::member_path(&context.arena, "$.fallback"),
@@ -794,24 +802,35 @@ fn process_assignment_pattern(
 /// optimization from `builders.js` that simplifies `() => func()` to just `func`.
 fn build_fallback_args(
     default_value: &serde_json::Value,
+    parens: &SnippetParens,
     context: &mut ComponentContext,
 ) -> Vec<JsExpr> {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
 
-    if is_simple_expression_json(default_value) {
+    // Upstream reads a snippet's parameter list with `parse_expression_at` and
+    // no `remove_parens`, so `is_simple_expression` is handed the
+    // `ParenthesizedExpression` — which it has no arm for — and a parenthesized
+    // default takes the lazy arm however simple its contents are.
+    let parenthesized = node_paren_depth(default_value, parens) > 0;
+    if is_simple_snippet_default(default_value, parens) {
         // Simple default: $.fallback(arg?.(), default). Apply reactive-read
         // transforms so a default like `x = count` becomes `$.get(count)`
         // (the default expression was previously emitted untransformed). M-068.
         let default_expr =
             convert_expression(&Expression::from_json(default_value.clone()), context);
         let default_expr = apply_transforms_to_expression(&default_expr, context);
+        // A simple default can still hold a parenthesized child — an arrow whose
+        // body the source brackets — so the eager arm needs the same restoration.
+        let default_expr =
+            preserve_default_parentheses(default_value, default_expr, parens, context);
         vec![default_expr]
     } else {
         // Complex default - check for the unthunk optimization:
         // When the default is `func()` (CallExpression with 0 args and Identifier callee),
         // just pass `func` instead of `() => func()`. This matches Svelte's `unthunk` in builders.js.
-        if let Some(obj) = default_value.as_object()
+        if !parenthesized
+            && let Some(obj) = default_value.as_object()
             && obj.field("type").and_then(|t| t.as_str()) == Some("CallExpression")
             && obj
                 .field("arguments")
@@ -832,7 +851,8 @@ fn build_fallback_args(
             let default_expr =
                 convert_expression(&Expression::from_json(default_value.clone()), context);
             let default_expr = apply_transforms_to_expression(&default_expr, context);
-            let default_expr = preserve_default_parentheses(default_value, default_expr, context);
+            let default_expr =
+                preserve_default_parentheses(default_value, default_expr, parens, context);
             vec![
                 b::thunk(&context.arena, default_expr),
                 JsExpr::Literal(JsLiteral::Boolean(true)),
@@ -841,44 +861,85 @@ fn build_fallback_args(
     }
 }
 
-/// Reproduce the parentheses that esrap adds when upstream rebuilds a snippet
-/// default as a generated thunk. The compact client IR loses the distinction at
-/// these two expression shapes, so carry this snippet-local formatting decision
-/// as a marker call; `to_oxc` restores the real wrapper.
+/// The parentheses the source wrote inside one snippet parameter. Upstream
+/// spreads `node.parameters` verbatim, so a redundant pair survives to esrap;
+/// rsvelte unwraps every `ParenthesizedExpression` at conversion, so the pairs
+/// are recovered from the parameter's own source span.
+fn pattern_parens(
+    pattern: &serde_json::Map<String, serde_json::Value>,
+    context: &ComponentContext,
+) -> SnippetParens {
+    let (Some(start), Some(end)) = (
+        pattern.field("start").and_then(serde_json::Value::as_u64),
+        pattern.field("end").and_then(serde_json::Value::as_u64),
+    ) else {
+        return SnippetParens::default();
+    };
+    snippet_parameter_parens(&context.state.analysis.source, start as u32, end as u32).parens
+}
+
+/// How many source parentheses wrap this node.
+fn node_paren_depth(value: &serde_json::Value, parens: &SnippetParens) -> usize {
+    let (Some(start), Some(end)) = (
+        value.field("start").and_then(serde_json::Value::as_u64),
+        value.field("end").and_then(serde_json::Value::as_u64),
+    ) else {
+        return 0;
+    };
+    parens
+        .get(&(start as u32, end as u32))
+        .copied()
+        .unwrap_or(0)
+}
+
+/// Reproduce the parentheses upstream prints when it rebuilds a snippet default
+/// as a generated thunk — the source's own pairs, plus the one esrap always
+/// writes around a sequence. The compact client IR has no paren node, so carry
+/// the decision as a marker call; `to_oxc` restores the real wrapper.
 fn preserve_default_parentheses(
     value: &serde_json::Value,
     expr: JsExpr,
+    parens: &SnippetParens,
     context: &ComponentContext,
 ) -> JsExpr {
-    preserve_default_parentheses_tree(value, expr, context, true)
+    preserve_default_parentheses_tree(value, expr, parens, context)
 }
 
 fn preserve_default_parentheses_tree(
     value: &serde_json::Value,
     expr: JsExpr,
+    parens: &SnippetParens,
     context: &ComponentContext,
-    root: bool,
 ) -> JsExpr {
-    let expr = match expr {
+    let mut expr = preserve_default_parentheses_children(value, expr, parens, context);
+    // A `Spanned` wrapper is not a node of its own, so the source pair is
+    // applied once around the whole chain rather than at every level.
+    for _ in 0..node_paren_depth(value, parens) {
+        expr = parenthesize_snippet_default(expr, context);
+    }
+    expr
+}
+
+fn preserve_default_parentheses_children(
+    value: &serde_json::Value,
+    expr: JsExpr,
+    parens: &SnippetParens,
+    context: &ComponentContext,
+) -> JsExpr {
+    match expr {
         JsExpr::Spanned(inner, start, end) => {
             let inner = context.arena.get_expr(inner).clone();
-            let inner = preserve_default_parentheses_tree(value, inner, context, root);
+            let inner = preserve_default_parentheses_children(value, inner, parens, context);
             JsExpr::Spanned(context.arena.alloc_expr(inner), start, end)
         }
-        other => preserve_default_parentheses_inner(value, other, context),
-    };
-
-    if root && value.field("type").and_then(serde_json::Value::as_str) == Some("SequenceExpression")
-    {
-        parenthesize_snippet_default(expr, context)
-    } else {
-        expr
+        other => preserve_default_parentheses_inner(value, other, parens, context),
     }
 }
 
 fn preserve_default_parentheses_inner(
     value: &serde_json::Value,
     expr: JsExpr,
+    parens: &SnippetParens,
     context: &ComponentContext,
 ) -> JsExpr {
     match (
@@ -893,18 +954,8 @@ fn preserve_default_parentheses_inner(
             ] {
                 if let Some(child) = value.get(key) {
                     let current = context.arena.get_expr(*slot).clone();
-                    let mut child_expr =
-                        preserve_default_parentheses_tree(child, current, context, false);
-                    // esrap parenthesises a conditional used as another
-                    // conditional's consequent even though the grammar's
-                    // right-associativity makes the grouping optional.
-                    if key == "consequent"
-                        && child.field("type").and_then(serde_json::Value::as_str)
-                            == Some("ConditionalExpression")
-                        && source_parenthesizes(child, &context.state.analysis.source)
-                    {
-                        child_expr = parenthesize_snippet_default(child_expr, context);
-                    }
+                    let child_expr =
+                        preserve_default_parentheses_tree(child, current, parens, context);
                     *slot = context.arena.alloc_expr(child_expr);
                 }
             }
@@ -917,10 +968,95 @@ fn preserve_default_parentheses_inner(
             {
                 for (child, current) in children.iter().zip(sequence.expressions.iter_mut()) {
                     *current =
-                        preserve_default_parentheses_tree(child, current.clone(), context, false);
+                        preserve_default_parentheses_tree(child, current.clone(), parens, context);
                 }
             }
             JsExpr::Sequence(sequence)
+        }
+        (Some("ArrayExpression"), JsExpr::Array(mut array)) => {
+            if let Some(children) = value
+                .field("elements")
+                .and_then(serde_json::Value::as_array)
+            {
+                for (child, slot) in children.iter().zip(array.elements.iter_mut()) {
+                    if let Some(current) = slot.take() {
+                        *slot = Some(preserve_default_parentheses_tree(
+                            child, current, parens, context,
+                        ));
+                    }
+                }
+            }
+            JsExpr::Array(array)
+        }
+        (Some("ObjectExpression"), JsExpr::Object(mut object)) => {
+            if let Some(children) = value
+                .field("properties")
+                .and_then(serde_json::Value::as_array)
+            {
+                for (child, member) in children.iter().zip(object.properties.iter_mut()) {
+                    if let (Some(child_value), JsObjectMember::Property(property)) =
+                        (child.get("value"), member)
+                    {
+                        let current = context.arena.get_expr(property.value).clone();
+                        let wrapped = preserve_default_parentheses_tree(
+                            child_value,
+                            current,
+                            parens,
+                            context,
+                        );
+                        property.value = context.arena.alloc_expr(wrapped);
+                    }
+                }
+            }
+            JsExpr::Object(object)
+        }
+        (Some("MemberExpression"), JsExpr::Member(mut member)) => {
+            if let Some(child) = value.get("object") {
+                let current = context.arena.get_expr(member.object).clone();
+                let wrapped = preserve_default_parentheses_tree(child, current, parens, context);
+                member.object = context.arena.alloc_expr(wrapped);
+            }
+            JsExpr::Member(member)
+        }
+        (Some("UnaryExpression"), JsExpr::Unary(mut unary)) => {
+            if let Some(child) = value.get("argument") {
+                let current = context.arena.get_expr(unary.argument).clone();
+                let wrapped = preserve_default_parentheses_tree(child, current, parens, context);
+                unary.argument = context.arena.alloc_expr(wrapped);
+            }
+            JsExpr::Unary(unary)
+        }
+        (Some("ArrowFunctionExpression"), JsExpr::Arrow(mut arrow)) => {
+            if let (Some(child), JsArrowBody::Expression(slot)) =
+                (value.get("body"), &mut arrow.body)
+            {
+                let current = context.arena.get_expr(*slot).clone();
+                let wrapped = preserve_default_parentheses_tree(child, current, parens, context);
+                *slot = context.arena.alloc_expr(wrapped);
+            }
+            JsExpr::Arrow(arrow)
+        }
+        (Some("BinaryExpression"), JsExpr::Binary(mut binary)) => {
+            for (key, slot) in [("left", &mut binary.left), ("right", &mut binary.right)] {
+                if let Some(child) = value.get(key) {
+                    let current = context.arena.get_expr(*slot).clone();
+                    let wrapped =
+                        preserve_default_parentheses_tree(child, current, parens, context);
+                    *slot = context.arena.alloc_expr(wrapped);
+                }
+            }
+            JsExpr::Binary(binary)
+        }
+        (Some("LogicalExpression"), JsExpr::Logical(mut logical)) => {
+            for (key, slot) in [("left", &mut logical.left), ("right", &mut logical.right)] {
+                if let Some(child) = value.get(key) {
+                    let current = context.arena.get_expr(*slot).clone();
+                    let wrapped =
+                        preserve_default_parentheses_tree(child, current, parens, context);
+                    *slot = context.arena.alloc_expr(wrapped);
+                }
+            }
+            JsExpr::Logical(logical)
         }
         (_, other) => other,
     }
@@ -936,25 +1072,30 @@ fn parenthesize_snippet_default(expr: JsExpr, context: &ComponentContext) -> JsE
     )
 }
 
-fn source_parenthesizes(value: &serde_json::Value, source: &str) -> bool {
-    let Some(start) = value.field("start").and_then(serde_json::Value::as_u64) else {
+/// `is_simple_expression` as upstream runs it on a snippet parameter: the node
+/// it walks still carries its `ParenthesizedExpression` wrappers, and the
+/// function has no arm for one, so a parenthesized node is not simple wherever
+/// it sits — `a ?? (b || c)` takes the lazy arm for the same reason `(1)` does.
+fn is_simple_snippet_default(value: &serde_json::Value, parens: &SnippetParens) -> bool {
+    if node_paren_depth(value, parens) > 0 {
         return false;
+    }
+    let Some(obj) = value.as_object() else {
+        return true;
     };
-    let Some(end) = value.field("end").and_then(serde_json::Value::as_u64) else {
-        return false;
-    };
-    let (mut before, mut after) = (start as usize, end as usize);
-    let bytes = source.as_bytes();
-    if before > bytes.len() || after > bytes.len() {
-        return false;
+    match obj.field("type").and_then(|t| t.as_str()) {
+        Some("ConditionalExpression") => ["test", "consequent", "alternate"].iter().all(|key| {
+            obj.field(key)
+                .is_none_or(|child| is_simple_snippet_default(child, parens))
+        }),
+        Some("BinaryExpression") | Some("LogicalExpression") => {
+            ["left", "right"].iter().all(|key| {
+                obj.field(key)
+                    .is_none_or(|child| is_simple_snippet_default(child, parens))
+            })
+        }
+        _ => is_simple_expression_json(value),
     }
-    while before > 0 && bytes[before - 1].is_ascii_whitespace() {
-        before -= 1;
-    }
-    while after < bytes.len() && bytes[after].is_ascii_whitespace() {
-        after += 1;
-    }
-    before > 0 && after < bytes.len() && bytes[before - 1] == b'(' && bytes[after] == b')'
 }
 
 /// Upstream's `is_simple_expression` (`utils/ast.js:442-469`), which picks the eager
