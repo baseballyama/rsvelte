@@ -61,7 +61,7 @@ use script_facts::ScriptFacts;
 use stores::{
     inject_store_subscriptions_vars_only_with_program, inject_store_subscriptions_with_program,
 };
-use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions};
+use type_assertion::rewrite_type_assertions;
 
 /// Classify a Svelte component basename for `SvelteKit` autotype injection.
 ///
@@ -661,10 +661,6 @@ pub fn process_instance_script(
         // so we don't re-parse the instance script content with OXC.
         inject_store_subscriptions_with_program(program, module_program, offset, store_scan, str);
 
-        // Pass 6: disambiguate generic arrow type-parameter lists for the
-        // `.tsx` overlay (`<T>` → `<T,>`) so they aren't misparsed as JSX.
-        disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
-
         // Pass 7: rewrite TS angle-bracket type assertions (`<X>e` → `e as X`).
         // `processInstanceScriptContent` gates this on `mode !== 'ts'` because
         // `<X>e` is still a valid assertion in `ts` mode; the module script
@@ -729,11 +725,6 @@ pub fn process_module_script(
         // required because the generated `.tsx` parses the module-script
         // body at top level, where `<X>e` would be lexed as JSX.
         rewrite_type_assertions(&script_facts.type_assertions, str);
-
-        // Disambiguate generic arrow type-parameter lists (`<T>` → `<T,>`) so
-        // the module-script body, parsed at the top level of the `.tsx`
-        // overlay, doesn't lex a single-parameter arrow generic as JSX.
-        disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
         collect_module_names(program, exported_names)?;
         Ok(())

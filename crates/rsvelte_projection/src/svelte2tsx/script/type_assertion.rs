@@ -28,45 +28,28 @@ pub(super) fn rewrite_type_assertions(
     }
 }
 
-/// Add a trailing comma to every collected generic arrow type-parameter list
-/// that would otherwise be misparsed as JSX in the generated `.tsx` overlay.
-///
-/// In a `.tsx` file `const f = <T>(x: T) => x` is lexed as a JSX element
-/// (`<T>…`), producing a cascade of bogus "JSX element 'T' has no corresponding
-/// closing tag" errors. TypeScript itself disambiguates by requiring either a
-/// trailing comma (`<T,>`), a constraint (`<T extends X>`), a default
-/// (`<T = Y>`), or more than one parameter (`<T, U>`). Only the bare
-/// single-parameter form `<T>` is ambiguous, so that is the only shape we
-/// rewrite — to `<T,>`.
-///
-/// Note: this targets arrow functions only. `function foo<T>()`, call type
-/// arguments `f<T>()`, and class / interface generics are all unambiguous in
-/// TSX and are left untouched.
-pub(super) fn disambiguate_arrow_type_params(insert_at: &[u32], str: &mut MagicString<'_>) {
-    for &pos in insert_at {
-        str.append_left(pos, ",");
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::test_support::run_svelte2tsx;
 
     #[test]
-    fn test_generic_arrow_gets_trailing_comma() {
-        // A bare single-parameter generic arrow `<T>` would be lexed as a JSX
-        // element in the `.tsx` overlay; svelte2tsx must rewrite it to `<T,>`.
+    fn test_generic_arrow_is_copied_verbatim() {
+        // Upstream copies a `<T>` arrow into the overlay unchanged. It really is
+        // lexed as JSX there — but reproducing that is what byte parity means,
+        // and inserting a disambiguating comma changes the program the checker
+        // sees: `<string>() => a` becomes a generic arrow whose type parameter
+        // is named `string`.
         let source =
             "<script lang=\"ts\">\nconst id = <T>(x: T): T => x;\n</script>\n<p>{id(1)}</p>";
         let result = run_svelte2tsx(source);
         assert!(
-            result.code.contains("<T,>(x: T)"),
-            "Generic arrow should be disambiguated to `<T,>`.\nGot: {}",
+            result.code.contains("<T>(x: T)"),
+            "Generic arrow must be copied verbatim.\nGot: {}",
             result.code
         );
         assert!(
-            !result.code.contains("<T>(x: T)"),
-            "The ambiguous `<T>` form must not survive into the overlay.\nGot: {}",
+            !result.code.contains("<T,>(x: T)"),
+            "No disambiguating comma is inserted.\nGot: {}",
             result.code
         );
     }
@@ -82,8 +65,8 @@ mod tests {
             const call = fn<number>(1);\n\
             </script>";
         let result = run_svelte2tsx(source);
-        // None of these forms are ambiguous in TSX, so they must be emitted
-        // verbatim — in particular no double comma on the already-safe arrow.
+        // Every type-parameter list is copied verbatim — in particular the
+        // already-comma'd arrow does not gain a second one.
         assert!(
             result.code.contains("<T, U>(x: T, y: U)"),
             "got: {}",
@@ -132,7 +115,7 @@ mod tests {
         let result = run_svelte2tsx(source);
 
         assert!(
-            result.code.contains("<T,>($inner: T)"),
+            result.code.contains("<T>($inner: T)"),
             "got: {}",
             result.code
         );
@@ -164,7 +147,7 @@ mod tests {
         let result = run_svelte2tsx(source);
 
         assert!(
-            result.code.contains("<T,>(value: T)"),
+            result.code.contains("<T>(value: T)"),
             "got: {}",
             result.code
         );
