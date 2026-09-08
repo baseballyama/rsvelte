@@ -68,9 +68,12 @@ fn named_prop_survives_a_trailing_line_comment() {
 "#,
         false,
     );
+    // Upstream emits the comment rather than dropping it: `var // c` with the
+    // declarator on the next line. Forbidding it outright pinned a divergence;
+    // what #2347 is about is the declaration surviving, asserted below.
     assert!(
-        !code.contains("// c"),
-        "the comment leaked into the prop declaration:\n{code}"
+        code.contains("\n\tvar // c\n\tp = root();\n"),
+        "the comment is not where upstream puts it:\n{code}"
     );
     assert!(
         code.contains("$$props.value"),
