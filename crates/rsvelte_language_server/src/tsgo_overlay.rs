@@ -179,6 +179,10 @@ struct ShadowState {
     source_map: Option<String>,
     tokens: Vec<MappingToken>,
     generated_ranges: Vec<std::ops::Range<usize>>,
+    /// The `.tsx` bytes inserted into a `.svelte` module specifier. Unlike an
+    /// `Ωignore` region these sit *inside* a real token, so a range that spans
+    /// one is still the user's own text and must map.
+    specifier_insertions: Vec<std::ops::Range<usize>>,
     identity: bool,
     plain_insertions: Vec<(usize, std::ops::Range<usize>)>,
     /// Byte offset in `source_text` that generated offset 0 corresponds to,
@@ -190,6 +194,16 @@ struct ShadowState {
     /// `None` for an `identity` entry, whose text is the user's own: a
     /// `function $$render()` they wrote is a real declaration, not ours.
     render_return_type: Option<usize>,
+}
+
+impl ShadowState {
+    /// Whether a shadow byte offset carries no source text of its own.
+    fn is_generated_offset(&self, offset: usize) -> bool {
+        self.generated_ranges
+            .iter()
+            .chain(&self.specifier_insertions)
+            .any(|range| range.contains(&offset))
+    }
 }
 
 /// Workspace-scoped diskless overlay used by the tsgo LSP proxy.
@@ -390,12 +404,11 @@ impl TsgoOverlay {
             text: generated_text,
             version,
         };
-        let mut generated_ranges = ignored_ranges(&document.text);
-        generated_ranges.extend(
-            import_insertions
-                .iter()
-                .map(|(_, generated)| generated.clone()),
-        );
+        let generated_ranges = ignored_ranges(&document.text);
+        let specifier_insertions = import_insertions
+            .iter()
+            .map(|(_, generated)| generated.clone())
+            .collect();
         let state = ShadowState {
             source_path: source_path.clone(),
             shadow_path: shadow_path.clone(),
@@ -414,6 +427,7 @@ impl TsgoOverlay {
             tokens,
             generated_ranges,
             render_return_type: render_return_type_offset(&document.text),
+            specifier_insertions,
             identity: false,
             plain_insertions: Vec::new(),
             fragment_offset: 0,
@@ -468,6 +482,7 @@ impl TsgoOverlay {
             source_map: None,
             generated_ranges: Vec::new(),
             render_return_type: None,
+            specifier_insertions: Vec::new(),
             identity: true,
             plain_insertions: Vec::new(),
             fragment_offset,
@@ -531,6 +546,7 @@ impl TsgoOverlay {
             source_map: None,
             generated_ranges: Vec::new(),
             render_return_type: None,
+            specifier_insertions: Vec::new(),
             identity: true,
             plain_insertions,
             fragment_offset: 0,
@@ -812,11 +828,7 @@ impl TsgoOverlay {
                     .position(&entry.source_text, source_offset),
             );
         }
-        if entry
-            .generated_ranges
-            .iter()
-            .any(|range| range.contains(&generated_offset))
-        {
+        if entry.is_generated_offset(generated_offset) {
             return None;
         }
 
@@ -868,10 +880,7 @@ impl TsgoOverlay {
             return false;
         };
         let offset = utf8_offset(&entry.document.text, position);
-        entry
-            .generated_ranges
-            .iter()
-            .any(|range| range.contains(&offset))
+        entry.is_generated_offset(offset)
     }
 
     /// Whether a tsgo position is the return-type slot of the generated
@@ -891,7 +900,10 @@ impl TsgoOverlay {
         utf8_offset(&entry.document.text, position) == offset
     }
 
-    /// Whether any byte of a tsgo range intersects generated-code markers.
+    /// Whether any byte of a tsgo range intersects an `Ωignore` region.
+    ///
+    /// A `.tsx` specifier insertion is deliberately not counted: it sits inside
+    /// a token the user wrote, so the enclosing range is theirs and must map.
     #[must_use]
     pub fn is_generated_range(&self, shadow_path: &Path, range: Range) -> bool {
         let Some(source_path) = self.source_for_shadow(shadow_path) else {
@@ -3056,6 +3068,57 @@ mod tests {
         let position = utf8_position(&shadow.text, ignored);
         assert!(overlay.is_generated_position(&shadow_path, position));
         assert_eq!(overlay.map_generated_position(&shadow_path, position), None);
+    }
+
+    #[test]
+    fn a_svelte_specifier_range_maps_back_across_its_tsx_insertion() {
+        let workspace = TestWorkspace::new("specifier-range");
+        let other = workspace.0.join("Other.svelte");
+        write(&other, "<p>other</p>\n");
+        let app = workspace.0.join("App.svelte");
+        let source = "<script>import Other from './Other.svelte';</script>\n<Other />\n";
+        write(&app, source);
+        let overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
+        let shadow = overlay.shadow_for_source(&app).unwrap();
+
+        let rewritten = "'./Other.svelte.tsx'";
+        let start = shadow.text.find(rewritten).unwrap();
+        let insertion = shadow.text.find(".tsx'").unwrap();
+
+        // The whole specifier: the user's own token, four synthetic bytes long.
+        let quoted = Range::new(
+            utf8_position(&shadow.text, start),
+            utf8_position(&shadow.text, start + rewritten.len()),
+        );
+        assert!(!overlay.is_generated_range(&shadow_path, quoted));
+        let mapped = overlay.map_generated_range(&shadow_path, quoted).unwrap();
+        let mapped_text = {
+            let index = crate::text::LineIndex::new(source);
+            let from = index.offset(source, mapped.start);
+            let to = index.offset(source, mapped.end);
+            source[from..to].to_string()
+        };
+        assert_eq!(mapped_text, "'./Other.svelte'");
+
+        // A range lying wholly inside the insertion has no source text at all,
+        // so narrowing the range rule must not let it through.
+        let synthetic = Range::new(
+            utf8_position(&shadow.text, insertion),
+            utf8_position(&shadow.text, insertion + 4),
+        );
+        assert_eq!(overlay.map_generated_range(&shadow_path, synthetic), None);
+        assert!(overlay.is_generated_position(&shadow_path, synthetic.start));
+
+        // An `Ωignore` region is the other kind and still rejects a range that
+        // merely touches it.
+        let ignored = shadow.text.find(IGNORE_START).unwrap();
+        let touching = Range::new(
+            utf8_position(&shadow.text, ignored.saturating_sub(2)),
+            utf8_position(&shadow.text, ignored + IGNORE_START.len() + 1),
+        );
+        assert!(overlay.is_generated_range(&shadow_path, touching));
+        assert_eq!(overlay.map_generated_range(&shadow_path, touching), None);
     }
 
     #[cfg(unix)]
