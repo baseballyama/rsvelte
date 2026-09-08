@@ -142,6 +142,15 @@ const RESIDUE: &[(&str, &str, &str, usize, usize)] = &[
     ("[a)",    "js_parse_error", "Expected `,` or `]` but found `)`", 2, 6),
     // official: `js_parse_error` / `Unexpected token` / 2:9
     ("{a: 1)", "js_parse_error", "Unexpected token", 2, 13),
+    // A LEXICAL run-out, and the negative control for the rewrite above: both
+    // arms answer these identically, so the remap does not reach them. The
+    // message and the position are both wrong and neither is this fix's — OXC's
+    // own wording never surfaces here, so there is nothing for `check_js_parse_
+    // error_with_pos` to rewrite.
+    // official: `js_parse_error` / `Unterminated template` / 2:5
+    ("`a",     "js_parse_error", "Unexpected token", 2, 9),
+    // official: `js_parse_error` / `Unterminated string constant` / 2:4
+    ("'a",     "js_parse_error", "Unexpected token", 2, 9),
 ];
 
 #[test]
