@@ -217543,12 +217543,6 @@
 		"differential:fixtures/css-smoke-hover-nested|textDocument/hover|0:21|phase=edit|/:value-mismatch[official=5dbaeef7d821,rsvelte=74234e98afe7]": [
 			"css-data"
 		],
-		"differential:fixtures/css-smoke-hover-normal|textDocument/hover|0:8|/:value-mismatch[official=b75fb3aa8608,rsvelte=74234e98afe7]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-normal|textDocument/hover|0:8|phase=edit|/:value-mismatch[official=b75fb3aa8608,rsvelte=74234e98afe7]": [
-			"css-data"
-		],
 		"differential:fixtures/css-smoke-presentations-normal|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=de3717954cee]": [
 			"document-symbol-kind"
 		],

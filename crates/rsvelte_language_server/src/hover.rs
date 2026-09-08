@@ -240,10 +240,17 @@ fn css_answer(markdown: bool, answer: crate::css::Answer) -> Hover {
         crate::css::Answer::Markup(value) => markup(markdown, value),
         crate::css::Answer::Marked { tree, specificity } => Hover {
             contents: HoverContents::Array(vec![
-                MarkedString::LanguageString(lsp_types::LanguageString {
-                    language: "html".to_string(),
-                    value: tree,
-                }),
+                // `cssHover.js:136-140` maps a `MarkedString[]` through `c.value`
+                // when the client declares no markdown hover, dropping the
+                // language tag rather than rewriting the text.
+                if markdown {
+                    MarkedString::LanguageString(lsp_types::LanguageString {
+                        language: "html".to_string(),
+                        value: tree,
+                    })
+                } else {
+                    MarkedString::String(tree)
+                },
                 MarkedString::String(specificity),
             ]),
             range: None,
@@ -554,5 +561,38 @@ mod tests {
         // the tag being a component.
         let styled = "<Widget style=\"color: red\">x</Widget>";
         assert!(hovered_tag(styled, styled.find("color").unwrap() + 1).is_some());
+    }
+    /// `CSSHover.convertContents` (`cssHover.js:125-147`) drops a
+    /// `MarkedString`'s language tag when the client declares no markdown
+    /// hover, so the same selector is two different responses on the wire.
+    /// Both expected values were read off `vscode-css-languageservice@6.3.5`
+    /// driven through the differential harness, which declares no
+    /// `hover.contentFormat`.
+    #[test]
+    fn a_selector_follows_the_client_hover_format() {
+        const SOURCE: &str = "<style>h1 {}</style>";
+        const OFFSET: usize = 8;
+        const SPECIFICITY: &str = "[Selector Specificity](https://developer.mozilla.org/docs/Web/CSS/Specificity): (0, 0, 1)";
+
+        let plain = hover(SOURCE, OFFSET, false).expect("a selector hover");
+        assert_eq!(
+            plain.contents,
+            HoverContents::Array(vec![
+                MarkedString::String("<h1>".to_string()),
+                MarkedString::String(SPECIFICITY.to_string()),
+            ])
+        );
+
+        let rich = hover(SOURCE, OFFSET, true).expect("a selector hover");
+        assert_eq!(
+            rich.contents,
+            HoverContents::Array(vec![
+                MarkedString::LanguageString(lsp_types::LanguageString {
+                    language: "html".to_string(),
+                    value: "<h1>".to_string(),
+                }),
+                MarkedString::String(SPECIFICITY.to_string()),
+            ])
+        );
     }
 }

@@ -22135,8 +22135,6 @@
 	"differential:fixtures/css-smoke-hover-interpolation|textDocument/hover|0:13|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=e3616d2e0034]",
 	"differential:fixtures/css-smoke-hover-nested|textDocument/hover|0:21|/:value-mismatch[official=5dbaeef7d821,rsvelte=74234e98afe7]",
 	"differential:fixtures/css-smoke-hover-nested|textDocument/hover|0:21|phase=edit|/:value-mismatch[official=5dbaeef7d821,rsvelte=74234e98afe7]",
-	"differential:fixtures/css-smoke-hover-normal|textDocument/hover|0:8|/:value-mismatch[official=b75fb3aa8608,rsvelte=74234e98afe7]",
-	"differential:fixtures/css-smoke-hover-normal|textDocument/hover|0:8|phase=edit|/:value-mismatch[official=b75fb3aa8608,rsvelte=74234e98afe7]",
 	"differential:fixtures/css-smoke-presentations-normal|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=de3717954cee]",
 	"differential:fixtures/css-smoke-presentations-normal|textDocument/documentSymbol|:missing-rsvelte[count=2,hash=d2e3997ef54f]",
 	"differential:fixtures/css-smoke-presentations-normal|textDocument/documentSymbol|phase=edit|:extra-rsvelte[count=1,hash=de3717954cee]",
