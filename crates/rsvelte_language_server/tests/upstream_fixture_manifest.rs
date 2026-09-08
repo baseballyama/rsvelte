@@ -247,6 +247,42 @@ fn ported_unit_cases_assert_native_provider_responses() -> Result<()> {
     Ok(())
 }
 
+/// `rsvelte_cases` runs through the same dispatch as an upstream case, and is
+/// the only list that may hold an axis upstream does not test. It is excluded
+/// from every coverage assertion above by living in its own field, and this is
+/// what stops that exclusion from also making it unread.
+#[test]
+fn rsvelte_authored_cases_assert_native_provider_responses() -> Result<()> {
+    let manifest = Manifest::load()?;
+    let upstream: BTreeSet<&str> = manifest
+        .behavior_cases
+        .iter()
+        .map(|case| case.id.as_str())
+        .collect();
+    let mut seen = BTreeSet::new();
+    for case in &manifest.rsvelte_cases {
+        assert!(
+            !case.rsvelte_reason.trim().is_empty(),
+            "{}: an rsvelte case has to say why no upstream `it()` covers it",
+            case.id
+        );
+        assert!(
+            !upstream.contains(case.id.as_str()),
+            "{}: an id in both lists makes its provenance unreadable",
+            case.id
+        );
+        assert!(seen.insert(case.id.as_str()), "duplicate id {}", case.id);
+        run_behavior_case(&case.as_behavior_case()).with_context(|| case.id.clone())?;
+    }
+    // The list exists so an axis has somewhere to live; an empty one is a
+    // declared-and-unread field, which is the shape this replaced.
+    assert!(
+        !manifest.rsvelte_cases.is_empty(),
+        "rsvelte_cases is empty, so nothing exercises the second list"
+    );
+    Ok(())
+}
+
 fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
     match case.id.as_str() {
         "svelte-document-text" => {

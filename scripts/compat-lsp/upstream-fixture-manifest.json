@@ -2251,6 +2251,24 @@
       "difference_reason": "rsvelte does not yet complete id attributes from style selectors."
     }
   ],
+  "rsvelte_cases": [
+    {
+      "id": "code-action-error-with-code",
+      "rsvelte_reason": "Upstream's only test for the severity condition (`getCodeAction.test.ts`, `it('if diagnostic is error')`, ported as `code-action-error`) sends no `code`, and `isIgnorableSvelteDiagnostic` opens with `code &&`, so it returns before severity is read. This is that case with a `code` added and nothing else changed, which makes the severity arm the only thing either implementation can be answering here.",
+      "method": "textDocument/codeAction",
+      "source": "",
+      "params": {
+        "diagnostic_source": "svelte",
+        "diagnostic_code": "a11y_missing_attribute",
+        "severity": "error",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 1 }
+        }
+      },
+      "expected": { "titles": [] }
+    }
+  ],
   "exclusions": [
     {
       "suite": "typescript-diagnostics",
