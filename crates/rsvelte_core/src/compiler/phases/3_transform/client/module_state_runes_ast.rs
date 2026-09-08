@@ -37,6 +37,7 @@ pub fn transform_module_state_runes_ast(
     ambiguous_vars: &[String],
     non_proxy_vars: &[String],
     is_ts: bool,
+    dev: bool,
 ) -> Option<String> {
     // Fast probe — skip the parse entirely for scripts with no `$state` at all.
     memchr::memmem::find(source.as_bytes(), b"$state")?;
@@ -66,6 +67,7 @@ pub fn transform_module_state_runes_ast(
                 non_reactive_vars,
                 ambiguous_vars,
                 non_proxy_vars,
+                dev,
             ));
             edits
         },
@@ -79,7 +81,7 @@ mod tests {
     #[test]
     fn mixed_disjoint_runes_all_lower_in_one_pass() {
         let src = "let a = $state.snapshot(x);\nlet b = $state.raw(0);\nlet c = $state(1);";
-        let out = transform_module_state_runes_ast(src, &[], &[], &[], false).unwrap();
+        let out = transform_module_state_runes_ast(src, &[], &[], &[], false, false).unwrap();
         assert_eq!(
             out,
             "let a = $.snapshot(x);\nlet b = $.state(0);\nlet c = $.state(1);"
@@ -88,7 +90,9 @@ mod tests {
 
     #[test]
     fn no_rune_is_none() {
-        assert!(transform_module_state_runes_ast("let x = 1;", &[], &[], &[], false).is_none());
+        assert!(
+            transform_module_state_runes_ast("let x = 1;", &[], &[], &[], false, false).is_none()
+        );
     }
 
     #[test]
@@ -96,8 +100,15 @@ mod tests {
         // Every rewrite descends only into expression positions, so the same
         // bytes inside a string literal must not be touched.
         assert!(
-            transform_module_state_runes_ast(r#"let s = "$state(x)";"#, &[], &[], &[], false)
-                .is_none()
+            transform_module_state_runes_ast(
+                r#"let s = "$state(x)";"#,
+                &[],
+                &[],
+                &[],
+                false,
+                false
+            )
+            .is_none()
         );
     }
 
@@ -112,6 +123,7 @@ mod tests {
             &[],
             &[],
             &[],
+            false,
             false,
         )
         .unwrap();
