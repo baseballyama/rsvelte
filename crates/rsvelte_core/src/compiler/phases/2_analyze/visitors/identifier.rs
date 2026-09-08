@@ -317,18 +317,22 @@ fn visit_identifier_inner(
                 // We simplify: warn for all $state bindings that are reassigned
                 BindingKind::State => {
                     binding.reassigned || {
-                        // Also warn if the initial $state() call has an argument that won't be proxied
-                        // Match should_proxy's non-proxyable expression kinds. Logical
-                        // and conditional expressions deliberately fall through to true
-                        // upstream because either branch may produce a proxyable value.
+                        // Upstream asks `!should_proxy(initial.arguments[0])`, which is a
+                        // DENY-LIST defaulting to proxied; spelling it as an allow-list
+                        // silently dropped every shape nobody listed. Logical and
+                        // conditional expressions are absent on purpose — either branch
+                        // may produce a proxyable value, so upstream proxies them.
                         binding.initial_node_type.as_deref().is_some_and(|t| {
                             matches!(
                                 t,
                                 "Literal"
                                     | "TemplateLiteral"
+                                    | "ArrowFunctionExpression"
+                                    | "FunctionExpression"
                                     | "BinaryExpression"
                                     | "UnaryExpression"
-                            )
+                            ) || (t == "Identifier"
+                                && binding.initial_identifier_name.as_deref() == Some("undefined"))
                         })
                     }
                 }
