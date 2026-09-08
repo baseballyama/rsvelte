@@ -40,7 +40,8 @@ pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
         if matches!(style.language.as_deref(), Some("sass" | "stylus" | "styl")) {
             return None;
         }
-        return crate::css::hover(text, offset).map(|value| markup(markdown, value));
+        return crate::css::hover(text, offset, markdown)
+            .map(|(value, span)| ranged(markup(markdown, value), text, span));
     }
     // A script body belongs to tsgo; answering it here spells an import path as
     // a CSS property.
@@ -65,7 +66,8 @@ pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
 
     let attribute = attribute_context(text, offset)?;
     if attribute.in_value && attribute.name == "style" {
-        return crate::css::hover(text, offset).map(|value| markup(markdown, value));
+        return crate::css::hover(text, offset, markdown)
+            .map(|(value, span)| ranged(markup(markdown, value), text, span));
     }
     // `HTMLPlugin.doHover` bails on `possiblyComponent(node)`, so a component's
     // attributes get no HTML description.
@@ -275,9 +277,15 @@ mod tests {
 
     #[test]
     fn nothing_inside_style_or_script() {
-        assert_eq!(
-            hovered_tag("<style>h1{color:blue;}</style><p>test</p>", 10).as_deref(),
-            Some("`color` CSS property")
+        let css = hovered_tag("<style>h1{color:blue;}</style><p>test</p>", 10)
+            .expect("a CSS declaration hovers");
+        assert!(
+            css.starts_with("Sets the color of an element's text"),
+            "{css}"
+        );
+        assert!(
+            css.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            "{css}"
         );
         expect_none("<script>const a = true</script><p>test</p>", 10);
     }

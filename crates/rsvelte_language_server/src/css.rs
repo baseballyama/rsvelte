@@ -8,6 +8,7 @@ use lsp_types::{
 
 use rsvelte_lint::rules::data::known_css_properties::KNOWN_CSS_PROPERTIES;
 
+use crate::css_data::{documentation, web};
 use crate::text::LineIndex;
 
 #[must_use]
@@ -74,8 +75,18 @@ pub fn diagnostics(text: &str) -> Vec<Diagnostic> {
 /// declaration boundaries *inside a block* — never a selector, and never only
 /// the first one on a line.
 fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
-    let bytes = body.as_bytes();
     let mut found = Vec::new();
+    for_each_declaration_chunk(body, |start, end, depth| {
+        push_declaration(body, start, end, depth, &mut found);
+    });
+    found
+}
+
+/// Every `;`/`{`/`}`-delimited chunk of a style body, with its brace depth and
+/// with comments and quoted strings skipped. The selector text before a `{` is
+/// never a chunk, so nothing here reports one.
+fn for_each_declaration_chunk(body: &str, mut visit: impl FnMut(usize, usize, usize)) {
+    let bytes = body.as_bytes();
     let mut depth = 0usize;
     let mut chunk_start = 0usize;
     let mut i = 0usize;
@@ -101,13 +112,13 @@ fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
             }
             b'}' => {
                 if depth > 0 {
-                    push_declaration(body, chunk_start, i, depth, &mut found);
+                    visit(chunk_start, i, depth);
                 }
                 depth = depth.saturating_sub(1);
                 chunk_start = i + 1;
             }
             b';' => {
-                push_declaration(body, chunk_start, i, depth, &mut found);
+                visit(chunk_start, i, depth);
                 chunk_start = i + 1;
             }
             _ => {}
@@ -115,8 +126,42 @@ fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
         i += 1;
     }
     // An unterminated final declaration is still one the user is typing.
-    push_declaration(body, chunk_start, bytes.len(), depth, &mut found);
-    found
+    visit(chunk_start, bytes.len(), depth);
+}
+
+/// The declaration containing `offset`: its property name, and the span
+/// `CSSHover.doHover` reports as the hover range.
+///
+/// That range is the whole `Declaration` node, so the colon, the value and a
+/// trailing `!important` all answer with the property's own description, and a
+/// value spanning lines keeps its last line inside the range. `getNodeAtOffset`
+/// is inclusive at both ends.
+fn declaration_at(
+    body: &str,
+    offset: usize,
+    base_depth: usize,
+) -> Option<(&str, std::ops::Range<usize>)> {
+    let mut hit = None;
+    for_each_declaration_chunk(body, |start, end, depth| {
+        if depth + base_depth == 0 || start >= end || hit.is_some() {
+            return;
+        }
+        let chunk = &body[start..end];
+        let span = start + (chunk.len() - chunk.trim_start().len())..start + chunk.trim_end().len();
+        if !(span.start..=span.end).contains(&offset) {
+            return;
+        }
+        // `Property.getName` trims a trailing `_` or `+` (a less merge), and
+        // `CSSDataManager.getProperty` is an exact, case-sensitive lookup.
+        let Some(colon) = chunk.find(':') else {
+            return;
+        };
+        let name = chunk[..colon].trim().trim_end_matches(['_', '+']);
+        if !name.is_empty() {
+            hit = Some((name, span));
+        }
+    });
+    hit
 }
 
 fn push_declaration<'a>(
@@ -241,16 +286,69 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     })
 }
 
-/// The CSS property under `offset`, including a compact native description.
+/// The hovered text and the span it covers, in `text`'s own byte offsets.
+///
+/// A port of the `Declaration` arm of `CSSHover.doHover`
+/// (`services/cssHover.js`), which looks the property up with
+/// `CSSDataManager.getProperty` and renders it with `getEntryDescription`.
+/// The `Selector` and `SimpleSelector` arms — which is where a pseudo-class, a
+/// pseudo-element and `:global()` are answered, since `Selector` breaks the
+/// top-down walk before those arms are reached — are not ported.
 #[must_use]
-pub fn hover(text: &str, offset: usize) -> Option<String> {
+pub fn hover(
+    text: &str,
+    offset: usize,
+    markdown: bool,
+) -> Option<(String, std::ops::Range<usize>)> {
     if text.get(..offset)?.ends_with(":global") || word_at(text, offset) == Some("global") {
-        return Some("`:global(...)` prevents Svelte CSS scoping for a selector.".to_string());
+        // The cursor may sit anywhere in the word, so the token cannot be found
+        // by searching the text behind it — walk back over `global` instead.
+        let mut start = offset.min(text.len());
+        while start > 0 && text.as_bytes()[start - 1].is_ascii_alphabetic() {
+            start -= 1;
+        }
+        if start > 0 && text.as_bytes()[start - 1] == b':' {
+            start -= 1;
+        }
+        return Some((
+            "`:global(...)` prevents Svelte CSS scoping for a selector.".to_string(),
+            start..start + ":global".len(),
+        ));
     }
-    let property = word_at(text, offset)?;
-    KNOWN_CSS_PROPERTIES
-        .contains(&property)
-        .then(|| format!("`{property}` CSS property"))
+    let (body, base_depth) = hovered_css_region(text, offset)?;
+    let (name, span) = declaration_at(&text[body.clone()], offset - body.start, base_depth)?;
+    let property = web::PROPERTIES.iter().find(|entry| entry.name == name)?;
+    let value = documentation::documentation(&property.into(), markdown)?;
+    Some((value, body.start + span.start..body.start + span.end))
+}
+
+/// The CSS region `offset` sits in, and the brace depth its declarations
+/// start at — a `style="…"` value is a declaration list with no enclosing
+/// braces, where a `<style>` body's declarations sit one level in.
+fn hovered_css_region(text: &str, offset: usize) -> Option<(std::ops::Range<usize>, usize)> {
+    if let Some(body) = style_body_range(text, offset) {
+        return Some((body, 0));
+    }
+    let before = text.get(..offset.min(text.len()))?;
+    let (start, quote) = ["style=\"", "style='"]
+        .iter()
+        .filter_map(|needle| before.rfind(needle).map(|at| (at + needle.len(), needle)))
+        .max_by_key(|(at, _)| *at)
+        .map(|(at, needle)| (at, needle.as_bytes()[needle.len() - 1] as char))?;
+    if before[start..].contains(quote) {
+        return None;
+    }
+    let end = text[start..]
+        .find(quote)
+        .map_or(text.len(), |at| start + at);
+    // `inStyleAttributeWithoutInterpolation` (`CSSPlugin.ts:256-265`) drops the
+    // WHOLE attribute when its value holds a `{`, not just the interpolation.
+    // The chunk scanner would already decline a declaration that a `{` follows,
+    // but not one written before it.
+    if text[start..end].contains('{') {
+        return None;
+    }
+    Some((start..end, 1))
 }
 
 fn css_prefix(text: &str, offset: usize) -> Option<&str> {
@@ -460,10 +558,118 @@ mod tests {
     #[test]
     fn completes_common_values_and_hovers_properties() {
         assert!(labels("<style>a { display: fl").contains(&"flex".to_string()));
-        assert_eq!(
-            hover("<style>a { color: red }</style>", 13).as_deref(),
-            Some("`color` CSS property")
+        let source = "<style>a { color: red }</style>";
+        let (value, span) = hover(source, 13, true).expect("a known property hovers");
+        assert!(
+            value.starts_with("Sets the color of an element's text"),
+            "{value}"
         );
+        assert!(
+            value.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            "{value}"
+        );
+        assert_eq!(&source[span], "color: red");
+    }
+
+    /// `CSSHover.doHover` ranges a property hover over the whole `Declaration`,
+    /// so every offset inside one answers, with one range. Measured against the
+    /// official server on `\t\topacity: 0.5;`, which reports `4:2-4:14`.
+    #[test]
+    fn a_declaration_answers_from_its_name_its_colon_and_its_value() {
+        let source = "<style>a { opacity: 0.5 }</style>";
+        for offset in [11, 18, 21] {
+            let (_, span) = hover(source, offset, true).expect("inside the declaration");
+            assert_eq!(&source[span], "opacity: 0.5", "at {offset}");
+        }
+    }
+
+    /// `!important` is inside the `Declaration` node, and a value spanning
+    /// lines keeps its last line in the range.
+    #[test]
+    fn a_declaration_range_covers_important_and_a_multi_line_value() {
+        let source = "<style>a { color: red !important; margin:\n\t1px\n\t2px; }</style>";
+        let (_, span) = hover(source, 13, true).expect("the important declaration");
+        assert_eq!(&source[span], "color: red !important");
+        let at = source.find("margin").unwrap();
+        let (_, span) = hover(source, at + 1, true).expect("the multi-line declaration");
+        assert_eq!(&source[span], "margin:\n\t1px\n\t2px");
+    }
+
+    /// `CSSDataManager.getProperty` is an exact map lookup, so a case that does
+    /// not match and a property the data does not carry both answer nothing.
+    /// Each was measured against the official server, which returns `null`;
+    /// `-webkit-box-align` is the live control that the miss is the name and
+    /// not the vendor prefix.
+    #[test]
+    fn an_unknown_or_miscased_property_answers_nothing() {
+        for source in [
+            "<style>a { notaproperty: 1px }</style>",
+            "<style>a { --custom-thing: 2px }</style>",
+            "<style>a { OPACITY: 0.5 }</style>",
+            "<style>a { -webkit-box-shadow: 0 0 0 red }</style>",
+        ] {
+            let offset = source.find("{ ").unwrap() + 3;
+            assert!(hover(source, offset, true).is_none(), "{source}");
+        }
+        let source = "<style>a { -webkit-box-align: end }</style>";
+        assert!(hover(source, 14, true).is_some(), "{source}");
+    }
+
+    /// `Property.getName` trims a trailing `_` or `+` (a less merge) before the
+    /// lookup, and the range still covers the name the source wrote. Official
+    /// answers `color` for `color_: red` over `23:2-23:13`.
+    #[test]
+    fn a_less_merge_suffix_is_trimmed_from_the_name_and_kept_in_the_range() {
+        let source = "<style>a { color_: red }</style>";
+        let (value, span) = hover(source, 13, true).expect("the merged property");
+        assert!(
+            value.starts_with("Sets the color of an element's text"),
+            "{value}"
+        );
+        assert_eq!(&source[span], "color_: red");
+    }
+
+    /// A `style="…"` value is a declaration list with no braces around it, so
+    /// its declarations sit at depth 0 and would otherwise be skipped. Official
+    /// hovers it and ranges the declaration.
+    #[test]
+    fn a_static_style_attribute_hovers_its_declaration() {
+        let source = "<div style=\"opacity: 0.5\"></div>";
+        let (_, span) = hover(source, 14, true).expect("inside the attribute value");
+        assert_eq!(&source[span], "opacity: 0.5");
+    }
+
+    /// A `{` anywhere in the value drops the whole attribute, so a declaration
+    /// written before the interpolation answers nothing either — which is what
+    /// separates the ported rule from a scanner that merely declines to emit a
+    /// chunk the brace opens a block in.
+    #[test]
+    fn a_style_attribute_holding_an_interpolation_answers_nothing() {
+        for source in [
+            "<div style=\"height: {}\"></div>",
+            "<div style=\"height: auto; color: {x}\"></div>",
+        ] {
+            let offset = source.find("style=\"").unwrap() + 8;
+            assert!(hover(source, offset, true).is_none(), "{source}");
+        }
+    }
+
+    /// A selector is not a declaration chunk, so nothing answers there. The
+    /// `Selector` arm of `CSSHover.doHover` — which is what official uses for a
+    /// pseudo-class, a pseudo-element and a plain selector — is unported.
+    #[test]
+    fn a_selector_answers_nothing() {
+        for (source, offset) in [
+            ("<style>.box span { color: red }</style>", 9),
+            ("<style>a:hover { color: red }</style>", 10),
+            ("<style>p::before { content: \"\" }</style>", 11),
+            (
+                "<style>@media (min-width: 1px) { i { color: red } }</style>",
+                10,
+            ),
+        ] {
+            assert!(hover(source, offset, true).is_none(), "{source} @{offset}");
+        }
     }
 
     #[test]
@@ -528,11 +734,15 @@ mod tests {
     fn completes_and_documents_global_selectors() {
         let items = labels("<style>:glo");
         assert!(items.contains(&":global".to_string()));
-        assert!(
-            hover("<style>:global(.external) {}</style>", 14)
-                .unwrap()
-                .contains("prevents")
-        );
+        // Two branches reach this: the cursor at the end of the token, and the
+        // cursor inside the word. A cell for only the first passes while the
+        // second returns nothing.
+        let source = "<style>:global(.external) {}</style>";
+        for offset in [14, 11, 8] {
+            let (value, span) = hover(source, offset, true).expect(":global is documented");
+            assert!(value.contains("prevents"), "{value}");
+            assert_eq!(&source[span], ":global", "at {offset}");
+        }
     }
 
     fn messages(text: &str) -> Vec<String> {

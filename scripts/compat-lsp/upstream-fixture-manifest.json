@@ -48,8 +48,8 @@
   "unit_coverage": {
     "upstream_it_call_sites": 168,
     "ported_behavior_cases": 168,
-    "exact_behavior_cases": 110,
-    "known_difference_cases": 58,
+    "exact_behavior_cases": 111,
+    "known_difference_cases": 57,
     "unported_it_call_sites": 0
   },
   "unit_suites": [
@@ -1918,9 +1918,7 @@
       "method": "textDocument/hover",
       "source": "<div style=\"h¦eight: {}\"></div>",
       "params": { "adapter": "hover" },
-      "expected": { "response": "none" },
-      "native_expected": { "response": "some" },
-      "difference_reason": "rsvelte still recognizes the static property name before an interpolated value."
+      "expected": { "response": "none" }
     },
     {
       "id": "css-smoke-hover-nested",

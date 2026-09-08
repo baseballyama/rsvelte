@@ -834,7 +834,7 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
             match case.params["adapter"].as_str() {
                 Some("hover") => {
                     let (source, offset) = source_at_marker(case)?;
-                    assert_response(css::hover(&source, offset).is_some(), expected, case)?;
+                    assert_response(css::hover(&source, offset, true).is_some(), expected, case)?;
                 }
                 Some("completion") => {
                     let (source, offset) = source_at_marker(case)?;
