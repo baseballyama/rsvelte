@@ -145,7 +145,11 @@ function positionAt(text, offset) {
 export function fixtureCases(root) {
   const manifest = fixtureManifest(root);
   const directory = path.join(root, "compatibility/lsp-fixtures");
-  return manifest.behavior_cases
+  // `behavior_cases` is asserted to be an exact multiset transcription of
+  // upstream's `it()` call sites, so an axis upstream does not test cannot live
+  // there. `rsvelte_cases` is the second list that assert does not cover; both
+  // are compared identically here, and only their provenance differs.
+  return [...manifest.behavior_cases, ...(manifest.rsvelte_cases ?? [])]
     .filter((entry) => entry.method.startsWith("textDocument/"))
     .map((entry) => {
       const marker = entry.source.indexOf("¦");

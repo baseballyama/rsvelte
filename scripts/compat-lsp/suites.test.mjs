@@ -102,3 +102,42 @@ test("every fixture request carries the members its method's params declare", ()
   assert.ok(seen.has("textDocument/colorPresentation"));
   assert.ok(!("textDocument/colorPresentation" in REQUIRED_PARAMS));
 });
+
+test("the fixtures suite reads both case lists, not only the upstream one", () => {
+  const root = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../..",
+  );
+  const manifest = JSON.parse(
+    fs.readFileSync(
+      path.join(root, "scripts/compat-lsp/upstream-fixture-manifest.json"),
+      "utf8",
+    ),
+  );
+  const ids = new Set(fixtureCases(root).map((entry) => entry.id));
+
+  // Positive control on each list separately: a `fixtureCases` that dropped
+  // either one would still satisfy an assertion written over the union.
+  const upstream = manifest.behavior_cases.filter((entry) =>
+    entry.method.startsWith("textDocument/"),
+  );
+  const authored = (manifest.rsvelte_cases ?? []).filter((entry) =>
+    entry.method.startsWith("textDocument/"),
+  );
+  assert.ok(upstream.length > 0, "no upstream textDocument case to check");
+  assert.ok(
+    authored.length > 0,
+    "rsvelte_cases holds no textDocument case, so this assertion is vacuous",
+  );
+  for (const entry of [...upstream, ...authored])
+    assert.ok(ids.has(`fixtures/${entry.id}`), `fixtures/${entry.id} is not run`);
+
+  // The two lists exist to keep provenance readable, so an id in both would
+  // make a divergence attributable to neither.
+  const upstreamIds = new Set(manifest.behavior_cases.map((e) => e.id));
+  for (const entry of manifest.rsvelte_cases ?? [])
+    assert.ok(
+      !upstreamIds.has(entry.id),
+      `${entry.id} is in both lists`,
+    );
+});

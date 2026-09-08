@@ -15,6 +15,12 @@ pub struct Manifest {
     pub unit_coverage: UnitCoverage,
     pub unit_suites: Vec<UnitSuite>,
     pub behavior_cases: Vec<BehaviorCase>,
+    /// Cases with no upstream `it()` to hang them on. Deliberately a second
+    /// list: `behavior_cases` is asserted to be an exact multiset transcription
+    /// of upstream's unit tests, which is what lets it detect an unported one,
+    /// and mixing rsvelte-authored cases in would end both properties.
+    #[serde(default)]
+    pub rsvelte_cases: Vec<RsvelteCase>,
     pub exclusions: Vec<Exclusion>,
 }
 
@@ -72,6 +78,42 @@ pub struct BehaviorCase {
     pub native_expected: Option<Value>,
     #[serde(default)]
     pub difference_reason: Option<String>,
+}
+
+/// A behavior case rsvelte authored. It carries `rsvelte_reason` where a
+/// `BehaviorCase` carries `upstream_suite` / `upstream_test`, so provenance is
+/// visible in the shape rather than inferred, and it is dispatched through the
+/// same `run_behavior_case` by `id`.
+#[derive(Debug, Deserialize)]
+pub struct RsvelteCase {
+    pub id: String,
+    /// Why no upstream `it()` covers this axis. Asserted non-empty.
+    pub rsvelte_reason: String,
+    pub method: String,
+    pub source: String,
+    #[serde(default)]
+    pub params: Value,
+    pub expected: Value,
+}
+
+impl RsvelteCase {
+    /// The same shape `run_behavior_case` dispatches on. The upstream fields
+    /// are empty because there is no upstream test; nothing in the runner
+    /// reads them.
+    pub fn as_behavior_case(&self) -> BehaviorCase {
+        BehaviorCase {
+            id: self.id.clone(),
+            upstream_suite: PathBuf::new(),
+            upstream_test: String::new(),
+            method: self.method.clone(),
+            fixture: None,
+            source: self.source.clone(),
+            params: self.params.clone(),
+            expected: self.expected.clone(),
+            native_expected: None,
+            difference_reason: None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
