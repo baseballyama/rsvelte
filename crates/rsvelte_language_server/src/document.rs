@@ -3,11 +3,13 @@
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use lsp_types::{Position, Range, TextDocumentContentChangeEvent, Uri};
 
 use crate::text::LineIndex;
+use crate::uri::uri_to_path;
 
 pub struct Document {
     pub uri: Uri,
@@ -87,21 +89,46 @@ impl Document {
 #[derive(Default)]
 pub struct DocumentStore {
     docs: HashMap<String, Document>,
+    /// Resolved path -> the key the client opened it under. A client may open a
+    /// file through a symlink (macOS `/var` is one), and a URI the server
+    /// derives from a resolved path is then not this store's key.
+    by_resolved_path: HashMap<PathBuf, String>,
+}
+
+/// The document's path with every symlink resolved, when it is a file that
+/// exists. `canonicalize` needs the file, so an unsaved buffer has none.
+fn resolved_path(uri: &Uri) -> Option<PathBuf> {
+    std::fs::canonicalize(uri_to_path(uri.as_str())).ok()
 }
 
 impl DocumentStore {
     pub fn open(&mut self, uri: Uri, language_id: String, version: i32, text: String) {
         let key = uri.as_str().to_string();
+        if let Some(path) = resolved_path(&uri) {
+            self.by_resolved_path.insert(path, key.clone());
+        }
         self.docs
             .insert(key, Document::new(uri, language_id, version, text));
     }
 
     pub fn close(&mut self, uri: &Uri) -> Option<Document> {
-        self.docs.remove(uri.as_str())
+        let key = uri.as_str();
+        self.by_resolved_path.retain(|_, opened| opened != key);
+        self.docs.remove(key)
     }
 
     pub fn get(&self, uri: &Uri) -> Option<&Document> {
-        self.get_by_key(uri.as_str())
+        if let Some(document) = self.docs.get(uri.as_str()) {
+            return Some(document);
+        }
+        self.docs.get(self.resolved_key(uri)?)
+    }
+
+    /// The store key for a URI that names the same file through a different
+    /// path. Only consulted after a direct hit fails, so the common request
+    /// costs no syscall.
+    fn resolved_key(&self, uri: &Uri) -> Option<&String> {
+        self.by_resolved_path.get(&resolved_path(uri)?)
     }
 
     /// Look a document up by the raw URI string used as the store's key.
@@ -111,7 +138,11 @@ impl DocumentStore {
     }
 
     pub fn get_mut(&mut self, uri: &Uri) -> Option<&mut Document> {
-        self.docs.get_mut(uri.as_str())
+        if self.docs.contains_key(uri.as_str()) {
+            return self.docs.get_mut(uri.as_str());
+        }
+        let key = self.resolved_key(uri)?.clone();
+        self.docs.get_mut(&key)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Document> {
@@ -145,6 +176,70 @@ mod tests {
             range_length: None,
             text: text.to_string(),
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_document_opened_through_a_symlink_is_found_by_its_resolved_uri() {
+        use crate::uri::path_to_uri;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "rsvelte-doc-symlink-{}-{nonce}",
+            std::process::id()
+        ));
+        let real = root.join("real");
+        std::fs::create_dir_all(&real).unwrap();
+        let file = real.join("App.svelte");
+        std::fs::write(&file, "<p>hi</p>\n").unwrap();
+        let link = root.join("link");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+
+        // The client opens through the symlink; the server derives the resolved
+        // path from the overlay and asks for that.
+        let opened = path_to_uri(&link.join("App.svelte")).unwrap();
+        let resolved = path_to_uri(&std::fs::canonicalize(&file).unwrap()).unwrap();
+        assert_ne!(
+            opened.as_str(),
+            resolved.as_str(),
+            "the two paths must differ"
+        );
+
+        let mut store = DocumentStore::default();
+        store.open(
+            opened.clone(),
+            "svelte".to_string(),
+            1,
+            "<p>hi</p>\n".to_string(),
+        );
+
+        assert!(store.get(&opened).is_some(), "the opened URI is the key");
+        assert!(
+            store.get(&resolved).is_some(),
+            "the resolved URI must find it too"
+        );
+        assert!(store.get_mut(&resolved).is_some());
+        // The stored document keeps the client's own URI, because that is what a
+        // response has to name.
+        assert_eq!(store.get(&resolved).unwrap().uri.as_str(), opened.as_str());
+
+        // A file that exists and was never opened must still miss.
+        let other = real.join("Other.svelte");
+        std::fs::write(&other, "x").unwrap();
+        assert!(store.get(&path_to_uri(&other).unwrap()).is_none());
+
+        assert!(store.close(&opened).is_some());
+        assert!(store.get(&opened).is_none());
+        assert!(
+            store.get(&resolved).is_none(),
+            "close must drop the resolved index too"
+        );
+
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
