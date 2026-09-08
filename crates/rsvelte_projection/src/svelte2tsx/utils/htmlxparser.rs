@@ -14,11 +14,11 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("HTML source offsets are represented as u32")
 }
 
-/// Case-insensitive byte search: position of the first occurrence of
-/// `needle` in `haystack[from..]` (absolute index). ASCII-only folding —
-/// exactly what `to_ascii_lowercase` matching gave, without allocating a
-/// lowercased copy of the whole source.
-fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
+/// Position of the first occurrence of `needle` in `haystack[from..]`
+/// (absolute index). Case-sensitive, because upstream's `scriptRegex` and
+/// `styleRegex` (`htmlxparser.ts:33-36`) carry `g` and no `i` — so `<Script>`
+/// is a component, not a verbatim script tag.
+fn find_bytes(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
     if from > haystack.len() {
         return None;
     }
@@ -28,18 +28,11 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
         return None;
     }
 
-    let first_lower = needle[0].to_ascii_lowercase();
-    let first_upper = needle[0].to_ascii_uppercase();
     let mut search = from;
     while search <= last_start {
-        let candidates = &haystack[search..=last_start];
-        let offset = if first_lower == first_upper {
-            memchr::memchr(first_lower, candidates)
-        } else {
-            memchr::memchr2(first_lower, first_upper, candidates)
-        }?;
+        let offset = memchr::memchr(needle[0], &haystack[search..=last_start])?;
         let candidate = search + offset;
-        if haystack[candidate..candidate + needle.len()].eq_ignore_ascii_case(needle) {
+        if &haystack[candidate..candidate + needle.len()] == needle {
             return Some(candidate);
         }
         search = candidate + 1;
@@ -56,7 +49,7 @@ fn is_tag_boundary(byte: Option<u8>) -> bool {
 
 fn find_tag(haystack: &[u8], from: usize, name: &[u8]) -> Option<usize> {
     let mut search = from;
-    while let Some(start) = find_ci(haystack, search, name) {
+    while let Some(start) = find_bytes(haystack, search, name) {
         if is_tag_boundary(haystack.get(start + name.len()).copied()) {
             return Some(start);
         }
@@ -67,7 +60,7 @@ fn find_tag(haystack: &[u8], from: usize, name: &[u8]) -> Option<usize> {
 
 fn close_tag_end(haystack: &[u8], from: usize, name: &[u8]) -> Option<(usize, usize)> {
     let start = find_tag(haystack, from, name)?;
-    let gt = find_ci(haystack, start + name.len(), b">")?;
+    let gt = find_bytes(haystack, start + name.len(), b">")?;
     Some((start, gt + 1))
 }
 
@@ -80,7 +73,7 @@ pub fn blank_style_content(source: &str) -> Cow<'_, str> {
     let sb = source.as_bytes();
     let mut search = 0usize;
     loop {
-        let comment = find_ci(sb, search, b"<!--");
+        let comment = find_bytes(sb, search, b"<!--");
         let script = find_tag(sb, search, b"<script");
         let style = find_tag(sb, search, b"<style");
         let Some((tag_start, kind)) = [
@@ -95,11 +88,11 @@ pub fn blank_style_content(source: &str) -> Cow<'_, str> {
         };
 
         if kind == 0 {
-            search = find_ci(sb, tag_start + 4, b"-->").map_or(sb.len(), |end| end + 3);
+            search = find_bytes(sb, tag_start + 4, b"-->").map_or(sb.len(), |end| end + 3);
             continue;
         }
 
-        let Some(gt) = find_ci(sb, tag_start, b">") else {
+        let Some(gt) = find_bytes(sb, tag_start, b">") else {
             break;
         };
         let content_start = gt + 1;
@@ -153,7 +146,7 @@ pub(crate) fn verbatim_regions(source: &str) -> Vec<VerbatimRegion> {
     let mut regions = Vec::new();
     let mut search = 0usize;
     loop {
-        let comment = find_ci(sb, search, b"<!--");
+        let comment = find_bytes(sb, search, b"<!--");
         let script = find_tag(sb, search, b"<script");
         let style = find_tag(sb, search, b"<style");
         let Some((tag_start, kind)) = [
@@ -168,7 +161,7 @@ pub(crate) fn verbatim_regions(source: &str) -> Vec<VerbatimRegion> {
         };
 
         if kind == 0 {
-            let Some(end) = find_ci(sb, tag_start + 4, b"-->") else {
+            let Some(end) = find_bytes(sb, tag_start + 4, b"-->") else {
                 break;
             };
             regions.push(VerbatimRegion {
@@ -180,7 +173,7 @@ pub(crate) fn verbatim_regions(source: &str) -> Vec<VerbatimRegion> {
             search = end + 3;
             continue;
         }
-        let Some(gt) = find_ci(sb, tag_start, b">") else {
+        let Some(gt) = find_bytes(sb, tag_start, b">") else {
             break;
         };
         let content_start = gt + 1;
@@ -258,10 +251,7 @@ pub fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
         // appears verbatim in the async template body.
         let has_proper_style_close = {
             let slice = slice_src(source, css.start as usize, css.end as usize);
-            slice
-                .as_bytes()
-                .windows(8)
-                .any(|w| w.eq_ignore_ascii_case(b"</style>"))
+            slice.as_bytes().windows(8).any(|w| w == b"</style>")
         };
         if has_proper_style_close {
             // `handleStyleTag` removes exactly the node range — whitespace
@@ -502,7 +492,7 @@ fn only_has_script_candidates_in_ranges(
         let Some(tag) = bytes.get(tag_start..tag_start + 7) else {
             continue;
         };
-        if !tag.eq_ignore_ascii_case(b"<script") {
+        if tag != b"<script" {
             continue;
         }
 
@@ -558,14 +548,13 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
     let mut html_tag_ranges: Vec<(u32, u32)> = Vec::new();
     collect_html_tag_ranges(&ast.fragment, &mut html_tag_ranges);
 
-    // 3. Scan the source for `<script` occurrences (case-insensitive, without
-    // allocating a lowercased copy of the whole source).
+    // 3. Scan the source for `<script` occurrences.
     let bytes = source.as_bytes();
     let mut result: Vec<(u32, u32, String)> = Vec::new();
     let mut search: usize = 0;
 
     while search < source.len() {
-        let Some(abs) = find_ci(bytes, search, b"<script") else {
+        let Some(abs) = find_bytes(bytes, search, b"<script") else {
             break;
         };
         let tag_start = source_offset(abs);
@@ -606,8 +595,8 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
             continue;
         }
 
-        // Find the matching `</script>` (case-insensitive).
-        let Some(close_abs) = find_ci(bytes, tag_start as usize, b"</script>") else {
+        // Find the matching `</script>`.
+        let Some(close_abs) = find_bytes(bytes, tag_start as usize, b"</script>") else {
             break; // unterminated — skip
         };
         let close_rel = close_abs - tag_start as usize;
@@ -652,17 +641,23 @@ mod tests {
     }
 
     #[test]
-    fn case_insensitive_search_preserves_utf8_byte_offsets() {
-        let source = "前😀<STYLE>色</StYlE>後";
-        let open = source.find("<STYLE>").unwrap();
-        let close = source.find("</StYlE>").unwrap();
+    fn search_is_case_sensitive_and_preserves_utf8_byte_offsets() {
+        let source = "前😀<style>色</style>後";
+        let open = source.find("<style>").unwrap();
+        let close = source.find("</style>").unwrap();
 
-        assert_eq!(find_ci(source.as_bytes(), 0, b"<style"), Some(open));
+        assert_eq!(find_bytes(source.as_bytes(), 0, b"<style"), Some(open));
         assert_eq!(
-            find_ci(source.as_bytes(), open + 1, b"</style>"),
+            find_bytes(source.as_bytes(), open + 1, b"</style>"),
             Some(close)
         );
-        assert_eq!(find_ci(source.as_bytes(), close + 1, b"<style"), None);
+        assert_eq!(find_bytes(source.as_bytes(), close + 1, b"<style"), None);
+
+        // `styleRegex` has no `i` flag, so an uppercase spelling is a
+        // component name and never a verbatim style tag.
+        let upper = "前😀<STYLE>色</StYlE>後";
+        assert_eq!(find_bytes(upper.as_bytes(), 0, b"<style"), None);
+        assert_eq!(find_bytes(upper.as_bytes(), 0, b"</style>"), None);
     }
 
     #[test]
@@ -670,23 +665,23 @@ mod tests {
         let source = "<stale><StYlInG><style lang=\"scss\">";
         let expected = source.find("<style lang").unwrap();
 
-        assert_eq!(find_ci(source.as_bytes(), 0, b"<style"), Some(expected));
-        assert_eq!(find_ci(source.as_bytes(), expected + 1, b"<style"), None);
-        assert_eq!(find_ci(source.as_bytes(), 0, b">"), source.find('>'));
+        assert_eq!(find_bytes(source.as_bytes(), 0, b"<style"), Some(expected));
+        assert_eq!(find_bytes(source.as_bytes(), expected + 1, b"<style"), None);
+        assert_eq!(find_bytes(source.as_bytes(), 0, b">"), source.find('>'));
         assert_eq!(
-            find_ci(source.as_bytes(), source.len() + 1, b"<style"),
+            find_bytes(source.as_bytes(), source.len() + 1, b"<style"),
             None
         );
     }
 
     #[test]
     fn style_blanking_keeps_unicode_offsets_and_line_endings() {
-        let source = "前<STYLE lang=\"x\">色 {\r\n color: red;\n}</StYlE>後";
+        let source = "前<style lang=\"x\">色 {\r\n color: red;\n}</style>後";
         let blanked = blank_style_content(source);
 
         assert_eq!(blanked.len(), source.len());
-        assert!(blanked.starts_with("前<STYLE lang=\"x\">"));
-        assert!(blanked.ends_with("</StYlE>後"));
+        assert!(blanked.starts_with("前<style lang=\"x\">"));
+        assert!(blanked.ends_with("</style>後"));
         assert_eq!(
             blanked
                 .bytes()
@@ -760,12 +755,15 @@ const instance_marker = `<script data-marker>`;
     }
 
     #[test]
-    fn orphan_script_fast_path_defers_uppercase_and_nested_scripts() {
+    fn an_uppercase_tag_is_a_component_and_never_an_orphan_script() {
+        // `<SCRIPT>` matches neither `scriptRegex` nor the `isScriptTag`
+        // check upstream, so it stays a component. Blanking it here would
+        // delete a component's body from the projection.
         let uppercase = "<SCRIPT>console.log('upper')</SCRIPT>";
         let nested = "<main><script>console.log('nested')</script></main>";
-        assert!(!can_skip(uppercase));
+        assert!(can_skip(uppercase));
         assert!(!can_skip(nested));
-        assert_eq!(orphans(uppercase)[0].2, "console.log('upper')");
+        assert!(orphans(uppercase).is_empty());
         assert!(orphans(nested).is_empty());
     }
 
