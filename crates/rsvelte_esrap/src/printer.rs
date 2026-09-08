@@ -2486,14 +2486,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write_ascii(b'(');
-        // esrap: until `(returnType ?? body).loc.start`; a bodyless declare /
-        // overload falls back to the node's own end.
-        let until = node
-            .return_type
-            .as_ref()
-            .map(|rt| rt.span().start)
-            .or_else(|| node.body.as_ref().map(|b| b.span().start))
-            .unwrap_or(node.span.end);
+        let until = Self::function_params_until(node);
         self.formal_parameters_with_this(
             &node.params,
             node.this_param.as_deref(),
@@ -2802,7 +2795,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write_ascii(b'(');
-        self.formal_parameters(&node.value.params, ctx);
+        self.formal_parameters_with_this(
+            &node.value.params,
+            None,
+            Some(Self::function_params_until(&node.value)),
+            ctx,
+        );
         ctx.write_ascii(b')');
         if let Some(rt) = &node.value.return_type {
             self.type_annotation(rt, ctx);
@@ -3169,7 +3167,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx.write_ascii(b']');
     }
 
+    /// esrap runs a bodied function's parameter sequence until
+    /// `(returnType ?? body).loc.start`, so a comment between `)` and the body
+    /// is inside the window. A bodyless declare / overload falls back to the
+    /// node's own end.
+    fn function_params_until(f: &Function) -> u32 {
+        f.return_type
+            .as_ref()
+            .map(|rt| rt.span().start)
+            .or_else(|| f.body.as_ref().map(|b| b.span().start))
+            .unwrap_or(f.span.end)
+    }
+
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
+    ///
+    /// Ends the window at `)`. Only the bodyless TS signatures use this — a
+    /// bodied function must go through [`Self::function_params_until`], or a
+    /// comment ahead of its body falls outside the window and is never flushed.
     fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context<DIRECT>) {
         self.formal_parameters_with_this(params, None, Some(params.span().end), ctx);
     }
@@ -4404,7 +4418,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.property_key(&prop.key, ctx);
             }
             ctx.write_ascii(b'(');
-            self.formal_parameters(&f.params, ctx);
+            self.formal_parameters_with_this(
+                &f.params,
+                None,
+                Some(Self::function_params_until(f)),
+                ctx,
+            );
             ctx.write_ascii(b')');
             ctx.write_ascii(b' ');
             match &f.body {
