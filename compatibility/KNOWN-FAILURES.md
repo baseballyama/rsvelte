@@ -4100,19 +4100,6 @@ component host is in the grid as the control that is nearly green throughout, an
 the root-binding guard removed emits `$.assign(globalThis, …)` on **all four** hosts, which is
 what keeps the guard from being deleted along with the bug.
 
-`svelte-lexical/…/notesStore.svelte.ts` left this target when `compileModule` stopped
-deciding `$.proxy` with a text sniff. Upstream's `should_proxy`
-(`3-transform/client/utils.js:133-163`) is a deny-list defaulting to `true`;
-`expression_needs_proxy` only proxied shapes it had a predicate for, so an unlisted one
-was stored unproxied and did not invalidate. The carrier here is `s = await b.init()`,
-which the dev instrumentation rewrites to `(await $.track_reactivity_loss(b.init()))()`
-before the decision runs — which is why this is a `client-dev` entry and `client` never
-held it. The predicate was replaced by `should_proxy_ast`, the port the component host
-already used, so the two stopped being two. Over 96 module cells the divergence went 17 to
-4; the remaining 4 are the other direction (a `const` resolved through `binding.initial`
-at an assignment site) and have a pinned test rather than a ratchet entry, because no
-corpus file carries them — measured 0 over 104/104 sources for every one of the shapes.
-
 `huly/…/SelectAvatarPopup.svelte` left it when a member assignment whose root resolves to
 no binding stopped being wrapped. Upstream's `build_assignment` opens with `if (!binding)
 return null` (`AssignmentExpression.js:117`), so `document.body.style.overflow = 'hidden'`
