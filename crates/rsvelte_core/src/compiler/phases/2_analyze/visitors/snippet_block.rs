@@ -133,6 +133,20 @@ pub fn visit<'a, 'b: 'a>(
             }
             Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
         }
+        // A snippet's parameter list is the one template expression upstream
+        // never runs `remove_parens` over, so `is_safe_identifier`'s
+        // `while (node.type === 'MemberExpression') node = node.object` walk
+        // stops at a surviving paren and answers not-an-identifier.
+        if let (Some(start), Some(end)) = (parameter.start(), parameter.end())
+            && crate::compiler::phases::phase3_transform::shared::snippet_parens::snippet_parameter_parens(
+                &context.analysis.source,
+                start,
+                end,
+            )
+            .member_object_parenthesized
+        {
+            context.analysis.needs_context = true;
+        }
     }
 
     // Direct children of the snippet body are direct children of a SnippetBlock,

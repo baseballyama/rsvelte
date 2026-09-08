@@ -58,15 +58,135 @@ fn snippet_param_pattern<'a>(
         let left_expr = crate::ast::js::Expression::from_json(left.clone());
         let left_pat = pattern_from_span(&left_expr, state);
         let right_expr = crate::ast::js::Expression::from_json(right.clone());
+        let default_value = state.visit_expr_raw(&right_expr);
+        let parens = crate::compiler::phases::phase3_transform::shared::snippet_parens::snippet_parameter_parens(
+            state.source,
+            param.start().unwrap_or(0),
+            param.end().unwrap_or(0),
+        )
+        .parens;
+        let default_value = restore_source_parens(right, default_value, &parens, state);
         return oxc_ast::ast::BindingPattern::new_assignment_pattern(
             oxc_span::SPAN,
             left_pat,
-            state.visit_expr_raw(&right_expr),
+            default_value,
             &b.ab(),
         );
     }
 
     pattern_from_span(param, state)
+}
+
+/// Put back the parentheses the source wrote inside a snippet parameter's
+/// default. Upstream reads the parameter list with `parse_expression_at` and no
+/// `remove_parens`, spreads the nodes verbatim into the emitted function, and
+/// esrap prints one pair per surviving `ParenthesizedExpression`; rsvelte
+/// unwraps them at conversion, so they are recovered from the source and
+/// rebuilt as one-element sequences, which esrap prints bracketed.
+fn restore_source_parens<'a>(
+    value: &Value,
+    expr: oxc_ast::ast::Expression<'a>,
+    parens: &crate::compiler::phases::phase3_transform::shared::snippet_parens::SnippetParens,
+    state: &ServerTransformState<'a>,
+) -> oxc_ast::ast::Expression<'a> {
+    use oxc_ast::ast::Expression as E;
+
+    let mut expr = match (value.field("type").and_then(Value::as_str), expr) {
+        (Some("ConditionalExpression"), E::ConditionalExpression(mut node)) => {
+            take_and_restore(value.get("test"), &mut node.test, parens, state);
+            take_and_restore(value.get("consequent"), &mut node.consequent, parens, state);
+            take_and_restore(value.get("alternate"), &mut node.alternate, parens, state);
+            E::ConditionalExpression(node)
+        }
+        (Some("SequenceExpression"), E::SequenceExpression(mut node)) => {
+            let children = value.field("expressions").and_then(Value::as_array);
+            for (i, slot) in node.expressions.iter_mut().enumerate() {
+                take_and_restore(children.and_then(|c| c.get(i)), slot, parens, state);
+            }
+            E::SequenceExpression(node)
+        }
+        (Some("ArrayExpression"), E::ArrayExpression(mut node)) => {
+            let children = value.field("elements").and_then(Value::as_array);
+            for (i, element) in node.elements.iter_mut().enumerate() {
+                if let Some(slot) = element.as_expression_mut() {
+                    take_and_restore(children.and_then(|c| c.get(i)), slot, parens, state);
+                }
+            }
+            E::ArrayExpression(node)
+        }
+        (Some("ObjectExpression"), E::ObjectExpression(mut node)) => {
+            let children = value.field("properties").and_then(Value::as_array);
+            for (i, property) in node.properties.iter_mut().enumerate() {
+                if let oxc_ast::ast::ObjectPropertyKind::ObjectProperty(property) = property {
+                    take_and_restore(
+                        children.and_then(|c| c.get(i)).and_then(|c| c.get("value")),
+                        &mut property.value,
+                        parens,
+                        state,
+                    );
+                }
+            }
+            E::ObjectExpression(node)
+        }
+        (Some("MemberExpression"), E::StaticMemberExpression(mut node)) => {
+            take_and_restore(value.get("object"), &mut node.object, parens, state);
+            E::StaticMemberExpression(node)
+        }
+        (Some("MemberExpression"), E::ComputedMemberExpression(mut node)) => {
+            take_and_restore(value.get("object"), &mut node.object, parens, state);
+            E::ComputedMemberExpression(node)
+        }
+        (Some("ArrowFunctionExpression"), E::ArrowFunctionExpression(mut node)) => {
+            // A concise body is an expression variant of `ArrowFunctionBody`.
+            if let Some(slot) = node.body.as_expression_mut() {
+                take_and_restore(value.get("body"), slot, parens, state);
+            }
+            E::ArrowFunctionExpression(node)
+        }
+        (Some("UnaryExpression"), E::UnaryExpression(mut node)) => {
+            take_and_restore(value.get("argument"), &mut node.argument, parens, state);
+            E::UnaryExpression(node)
+        }
+        (Some("BinaryExpression"), E::BinaryExpression(mut node)) => {
+            take_and_restore(value.get("left"), &mut node.left, parens, state);
+            take_and_restore(value.get("right"), &mut node.right, parens, state);
+            E::BinaryExpression(node)
+        }
+        (Some("LogicalExpression"), E::LogicalExpression(mut node)) => {
+            take_and_restore(value.get("left"), &mut node.left, parens, state);
+            take_and_restore(value.get("right"), &mut node.right, parens, state);
+            E::LogicalExpression(node)
+        }
+        (_, other) => other,
+    };
+
+    let depth = match (
+        value.field("start").and_then(Value::as_u64),
+        value.field("end").and_then(Value::as_u64),
+    ) {
+        (Some(start), Some(end)) => parens
+            .get(&(start as u32, end as u32))
+            .copied()
+            .unwrap_or(0),
+        _ => 0,
+    };
+    for _ in 0..depth {
+        expr = state.b.sequence(vec![expr]);
+    }
+    expr
+}
+
+/// Rebuild one child slot in place; oxc has no owned-slot accessor, so the
+/// expression is swapped out, rewritten, and swapped back.
+fn take_and_restore<'a>(
+    value: Option<&Value>,
+    slot: &mut oxc_ast::ast::Expression<'a>,
+    parens: &crate::compiler::phases::phase3_transform::shared::snippet_parens::SnippetParens,
+    state: &ServerTransformState<'a>,
+) {
+    let Some(value) = value else { return };
+    let taken = std::mem::replace(slot, state.b.null());
+    *slot = restore_source_parens(value, taken, parens, state);
 }
 
 /// A binding pattern re-parsed from its own source span with the TypeScript
