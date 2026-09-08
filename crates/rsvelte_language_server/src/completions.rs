@@ -60,7 +60,7 @@ fn build_completions(
         if matches!(style.language.as_deref(), Some("stylus" | "styl")) {
             return None;
         }
-        return crate::css::completions(text, offset);
+        return crate::css::completions(text, offset, markdown_documentation);
     }
     // A script body belongs to tsgo, not to the CSS provider.
     if embedded.in_script(offset) {
@@ -148,7 +148,7 @@ fn build_completions(
             return Some(language_completions(attribute.element_tag));
         }
         if attribute.in_value && attribute.name == "style" {
-            return crate::css::completions(text, offset);
+            return crate::css::completions(text, offset, markdown_documentation);
         }
         // `CSSPlugin.ts:252` answers a `class=` / `id=` value from the
         // component's own selectors.

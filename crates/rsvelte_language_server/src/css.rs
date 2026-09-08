@@ -236,7 +236,7 @@ pub fn selection_spans(text: &str, offset: usize) -> Vec<(u32, u32)> {
 
 /// CSS completions at `offset`, when it is in a declaration name or value.
 #[must_use]
-pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
+pub fn completions(text: &str, offset: usize, markdown: bool) -> Option<CompletionList> {
     let prefix = css_prefix(text, offset)?;
     let before = text.get(..offset)?;
     let prefix_start = prefix.as_ptr() as usize - before.as_ptr() as usize;
@@ -277,7 +277,7 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
             .iter()
             .copied()
             .filter(|property| property.starts_with(prefix))
-            .map(property_item)
+            .map(|property| property_item(property, markdown))
             .collect()
     };
     Some(CompletionList {
@@ -571,14 +571,30 @@ fn word_at(text: &str, offset: usize) -> Option<&str> {
     text.get(start..end).filter(|word| !word.is_empty())
 }
 
-fn property_item(property: &str) -> CompletionItem {
+fn property_item(property: &str, markdown: bool) -> CompletionItem {
+    // `cssCompletion.js:244` and `cssHover.js:83` both render an entry through
+    // `getEntryDescription`; hover passes a third `settings` argument that
+    // completion does not, and the two strings still measure byte-identical, so
+    // one lookup serves both. A property the vendored data has no description
+    // for carries no documentation rather than a name stub.
+    let documentation = web::PROPERTIES
+        .iter()
+        .find(|entry| entry.name == property)
+        .and_then(|entry| documentation::documentation(&entry.into(), markdown))
+        .map(|value| {
+            Documentation::MarkupContent(MarkupContent {
+                kind: if markdown {
+                    MarkupKind::Markdown
+                } else {
+                    MarkupKind::PlainText
+                },
+                value,
+            })
+        });
     CompletionItem {
         label: property.to_string(),
         kind: Some(CompletionItemKind::PROPERTY),
-        documentation: Some(Documentation::MarkupContent(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: format!("`{property}` CSS property"),
-        })),
+        documentation,
         ..CompletionItem::default()
     }
 }
@@ -613,12 +629,67 @@ mod tests {
     use lsp_types::Position;
 
     fn labels(text: &str) -> Vec<String> {
-        completions(text, text.len())
+        completions(text, text.len(), true)
             .unwrap()
             .items
             .into_iter()
             .map(|item| item.label)
             .collect()
+    }
+
+    fn documentation_of(text: &str, label: &str, markdown: bool) -> Option<String> {
+        completions(text, text.len(), markdown)?
+            .items
+            .into_iter()
+            .find(|item| item.label == label)
+            .and_then(|item| match item.documentation {
+                Some(Documentation::MarkupContent(content)) => Some(content.value),
+                _ => None,
+            })
+    }
+
+    /// `cssCompletion.js:244` and `cssHover.js:83` both render an entry through
+    /// `getEntryDescription`, and driving the official server for both on one
+    /// document measured the two strings byte-identical. The pinned prefix and
+    /// link are the independent half: comparing the two ports to each other
+    /// alone passes when both are broken the same way.
+    #[test]
+    fn a_property_completion_carries_the_documentation_its_hover_does() {
+        let documented =
+            documentation_of("<style>a { colo", "color", true).expect("color is documented");
+        assert!(
+            documented.starts_with("Sets the color of an element's text"),
+            "completion documentation is the MDN description, got: {documented}"
+        );
+        assert!(
+            documented
+                .contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            "completion documentation carries the MDN link, got: {documented}"
+        );
+
+        let hovered = markup_of(
+            hover("<style>a { color: red }</style>", 13, true)
+                .expect("a known property hovers")
+                .0,
+        );
+        assert_eq!(
+            documented, hovered,
+            "one lookup serves hover and completion"
+        );
+
+        // The `style=` attribute value is the second call site and reaches the
+        // same item, so a fix applied to only one of them fails here.
+        assert_eq!(
+            documentation_of("<div style=\"colo", "color", true).as_deref(),
+            Some(documented.as_str())
+        );
+
+        // A client without markdown gets the description unrendered, so the
+        // threaded flag is observable rather than ignored.
+        let plain =
+            documentation_of("<style>a { colo", "color", false).expect("color is documented");
+        assert_ne!(plain, documented);
+        assert!(!plain.contains("[MDN Reference]"), "got: {plain}");
     }
 
     #[test]

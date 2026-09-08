@@ -48,8 +48,8 @@
   "unit_coverage": {
     "upstream_it_call_sites": 168,
     "ported_behavior_cases": 168,
-    "exact_behavior_cases": 111,
-    "known_difference_cases": 57,
+    "exact_behavior_cases": 113,
+    "known_difference_cases": 55,
     "unported_it_call_sites": 0
   },
   "unit_suites": [
@@ -1880,9 +1880,7 @@
       "method": "textDocument/hover",
       "source": "<style>h¦1 {}</style>",
       "params": { "adapter": "hover" },
-      "expected": { "response": "some" },
-      "native_expected": { "response": "none" },
-      "difference_reason": "rsvelte CSS hover documents properties but not selector specificity."
+      "expected": { "response": "some" }
     },
     {
       "id": "css-smoke-hover-sass",
@@ -1927,9 +1925,7 @@
       "method": "textDocument/hover",
       "source": "<svelte:head><style>h¦1 {}</style></svelte:head>",
       "params": { "adapter": "hover" },
-      "expected": { "response": "some" },
-      "native_expected": { "response": "none" },
-      "difference_reason": "rsvelte CSS hover does not provide selector-specific hover."
+      "expected": { "response": "some" }
     },
     {
       "id": "css-smoke-completion-normal",
