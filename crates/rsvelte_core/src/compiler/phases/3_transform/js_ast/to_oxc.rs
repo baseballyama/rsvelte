@@ -2172,11 +2172,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 copied_spans,
             } => {
                 let mut stmts = self.parse_raw_statements(code, false, &[])?;
-                if effect_spans.is_empty()
-                    && self
-                        .take_chunk_region(Some(*source_offset), copied_spans)
-                        .is_some()
-                {
+                // The region has to be claimed even when the effect path is taken:
+                // it is the only thing that resolves this chunk's comment-space
+                // offsets back into the source.
+                let region = self.take_chunk_region(Some(*source_offset), copied_spans);
+                if effect_spans.is_empty() && region.is_some() {
                     return Some(stmts);
                 }
                 restore_raw_mapped_spans(&mut stmts, copied_spans, code);
