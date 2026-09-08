@@ -1472,10 +1472,21 @@ impl<'a> ComponentContext<'a> {
                     }
                 }
                 Attribute::BindDirective(bind_dir) => {
-                    // Handle bind: directives on special elements
-                    self.visit_bind_directive(
+                    // The enclosing `svelte-ignore` stack reaches this element the
+                    // same way it reaches a regular one, so the setter's ownership
+                    // validation has to see it.
+                    let ignored: &[String] = self
+                        .state
+                        .analysis
+                        .special_element_ignores
+                        .get(&element.start)
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[]);
+                    crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive_with_ignored(
                         bind_dir,
+                        self,
                         crate::compiler::phases::phase3_transform::utils::ParentRef::None,
+                        ignored,
                     );
                 }
                 Attribute::TransitionDirective(transition) => {

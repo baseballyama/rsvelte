@@ -1775,6 +1775,12 @@ pub struct ComponentAnalysis {
     /// CSS analysis
     pub css: CssAnalysis,
 
+    /// `<!-- svelte-ignore … -->` codes enclosing a special element
+    /// (`<svelte:window>` and friends), keyed by the element's start offset.
+    /// A side table rather than a field on `SvelteElement`, which already fills
+    /// the `size_of::<TemplateNode>() <= 128` budget exactly.
+    pub special_element_ignores: rustc_hash::FxHashMap<u32, Vec<String>>,
+
     /// Component name (derived from filename)
     pub name: String,
 
@@ -2020,6 +2026,7 @@ impl ComponentAnalysis {
                     _ => fname,
                 }
             },
+            special_element_ignores: rustc_hash::FxHashMap::default(),
             runes: initial_runes,
             runes_explicitly_set: options.runes,
             experimental_async: options.experimental.r#async,

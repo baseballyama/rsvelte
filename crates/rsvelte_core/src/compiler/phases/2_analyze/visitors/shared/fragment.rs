@@ -164,6 +164,24 @@ pub fn analyze<'a, 'b: 'a>(
                 TemplateNode::SvelteComponent(comp) => {
                     comp.ignored_codes = inherited;
                 }
+                // Upstream's `ignore_map.set(node, …)` is per NODE, not per node
+                // kind, so a special element inherits the enclosing stack too —
+                // `<svelte:window bind:scrollY={item.y} />` under an
+                // `ownership_invalid_mutation` ignore must not be validated.
+                TemplateNode::SvelteWindow(el)
+                | TemplateNode::SvelteDocument(el)
+                | TemplateNode::SvelteBody(el)
+                | TemplateNode::SvelteHead(el)
+                | TemplateNode::SvelteFragment(el)
+                | TemplateNode::SvelteBoundary(el)
+                | TemplateNode::SvelteSelf(el)
+                | TemplateNode::SvelteOptions(el) => {
+                    let start = el.start;
+                    context
+                        .analysis
+                        .special_element_ignores
+                        .insert(start, inherited);
+                }
                 _ => {}
             }
         }

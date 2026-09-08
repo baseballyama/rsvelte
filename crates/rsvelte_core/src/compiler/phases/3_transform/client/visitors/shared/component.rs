@@ -1414,21 +1414,21 @@ fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> 
 /// Process a bind directive.
 /// `validate_mutation` (`shared/utils.js:390`) for a `bind:` setter body — the
 /// directive never reaches the assignment visitor that normally applies it.
+/// Upstream's `shared/component.js:267` builds the setter's assignment with a
+/// bare `b.assignment(...)` and never registers it in `ignore_map`, so
+/// `is_ignored` answers false and the validator is emitted whatever comment
+/// precedes the component. A `<!-- svelte-ignore ownership_invalid_mutation -->`
+/// therefore does NOT reach a component binding, only an element one.
 fn validate_bind_setter_mutation(
     expression: JsExpr,
     bind: &BindDirective<'_>,
-    ignored_codes: &[String],
     context: &mut ComponentContext,
 ) -> JsExpr {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::{
         check_ownership_validation, ownership_alias_literal,
     };
 
-    if !context.state.dev
-        || ignored_codes
-            .iter()
-            .any(|code| code == "ownership_invalid_mutation")
-    {
+    if !context.state.dev {
         return expression;
     }
     let Some((prop_alias, path, source_loc)) =
@@ -2046,7 +2046,7 @@ fn process_bind_directive<'a>(
         };
 
         if let Some(assign) = self_dev_assign {
-            let assign = validate_bind_setter_mutation(assign, bind, ignored_codes, context);
+            let assign = validate_bind_setter_mutation(assign, bind, context);
             vec![b::stmt(&context.arena, assign)]
         } else if let Some((root_name, is_state, is_prop)) = member_root_info {
             // Check for reactive import first - these take priority over state/prop
@@ -2095,7 +2095,7 @@ fn process_bind_directive<'a>(
                 let wrapped = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::wrap_with_legacy_invalidate(
                     call, &root_name, context,
                 );
-                let wrapped = validate_bind_setter_mutation(wrapped, bind, ignored_codes, context);
+                let wrapped = validate_bind_setter_mutation(wrapped, bind, context);
                 vec![b::stmt(&context.arena, wrapped)]
             } else if is_state {
                 if context.state.analysis.runes {
@@ -2106,8 +2106,7 @@ fn process_bind_directive<'a>(
                         transformed_expression.clone(),
                         b::id("$$value"),
                     );
-                    let assignment =
-                        validate_bind_setter_mutation(assignment, bind, ignored_codes, context);
+                    let assignment = validate_bind_setter_mutation(assignment, bind, context);
                     vec![b::stmt(&context.arena, assignment)]
                 } else {
                     // In legacy mode, wrap in $.mutate():
@@ -2138,8 +2137,7 @@ fn process_bind_directive<'a>(
                     transformed_expression.clone(),
                     b::id("$$value"),
                 );
-                let assignment =
-                    validate_bind_setter_mutation(assignment, bind, ignored_codes, context);
+                let assignment = validate_bind_setter_mutation(assignment, bind, context);
                 vec![b::stmt(&context.arena, assignment)]
             }
         } else {
