@@ -15,6 +15,10 @@
 //! position-dependent (two shadcn-svelte components show it dropping them), so
 //! that half belongs with the TypeScript erasure machinery and not here.
 //!
+//! The report this landed under (#4398) is a DIFFERENT axis — a comment inside
+//! an erased inline annotation — and all four of its own cells are unmoved by
+//! this change, so it stays open. The two also have disjoint carriers.
+//!
 //! No corpus gate can hold any of this: `verify.mjs` calls `ast_equiv_batch`
 //! with no arguments, so `CommentPolicy::Ignore` applies and a divergence that
 //! lives only in comments is scored a pass for every entry and every target.
