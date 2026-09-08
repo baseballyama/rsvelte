@@ -179,6 +179,8 @@
 	"kite-public/src/lib/components/story/StoryQuote.svelte",
 	"layercake/src/_components/AxisY.percent-range.html.svelte",
 	"layercake/src/_components/AxisYRight.percent-range.html.svelte",
+	"layercake/src/_components/Scatter.percent-range.html.svelte",
+	"layercake/src/routes/_components/ArrowheadMarker.svelte",
 	"layerchart/docs/src/examples/components/Chart/facet-click.svelte",
 	"layerchart/docs/src/examples/components/Chart/facet-wrap.svelte",
 	"layerchart/docs/src/routes/+page.svelte",
