@@ -82,6 +82,7 @@ import { createRequire } from 'node:module';
 import { assertOracleCompiles, OFFICIAL_COMPILER_REL } from './oracle.mjs';
 import { unattributedBindingReason, BINDING_REL } from './binding.mjs';
 import { refuseUnrepresentativeBaseline, unpopulatedSourcesReason } from './baseline-guard.mjs';
+import { diffKeys } from './parse-ast-diff.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -217,76 +218,6 @@ const jsonSafe = (value) =>
 
 const officialParse = (source, options) => official.parse(source, options);
 const rsvelteParse = (source, options) => rsvelte.parse(source, options);
-
-/**
- * Relative paths whose object keys are USER DATA rather than schema — the
- * `<svelte:options customElement={{ props: { … } }} />` bag is keyed by the
- * prop names the component author chose. Descending into them with the key in
- * the path files one defect under as many ratchet entries as the corpus happens
- * to contain distinct names, so a new file carrying a new prop name grows the
- * ratchet for an ALREADY LISTED defect. They collapse to `{}` for the same
- * reason array indices collapse to `[]`; no divergence stops being reported,
- * it is reported once instead of once per name.
- */
-const DATA_KEYED_PATHS = new Set(['Root.options.customElement.props']);
-
-/**
- * Collect the divergence keys of two JSON values. `ctx` is the `type` of the
- * nearest enclosing typed object and `rel` the path since it, so a defect
- * reachable at four nesting depths is one key rather than four.
- */
-function diffKeys(a, b, out, ctx, rel, depth = 0) {
-	if (a === b || depth > 100) return;
-	const ta = a === null ? 'null' : Array.isArray(a) ? 'array' : typeof a;
-	const tb = b === null ? 'null' : Array.isArray(b) ? 'array' : typeof b;
-	if (ta !== tb) {
-		out.add(`${ctx}${rel}#type`);
-		return;
-	}
-	if (ta === 'array') {
-		if (a.length !== b.length) out.add(`${ctx}${rel}[]#length`);
-		const n = Math.min(a.length, b.length);
-		for (let i = 0; i < n; i++) diffKeys(a[i], b[i], out, ctx, `${rel}[]`, depth + 1);
-		return;
-	}
-	if (ta === 'object') {
-		// Official's type wins the context: a node rsvelte mislabels must not
-		// file its divergence under the wrong node type.
-		if (typeof a.type === 'string') {
-			ctx = a.type;
-			rel = '';
-			// Two different node types have no fields in common to compare, so
-			// descending would spray one divergence across every field of the
-			// two shapes (a `TemplateLiteral.callee#extra` that means nothing).
-			// The mislabel IS the finding.
-			if (a.type !== b.type) {
-				out.add(`${ctx}.type#value`);
-				return;
-			}
-		}
-		const dataKeyed = DATA_KEYED_PATHS.has(`${ctx}${rel}`);
-		for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-			const inA = Object.hasOwn(a, key);
-			const inB = Object.hasOwn(b, key);
-			// Under a data-keyed path the key is the component author's prop
-			// name, so it names an input rather than a defect.
-			const step = dataKeyed ? `${rel}{}` : `${rel}.${key}`;
-			if (inA && !inB) out.add(`${ctx}${step}#missing`);
-			else if (!inA && inB) out.add(`${ctx}${step}#extra`);
-			// `start`, `end` and `loc` are one fact — where the node is — derived
-			// from the same offsets. Compared field by field they are six keys
-			// per node type (`loc.start.line`, `loc.end.column`, …) for a single
-			// off-by-one, so a divergence in any of them is one `#span` key.
-			// Their PRESENCE stays separate above: a node with no `loc` at all is
-			// a different defect from a node whose `loc` is wrong.
-			else if (key === 'start' || key === 'end' || key === 'loc') {
-				if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) out.add(`${ctx}${rel}#span`);
-			} else diffKeys(a[key], b[key], out, ctx, step, depth + 1);
-		}
-		return;
-	}
-	out.add(`${ctx}${rel}#value`);
-}
 
 /**
  * Index comment ownership independently of the JSON-path diff. A field-level
