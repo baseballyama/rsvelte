@@ -6440,7 +6440,7 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
 ## Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **180 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **175 entries**.
 
 ### The question it asks
 
@@ -6556,30 +6556,40 @@ ratchet at all. So `loose:unclosed-element::RegularElement#span` is an ordinary 
 defect. Reading the issue and the gate as sharing a vocabulary would have attributed an rsvelte
 defect upstream.
 
-Partition of `parse-ast-known-failures.json` by cluster: `55 + 42 + 30 + 14 + 14 + 10 + 6 + 6 + 2 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `51 + 42 + 32 + 16 + 10 + 9 + 6 + 6 + 2 + 1`
 
 | cluster | keys | bases | what it is |
 |---|---|---|---|
-| `span` | 55 | 29 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
-| `node-type` | 14 | 8 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `span` | 51 | 27 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `node-type` | 9 | 5 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
 | `estree-fields` | 10 | 5 | ESTree fields rsvelte's serializer omits or adds. The nine TypeScript type fields are gone (#4335); what is left is `Identifier.typeAnnotation`, `TSParameterProperty.{accessibility,readonly}` and `CallExpression.optional`. The lint gates found some of these from the other side. |
-| `unclustered` | 30 | 19 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `unclustered` | 32 | 20 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
 | `comment-attachment` | 42 | 21 | #3387 — comments disagree on statements and programs; one key represents each affected node type and attachment field. #3702 fixed the walk order for five template-literal shapes in both AST modes. |
 | `accepts-what-official-rejects` | 1 | 1 | the loose `unclosed-attribute-quote` source, and nothing else. See below. |
-| `css-shape` | 14 | 9 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
+| `css-shape` | 16 | 10 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`), **plus every key whose node type is spelled `Block`** — the cluster regex matches the CSS `Block` node and ESTree's block-comment type alike, so `Block#span` and `Block#node-missing` are filed here and are comments. The row is a key-shape partition, not a subject one. |
 | `child-count` | 6 | 5 | an array of children with a different length. |
 | `loc-presence` | 6 | 3 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `ast-mode` | 2 | 2 | #3385 — the remaining legacy-root shape differences. |
 
 **Read the `keys` column as `bases x axis`, not as work.** A key is
 `<axis>::<NodeType>.<field>#<kind>` and most node types diverge identically under `modern` and
-`legacy`, so 180 keys are **102 distinct bases**: 78 appear on both axes and 24 on one
-(88x2 + 24 = 200, a 1.79x collapse). The defect ceiling is 112. The per-cluster collapse is not
-uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x (every base is on
-both axes), `css-shape` 1.56x and `child-count` 1.20x (legacy-only shapes), `ast-mode` and
+`legacy`, so 175 keys are **99 distinct bases**: 76 appear on both axes and 23 on one
+(76x2 + 23 = 175, a 1.77x collapse), and 99 is therefore the defect ceiling. The per-cluster
+collapse is not uniform — `estree-fields`, `comment-attachment` and `loc-presence` are 2.00x
+(every base is on both axes), `span` 1.89x, `node-type` 1.80x, `unclustered` and `css-shape`
+1.60x, `child-count` 1.20x (legacy-only shapes), `ast-mode` and
 `accepts-what-official-rejects` 1.00x by construction.
 
-**No base's two axes sit in different clusters** (0 of 88), so a cluster can be worked end to end
+**Every figure in that paragraph was re-derived from the JSON rather than adjusted, and three of
+its predecessors did not survive.** The previous version read `78 both + 24 single` and then
+`88x2 + 24 = 200` for a 180-entry file — two different base counts one clause apart, and a sum
+that is neither — with a stated ceiling of `112` against its own `102` bases. None of the four is
+reachable by arithmetic from the others, which is why subtracting from the old prose could not
+have produced the right ones; the gated declaration and the gated partition line above were
+correct throughout, which is exactly the split this repository records between a checked half and
+an unchecked half on the same page.
+
+**No base's two axes sit in different clusters** (0 of 76), so a cluster can be worked end to end
 without a key from it turning up under someone else's row. Measured directly from the JSON, which
 is authoritative for the partition: the ten rows above are its `Counter(values())`.
 
@@ -6588,7 +6598,7 @@ Attribution of `parse-ast-known-failures.json`:
 | n | target | cluster |
 |---|---|---|
 | 1 | [`upstream_issues/3385-svelte-loose-parse-crashes.md`](../upstream_issues/3385-svelte-loose-parse-crashes.md) | `loose:unclosed-attribute-quote::(accepted)#official-rejects` — official does not reject that document, it **crashes** on it, so matching it would mean reproducing the crash |
-| 17 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 8 keys on each axis plus `legacy::(root)._comments[]#length` — official emits a comment twice and the comparison pairs arrays by index, so both sides' values are individually correct and the key is the misalignment |
+| 14 | [`upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md`](../upstream_issues/4251-svelte-acorn-typescript-comment-duplication.md) | 6 keys on `modern` and 8 on `legacy` — official emits a comment twice, so its array is one element longer and the extra element has no counterpart. Re-measured under the aligned comparison (#4287); it was 17 under index pairing, where the surplus also mis-paired every later sibling |
 
 Both sides, on the gate's own source text (`parse-ast-verify.mjs:121`), under `{modern: true,
 loose: true}`:
@@ -6612,7 +6622,7 @@ component of which key it is false for is not yet known per key, and a rule stat
 level is what stopped anyone measuring it.
 
 **`#span` folds three fields into one key, and re-projecting them separates at least three
-mechanisms.** `parse-ast-verify.mjs:282-284` compares `start`, `end` and `loc` in three iterations
+mechanisms.** `parse-ast-diff.mjs:205-206` compares `start`, `end` and `loc` in three iterations
 and `add`s the same `#span` key from each, so which field differed is computed and discarded. A
 copy of the harness with that one line emitting `#span:${key}` reports, over 33,890 entries × 2
 axes, that of the diverging bases 14 differ on all three fields, 7 on `loc` alone, 6 on `end`
@@ -6625,17 +6635,22 @@ alone, and the remaining 6 on mixed pairs — and the `loc` group is not one def
 | comment nodes | **neither side's `loc` is wrong** | `Block` (154 carriers) and `Line` (76) are an artefact of the upstream comment duplication, not a `loc` defect at all — see below |
 
 The third row was `UNMEASURED` when the first two were filed, and measuring it removed it as a
-mechanism. `diffKeys` pairs array children strictly by index (`parse-ast-verify.mjs:250-251`), and
+mechanism. `diffKeys` **used to pair** array children strictly by index, and
 `@sveltejs/acorn-typescript` makes official emit a comment twice, so `$.comments` is `[X, X, Y, …]`
-against `[X, Y, …]` and index 1 compares official's `X` with rsvelte's `Y`. **Both sides' `loc`
-values are individually correct; the key is the misalignment.** That is what a second, independent
+against `[X, Y, …]` and index 1 compared official's `X` with rsvelte's `Y`. **Both sides' `loc`
+values are individually correct; the key was the misalignment.** #4287 replaced that pairing
+(`parse-ast-diff.mjs:59`, `alignSiblings`), so the duplication now reports as one `#node-missing`
+naming the surplus node instead of a spray across its later siblings — the row's conclusion is
+unchanged and its mechanism is no longer the comparator's. That is what a second, independent
 instrument saw from the other side — a collector that deduplicates comments by `(type, start, end)`
 is structurally blind to the duplication and reported `0` violations of "an occurrence present on
 both sides has a matching `loc`" over 97 checks.
 
 Measured by ablation over the whole corpus, with the harness's own `diffKeys` extracted verbatim
 and nothing changed but the removal, from official's AST, of a `Block`/`Line` element whose
-`(type, start, end)` already appeared earlier in the same array:
+`(type, start, end)` already appeared earlier in the same array. **The table below is the
+measurement under the OLD index pairing**; the same ablation re-run under #4287's alignment is
+beneath it, and the two answer the same question about different comparators:
 
 | | modern | legacy |
 |---|---|---|
@@ -6652,6 +6667,14 @@ The nine are `Block#span` (154 carriers), `Line#span` (76), `Block.type#value` (
 (2), `TSTypeParameter.leadingComments[]#length` (1), and — legacy only —
 `(root)._comments[]#length` (183). The `Block#span` and `Line#span` carrier counts are the
 harness's own, which is what closes the population: there is no residue.
+
+Re-run under the aligned comparison, over the same 183 carriers, the duplication is the sole cause
+of **6** keys on `modern` (`Block#span`, `Line#node-missing`, and the `leadingComments[]#length` of
+`ImportDeclaration`, `TSPropertySignature`, `TSTypeParameter` and `VariableDeclaration`) and **8**
+on `legacy` (those six plus `Block#node-missing` and `(root)._comments[]#length`), with **0** keys
+appearing on either axis. The asymmetry is a finding rather than noise: `Block#node-missing`
+survives the ablation on `modern`, so on that axis at least one carrier drops a block comment for
+a reason that is not the duplication, and `legacy` has none.
 
 A key disappears here only when the duplication explains it in **every** carrier, so the list is
 not a lower bound on the duplication's reach — it is exactly the set of keys the duplication is the

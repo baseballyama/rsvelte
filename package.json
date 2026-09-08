@@ -58,6 +58,7 @@
 		"test:parse-bom": "node scripts/dev/test-parse-bom.mjs",
 		"test:corpus-verify-flags": "node scripts/dev/test-corpus-verify-baseline-flags.mjs",
 		"test:corpus-parse-gate": "node scripts/dev/test-corpus-parse-gate.mjs",
+		"test:parse-ast-diff-alignment": "node scripts/dev/test-parse-ast-diff-alignment.mjs",
 		"test:lint-verify-floor": "node scripts/dev/test-lint-verify-population-floor.mjs",
 		"test:lint-severity-attribution": "node scripts/dev/test-lint-severity-exit-attribution.mjs",
 		"test:svelte2tsx-map-coverage": "node scripts/dev/test-svelte2tsx-map-coverage.mjs",

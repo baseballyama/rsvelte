@@ -1193,6 +1193,15 @@ jobs:
         if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
         run: node scripts/dev/test-mutation-baseline-provenance.mjs
 
+      # The parse-ast comparator pairs siblings by identity. Its two failure
+      # modes both read as success: index pairing sprays one dropped node
+      # across node types it never touched, and a map keyed on the bare
+      # (type, start, end) triple collapses upstream's duplicate-span comments
+      # so deleting one reports nothing.
+      - name: Check the parse-ast comparator's sibling alignment
+        if: ${{ !cancelled() && steps.flags-env.outcome == 'success' }}
+        run: node scripts/dev/test-parse-ast-diff-alignment.mjs
+
       # `codeIdentity` decides the `code-mismatch` / `comment-mismatch` split
       # that this gate and the shape matrix ratchet on, so a reduction that
       # deletes real code makes a code regression report as comment noise.
