@@ -7,6 +7,18 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("template source offsets are represented as u32")
 }
 
+/// The source range of a component's tag name, located the way upstream locates
+/// it (`InlineComponent.ts:103`, `str.original.indexOf(node.name, node.start)`).
+fn component_name_range(comp: &Component, source: &str) -> Option<(u32, u32)> {
+    let start = comp.start as usize;
+    let offset = source.get(start..)?.find(comp.name.as_str())?;
+    let name_start = start + offset;
+    Some((
+        source_offset(name_start),
+        source_offset(name_start + comp.name.len()),
+    ))
+}
+
 use crate::ast::template::{
     Attribute, Component, SvelteComponentElement, SvelteElement, TemplateNode,
 };
@@ -26,7 +38,9 @@ use crate::svelte2tsx::template::attributes::let_::{
 };
 use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
 use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex};
-use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
+use crate::svelte2tsx::template::segs::{
+    Seg, bake_out_of_order_src, emit_segmented_overwrite, segs_push_lit, segs_push_src,
+};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_text, get_expression_end_stripping_ts,
     get_expression_range, get_expression_text, get_set_binding_ranges,
@@ -315,30 +329,35 @@ pub fn handle_component(
     // is appended (as ignore-wrapped statements) for every non-`bind:this`
     // binding on a component.
     let component_bind_suffix = build_component_bind_suffix(&comp.attributes, source, &inst_var);
-    let (header_lit, trailer_lit) = if needs_instance {
+    let (header_pre, header_post, trailer_lit) = if needs_instance {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
             String::new()
         };
         (
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
             format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
-                block_indent, inst_var, comp.name, inst_var, inst_var,
+                "); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
-            format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{",
-                block_indent, inst_var, comp.name, inst_var,
-            ),
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
+            format!("); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"),
             "}});".to_string(),
         )
     };
-    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
-    opener_segs.push(Seg::Lit(header_lit));
+    let mut opener_segs: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 4);
+    opener_segs.push(Seg::Lit(header_pre));
+    // The name is the `__sveltets_2_ensureComponent` argument and upstream gives
+    // it its own source range, so hover on the tag name resolves through it.
+    match component_name_range(comp, source) {
+        Some((start, end)) => segs_push_src(&mut opener_segs, start, end),
+        None => segs_push_lit(&mut opener_segs, comp.name.as_str()),
+    }
+    segs_push_lit(&mut opener_segs, &header_post);
     opener_segs.extend(attr_segs);
     if !use_snippet_props {
         // The snippet-prop path leaves the `props: { … ` object literal open so
@@ -703,30 +722,39 @@ pub fn handle_svelte_component(
     } else {
         " ".repeat(scomp_spacing.before_block)
     };
-    let (header_lit, trailer_lit) = if needs_inst {
+    let (header_pre, header_post, trailer_lit) = if needs_inst {
         let on_calls = if has_events {
             build_on_calls(&inst_var, &on_directives, source)
         } else {
             String::new()
         };
         (
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
             format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
+                "); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
             ),
             format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
-            format!(
-                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"
-            ),
+            format!("{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent("),
+            format!("); new {inst_var}C({{ target: __sveltets_2_any(), props: {{"),
             "}});".to_string(),
         )
     };
     // The snippet-props path keeps the props object open so the demoted
     // `{#snippet}` children can be moved inside it.
-    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 3);
-    opener.push(Seg::Lit(header_lit));
+    let mut opener: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 4);
+    opener.push(Seg::Lit(header_pre));
+    // `this={expr}` is upstream's `[node.expression.start, node.expression.end]`
+    // entry, so the expression reaches the shadow as an unedited source chunk.
+    match get_expression_range(&comp.expression) {
+        Some((start, end)) if !expr_text.is_empty() => {
+            segs_push_src(&mut opener, start, end);
+        }
+        _ => segs_push_lit(&mut opener, expr_text),
+    }
+    segs_push_lit(&mut opener, &header_post);
     opener.extend(attr_segs);
     if !use_snippet_props {
         opener.push(Seg::Lit(trailer_lit.clone()));
