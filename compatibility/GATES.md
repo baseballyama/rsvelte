@@ -8090,6 +8090,101 @@ same holds for `void 0`. Which inputs *do* reach it is **unmeasured**, so the ro
 port that disagrees with upstream and is currently unreachable is one refactor away from being
 reachable, and nothing here would notice.
 
+#### 34. Where does a parameter list's comment window end? — [D], one port pair closed, one left unreachable
+
+**Upstream** ends it with `sequence(context, node.params, <until>, false)` and spells `<until>`
+**twice**, split by whether the node has a body
+(`esrap/src/languages/ts/index.js`, pinned at `esrap@2.2.12`):
+
+| upstream | expression | reaches |
+|---|---|---|
+| `:744` | `(node.returnType ?? node.body).loc?.start ?? null` | `FunctionDeclaration` / `FunctionExpression` — which in the acorn model is *also* every method, getter, setter and object-literal method |
+| `:988` | the same expression, character for character | `ArrowFunctionExpression` |
+| `:1771` | `node.returnType?.loc?.start ?? node.loc?.end ?? null` | bodyless TS signatures, which have no `node.body` to ask |
+
+**Ports, before #4468.** rsvelte spelled it three times and the split did not line up with
+upstream's: `printer.rs:2493-2501` (function declarations), `formal_parameters` (**`params.span().end`**,
+the `)`, at eight callers), and the arrow's four-arm `match`. Ports 1 and 3 answered upstream's
+`:744`/`:988`. Port 2 served callers upstream splits across `:744` — methods, which *are*
+`FunctionExpression`s — **and** `:1771`, so it was one answer where upstream has two, and for the
+`:744` half it was the wrong one.
+
+**Named input, and it separated two rsvelte ports rather than only rsvelte from upstream.** A
+comment between `)` and the body is inside port 1's window and outside port 2's:
+
+```
+function f() /*W*/ { return 1; }          port 1 -> kept
+class C { m() /*W*/ { return 1; } }       port 2 -> dropped from the output entirely
+```
+
+Measured host × comment slot, with `before )` as the negative control every port must keep:
+4 DIFF of 12 cells, the control firing on all six hosts, and 16 DIFF of 24 across the four
+targets — the predicate being whole-output containment, so the comment was dropped rather than
+relocated.
+
+**Closed at degree 1 for the bodied half.** `function_params_until` is now the single expression
+for every bodied function, called from the function, method and object-method sites, so the
+question has one answer wherever upstream's `:744` answers it. What remains is a genuine second
+port: `formal_parameters` keeps `params.span().end` and is now called from exactly the five
+bodyless TS signature sites — which a `grep` confirms, and which is what its doc comment claims,
+so the claim is checkable rather than asserted.
+
+**The remaining pair is [S], and its divergence is unreachable rather than absent.** Upstream's
+`:1771` is `returnType?.loc?.start ?? node.loc?.end`, and a `TSFunctionType` always has a return
+type, so upstream stops at the return type where rsvelte stops at the `)`. Nothing reaches it: a
+named type threaded through `TSFunctionType`, `TSConstructorType`, `TSMethodSignature` and
+`TSDeclareFunction` is absent from `js.code` on `client` and `server` **on both compilers**, while
+the same marker written as a value survives on both — so the probe is live rather than blind.
+`rsvelte_esrap`'s only consumers besides `rsvelte_core` are `rsvelte_devtools` and `rsvelte_bench`,
+neither of which is shipped output. What that does *not* establish is that the five sites are never
+called; a `#[track_caller]` counter would, and was not built.
+
+**Port 3's `Some(_) => None` arm is a deliberate divergence, recorded rather than dropped.**
+`arrow_function` passes `owned_comment_until = None` and takes the `None => Some(body_start)` arm,
+which is upstream's expression; over 8 arrow body shapes × 4 targets that is 32 cells, 0 DIFF, with
+the method grid as the control that the same instrument does report DIFF. None of the 32 reaches
+the other arm: it needs `owned_comment_until` to be `Some`, supplied only by `printer.rs:4495` and
+`:4678`, both synthesized arrows owning a *call argument's* comments. The comment above it gives
+the reason — a generated arrow's empty parameter list would otherwise consume a located body's
+leading comments before the `=>`. Unmeasured against upstream, and kept here because a comment
+asserting a considered difference is exactly where this class hides.
+
+**Reach was 0 before the fix, against the caller population.** Every `.svelte` file under
+`submodules/svelte/packages/svelte/tests` and `compatibility/pattern-corpus` was parsed with the
+official compiler and walked for the two node shapes that route to port 2, and for each one found
+the source between the parameter list's own `)` and the body's `start` was read for a comment
+marker:
+
+```
+.svelte files              5,920
+parsed by official         5,737   (183 rejected — the deliberately-invalid fixtures)
+reach port 2                 214   <- the live control: the port is exercised here
+carry the disputed slot        0
+```
+
+The 214 is what makes the 0 readable — without it, a population holding no methods at all produces
+the identical zero and nothing in the output says so.
+
+**Two instrument corrections, neither of which moved the number.** The first version counted
+*source shapes* with a loose `\)\s*comment\s*\{` regex, which is a scan of sources where the
+population that decides port 2 is *callers*; it returned one file and printing it disqualified it
+(an object literal's `)`), so "0 carriers" and "0 carriers among the files that reach this port"
+are different claims and only the second survives being quoted. The second is sharper: the AST
+version was first written with the gap running from the **last parameter's end**, which for a
+zero-parameter method is the whole parameter list — so `m(/*W*/) {}`, the negative-control slot
+both compilers keep, counted as a carrier. It was found by injecting a manufactured carrier *and*
+a manufactured non-carrier and requiring the count to move by exactly one; it moved by two.
+**Printing the hits could not have found it**, because there were no hits — an over-counting
+instrument that returns zero is validated by neither cheap check, only by an injected pin, and the
+published 0 survives on the sign alone (an over-counting instrument reporting zero has a true zero
+underneath).
+
+One qualification stands: the collected corpus (~33.9k components) is not materialised on this
+machine, so 5,737 is not the denominator this project normally quotes.
+
+Tracked as #4468. Not a duplicate of #4452, which reports eleven checked-in repro files diverging
+with the gate passing them; this shape had no repro file and no carrier.
+
 ### Formatting — collapses
 
 Whitespace, line breaks and indentation. Quote style. Optional semicolons.
