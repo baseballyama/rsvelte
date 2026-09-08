@@ -1,5 +1,29 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.25
+
+### Patch Changes
+
+- 2c7d0f3: svelte2tsx: a script's angle-bracket type-parameter list is copied into the TSX shadow verbatim. rsvelte inserted a disambiguating comma (`<T>` → `<T,>`) that upstream never inserts, which changed the program the type checker sees — `<string>() => a` is a type assertion, `<string,>() => a` is a generic arrow whose type parameter is named `string`.
+- Updated dependencies [903827b]
+- Updated dependencies [1094095]
+- Updated dependencies [38ab263]
+- Updated dependencies [59ce7d0]
+- Updated dependencies [e2b4ce8]
+- Updated dependencies [f51d6ca]
+- Updated dependencies [adc3da1]
+- Updated dependencies [b003aae]
+- Updated dependencies [9e2a02c]
+- Updated dependencies [bf81524]
+- Updated dependencies [328c6b7]
+- Updated dependencies [f7b0542]
+- Updated dependencies [8916f85]
+- Updated dependencies [2c7d0f3]
+- Updated dependencies [625f972]
+- Updated dependencies [b28f33a]
+- Updated dependencies [192592b]
+  - @rsvelte/compiler@0.11.7
+
 ## 0.2.24
 
 ### Patch Changes

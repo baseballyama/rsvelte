@@ -1,5 +1,9 @@
 # @rsvelte/lint-win32-x64-msvc
 
+## 0.11.7
+
+No changes in this release.
+
 ## 0.11.6
 
 No changes in this release.
