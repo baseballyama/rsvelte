@@ -80,18 +80,15 @@ pub fn handle_svelte_dynamic_element(
         find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
-    // The named-slot form rewrites the attribute list wholesale (the `slot`
-    // attribute is consumed by the wrapper), so it has no per-expression ranges
-    // to preserve and stays a single literal.
     let attr_segs: Vec<Seg> = if named_slot.is_some() {
-        vec![Seg::Lit(build_named_slot_element_attrs(
+        build_named_slot_element_attrs(
             &el.attributes,
             source,
             &options.typings_namespace,
             &el.name,
             true,
             options.namespace.preserves_attribute_case(),
-        ))]
+        )
     } else {
         build_attribute_segments(
             &el.attributes,

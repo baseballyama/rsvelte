@@ -1,9 +1,7 @@
 //! `class:` / `style:` directives.
 //! Mirrors `htmlxtojsx_v2/nodes/Class.ts` and `StyleDirective.ts`.
 
-use crate::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, ClassDirective, StyleDirective,
-};
+use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, StyleDirective};
 use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
@@ -177,46 +175,4 @@ pub fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<S
         _ => return None,
     }
     Some(out)
-}
-
-/// Format a class directive: `class:active={expr}` → `"class:active":expr,`
-pub fn format_class_directive(class: &ClassDirective, source: &str) -> String {
-    let expr_text = get_expression_text(&class.expression, source);
-    format!("\"class:{}\":{},", class.name, expr_text)
-}
-
-/// Format a style directive: `style:color={expr}` → `"style:color":expr,`
-pub fn format_style_directive(style: &StyleDirective, source: &str) -> String {
-    match &style.value {
-        AttributeValue::True(_) => {
-            // Shorthand: `style:color` → `"style:color":color,`
-            format!("\"style:{}\":{},", style.name, style.name)
-        }
-        AttributeValue::Expression(expr) => {
-            let expr_text = get_expression_text(&expr.expression, source);
-            format!("\"style:{}\":{},", style.name, expr_text)
-        }
-        AttributeValue::Sequence(parts) => {
-            let mut value_parts = Vec::new();
-            for part in parts {
-                match part {
-                    AttributeValuePart::Text(text) => {
-                        // Escape backslash first so `\n` / `\t` in raw text
-                        // (e.g. a Windows path) stay literal. H-091.
-                        let escaped = text
-                            .raw
-                            .replace('\\', "\\\\")
-                            .replace('`', "\\`")
-                            .replace('$', "\\$");
-                        value_parts.push(escaped);
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{expr_text}}}"));
-                    }
-                }
-            }
-            format!("\"style:{}\":`{}`,", style.name, value_parts.join(""))
-        }
-    }
 }

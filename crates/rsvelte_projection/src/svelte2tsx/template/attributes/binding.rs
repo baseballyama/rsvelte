@@ -2,16 +2,14 @@
 
 use crate::ast::template::{Attribute, BindDirective};
 use crate::svelte2tsx::svelte2tsx::slice_src;
-use crate::svelte2tsx::template::segs::{
-    Seg, segs_push_fmt, segs_push_lit, segs_push_src, segs_to_string,
-};
+use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{
     extend_expr_end_with_ts_postfix, get_binding_lhs_range, get_binding_lhs_text,
     get_expression_end_stripping_ts, get_expression_range, get_expression_text,
     get_set_binding_ranges,
 };
 
-/// Structured-bake variant of [`format_bind_directive`].
+/// An element's `bind:` directive as segments.
 ///
 /// `preserve_bind` mirrors upstream Binding.ts's `preserveBind && element
 /// instanceof Element`: only the `svelteHTML` typings keep the `bind:` prefix
@@ -62,30 +60,13 @@ pub fn format_bind_directive_segments(
     out
 }
 
-/// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`. A Svelte
-/// 5 function binding `bind:name={getFn, setFn}` becomes
-/// `"bind:name":__sveltets_2_get_set_binding(getFn, setFn),`.
-pub fn format_bind_directive(bind: &BindDirective, source: &str, preserve_bind: bool) -> String {
-    if !preserve_bind {
-        return format_component_bind_directive(bind, source).unwrap_or_default();
-    }
-    if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
-        return format!(
-            "\"bind:{}\":__sveltets_2_get_set_binding({},{}),",
-            bind.name,
-            slice_src(source, gs as usize, ge as usize),
-            slice_src(source, ss as usize, se as usize),
-        );
-    }
-    let expr_text = get_expression_text(&bind.expression, source);
-    format!("\"bind:{}\":{},", bind.name, expr_text)
-}
-
-/// Component-side prop text for a `bind:` directive: `foo:expr,`, or the
-/// shorthand `expr,` when written as bare `bind:foo`. `bind:this` contributes
-/// no prop (it is applied as an assignment after the create call). Mirrors the
-/// `InlineComponent` branch of upstream `Binding.ts`.
-pub fn format_component_bind_directive(bind: &BindDirective, source: &str) -> Option<String> {
+/// A component's `bind:` directive as segments: an expression that reaches
+/// the shadow as a source chunk keeps its own map segment, which is what makes
+/// hover inside a component prop answer at all.
+pub fn format_component_bind_directive_segments(
+    bind: &BindDirective,
+    source: &str,
+) -> Option<Vec<Seg>> {
     if bind.name == "this" {
         return None;
     }
@@ -95,25 +76,30 @@ pub fn format_component_bind_directive(bind: &BindDirective, source: &str) -> Op
         && expr_range.is_some_and(|(s, _)| {
             s == bind.start + u32::try_from("bind:".len()).expect("literal length fits in u32")
         });
+    let mut out: Vec<Seg> = Vec::new();
     if let Some((s, e)) = expr_range
         && is_shorthand
     {
-        return Some(format!("{},", slice_src(source, s as usize, e as usize)));
+        segs_push_src(&mut out, s, e);
+        segs_push_lit(&mut out, ",");
+        return Some(out);
     }
-    let value = if let Some(((gs, ge), (ss, se))) = get_set {
-        format!(
-            "__sveltets_2_get_set_binding({},{})",
-            slice_src(source, gs as usize, ge as usize),
-            slice_src(source, ss as usize, se as usize),
-        )
+    segs_push_fmt(&mut out, format_args!("{}:", bind.name));
+    if let Some(((gs, ge), (ss, se))) = get_set {
+        segs_push_lit(&mut out, "__sveltets_2_get_set_binding(");
+        segs_push_src(&mut out, gs, ge);
+        segs_push_lit(&mut out, ",");
+        segs_push_src(&mut out, ss, se);
+        segs_push_lit(&mut out, ")");
     } else if let Some((s, e)) = expr_range {
         // Keep a trailing TS postfix the parser narrowed out of the span.
         let e = extend_expr_end_with_ts_postfix(source, e, bind.end);
-        slice_src(source, s as usize, e as usize).to_string()
+        segs_push_src(&mut out, s, e);
     } else {
-        get_expression_text(&bind.expression, source).to_string()
-    };
-    Some(format!("{}:{},", bind.name, value))
+        segs_push_lit(&mut out, get_expression_text(&bind.expression, source));
+    }
+    segs_push_lit(&mut out, ",");
+    Some(out)
 }
 
 /// One-way HTML element bindings whose value reflects an element property
@@ -165,37 +151,7 @@ pub fn bind_needs_element_var(name: &str) -> bool {
     name == "this" || is_one_way_binding_attribute(name)
 }
 
-/// Build the suffix appended right after the `svelteHTML.createElement(...)`
-/// call for all `bind:` directives on a regular HTML element. Mirrors the
-/// branches of `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`:
-///
-/// - `bind:this`               → `<expr> = <element_var>;`
-/// - one-way (clientWidth, …)  → `<expr>= <element_var>.<attr>;`
-/// - one-way-not-on-element    → `<expr>= /** @type {T} */ (null);` (typed null)
-/// - any other `bind:foo`      → keeps the prop, then appends an
-///   ignored-comments-wrapped `() => <expr> = __sveltets_2_any(null);` so TS
-///   widens the type.
-pub fn build_bind_directive_suffix(
-    attributes: &[Attribute],
-    source: &str,
-    element_var: Option<&str>,
-    parent_tag: &str,
-    use_ts_syntax: bool,
-) -> String {
-    segs_to_string(
-        &build_bind_directive_suffix_segs(
-            attributes,
-            source,
-            element_var,
-            parent_tag,
-            use_ts_syntax,
-        ),
-        source,
-    )
-}
-
-/// Segment form of [`build_bind_directive_suffix`], for callers that apply the
-/// opener through `emit_segmented_overwrite` rather than baking it.
+/// The `bind:` suffix statements for an element opener, as segments.
 pub fn build_bind_directive_suffix_segs(
     attributes: &[Attribute],
     source: &str,
@@ -219,8 +175,7 @@ pub fn build_bind_directive_suffix_segs(
     out
 }
 
-/// Per-attribute variant of [`build_bind_directive_suffix`]: the suffix
-/// statement for a single `bind:` directive, as segments.
+/// The suffix statement for a single `bind:` directive, as segments.
 ///
 /// Upstream's `handleBinding` emits the binding's assignment target as a
 /// TransformationArray *range* (`appendOneWayBinding`'s `[expression.start,

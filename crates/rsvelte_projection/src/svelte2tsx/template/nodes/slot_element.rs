@@ -4,10 +4,13 @@ use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SlotEl
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
-use crate::svelte2tsx::template::attributes::attribute::{AttrHost, format_attribute_node};
-use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
-use crate::svelte2tsx::template::attributes::spread::format_spread_attribute;
-use crate::svelte2tsx::template::ctx::Counter;
+use crate::svelte2tsx::template::attributes::attribute::{
+    AttrHost, append_attribute_node_segments,
+};
+use crate::svelte2tsx::template::attributes::binding::format_bind_directive_segments;
+use crate::svelte2tsx::template::attributes::spread::format_spread_attribute_segments;
+use crate::svelte2tsx::template::ctx::{Counter, ElementOpenerCommentIndex};
+use crate::svelte2tsx::template::segs::{Seg, bake_out_of_order_src, emit_segmented_overwrite};
 use crate::svelte2tsx::template::utils::expr::get_expression_text;
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
 use crate::svelte2tsx::template::utils::source::{find_closing_tag_start, find_opening_tag_end};
@@ -86,10 +89,18 @@ pub fn handle_slot_element(
             preserve_bind: options.preserves_bind_prefix(),
         },
     );
-    let slot_props_obj = if slot_props.is_empty() && spacing.in_attr_object == 0 {
-        "{}".to_string()
+    // `{}` when there is nothing at all to place; otherwise the props object
+    // keeps each attribute as its own segment.
+    let slot_props_obj: Vec<Seg> = if slot_props.is_empty() && spacing.in_attr_object == 0 {
+        vec![Seg::Lit("{}".to_string())]
     } else {
-        format!("{{{}{}}}", " ".repeat(spacing.in_attr_object), slot_props)
+        let mut obj = vec![Seg::Lit(format!(
+            "{{{}",
+            " ".repeat(spacing.in_attr_object)
+        ))];
+        obj.extend(slot_props);
+        obj.push(Seg::Lit("}".to_string()));
+        obj
     };
 
     // The slot-def block sits inside the opening tag's leading whitespace, so it
@@ -108,18 +119,24 @@ pub fn handle_slot_element(
             None => indent,
         },
     };
-    let opener = if bind_this_expr.is_some() {
+    let mut opener = vec![Seg::Lit(if bind_this_expr.is_some() {
         format!(
-            "{}{{ const $$_slot{} = __sveltets_createSlot(\"{}\", {});",
+            "{}{{ const $$_slot{} = __sveltets_createSlot(\"{}\", ",
             indent,
             counter.next_slot(),
             slot_name,
-            slot_props_obj
         )
     } else {
-        format!("{indent}{{ __sveltets_createSlot(\"{slot_name}\", {slot_props_obj});")
-    };
-    str.overwrite(el.start, opening_tag_end, &opener);
+        format!("{indent}{{ __sveltets_createSlot(\"{slot_name}\", ")
+    })];
+    opener.extend(slot_props_obj);
+    opener.push(Seg::Lit(");".to_string()));
+    emit_segmented_overwrite(
+        str,
+        el.start,
+        opening_tag_end,
+        &bake_out_of_order_src(opener, source),
+    );
 
     // Process fallback children: slot is an element → children at depth+1.
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
@@ -282,8 +299,11 @@ pub fn build_slot_props_string(
     drop_slot_attr: bool,
     in_component_slot: bool,
     preserve_bind: bool,
-) -> String {
-    let mut parts: Vec<String> = Vec::new();
+) -> Vec<Seg> {
+    let mut parts: Vec<Seg> = Vec::new();
+    // This path has never carried element-opener comments, so an empty index
+    // keeps the emitted text byte-identical to the string form it replaces.
+    let no_comments = ElementOpenerCommentIndex::default();
 
     for attr in attributes {
         match attr {
@@ -294,33 +314,36 @@ pub fn build_slot_props_string(
                 }
                 // A `<slot>` is built as an `Element` upstream, so the `data-`
                 // wrapper applies to it and the component-only `--` one does not.
-                parts.push(format_attribute_node(
+                append_attribute_node_segments(
+                    &mut parts,
                     node,
                     source,
+                    &no_comments,
                     AttrHost::SpecialTag { tag: "slot" },
-                ));
+                    "",
+                );
             }
             Attribute::SpreadAttribute(spread) => {
-                parts.push(format_spread_attribute(spread, source));
+                parts.extend(format_spread_attribute_segments(spread, source));
             }
             Attribute::BindDirective(bind) => {
                 // Skip bind:this on slot elements
                 if bind.name == "this" {
                     continue;
                 }
-                parts.push(format_bind_directive(bind, source, preserve_bind));
+                parts.extend(format_bind_directive_segments(bind, source, preserve_bind));
             }
             Attribute::LetDirective(let_dir) if !in_component_slot => {
                 // Outside a component's children a `let:` is just a deprecated
                 // attribute, exactly as `Let.ts` `handleLet`'s else branch has it.
-                parts.push(match &let_dir.expression {
+                parts.push(Seg::Lit(match &let_dir.expression {
                     Some(expr) => format!(
                         "\"let:{}\":{},",
                         let_dir.name,
                         get_expression_text(expr, source)
                     ),
                     None => format!("\"let:{}\":true,", let_dir.name),
-                });
+                }));
             }
             _ => {
                 // Other directives are not typical on slot elements
@@ -328,7 +351,7 @@ pub fn build_slot_props_string(
         }
     }
 
-    parts.join("")
+    parts
 }
 
 /// Target slot of an element's `slot=` attribute for the **JSX** lowering, or

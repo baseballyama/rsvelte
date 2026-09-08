@@ -59,172 +59,6 @@ impl<'a> AttrHost<'a> {
     }
 }
 
-/// Format a regular attribute: `name="value"` → `"name":value,`.
-///
-/// Shorthand attributes like `{propB}` (where name equals expression text)
-/// produce `propB,` instead of `"propB":propB,`.
-///
-/// Wrapping rules (mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`):
-/// - element or slot && name starts with `data-` (but NOT `data-sveltekit-`):
-///   `...__sveltets_2_empty({ "data-foo": value })` — boolean/no-value → `__sveltets_2_any()`.
-/// - component && name starts with `--`:
-///   `...__sveltets_2_cssProp({ "--x": value })`.
-pub fn format_attribute_node(node: &AttributeNode, source: &str, host: AttrHost) -> String {
-    let is_element = matches!(host, AttrHost::Element { .. });
-    let name = &match host {
-        AttrHost::Element {
-            preserve_case,
-            is_custom_element,
-            ..
-        } => transform_attribute_case(&node.name, is_custom_element, true, preserve_case),
-        AttrHost::SpecialTag { .. } | AttrHost::Component => Cow::Borrowed(node.name.as_str()),
-    };
-
-    // Determine wrapping: data-* on elements, --* on components.
-    let is_data_attr = !matches!(host, AttrHost::Component)
-        && name.starts_with("data-")
-        && !name.starts_with("data-sveltekit-");
-    let is_css_prop = matches!(host, AttrHost::Component) && name.starts_with("--");
-
-    /// Wrap the inner `"name":value` (without trailing comma) in the
-    /// appropriate helper and re-attach the comma.
-    fn wrap(inner: &str, is_data: bool, is_css: bool) -> String {
-        if is_data {
-            format!("...__sveltets_2_empty({{{inner}}}),")
-        } else if is_css {
-            format!("...__sveltets_2_cssProp({{{inner}}}),")
-        } else {
-            format!("{inner},")
-        }
-    }
-
-    match &node.value {
-        AttributeValue::True(_) => {
-            // Boolean attribute: `disabled` → `"disabled":true,`
-            // For data-* on elements the boolean value is still `true` — official
-            // wraps it as `...__sveltets_2_empty({ "data-foo": true })`. (The
-            // `__sveltets_2_any()` fallback in upstream `Attribute.ts` only applies
-            // when the attribute has no value at all, which never happens for a
-            // boolean attribute.)
-            // A `--x` with no value is `true` too: the `""` fallback in
-            // `addProp` only fires when `addAttribute` is called with no value
-            // argument, which the `attr.value === true` branch never does.
-            if is_data_attr {
-                format!("...__sveltets_2_empty({{\"{name}\":true}}),")
-            } else if is_css_prop {
-                format!(
-                    "...__sveltets_2_cssProp({{\"{name}\":{}}}),",
-                    valueless_value(&node.name)
-                )
-            } else {
-                format!("\"{name}\":{},", valueless_value(&node.name))
-            }
-        }
-        AttributeValue::Expression(expr) => {
-            // Expression value: `name={expr}` → `"name":expr,`
-            let expr_text = get_expression_text(&expr.expression, source);
-            // Shorthand iff the source was written `{name}`. The parser sets the
-            // value ExpressionTag's start to `node.start + 1` (right after `{`)
-            // for shorthand; an explicit `name={expr}` puts it past `name=`.
-            // Mirrors official's `AttributeShorthand` type check — explicit
-            // `name={name}` must stay `"name":name`, not collapse to `name`.
-            // Shorthand names are plain identifiers so they cannot start with
-            // `data-` or `--`; skip wrapping for them.
-            if expr.start == node.start + 1 {
-                format!("{name},")
-            } else {
-                let inner = format!("\"{name}\":{expr_text}");
-                wrap(&inner, is_data_attr, is_css_prop)
-            }
-        }
-        AttributeValue::Sequence(parts) => {
-            // Special case: if the sequence is a single expression like `e="{b}"`,
-            // output `"e":b,` (just the expression value) instead of `"e":\`${b}\`,`
-            if parts.len() == 1
-                && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
-            {
-                let expr_text = get_expression_text(&expr.expression, source);
-                let inner = format!("\"{name}\":{expr_text}");
-                return wrap(&inner, is_data_attr, is_css_prop);
-            }
-
-            // `svelte/elements` types this set as `number`, so a template literal
-            // fails to type-check — the same rule the segment-based emitter
-            // applies (`needsNumberConversion` in `Attribute.ts`).
-            if is_element
-                && parts.len() == 1
-                && let AttributeValuePart::Text(text) = &parts[0]
-                && is_number_only_attribute(name)
-                && !text.data.trim().is_empty()
-                && is_js_numeric(&text.data)
-            {
-                return format!(
-                    "\"{name}\":{},",
-                    &source[text.start as usize..text.end as usize]
-                );
-            }
-
-            // Pure-static empty value (`class=""`): emit the quoted empty
-            // string, matching official (not an empty template literal).
-            let has_expr = parts
-                .iter()
-                .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-            let text_is_empty = parts.iter().all(|p| match p {
-                AttributeValuePart::Text(t) => t.raw.is_empty(),
-                AttributeValuePart::ExpressionTag(_) => false,
-            });
-            if !has_expr && text_is_empty {
-                return wrap(&format!("\"{name}\":\"\""), is_data_attr, is_css_prop);
-            }
-
-            // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
-            let mut value_parts = Vec::new();
-            for part in parts {
-                match part {
-                    AttributeValuePart::Text(text) => {
-                        // Escape backslash first (so a Windows path like
-                        // `C:\new\test` doesn't turn `\n` / `\t` into control
-                        // characters inside the template literal), then backtick
-                        // and `$`. H-091.
-                        let escaped = text
-                            .raw
-                            .replace('\\', "\\\\")
-                            .replace('`', "\\`")
-                            .replace('$', "\\$");
-                        value_parts.push(escaped);
-                    }
-                    AttributeValuePart::ExpressionTag(expr) => {
-                        // Official copies the mustache's INTERIOR verbatim, so a
-                        // comment or the author's whitespace inside `{ … }`
-                        // survives; the expression node's own span starts after
-                        // both.
-                        value_parts.push(format!("${{{}}}", mustache_interior(expr, source)));
-                    }
-                }
-            }
-            let inner = format!("\"{}\":`{}`", name, value_parts.join(""));
-            wrap(&inner, is_data_attr, is_css_prop)
-        }
-    }
-}
-
-/// The text between a mustache's braces. Official's `Attribute.ts` copies that
-/// range into the template literal rather than the expression node's own span,
-/// so a comment or whitespace inside `{ … }` reaches the output.
-fn mustache_interior<'s>(
-    expr: &crate::ast::template::ExpressionTag<'_>,
-    source: &'s str,
-) -> &'s str {
-    if expr.end > expr.start + 1 {
-        slice_src(source, expr.start as usize + 1, expr.end as usize - 1)
-    } else {
-        get_expression_text(&expr.expression, source)
-    }
-}
-
-/// Structured-bake variant of [`format_attribute_node`]. Wraps every
-/// expression site in `Seg::Src` so the resulting `MagicString` chunks
-/// retain per-character source-map fidelity.
 /// HTML attributes whose `svelte/elements` type is `number | undefined | null`
 /// (no `string`). A static string value (`tabindex="-1"`) must be lowered to a
 /// bare number to type-check. List mirrors svelte2tsx's `numberOnlyAttributes`
@@ -464,30 +298,6 @@ pub fn trailing_attr_comment_segs(
     out
 }
 
-/// String variant of [`trailing_attr_comment_segs`] for the component props path.
-pub fn trailing_attr_comment_text(
-    attr_end: u32,
-    source: &str,
-    comments: &ElementOpenerCommentIndex,
-) -> String {
-    let trailing = trailing_attr_comments(attr_end, source, comments);
-    if trailing.is_empty() {
-        return String::new();
-    }
-    let mut out = String::new();
-    for &(cs, ce) in trailing {
-        let region = slice_src(source, cs.saturating_sub(100) as usize, cs as usize);
-        out.push(if region.trim_end_matches([' ', '\t']).ends_with('\n') {
-            '\n'
-        } else {
-            ' '
-        });
-        out.push_str(slice_src(source, cs as usize, ce as usize));
-    }
-    out.push('\n');
-    out
-}
-
 #[inline]
 fn append_segments(dst: &mut Vec<Seg>, src: Vec<Seg>) {
     for seg in src {
@@ -546,11 +356,9 @@ fn push_attribute_name(out: &mut Vec<Seg>, node: &AttributeNode, source: &str, n
     }
 }
 
-/// Structured-bake variant of [`format_attribute_node`]. Wraps every
-/// expression site in `Seg::Src` so the resulting `MagicString` chunks
-/// retain per-character source-map fidelity.
-///
-/// Applies the same wrapping rules as `format_attribute_node`:
+/// Appends one attribute as segments, wrapping every expression site in
+/// `Seg::Src` so the resulting `MagicString` chunks retain per-character
+/// source-map fidelity. Wrapping rules:
 /// - element or slot && `data-*` (not `data-sveltekit-*`) → `__sveltets_2_empty({…})`
 /// - component && `--*` → `__sveltets_2_cssProp({…})`
 ///
@@ -794,8 +602,8 @@ pub fn append_attribute_node_segments(
                         }
                         AttributeValuePart::ExpressionTag(expr) => {
                             segs_push_lit(out, "${");
-                            // See `mustache_interior`: the slice is the braces'
-                            // contents, not the expression node's span.
+                            // The slice is the braces' contents, not the
+                            // expression node's span.
                             if expr.end > expr.start + 1 {
                                 segs_push_src(out, expr.start + 1, expr.end - 1);
                             } else if let Some((s, e)) = get_expression_range(&expr.expression) {
@@ -893,7 +701,10 @@ mod tests {
         let attr_end = source.find("foo").unwrap() as u32 + "foo".len() as u32;
         let comments = ElementOpenerCommentIndex::new(ranges);
 
-        let actual = trailing_attr_comment_text(attr_end, source, &comments);
+        let actual = crate::svelte2tsx::template::segs::segs_to_string(
+            &trailing_attr_comment_segs(attr_end, source, &comments),
+            source,
+        );
 
         assert_eq!(actual, " /* first */\n/* second */\n");
     }

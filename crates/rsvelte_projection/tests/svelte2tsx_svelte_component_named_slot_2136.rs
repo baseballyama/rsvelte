@@ -96,7 +96,7 @@ fn svelte_component_named_slot_child_nested_in_if_block() {
 /// parent (official's `element.parent instanceof InlineComponent` guard) is
 /// NOT slot routing — it stays a plain `"slot":` prop, same as official. This
 /// guards the `drop_slot` conditional the fix threads through
-/// `build_component_props_string`.
+/// `build_component_props_segments`.
 #[test]
 fn svelte_component_slot_attr_outside_component_stays_a_prop() {
     let code = convert("<div><svelte:component this={Inner} slot=\"a\" /></div>\n");
