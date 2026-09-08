@@ -3848,7 +3848,6 @@ fn transform_script_legacy<'a>(
         ) && single_declarator_trailing_carry(
             stmt,
             &ret.program.comments,
-            region_start,
             stmt_span,
             stmt_trailing_end,
         );
@@ -4135,13 +4134,23 @@ fn transform_script_legacy<'a>(
             // A region survives only if the walk reaches it at a STATEMENT
             // position; reached first from inside an expression it is read
             // as a fragment of a dropped statement and discarded. The
-            // rebuilt statement is location-less, so anchor it at the head
-            // of the region — before every comment in it, which is what
-            // leaves them to flush at the declarator.
+            // rebuilt statement is location-less, so it needs an anchor: the
+            // region head leaves every comment in the region to flush at the
+            // declarator, which is what a SPLIT declaration wants — upstream
+            // prints `let // pre` + `a = …` there. A single declarator keeps
+            // the keyword's own position instead, so a preceding comment
+            // flushes before `let`.
+            // Named apart from the `anchor` position above: that one is an
+            // index into `out`, this one a source offset.
+            let anchor_at = if trailing_carry && !carry_leading {
+                stmt_span.start
+            } else {
+                region_start
+            };
             if let Some(first) = out.get_mut(out_len)
                 && let Statement::VariableDeclaration(v) = first
             {
-                v.span = Span::new(region_start, region_start + 1);
+                v.span = Span::new(anchor_at, anchor_at + 1);
             }
             let mut place = comments::Place::Shift(base - region_start);
             for emitted in out.iter_mut().skip(out_len) {
@@ -4873,13 +4882,13 @@ fn lower_legacy_var_decl<'a>(
 /// where the carry exists to put a comment ahead of a declarator on that
 /// declarator; this is the other reason to keep source coordinates, and it is
 /// the one upstream needs to print a trailing comment INSIDE the
-/// `$.fallback(...)` the declarator lowers to. Deliberately narrow: a comment
-/// anywhere before the statement's end still takes the collapse-onto-one-address
-/// form, so this cannot move a leading- or interior-comment case.
+/// `$.fallback(...)` the declarator lowers to. The bound is the STATEMENT's own
+/// start, not the region's: a comment inside the declaration has to flush ahead
+/// of the declarator and so needs the collapsed form, while one merely preceding
+/// the statement is placed by the anchor and does not.
 fn single_declarator_trailing_carry(
     stmt: &Statement<'_>,
     comments: &[Comment],
-    region_start: u32,
     stmt_span: Span,
     trailing_end: u32,
 ) -> bool {
@@ -4896,7 +4905,7 @@ fn single_declarator_trailing_carry(
     }
     !comments
         .iter()
-        .any(|c| c.span.start >= region_start && c.span.start < stmt_span.end)
+        .any(|c| c.span.start >= stmt_span.start && c.span.start < stmt_span.end)
 }
 
 fn multi_declarator_gaps(stmt: &Statement<'_>) -> Option<(u32, Vec<Span>)> {
