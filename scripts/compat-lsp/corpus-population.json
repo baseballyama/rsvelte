@@ -6,5 +6,5 @@
     "requests": 635535
   },
   "melt-ui": { "files": 43, "identifiers": 12043, "requests": 36129 },
-  "shadcn-svelte": { "files": 1681, "identifiers": 278269, "requests": 834807 }
+  "shadcn-svelte": { "files": 1748, "identifiers": 285961, "requests": 857883 }
 }

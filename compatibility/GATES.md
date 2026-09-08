@@ -877,8 +877,9 @@ are **0 bytes**.
 | shadcn-svelte | 1,681 | 1,680 | 99.9% |
 | **total** | **3,637** | **3,632** | **99.9%** |
 
-Read off the committed ratchet rather than from a sweep: its 21,630 `aggregate:` keys cover
-exactly **3,632 distinct file ids**, 3,551 of them carrying 6 entries (three methods × two
+Those counts are a snapshot of one corpus revision — see the growth note below, which is
+what makes them move. Read off the committed ratchet rather than from a sweep: its 21,630
+`aggregate:` keys cover exactly **3,632 distinct file ids**, 3,551 of them carrying 6 entries (three methods × two
 phases) and 81 carrying 4. So **every non-empty corpus component already holds an entry for every
 `(method, phase)` the harness sends**, and any new divergence anywhere in that population — of any
 field, of any severity, in any response — is suppressed by a key that is already listed. The only
@@ -893,6 +894,24 @@ only ones with live discriminating power.
 
 **Evidence [D]:** the file counts and the key distribution above are measured; the suppression
 follows from the key's own definition at `ratchet.mjs:55`.
+
+**The one direction it can move is population growth, and it is not a behaviour change.** "That
+population" is a set of submodule pins. `lsp-corpus` runs on schedule and dispatch only,
+re-admitted on a pull request that touches `scripts/compat-lsp/**` or `lsp-known-failures*.json`
+(`corpus-compat-job-filter.mjs:157-161`), and a submodule bump touches neither — so moving a pin
+enrols files into this gate with the gate never run, and the next PR to open that hatch
+reports them as NEW. Measured when `#4407` took `submodules/shadcn-svelte` from 1,681 to
+1,748 `.svelte` files: **402 new keys over 67 files, 0 stale**, every file absent from the
+previous all-green nightly's universe and every key a digest-free
+`aggregate:<file>|<method>[|phase=edit]`.
+
+Two consequences worth separating from the saturation argument above. A NEW here is not evidence
+about the PR that surfaced it, and attributing it to that PR is the expensive error — the
+discriminating test is whether the key's file existed in the pre-bump universe, since a new key on
+a **pre-existing** file cannot be growth. And because `main` carries the bump but not the
+measurement, `main` and every ratchet-touching PR stay red until someone baselines; the delay, and
+the fact that `corpus-population.json` is asserted with `!==` so `--update-baseline` throws until
+it is edited by hand, are tracked as #4465.
 
 
 ### Blind spot 27p — a rejected request and an unchanged document are the same empty response [D]
@@ -5352,7 +5371,7 @@ from every ratchet key to a cause.
 | svelte2tsx fixtures | `total_tested >= 254`, absolute | `svelte2tsx_fixtures.rs:30,155` |
 | **css-prune sweep** | **none** | `css-prune-sweep.mjs:482` is a `console.log` |
 | check / check-e2e | scenarios > 0; **no diagnostic floor**, ratchets are `[]` | `check-verify.mjs:179`; gap at `:240` |
-| LSP differential | exact per-repository files, identifiers and requests; eight stable-hash shard union + one fixture artifact required to rebaseline | `corpus-population.json`; `artifacts.mjs`; `verify.mjs` postconditions |
+| LSP differential | exact per-repository files, identifiers and requests; sixteen stable-hash shard union + one fixture artifact required to rebaseline (`CORPUS_SHARDS = 16`, `artifacts.mjs:11`) | `corpus-population.json`; `artifacts.mjs`; `verify.mjs` postconditions |
 
 ### C7. An uninitialised corpus source shrinks the population silently, and no floor catches it
 
