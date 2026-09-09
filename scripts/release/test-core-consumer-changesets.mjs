@@ -18,7 +18,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { RULES, uncoveredFixedGroups } from './check-core-consumer-changesets.mjs';
+import { RULES, packagesIn, uncoveredFixedGroups } from './check-core-consumer-changesets.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -137,9 +137,45 @@ check('changeset.yml still runs the guard', () => {
 	);
 });
 
+// A reader that accepts only one quote style returns a plausible EMPTY set
+// rather than an error, so it reads as "this changeset names nothing" (#4486).
+// Both spellings occur in this repository, so both are pinned here.
+check('packagesIn reads every quote style the repository uses', () => {
+	const one = packagesIn("---\n'@rsvelte/language-server': patch\n---\nbody\n");
+	assert.deepEqual([...one], ['@rsvelte/language-server'], 'single-quoted');
+	const two = packagesIn('---\n"@rsvelte/compiler": patch\n---\nbody\n');
+	assert.deepEqual([...two], ['@rsvelte/compiler'], 'double-quoted');
+	const bare = packagesIn('---\n@rsvelte/fmt: patch\n---\nbody\n');
+	assert.deepEqual([...bare], ['@rsvelte/fmt'], 'unquoted');
+});
+
+// The negative half. Without it the test above is satisfied by a reader that
+// returns every @-looking token it can find anywhere in the file.
+check('packagesIn reads the frontmatter only', () => {
+	assert.deepEqual([...packagesIn('no frontmatter here\n@rsvelte/compiler: patch\n')], []);
+	assert.deepEqual(
+		// The body line must itself look like a frontmatter entry. With prose there,
+		// a reader that scans the whole file passes anyway, because the regex anchors at ^.
+		[...packagesIn("---\n'@rsvelte/compiler': patch\n---\n@rsvelte/fmt: patch\n")],
+		['@rsvelte/compiler'],
+	);
+});
+
+// A live control on the tree: the guard's verdict is computed from these files,
+// so a reader that silently matches none of them would make every requirement
+// look unmet -- or, with the tick logic, every one look borrowed.
+check('every pending changeset names at least one @rsvelte package', () => {
+	const dir = join(ROOT, '.changeset');
+	const files = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md');
+	assert.ok(files.length > 0, 'no pending changesets -- this control cannot fire');
+	const silent = files.filter((f) => packagesIn(readFileSync(join(dir, f), 'utf8')).size === 0);
+	assert.deepEqual(silent, [], 'these changesets parse to no package');
+});
+
 console.log(
 	failures === 0
 		? '\ncore-consumer-changesets self-test: all checks passed'
 		: `\ncore-consumer-changesets self-test: ${failures} failure(s)`,
 );
+
 process.exit(failures === 0 ? 0 : 1);
