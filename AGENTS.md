@@ -473,6 +473,49 @@ are in the archived file.
   arm into a silent byte divergence; a `!== 'leadingComments'` is an enumeration of one; a
   count in a comment ("both sibling branches") is a claim to re-derive. When a fix stops an
   over-rejection, ask what the rejection was hiding.
+- **A port can be present and ineffective, and `grep` answers only the first question.** Two
+  successive mechanism claims about one defect (#4517) were published and retracted within an hour,
+  both derived by reading code rather than running it: first *"the oracle discards pending comments
+  at a synthesized offset, so the discard is the defect"* — esrap has the identical discard and
+  still emits the comment — then *"what upstream has that we lack is `component_block.loc =
+  instance.loc`"* — `JsProgram::component_brace_span` is that port. An env-gated `#[track_caller]`
+  trace on **both** compilers ended it: our port works (the cursor resyncs `1/1 → 0/1`), and the
+  flush is *attempted* at the same source offset upstream uses and rejected, because under split
+  coordinates a source offset sits below `loc_base`. Presence is a grep; effectiveness is a run.
+  Once a mechanism claim has been retracted once, the next one is not publishable until the side
+  you have not run has been run.
+- **An ablation that reproduces the reported cell byte for byte can still be a superset.** Deleting
+  `component_block.loc = instance.loc` from the oracle reproduced #4517's output exactly — and over
+  the issue's 11-cell grid it broke **10** cells where rsvelte fails **5**. The byte-exact
+  reproduction is what makes the attribution feel settled; the five cells we get right are what say
+  it is too broad, and they are only visible if the ablation is run over the whole grid rather than
+  over the case that motivated it. The same comment also said "4", from memory of the grid rather
+  than from the grid — a literal is a claim inside a correction too, and a correction is the
+  document most likely to be trusted.
+- **Take a needle from the artifact, not from what a thing is called or from memory of its
+  wording.** Both signs, one day apart: `String(napi_map)` is `"[object Object]"`, so a
+  33,623-file sweep reported `js.map MOVED = 0` — a fabricated value reading as a result; and a
+  grep for `maximum is 19` against a landed fix that says `is **194** (193 .ts plus …)` returned
+  zero — a real result reading as a fabrication, in the flattering direction nobody re-checks. A
+  third the same day was written from what the thing *looks like* rather than from what the
+  language says it is: `indexOf('//') > 0` matched `://` in a template literal, so 29 of 61
+  "trailing comment" carriers were URLs. A positive control only assigns the zero; it does not
+  prevent it.
+- **An error bucket in a control is a population, and it has to be opened rather than tallied.**
+  `ABSENT-BOTH` was computed from official's count alone, so every case where official drops and
+  we keep was filed under a name asserting neither side has it. `STRIP-THREW` held all 14
+  real-world block-comment cells, because the comment-free control cut to end-of-line and left a
+  `/*` unterminated — "the control died here" and "these agree" are the same pixel in a summary.
+  A bucket's name is a claim about a conjunction; check that the key reads every conjunct.
+- **Correct action, wrong reason — and both signs are needed for the rule to read as one.** A
+  false premise (*"this predicate never admitted block comments"*) prompted a run that found a real
+  defect, so the premise was about to be confirmed by its own success; thirty minutes later a true
+  observation (*"this arm has a real-world population"*) nearly licensed a false conclusion
+  (*"…and does not diverge on it"*), because all 12 carriers sat on a row where agreement is
+  **forced**. The wrong reason survives when the action succeeds, and the wrong conclusion survives
+  when the observation is accurate. Related, and about the reader rather than the artifact: the
+  same four-cell table was over-read twice in one session by one person, with a correction in
+  between — being corrected on an artifact does not fix how you read it.
 
 ## Working with Subagents
 
