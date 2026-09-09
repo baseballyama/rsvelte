@@ -303,6 +303,11 @@ are in the archived file.
   pipeline's status is its last stage's. In code the same shape is a conservative
   `unwrap_or`/`unwrap_or_default` on a computed boundary: a wrong argument then reads as
   "the change is inert" rather than as a broken instrument.
+  A cap applied for **display** becomes a population the moment anything downstream reads the
+  printed list, and what makes a job log unusable rather than merely lossy is a cap with **no
+  residue marker**: `verify.mjs` caps both its NEW list and its stale list at `SHOW = 30` and
+  prints no "and N more" in either direction (#4484), so a re-baseline sourced from a job log is
+  silently a re-baseline of the first 30.
 - **A negative result needs a positive control, and a control must bypass a stage the
   measurement passed through.** `grep` here is a `ugrep --ignore-files` wrapper (`command
   grep`); quote every glob-shaped argument (`--include='*.svelte'`); a NUL byte makes
@@ -339,6 +344,15 @@ are in the archived file.
   `rows / distinct keys` and the arm probe), then compare only the moved set to the oracle and
   print `match -> MISMATCH` on its own line. A zero has two kinds — "none found" and "my
   instrument cannot express this shape" — and a mechanism counter ("did it fire") sits below both.
+- **A probe's SITE decides which question it can answer.** "The grid did not move" and "the port
+  was never reached" are the same observation, and so is a third: reached, anchored, and
+  **rejected**. A counter at the entry is satisfied by arrival, so it separates only reached from
+  not-reached; one at the decision separates accepted from rejected; only one that also prints
+  *the state the decision reads* says why. Measured on #4480/#4489, where the anchor was produced
+  and refused: what named the cause was the **interleaving of two log lines**, one order for the
+  cells that work and the other for the cell that does not. An ordering of two events is an
+  observable no grid over outputs can carry, and the three states want three different fixes
+  (wire it / fix the anchor / fix the buffer model).
 - **A number written as a literal is a claim.** Derive expected values from the oracle (compile
   the input, paste the output), never by inference from neighbouring cells or from your own
   tree's other code path; probe a *direction* before printing it; write rules against the
