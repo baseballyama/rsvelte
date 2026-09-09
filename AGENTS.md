@@ -312,6 +312,16 @@ are in the archived file.
   answers yes either way, and an arm built from a worktree whose working copy still held the
   change then reads as the base. Prefer building the base from a pristine checkout of the
   merge base, or believe CI over a local arm — CI's tree is one nobody in this session made.
+- **A re-baseline is a measurement, not an argument.** A PR carrying a behaviour change *and* a
+  ratchet re-baseline has two reasons its gate output can move, and the re-baseline's scope
+  argument is about the diff rather than about the measurement — correctly-reasoned scope beside
+  a sibling change that moved a key outside it produces a red everyone attributes to the
+  re-baseline. Check the committed value against `origin/main`'s on every key you did not intend
+  to move. A re-baseline from a local run also needs the arm's own tree asserted
+  (`git merge-base --is-ancestor <fix> <arm's HEAD>`): an artifact's `projectRevision` is a
+  property of the directory the harness ran in, not of the binary it invoked, and its siblings
+  fail identically, so they do not corroborate each other. Record the arm at run time — the
+  build artifact is deleted, so afterwards there is nothing left to attribute.
 - **Ratios pair arms in time** (official and rsvelte back to back inside each round, ABBA), one
   statistic on both sides; read a profile's call counts before its timings; a shortfall smaller
   than the deciding arm's within-run drift is not a shortfall. Nothing commits on an unmeasured
@@ -328,6 +338,13 @@ are in the archived file.
   on; the cell that kills a hypothesis is usually the one that passes; re-key a grid (widest
   key the assertion can carry) before adding rows; a control's name is a claim — grep the
   cell's input for it; pin a control to the property, not to the instrument's current answer.
+  The **direction** of a divergence is one of the constants, and the one nobody lists: a grid
+  whose diverging cells all run one way reports a correlation that is a property of the cells
+  (measured — "divergence ⟺ a bare block in the output", exact on 5 cells, false on 16, where
+  the extra cells diverge the other two ways). And a cell diverges *because of* the thing you
+  varied only if the same cell with it removed is byte-equal; run that background arm before
+  attributing, because the largest number in a grid is the likeliest to be two mechanisms added
+  together.
 - **Ask which artifact owns a question before hand-deriving it** (`attribution-check.mjs`,
   the trigger-guard allowlist, `lint-verify.mjs`'s repo-set guard). Two readings of one
   document are one measurement; what actually fires these rules is the same quantity produced
