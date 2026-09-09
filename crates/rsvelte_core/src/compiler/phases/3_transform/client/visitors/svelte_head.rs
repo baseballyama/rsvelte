@@ -45,13 +45,17 @@ pub fn svelte_head(node: &SvelteElement, context: &mut ComponentContext) {
     // Build the head call: $.head('hash', ($$anchor) => { ... })
     let content_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], content_block.body);
 
-    let head_call = b::stmt(
+    // Upstream stamps the callee with the tag name's own source position
+    // (`b.id('$.head', node.name_loc)`), which is where esrap flushes a comment
+    // left pending by an earlier chunk.
+    let head_call = b::stmt_anchored(
         &context.arena,
         b::call(
             &context.arena,
             b::member_path(&context.arena, "$.head"),
             vec![b::string(&hash), content_fn],
         ),
+        node.name_loc.as_ref().map(|loc| loc.start.character),
     );
 
     context.state.init.push(head_call);
