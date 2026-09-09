@@ -217531,34 +217531,16 @@
 		"differential:fixtures/css-smoke-highlight|textDocument/documentHighlight|0:9|phase=edit|/:value-mismatch[official=b0885f231a41,rsvelte=74234e98afe7]": [
 			"rsvelte-empty"
 		],
-		"differential:fixtures/css-smoke-hover-attribute|textDocument/hover|0:13|/contents/value:value-mismatch[official=fd1653666824,rsvelte=fce3ea66547c]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-attribute|textDocument/hover|0:13|/range:missing-rsvelte[hash=3e4c36129678]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-attribute|textDocument/hover|0:13|phase=edit|/contents/value:value-mismatch[official=fd1653666824,rsvelte=fce3ea66547c]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-attribute|textDocument/hover|0:13|phase=edit|/range:missing-rsvelte[hash=3e4c36129678]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-interpolation|textDocument/hover|0:13|/:value-mismatch[official=74234e98afe7,rsvelte=755472a417c8]": [
+		"differential:fixtures/css-smoke-hover-interpolation|textDocument/hover|0:13|/:value-mismatch[official=74234e98afe7,rsvelte=e3616d2e0034]": [
 			"official-empty"
 		],
-		"differential:fixtures/css-smoke-hover-interpolation|textDocument/hover|0:13|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=755472a417c8]": [
+		"differential:fixtures/css-smoke-hover-interpolation|textDocument/hover|0:13|phase=edit|/:value-mismatch[official=74234e98afe7,rsvelte=e3616d2e0034]": [
 			"official-empty"
 		],
 		"differential:fixtures/css-smoke-hover-nested|textDocument/hover|0:21|/:value-mismatch[official=5dbaeef7d821,rsvelte=74234e98afe7]": [
 			"css-data"
 		],
 		"differential:fixtures/css-smoke-hover-nested|textDocument/hover|0:21|phase=edit|/:value-mismatch[official=5dbaeef7d821,rsvelte=74234e98afe7]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-normal|textDocument/hover|0:8|/:value-mismatch[official=b75fb3aa8608,rsvelte=74234e98afe7]": [
-			"css-data"
-		],
-		"differential:fixtures/css-smoke-hover-normal|textDocument/hover|0:8|phase=edit|/:value-mismatch[official=b75fb3aa8608,rsvelte=74234e98afe7]": [
 			"css-data"
 		],
 		"differential:fixtures/css-smoke-presentations-normal|textDocument/documentSymbol|:extra-rsvelte[count=1,hash=de3717954cee]": [
@@ -217644,18 +217626,6 @@
 		],
 		"differential:fixtures/fold-incomplete|textDocument/foldingRange|phase=edit|:missing-rsvelte[count=1,hash=f9dfee6e5a95]": [
 			"folding-range-set-missing"
-		],
-		"differential:fixtures/hover-style-null|textDocument/hover|0:10|/contents/value:value-mismatch[official=faaa2229fad5,rsvelte=3888b9db5027]": [
-			"css-data"
-		],
-		"differential:fixtures/hover-style-null|textDocument/hover|0:10|/range:missing-rsvelte[hash=eb2910e15223]": [
-			"css-data"
-		],
-		"differential:fixtures/hover-style-null|textDocument/hover|0:10|phase=edit|/contents/value:value-mismatch[official=faaa2229fad5,rsvelte=3888b9db5027]": [
-			"css-data"
-		],
-		"differential:fixtures/hover-style-null|textDocument/hover|0:10|phase=edit|/range:missing-rsvelte[hash=eb2910e15223]": [
-			"css-data"
 		],
 		"differential:fixtures/html-smoke-completions|textDocument/completion|0:1|/isIncomplete:value-mismatch[official=b5bea41b6c62,rsvelte=fcbcf165908d]": [
 			"completion-is-incomplete"

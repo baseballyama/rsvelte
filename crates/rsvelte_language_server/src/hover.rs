@@ -40,7 +40,8 @@ pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
         if matches!(style.language.as_deref(), Some("sass" | "stylus" | "styl")) {
             return None;
         }
-        return crate::css::hover(text, offset).map(|value| markup(markdown, value));
+        return crate::css::hover(text, offset, markdown)
+            .map(|(answer, span)| ranged(css_answer(markdown, answer), text, span));
     }
     // A script body belongs to tsgo; answering it here spells an import path as
     // a CSS property.
@@ -65,7 +66,8 @@ pub fn hover(text: &str, offset: usize, markdown: bool) -> Option<Hover> {
 
     let attribute = attribute_context(text, offset)?;
     if attribute.in_value && attribute.name == "style" {
-        return crate::css::hover(text, offset).map(|value| markup(markdown, value));
+        return crate::css::hover(text, offset, markdown)
+            .map(|(answer, span)| ranged(css_answer(markdown, answer), text, span));
     }
     // `HTMLPlugin.doHover` bails on `possiblyComponent(node)`, so a component's
     // attributes get no HTML description.
@@ -231,6 +233,31 @@ const fn plain(value: String) -> Hover {
 /// `HTMLHover.convertContents` (`htmlHover.js:217-239`) relabels a
 /// `MarkupContent` as plain text without rewriting it, so only the `kind`
 /// follows the capability here.
+/// A selector answers with a `MarkedString[]` and a declaration with a
+/// `MarkupContent`, which is the shape official puts on the wire.
+fn css_answer(markdown: bool, answer: crate::css::Answer) -> Hover {
+    match answer {
+        crate::css::Answer::Markup(value) => markup(markdown, value),
+        crate::css::Answer::Marked { tree, specificity } => Hover {
+            contents: HoverContents::Array(vec![
+                // `cssHover.js:136-140` maps a `MarkedString[]` through `c.value`
+                // when the client declares no markdown hover, dropping the
+                // language tag rather than rewriting the text.
+                if markdown {
+                    MarkedString::LanguageString(lsp_types::LanguageString {
+                        language: "html".to_string(),
+                        value: tree,
+                    })
+                } else {
+                    MarkedString::String(tree)
+                },
+                MarkedString::String(specificity),
+            ]),
+            range: None,
+        },
+    }
+}
+
 const fn markup(markdown: bool, value: String) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
@@ -275,9 +302,15 @@ mod tests {
 
     #[test]
     fn nothing_inside_style_or_script() {
-        assert_eq!(
-            hovered_tag("<style>h1{color:blue;}</style><p>test</p>", 10).as_deref(),
-            Some("`color` CSS property")
+        let css = hovered_tag("<style>h1{color:blue;}</style><p>test</p>", 10)
+            .expect("a CSS declaration hovers");
+        assert!(
+            css.starts_with("Sets the color of an element's text"),
+            "{css}"
+        );
+        assert!(
+            css.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            "{css}"
         );
         expect_none("<script>const a = true</script><p>test</p>", 10);
     }
@@ -528,5 +561,38 @@ mod tests {
         // the tag being a component.
         let styled = "<Widget style=\"color: red\">x</Widget>";
         assert!(hovered_tag(styled, styled.find("color").unwrap() + 1).is_some());
+    }
+    /// `CSSHover.convertContents` (`cssHover.js:125-147`) drops a
+    /// `MarkedString`'s language tag when the client declares no markdown
+    /// hover, so the same selector is two different responses on the wire.
+    /// Both expected values were read off `vscode-css-languageservice@6.3.5`
+    /// driven through the differential harness, which declares no
+    /// `hover.contentFormat`.
+    #[test]
+    fn a_selector_follows_the_client_hover_format() {
+        const SOURCE: &str = "<style>h1 {}</style>";
+        const OFFSET: usize = 8;
+        const SPECIFICITY: &str = "[Selector Specificity](https://developer.mozilla.org/docs/Web/CSS/Specificity): (0, 0, 1)";
+
+        let plain = hover(SOURCE, OFFSET, false).expect("a selector hover");
+        assert_eq!(
+            plain.contents,
+            HoverContents::Array(vec![
+                MarkedString::String("<h1>".to_string()),
+                MarkedString::String(SPECIFICITY.to_string()),
+            ])
+        );
+
+        let rich = hover(SOURCE, OFFSET, true).expect("a selector hover");
+        assert_eq!(
+            rich.contents,
+            HoverContents::Array(vec![
+                MarkedString::LanguageString(lsp_types::LanguageString {
+                    language: "html".to_string(),
+                    value: "<h1>".to_string(),
+                }),
+                MarkedString::String(SPECIFICITY.to_string()),
+            ])
+        );
     }
 }

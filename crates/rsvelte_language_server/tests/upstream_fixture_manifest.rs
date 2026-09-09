@@ -834,11 +834,15 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
             match case.params["adapter"].as_str() {
                 Some("hover") => {
                     let (source, offset) = source_at_marker(case)?;
-                    assert_response(css::hover(&source, offset).is_some(), expected, case)?;
+                    assert_response(css::hover(&source, offset, true).is_some(), expected, case)?;
                 }
                 Some("completion") => {
                     let (source, offset) = source_at_marker(case)?;
-                    assert_response(css::completions(&source, offset).is_some(), expected, case)?;
+                    assert_response(
+                        css::completions(&source, offset, true).is_some(),
+                        expected,
+                        case,
+                    )?;
                 }
                 Some("diagnostics") => {
                     assert_eq!(
@@ -923,7 +927,7 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
         }
         id if id.starts_with("css-id-") => {
             let (source, offset) = source_at_marker(case)?;
-            let actual = css::completions(&source, offset).map(|response| {
+            let actual = css::completions(&source, offset, true).map(|response| {
                 response
                     .items
                     .into_iter()
@@ -954,7 +958,7 @@ fn run_behavior_case(case: &BehaviorCase) -> Result<()> {
         }
         "css-selector-completion" => {
             let (source, offset) = source_at_marker(case)?;
-            let response = css::completions(&source, offset);
+            let response = css::completions(&source, offset, true);
             if case.native_expected.is_some() {
                 assert!(response.is_none());
                 assert!(!expected_strings(case, "labels")?.is_empty());

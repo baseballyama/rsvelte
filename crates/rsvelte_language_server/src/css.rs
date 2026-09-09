@@ -8,6 +8,7 @@ use lsp_types::{
 
 use rsvelte_lint::rules::data::known_css_properties::KNOWN_CSS_PROPERTIES;
 
+use crate::css_data::{documentation, web};
 use crate::text::LineIndex;
 
 #[must_use]
@@ -74,8 +75,18 @@ pub fn diagnostics(text: &str) -> Vec<Diagnostic> {
 /// declaration boundaries *inside a block* — never a selector, and never only
 /// the first one on a line.
 fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
-    let bytes = body.as_bytes();
     let mut found = Vec::new();
+    for_each_declaration_chunk(body, |start, end, depth| {
+        push_declaration(body, start, end, depth, &mut found);
+    });
+    found
+}
+
+/// Every `;`/`{`/`}`-delimited chunk of a style body, with its brace depth and
+/// with comments and quoted strings skipped. The selector text before a `{` is
+/// never a chunk, so nothing here reports one.
+fn for_each_declaration_chunk(body: &str, mut visit: impl FnMut(usize, usize, usize)) {
+    let bytes = body.as_bytes();
     let mut depth = 0usize;
     let mut chunk_start = 0usize;
     let mut i = 0usize;
@@ -101,13 +112,13 @@ fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
             }
             b'}' => {
                 if depth > 0 {
-                    push_declaration(body, chunk_start, i, depth, &mut found);
+                    visit(chunk_start, i, depth);
                 }
                 depth = depth.saturating_sub(1);
                 chunk_start = i + 1;
             }
             b';' => {
-                push_declaration(body, chunk_start, i, depth, &mut found);
+                visit(chunk_start, i, depth);
                 chunk_start = i + 1;
             }
             _ => {}
@@ -115,8 +126,42 @@ fn unknown_properties(body: &str) -> Vec<(usize, &str)> {
         i += 1;
     }
     // An unterminated final declaration is still one the user is typing.
-    push_declaration(body, chunk_start, bytes.len(), depth, &mut found);
-    found
+    visit(chunk_start, bytes.len(), depth);
+}
+
+/// The declaration containing `offset`: its property name, and the span
+/// `CSSHover.doHover` reports as the hover range.
+///
+/// That range is the whole `Declaration` node, so the colon, the value and a
+/// trailing `!important` all answer with the property's own description, and a
+/// value spanning lines keeps its last line inside the range. `getNodeAtOffset`
+/// is inclusive at both ends.
+fn declaration_at(
+    body: &str,
+    offset: usize,
+    base_depth: usize,
+) -> Option<(&str, std::ops::Range<usize>)> {
+    let mut hit = None;
+    for_each_declaration_chunk(body, |start, end, depth| {
+        if depth + base_depth == 0 || start >= end || hit.is_some() {
+            return;
+        }
+        let chunk = &body[start..end];
+        let span = start + (chunk.len() - chunk.trim_start().len())..start + chunk.trim_end().len();
+        if !(span.start..=span.end).contains(&offset) {
+            return;
+        }
+        // `Property.getName` trims a trailing `_` or `+` (a less merge), and
+        // `CSSDataManager.getProperty` is an exact, case-sensitive lookup.
+        let Some(colon) = chunk.find(':') else {
+            return;
+        };
+        let name = chunk[..colon].trim().trim_end_matches(['_', '+']);
+        if !name.is_empty() {
+            hit = Some((name, span));
+        }
+    });
+    hit
 }
 
 fn push_declaration<'a>(
@@ -191,7 +236,7 @@ pub fn selection_spans(text: &str, offset: usize) -> Vec<(u32, u32)> {
 
 /// CSS completions at `offset`, when it is in a declaration name or value.
 #[must_use]
-pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
+pub fn completions(text: &str, offset: usize, markdown: bool) -> Option<CompletionList> {
     let prefix = css_prefix(text, offset)?;
     let before = text.get(..offset)?;
     let prefix_start = prefix.as_ptr() as usize - before.as_ptr() as usize;
@@ -232,7 +277,7 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
             .iter()
             .copied()
             .filter(|property| property.starts_with(prefix))
-            .map(property_item)
+            .map(|property| property_item(property, markdown))
             .collect()
     };
     Some(CompletionList {
@@ -241,16 +286,141 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     })
 }
 
-/// The CSS property under `offset`, including a compact native description.
+/// The hovered text and the span it covers, in `text`'s own byte offsets.
+///
+/// A port of the `Declaration` arm of `CSSHover.doHover`
+/// (`services/cssHover.js`), which looks the property up with
+/// `CSSDataManager.getProperty` and renders it with `getEntryDescription`.
+/// The `Selector` and `SimpleSelector` arms — which is where a pseudo-class, a
+/// pseudo-element and `:global()` are answered, since `Selector` breaks the
+/// top-down walk before those arms are reached — are not ported.
+/// What a CSS hover answers with. Official sends a selector as a
+/// `MarkedString[]` and a declaration as a `MarkupContent`
+/// (`CSSPlugin.doHoverInternal` passes the `Hover` through untouched), so the
+/// two cannot share one string.
+pub enum Answer {
+    /// A declaration's documentation, rendered by the caller's `markdown` flag.
+    Markup(String),
+    /// A selector's element tree and its specificity line.
+    Marked { tree: String, specificity: String },
+}
+
 #[must_use]
-pub fn hover(text: &str, offset: usize) -> Option<String> {
-    if text.get(..offset)?.ends_with(":global") || word_at(text, offset) == Some("global") {
-        return Some("`:global(...)` prevents Svelte CSS scoping for a selector.".to_string());
+pub fn hover(
+    text: &str,
+    offset: usize,
+    markdown: bool,
+) -> Option<(Answer, std::ops::Range<usize>)> {
+    // `doHover` walks the node path outermost-first and breaks at `Selector`,
+    // so a pseudo-class, a pseudo-element and `:global()` are all answered
+    // here rather than by the declaration arm below.
+    if let Some((tree, specificity, span)) = selector_answer(text, offset) {
+        return Some((Answer::Marked { tree, specificity }, span));
     }
-    let property = word_at(text, offset)?;
-    KNOWN_CSS_PROPERTIES
-        .contains(&property)
-        .then(|| format!("`{property}` CSS property"))
+    let (body, base_depth) = hovered_css_region(text, offset)?;
+    let (name, span) = declaration_at(&text[body.clone()], offset - body.start, base_depth)?;
+    let property = web::PROPERTIES.iter().find(|entry| entry.name == name)?;
+    let value = documentation::documentation(&property.into(), markdown)?;
+    Some((
+        Answer::Markup(value),
+        body.start + span.start..body.start + span.end,
+    ))
+}
+
+/// The `<style …>…</style>` element and the offset it starts at, so a node span
+/// parsed out of the slice can be reported against the document.
+fn style_element_at(text: &str) -> Option<(&str, usize)> {
+    let open = text.find("<style")?;
+    let end = text[open..].find("</style").and_then(|at| {
+        text[open + at..]
+            .find('>')
+            .map(|close| open + at + close + 1)
+    })?;
+    Some((&text[open..end], open))
+}
+
+/// The innermost `ComplexSelector` covering `offset`, as an element tree and a
+/// specificity line.
+fn selector_answer(text: &str, offset: usize) -> Option<(String, String, std::ops::Range<usize>)> {
+    let (style, base) = style_element_at(text)?;
+    let local = offset.checked_sub(base)?;
+    let allocator = rsvelte_core::Allocator::default();
+    let options = rsvelte_core::ParseOptions {
+        skip_expression_loc: true,
+        lenient_script: true,
+        ..rsvelte_core::ParseOptions::default()
+    };
+    let root = rsvelte_core::parse(style, &allocator, options).ok()?;
+    let css = root.css.as_deref()?;
+    let mut found: Option<(&serde_json::Value, u64, u64)> = None;
+    for child in &css.children {
+        collect_complex_selectors(child, local, &mut found);
+    }
+    let (node, start, end) = found?;
+    let (tree, specificity) = crate::css_selector::selector_marked_strings(node);
+    Some((
+        tree,
+        specificity,
+        base + usize::try_from(start).ok()?..base + usize::try_from(end).ok()?,
+    ))
+}
+
+/// Keeps the tightest covering selector, which is the one a nested rule wants.
+fn collect_complex_selectors<'a>(
+    node: &'a serde_json::Value,
+    offset: usize,
+    found: &mut Option<(&'a serde_json::Value, u64, u64)>,
+) {
+    if node.get("type").and_then(serde_json::Value::as_str) == Some("ComplexSelector")
+        && let Some(start) = node.get("start").and_then(serde_json::Value::as_u64)
+        && let Some(end) = node.get("end").and_then(serde_json::Value::as_u64)
+        && (start..=end).contains(&(offset as u64))
+        && found.is_none_or(|(_, s, e)| end - start < e - s)
+    {
+        *found = Some((node, start, end));
+    }
+    match node {
+        serde_json::Value::Array(children) => {
+            for child in children {
+                collect_complex_selectors(child, offset, found);
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for value in fields.values() {
+                collect_complex_selectors(value, offset, found);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// The CSS region `offset` sits in, and the brace depth its declarations
+/// start at — a `style="…"` value is a declaration list with no enclosing
+/// braces, where a `<style>` body's declarations sit one level in.
+fn hovered_css_region(text: &str, offset: usize) -> Option<(std::ops::Range<usize>, usize)> {
+    if let Some(body) = style_body_range(text, offset) {
+        return Some((body, 0));
+    }
+    let before = text.get(..offset.min(text.len()))?;
+    let (start, quote) = ["style=\"", "style='"]
+        .iter()
+        .filter_map(|needle| before.rfind(needle).map(|at| (at + needle.len(), needle)))
+        .max_by_key(|(at, _)| *at)
+        .map(|(at, needle)| (at, needle.as_bytes()[needle.len() - 1] as char))?;
+    if before[start..].contains(quote) {
+        return None;
+    }
+    let end = text[start..]
+        .find(quote)
+        .map_or(text.len(), |at| start + at);
+    // `inStyleAttributeWithoutInterpolation` (`CSSPlugin.ts:256-265`) drops the
+    // WHOLE attribute when its value holds a `{`, not just the interpolation.
+    // The chunk scanner would already decline a declaration that a `{` follows,
+    // but not one written before it.
+    if text[start..end].contains('{') {
+        return None;
+    }
+    Some((start..end, 1))
 }
 
 fn css_prefix(text: &str, offset: usize) -> Option<&str> {
@@ -401,14 +571,30 @@ fn word_at(text: &str, offset: usize) -> Option<&str> {
     text.get(start..end).filter(|word| !word.is_empty())
 }
 
-fn property_item(property: &str) -> CompletionItem {
+fn property_item(property: &str, markdown: bool) -> CompletionItem {
+    // `cssCompletion.js:244` and `cssHover.js:83` both render an entry through
+    // `getEntryDescription`; hover passes a third `settings` argument that
+    // completion does not, and the two strings still measure byte-identical, so
+    // one lookup serves both. A property the vendored data has no description
+    // for carries no documentation rather than a name stub.
+    let documentation = web::PROPERTIES
+        .iter()
+        .find(|entry| entry.name == property)
+        .and_then(|entry| documentation::documentation(&entry.into(), markdown))
+        .map(|value| {
+            Documentation::MarkupContent(MarkupContent {
+                kind: if markdown {
+                    MarkupKind::Markdown
+                } else {
+                    MarkupKind::PlainText
+                },
+                value,
+            })
+        });
     CompletionItem {
         label: property.to_string(),
         kind: Some(CompletionItemKind::PROPERTY),
-        documentation: Some(Documentation::MarkupContent(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: format!("`{property}` CSS property"),
-        })),
+        documentation,
         ..CompletionItem::default()
     }
 }
@@ -443,12 +629,67 @@ mod tests {
     use lsp_types::Position;
 
     fn labels(text: &str) -> Vec<String> {
-        completions(text, text.len())
+        completions(text, text.len(), true)
             .unwrap()
             .items
             .into_iter()
             .map(|item| item.label)
             .collect()
+    }
+
+    fn documentation_of(text: &str, label: &str, markdown: bool) -> Option<String> {
+        completions(text, text.len(), markdown)?
+            .items
+            .into_iter()
+            .find(|item| item.label == label)
+            .and_then(|item| match item.documentation {
+                Some(Documentation::MarkupContent(content)) => Some(content.value),
+                _ => None,
+            })
+    }
+
+    /// `cssCompletion.js:244` and `cssHover.js:83` both render an entry through
+    /// `getEntryDescription`, and driving the official server for both on one
+    /// document measured the two strings byte-identical. The pinned prefix and
+    /// link are the independent half: comparing the two ports to each other
+    /// alone passes when both are broken the same way.
+    #[test]
+    fn a_property_completion_carries_the_documentation_its_hover_does() {
+        let documented =
+            documentation_of("<style>a { colo", "color", true).expect("color is documented");
+        assert!(
+            documented.starts_with("Sets the color of an element's text"),
+            "completion documentation is the MDN description, got: {documented}"
+        );
+        assert!(
+            documented
+                .contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            "completion documentation carries the MDN link, got: {documented}"
+        );
+
+        let hovered = markup_of(
+            hover("<style>a { color: red }</style>", 13, true)
+                .expect("a known property hovers")
+                .0,
+        );
+        assert_eq!(
+            documented, hovered,
+            "one lookup serves hover and completion"
+        );
+
+        // The `style=` attribute value is the second call site and reaches the
+        // same item, so a fix applied to only one of them fails here.
+        assert_eq!(
+            documentation_of("<div style=\"colo", "color", true).as_deref(),
+            Some(documented.as_str())
+        );
+
+        // A client without markdown gets the description unrendered, so the
+        // threaded flag is observable rather than ignored.
+        let plain =
+            documentation_of("<style>a { colo", "color", false).expect("color is documented");
+        assert_ne!(plain, documented);
+        assert!(!plain.contains("[MDN Reference]"), "got: {plain}");
     }
 
     #[test]
@@ -457,13 +698,171 @@ mod tests {
         assert!(labels("<div style=\"colo").contains(&"color".to_string()));
     }
 
+    /// The markup a declaration hover answers with. A selector answers with
+    /// marked strings instead, so unwrapping here is the assertion that this
+    /// offset took the declaration arm.
+    fn markup_of(answer: Answer) -> String {
+        match answer {
+            Answer::Markup(value) => value,
+            Answer::Marked { tree, .. } => {
+                panic!("expected a declaration hover, got a selector tree: {tree}")
+            }
+        }
+    }
+
     #[test]
     fn completes_common_values_and_hovers_properties() {
         assert!(labels("<style>a { display: fl").contains(&"flex".to_string()));
-        assert_eq!(
-            hover("<style>a { color: red }</style>", 13).as_deref(),
-            Some("`color` CSS property")
+        let source = "<style>a { color: red }</style>";
+        let (answer, span) = hover(source, 13, true).expect("a known property hovers");
+        let value = markup_of(answer);
+        assert!(
+            value.starts_with("Sets the color of an element's text"),
+            "{value}"
         );
+        assert!(
+            value.contains("[MDN Reference](https://developer.mozilla.org/docs/Web/CSS/color)"),
+            "{value}"
+        );
+        assert_eq!(&source[span], "color: red");
+    }
+
+    /// `CSSHover.doHover` ranges a property hover over the whole `Declaration`,
+    /// so every offset inside one answers, with one range. Measured against the
+    /// official server on `\t\topacity: 0.5;`, which reports `4:2-4:14`.
+    #[test]
+    fn a_declaration_answers_from_its_name_its_colon_and_its_value() {
+        let source = "<style>a { opacity: 0.5 }</style>";
+        for offset in [11, 18, 21] {
+            let (_, span) = hover(source, offset, true).expect("inside the declaration");
+            assert_eq!(&source[span], "opacity: 0.5", "at {offset}");
+        }
+    }
+
+    /// `!important` is inside the `Declaration` node, and a value spanning
+    /// lines keeps its last line in the range.
+    #[test]
+    fn a_declaration_range_covers_important_and_a_multi_line_value() {
+        let source = "<style>a { color: red !important; margin:\n\t1px\n\t2px; }</style>";
+        let (_, span) = hover(source, 13, true).expect("the important declaration");
+        assert_eq!(&source[span], "color: red !important");
+        let at = source.find("margin").unwrap();
+        let (_, span) = hover(source, at + 1, true).expect("the multi-line declaration");
+        assert_eq!(&source[span], "margin:\n\t1px\n\t2px");
+    }
+
+    /// `CSSDataManager.getProperty` is an exact map lookup, so a case that does
+    /// not match and a property the data does not carry both answer nothing.
+    /// Each was measured against the official server, which returns `null`;
+    /// `-webkit-box-align` is the live control that the miss is the name and
+    /// not the vendor prefix.
+    #[test]
+    fn an_unknown_or_miscased_property_answers_nothing() {
+        for source in [
+            "<style>a { notaproperty: 1px }</style>",
+            "<style>a { --custom-thing: 2px }</style>",
+            "<style>a { OPACITY: 0.5 }</style>",
+            "<style>a { -webkit-box-shadow: 0 0 0 red }</style>",
+        ] {
+            let offset = source.find("{ ").unwrap() + 3;
+            assert!(hover(source, offset, true).is_none(), "{source}");
+        }
+        let source = "<style>a { -webkit-box-align: end }</style>";
+        assert!(hover(source, 14, true).is_some(), "{source}");
+    }
+
+    /// `Property.getName` trims a trailing `_` or `+` (a less merge) before the
+    /// lookup, and the range still covers the name the source wrote. Official
+    /// answers `color` for `color_: red` over `23:2-23:13`.
+    #[test]
+    fn a_less_merge_suffix_is_trimmed_from_the_name_and_kept_in_the_range() {
+        let source = "<style>a { color_: red }</style>";
+        let (answer, span) = hover(source, 13, true).expect("the merged property");
+        let value = markup_of(answer);
+        assert!(
+            value.starts_with("Sets the color of an element's text"),
+            "{value}"
+        );
+        assert_eq!(&source[span], "color_: red");
+    }
+
+    /// A `style="…"` value is a declaration list with no braces around it, so
+    /// its declarations sit at depth 0 and would otherwise be skipped. Official
+    /// hovers it and ranges the declaration.
+    #[test]
+    fn a_static_style_attribute_hovers_its_declaration() {
+        let source = "<div style=\"opacity: 0.5\"></div>";
+        let (_, span) = hover(source, 14, true).expect("inside the attribute value");
+        assert_eq!(&source[span], "opacity: 0.5");
+    }
+
+    /// A `{` anywhere in the value drops the whole attribute, so a declaration
+    /// written before the interpolation answers nothing either — which is what
+    /// separates the ported rule from a scanner that merely declines to emit a
+    /// chunk the brace opens a block in.
+    #[test]
+    fn a_style_attribute_holding_an_interpolation_answers_nothing() {
+        for source in [
+            "<div style=\"height: {}\"></div>",
+            "<div style=\"height: auto; color: {x}\"></div>",
+        ] {
+            let offset = source.find("style=\"").unwrap() + 8;
+            assert!(hover(source, offset, true).is_none(), "{source}");
+        }
+    }
+
+    /// The `Selector` arm of `CSSHover.doHover`, which is what official uses for
+    /// a plain selector, a pseudo-class and a pseudo-element. Every expected
+    /// value was generated by driving `vscode-css-languageservice@6.3.5` and
+    /// printing the raw `contents` — the `language: "html"` field of a
+    /// MarkedString is metadata, and reads as an `<html>` element if the value
+    /// is taken through a stringification instead.
+    #[test]
+    fn a_selector_answers_with_its_element_tree_and_specificity() {
+        for (source, offset, tree, spec, range) in [
+            (
+                "<style>.box span { color: red }</style>",
+                9,
+                "<element class=\"box\">\n  \u{2026}\n    <span>",
+                "(0, 1, 1)",
+                ".box span",
+            ),
+            (
+                "<style>a:hover { color: red }</style>",
+                10,
+                "<a :hover>",
+                "(0, 1, 1)",
+                "a:hover",
+            ),
+            (
+                "<style>p::before { content: \"\" }</style>",
+                11,
+                "<p ::before>",
+                "(0, 0, 2)",
+                "p::before",
+            ),
+        ] {
+            let (answer, span) = hover(source, offset, true).expect("a selector answers");
+            let Answer::Marked {
+                tree: got,
+                specificity,
+            } = answer
+            else {
+                panic!("a selector answers with marked strings: {source} @{offset}");
+            };
+            assert_eq!(got, tree, "{source} @{offset}");
+            assert!(specificity.ends_with(&format!(": {spec}")), "{specificity}");
+            assert_eq!(&source[span], range, "{source} @{offset}");
+        }
+    }
+
+    /// An at-rule prelude is not a selector, and official answers nothing there
+    /// — the negative half of the arm above, which a suite of answering cells
+    /// alone cannot show.
+    #[test]
+    fn an_at_rule_prelude_answers_nothing() {
+        let source = "<style>@media (min-width: 1px) { i { color: red } }</style>";
+        assert!(hover(source, 10, true).is_none(), "{source}");
     }
 
     #[test]
@@ -528,11 +927,27 @@ mod tests {
     fn completes_and_documents_global_selectors() {
         let items = labels("<style>:glo");
         assert!(items.contains(&":global".to_string()));
-        assert!(
-            hover("<style>:global(.external) {}</style>", 14)
-                .unwrap()
-                .contains("prevents")
-        );
+        // Two branches reach this: the cursor at the end of the token, and the
+        // cursor inside the word. A cell for only the first passes while the
+        // second returns nothing.
+        // Official has no `:global` special case in hover at all — it answers
+        // like any other pseudo-class, ranged over the whole selector. Values
+        // generated by driving `vscode-css-languageservice@6.3.5`, which
+        // returns the identical answer at every offset inside the selector,
+        // including inside the argument.
+        let source = "<style>:global(.external) {}</style>";
+        for offset in [14, 11, 8, 7, 25] {
+            let (answer, span) = hover(source, offset, true).expect(":global is a selector");
+            let Answer::Marked { tree, specificity } = answer else {
+                panic!("a selector answers with marked strings, at {offset}");
+            };
+            assert_eq!(tree, "<element :global>", "at {offset}");
+            assert!(
+                specificity.ends_with(": (0, 1, 0)"),
+                "{specificity} at {offset}"
+            );
+            assert_eq!(&source[span], ":global(.external)", "at {offset}");
+        }
     }
 
     fn messages(text: &str) -> Vec<String> {
