@@ -36,6 +36,25 @@ It answers three questions per gate:
    - **[U] unmeasured** — no evidence was gathered. A row marked `[U]` is a *question*, not a
      finding.
 
+**A `file:line` citation here is evidence with a short half-life, and nothing checks it.**
+Audited 2026-09-09 against `corpus-compat.yml`: of the eight line citations that predated the
+audit, **eight pointed at unrelated content and three of those at a blank line** — one row cited
+`:255` for an argument the file carries at `:312`, another `:317-323` for an `actions/cache`
+step that had moved to `:424-430`. Every one of the eight *claims* was still true; only the
+coordinates had rotted. That is why they rot furthest: nothing downstream ever fails on a wrong
+line number, so the only reader positioned to notice is one who did not need the citation. A
+seventh row's own positive control had drifted the same way in the safe direction — it stated
+`grep -n "eslint"` returns 6 hits "all at `:343` or later" where it returns 7, earliest `:261`.
+Re-derive a coordinate before citing it, and prefer an anchor that greps — a step name, a quoted
+argument — over a line number.
+
+The same audit is this repository's cleanest evidence for writing a figure *against the artifact*
+instead of typing it, because it is a controlled comparison inside one document set.
+`AGENTS.md`'s Svelte target version sits between `<!-- svelte-target-version -->` markers and is
+rewritten by `update-docs.mjs`; it followed the `submodules/svelte` pin from 5.56.10 to 5.57.0
+with nobody editing it. Every figure found rotted on the same day was ungated prose. Same
+repository, same authors, same period — the only variable is whether a tool writes the number.
+
 **One question this file does not ask** has its own inventory in
 [`two-ports-inventory.md`](#two-ports-inventory): *how many times does rsvelte answer
 one upstream decision, and does anything compare its own answers to each other?* Every
@@ -600,9 +619,9 @@ only — a post-edit phase (27b) is not calibrated, because upstream has no snap
 27h describes a floor the run is held to. It is not held to it on the run that matters most.
 `verify.mjs:426` opens `assertOracleCalibration` with
 `if (!selectedSuites.includes("upstream-features")) return;`, and
-`.github/workflows/corpus-compat.yml:890` invokes the real-world job as `--suites corpus`. The two
+`.github/workflows/corpus-compat.yml:959` invokes the real-world job as `--suites corpus`. The two
 jobs are disjoint by construction — `lsp-fixtures-current` runs
-`--suites fixtures,upstream-features,upstream-testfiles` (line 812) and no corpus repository, and
+`--suites fixtures,upstream-features,upstream-testfiles` (line 879) and no corpus repository, and
 `lsp-corpus` runs the 16 corpus shards and no snapshot — so **every shard that measures a corpus
 repository skips the calibration entirely**, silently, by an early return rather than by a reported
 skip.
@@ -675,9 +694,9 @@ answers would then be enrolled as legitimate ratchet entries defending the degra
 the calibration floor as its defence. 27j records that the floor does not run on `--suites corpus`.
 This row records that for that suite the named condition is not a risk but a **guarantee**.
 
-`corpus-compat.yml:859` checks the four corpus repositories out with
+`corpus-compat.yml:926` checks the four corpus repositories out with
 `git submodule update --init --depth 1` and nothing installs them; the job installs the root
-workspace and `submodules/language-tools` only (lines 869-875). `lsp-benchmark.yml:52-54` does run
+workspace and `submodules/language-tools` only (lines 935-944). `lsp-benchmark.yml:52-54` does run
 `pnpm --dir submodules/bits-ui install`, so the contrast is inside this repository: the job that
 measures *speed* on bits-ui installs it and the job that measures *parity* does not.
 
@@ -1259,6 +1278,48 @@ on a tree that does not carry the change** — cheaper than an artifact, and it 
 **Unmeasured:** whether any other entry in the ratchet has moved for cause (c) without being noticed,
 which cannot be recovered retrospectively — the pre-change counts are what the ratchet holds, and the
 comparator that produced them is gone once the PR merges.
+### Blind spot 27x — the 16-shard corpus job issues three of the twelve methods the gate compares, and the hatch that starts it is keyed on a path [S]
+
+27j establishes that `lsp-fixtures-current` and `lsp-corpus` are disjoint *jobs*. They are also
+disjoint in **method**, and that half is not a scheduling detail: it decides which divergences the
+expensive job can observe at all.
+
+Every corpus unit is built by `corpusCases` (`suites.mjs:308`), which reaches
+`fileCase("corpus", directory, file, identifierRequests)` at `:315`. `identifierRequests`
+(`:101-113`) yields exactly `textDocument/hover`, `textDocument/definition` and
+`textDocument/completion`, once per identifier position. `basicRequests` (`:115-125`) — diagnostic,
+foldingRange, documentSymbol, inlayHint — has one call site, `fileCase("upstream-testfiles", …)` at
+`:304`, and that suite belongs to the other job: `corpus-compat.yml:879` runs
+`--suites fixtures,upstream-features,upstream-testfiles` while the shards at `:959` run
+`--suites corpus`.
+
+The ratchet corroborates the source read independently. Of 23,768 baseline entries, **21,792 are
+`aggregate:corpus/` keys and every one carries one of those three methods** — 0 carry any other. So
+nine of the twelve method labels the ratchet holds (`codeAction`, `diagnostic`, `documentHighlight`,
+`documentSymbol`, `foldingRange`, `inlayHint`, `prepareRename`, `selectionRange`, and the
+method-less `initialize` capability entries) are unreachable from `lsp-corpus` at any shard count or
+corpus size — this is a property of the request generator, not of the population. Positive control:
+212 keys carry `inlayHint`. Negative control: `aggregate:corpus/.*inlayHint` matches 0.
+
+What makes it a coverage row rather than a division of labour is the trigger. `lsp-corpus` is held
+off pull requests on a job-minute argument (`corpus-compat.yml:906-909`), and the one hatch that
+re-admits it is `corpus-compat-job-filter.mjs:157-162`, which fires on any diff touching
+`scripts/compat-lsp/**` or `compatibility/lsp-known-failures*.json` — priced by its own comment at
+`:153` as 950 job-minutes. That predicate is a **path**, and a path cannot know which methods the
+diff reaches. A change confined to `inlayHint` — 212 keys, none of them in any shard — starts all 16
+shards and buys zero bits about itself, while the population that would observe it is the cheap
+fixtures job that already runs on every PR. The converse holds too and is the quieter half: a change
+to the three identifier methods that is *not* under either path gets no shard run at all.
+
+Read the direction before treating this as something to narrow. Under-approximating a blast radius
+costs a skipped gate, which reads exactly like a passing one, so the hatch erring open is the right
+sign. The row is the price list, not a defect: it says which questions a shard run answers, so a
+method-scoped change is not held waiting on a verdict that structurally cannot mention it.
+
+**Unmeasured:** whether the three identifier methods are the ones a real-world population would most
+often break. The census answers what the job can issue, never what it should.
+
+
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`
 
@@ -2809,7 +2870,7 @@ threads a `dev` flag through `CssContext` for exactly that — and no row here e
 
 `clientServerDiffs` is incremented (`:424`) and printed (`:485`); the exit path (`:495-517`)
 reads only `divergedIds`. **[S]** And CI does not pass `--both` anyway
-(`corpus-compat.yml:255`).
+(`corpus-compat.yml:312`).
 
 ### Blind spot 8c — `warnings` discarded — CLOSED
 
@@ -2877,7 +2938,7 @@ large-corpus comparison of the shipped default identified in 10a.
 The only guard is `included.length < 1000` (`:69-76`), read from `meta.json` — **not** from the
 number of comparisons actually performed. `matched` is printed (`:149`) and never asserted.
 
-**[D]** CI restores the oracle from `actions/cache` (`corpus-compat.yml:317-323`, caching both
+**[D]** CI restores the oracle from `actions/cache` (`corpus-compat.yml:424-430`, caching both
 `compatibility/fmt/oracle` and `compatibility/fmt/meta.json`), and `fmt.mjs:184-191` declares
 the oracle fresh on `fs.existsSync(ORACLE)` — existence of the *directory*, not of its
 contents. A partially-restored oracle tree with an intact `meta.json` passes the `>= 1000`
@@ -3094,7 +3155,7 @@ sources, so a rewrite taken from a run whose universe collapsed still passes it.
 
 ### Blind spot 11f — CI collects a narrower corpus than the script offers
 
-`corpus-compat.yml:420` runs `lint-collect.mjs --ci`, whose repo list (`lint-universe.mjs:24`)
+`corpus-compat.yml:590` runs `lint-collect.mjs --ci`, whose repo list (`lint-universe.mjs:24`)
 omits `svelte` and `svelte.dev`, which `lint-collect.mjs:43-44` does offer. **[S]** In CI the lint corpus contains no `.svelte`
 file from the Svelte repo and no documentation snippet. `compatibility/pattern-corpus` — the 32
 hand-written regression repros — is also not in that list.
@@ -3103,7 +3164,7 @@ hand-written regression repros — is also not in that list.
 **lower** bound: the CI list yields 6761 entries and the floor is 6000, so dropping `melt-ui`
 (84 files) leaves 6677 and clears it, and a *superset* run clears it by definition. The repo set
 is what makes this axis exact — `--update` now requires it to equal `CI_REPOS`
-(`lint-universe.mjs:24`), which `lint-collect.mjs --ci` and `corpus-compat.yml:420` both consume,
+(`lint-universe.mjs:24`), which `lint-collect.mjs --ci` and `corpus-compat.yml:590` both consume,
 so the collector, the workflow and the rewrite guard cannot disagree about which population the
 ratchet describes. Both directions are covered: a missing repo would delete its entries, an extra
 repo would add entries that fail every later run as stale.
@@ -3816,7 +3877,7 @@ comment regression on a *collected* seed is invisible here.
 
 ### Blind spot 20f — a PR samples by hash, so the run that adds a seed is the least likely to mutate it [D]
 
-**PRs run `--seeds 1500`, main runs `--full`** (`corpus-compat.yml:267-272`), and the sample
+**PRs run `--seeds 1500`, main runs `--full`** (`corpus-compat.yml:322-326`), and the sample
 was the 1500 lowest `fnv1a(id)` of ~14,100 eligible entries (`:145-152`). Nothing in that rank
 knows an id is *new*, so a repro landing in the same PR had roughly a 1-in-9 chance of being
 mutated — and the ratchet the PR was green against was measured without it.
@@ -5323,13 +5384,13 @@ the sources did not?**
 ### C1. Path filters — gates that do not run on some PRs
 
 `ci.yml` is deliberately unfiltered (`:6-8`, with the reason in a comment), so every Rust
-fixture gate runs on every PR. `corpus-compat.yml` **is** path-filtered (`push:` `:39-85`,
-`pull_request:` `:87-133`, kept in sync by hand).
+fixture gate runs on every PR. `corpus-compat.yml` **is** path-filtered (`push:` `:41-58`,
+`pull_request:` `:59-113`, kept in sync by hand).
 
 - **[S] `submodules/eslint-plugin-svelte` and `submodules/svelte-eslint-parser` are consumed by
-  `lint-parity` (`corpus-compat.yml:356`, `:380`) but appear nowhere in either paths list.**
-  Positive control: `command grep -n "eslint" .github/workflows/corpus-compat.yml` returns 6
-  hits, all at `:343` or later — zero inside `:39-133`. A PR whose only change is advancing that
+  `lint-parity` (`corpus-compat.yml:497`, `:525`) but appear nowhere in either paths list.**
+  Positive control: `command grep -n "eslint" .github/workflows/corpus-compat.yml` returns 7
+  hits, all at `:261` or later — zero inside `:41-113`. A PR whose only change is advancing that
   gitlink runs no corpus gate at all, and `lint-known-failures.json` is never re-validated
   against the new upstream rule set.
 - **[S]** Also absent from the list but reachable by the jobs: `scripts/fixtures/**` (except one
@@ -7745,6 +7806,167 @@ The instance is two *separate* code paths each carrying their own logic.
 
 Degree 3 is worth reaching for whenever the decision is cheap to recompute, because it turns the
 corpus you already have into a detector for this class **at whatever size it happens to be**.
+
+#### 35. Is this offset inside a generated-code region? — [D], four ports, three of them scan non-overlapping, **reach 0 in the population that can be checked**
+
+**Upstream:** one function, `isInGeneratedCode`
+(`language-server/src/plugins/typescript/features/utils.ts:102-109`), built on JS `lastIndexOf` /
+`indexOf`. Those advance one position at a time, so they see an occurrence that overlaps the one
+before it.
+
+**Ports.** Four, across three crates, in two shapes:
+
+| # | site | shape | scan |
+|---|---|---|---|
+| 1 | `rsvelte_language_server/src/tsgo_overlay.rs` `is_in_generated_code` | upstream's formula, scanned per query | **overlapping** (byte-wise `occurrences`) |
+| 2 | `rsvelte_language_server/src/tsgo_overlay.rs` `ignored_ranges` → `is_generated_range` | ranges precomputed once per document | non-overlapping (`find`, then `cursor = end`) |
+| 3 | `rsvelte_check/src/svelte_check/mapper.rs:166` `is_in_generated_code` | upstream's formula, scanned per query | non-overlapping (`str::match_indices`) |
+| 4 | `rsvelte_content_mapper/src/lib.rs:239` `ignore_directives` | region extraction feeding a suppression policy | non-overlapping (`find`, then `cursor = end`) |
+
+Port 1 arrived with #4511, which deleted a **fifth**: `tsgo_rename.rs`'s `is_generated_span` held
+its own copies of both marker constants and a formula missing upstream's `lastEnd === nextEnd`
+clause. Ports 2 and 4 are the same algorithm written twice in two crates, which is the ordinary
+shape of this file; ports 1 and 3 are the interesting pair, because they agree on the *formula*
+and disagree on the *scan* underneath it.
+
+**The divergence, with a named input.** `IGNORE_START` and `IGNORE_END` both open and close with
+`/`, so each has a border of 1 and can fuse with a copy of itself. Measured on a faithful
+replication of both scans, with controls in both directions:
+
+| needle | border | non-overlapping | overlapping | differ |
+|---|---|---|---|---|
+| `abc` | 0 | `[0, 3]` | `[0, 3]` | no — **negative control** |
+| `aa` | 1 | `[0]` | `[0, 1]` | yes — **positive control** |
+| `/*Ωignore_startΩ*/` | 1 | `[0]` | `[0, 17]` | **misses one** |
+| `/*Ωignore_endΩ*/` | 1 | `[0]` | `[0, 15]` | **misses one** |
+
+The fused input is the marker minus its trailing `/`, concatenated with the whole marker, so the
+two occurrences share the single `/` that is both the prefix and the suffix.
+
+**Reach: 0, and the population is a proxy — read both halves or the row is misread.** Measured
+over populations stated as the command that produces them, because the two previous versions of
+this paragraph both named a population by extension and both got it wrong:
+
+| tree | population | files | contain a marker (control) | contain a fused pair |
+|---|---|---|---|---|
+| `wt-4450` @ `9ff66b2d5` | `git ls-files --recurse-submodules` | 8,581 | 264 | **0** |
+| `wt-4450` @ `9ff66b2d5` | on-disk, `.git` and `target/` pruned | 22,088 | 268 | **0** |
+| primary checkout @ `8057104f8` | `git ls-files --recurse-submodules`, 118/119 submodules | 175,842 | 264 | **0** |
+
+**Nothing gates these numbers**, which is why they went wrong twice: injecting a `999999` control
+and a reach of `7` into the first row leaves `known-failures-md-check`, `deliberate-divergences`
+and `attribution-check` all at `rc=0`. Re-derive them from the commands in the population column
+rather than citing them; the commands are the artifact and this table is a reading of it.
+
+Two controls, and the second was added after the first version of this row got its population
+wrong. **A dead scan produces the same `0`**: a third tree with no submodules initialised scanned
+112 files and reported control **0**, so the live trees' 264/268/264 is what separates "looked and
+found none" from "could not have found one". **And the detector needs its own two-sided control**,
+because the pattern is easy to state and easy to mis-implement — asserting that it fires on
+`needle[..len-1] + needle` and does *not* fire on `needle + "X" + needle` is one line, and the
+version of this measurement that tested *adjacency* (`END` immediately followed by `START`)
+instead of self-overlap reported 4 carriers, which is a real count of the wrong pattern.
+
+**A third instrument failure on this same measurement is the one worth keeping, because its
+control was large and healthy-looking.** The first version of this reach scan reported its control
+as `810 files` carrying a marker, and 810 could not be reproduced afterwards under any population
+(superproject-tracked / on-disk / including `node_modules`) crossed with any needle variant, as
+files or as occurrences — 24 cells, stable at 192-193 files and 447/894 occurrences, so
+*population-insensitive*, which rules out "I measured a different tree". What *is* established is that the number and its own
+label cannot both be true: **no `.ts`/`.tsx` filter over any population reaches 810** — the maximum
+is **194** (193 `.ts` plus the single `.tsx` carrier the primary checkout's submodules hold), and it
+stays there with `node_modules` and `target/` included — while the header over that
+`810` said "every checked-in `.tsx`/`.ts` expectation". The nearest exact match is
+`724 .o + 63 .rmeta + 23 .rlib = 810`, the marker constants having been compiled into the build
+artifacts, which makes "the scan reached `target/` under a header saying it did not" the leading
+hypothesis and not a demonstrated one — the script is gone, and three numbers summing to a
+four-digit target is the kind of coincidence that reads as a mechanism.
+
+Record it as the disjunction rather than the guess, because the lesson does not need the guess:
+**a control's magnitude is not evidence that it is aimed at the population.** It fired, it was four
+times the true source count, and nothing about `810` invites a second look — a zero would have. The
+contradiction sat in one output for a day, next to the header it contradicts.
+
+The population sentence has now been wrong twice, and the second time was **inside the correction
+for the first**, which is why it is written out here rather than quietly fixed. Version one said
+`.tsx`/`.ts`, so it excluded every other carrier class while the `.ts` half still fired at 193 —
+**a filter that drops a carrier class leaves a live control behind**, so the control certifies the
+scan and says nothing about the filter above it.
+
+Version two replaced the extension pair with an explicit list — `.jsx` 9, `.js` 35, `.md` 8,
+`.json` 4, "56 marker-bearing files excluded", control 249 — and that list is *also* an
+enumeration written from the extensions its author thought to look for. Re-derived from the tree,
+the carriers on the widest population are `.ts` 193, `.js` 35, **`.rs` 18**, `.jsx` 9, `.md` 8,
+`.json` 4, **`.mjs` 1** = 268, of which **75** sit outside a `.ts`/`.tsx` filter. The published
+249 is exactly `268 − 18 − 1`: the corrected list dropped the two extensions nobody expected a
+`/*Ω…Ω*/` marker to appear in, one of which is the compiler's own Rust test expectations. **And
+`193 + 56 = 249` exactly**, so the table was internally consistent — it could be checked against
+itself indefinitely and never move, which is what a mis-composed control buys you.
+
+Two smaller scope errors rode along with it, and both are the same shape. The `.md` 8 and `.json`
+4 are **superproject** files (`compatibility/KNOWN-FAILURES.md`, `crates/rsvelte_projection/tests/data/`),
+not language-tools, so they could not belong to a row labelled "language-tools only". And the
+clause "this tree contains zero `.tsx` files" is true of `wt-4450` and **false of the primary
+checkout**, which tracks 642 of them and carries a marker in one
+(`submodules/sveltepress/packages/twoslash/__tests__/test-tsx.tsx`) — a sentence whose subject is
+"this tree" written directly beneath a table listing *two* trees. Name a population by the command
+that enumerates it; an extension list is a hypothesis about where a string lives, and this one has
+now been wrong three times about the same string.
+
+But the shadow `.tsx` the language server actually filters is **generated at request time and
+never checked in**, so these expectations are a proxy for the real population and a zero here does
+not bound it. The correct reading of this row is *the mechanism is confirmed and its reach is
+unmeasured on the population that matters* — not "confirmed, therefore live" and not "zero,
+therefore dead".
+
+**What it would take to raise this to [M].** Run ports 1 and 3 against each other over the shadow
+text the LSP gate already materialises for its 423 cases, rather than over checked-in files. That
+is a harness with a denominator, and it is the only thing that turns the proxy zero into a real
+one. Nothing in the tree does it today: every gate compares each port to *upstream* on whatever
+inputs a real file supplies, which is this file's whole subject.
+
+#### 36. Does the LSP ratchet observe the PR that changes LSP behaviour? — **no, and the trigger keys on the ratchet file rather than on the behaviour**
+
+`lsp-corpus` is the ~950 job-minute real-world half of gate 42, and it is scheduled rather than
+per-PR on a capacity argument that is recorded and correct. The escape hatch that re-admits it on a
+pull request is `corpus-compat-job-filter.mjs:157`, which sets `lsp-ratchet` from a diff touching
+`compatibility/lsp-known-failures*.json` or `scripts/compat-lsp/**`. So the trigger names the
+**ratchet**, and a PR that changes the language server's **behaviour** without touching either path
+does not fire it. Measured on the filter, both directions, plus one live observation:
+
+| changed-file list | `lsp-corpus` | `lsp-ratchet` | job runs on a PR? |
+|---|---|---|---|
+| `compatibility/lsp-known-failures.json` | true | **true** | yes — positive control |
+| `scripts/compat-lsp/verify.mjs` | true | **true** | yes — positive control |
+| #4511's real list (2 LS sources + a changeset) | true | **false** | **no** — and observed SKIPPED on #4511 |
+| an inlay-hint filter PR (5 LS sources, lock, changeset) | true | **false** | **no** |
+
+The `lsp-corpus=true` column is the conjunction hazard this file already records, met from the
+other side: the filter enables the job and the job's own `if:` declines it, so **reading either
+artifact alone gives the wrong answer with full confidence**.
+
+**What makes this a coverage row rather than a restatement of the cost trade-off is the second
+half.** The two-sided ratchet has an *added* direction and a *stale* direction, and they are not
+scoped alike (`verify.mjs:1090-1091`): `added` is filtered against the **full** ratchet, while
+`removed` is filtered against `selectKnownForScope(known, suites, repos, SHARD)`. A PR's
+fixture-only run therefore evaluates staleness **only for fixture-scoped entries** — by design,
+since a fixture run has not measured the corpus entries and must not call them stale. The
+consequence is that for a behaviour-changing PR, *no* run anywhere evaluates the corpus half of the
+stale direction until the change is on `main` and the nightly fires.
+
+So the failure is displaced rather than absent, and it is displaced into the branch that this file
+already says is the expensive one: a red that first appears on `main`, where no PR could have
+caught it and the bisect population is every merge since the last nightly. Note the direction —
+this bites a PR that **fixes** something, because retiring a divergence is what makes a listed
+entry stale. A PR that only adds divergences is caught by `added` against the full ratchet.
+
+**The working rule:** a PR that changes language-server behaviour must dispatch `corpus-compat.yml`
+against its own branch and re-baseline in the same PR, and "CI was green" does not stand in for it.
+The automatic trigger cannot be read as coverage, because the property it keys on — did you edit
+the ratchet — is a property of the *fix you already wrote*, not of the behaviour you changed.
+
+**Not measured here:** whether any given behaviour PR actually retires a corpus entry. That needs
+the dispatch, which is the point. Recording it as an obligation rather than as a finding.
 
 <a id="ast-equivalence"></a>
 
