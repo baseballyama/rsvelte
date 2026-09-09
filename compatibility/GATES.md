@@ -7844,17 +7844,30 @@ The fused input is the marker minus its trailing `/`, concatenated with the whol
 two occurrences share the single `/` that is both the prefix and the suffix.
 
 **Reach: 0, and the population is a proxy — read both halves or the row is misread.** Measured in
-two trees independently, on every checked-in `.tsx`/`.ts` expectation:
+two trees independently, over every checked-in file in any extension the marker actually occurs in:
 
-| tree | `.tsx`/`.ts` scanned | contain a marker (control) | contain a fused pair |
+| tree | files scanned | contain a marker (control) | contain a fused pair |
 |---|---|---|---|
-| `wt-4450`, language-tools only | 961 | 193 | **0** |
+| `wt-4450`, language-tools only | 24,129 | 249 | **0** |
 | primary checkout, 118/119 submodules | 22,526 | 196 | **0** |
 
-The control is what makes the zero readable: a third tree with no submodules initialised scanned
-112 files and reported control **0**, i.e. a dead scan producing the same `0` carriers. Two live
-trees agreeing at 193/196 is what separates "looked and found none" from "could not have found
-one".
+Two controls, and the second was added after the first version of this row got its population
+wrong. **A dead scan produces the same `0`**: a third tree with no submodules initialised scanned
+112 files and reported control **0**, so the live trees' 249/196 is what separates "looked and
+found none" from "could not have found one". **And the detector needs its own two-sided control**,
+because the pattern is easy to state and easy to mis-implement — asserting that it fires on
+`needle[..len-1] + needle` and does *not* fire on `needle + "X" + needle` is one line, and the
+version of this measurement that tested *adjacency* (`END` immediately followed by `START`)
+instead of self-overlap reported 4 carriers, which is a real count of the wrong pattern.
+
+The population sentence is the part that was wrong, and it was wrong in the direction that reads
+as careful. It said `.tsx`/`.ts`, and **this tree contains zero `.tsx` files** — svelte2tsx's
+expectations are `.jsx` — so one of the two named extensions matched nothing at all while the
+filter silently excluded 56 marker-bearing files (`.jsx` 9, `.js` 35, `.md` 8, `.json` 4). The
+control still fired at 193, which is why nothing looked amiss: **a filter that drops a carrier
+class leaves a live control behind**, so the control certifies the scan and says nothing about the
+filter above it. Name a population by what the marker occurs in, measured, not by the extension
+you expect the generated shadow to have.
 
 But the shadow `.tsx` the language server actually filters is **generated at request time and
 never checked in**, so these expectations are a proxy for the real population and a zero here does
