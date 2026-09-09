@@ -5305,7 +5305,7 @@ would mean the axis had silently stopped being exercised.
 
 ## LSP differential known failures
 
-`lsp-known-failures.json` contains 23870 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 23768 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
@@ -5339,13 +5339,27 @@ The ratchet stays on the pending list until it is burned down.
 deletion, a cluster table buys no attribution and would cost a classification pass over every
 remaining key; shrinking the ratchet advances the DoD directly and a taxonomy of it does not.
 
-Partition of `lsp-known-failures.json` by key kind: `21792 + 1744 + 334` — real-world corpus
+**One cluster is exempt from that, because its cause is this gate's own configuration rather than
+either server** (#4494). `verify.mjs` enables every `typescript.inlayHints.*` preference and sends
+no `javascript.inlayHints`; upstream selects the preference set by script kind
+(`LSAndTSDocResolver.ts:339-343`), so a component with no `lang="ts"` reads the absent `javascript`
+set, `areInlayHintsEnabled` is false, and the official server returns `null` before computing a
+hint. rsvelte answers `null` there too once it honours the client's preferences, so those carriers
+hold no `differential:` key at all — every one of them diverges only from upstream's committed
+snapshot, which upstream's own harness recorded with hints enabled, and official diverges from it
+identically. The run's own `typescript-inlay-hints` calibration row is that same split:
+`calibrationView` (`normalize.mjs:81`) rewrites official's `null` to `[]`, so a non-TS fixture whose
+snapshot is `[]` counts as reproduced and one holding a real list does not. These entries retire
+when #4494 sends the `javascript` preferences; until then the unported generated-hint filters of
+#4464 are unmeasurable on those fixtures, because neither server emits a hint there to filter.
+
+Partition of `lsp-known-failures.json` by key kind: `21792 + 1646 + 330` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `11940 + 11930`
+Partition of `lsp-known-failures.json` by request phase: `11889 + 11879`
 
 Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
 two addends differ by exactly the session-level keys, which run once per session rather than once per

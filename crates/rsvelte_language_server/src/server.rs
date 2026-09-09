@@ -708,7 +708,6 @@ impl Server {
             | "textDocument/implementation"
             | "textDocument/references"
             | "textDocument/signatureHelp"
-            | "textDocument/inlayHint"
             | "textDocument/semanticTokens/full"
             | "textDocument/semanticTokens/range"
             | "textDocument/prepareCallHierarchy"
@@ -716,6 +715,7 @@ impl Server {
             | "callHierarchy/outgoingCalls"
             | "workspace/symbol"
             | "workspaceSymbol/resolve" => self.forward_tsgo_request(request),
+            "textDocument/inlayHint" => self.on_inlay_hint(request),
             "textDocument/prepareRename" => self.on_prepare_rename(request),
             "textDocument/rename" => self.on_rename(request),
             "$/getFileReferences" => self.on_get_file_references(request),
@@ -3534,6 +3534,43 @@ impl Server {
         true
     }
 
+    fn on_inlay_hint(&mut self, request: Request) {
+        let forward = request.clone();
+        let enabled = request
+            .params
+            .get("textDocument")
+            .and_then(|document| document.get("uri"))
+            .and_then(serde_json::Value::as_str)
+            .and_then(|uri| uri.parse::<Uri>().ok())
+            .is_none_or(|uri| self.inlay_hints_enabled(&uri));
+        if enabled {
+            self.forward_tsgo_request(forward);
+            return;
+        }
+        self.respond(Response::new_ok(request.id, serde_json::Value::Null));
+    }
+
+    /// `getInlayHints` returns `null` before asking TypeScript for anything when
+    /// no category is on (`InlayHintProvider.ts:38-43`), and the config it reads
+    /// is the one for the document's own script kind, not the shadow's extension
+    /// (`LSAndTSDocResolver.ts:339-342`). `ls-config.ts:515-522` maps each
+    /// category with no fallback, so a client that sends no `inlayHints` has
+    /// every one of them undefined and gets `null`.
+    fn inlay_hints_enabled(&self, uri: &Uri) -> bool {
+        let Some(document) = self.documents.get(uri) else {
+            return true;
+        };
+        if !is_svelte_document(&document.language_id, &uri_to_path(uri.as_str())) {
+            return true;
+        }
+        let language = if is_typescript_component(document.text()) {
+            &self.typescript_settings
+        } else {
+            &self.javascript_settings
+        };
+        inlay_hints_enabled_in([&self.editor_settings, language, &self.js_ts_settings])
+    }
+
     fn component_reference_code_lens_enabled(&self, uri: &Uri) -> bool {
         let Some(document) = self.documents.get(uri) else {
             return false;
@@ -4199,6 +4236,35 @@ fn is_lint_target(document: &Document) -> bool {
     uri.ends_with(".svelte.js") || uri.ends_with(".svelte.ts")
 }
 
+/// `areInlayHintsEnabled` (`InlayHintProvider.ts:92-102`) over the categories
+/// `ls-config.ts:515-522` maps, each of which is read with no fallback — so an
+/// absent key is off, and `parameterNames` is the one category whose enabled
+/// values are strings rather than a boolean.
+///
+/// Layers are ordered least- to most-specific, matching the sibling rule in
+/// `component_reference_code_lens_enabled`.
+fn inlay_hints_enabled_in(layers: [&serde_json::Value; 3]) -> bool {
+    let resolve = |category: &str| {
+        let pointer = format!("/inlayHints/{category}/enabled");
+        layers
+            .iter()
+            .filter_map(|layer| layer.pointer(&pointer))
+            .next_back()
+    };
+    matches!(
+        resolve("parameterNames").and_then(serde_json::Value::as_str),
+        Some("literals" | "all")
+    ) || [
+        "enumMemberValues",
+        "functionLikeReturnTypes",
+        "parameterTypes",
+        "propertyDeclarationTypes",
+        "variableTypes",
+    ]
+    .iter()
+    .any(|category| resolve(category).and_then(serde_json::Value::as_bool) == Some(true))
+}
+
 fn is_svelte_document(language_id: &str, path: &Path) -> bool {
     language_id == "svelte"
         || path
@@ -4693,5 +4759,93 @@ mod merge_tsgo_result_tests {
         assert!(merged_is_incomplete(true, false));
         assert!(merged_is_incomplete(false, true));
         assert!(merged_is_incomplete(true, true));
+    }
+}
+
+#[cfg(test)]
+mod inlay_hint_preference_tests {
+    use super::inlay_hints_enabled_in;
+    use serde_json::{Value, json};
+
+    fn enabled(language: Value) -> bool {
+        inlay_hints_enabled_in([&Value::Null, &language, &Value::Null])
+    }
+
+    /// Every answer is upstream's, taken by running the two servers rather than
+    /// transcribed: with the LSP gate's own configuration -- which gives
+    /// `typescript` all six categories and `javascript` none -- official answers
+    /// a list for a `lang="ts"` component and `null` for a plain `<script>` one.
+    #[test]
+    fn an_absent_category_is_off_and_a_present_one_decides() {
+        // The gate's `javascript` section: a sibling key, and no `inlayHints`.
+        assert!(!enabled(json!({ "suggest": { "autoImports": false } })));
+        // The gate's `typescript` section.
+        assert!(enabled(json!({
+            "inlayHints": {
+                "enumMemberValues": { "enabled": true },
+                "functionLikeReturnTypes": { "enabled": true },
+                "parameterNames": { "enabled": "all", "suppressWhenArgumentMatchesName": false },
+                "parameterTypes": { "enabled": true },
+                "propertyDeclarationTypes": { "enabled": true },
+                "variableTypes": { "enabled": true, "suppressWhenTypeMatchesName": false }
+            }
+        })));
+        assert!(!enabled(json!({ "inlayHints": {} })));
+    }
+
+    /// `parameterNames` is a string enum and the other five are booleans, so a
+    /// rule that reads all six the same way is wrong in both directions.
+    #[test]
+    fn parameter_names_is_a_string_enum_and_none_is_off() {
+        assert!(enabled(
+            json!({ "inlayHints": { "parameterNames": { "enabled": "all" } } })
+        ));
+        assert!(enabled(
+            json!({ "inlayHints": { "parameterNames": { "enabled": "literals" } } })
+        ));
+        assert!(!enabled(
+            json!({ "inlayHints": { "parameterNames": { "enabled": "none" } } })
+        ));
+        assert!(!enabled(
+            json!({ "inlayHints": { "parameterNames": { "enabled": true } } })
+        ));
+        assert!(enabled(
+            json!({ "inlayHints": { "variableTypes": { "enabled": true } } })
+        ));
+        assert!(!enabled(
+            json!({ "inlayHints": { "variableTypes": { "enabled": false } } })
+        ));
+        assert!(!enabled(
+            json!({ "inlayHints": { "variableTypes": { "enabled": "all" } } })
+        ));
+    }
+
+    /// One enabled category is enough, which is what makes this a disjunction
+    /// rather than a check of any single setting.
+    #[test]
+    fn any_single_category_turns_it_on() {
+        for category in [
+            "enumMemberValues",
+            "functionLikeReturnTypes",
+            "parameterTypes",
+            "propertyDeclarationTypes",
+            "variableTypes",
+        ] {
+            assert!(
+                enabled(json!({ "inlayHints": { category: { "enabled": true } } })),
+                "{category} alone should enable"
+            );
+        }
+    }
+
+    /// A later layer overrides an earlier one, so a workspace that turns a
+    /// category off is not overruled by the editor default that turned it on.
+    #[test]
+    fn a_later_layer_wins() {
+        let on = json!({ "inlayHints": { "variableTypes": { "enabled": true } } });
+        let off = json!({ "inlayHints": { "variableTypes": { "enabled": false } } });
+        assert!(!inlay_hints_enabled_in([&on, &off, &Value::Null]));
+        assert!(inlay_hints_enabled_in([&off, &on, &Value::Null]));
+        assert!(!inlay_hints_enabled_in([&Value::Null, &on, &off]));
     }
 }
