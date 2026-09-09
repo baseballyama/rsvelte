@@ -36,6 +36,25 @@ It answers three questions per gate:
    - **[U] unmeasured** — no evidence was gathered. A row marked `[U]` is a *question*, not a
      finding.
 
+**A `file:line` citation here is evidence with a short half-life, and nothing checks it.**
+Audited 2026-09-09 against `corpus-compat.yml`: of the eight line citations that predated the
+audit, **eight pointed at unrelated content and three of those at a blank line** — one row cited
+`:255` for an argument the file carries at `:312`, another `:317-323` for an `actions/cache`
+step that had moved to `:424-430`. Every one of the eight *claims* was still true; only the
+coordinates had rotted. That is why they rot furthest: nothing downstream ever fails on a wrong
+line number, so the only reader positioned to notice is one who did not need the citation. A
+seventh row's own positive control had drifted the same way in the safe direction — it stated
+`grep -n "eslint"` returns 6 hits "all at `:343` or later" where it returns 7, earliest `:261`.
+Re-derive a coordinate before citing it, and prefer an anchor that greps — a step name, a quoted
+argument — over a line number.
+
+The same audit is this repository's cleanest evidence for writing a figure *against the artifact*
+instead of typing it, because it is a controlled comparison inside one document set.
+`AGENTS.md`'s Svelte target version sits between `<!-- svelte-target-version -->` markers and is
+rewritten by `update-docs.mjs`; it followed the `submodules/svelte` pin from 5.56.10 to 5.57.0
+with nobody editing it. Every figure found rotted on the same day was ungated prose. Same
+repository, same authors, same period — the only variable is whether a tool writes the number.
+
 **One question this file does not ask** has its own inventory in
 [`two-ports-inventory.md`](#two-ports-inventory): *how many times does rsvelte answer
 one upstream decision, and does anything compare its own answers to each other?* Every
